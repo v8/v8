@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,28 +27,23 @@
 
 // Flags: --allow-natives-syntax
 
-var c = { x: 2, y: 1 };
-
-function g() {
-  var outer = { foo: 1 };
-  function f(b, c) {
-    var n = outer.foo;
-    for (var i = 0; i < 10; i++) {
-      n += c.x + outer.foo;
-    }
-    if (b) return [{ x: 1.5, y: 1 }];
-    else return c;
+function test() {
+  // Loop to force OSR.
+  var j = 0;
+  for (var i = 0; i < 80000; i++) {
+    j++;
   }
-  // Clear type feedback from previous stress runs.
-  %ClearFunctionTypeFeedback(f);
-  return f;
+
+  function SarShr(val) {
+    return val >> (-2 >>> 0);
+  }
+
+  var K3 = 0x80000000;
+  assertEquals(-2, SarShr(K3 | 0));
+  assertEquals(-2, SarShr(K3 | 0));
+  %OptimizeFunctionOnNextCall(SarShr);
+  assertEquals(-2, SarShr(K3 | 0));
 }
 
-var fun = g();
-fun(false, c);
-fun(false, c);
-fun(false, c);
-%OptimizeFunctionOnNextCall(fun);
-fun(false, c);
-fun(true, c);
-assertOptimized(fun);
+test();
+//test();

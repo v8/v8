@@ -8316,9 +8316,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
     return function->code();
   }
   function->shared()->code()->set_profiler_ticks(0);
-  if (JSFunction::CompileOptimized(function,
-                                   BailoutId::None(),
-                                   CLEAR_EXCEPTION)) {
+  if (JSFunction::CompileOptimized(function, CLEAR_EXCEPTION)) {
     return function->code();
   }
   if (FLAG_trace_opt) {
@@ -8413,6 +8411,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
 
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
+  ASSERT(frame->function() == *function);
 
   // Avoid doing too much work when running with --always-opt and keep
   // the optimized code around.
@@ -8590,22 +8589,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   // We're not prepared to handle a function with arguments object.
   ASSERT(!function->shared()->uses_arguments());
 
-  // If the optimization attempt succeeded, return the AST id tagged as a
-  // smi. This tells the builtin that we need to translate the unoptimized
-  // frame to an optimized one.
-  BailoutId ast_id =
+  // If the optimization attempt succeeds, return the code object which
+  // the unoptimized code can jump into.
+  Handle<Code> code =
       (FLAG_concurrent_recompilation && FLAG_concurrent_osr)
           ? Compiler::CompileForConcurrentOSR(function)
           : Compiler::CompileForOnStackReplacement(function);
-  if (!ast_id.IsNone()) {
-    ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
-    return Smi::FromInt(ast_id.ToInt());
+  if (!code.is_null()) {
+#if DEBUG
+    ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    ASSERT(!BailoutId(data->OsrAstId()->value()).IsNone());
+#endif
+    // TODO(titzer): this is a massive hack to make the deopt counts
+    // match. Fix heuristics for reenabling optimizations!
+    function->shared()->increment_deopt_count();
+    return *code;
   } else {
     if (function->IsMarkedForLazyRecompilation() ||
         function->IsMarkedForConcurrentRecompilation()) {
       function->ReplaceCode(function->shared()->code());
     }
-    return Smi::FromInt(-1);
+    return NULL;
   }
 }
 

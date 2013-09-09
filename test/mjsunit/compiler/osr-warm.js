@@ -25,30 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --use-osr
 
-var c = { x: 2, y: 1 };
-
-function g() {
-  var outer = { foo: 1 };
-  function f(b, c) {
-    var n = outer.foo;
-    for (var i = 0; i < 10; i++) {
-      n += c.x + outer.foo;
-    }
-    if (b) return [{ x: 1.5, y: 1 }];
-    else return c;
+function f1(x) {
+  while (x > 0) {
+    x--;
   }
-  // Clear type feedback from previous stress runs.
-  %ClearFunctionTypeFeedback(f);
-  return f;
+  return x;
 }
 
-var fun = g();
-fun(false, c);
-fun(false, c);
-fun(false, c);
-%OptimizeFunctionOnNextCall(fun);
-fun(false, c);
-fun(true, c);
-assertOptimized(fun);
+assertEquals(0, f1(1));
+assertEquals(0, f1(10000000));
+
+function f2(x) {
+  var sum = 1;
+  while (x > 0) {
+    x--;
+    sum++;
+  }
+  return sum;
+}
+
+assertEquals(2, f2(1));
+assertEquals(10000001, f2(10000000));

@@ -1214,6 +1214,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kNonSmiValue, "Non-smi value")                                            \
   V(kNotEnoughVirtualRegistersForValues,                                      \
     "not enough virtual registers for values")                                \
+  V(kNotEnoughSpillSlotsForOsr,                                               \
+    "not enough spill slots for OSR")                                         \
   V(kNotEnoughVirtualRegistersRegalloc,                                       \
     "not enough virtual registers (regalloc)")                                \
   V(kObjectFoundInSmiOnlyArray, "object found in smi-only array")             \
@@ -6976,8 +6978,10 @@ class JSFunction: public JSObject {
                              ClearExceptionFlag flag);
   static bool CompileLazy(Handle<JSFunction> function,
                           ClearExceptionFlag flag);
+  static Handle<Code> CompileOsr(Handle<JSFunction> function,
+                                 BailoutId osr_ast_id,
+                                 ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function,
-                               BailoutId osr_ast_id,
                                ClearExceptionFlag flag);
 
   // Tells whether or not the function is already marked for lazy

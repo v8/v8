@@ -9492,11 +9492,25 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
 }
 
 
-bool JSFunction::CompileOptimized(Handle<JSFunction> function,
-                                  BailoutId osr_ast_id,
-                                  ClearExceptionFlag flag) {
+Handle<Code> JSFunction::CompileOsr(Handle<JSFunction> function,
+                                    BailoutId osr_ast_id,
+                                    ClearExceptionFlag flag) {
   CompilationInfoWithZone info(function);
   info.SetOptimizing(osr_ast_id);
+  if (CompileLazyHelper(&info, flag)) {
+    // TODO(titzer): don't install the OSR code.
+    // ASSERT(function->code() != *info.code());
+    return info.code();
+  } else {
+    return Handle<Code>::null();
+  }
+}
+
+
+bool JSFunction::CompileOptimized(Handle<JSFunction> function,
+                                  ClearExceptionFlag flag) {
+  CompilationInfoWithZone info(function);
+  info.SetOptimizing(BailoutId::None());
   return CompileLazyHelper(&info, flag);
 }
 

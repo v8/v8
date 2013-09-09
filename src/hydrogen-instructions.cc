@@ -1491,6 +1491,15 @@ void HCallStub::PrintDataTo(StringStream* stream) {
 }
 
 
+void HUnknownOSRValue::PrintDataTo(StringStream *stream) {
+  const char* type = "expression";
+  if (environment_->is_local_index(index_)) type = "local";
+  if (environment_->is_special_index(index_)) type = "special";
+  if (environment_->is_parameter_index(index_)) type = "parameter";
+  stream->Add("%s @ %d", type, index_);
+}
+
+
 void HInstanceOf::PrintDataTo(StringStream* stream) {
   left()->PrintNameTo(stream);
   stream->Add(" ");
