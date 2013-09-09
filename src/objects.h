@@ -2220,7 +2220,6 @@ class JSObject: public JSReceiver {
                                                      PropertyDetails details);
 
   static void OptimizeAsPrototype(Handle<JSObject> object);
-  MUST_USE_RESULT MaybeObject* OptimizeAsPrototype();
 
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
@@ -2314,7 +2313,7 @@ class JSObject: public JSReceiver {
   inline void ValidateElements();
 
   // Makes sure that this object can contain HeapObject as elements.
-  MUST_USE_RESULT inline MaybeObject* EnsureCanContainHeapObjectElements();
+  static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);
 
   // Makes sure that this object can contain the specified elements.
   MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
@@ -2568,8 +2567,6 @@ class JSObject: public JSReceiver {
   static void UpdateMapCodeCache(Handle<JSObject> object,
                                  Handle<Name> name,
                                  Handle<Code> code);
-
-  MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(Name* name, Code* code);
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
@@ -5794,6 +5791,9 @@ class Map: public HeapObject {
                                                   TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyForObserved();
 
+  static Handle<Map> CopyNormalized(Handle<Map> map,
+                                    PropertyNormalizationMode mode,
+                                    NormalizedMapSharingMode sharing);
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
 

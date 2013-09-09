@@ -328,7 +328,6 @@ class Factory {
 
   void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
 
-  void EnsureCanContainHeapObjectElements(Handle<JSArray> array);
   void EnsureCanContainElements(Handle<JSArray> array,
                                 Handle<FixedArrayBase> elements,
                                 uint32_t length,

@@ -4458,27 +4458,17 @@ void NormalizedMapCache::Clear() {
 void JSObject::UpdateMapCodeCache(Handle<JSObject> object,
                                   Handle<Name> name,
                                   Handle<Code> code) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION_VOID(isolate,
-                          object->UpdateMapCodeCache(*name, *code));
-}
-
-
-MaybeObject* JSObject::UpdateMapCodeCache(Name* name, Code* code) {
-  if (map()->is_shared()) {
+  Handle<Map> map(object->map());
+  if (map->is_shared()) {
     // Fast case maps are never marked as shared.
-    ASSERT(!HasFastProperties());
+    ASSERT(!object->HasFastProperties());
     // Replace the map with an identical copy that can be safely modified.
-    Object* obj;
-    { MaybeObject* maybe_obj = map()->CopyNormalized(KEEP_INOBJECT_PROPERTIES,
-                                                     UNIQUE_NORMALIZED_MAP);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    GetIsolate()->counters()->normalized_maps()->Increment();
-
-    set_map(Map::cast(obj));
+    map = Map::CopyNormalized(map, KEEP_INOBJECT_PROPERTIES,
+                              UNIQUE_NORMALIZED_MAP);
+    object->GetIsolate()->counters()->normalized_maps()->Increment();
+    object->set_map(*map);
   }
-  return map()->UpdateCodeCache(name, code);
+  Map::UpdateCodeCache(map, name, code);
 }
 
 
@@ -6507,6 +6497,15 @@ MaybeObject* Map::RawCopy(int instance_size) {
   new_bit_field3 = IsUnstable::update(new_bit_field3, false);
   result->set_bit_field3(new_bit_field3);
   return result;
+}
+
+
+Handle<Map> Map::CopyNormalized(Handle<Map> map,
+                                PropertyNormalizationMode mode,
+                                NormalizedMapSharingMode sharing) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->CopyNormalized(mode, sharing),
+                     Map);
 }
 
 
@@ -9523,21 +9522,13 @@ bool JSFunction::IsInlineable() {
 
 
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(), object->OptimizeAsPrototype());
-}
-
-
-MaybeObject* JSObject::OptimizeAsPrototype() {
-  if (IsGlobalObject()) return this;
+  if (object->IsGlobalObject()) return;
 
   // Make sure prototypes are fast objects and their maps have the bit set
   // so they remain fast.
-  if (!HasFastProperties()) {
-    MaybeObject* new_proto = TransformToFastProperties(0);
-    if (new_proto->IsFailure()) return new_proto;
-    ASSERT(new_proto == this);
+  if (!object->HasFastProperties()) {
+    TransformToFastProperties(object, 0);
   }
-  return this;
 }
 
 

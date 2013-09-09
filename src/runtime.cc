@@ -6551,8 +6551,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   int part_count = indices.length();
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(part_count);
-  MaybeObject* maybe_result = result->EnsureCanContainHeapObjectElements();
-  if (maybe_result->IsFailure()) return maybe_result;
+  JSObject::EnsureCanContainHeapObjectElements(result);
   result->set_length(Smi::FromInt(part_count));
 
   ASSERT(result->HasFastObjectElements());
@@ -6945,21 +6944,20 @@ static inline void StringBuilderConcatHelper(String* special,
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(JSArray, array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   if (!args[1]->IsSmi()) {
     isolate->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException(0x14);
   }
   int array_length = args.smi_at(1);
-  CONVERT_ARG_CHECKED(String, special, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
 
   // This assumption is used by the slice encoding in one or two smis.
   ASSERT(Smi::kMaxValue >= String::kMaxLength);
 
-  MaybeObject* maybe_result = array->EnsureCanContainHeapObjectElements();
-  if (maybe_result->IsFailure()) return maybe_result;
+  JSObject::EnsureCanContainHeapObjectElements(array);
 
   int special_length = special->length();
   if (!array->HasFastObjectElements()) {
@@ -7041,7 +7039,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       if (!maybe_object->ToObject(&object)) return maybe_object;
     }
     SeqOneByteString* answer = SeqOneByteString::cast(object);
-    StringBuilderConcatHelper(special,
+    StringBuilderConcatHelper(*special,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -7052,7 +7050,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       if (!maybe_object->ToObject(&object)) return maybe_object;
     }
     SeqTwoByteString* answer = SeqTwoByteString::cast(object);
-    StringBuilderConcatHelper(special,
+    StringBuilderConcatHelper(*special,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -9411,9 +9409,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSArray, output, 1);
 
-  MaybeObject* maybe_result_array =
-      output->EnsureCanContainHeapObjectElements();
-  if (maybe_result_array->IsFailure()) return maybe_result_array;
+  JSObject::EnsureCanContainHeapObjectElements(output);
   RUNTIME_ASSERT(output->HasFastObjectElements());
 
   DisallowHeapAllocation no_gc;
