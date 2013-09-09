@@ -549,9 +549,9 @@ template <class T, class M> class Persistent {
    * kResetInDestructor flags in the traits class.  Since not calling dispose
    * can result in a memory leak, it is recommended to always set this flag.
    */
-  V8_INLINE(~Persistent()) {
-    if (M::kResetInDestructor) Reset();
-  }
+//  V8_INLINE(~Persistent()) {
+//    if (M::kResetInDestructor) Reset();
+//  }
 
   /**
    * If non-empty, destroy the underlying storage cell
