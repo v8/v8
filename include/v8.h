@@ -2361,11 +2361,129 @@ class V8_EXPORT Array : public Object {
 };
 
 
+template<typename T>
+class ReturnValue {
+ public:
+  template <class S> V8_INLINE(ReturnValue(const ReturnValue<S>& that))
+      : value_(that.value_) {
+    TYPE_CHECK(T, S);
+  }
+  // Handle setters
+  template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
+  template <typename S> V8_INLINE(void Set(const Handle<S> handle));
+  // Fast primitive setters
+  V8_INLINE(void Set(bool value));
+  V8_INLINE(void Set(double i));
+  V8_INLINE(void Set(int32_t i));
+  V8_INLINE(void Set(uint32_t i));
+  // Fast JS primitive setters
+  V8_INLINE(void SetNull());
+  V8_INLINE(void SetUndefined());
+  V8_INLINE(void SetEmptyString());
+  // Convenience getter for Isolate
+  V8_INLINE(Isolate* GetIsolate());
+
+ private:
+  template<class F> friend class ReturnValue;
+  template<class F> friend class FunctionCallbackInfo;
+  template<class F> friend class PropertyCallbackInfo;
+  V8_INLINE(internal::Object* GetDefaultValue());
+  V8_INLINE(explicit ReturnValue(internal::Object** slot));
+  internal::Object** value_;
+};
+
+
+/**
+ * The argument information given to function call callbacks.  This
+ * class provides access to information about the context of the call,
+ * including the receiver, the number and values of arguments, and
+ * the holder of the function.
+ */
+template<typename T>
+class FunctionCallbackInfo {
+ public:
+  V8_INLINE(int Length() const);
+  V8_INLINE(Local<Value> operator[](int i) const);
+  V8_INLINE(Local<Function> Callee() const);
+  V8_INLINE(Local<Object> This() const);
+  V8_INLINE(Local<Object> Holder() const);
+  V8_INLINE(bool IsConstructCall() const);
+  V8_INLINE(Local<Value> Data() const);
+  V8_INLINE(Isolate* GetIsolate() const);
+  V8_INLINE(ReturnValue<T> GetReturnValue() const);
+  // This shouldn't be public, but the arm compiler needs it.
+  static const int kArgsLength = 6;
+
+ protected:
+  friend class internal::FunctionCallbackArguments;
+  friend class internal::CustomArguments<FunctionCallbackInfo>;
+  static const int kReturnValueIndex = 0;
+  static const int kReturnValueDefaultValueIndex = -1;
+  static const int kIsolateIndex = -2;
+  static const int kDataIndex = -3;
+  static const int kCalleeIndex = -4;
+  static const int kHolderIndex = -5;
+
+  V8_INLINE(FunctionCallbackInfo(internal::Object** implicit_args,
+                   internal::Object** values,
+                   int length,
+                   bool is_construct_call));
+  internal::Object** implicit_args_;
+  internal::Object** values_;
+  int length_;
+  bool is_construct_call_;
+};
+
+
+/**
+ * The information passed to a property callback about the context
+ * of the property access.
+ */
+template<typename T>
+class PropertyCallbackInfo {
+ public:
+  V8_INLINE(Isolate* GetIsolate() const);
+  V8_INLINE(Local<Value> Data() const);
+  V8_INLINE(Local<Object> This() const);
+  V8_INLINE(Local<Object> Holder() const);
+  V8_INLINE(ReturnValue<T> GetReturnValue() const);
+  // This shouldn't be public, but the arm compiler needs it.
+  static const int kArgsLength = 6;
+
+ protected:
+  friend class MacroAssembler;
+  friend class internal::PropertyCallbackArguments;
+  friend class internal::CustomArguments<PropertyCallbackInfo>;
+  static const int kThisIndex = 0;
+  static const int kHolderIndex = -1;
+  static const int kDataIndex = -2;
+  static const int kReturnValueIndex = -3;
+  static const int kReturnValueDefaultValueIndex = -4;
+  static const int kIsolateIndex = -5;
+
+  V8_INLINE(PropertyCallbackInfo(internal::Object** args))
+      : args_(args) { }
+  internal::Object** args_;
+};
+
+
+typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
+
+
 /**
  * A JavaScript function object (ECMA-262, 15.3).
  */
 class V8_EXPORT Function : public Object {
  public:
+  /**
+   * Create a function in the current execution context
+   * for a given FunctionCallback.
+   */
+  static Local<Function> New(Isolate* isolate,
+                             FunctionCallback callback,
+                             Local<Value> data = Local<Value>(),
+                             int length = 0);
+
   Local<Object> NewInstance() const;
   Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
   Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
@@ -3033,114 +3151,6 @@ class V8_EXPORT Template : public Data {
   friend class FunctionTemplate;
 };
 
-
-template<typename T>
-class ReturnValue {
- public:
-  template <class S> V8_INLINE(ReturnValue(const ReturnValue<S>& that))
-      : value_(that.value_) {
-    TYPE_CHECK(T, S);
-  }
-  // Handle setters
-  template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
-  template <typename S> V8_INLINE(void Set(const Handle<S> handle));
-  // Fast primitive setters
-  V8_INLINE(void Set(bool value));
-  V8_INLINE(void Set(double i));
-  V8_INLINE(void Set(int32_t i));
-  V8_INLINE(void Set(uint32_t i));
-  // Fast JS primitive setters
-  V8_INLINE(void SetNull());
-  V8_INLINE(void SetUndefined());
-  V8_INLINE(void SetEmptyString());
-  // Convenience getter for Isolate
-  V8_INLINE(Isolate* GetIsolate());
-
- private:
-  template<class F> friend class ReturnValue;
-  template<class F> friend class FunctionCallbackInfo;
-  template<class F> friend class PropertyCallbackInfo;
-  V8_INLINE(internal::Object* GetDefaultValue());
-  V8_INLINE(explicit ReturnValue(internal::Object** slot));
-  internal::Object** value_;
-};
-
-
-/**
- * The argument information given to function call callbacks.  This
- * class provides access to information about the context of the call,
- * including the receiver, the number and values of arguments, and
- * the holder of the function.
- */
-template<typename T>
-class FunctionCallbackInfo {
- public:
-  V8_INLINE(int Length() const);
-  V8_INLINE(Local<Value> operator[](int i) const);
-  V8_INLINE(Local<Function> Callee() const);
-  V8_INLINE(Local<Object> This() const);
-  V8_INLINE(Local<Object> Holder() const);
-  V8_INLINE(bool IsConstructCall() const);
-  V8_INLINE(Local<Value> Data() const);
-  V8_INLINE(Isolate* GetIsolate() const);
-  V8_INLINE(ReturnValue<T> GetReturnValue() const);
-  // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 6;
-
- protected:
-  friend class internal::FunctionCallbackArguments;
-  friend class internal::CustomArguments<FunctionCallbackInfo>;
-  static const int kReturnValueIndex = 0;
-  static const int kReturnValueDefaultValueIndex = -1;
-  static const int kIsolateIndex = -2;
-  static const int kDataIndex = -3;
-  static const int kCalleeIndex = -4;
-  static const int kHolderIndex = -5;
-
-  V8_INLINE(FunctionCallbackInfo(internal::Object** implicit_args,
-                   internal::Object** values,
-                   int length,
-                   bool is_construct_call));
-  internal::Object** implicit_args_;
-  internal::Object** values_;
-  int length_;
-  bool is_construct_call_;
-};
-
-
-/**
- * The information passed to a property callback about the context
- * of the property access.
- */
-template<typename T>
-class PropertyCallbackInfo {
- public:
-  V8_INLINE(Isolate* GetIsolate() const);
-  V8_INLINE(Local<Value> Data() const);
-  V8_INLINE(Local<Object> This() const);
-  V8_INLINE(Local<Object> Holder() const);
-  V8_INLINE(ReturnValue<T> GetReturnValue() const);
-  // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 6;
-
- protected:
-  friend class MacroAssembler;
-  friend class internal::PropertyCallbackArguments;
-  friend class internal::CustomArguments<PropertyCallbackInfo>;
-  static const int kThisIndex = 0;
-  static const int kHolderIndex = -1;
-  static const int kDataIndex = -2;
-  static const int kReturnValueIndex = -3;
-  static const int kReturnValueDefaultValueIndex = -4;
-  static const int kIsolateIndex = -5;
-
-  V8_INLINE(PropertyCallbackInfo(internal::Object** args))
-      : args_(args) { }
-  internal::Object** args_;
-};
-
-
-typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
 
 /**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
