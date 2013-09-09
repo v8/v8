@@ -6885,7 +6885,8 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     Handle<JSFunction> known_function;
     if (function->IsConstant()) {
       HConstant* constant_function = HConstant::cast(function);
-      known_function = Handle<JSFunction>::cast(constant_function->handle());
+      known_function = Handle<JSFunction>::cast(
+          constant_function->handle(isolate()));
       int args_count = arguments_count - 1;  // Excluding receiver.
       if (TryInlineApply(known_function, expr, args_count)) return true;
     }
@@ -7940,12 +7941,15 @@ void HOptimizedGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
 }
 
 
-static bool IsLiteralCompareBool(HValue* left,
+static bool IsLiteralCompareBool(Isolate* isolate,
+                                 HValue* left,
                                  Token::Value op,
                                  HValue* right) {
   return op == Token::EQ_STRICT &&
-      ((left->IsConstant() && HConstant::cast(left)->handle()->IsBoolean()) ||
-       (right->IsConstant() && HConstant::cast(right)->handle()->IsBoolean()));
+      ((left->IsConstant() &&
+          HConstant::cast(left)->handle(isolate)->IsBoolean()) ||
+       (right->IsConstant() &&
+           HConstant::cast(right)->handle(isolate)->IsBoolean()));
 }
 
 
@@ -7997,7 +8001,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* left = Pop();
   Token::Value op = expr->op();
 
-  if (IsLiteralCompareBool(left, op, right)) {
+  if (IsLiteralCompareBool(isolate(), left, op, right)) {
     HCompareObjectEqAndBranch* result =
         New<HCompareObjectEqAndBranch>(left, right);
     result->set_position(expr->position());

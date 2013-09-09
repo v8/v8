@@ -2575,12 +2575,13 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
 
 Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
   HConstant* res = NULL;
-  if (handle()->IsBoolean()) {
-    res = handle()->BooleanValue() ?
+  Handle<Object> handle = this->handle(zone->isolate());
+  if (handle->IsBoolean()) {
+    res = handle->BooleanValue() ?
       new(zone) HConstant(1) : new(zone) HConstant(0);
-  } else if (handle()->IsUndefined()) {
+  } else if (handle->IsUndefined()) {
     res = new(zone) HConstant(OS::nan_value());
-  } else if (handle()->IsNull()) {
+  } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
   return Maybe<HConstant*>(res != NULL, res);
@@ -2596,7 +2597,7 @@ void HConstant::PrintDataTo(StringStream* stream) {
     stream->Add("%p ", reinterpret_cast<void*>(
             external_reference_value_.address()));
   } else {
-    handle()->ShortPrint(stream);
+    handle(Isolate::Current())->ShortPrint(stream);
   }
 }
 

@@ -3285,9 +3285,9 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return new_constant;
   }
 
-  Handle<Object> handle() {
+  Handle<Object> handle(Isolate* isolate) {
     if (handle_.is_null()) {
-      Factory* factory = Isolate::Current()->factory();
+      Factory* factory = isolate->factory();
       // Default arguments to is_not_in_new_space depend on this heap number
       // to be tenured so that it's guaranteed not be be located in new space.
       handle_ = factory->NewNumber(double_value_, TENURED);
@@ -3298,7 +3298,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
 
   bool HasMap(Handle<Map> map) {
-    Handle<Object> constant_object = handle();
+    Handle<Object> constant_object = handle(map->GetIsolate());
     return constant_object->IsHeapObject() &&
         Handle<HeapObject>::cast(constant_object)->map() == *map;
   }
@@ -3358,7 +3358,6 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
 
   virtual bool EmitAtUses() V8_OVERRIDE;
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-  bool IsInteger() { return handle()->IsSmi(); }
   HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
   Maybe<HConstant*> CopyToTruncatedInt32(Zone* zone);
   Maybe<HConstant*> CopyToTruncatedNumber(Zone* zone);
@@ -6105,7 +6104,8 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   Handle<Map> transition_map() const {
     if (has_transition()) {
-      return Handle<Map>::cast(HConstant::cast(transition())->handle());
+      return Handle<Map>::cast(
+          HConstant::cast(transition())->handle(Isolate::Current()));
     } else {
       return Handle<Map>();
     }
@@ -6113,7 +6113,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   void SetTransition(HConstant* map_constant, CompilationInfo* info) {
     ASSERT(!has_transition());  // Only set once.
-    Handle<Map> map = Handle<Map>::cast(map_constant->handle());
+    Handle<Map> map = Handle<Map>::cast(map_constant->handle(info->isolate()));
     if (map->CanBeDeprecated()) {
       map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
     }
