@@ -867,6 +867,7 @@ class HValue : public ZoneObject {
 
   // Escape analysis helpers.
   virtual bool HasEscapingOperandAt(int index) { return true; }
+  virtual bool HasOutOfBoundsAccess(int size) { return false; }
 
   // Representation helpers.
   virtual Representation observed_input_representation(int index) {
@@ -5755,6 +5756,9 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
   }
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE { return false; }
+  virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {
+    return !access().IsInobject() || access().offset() >= size;
+  }
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     if (index == 0 && access().IsExternalMemory()) {
       // object must be external in case of external memory access
@@ -6069,6 +6073,9 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE {
     return index == 1;
+  }
+  virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {
+    return !access().IsInobject() || access().offset() >= size;
   }
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     if (index == 0 && access().IsExternalMemory()) {
