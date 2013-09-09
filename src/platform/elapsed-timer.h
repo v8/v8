@@ -87,7 +87,7 @@ class ElapsedTimer V8_FINAL BASE_EMBEDDED {
 
   // Returns the time elapsed since the previous start. This method may only
   // be called on a previously started timer.
-  MUST_USE_RESULT TimeDelta Elapsed() const {
+  TimeDelta Elapsed() const V8_WARN_UNUSED_RESULT {
     ASSERT(IsStarted());
     TimeDelta elapsed = Now() - start_ticks_;
     ASSERT(elapsed.InMicroseconds() >= 0);
@@ -97,13 +97,13 @@ class ElapsedTimer V8_FINAL BASE_EMBEDDED {
   // Returns |true| if the specified |time_delta| has elapsed since the
   // previous start, or |false| if not. This method may only be called on
   // a previously started timer.
-  MUST_USE_RESULT bool HasExpired(TimeDelta time_delta) const {
+  bool HasExpired(TimeDelta time_delta) const V8_WARN_UNUSED_RESULT {
     ASSERT(IsStarted());
     return Elapsed() >= time_delta;
   }
 
  private:
-  MUST_USE_RESULT V8_INLINE(static TimeTicks Now()) {
+  V8_INLINE(static TimeTicks Now()) V8_WARN_UNUSED_RESULT {
     TimeTicks now = TimeTicks::HighResNow();
     ASSERT(!now.IsNull());
     return now;
