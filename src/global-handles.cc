@@ -90,7 +90,7 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = NULL;
-    weak_reference_callback_ = NULL;
+    weak_callback_ = NULL;
   }
 #endif
 
@@ -111,7 +111,7 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
-    weak_reference_callback_ = NULL;
+    weak_callback_ = NULL;
     IncreaseBlockUses();
   }
 
@@ -123,7 +123,7 @@ class GlobalHandles::Node {
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_partially_dependent(false);
-    weak_reference_callback_ = NULL;
+    weak_callback_ = NULL;
     DecreaseBlockUses();
   }
 
@@ -167,6 +167,13 @@ class GlobalHandles::Node {
   }
   void set_in_new_space_list(bool v) {
     flags_ = IsInNewSpaceList::update(flags_, v);
+  }
+
+  bool is_revivable_callback() {
+    return IsRevivableCallback::decode(flags_);
+  }
+  void set_revivable_callback(bool v) {
+    flags_ = IsRevivableCallback::update(flags_, v);
   }
 
   bool IsNearDeath() const {
@@ -228,11 +235,20 @@ class GlobalHandles::Node {
   }
 
   void MakeWeak(void* parameter,
-                RevivableCallback weak_reference_callback) {
+                WeakCallback weak_callback,
+                RevivableCallback revivable_callback) {
+    ASSERT((weak_callback == NULL) != (revivable_callback == NULL));
     ASSERT(state() != FREE);
     set_state(WEAK);
     set_parameter(parameter);
-    weak_reference_callback_ = weak_reference_callback;
+    if (weak_callback != NULL) {
+      weak_callback_ = weak_callback;
+      set_revivable_callback(false);
+    } else {
+      weak_callback_ =
+          reinterpret_cast<WeakCallback>(revivable_callback);
+      set_revivable_callback(true);
+    }
   }
 
   void ClearWeakness() {
@@ -243,7 +259,7 @@ class GlobalHandles::Node {
 
   bool PostGarbageCollectionProcessing(Isolate* isolate) {
     if (state() != Node::PENDING) return false;
-    if (weak_reference_callback_ == NULL) {
+    if (weak_callback_ == NULL) {
       Release();
       return false;
     }
@@ -262,9 +278,20 @@ class GlobalHandles::Node {
       // Leaving V8.
       VMState<EXTERNAL> state(isolate);
       HandleScope handle_scope(isolate);
-      weak_reference_callback_(reinterpret_cast<v8::Isolate*>(isolate),
-                               reinterpret_cast<Persistent<Value>*>(&object),
-                               par);
+      if (is_revivable_callback()) {
+        RevivableCallback revivable =
+            reinterpret_cast<RevivableCallback>(weak_callback_);
+        revivable(reinterpret_cast<v8::Isolate*>(isolate),
+                  reinterpret_cast<Persistent<Value>*>(&object),
+                  par);
+      } else {
+        Handle<Object> handle(*object, isolate);
+        v8::WeakCallbackData<v8::Value, void> data(
+            reinterpret_cast<v8::Isolate*>(isolate),
+            v8::Utils::ToLocal(handle),
+            par);
+        weak_callback_(data);
+      }
     }
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
@@ -272,9 +299,10 @@ class GlobalHandles::Node {
     return true;
   }
 
+  inline GlobalHandles* GetGlobalHandles();
+
  private:
   inline NodeBlock* FindBlock();
-  inline GlobalHandles* GetGlobalHandles();
   inline void IncreaseBlockUses();
   inline void DecreaseBlockUses();
 
@@ -297,11 +325,12 @@ class GlobalHandles::Node {
   class IsIndependent:        public BitField<bool,  4, 1> {};
   class IsPartiallyDependent: public BitField<bool,  5, 1> {};
   class IsInNewSpaceList:     public BitField<bool,  6, 1> {};
+  class IsRevivableCallback:  public BitField<bool,  7, 1> {};
 
   uint8_t flags_;
 
   // Handle specific callback - might be a weak reference in disguise.
-  RevivableCallback weak_reference_callback_;
+  WeakCallback weak_callback_;
 
   // Provided data for callback.  In FREE state, this is used for
   // the free list link.
@@ -480,6 +509,12 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 }
 
 
+Handle<Object> GlobalHandles::CopyGlobal(Object** location) {
+  ASSERT(location != NULL);
+  return Node::FromLocation(location)->GetGlobalHandles()->Create(*location);
+}
+
+
 void GlobalHandles::Destroy(Object** location) {
   if (location != NULL) Node::FromLocation(location)->Release();
 }
@@ -487,9 +522,10 @@ void GlobalHandles::Destroy(Object** location) {
 
 void GlobalHandles::MakeWeak(Object** location,
                              void* parameter,
-                             RevivableCallback weak_reference_callback) {
-  ASSERT(weak_reference_callback != NULL);
-  Node::FromLocation(location)->MakeWeak(parameter, weak_reference_callback);
+                             WeakCallback weak_callback,
+                             RevivableCallback revivable_callback) {
+  Node::FromLocation(location)->MakeWeak(
+      parameter, weak_callback, revivable_callback);
 }
 
 

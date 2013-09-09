@@ -166,6 +166,24 @@ static void SignatureCallback(
 }
 
 
+// Tests that call v8::V8::Dispose() cannot be threaded.
+TEST(InitializeAndDisposeOnce) {
+  CHECK(v8::V8::Initialize());
+  CHECK(v8::V8::Dispose());
+}
+
+
+// Tests that call v8::V8::Dispose() cannot be threaded.
+TEST(InitializeAndDisposeMultiple) {
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
+  // TODO(mstarzinger): This should fail gracefully instead of asserting.
+  // for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
+}
+
+
 THREADED_TEST(Handles) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Local<Context> local_env;
@@ -206,78 +224,98 @@ THREADED_TEST(IsolateOfContext) {
 }
 
 
+static void TestSignature(const char* loop_js, Local<Value> receiver) {
+  i::ScopedVector<char> source(200);
+  i::OS::SNPrintF(source,
+                  "for (var i = 0; i < 10; i++) {"
+                  "  %s"
+                  "}",
+                  loop_js);
+  signature_callback_count = 0;
+  signature_expected_receiver = receiver;
+  bool expected_to_throw = receiver.IsEmpty();
+  v8::TryCatch try_catch;
+  CompileRun(source.start());
+  CHECK_EQ(expected_to_throw, try_catch.HasCaught());
+  if (!expected_to_throw) {
+    CHECK_EQ(10, signature_callback_count);
+  } else {
+    CHECK_EQ(v8_str("TypeError: Illegal invocation"),
+             try_catch.Exception()->ToString());
+  }
+}
+
+
 THREADED_TEST(ReceiverSignature) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+  // Setup templates.
   v8::Handle<v8::FunctionTemplate> fun = v8::FunctionTemplate::New();
   v8::Handle<v8::Signature> sig = v8::Signature::New(fun);
-  fun->PrototypeTemplate()->Set(
-      v8_str("m"),
-      v8::FunctionTemplate::New(IncrementingSignatureCallback,
-                                v8::Handle<Value>(),
-                                sig));
-  fun->PrototypeTemplate()->SetAccessorProperty(
-      v8_str("n"),
-      v8::FunctionTemplate::New(IncrementingSignatureCallback,
-                                v8::Handle<Value>(),
-                                sig));
-  env->Global()->Set(v8_str("Fun"), fun->GetFunction());
-  Local<Value> fun_instance = fun->InstanceTemplate()->NewInstance();
-  env->Global()->Set(v8_str("fun_instance"), fun_instance);
-  signature_callback_count = 0;
-  int expected_count = 0;
-  signature_expected_receiver = fun_instance;
-  CompileRun(
-      "var o = fun_instance;"
-      "var key_n = 'n';"
-      "for (var i = 0; i < 10; i++) o.m();"
-      "for (var i = 0; i < 10; i++) o.n;"
-      "for (var i = 0; i < 10; i++) o[key_n];");
-  expected_count += 30;
-  CHECK_EQ(expected_count, signature_callback_count);
+  v8::Handle<v8::FunctionTemplate> callback_sig =
+      v8::FunctionTemplate::New(
+          IncrementingSignatureCallback, Local<Value>(), sig);
+  v8::Handle<v8::FunctionTemplate> callback =
+      v8::FunctionTemplate::New(IncrementingSignatureCallback);
   v8::Handle<v8::FunctionTemplate> sub_fun = v8::FunctionTemplate::New();
   sub_fun->Inherit(fun);
-  fun_instance = sub_fun->InstanceTemplate()->NewInstance();
-  env->Global()->Set(v8_str("fun_instance"), fun_instance);
-  signature_expected_receiver = fun_instance;
-  CompileRun(
-      "var o = fun_instance;"
-      "var key_n = 'n';"
-      "for (var i = 0; i < 10; i++) o.m();"
-      "for (var i = 0; i < 10; i++) o.n;"
-      "for (var i = 0; i < 10; i++) o[key_n];");
-  expected_count += 30;
-  CHECK_EQ(expected_count, signature_callback_count);
-  v8::TryCatch try_catch;
-  CompileRun(
-      "var o = { };"
-      "o.m = Fun.prototype.m;"
-      "o.m();");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  CompileRun(
-      "var o = { };"
-      "o.n = Fun.prototype.n;"
-      "o.n;");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
   v8::Handle<v8::FunctionTemplate> unrel_fun = v8::FunctionTemplate::New();
-  sub_fun->Inherit(fun);
+  // Install properties.
+  v8::Handle<v8::ObjectTemplate> fun_proto = fun->PrototypeTemplate();
+  fun_proto->Set(v8_str("prop_sig"), callback_sig);
+  fun_proto->Set(v8_str("prop"), callback);
+  fun_proto->SetAccessorProperty(
+      v8_str("accessor_sig"), callback_sig, callback_sig);
+  fun_proto->SetAccessorProperty(v8_str("accessor"), callback, callback);
+  // Instantiate templates.
+  Local<Value> fun_instance = fun->InstanceTemplate()->NewInstance();
+  Local<Value> sub_fun_instance = sub_fun->InstanceTemplate()->NewInstance();
+  // Setup global variables.
+  env->Global()->Set(v8_str("Fun"), fun->GetFunction());
   env->Global()->Set(v8_str("UnrelFun"), unrel_fun->GetFunction());
+  env->Global()->Set(v8_str("fun_instance"), fun_instance);
+  env->Global()->Set(v8_str("sub_fun_instance"), sub_fun_instance);
   CompileRun(
-      "var o = new UnrelFun();"
-      "o.m = Fun.prototype.m;"
-      "o.m();");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-  CompileRun(
-      "var o = new UnrelFun();"
-      "o.n = Fun.prototype.n;"
-      "o.n;");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
+      "var accessor_sig_key = 'accessor_sig';"
+      "var accessor_key = 'accessor';"
+      "var prop_sig_key = 'prop_sig';"
+      "var prop_key = 'prop';"
+      ""
+      "function copy_props(obj) {"
+      "  var keys = [accessor_sig_key, accessor_key, prop_sig_key, prop_key];"
+      "  var source = Fun.prototype;"
+      "  for (var i in keys) {"
+      "    var key = keys[i];"
+      "    var desc = Object.getOwnPropertyDescriptor(source, key);"
+      "    Object.defineProperty(obj, key, desc);"
+      "  }"
+      "}"
+      ""
+      "var obj = {};"
+      "copy_props(obj);"
+      "var unrel = new UnrelFun();"
+      "copy_props(unrel);");
+  // Test with and without ICs
+  const char* test_objects[] = {
+      "fun_instance", "sub_fun_instance", "obj", "unrel" };
+  unsigned bad_signature_start_offset = 2;
+  for (unsigned i = 0; i < ARRAY_SIZE(test_objects); i++) {
+    i::ScopedVector<char> source(200);
+    i::OS::SNPrintF(
+        source, "var test_object = %s; test_object", test_objects[i]);
+    Local<Value> test_object = CompileRun(source.start());
+    TestSignature("test_object.prop();", test_object);
+    TestSignature("test_object.accessor;", test_object);
+    TestSignature("test_object[accessor_key];", test_object);
+    TestSignature("test_object.accessor = 1;", test_object);
+    TestSignature("test_object[accessor_key] = 1;", test_object);
+    if (i >= bad_signature_start_offset) test_object = Local<Value>();
+    TestSignature("test_object.prop_sig();", test_object);
+    TestSignature("test_object.accessor_sig;", test_object);
+    TestSignature("test_object[accessor_sig_key];", test_object);
+    TestSignature("test_object.accessor_sig = 1;", test_object);
+    TestSignature("test_object[accessor_sig_key] = 1;", test_object);
+  }
 }
 
 
@@ -3208,13 +3246,8 @@ THREADED_TEST(GlobalHandleUpcast) {
   v8::HandleScope scope(isolate);
   v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
   v8::Persistent<String> global_string(isolate, local);
-#ifdef V8_USE_UNSAFE_HANDLES
-  v8::Persistent<Value> global_value =
-      v8::Persistent<Value>::Cast(global_string);
-#else
   v8::Persistent<Value>& global_value =
       v8::Persistent<Value>::Cast(global_string);
-#endif
   CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
   CHECK(global_string == v8::Persistent<String>::Cast(global_value));
   global_string.Dispose();
@@ -12632,6 +12665,75 @@ TEST(DontLeakGlobalObjects) {
   }
 }
 
+template<class T>
+struct CopyablePersistentTraits {
+  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
+  static const bool kResetInDestructor = true;
+  template<class S, class M>
+  V8_INLINE(static void Copy(const Persistent<S, M>& source,
+                             CopyablePersistent* dest)) {
+    // do nothing, just allow copy
+  }
+};
+
+
+TEST(CopyablePersistent) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  i::GlobalHandles* globals =
+      reinterpret_cast<i::Isolate*>(isolate)->global_handles();
+  int initial_handles = globals->global_handles_count();
+  {
+    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle1;
+    {
+      v8::HandleScope scope(isolate);
+      handle1.Reset(isolate, v8::Object::New());
+    }
+    CHECK_EQ(initial_handles + 1, globals->global_handles_count());
+    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle2;
+    handle2 = handle1;
+    CHECK(handle1 == handle2);
+    CHECK_EQ(initial_handles + 2, globals->global_handles_count());
+    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> >
+    handle3(handle2);
+    CHECK(handle1 == handle3);
+    CHECK_EQ(initial_handles + 3, globals->global_handles_count());
+  }
+  // Verify autodispose
+//  CHECK_EQ(initial_handles, globals->global_handles_count());
+}
+
+
+static void WeakApiCallback(
+    const v8::WeakCallbackData<v8::Object, Persistent<v8::Object> >& data) {
+  Local<Value> value = data.GetValue()->Get(v8_str("key"));
+  CHECK_EQ(231, static_cast<int32_t>(Local<v8::Integer>::Cast(value)->Value()));
+  data.GetParameter()->Reset();
+  delete data.GetParameter();
+}
+
+
+TEST(WeakCallbackApi) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  i::GlobalHandles* globals =
+      reinterpret_cast<i::Isolate*>(isolate)->global_handles();
+  int initial_handles = globals->global_handles_count();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> obj = v8::Object::New();
+    obj->Set(v8_str("key"), v8::Integer::New(231, isolate));
+    v8::Persistent<v8::Object>* handle =
+        new v8::Persistent<v8::Object>(isolate, obj);
+    handle->SetWeak<v8::Object, v8::Persistent<v8::Object> >(handle,
+                                                             WeakApiCallback);
+  }
+  reinterpret_cast<i::Isolate*>(isolate)->heap()->
+      CollectAllGarbage(i::Heap::kNoGCFlags);
+  // Verify disposed.
+  CHECK_EQ(initial_handles, globals->global_handles_count());
+}
+
 
 v8::Persistent<v8::Object> some_object;
 v8::Persistent<v8::Object> bad_handle;
@@ -20453,4 +20555,34 @@ THREADED_TEST(CrankshaftInterceptorFieldWrite) {
   ExpectInt32("obj.interceptor_age", 103);
 }
 
+
 #endif  // V8_OS_POSIX
+
+
+static Local<Value> function_new_expected_env;
+static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
+  CHECK_EQ(function_new_expected_env, info.Data());
+  info.GetReturnValue().Set(17);
+}
+
+
+THREADED_TEST(FunctionNew) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Object> data = v8::Object::New();
+  function_new_expected_env = data;
+  Local<Function> func = Function::New(isolate, FunctionNewCallback, data);
+  env->Global()->Set(v8_str("func"), func);
+  Local<Value> result = CompileRun("func();");
+  CHECK_EQ(v8::Integer::New(17, isolate), result);
+  // Verify function not cached
+  int serial_number =
+      i::Smi::cast(v8::Utils::OpenHandle(*func)
+          ->shared()->get_api_func_data()->serial_number())->value();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Object* elm = i_isolate->native_context()->function_cache()
+      ->GetElementNoExceptionThrown(i_isolate, serial_number);
+  CHECK(elm->IsNull());
+}
+

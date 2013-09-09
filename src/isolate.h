@@ -1155,7 +1155,6 @@ class Isolate {
 
     PerIsolateThreadData* Lookup(Isolate* isolate, ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
-    void Remove(Isolate* isolate, ThreadId thread_id);
     void Remove(PerIsolateThreadData* data);
     void RemoveAllThreads(Isolate* isolate);
 
@@ -1190,7 +1189,7 @@ class Isolate {
 
   // This mutex protects highest_thread_id_, thread_data_table_ and
   // default_isolate_.
-  static RecursiveMutex process_wide_mutex_;
+  static Mutex process_wide_mutex_;
 
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
@@ -1205,10 +1204,6 @@ class Isolate {
 
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
-
-  // Allocate and insert PerIsolateThreadData into the ThreadDataTable
-  // (regardless of whether such data already exists).
-  PerIsolateThreadData* AllocatePerIsolateThreadData(ThreadId thread_id);
 
   // Find the PerThread for this particular (isolate, thread) combination.
   // If one does not yet exist, allocate a new one.

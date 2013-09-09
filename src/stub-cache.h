@@ -222,6 +222,12 @@ class StubCache {
                                     Handle<ExecutableAccessorInfo> callback,
                                     StrictModeFlag strict_mode);
 
+  Handle<Code> ComputeStoreCallback(Handle<Name> name,
+                                    Handle<JSObject> object,
+                                    Handle<JSObject> holder,
+                                    const CallOptimization& call_optimation,
+                                    StrictModeFlag strict_mode);
+
   Handle<Code> ComputeStoreViaSetter(Handle<Name> name,
                                      Handle<JSObject> object,
                                      Handle<JSObject> holder,
@@ -959,6 +965,11 @@ class StoreStubCompiler: public BaseStoreStubCompiler {
                                     Handle<JSObject> holder,
                                     Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
+
+  Handle<Code> CompileStoreCallback(Handle<JSObject> object,
+                                    Handle<JSObject> holder,
+                                    Handle<Name> name,
+                                    const CallOptimization& call_optimization);
 
   static void GenerateStoreViaSetter(MacroAssembler* masm,
                                      Handle<JSFunction> setter);

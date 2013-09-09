@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --use-escape-analysis
+// Flags: --allow-natives-syntax --use-escape-analysis --expose-gc
 
 
 // Test stores on a join path.
@@ -240,4 +240,34 @@
   test(osr1);
   test(osr2);
   test(osr3);
+})();
+
+
+// Test out-of-bounds access on captured objects.
+(function testOOB() {
+  function cons1() {
+    this.x = 1;
+    this.y = 2;
+    this.z = 3;
+  }
+  function cons2() {
+    this.a = 7;
+  }
+  function oob(constructor, branch) {
+    var o = new constructor();
+    if (branch) {
+      return o.a;
+    } else {
+      return o.z;
+    }
+  }
+  assertEquals(3, oob(cons1, false));
+  assertEquals(3, oob(cons1, false));
+  assertEquals(7, oob(cons2, true));
+  assertEquals(7, oob(cons2, true));
+  gc();  // Clears type feedback of constructor call.
+  assertEquals(7, oob(cons2, true));
+  assertEquals(7, oob(cons2, true));
+  %OptimizeFunctionOnNextCall(oob);
+  assertEquals(7, oob(cons2, true));
 })();

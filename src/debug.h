@@ -261,7 +261,9 @@ class Debug {
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
-  void PrepareStep(StepAction step_action, int step_count);
+  void PrepareStep(StepAction step_action,
+                   int step_count,
+                   StackFrame::Id frame_id);
   void ClearStepping();
   void ClearStepOut();
   bool IsStepping() { return thread_local_.step_count_ > 0; }

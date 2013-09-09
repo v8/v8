@@ -660,11 +660,22 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 }
 
 
+i::Object** V8::CopyPersistent(i::Object** obj) {
+  i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
+#ifdef DEBUG
+  (*obj)->Verify();
+#endif  // DEBUG
+  return result.location();
+}
+
+
 void V8::MakeWeak(i::Object** object,
                   void* parameters,
+                  WeakCallback weak_callback,
                   RevivableCallback weak_reference_callback) {
   i::GlobalHandles::MakeWeak(object,
                              parameters,
+                             weak_callback,
                              weak_reference_callback);
 }
 
@@ -1052,6 +1063,37 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 }
 
 
+static Local<FunctionTemplate> FunctionTemplateNew(
+    i::Isolate* isolate,
+    FunctionCallback callback,
+    v8::Handle<Value> data,
+    v8::Handle<Signature> signature,
+    int length,
+    bool do_not_cache) {
+  i::Handle<i::Struct> struct_obj =
+      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
+  i::Handle<i::FunctionTemplateInfo> obj =
+      i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
+  InitializeFunctionTemplate(obj);
+  obj->set_do_not_cache(do_not_cache);
+  int next_serial_number = 0;
+  if (!do_not_cache) {
+    next_serial_number = isolate->next_serial_number() + 1;
+    isolate->set_next_serial_number(next_serial_number);
+  }
+  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
+  if (callback != 0) {
+    if (data.IsEmpty()) data = v8::Undefined();
+    Utils::ToLocal(obj)->SetCallHandler(callback, data);
+  }
+  obj->set_length(length);
+  obj->set_undetectable(false);
+  obj->set_needs_access_check(false);
+  if (!signature.IsEmpty())
+    obj->set_signature(*Utils::OpenHandle(*signature));
+  return Utils::ToLocal(obj);
+}
+
 Local<FunctionTemplate> FunctionTemplate::New(
     FunctionCallback callback,
     v8::Handle<Value> data,
@@ -1061,25 +1103,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
   EnsureInitializedForIsolate(isolate, "v8::FunctionTemplate::New()");
   LOG_API(isolate, "FunctionTemplate::New");
   ENTER_V8(isolate);
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
-  i::Handle<i::FunctionTemplateInfo> obj =
-      i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
-  InitializeFunctionTemplate(obj);
-  int next_serial_number = isolate->next_serial_number();
-  isolate->set_next_serial_number(next_serial_number + 1);
-  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
-  if (callback != 0) {
-    if (data.IsEmpty()) data = v8::Undefined();
-    Utils::ToLocal(obj)->SetCallHandler(callback, data);
-  }
-  obj->set_length(length);
-  obj->set_undetectable(false);
-  obj->set_needs_access_check(false);
-
-  if (!signature.IsEmpty())
-    obj->set_signature(*Utils::OpenHandle(*signature));
-  return Utils::ToLocal(obj);
+  return FunctionTemplateNew(
+      isolate, callback, data, signature, length, false);
 }
 
 
@@ -4189,6 +4214,19 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
 }
 
 
+Local<Function> Function::New(Isolate* v8_isolate,
+                              FunctionCallback callback,
+                              Local<Value> data,
+                              int length) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  LOG_API(isolate, "Function::New");
+  ENTER_V8(isolate);
+  return FunctionTemplateNew(
+      isolate, callback, data, Local<Signature>(), length, true)->
+          GetFunction();
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
@@ -5407,26 +5445,6 @@ static i::Handle<i::Context> CreateEnvironment(
 
   return env;
 }
-
-#ifdef V8_USE_UNSAFE_HANDLES
-Persistent<Context> v8::Context::New(
-    v8::ExtensionConfiguration* extensions,
-    v8::Handle<ObjectTemplate> global_template,
-    v8::Handle<Value> global_object) {
-  i::Isolate::EnsureDefaultIsolate();
-  i::Isolate* isolate = i::Isolate::Current();
-  Isolate* external_isolate = reinterpret_cast<Isolate*>(isolate);
-  EnsureInitializedForIsolate(isolate, "v8::Context::New()");
-  LOG_API(isolate, "Context::New");
-  ON_BAILOUT(isolate, "v8::Context::New()", return Persistent<Context>());
-  i::HandleScope scope(isolate);
-  i::Handle<i::Context> env =
-      CreateEnvironment(isolate, extensions, global_template, global_object);
-  if (env.is_null()) return Persistent<Context>();
-  return Persistent<Context>::New(external_isolate, Utils::ToLocal(env));
-}
-#endif
-
 
 Local<Context> v8::Context::New(
     v8::Isolate* external_isolate,
@@ -6772,29 +6790,6 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 
-int V8::GetCurrentThreadId() {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "V8::GetCurrentThreadId()");
-  return isolate->thread_id().ToInteger();
-}
-
-
-void V8::TerminateExecution(int thread_id) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return;
-  API_ENTRY_CHECK(isolate, "V8::TerminateExecution()");
-  // If the thread_id identifies the current thread just terminate
-  // execution right away.  Otherwise, ask the thread manager to
-  // terminate the thread with the given id if any.
-  i::ThreadId internal_tid = i::ThreadId::FromInteger(thread_id);
-  if (isolate->thread_id().Equals(internal_tid)) {
-    isolate->stack_guard()->TerminateExecution();
-  } else {
-    isolate->thread_manager()->TerminateExecution(internal_tid);
-  }
-}
-
-
 void V8::TerminateExecution(Isolate* isolate) {
   // If no isolate is supplied, use the default isolate.
   if (isolate != NULL) {
@@ -7888,7 +7883,7 @@ void InvokeAccessorGetterCallback(
       getter));
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, getter_address);
-  return getter(property, info);
+  getter(property, info);
 }
 
 
@@ -7899,7 +7894,7 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
       reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, callback_address);
-  return callback(info);
+  callback(info);
 }
 
 

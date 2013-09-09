@@ -103,50 +103,54 @@ bool ProfilerEventsProcessor::ProcessCodeEvent() {
   return false;
 }
 
-
-bool ProfilerEventsProcessor::ProcessTicks() {
-  while (true) {
-    while (!ticks_from_vm_buffer_.IsEmpty()
-        && ticks_from_vm_buffer_.Peek()->order ==
-           last_processed_code_event_id_) {
-      TickSampleEventRecord record;
-      ticks_from_vm_buffer_.Dequeue(&record);
-      generator_->RecordTickSample(record.sample);
-    }
-
-    const TickSampleEventRecord* record = ticks_buffer_.Peek();
-    if (record == NULL) return !ticks_from_vm_buffer_.IsEmpty();
-    if (record->order != last_processed_code_event_id_) return true;
-    generator_->RecordTickSample(record->sample);
-    ticks_buffer_.Remove();
+ProfilerEventsProcessor::SampleProcessingResult
+    ProfilerEventsProcessor::ProcessOneSample() {
+  if (!ticks_from_vm_buffer_.IsEmpty()
+      && ticks_from_vm_buffer_.Peek()->order ==
+         last_processed_code_event_id_) {
+    TickSampleEventRecord record;
+    ticks_from_vm_buffer_.Dequeue(&record);
+    generator_->RecordTickSample(record.sample);
+    return OneSampleProcessed;
   }
-}
 
-
-void ProfilerEventsProcessor::ProcessEventsAndDoSample() {
-  ElapsedTimer timer;
-  timer.Start();
-  // Keep processing existing events until we need to do next sample.
-  while (!timer.HasExpired(period_)) {
-    if (ProcessTicks()) {
-      // All ticks of the current dequeue_order are processed,
-      // proceed to the next code event.
-      ProcessCodeEvent();
-    }
+  const TickSampleEventRecord* record = ticks_buffer_.Peek();
+  if (record == NULL) {
+    if (ticks_from_vm_buffer_.IsEmpty()) return NoSamplesInQueue;
+    return FoundSampleForNextCodeEvent;
   }
-  // Schedule next sample. sampler_ is NULL in tests.
-  if (sampler_) sampler_->DoSample();
+  if (record->order != last_processed_code_event_id_) {
+    return FoundSampleForNextCodeEvent;
+  }
+  generator_->RecordTickSample(record->sample);
+  ticks_buffer_.Remove();
+  return OneSampleProcessed;
 }
 
 
 void ProfilerEventsProcessor::Run() {
   while (running_) {
-    ProcessEventsAndDoSample();
+    ElapsedTimer timer;
+    timer.Start();
+    // Keep processing existing events until we need to do next sample.
+    do {
+      if (FoundSampleForNextCodeEvent == ProcessOneSample()) {
+        // All ticks of the current last_processed_code_event_id_ are
+        // processed, proceed to the next code event.
+        ProcessCodeEvent();
+      }
+    } while (!timer.HasExpired(period_));
+
+    // Schedule next sample. sampler_ is NULL in tests.
+    if (sampler_) sampler_->DoSample();
   }
 
   // Process remaining tick events.
   do {
-    ProcessTicks();
+    SampleProcessingResult result;
+    do {
+      result = ProcessOneSample();
+    } while (result == OneSampleProcessed);
   } while (ProcessCodeEvent());
 }
 

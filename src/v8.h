@@ -122,11 +122,6 @@ class V8 : public AllStatic {
   static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
 
-  // True if V8 has ever been run
-  static bool has_been_set_up_;
-  // True if engine has been shut down
-  // (reset if engine is restarted)
-  static bool has_been_disposed_;
   // List of callbacks when a Call completes.
   static List<CallCompletedCallback>* call_completed_callbacks_;
   // Allocator for external array buffers.
