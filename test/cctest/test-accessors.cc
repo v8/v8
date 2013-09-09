@@ -552,3 +552,18 @@ THREADED_TEST(JSONStringifyNamedInterceptorObject) {
   v8::Handle<v8::String> expected = v8_str("{\"regress\":\"crbug-161028\"}");
   CHECK(CompileRun("JSON.stringify(obj)")->Equals(expected));
 }
+
+
+THREADED_TEST(CrossContextAccess) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::Function> fun = v8::Function::New(isolate, handle_property);
+  LocalContext switch_context;
+  switch_context->Global()->Set(v8_str("fun"), fun);
+  v8::TryCatch try_catch;
+  CompileRun(
+      "var o = Object.create(null, { n: { get:fun } });"
+      "for (var i = 0; i < 10; i++) o.n;");
+  CHECK(!try_catch.HasCaught());
+}
