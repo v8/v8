@@ -74,9 +74,8 @@ function InstantiateFunction(data, name) {
       cache[serialNumber] = null;
       var fun = %CreateApiFunction(data);
       if (name) %FunctionSetName(fun, name);
+      cache[serialNumber] = fun;
       var flags = %GetTemplateField(data, kApiFlagOffset);
-      var doNotCache = flags & (1 << kDoNotCacheBit);
-      if (!doNotCache) cache[serialNumber] = fun;
       if (flags & (1 << kRemovePrototypeBit)) {
         %FunctionRemovePrototype(fun);
       } else {
@@ -98,7 +97,6 @@ function InstantiateFunction(data, name) {
         }
       }
       ConfigureTemplateInstance(fun, data);
-      if (doNotCache) return fun;
     } catch (e) {
       cache[serialNumber] = kUninitialized;
       throw e;

@@ -705,14 +705,12 @@ Handle<JSFunction> Execution::InstantiateFunction(
     Handle<FunctionTemplateInfo> data,
     bool* exc) {
   Isolate* isolate = data->GetIsolate();
-  if (!data->do_not_cache()) {
-    // Fast case: see if the function has already been instantiated
-    int serial_number = Smi::cast(data->serial_number())->value();
-    Object* elm =
-        isolate->native_context()->function_cache()->
-            GetElementNoExceptionThrown(isolate, serial_number);
-    if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
-  }
+  // Fast case: see if the function has already been instantiated
+  int serial_number = Smi::cast(data->serial_number())->value();
+  Object* elm =
+      isolate->native_context()->function_cache()->
+          GetElementNoExceptionThrown(isolate, serial_number);
+  if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.
   Handle<Object> args[] = { data };
   Handle<Object> result = Call(isolate,

@@ -2361,23 +2361,11 @@ class V8_EXPORT Array : public Object {
 };
 
 
-typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
-
-
 /**
  * A JavaScript function object (ECMA-262, 15.3).
  */
 class V8_EXPORT Function : public Object {
  public:
-  /**
-   * Create a function in the current execution context
-   * for a given FunctionCallback.
-   */
-  static Local<Function> New(Isolate* isolate,
-                             FunctionCallback callback,
-                             Local<Value> data = Local<Value>(),
-                             int length = 0);
-
   Local<Object> NewInstance() const;
   Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
   Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
@@ -3151,6 +3139,8 @@ class PropertyCallbackInfo {
   internal::Object** args_;
 };
 
+
+typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
 
 /**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
