@@ -106,6 +106,8 @@ class V8_EXPORT Debug {
      */
     virtual ClientData* GetClientData() const = 0;
 
+    virtual Isolate* GetIsolate() const = 0;
+
     virtual ~Message() {}
   };
 
