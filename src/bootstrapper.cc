@@ -1316,13 +1316,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Handle<FixedArray> embedder_data = factory->NewFixedArray(2);
   native_context()->set_embedder_data(*embedder_data);
 
-  {
-    // Initialize the random seed slot.
-    Handle<ByteArray> zeroed_byte_array(
-        factory->NewByteArray(kRandomStateSize));
-    native_context()->set_random_seed(*zeroed_byte_array);
-    memset(zeroed_byte_array->GetDataStartAddress(), 0, kRandomStateSize);
-  }
+  // Allocate the random seed slot.
+  Handle<ByteArray> random_seed = factory->NewByteArray(kRandomStateSize);
+  native_context()->set_random_seed(*random_seed);
 }
 
 
@@ -2646,6 +2642,14 @@ Genesis::Genesis(Isolate* isolate,
   // Initialize experimental globals and install experimental natives.
   InitializeExperimentalGlobal();
   if (!InstallExperimentalNatives()) return;
+
+  // Initially seed the per-context random number generator
+  // using the per-isolate random number generator.
+  uint32_t* state = reinterpret_cast<uint32_t*>(
+      native_context()->random_seed()->GetDataStartAddress());
+  do {
+    isolate->random_number_generator()->NextBytes(state, kRandomStateSize);
+  } while (state[0] == 0 || state[1] == 0);
 
   result_ = native_context();
 }

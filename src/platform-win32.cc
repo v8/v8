@@ -43,6 +43,7 @@
 #include "v8.h"
 
 #include "codegen.h"
+#include "isolate-inl.h"
 #include "platform.h"
 #include "simulator.h"
 #include "vm-state-inl.h"
@@ -123,13 +124,6 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
 }
 
 #endif  // __MINGW32__
-
-// Generate a pseudo-random number in the range 0-2^31-1. Usually
-// defined in stdlib.h. Missing in both Microsoft Visual Studio C++ and MinGW.
-int random() {
-  return rand();
-}
-
 
 namespace v8 {
 namespace internal {
@@ -794,8 +788,9 @@ void* OS::GetRandomMmapAddr() {
     static const intptr_t kAllocationRandomAddressMin = 0x04000000;
     static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
-    uintptr_t address = (V8::RandomPrivate(isolate) << kPageSizeBits)
-        | kAllocationRandomAddressMin;
+    uintptr_t address =
+        (isolate->random_number_generator()->NextInt() << kPageSizeBits) |
+        kAllocationRandomAddressMin;
     address &= kAllocationRandomAddressMax;
     return reinterpret_cast<void *>(address);
   }
@@ -1578,17 +1573,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 void Thread::YieldCPU() {
   Sleep(0);
-}
-
-
-void OS::SetUp() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly can cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
-  srand(static_cast<unsigned int>(seed));
 }
 
 } }  // namespace v8::internal

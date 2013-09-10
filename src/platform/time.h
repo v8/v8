@@ -222,6 +222,15 @@ class Time V8_FINAL BASE_EMBEDDED {
   // with which we might compare it.
   static Time Max() { return Time(std::numeric_limits<int64_t>::max()); }
 
+  // Converts to/from internal values. The meaning of the "internal value" is
+  // completely up to the implementation, so it should be treated as opaque.
+  static Time FromInternalValue(int64_t value) {
+    return Time(value);
+  }
+  int64_t ToInternalValue() const {
+    return us_;
+  }
+
   // Converts to/from POSIX time specs.
   static Time FromTimespec(struct timespec ts);
   struct timespec ToTimespec() const;
@@ -328,6 +337,15 @@ class TimeTicks V8_FINAL BASE_EMBEDDED {
 
   // Returns true if this object has not been initialized.
   bool IsNull() const { return ticks_ == 0; }
+
+  // Converts to/from internal values. The meaning of the "internal value" is
+  // completely up to the implementation, so it should be treated as opaque.
+  static TimeTicks FromInternalValue(int64_t value) {
+    return TimeTicks(value);
+  }
+  int64_t ToInternalValue() const {
+    return ticks_;
+  }
 
   TimeTicks& operator=(const TimeTicks other) {
     ticks_ = other.ticks_;

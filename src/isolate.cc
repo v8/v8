@@ -39,7 +39,7 @@
 #include "deoptimizer.h"
 #include "heap-profiler.h"
 #include "hydrogen.h"
-#include "isolate.h"
+#include "isolate-inl.h"
 #include "lithium-allocator.h"
 #include "log.h"
 #include "marking-thread.h"
@@ -54,6 +54,7 @@
 #include "spaces.h"
 #include "stub-cache.h"
 #include "sweeper-thread.h"
+#include "utils/random-number-generator.h"
 #include "version.h"
 #include "vm-state-inl.h"
 
@@ -1772,6 +1773,9 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
+      // TODO(bmeurer) Initialized lazily because it depends on flags; can
+      // be fixed once the default isolate cleanup is done.
+      random_number_generator_(NULL),
       has_fatal_error_(false),
       use_crankshaft_(true),
       initialized_from_snapshot_(false),
@@ -2046,6 +2050,9 @@ Isolate::~Isolate() {
 
   delete external_reference_table_;
   external_reference_table_ = NULL;
+
+  delete random_number_generator_;
+  random_number_generator_ = NULL;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   delete debugger_;

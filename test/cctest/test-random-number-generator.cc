@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,68 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ISOLATE_INL_H_
-#define V8_ISOLATE_INL_H_
+#include "v8.h"
 
-#include "debug.h"
-#include "isolate.h"
+#include "cctest.h"
 #include "utils/random-number-generator.h"
 
-namespace v8 {
-namespace internal {
+using namespace v8::internal;
 
 
-SaveContext::SaveContext(Isolate* isolate)
-  : isolate_(isolate),
-    prev_(isolate->save_context()) {
-  if (isolate->context() != NULL) {
-    context_ = Handle<Context>(isolate->context());
+static const int kMaxRuns = 12345;
+static const int kRandomSeeds[] = {
+  -1, 1, 42, 100, 1234567890, 987654321, 0xdeadbeef
+};
+
+
+TEST(NextIntWithMaxValue) {
+  for (unsigned n = 0; n < ARRAY_SIZE(kRandomSeeds); ++n) {
+    RandomNumberGenerator rng(kRandomSeeds[n]);
+    for (int max = 1; max <= kMaxRuns; ++max) {
+      int n = rng.NextInt(max);
+      CHECK_LE(0, n);
+      CHECK_LT(n, max);
+    }
   }
-  isolate->set_save_context(this);
-
-  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
 }
 
 
-bool Isolate::IsDebuggerActive() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (!NoBarrier_Load(&debugger_initialized_)) return false;
-  return debugger()->IsDebuggerActive();
-#else
-  return false;
-#endif
-}
-
-
-bool Isolate::DebuggerHasBreakPoints() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  return debug()->has_break_points();
-#else
-  return false;
-#endif
-}
-
-
-RandomNumberGenerator* Isolate::random_number_generator() {
-  if (random_number_generator_ == NULL) {
-    random_number_generator_ = new RandomNumberGenerator;
+TEST(NextBoolReturnsBooleanValue) {
+  for (unsigned n = 0; n < ARRAY_SIZE(kRandomSeeds); ++n) {
+    RandomNumberGenerator rng(kRandomSeeds[n]);
+    for (int k = 0; k < kMaxRuns; ++k) {
+      bool b = rng.NextBool();
+      CHECK(b == false || b == true);
+    }
   }
-  return random_number_generator_;
 }
 
-} }  // namespace v8::internal
 
-#endif  // V8_ISOLATE_INL_H_
+TEST(NextDoubleRange) {
+  for (unsigned n = 0; n < ARRAY_SIZE(kRandomSeeds); ++n) {
+    RandomNumberGenerator rng(kRandomSeeds[n]);
+    for (int k = 0; k < kMaxRuns; ++k) {
+      double d = rng.NextDouble();
+      CHECK_LE(0.0, d);
+      CHECK_LT(d, 1.0);
+    }
+  }
+}
+
+
+TEST(RandomSeedFlagIsUsed) {
+  for (unsigned n = 0; n < ARRAY_SIZE(kRandomSeeds); ++n) {
+    FLAG_random_seed = kRandomSeeds[n];
+    RandomNumberGenerator rng1;
+    RandomNumberGenerator rng2(kRandomSeeds[n]);
+    for (int k = 1; k <= kMaxRuns; ++k) {
+      int64_t i1, i2;
+      rng1.NextBytes(&i1, sizeof(i1));
+      rng2.NextBytes(&i2, sizeof(i2));
+      CHECK_EQ(i2, i1);
+      CHECK_EQ(rng2.NextInt(), rng1.NextInt());
+      CHECK_EQ(rng2.NextInt(k), rng1.NextInt(k));
+      CHECK_EQ(rng2.NextDouble(), rng1.NextDouble());
+    }
+  }
+}

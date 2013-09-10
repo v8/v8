@@ -38,6 +38,7 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "incremental-marking.h"
+#include "isolate-inl.h"
 #include "mark-compact.h"
 #include "natives.h"
 #include "objects-visiting.h"
@@ -47,6 +48,7 @@
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "store-buffer.h"
+#include "utils/random-number-generator.h"
 #include "v8threads.h"
 #include "v8utils.h"
 #include "vm-state-inl.h"
@@ -5762,7 +5764,7 @@ MaybeObject* Heap::AllocateSymbol() {
   int hash;
   int attempts = 0;
   do {
-    hash = V8::RandomPrivate(isolate()) & Name::kHashBitMask;
+    hash = isolate()->random_number_generator()->NextInt() & Name::kHashBitMask;
     attempts++;
   } while (hash == 0 && attempts < 30);
   if (hash == 0) hash = 1;  // never return 0
@@ -6927,8 +6929,8 @@ bool Heap::SetUp() {
   ASSERT(hash_seed() == 0);
   if (FLAG_randomize_hashes) {
     if (FLAG_hash_seed == 0) {
-      set_hash_seed(
-          Smi::FromInt(V8::RandomPrivate(isolate()) & 0x3fffffff));
+      int rnd = isolate()->random_number_generator()->NextInt();
+      set_hash_seed(Smi::FromInt(rnd & Name::kHashBitMask));
     } else {
       set_hash_seed(Smi::FromInt(FLAG_hash_seed));
     }

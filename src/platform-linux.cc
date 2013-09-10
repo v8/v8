@@ -466,12 +466,4 @@ bool VirtualMemory::HasLazyCommits() {
   return true;
 }
 
-
-void OS::SetUp() {
-  // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis()) ^ (getpid() << 16);
-  srandom(static_cast<unsigned int>(seed));
-}
-
-
 } }  // namespace v8::internal

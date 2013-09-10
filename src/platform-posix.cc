@@ -69,6 +69,7 @@
 #include "v8.h"
 
 #include "codegen.h"
+#include "isolate-inl.h"
 #include "platform.h"
 
 namespace v8 {
@@ -171,17 +172,14 @@ void* OS::GetRandomMmapAddr() {
   // CpuFeatures::Probe. We don't care about randomization in this case because
   // the code page is immediately freed.
   if (isolate != NULL) {
+    uintptr_t raw_addr;
+    isolate->random_number_generator()->NextBytes(&raw_addr, sizeof(raw_addr));
 #if V8_TARGET_ARCH_X64
-    uint64_t rnd1 = V8::RandomPrivate(isolate);
-    uint64_t rnd2 = V8::RandomPrivate(isolate);
-    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
     // Currently available CPUs have 48 bits of virtual addressing.  Truncate
     // the hint address to 46 bits to give the kernel a fighting chance of
     // fulfilling our placement request.
     raw_addr &= V8_UINT64_C(0x3ffffffff000);
 #else
-    uint32_t raw_addr = V8::RandomPrivate(isolate);
-
     raw_addr &= 0x3ffff000;
 
 # ifdef __sun

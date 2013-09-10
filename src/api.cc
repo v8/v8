@@ -62,6 +62,7 @@
 #include "scanner-character-streams.h"
 #include "snapshot.h"
 #include "unicode-inl.h"
+#include "utils/random-number-generator.h"
 #include "v8threads.h"
 #include "version.h"
 #include "vm-state-inl.h"
@@ -5208,8 +5209,8 @@ bool v8::V8::Initialize() {
 }
 
 
-void v8::V8::SetEntropySource(EntropySource source) {
-  i::V8::SetEntropySource(source);
+void v8::V8::SetEntropySource(EntropySource entropy_source) {
+  i::RandomNumberGenerator::SetEntropySource(entropy_source);
 }
 
 

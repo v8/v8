@@ -77,6 +77,7 @@ class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
 class MarkingThread;
 class PreallocatedMemoryThread;
+class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
 class UnicodeCache;
@@ -1125,6 +1126,8 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
+  inline RandomNumberGenerator* random_number_generator();
+
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
 
@@ -1306,6 +1309,7 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
+  RandomNumberGenerator* random_number_generator_;
   bool is_memory_constrained_;
 
   // True if fatal error has been signaled for this isolate.
