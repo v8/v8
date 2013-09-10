@@ -175,6 +175,8 @@ const char* HeapEntry::TypeAsString() {
     case kHeapNumber: return "/number/";
     case kNative: return "/native/";
     case kSynthetic: return "/synthetic/";
+    case kConsString: return "/concatenated string/";
+    case kSlicedString: return "/sliced string/";
     default: return "???";
   }
 }
@@ -782,6 +784,15 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     }
     return AddEntry(object, HeapEntry::kObject, name);
   } else if (object->IsString()) {
+    String* string = String::cast(object);
+    if (string->IsConsString())
+      return AddEntry(object,
+                      HeapEntry::kConsString,
+                      "(concatenated string)");
+    if (string->IsSlicedString())
+      return AddEntry(object,
+                      HeapEntry::kSlicedString,
+                      "(sliced string)");
     return AddEntry(object,
                     HeapEntry::kString,
                     collection_->names()->GetName(String::cast(object)));
@@ -2585,7 +2596,9 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("regexp") ","
             JSON_S("number") ","
             JSON_S("native") ","
-            JSON_S("synthetic")) ","
+            JSON_S("synthetic") ","
+            JSON_S("concatenated string") ","
+            JSON_S("sliced string")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","
