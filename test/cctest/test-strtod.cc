@@ -448,7 +448,7 @@ static const int kShortStrtodRandomCount = 2;
 static const int kLargeStrtodRandomCount = 2;
 
 TEST(RandomStrtod) {
-  srand(time(NULL));
+  srand(static_cast<unsigned int>(time(NULL)));
   char buffer[kBufferSize];
   for (int length = 1; length < 15; length++) {
     for (int i = 0; i < kShortStrtodRandomCount; ++i) {
