@@ -1054,7 +1054,8 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
 }
 
 
-bool Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
+Handle<Code> Compiler::InstallOptimizedCode(
+    OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
   // The function may have already been optimized by OSR.  Simply continue.
   // Except when OSR already disabled optimization for some reason.
@@ -1067,7 +1068,7 @@ bool Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
       PrintF(" as it has been disabled.\n");
     }
     ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
-    return false;
+    return Handle<Code>::null();
   }
 
   Isolate* isolate = info->isolate();
@@ -1114,7 +1115,8 @@ bool Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
   ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
-  return status == OptimizingCompiler::SUCCEEDED;
+  return (status == OptimizingCompiler::SUCCEEDED) ? info->code()
+                                                   : Handle<Code>::null();
 }
 
 
@@ -1222,6 +1224,8 @@ Handle<Code> Compiler::CompileForConcurrentOSR(Handle<JSFunction> function) {
                                      FindReadyOSRCandidate(function, pc_offset);
 
   if (compiler != NULL) {
+    BailoutId ast_id = compiler->info()->osr_ast_id();
+
     if (FLAG_trace_osr) {
       PrintF("[COSR - optimization complete for ");
       function->PrintName();
@@ -1230,11 +1234,11 @@ Handle<Code> Compiler::CompileForConcurrentOSR(Handle<JSFunction> function) {
     Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
 
     // TODO(titzer): don't install the OSR code into the function.
-    bool succeeded = InstallOptimizedCode(compiler);
+    Handle<Code> result = InstallOptimizedCode(compiler);
 
     isolate->optimizing_compiler_thread()->RemoveStaleOSRCandidates();
 
-    if (!succeeded) {
+    if (result.is_null()) {
       if (FLAG_trace_osr) {
         PrintF("[COSR - optimization failed for ");
         function->PrintName();
@@ -1242,15 +1246,12 @@ Handle<Code> Compiler::CompileForConcurrentOSR(Handle<JSFunction> function) {
       }
       return Handle<Code>::null();
     }
-    Handle<Code> result = compiler->info()->code();
-
     // Check the result matches our expectations, and don't use it otherwise.
     if (result->kind() == Code::OPTIMIZED_FUNCTION) {
       DeoptimizationInputData* data =
           DeoptimizationInputData::cast(result->deoptimization_data());
 
       if (data->OsrPcOffset()->value() >= 0) {
-        BailoutId ast_id = compiler->info()->osr_ast_id();
         ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
         if (FLAG_trace_osr) {
           PrintF("[COSR - entry at AST id %d, offset %d in optimized code]\n",

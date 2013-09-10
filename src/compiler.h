@@ -625,7 +625,7 @@ class Compiler : public AllStatic {
                               bool is_toplevel,
                               Handle<Script> script);
 
-  static bool InstallOptimizedCode(OptimizingCompiler* info);
+  static Handle<Code> InstallOptimizedCode(OptimizingCompiler* info);
 
   static Handle<Code> CompileForOnStackReplacement(Handle<JSFunction> function);
 
