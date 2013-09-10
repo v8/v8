@@ -748,9 +748,6 @@ template <class T, class M> class Persistent {
  */
 class V8_EXPORT HandleScope {
  public:
-  // TODO(svenpanne) Deprecate me when Chrome is fixed!
-  HandleScope();
-
   HandleScope(Isolate* isolate);
 
   ~HandleScope();

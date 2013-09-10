@@ -706,11 +706,6 @@ Local<Value> V8::GetEternal(Isolate* v8_isolate, int index) {
 // --- H a n d l e s ---
 
 
-HandleScope::HandleScope() {
-  Initialize(reinterpret_cast<Isolate*>(i::Isolate::Current()));
-}
-
-
 HandleScope::HandleScope(Isolate* isolate) {
   Initialize(isolate);
 }

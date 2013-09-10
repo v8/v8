@@ -324,11 +324,11 @@ void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Test that a single thread of JavaScript execution can terminate
 // itself and then resume execution.
 TEST(TerminateCancelTerminateFromThreadItself) {
-  v8::HandleScope scope;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, DoLoopCancelTerminate);
-  v8::Handle<v8::Context> context =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global);
+  v8::Handle<v8::Context> context = v8::Context::New(isolate, NULL, global);
   v8::Context::Scope context_scope(context);
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Handle<v8::String> source =
@@ -336,4 +336,3 @@ TEST(TerminateCancelTerminateFromThreadItself) {
   // Check that execution completed with correct return value.
   CHECK(v8::Script::Compile(source)->Run()->Equals(v8_str("completed")));
 }
-
