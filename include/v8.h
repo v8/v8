@@ -3763,11 +3763,20 @@ class V8_EXPORT ResourceConstraints {
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
+  Maybe<bool> is_memory_constrained() const { return is_memory_constrained_; }
+  // If set to true, V8 will limit it's memory usage, at the potential cost of
+  // lower performance.  Note, this option is a tentative addition to the API
+  // and may be removed or modified without warning.
+  void set_memory_constrained(bool value) {
+    is_memory_constrained_ = Maybe<bool>(value);
+  }
+
  private:
   int max_young_space_size_;
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
+  Maybe<bool> is_memory_constrained_;
 };
 
 
