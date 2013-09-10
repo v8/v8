@@ -374,10 +374,6 @@ class HType V8_FINAL {
     return Combine(other).Equals(other);
   }
 
-  bool IsTagged() const {
-    return ((type_ & kTagged) == kTagged);
-  }
-
   bool IsTaggedPrimitive() const {
     return ((type_ & kTaggedPrimitive) == kTaggedPrimitive);
   }
