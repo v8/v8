@@ -817,6 +817,21 @@ class V8_EXPORT HandleScope {
 };
 
 
+/**
+ * A simple Maybe type, representing an object which may or may not have a
+ * value.
+ */
+template<class T>
+struct Maybe {
+  Maybe() : has_value(false) {}
+  explicit Maybe(T t) : has_value(true), value(t) {}
+  Maybe(bool has, T t) : has_value(has), value(t) {}
+
+  bool has_value;
+  T value;
+};
+
+
 // --- Special objects ---
 
 

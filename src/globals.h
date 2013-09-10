@@ -393,18 +393,6 @@ enum LanguageMode {
 };
 
 
-// A simple Maybe type, that can be passed by value.
-template<class T>
-struct Maybe {
-  Maybe() : has_value(false) {}
-  explicit Maybe(T t) : has_value(true), value(t) {}
-  Maybe(bool has, T t) : has_value(has), value(t) {}
-
-  bool has_value;
-  T value;
-};
-
-
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 //
 // This flag is used in the backend to represent the language mode. So far
