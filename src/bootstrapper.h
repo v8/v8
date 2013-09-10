@@ -45,7 +45,8 @@ class SourceCodeCache BASE_EMBEDDED {
   explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
 
   void Initialize(bool create_heap_objects) {
-    cache_ = create_heap_objects ? HEAP->empty_fixed_array() : NULL;
+    cache_ = create_heap_objects ?
+        Isolate::Current()->heap()->empty_fixed_array() : NULL;
   }
 
   void Iterate(ObjectVisitor* v) {

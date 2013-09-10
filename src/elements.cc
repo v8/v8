@@ -154,7 +154,8 @@ static void CopyObjectToObjectElements(FixedArrayBase* from_base,
                                        ElementsKind to_kind,
                                        uint32_t to_start,
                                        int raw_copy_size) {
-  ASSERT(to_base->map() != HEAP->fixed_cow_array_map());
+  ASSERT(to_base->map() !=
+      from_base->GetIsolate()->heap()->fixed_cow_array_map());
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {

@@ -472,7 +472,7 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 
 
 void HeapObjectsMap::UpdateHeapObjectsMap() {
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
   HeapIterator iterator(heap_);
   for (HeapObject* obj = iterator.next();
@@ -560,12 +560,13 @@ void HeapObjectsMap::RemoveDeadEntries() {
 }
 
 
-SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
+SnapshotObjectId HeapObjectsMap::GenerateId(Heap* heap,
+                                            v8::RetainedObjectInfo* info) {
   SnapshotObjectId id = static_cast<SnapshotObjectId>(info->GetHash());
   const char* label = info->GetLabel();
   id ^= StringHasher::HashSequentialString(label,
                                            static_cast<int>(strlen(label)),
-                                           HEAP->HashSeed());
+                                           heap->HashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
@@ -623,7 +624,7 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
     SnapshotObjectId id) {
   // First perform a full GC in order to avoid dead objects.
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::FindHeapObjectById");
   DisallowHeapAllocation no_allocation;
   HeapObject* object = NULL;
@@ -1932,7 +1933,7 @@ HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
   return snapshot_->AddEntry(
       entries_type_,
       name,
-      HeapObjectsMap::GenerateId(info),
+      HeapObjectsMap::GenerateId(collection_->heap(), info),
       size != -1 ? static_cast<int>(size) : 0);
 }
 
@@ -2108,7 +2109,7 @@ NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
   uint32_t hash = StringHasher::HashSequentialString(
       label_copy,
       static_cast<int>(strlen(label_copy)),
-      HEAP->HashSeed());
+      isolate_->heap()->HashSeed());
   HashMap::Entry* entry = native_groups_.Lookup(const_cast<char*>(label_copy),
                                                 hash, true);
   if (entry->value == NULL) {

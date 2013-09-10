@@ -237,7 +237,7 @@ class HeapObjectsMap {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   size_t GetUsedMemorySize() const;
 
-  static SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
+  static SnapshotObjectId GenerateId(Heap* heap, v8::RetainedObjectInfo* info);
   static inline SnapshotObjectId GetNthGcSubrootId(int delta);
 
   static const int kObjectIdStep = 2;

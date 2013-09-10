@@ -400,7 +400,7 @@ MaybeObject* Accessors::ScriptGetEvalFromScript(Isolate* isolate,
       return *GetScriptWrapper(eval_from_script);
     }
   }
-  return HEAP->undefined_value();
+  return isolate->heap()->undefined_value();
 }
 
 

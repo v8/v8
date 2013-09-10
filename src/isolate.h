@@ -1532,7 +1532,7 @@ inline bool Context::has_out_of_memory() {
 
 // Mark the native context with out of memory.
 inline void Context::mark_out_of_memory() {
-  native_context()->set_out_of_memory(HEAP->true_value());
+  native_context()->set_out_of_memory(GetIsolate()->heap()->true_value());
 }
 
 

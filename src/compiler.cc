@@ -725,7 +725,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
     script->set_is_shared_cross_origin(is_shared_cross_origin);
 
-    script->set_data(script_data.is_null() ? HEAP->undefined_value()
+    script->set_data(script_data.is_null() ? isolate->heap()->undefined_value()
                                            : *script_data);
 
     // Compile the function and add it to the cache.
@@ -742,8 +742,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       compilation_cache->PutScript(source, context, result);
     }
   } else {
-    if (result->ic_age() != HEAP->global_ic_age()) {
-      result->ResetForNewContext(HEAP->global_ic_age());
+    if (result->ic_age() != isolate->heap()->global_ic_age()) {
+      result->ResetForNewContext(isolate->heap()->global_ic_age());
     }
   }
 
@@ -805,8 +805,8 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
       }
     }
   } else {
-    if (result->ic_age() != HEAP->global_ic_age()) {
-      result->ResetForNewContext(HEAP->global_ic_age());
+    if (result->ic_age() != isolate->heap()->global_ic_age()) {
+      result->ResetForNewContext(isolate->heap()->global_ic_age());
     }
   }
 
