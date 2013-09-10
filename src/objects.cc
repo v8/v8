@@ -4029,6 +4029,29 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 }
 
 
+MaybeObject* JSObject::SetLocalPropertyIgnoreAttributesTrampoline(
+    Name* key,
+    Object* value,
+    PropertyAttributes attributes,
+    ValueType value_type,
+    StoreMode mode,
+    ExtensibilityCheck extensibility_check) {
+  // TODO(mstarzinger): The trampoline is a giant hack, don't use it anywhere
+  // else or handlification people will start hating you for all eternity.
+  HandleScope scope(GetIsolate());
+  IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
+  return trampoline.CallWithReturnValue(
+      &JSObject::SetLocalPropertyIgnoreAttributes,
+      Handle<JSObject>(this),
+      Handle<Name>(key),
+      Handle<Object>(value, GetIsolate()),
+      attributes,
+      value_type,
+      mode,
+      extensibility_check);
+}
+
+
 // Set a real local property, even if it is READ_ONLY.  If the property is not
 // present, add it with attributes NONE.  This code is an exact clone of
 // SetProperty, with the check for IsReadOnly and the check for a
@@ -4044,11 +4067,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     Handle<Object> value,
     PropertyAttributes attributes,
     ValueType value_type,
-    StoreMode mode) {
+    StoreMode mode,
+    ExtensibilityCheck extensibility_check) {
   CALL_HEAP_FUNCTION(
     object->GetIsolate(),
     object->SetLocalPropertyIgnoreAttributes(
-        *key, *value, attributes, value_type, mode),
+        *key, *value, attributes, value_type, mode, extensibility_check),
     Object);
 }
 
@@ -4951,13 +4975,13 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
     ASSERT_EQ(hashtable, new_table);
   }
 
-  MaybeObject* store_result =
-      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
-                                       hashtable,
-                                       DONT_ENUM,
-                                       OPTIMAL_REPRESENTATION,
-                                       ALLOW_AS_CONSTANT,
-                                       OMIT_EXTENSIBILITY_CHECK);
+  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
+      GetHeap()->hidden_string(),
+      hashtable,
+      DONT_ENUM,
+      OPTIMAL_REPRESENTATION,
+      ALLOW_AS_CONSTANT,
+      OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return hashtable;
 }
@@ -4984,13 +5008,13 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
       }
     }
   }
-  MaybeObject* store_result =
-      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
-                                       value,
-                                       DONT_ENUM,
-                                       OPTIMAL_REPRESENTATION,
-                                       ALLOW_AS_CONSTANT,
-                                       OMIT_EXTENSIBILITY_CHECK);
+  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
+      GetHeap()->hidden_string(),
+      value,
+      DONT_ENUM,
+      OPTIMAL_REPRESENTATION,
+      ALLOW_AS_CONSTANT,
+      OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return this;
 }
