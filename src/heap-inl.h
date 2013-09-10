@@ -525,6 +525,8 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
+  // TODO(hpayer): temporary debugging code for issue 284577.
+  CHECK(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
   return ScavengeObjectSlow(p, object);
 }
