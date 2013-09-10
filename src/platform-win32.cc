@@ -865,7 +865,7 @@ void OS::ProtectCode(void* address, const size_t size) {
 
 void OS::Guard(void* address, const size_t size) {
   DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
+  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 }
 
 
@@ -1441,7 +1441,7 @@ bool VirtualMemory::Guard(void* address) {
   if (NULL == VirtualAlloc(address,
                            OS::CommitPageSize(),
                            MEM_COMMIT,
-                           PAGE_READONLY | PAGE_GUARD)) {
+                           PAGE_NOACCESS)) {
     return false;
   }
   return true;

@@ -152,7 +152,7 @@ void OS::ProtectCode(void* address, const size_t size) {
 void OS::Guard(void* address, const size_t size) {
 #if defined(__CYGWIN__)
   DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
+  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 #else
   mprotect(address, size, PROT_NONE);
 #endif

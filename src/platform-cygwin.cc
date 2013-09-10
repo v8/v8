@@ -344,7 +344,7 @@ bool VirtualMemory::Guard(void* address) {
   if (NULL == VirtualAlloc(address,
                            OS::CommitPageSize(),
                            MEM_COMMIT,
-                           PAGE_READONLY | PAGE_GUARD)) {
+                           PAGE_NOACCESS)) {
     return false;
   }
   return true;
