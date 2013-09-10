@@ -66,11 +66,11 @@ class Socket V8_FINAL {
   // Set the value of the SO_REUSEADDR socket option.
   bool SetReuseAddress(bool reuse_address);
 
-  V8_INLINE(bool IsValid()) const V8_WARN_UNUSED_RESULT {
+  V8_INLINE(bool IsValid()) const {
     return native_handle_ != kInvalidNativeHandle;
   }
 
-  static int GetLastError() V8_WARN_UNUSED_RESULT;
+  static int GetLastError();
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
@@ -81,10 +81,10 @@ class Socket V8_FINAL {
   static const NativeHandle kInvalidNativeHandle = INVALID_SOCKET;
 #endif
 
-  NativeHandle& native_handle() V8_WARN_UNUSED_RESULT {
+  NativeHandle& native_handle() {
     return native_handle_;
   }
-  const NativeHandle& native_handle() const V8_WARN_UNUSED_RESULT {
+  const NativeHandle& native_handle() const {
     return native_handle_;
   }
 
