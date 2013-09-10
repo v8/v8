@@ -1136,6 +1136,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const bool tagged = (argument_type_ == TAGGED);
   if (tagged) {
     Label input_not_smi, loaded;
+
     // Test that rax is a number.
     StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
     __ movq(rax, args.GetArgumentOperand(0));
@@ -1153,14 +1154,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ jmp(&loaded, Label::kNear);
 
     __ bind(&input_not_smi);
-    // Check if input is a HeapNumber.
-    __ LoadRoot(rbx, Heap::kHeapNumberMapRootIndex);
-    __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ j(not_equal, &runtime_call);
-    // Input is a HeapNumber. Push it on the FPU stack and load its
-    // bits into rbx.
-    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ TaggedToI(rbx, rax, xmm1, TREAT_MINUS_ZERO_AS_ZERO, &runtime_call);
     __ movq(rdx, rbx);
 
     __ bind(&loaded);
@@ -1446,10 +1440,8 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ bind(&arg1_is_object);
   __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg1);
-  // Get the untagged integer version of the rdx heap number in rcx.
-  DoubleToIStub stub1(rdx, r8, HeapNumber::kValueOffset - kHeapObjectTag,
-                      true);
-  __ call(stub1.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  // Get the untagged integer version of the rdx heap number in r8.
+  __ TruncateHeapNumberToI(r8, rdx);
 
   // Here r8 has the untagged integer, rax has a Smi or a heap number.
   __ bind(&load_arg2);
@@ -1469,9 +1461,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the rax heap number in rcx.
-  DoubleToIStub stub2(rax, rcx, HeapNumber::kValueOffset - kHeapObjectTag,
-                      true);
-  __ call(stub2.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  __ TruncateHeapNumberToI(rcx, rax);
 
   __ bind(&done);
   __ movl(rax, r8);
@@ -1648,16 +1638,17 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   }
 
   if (exponent_type_ != INTEGER) {
-    Label fast_power;
+    Label fast_power, try_arithmetic_simplification;
     // Detect integer exponents stored as double.
+    __ DoubleToI(exponent, double_exponent, double_scratch,
+                 TREAT_MINUS_ZERO_AS_ZERO, &try_arithmetic_simplification);
+    __ jmp(&int_exponent);
+
+    __ bind(&try_arithmetic_simplification);
     __ cvttsd2si(exponent, double_exponent);
     // Skip to runtime if possibly NaN (indicated by the indefinite integer).
     __ cmpl(exponent, Immediate(0x80000000u));
     __ j(equal, &call_runtime);
-    __ cvtlsi2sd(double_scratch, exponent);
-    // Already ruled out NaNs for exponent.
-    __ ucomisd(double_exponent, double_scratch);
-    __ j(equal, &int_exponent);
 
     if (exponent_type_ == ON_STACK) {
       // Detect square root case.  Crankshaft detects constant +/-0.5 at

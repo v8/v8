@@ -282,20 +282,25 @@ void MacroAssembler::DoubleToI(Register result_reg,
                                Label* conversion_failed,
                                Label::Distance dst) {
   ASSERT(!input_reg.is(scratch));
-  Label done;
   cvttsd2si(result_reg, Operand(input_reg));
   cvtsi2sd(scratch, Operand(result_reg));
   ucomisd(scratch, input_reg);
   j(not_equal, conversion_failed, dst);
   j(parity_even, conversion_failed, dst);  // NaN.
   if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
+    Label done;
+    // The integer converted back is equal to the original. We
+    // only have to test if we got -0 as an input.
     test(result_reg, Operand(result_reg));
     j(not_zero, &done, Label::kNear);
     movmskpd(result_reg, input_reg);
+    // Bit 0 contains the sign of the double in input_reg.
+    // If input was positive, we are ok and return 0, otherwise
+    // jump to conversion_failed.
     and_(result_reg, 1);
     j(not_zero, conversion_failed, dst);
+    bind(&done);
   }
-  bind(&done);
 }
 
 

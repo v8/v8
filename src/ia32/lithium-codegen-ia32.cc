@@ -471,8 +471,8 @@ bool LCodeGen::GenerateDeferredCode() {
         Comment(";;; Deferred code");
       }
       code->Generate();
-      __ bind(code->done());
       if (NeedsDeferredFrame()) {
+        __ bind(code->done());
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
         frame_is_built_ = false;
