@@ -1055,16 +1055,34 @@ void RegExpMacroAssemblerARM::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerARM::CallCheckStackGuardState(Register scratch) {
-  static const int num_arguments = 3;
-  __ PrepareCallCFunction(num_arguments, scratch);
+  __ PrepareCallCFunction(3, scratch);
+
   // RegExp code frame pointer.
   __ mov(r2, frame_pointer());
   // Code* of self.
   __ mov(r1, Operand(masm_->CodeObject()));
-  // r0 becomes return address pointer.
+
+  // We need to make room for the return address on the stack.
+  int stack_alignment = OS::ActivationFrameAlignment();
+  ASSERT(IsAligned(stack_alignment, kPointerSize));
+  __ sub(sp, sp, Operand(stack_alignment));
+
+  // r0 will point to the return address, placed by DirectCEntry.
+  __ mov(r0, sp);
+
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
-  CallCFunctionUsingStub(stack_guard_check, num_arguments);
+  __ mov(ip, Operand(stack_guard_check));
+  DirectCEntryStub stub;
+  stub.GenerateCall(masm_, ip);
+
+  // Drop the return address from the stack.
+  __ add(sp, sp, Operand(stack_alignment));
+
+  ASSERT(stack_alignment != 0);
+  __ ldr(sp, MemOperand(sp, 0));
+
+  __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
 
 
@@ -1294,21 +1312,6 @@ int RegExpMacroAssemblerARM::GetBacktrackConstantPoolEntry() {
 }
 
 
-void RegExpMacroAssemblerARM::CallCFunctionUsingStub(
-    ExternalReference function,
-    int num_arguments) {
-  // Must pass all arguments in registers. The stub pushes on the stack.
-  ASSERT(num_arguments <= 4);
-  __ mov(code_pointer(), Operand(function));
-  RegExpCEntryStub stub;
-  __ CallStub(&stub);
-  if (OS::ActivationFrameAlignment() != 0) {
-    __ ldr(sp, MemOperand(sp, 0));
-  }
-  __ mov(code_pointer(), Operand(masm_->CodeObject()));
-}
-
-
 bool RegExpMacroAssemblerARM::CanReadUnaligned() {
   return CpuFeatures::IsSupported(UNALIGNED_ACCESSES) && !slow_safe();
 }
@@ -1350,17 +1353,6 @@ void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
   }
 }
 
-
-void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  int stack_alignment = OS::ActivationFrameAlignment();
-  if (stack_alignment < kPointerSize) stack_alignment = kPointerSize;
-  // Stack is already aligned for call, so decrement by alignment
-  // to make room for storing the link register.
-  __ str(lr, MemOperand(sp, stack_alignment, NegPreIndex));
-  __ mov(r0, sp);
-  __ Call(r5);
-  __ ldr(pc, MemOperand(sp, stack_alignment, PostIndex));
-}
 
 #undef __
 

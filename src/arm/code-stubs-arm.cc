@@ -6143,6 +6143,11 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
+  // Place the return address on the stack, making the call
+  // GC safe. The RegExp backend also relies on this.
+  __ str(lr, MemOperand(sp, 0));
+  __ blx(ip);  // Call the C++ function.
+  __ VFPEnsureFPSCRState(r2);
   __ ldr(pc, MemOperand(sp, 0));
 }
 
@@ -6151,21 +6156,9 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
+  __ Move(ip, target);
   __ mov(lr, Operand(code, RelocInfo::CODE_TARGET));
-
-  // Prevent literal pool emission during calculation of return address.
-  Assembler::BlockConstPoolScope block_const_pool(masm);
-
-  // Push return address (accessible to GC through exit frame pc).
-  // Note that using pc with str is deprecated.
-  Label start;
-  __ bind(&start);
-  __ add(ip, pc, Operand(Assembler::kInstrSize));
-  __ str(ip, MemOperand(sp, 0));
-  __ Jump(target);  // Call the C++ function.
-  ASSERT_EQ(Assembler::kInstrSize + Assembler::kPcLoadDelta,
-            masm->SizeOfCodeGeneratedSince(&start));
-  __ VFPEnsureFPSCRState(r2);
+  __ blx(lr);  // Call the stub.
 }
 
 
