@@ -1154,7 +1154,14 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ jmp(&loaded, Label::kNear);
 
     __ bind(&input_not_smi);
-    __ TaggedToI(rbx, rax, xmm1, TREAT_MINUS_ZERO_AS_ZERO, &runtime_call);
+    // Check if input is a HeapNumber.
+    __ LoadRoot(rbx, Heap::kHeapNumberMapRootIndex);
+    __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ j(not_equal, &runtime_call);
+    // Input is a HeapNumber. Push it on the FPU stack and load its
+    // bits into rbx.
+    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+    __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
     __ movq(rdx, rbx);
 
     __ bind(&loaded);
