@@ -35,7 +35,7 @@ using namespace v8::internal;
 
 static const int kMaxRuns = 12345;
 static const int kRandomSeeds[] = {
-  -1, 1, 42, 100, 1234567890, 987654321, 0xdeadbeef
+  -1, 1, 42, 100, 1234567890, 987654321
 };
 
 
