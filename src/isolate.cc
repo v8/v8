@@ -1776,6 +1776,7 @@ Isolate::Isolate()
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
+      is_memory_constrained_(false),
       has_fatal_error_(false),
       use_crankshaft_(true),
       initialized_from_snapshot_(false),
