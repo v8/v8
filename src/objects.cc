@@ -11432,8 +11432,9 @@ void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
 
 bool DependentCode::Contains(DependencyGroup group, Code* code) {
   GroupStartIndexes starts(this);
-  int number_of_entries = starts.number_of_entries();
-  for (int i = 0; i < number_of_entries; i++) {
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  for (int i = start; i < end; i++) {
     if (object_at(i) == code) return true;
   }
   return false;
