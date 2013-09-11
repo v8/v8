@@ -1900,20 +1900,6 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
-void JSObject::AddFastProperty(Handle<JSObject> object,
-                             Handle<Name> name,
-                             Handle<Object> value,
-                             PropertyAttributes attributes,
-                             StoreFromKeyed store_mode,
-                             ValueType value_type,
-                             TransitionFlag flag) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->AddFastProperty(
-          *name, *value, attributes, store_mode, value_type, flag));
-}
-
-
 MaybeObject* JSObject::AddFastProperty(Name* name,
                                        Object* value,
                                        PropertyAttributes attributes,
@@ -1959,17 +1945,6 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 }
 
 
-void JSObject::AddConstantProperty(Handle<JSObject> object,
-                                   Handle<Name> name,
-                                   Handle<Object> constant,
-                                   PropertyAttributes attributes,
-                                   TransitionFlag flag) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->AddConstantProperty(*name, *constant, attributes, flag));
-}
-
-
 MaybeObject* JSObject::AddConstantProperty(
     Name* name,
     Object* constant,
@@ -1996,15 +1971,7 @@ MaybeObject* JSObject::AddConstantProperty(
 }
 
 
-void JSObject::AddSlowProperty(Handle<JSObject> object,
-                               Handle<Name> name,
-                               Handle<Object> value,
-                               PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->AddSlowProperty(*name, *value, attributes));
-}
-
-
+// Add property in slow mode
 MaybeObject* JSObject::AddSlowProperty(Name* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
@@ -2046,61 +2013,69 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
 }
 
 
-Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
-                                     Handle<Name> name,
-                                     Handle<Object> value,
-                                     PropertyAttributes attributes,
-                                     StrictModeFlag strict_mode,
-                                     JSReceiver::StoreFromKeyed store_mode,
-                                     ExtensibilityCheck extensibility_check,
-                                     ValueType value_type,
-                                     StoreMode mode,
-                                     TransitionFlag transition_flag) {
-  ASSERT(!object->IsJSGlobalProxy());
-  Isolate* isolate = object->GetIsolate();
+MaybeObject* JSObject::AddProperty(Name* name,
+                                   Object* value,
+                                   PropertyAttributes attributes,
+                                   StrictModeFlag strict_mode,
+                                   JSReceiver::StoreFromKeyed store_mode,
+                                   ExtensibilityCheck extensibility_check,
+                                   ValueType value_type,
+                                   StoreMode mode,
+                                   TransitionFlag transition_flag) {
+  ASSERT(!IsJSGlobalProxy());
+  Map* map_of_this = map();
+  Heap* heap = GetHeap();
+  Isolate* isolate = heap->isolate();
+  MaybeObject* result;
   if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
-      !object->map()->is_extensible()) {
+      !map_of_this->is_extensible()) {
     if (strict_mode == kNonStrictMode) {
       return value;
     } else {
-      Handle<Object> args[1] = { name };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-          "object_not_extensible", HandleVector(args, ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      Handle<Object> args[1] = {Handle<Name>(name)};
+      return isolate->Throw(
+          *isolate->factory()->NewTypeError("object_not_extensible",
+                                            HandleVector(args, 1)));
     }
   }
 
-  if (object->HasFastProperties()) {
+  if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
-    if (object->map()->NumberOfOwnDescriptors() <
+    if (map_of_this->NumberOfOwnDescriptors() <
         DescriptorArray::kMaxNumberOfDescriptors) {
       // TODO(verwaest): Support other constants.
       // if (mode == ALLOW_AS_CONSTANT &&
       //     !value->IsTheHole() &&
       //     !value->IsConsString()) {
       if (value->IsJSFunction()) {
-        AddConstantProperty(object, name, value, attributes, transition_flag);
+        result = AddConstantProperty(name, value, attributes, transition_flag);
       } else {
-        AddFastProperty(object, name, value, attributes, store_mode,
-                        value_type, transition_flag);
+        result = AddFastProperty(
+            name, value, attributes, store_mode, value_type, transition_flag);
       }
     } else {
       // Normalize the object to prevent very large instance descriptors.
       // This eliminates unwanted N^2 allocation and lookup behavior.
-      NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
-      AddSlowProperty(object, name, value, attributes);
+      Object* obj;
+      MaybeObject* maybe = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+      if (!maybe->To(&obj)) return maybe;
+      result = AddSlowProperty(name, value, attributes);
     }
   } else {
-    AddSlowProperty(object, name, value, attributes);
+    result = AddSlowProperty(name, value, attributes);
   }
 
-  if (FLAG_harmony_observation && object->map()->is_observed()) {
-    Handle<Object> old_value = isolate->factory()->the_hole_value();
-    EnqueueChangeRecord(object, "new", name, old_value);
+  Handle<Object> hresult;
+  if (!result->ToHandle(&hresult, isolate)) return result;
+
+  if (FLAG_harmony_observation && map()->is_observed()) {
+    EnqueueChangeRecord(handle(this, isolate),
+                        "new",
+                        handle(name, isolate),
+                        handle(heap->the_hole_value(), isolate));
   }
 
-  return value;
+  return *hresult;
 }
 
 
@@ -2140,32 +2115,29 @@ void JSObject::DeliverChangeRecords(Isolate* isolate) {
 }
 
 
-Handle<Object> JSObject::SetPropertyPostInterceptor(
-    Handle<JSObject> object,
-    Handle<Name> name,
-    Handle<Object> value,
+MaybeObject* JSObject::SetPropertyPostInterceptor(
+    Name* name,
+    Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode) {
+    StrictModeFlag strict_mode,
+    StoreMode mode) {
   // Check local property, ignore interceptor.
-  LookupResult result(object->GetIsolate());
-  object->LocalLookupRealNamedProperty(*name, &result);
-  if (!result.IsFound()) {
-    object->map()->LookupTransition(*object, *name, &result);
-  }
+  LookupResult result(GetIsolate());
+  LocalLookupRealNamedProperty(name, &result);
+  if (!result.IsFound()) map()->LookupTransition(this, name, &result);
   if (result.IsFound()) {
     // An existing property or a map transition was found. Use set property to
     // handle all these cases.
-    CALL_HEAP_FUNCTION(object->GetIsolate(),
-                       object->SetProperty(
-                           &result, *name, *value, attributes, strict_mode),
-                       Object);
+    return SetProperty(&result, name, value, attributes, strict_mode);
   }
   bool done = false;
-  Handle<Object> result_object = SetPropertyViaPrototypes(
-      object, name, value, attributes, strict_mode, &done);
+  MaybeObject* result_object =
+      SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
   if (done) return result_object;
   // Add a new real property.
-  return AddProperty(object, name, value, attributes, strict_mode);
+  return AddProperty(name, value, attributes, strict_mode,
+                     MAY_BE_STORE_FROM_KEYED, PERFORM_EXTENSIBILITY_CHECK,
+                     OPTIMAL_REPRESENTATION, mode);
 }
 
 
@@ -2731,36 +2703,41 @@ Map* Map::CurrentMapForDeprecated() {
 }
 
 
-Handle<Object> JSObject::SetPropertyWithInterceptor(
-    Handle<JSObject> object,
-    Handle<Name> name,
-    Handle<Object> value,
+MaybeObject* JSObject::SetPropertyWithInterceptor(
+    Name* name,
+    Object* value,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
   // TODO(rossberg): Support symbols in the API.
   if (name->IsSymbol()) return value;
-  Isolate* isolate = object->GetIsolate();
-  Handle<String> name_string = Handle<String>::cast(name);
-  Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<JSObject> this_handle(this);
+  Handle<String> name_handle(String::cast(name));
+  Handle<Object> value_handle(value, isolate);
+  Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   if (!interceptor->setter()->IsUndefined()) {
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-set", *object, *name));
-    PropertyCallbackArguments args(
-        isolate, interceptor->data(), *object, *object);
+    LOG(isolate, ApiNamedPropertyAccess("interceptor-named-set", this, name));
+    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::NamedPropertySetterCallback setter =
         v8::ToCData<v8::NamedPropertySetterCallback>(interceptor->setter());
-    Handle<Object> value_unhole = value->IsTheHole()
-        ? Handle<Object>(isolate->factory()->undefined_value()) : value;
+    Handle<Object> value_unhole(value->IsTheHole() ?
+                                isolate->heap()->undefined_value() :
+                                value,
+                                isolate);
     v8::Handle<v8::Value> result = args.Call(setter,
-                                             v8::Utils::ToLocal(name_string),
+                                             v8::Utils::ToLocal(name_handle),
                                              v8::Utils::ToLocal(value_unhole));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (!result.IsEmpty()) return value;
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    if (!result.IsEmpty()) return *value_handle;
   }
-  Handle<Object> result =
-      SetPropertyPostInterceptor(object, name, value, attributes, strict_mode);
-  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  return result;
+  MaybeObject* raw_result =
+      this_handle->SetPropertyPostInterceptor(*name_handle,
+                                              *value_handle,
+                                              attributes,
+                                              strict_mode);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  return raw_result;
 }
 
 
@@ -2953,20 +2930,21 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
   return heap->the_hole_value();
 }
 
-Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
-                                                  Handle<Name> name,
-                                                  Handle<Object> value,
-                                                  PropertyAttributes attributes,
-                                                  StrictModeFlag strict_mode,
-                                                  bool* done) {
-  Isolate* isolate = object->GetIsolate();
+MaybeObject* JSObject::SetPropertyViaPrototypes(
+    Name* name,
+    Object* value,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode,
+    bool* done) {
+  Heap* heap = GetHeap();
+  Isolate* isolate = heap->isolate();
 
   *done = false;
   // We could not find a local property so let's check whether there is an
   // accessor that wants to handle the property, or whether the property is
   // read-only on the prototype chain.
   LookupResult result(isolate);
-  object->LookupRealNamedPropertyInPrototypes(*name, &result);
+  LookupRealNamedPropertyInPrototypes(name, &result);
   if (result.IsFound()) {
     switch (result.type()) {
       case NORMAL:
@@ -2977,25 +2955,19 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
       case INTERCEPTOR: {
         PropertyAttributes attr =
             result.holder()->GetPropertyAttributeWithInterceptor(
-                *object, *name, true);
+                this, name, true);
         *done = !!(attr & READ_ONLY);
         break;
       }
       case CALLBACKS: {
         if (!FLAG_es5_readonly && result.IsReadOnly()) break;
         *done = true;
-        CALL_HEAP_FUNCTION(isolate,
-                           object->SetPropertyWithCallback(
-                               result.GetCallbackObject(),
-                               *name, *value, result.holder(), strict_mode),
-                           Object);
+        return SetPropertyWithCallback(result.GetCallbackObject(),
+            name, value, result.holder(), strict_mode);
       }
       case HANDLER: {
-        CALL_HEAP_FUNCTION(isolate,
-                           result.proxy()->SetPropertyViaPrototypesWithHandler(
-                               *object, *name, *value, attributes, strict_mode,
-                               done),
-                           Object);
+        return result.proxy()->SetPropertyViaPrototypesWithHandler(
+            this, name, value, attributes, strict_mode, done);
       }
       case TRANSITION:
       case NONEXISTENT:
@@ -3008,13 +2980,12 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
   if (!FLAG_es5_readonly) *done = false;
   if (*done) {
     if (strict_mode == kNonStrictMode) return value;
-    Handle<Object> args[] = { name, object };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    Handle<Object> args[] = { Handle<Object>(name, isolate),
+                              Handle<Object>(this, isolate)};
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+      "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args))));
   }
-  return isolate->factory()->the_hole_value();
+  return heap->the_hole_value();
 }
 
 
@@ -3802,14 +3773,11 @@ static MaybeObject* SetPropertyUsingTransition(LookupResult* lookup,
     // AddProperty will either normalize the object, or create a new fast copy
     // of the map. If we get a fast copy of the map, all field representations
     // will be tagged since the transition is omitted.
-    Handle<JSObject> holder(lookup->holder());
-    Handle<Object> result = JSObject::AddProperty(
-        holder, name, value, attributes, kNonStrictMode,
+    return lookup->holder()->AddProperty(
+        *name, *value, attributes, kNonStrictMode,
         JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED,
         JSReceiver::OMIT_EXTENSIBILITY_CHECK,
         JSObject::FORCE_TAGGED, FORCE_FIELD, OMIT_TRANSITION);
-    RETURN_IF_EMPTY_HANDLE(holder->GetIsolate(), result);
-    return *result;
   }
 
   // Keep the target CONSTANT if the same value is stored.
@@ -3979,18 +3947,15 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 
   if (!lookup->IsProperty() && !self->IsJSContextExtensionObject()) {
     bool done = false;
-    Handle<Object> result_object = SetPropertyViaPrototypes(
-        self, name, value, attributes, strict_mode, &done);
-    RETURN_IF_EMPTY_HANDLE(isolate, result_object);
-    if (done) return *result_object;
+    MaybeObject* result_object = self->SetPropertyViaPrototypes(
+        *name, *value, attributes, strict_mode, &done);
+    if (done) return result_object;
   }
 
   if (!lookup->IsFound()) {
     // Neither properties nor transitions found.
-    Handle<Object> result_object = AddProperty(
-        self, name, value, attributes, strict_mode, store_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate, result_object);
-    return *result_object;
+    return self->AddProperty(
+        *name, *value, attributes, strict_mode, store_mode);
   }
 
   if (lookup->IsProperty() && lookup->IsReadOnly()) {
@@ -4029,14 +3994,10 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
       return self->SetPropertyWithCallback(
           callback_object, *name, *value, lookup->holder(), strict_mode);
     }
-    case INTERCEPTOR: {
-      Handle<JSObject> holder(lookup->holder());
-      Handle<Object> hresult = SetPropertyWithInterceptor(
-          holder, name, value, attributes, strict_mode);
-      RETURN_IF_EMPTY_HANDLE(isolate, hresult);
-      result = *hresult;
+    case INTERCEPTOR:
+      result = lookup->holder()->SetPropertyWithInterceptor(
+          *name, *value, attributes, strict_mode);
       break;
-    }
     case TRANSITION: {
       result = SetPropertyUsingTransition(lookup, name, value, attributes);
       break;
@@ -4159,23 +4120,21 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     LocalLookupRealNamedProperty(name_raw, &lookup);
   }
 
+  // Check for accessor in prototype chain removed here in clone.
+  if (!lookup.IsFound()) {
+    // Neither properties nor transitions found.
+    return AddProperty(
+        name_raw, value_raw, attributes, kNonStrictMode,
+        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode);
+  }
+
   // From this point on everything needs to be handlified.
   HandleScope scope(isolate);
   Handle<JSObject> self(this);
   Handle<Name> name(name_raw);
   Handle<Object> value(value_raw, isolate);
 
-  // Check for accessor in prototype chain removed here in clone.
-  if (!lookup.IsFound()) {
-    // Neither properties nor transitions found.
-    Handle<Object> result = AddProperty(
-        self, name, value, attributes, kNonStrictMode,
-        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
-  }
-
-  Handle<Object> old_value = isolate->factory()->the_hole_value();
+  Handle<Object> old_value(isolate->heap()->the_hole_value(), isolate);
   PropertyAttributes old_attributes = ABSENT;
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
   if (is_observed && lookup.IsProperty()) {

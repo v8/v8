@@ -2145,12 +2145,17 @@ class JSObject: public JSReceiver {
       Object* value,
       JSObject* holder,
       StrictModeFlag strict_mode);
-  static Handle<Object> SetPropertyWithInterceptor(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
+  MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
+      Name* name,
+      Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
+  MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
+      Name* name,
+      Object* value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode,
+      StoreMode mode = ALLOW_AS_CONSTANT);
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
       Handle<JSObject> object,
@@ -2471,13 +2476,24 @@ class JSObject: public JSReceiver {
 
   // Add a property to a fast-case object using a map transition to
   // new_map.
-  // TODO(mstarzinger): Only public because of SetPropertyUsingTransition!
   MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(
       Map* new_map,
       Name* name,
       Object* value,
       int field_index,
       Representation representation);
+
+  // Add a constant function property to a fast-case object.
+  // This leaves a CONSTANT_TRANSITION in the old map, and
+  // if it is called on a second object with this map, a
+  // normal property is added instead, with a map transition.
+  // This avoids the creation of many maps with the same constant
+  // function, all orphaned.
+  MUST_USE_RESULT MaybeObject* AddConstantProperty(
+      Name* name,
+      Object* constant,
+      PropertyAttributes attributes,
+      TransitionFlag flag);
 
   MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
       Name* name,
@@ -2506,12 +2522,24 @@ class JSObject: public JSReceiver {
       Representation new_representation,
       StoreMode store_mode);
 
-  // Add a property to an object.
-  // TODO(mstarzinger): Only public because of SetPropertyUsingTransition!
-  static Handle<Object> AddProperty(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
+  // Add a property to a fast-case object.
+  MUST_USE_RESULT MaybeObject* AddFastProperty(
+      Name* name,
+      Object* value,
+      PropertyAttributes attributes,
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      TransitionFlag flag = INSERT_TRANSITION);
+
+  // Add a property to a slow-case object.
+  MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
+                                               Object* value,
+                                               PropertyAttributes attributes);
+
+  // Add a property to an object. May cause GC.
+  MUST_USE_RESULT MaybeObject* AddProperty(
+      Name* name,
+      Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
@@ -2746,62 +2774,13 @@ class JSObject: public JSReceiver {
   // Searches the prototype chain for property 'name'. If it is found and
   // has a setter, invoke it and set '*done' to true. If it is found and is
   // read-only, reject and set '*done' to true. Otherwise, set '*done' to
-  // false. Can throw and return an empty handle with '*done==true'.
-  static Handle<Object> SetPropertyViaPrototypes(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
-      bool* done);
-  static Handle<Object> SetPropertyPostInterceptor(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode);
-
-  // Add a constant function property to a fast-case object.
-  // This leaves a CONSTANT_TRANSITION in the old map, and
-  // if it is called on a second object with this map, a
-  // normal property is added instead, with a map transition.
-  // This avoids the creation of many maps with the same constant
-  // function, all orphaned.
-  static void AddConstantProperty(Handle<JSObject> object,
-                                  Handle<Name> name,
-                                  Handle<Object> constant,
-                                  PropertyAttributes attributes,
-                                  TransitionFlag flag);
-  MUST_USE_RESULT MaybeObject* AddConstantProperty(
-      Name* name,
-      Object* constant,
-      PropertyAttributes attributes,
-      TransitionFlag flag);
-
-  // Add a property to a fast-case object.
-  static void AddFastProperty(Handle<JSObject> object,
-                              Handle<Name> name,
-                              Handle<Object> value,
-                              PropertyAttributes attributes,
-                              StoreFromKeyed store_mode,
-                              ValueType value_type,
-                              TransitionFlag flag);
-  MUST_USE_RESULT MaybeObject* AddFastProperty(
+  // false. Can cause GC and can return a failure result with '*done==true'.
+  MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypes(
       Name* name,
       Object* value,
       PropertyAttributes attributes,
-      StoreFromKeyed store_mode,
-      ValueType value_type,
-      TransitionFlag flag);
-
-  // Add a property to a slow-case object.
-  static void AddSlowProperty(Handle<JSObject> object,
-                              Handle<Name> name,
-                              Handle<Object> value,
-                              PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
-                                               Object* value,
-                                               PropertyAttributes attributes);
+      StrictModeFlag strict_mode,
+      bool* done);
 
   static Handle<Object> DeleteProperty(Handle<JSObject> object,
                                        Handle<Name> name,
