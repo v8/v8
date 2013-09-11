@@ -9052,6 +9052,8 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
   // involves carefully checking the object immediately after the JSArray
   // (if there is one) to see if it's an AllocationMemento.
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
+    // TODO(mvstanton): CHECK to diagnose chromium bug 284577, remove after.
+    CHECK(object->GetHeap()->InToSpace(object));
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
     if ((ptr_end + AllocationMemento::kSize) <=
@@ -9061,8 +9063,14 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
           reinterpret_cast<Map**>(ptr_end);
       if (*possible_allocation_memento_map ==
           object->GetHeap()->allocation_memento_map()) {
+        Address ptr_object = reinterpret_cast<Address>(object);
+        // TODO(mvstanton): CHECK to diagnose chromium bug 284577, remove after.
+        // If this check fails it points to the very unlikely case that we've
+        // misinterpreted a page header as an allocation memento. Follow up
+        // with a real fix.
+        CHECK(Page::FromAddress(ptr_object) == Page::FromAddress(ptr_end));
         AllocationMemento* memento = AllocationMemento::cast(
-            reinterpret_cast<Object*>(ptr_end + 1));
+            reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
         return memento;
       }
     }
