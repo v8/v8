@@ -193,7 +193,7 @@ class VirtualMemory V8_FINAL {
   // Returns true if OS performs lazy commits, i.e. the memory allocation call
   // defers actual physical memory allocation till the first memory access.
   // Otherwise returns false.
-  static V8_INLINE(bool HasLazyCommits()) {
+  static V8_INLINE bool HasLazyCommits() {
 #if V8_OS_LINUX
     return true;
 #else

@@ -1092,7 +1092,7 @@ class MemoryAllocator {
 
   // Returns an indication of whether a pointer is in a space that has
   // been allocated by this MemoryAllocator.
-  V8_INLINE(bool IsOutsideAllocatedSpace(const void* address)) const {
+  V8_INLINE bool IsOutsideAllocatedSpace(const void* address) const {
     return address < lowest_ever_allocated_ ||
         address >= highest_ever_allocated_;
   }

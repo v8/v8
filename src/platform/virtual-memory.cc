@@ -54,7 +54,7 @@ namespace internal {
 
 class RandomAddressGenerator V8_FINAL {
   public:
-  V8_INLINE(uintptr_t NextAddress()) {
+  V8_INLINE uintptr_t NextAddress() {
     LockGuard<Mutex> lock_guard(&mutex_);
     uintptr_t address = rng_.NextInt();
 #if V8_HOST_ARCH_64_BIT
@@ -75,7 +75,7 @@ typedef LazyInstance<RandomAddressGenerator,
 #define LAZY_RANDOM_ADDRESS_GENERATOR_INITIALIZER LAZY_INSTANCE_INITIALIZER
 
 
-static V8_INLINE(void* GenerateRandomAddress()) {
+static V8_INLINE void* GenerateRandomAddress() {
 #if V8_OS_NACL
   // TODO(bradchen): Restore randomization once Native Client gets smarter
   // about using mmap address hints.

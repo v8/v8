@@ -298,23 +298,27 @@
 // Helper macros
 
 // A macro used to make better inlining. Don't bother for debug builds.
+// Use like:
+//   V8_INLINE int GetZero() { return 0; }
 #if !defined(DEBUG) && V8_HAS_ATTRIBUTE_ALWAYS_INLINE
-# define V8_INLINE(declarator) inline __attribute__((always_inline)) declarator
+# define V8_INLINE inline __attribute__((always_inline))
 #elif !defined(DEBUG) && V8_HAS___FORCEINLINE
-# define V8_INLINE(declarator) __forceinline declarator
+# define V8_INLINE __forceinline
 #else
-# define V8_INLINE(declarator) inline declarator
+# define V8_INLINE inline
 #endif
 
 
 // A macro used to tell the compiler to never inline a particular function.
 // Don't bother for debug builds.
+// Use like:
+//   V8_NOINLINE int GetMinusOne() { return -1; }
 #if !defined(DEBUG) && V8_HAS_ATTRIBUTE_NOINLINE
-# define V8_NOINLINE(declarator) __attribute__((noinline)) declarator
+# define V8_NOINLINE __attribute__((noinline))
 #elif !defined(DEBUG) && V8_HAS_DECLSPEC_NOINLINE
-# define V8_NOINLINE(declarator) __declspec(noinline) declarator
+# define V8_NOINLINE __declspec(noinline)
 #else
-# define V8_NOINLINE(declarator) declarator
+# define V8_NOINLINE /* NOT SUPPORTED */
 #endif
 
 
