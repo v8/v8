@@ -164,9 +164,10 @@ typedef double (*ModuloFunction)(double, double);
 // Define custom fmod implementation.
 ModuloFunction CreateModuloFunction() {
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
+          Assembler::kMinimalBufferSize,
+          &actual_size,
+          VirtualMemory::EXECUTABLE));
   CHECK(buffer);
   Assembler masm(NULL, buffer, static_cast<int>(actual_size));
   // Generated code is put into a fixed, unmovable, buffer, and not into
