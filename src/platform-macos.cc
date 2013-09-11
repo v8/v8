@@ -79,34 +79,6 @@ namespace v8 {
 namespace internal {
 
 
-// Constants used for mmap.
-// kMmapFd is used to pass vm_alloc flags to tag the region with the user
-// defined tag 255 This helps identify V8-allocated regions in memory analysis
-// tools like vmmap(1).
-static const int kMmapFd = VM_MAKE_TAG(255);
-static const off_t kMmapFdOffset = 0;
-
-
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
-  const size_t msize = RoundUp(requested, getpagesize());
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(OS::GetRandomMmapAddr(),
-                     msize,
-                     prot,
-                     MAP_PRIVATE | MAP_ANON,
-                     kMmapFd,
-                     kMmapFdOffset);
-  if (mbase == MAP_FAILED) {
-    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
-    return NULL;
-  }
-  *allocated = msize;
-  return mbase;
-}
-
-
 void OS::DumpBacktrace() {
   // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
   if (backtrace == NULL) return;
@@ -137,7 +109,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   int size = ftell(file);
 
   void* memory =
-      mmap(OS::GetRandomMmapAddr(),
+      mmap(NULL,
            size,
            PROT_READ | PROT_WRITE,
            MAP_SHARED,
@@ -157,7 +129,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     return NULL;
   }
   void* memory =
-      mmap(OS::GetRandomMmapAddr(),
+      mmap(NULL,
           size,
           PROT_READ | PROT_WRITE,
           MAP_SHARED,
@@ -168,7 +140,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) OS::Free(memory_, size_);
+  if (memory_) munmap(memory_, size_);
   fclose(file_);
 }
 
@@ -225,139 +197,6 @@ int OS::StackWalk(Vector<StackFrame> frames) {
   if (backtrace == NULL) return 0;
 
   return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
-}
-
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
-
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) { }
-
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
-    : address_(NULL), size_(0) {
-  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
-  size_t request_size = RoundUp(size + alignment,
-                                static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(OS::GetRandomMmapAddr(),
-                           request_size,
-                           PROT_NONE,
-                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                           kMmapFd,
-                           kMmapFdOffset);
-  if (reservation == MAP_FAILED) return;
-
-  Address base = static_cast<Address>(reservation);
-  Address aligned_base = RoundUp(base, alignment);
-  ASSERT_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
-  }
-
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
-  ASSERT_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  ASSERT(aligned_size == request_size);
-
-  address_ = static_cast<void*>(aligned_base);
-  size_ = aligned_size;
-}
-
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address(), size());
-    ASSERT(result);
-    USE(result);
-  }
-}
-
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return UncommitRegion(address, size);
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  OS::Guard(address, OS::CommitPageSize());
-  return true;
-}
-
-
-void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(OS::GetRandomMmapAddr(),
-                      size,
-                      PROT_NONE,
-                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                      kMmapFd,
-                      kMmapFdOffset);
-
-  if (result == MAP_FAILED) return NULL;
-
-  return result;
-}
-
-
-bool VirtualMemory::CommitRegion(void* address,
-                                 size_t size,
-                                 bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(address,
-                         size,
-                         prot,
-                         MAP_PRIVATE | MAP_ANON | MAP_FIXED,
-                         kMmapFd,
-                         kMmapFdOffset)) {
-    return false;
-  }
-  return true;
-}
-
-
-bool VirtualMemory::UncommitRegion(void* address, size_t size) {
-  return mmap(address,
-              size,
-              PROT_NONE,
-              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
-              kMmapFd,
-              kMmapFdOffset) != MAP_FAILED;
-}
-
-
-bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
-}
-
-
-bool VirtualMemory::HasLazyCommits() {
-  return false;
 }
 
 } }  // namespace v8::internal

@@ -137,23 +137,6 @@ double OS::LocalTimeOffset() {
 }
 
 
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
-  const size_t msize = RoundUp(requested, AllocateAlignment());
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* addr = OS::GetRandomMmapAddr();
-  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (mbase == MAP_FAILED) {
-    LOG(i::Isolate::Current(),
-        StringEvent("OS::Allocate", "mmap failed"));
-    return NULL;
-  }
-  *allocated = msize;
-  return mbase;
-}
-
-
 void OS::DumpBacktrace() {
   // backtrace is a glibc extension.
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
@@ -184,12 +167,16 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   int size = ftell(file);
 
   void* memory =
-      mmap(OS::GetRandomMmapAddr(),
+      mmap(NULL,
            size,
            PROT_READ | PROT_WRITE,
            MAP_SHARED,
            fileno(file),
            0);
+  if (memory == MAP_FAILED) {
+    fclose(file);
+    return NULL;
+  }
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
@@ -204,18 +191,24 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     return NULL;
   }
   void* memory =
-      mmap(OS::GetRandomMmapAddr(),
+      mmap(NULL,
            size,
            PROT_READ | PROT_WRITE,
            MAP_SHARED,
            fileno(file),
            0);
+  if (memory == MAP_FAILED) {
+    fclose(file);
+    return NULL;
+  }
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) OS::Free(memory_, size_);
+  int result = munmap(memory_, size_);
+  ASSERT_EQ(0, result);
+  USE(result);
   fclose(file_);
 }
 
@@ -296,7 +289,7 @@ void OS::SignalCodeMovingGC() {
     OS::PrintError("Failed to open %s\n", FLAG_gc_fake_mmap);
     OS::Abort();
   }
-  void* addr = mmap(OS::GetRandomMmapAddr(),
+  void* addr = mmap(NULL,
                     size,
 #if defined(__native_client__)
                     // The Native Client port of V8 uses an interpreter,
@@ -309,7 +302,9 @@ void OS::SignalCodeMovingGC() {
                     fileno(f),
                     0);
   ASSERT(addr != MAP_FAILED);
-  OS::Free(addr, size);
+  int result = munmap(addr, size);
+  ASSERT_EQ(0, result);
+  USE(result);
   fclose(f);
 }
 
@@ -321,149 +316,6 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 #else
   return 0;
 #endif
-}
-
-
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
-
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
-
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) { }
-
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
-    : address_(NULL), size_(0) {
-  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
-  size_t request_size = RoundUp(size + alignment,
-                                static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(OS::GetRandomMmapAddr(),
-                           request_size,
-                           PROT_NONE,
-                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-                           kMmapFd,
-                           kMmapFdOffset);
-  if (reservation == MAP_FAILED) return;
-
-  Address base = static_cast<Address>(reservation);
-  Address aligned_base = RoundUp(base, alignment);
-  ASSERT_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
-  }
-
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
-  ASSERT_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  ASSERT(aligned_size == request_size);
-
-  address_ = static_cast<void*>(aligned_base);
-  size_ = aligned_size;
-}
-
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address(), size());
-    ASSERT(result);
-    USE(result);
-  }
-}
-
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return UncommitRegion(address, size);
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  OS::Guard(address, OS::CommitPageSize());
-  return true;
-}
-
-
-void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(OS::GetRandomMmapAddr(),
-                      size,
-                      PROT_NONE,
-                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-                      kMmapFd,
-                      kMmapFdOffset);
-
-  if (result == MAP_FAILED) return NULL;
-
-  return result;
-}
-
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-#if defined(__native_client__)
-  // The Native Client port of V8 uses an interpreter,
-  // so code pages don't need PROT_EXEC.
-  int prot = PROT_READ | PROT_WRITE;
-#else
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-#endif
-  if (MAP_FAILED == mmap(base,
-                         size,
-                         prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-                         kMmapFd,
-                         kMmapFdOffset)) {
-    return false;
-  }
-
-  return true;
-}
-
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return mmap(base,
-              size,
-              PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
-              kMmapFd,
-              kMmapFdOffset) != MAP_FAILED;
-}
-
-
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return munmap(base, size) == 0;
-}
-
-
-bool VirtualMemory::HasLazyCommits() {
-  return true;
 }
 
 } }  // namespace v8::internal

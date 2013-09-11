@@ -64,7 +64,8 @@ double fast_exp_simulator(double x) {
 UnaryMathFunction CreateExpFunction() {
   if (!FLAG_fast_math) return &exp;
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
+          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
   if (buffer == NULL) return &exp;
   ExternalReference::InitializeMathExpData();
 
@@ -102,7 +103,9 @@ UnaryMathFunction CreateExpFunction() {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
+  ASSERT(result);
+  USE(result);
 
 #if !defined(USE_SIMULATOR)
   return FUNCTION_CAST<UnaryMathFunction>(buffer);

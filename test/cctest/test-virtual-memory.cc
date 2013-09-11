@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,21 +24,63 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Tests of the TokenLock class from lock.h
-
-#include <stdlib.h>
 
 #include "v8.h"
 
-#include "platform.h"
 #include "cctest.h"
-#include "win32-headers.h"
+#include "platform/virtual-memory.h"
 
 using namespace ::v8::internal;
 
 
-TEST(GetCurrentProcessId) {
-  CHECK_EQ(static_cast<int>(::GetCurrentProcessId()),
-           OS::GetCurrentProcessId());
+TEST(CommitAndUncommit) {
+  static const size_t kSize = 1 * MB;
+  static const size_t kBlockSize = 4 * KB;
+  VirtualMemory vm(kSize);
+  CHECK(vm.IsReserved());
+  void* block_addr = vm.address();
+  CHECK(vm.Commit(block_addr, kBlockSize, VirtualMemory::NOT_EXECUTABLE));
+  // Check whether we can write to memory.
+  int* addr = static_cast<int*>(block_addr);
+  addr[5] = 2;
+  CHECK(vm.Uncommit(block_addr, kBlockSize));
+}
+
+
+TEST(Release) {
+  static const size_t kSize = 4 * KB;
+  VirtualMemory vm(kSize);
+  CHECK(vm.IsReserved());
+  CHECK_LE(kSize, vm.size());
+  CHECK_NE(NULL, vm.address());
+  vm.Release();
+  CHECK(!vm.IsReserved());
+}
+
+
+TEST(TakeControl) {
+  static const size_t kSize = 64 * KB;
+
+  VirtualMemory vm1(kSize);
+  size_t size1 = vm1.size();
+  CHECK(vm1.IsReserved());
+  CHECK_LE(kSize, size1);
+
+  VirtualMemory vm2;
+  CHECK(!vm2.IsReserved());
+
+  vm2.TakeControl(&vm1);
+  CHECK(vm2.IsReserved());
+  CHECK(!vm1.IsReserved());
+  CHECK(vm2.size() == size1);
+}
+
+
+TEST(AllocationGranularityIsPowerOf2) {
+  CHECK(IsPowerOf2(VirtualMemory::GetAllocationGranularity()));
+}
+
+
+TEST(PageSizeIsPowerOf2) {
+  CHECK(IsPowerOf2(VirtualMemory::GetPageSize()));
 }

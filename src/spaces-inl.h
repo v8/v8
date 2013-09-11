@@ -125,43 +125,11 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
 }
 
 
-// -----------------------------------------------------------------------------
-// MemoryAllocator
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void MemoryAllocator::Protect(Address start, size_t size) {
-  OS::Protect(start, size);
-}
-
-
-void MemoryAllocator::Unprotect(Address start,
-                                size_t size,
-                                Executability executable) {
-  OS::Unprotect(start, size, executable);
-}
-
-
-void MemoryAllocator::ProtectChunkFromPage(Page* page) {
-  int id = GetChunkId(page);
-  OS::Protect(chunks_[id].address(), chunks_[id].size());
-}
-
-
-void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
-  int id = GetChunkId(page);
-  OS::Unprotect(chunks_[id].address(), chunks_[id].size(),
-                chunks_[id].owner()->executable() == EXECUTABLE);
-}
-
-#endif
-
-
 // --------------------------------------------------------------------------
 // PagedSpace
 Page* Page::Initialize(Heap* heap,
                        MemoryChunk* chunk,
-                       Executability executable,
+                       VirtualMemory::Executability executability,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
   ASSERT(page->area_size() <= kNonCodeObjectAreaSize);

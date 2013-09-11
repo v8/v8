@@ -42,14 +42,8 @@ namespace internal {
 
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
-                                  OS::CommitPageSize(),
-#if defined(__native_client__)
-  // The Native Client port of V8 uses an interpreter,
-  // so code pages don't need PROT_EXEC.
-                                  NOT_EXECUTABLE,
-#else
-                                  EXECUTABLE,
-#endif
+                                  VirtualMemory::GetPageSize(),
+                                  VirtualMemory::EXECUTABLE,
                                   NULL);
 }
 
@@ -128,7 +122,7 @@ static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
 size_t Deoptimizer::GetMaxDeoptTableSize() {
   int entries_size =
       Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
-  int commit_page_size = static_cast<int>(OS::CommitPageSize());
+  int commit_page_size = static_cast<int>(VirtualMemory::GetPageSize());
   int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
                     commit_page_size) + 1;
   return static_cast<size_t>(commit_page_size * page_count);

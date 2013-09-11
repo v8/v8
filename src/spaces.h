@@ -33,6 +33,7 @@
 #include "list.h"
 #include "log.h"
 #include "platform/mutex.h"
+#include "platform/virtual-memory.h"
 #include "v8utils.h"
 
 namespace v8 {
@@ -573,8 +574,10 @@ class MemoryChunk {
     area_end_ = area_end;
   }
 
-  Executability executable() {
-    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
+  VirtualMemory::Executability executability() {
+    return IsFlagSet(IS_EXECUTABLE)
+        ? VirtualMemory::EXECUTABLE
+        : VirtualMemory::NOT_EXECUTABLE;
   }
 
   bool ContainsOnlyData() {
@@ -716,7 +719,7 @@ class MemoryChunk {
                                  size_t size,
                                  Address area_start,
                                  Address area_end,
-                                 Executability executable,
+                                 VirtualMemory::Executability executability,
                                  Space* owner);
 
   friend class MemoryAllocator;
@@ -796,7 +799,7 @@ class Page : public MemoryChunk {
 
   static inline Page* Initialize(Heap* heap,
                                  MemoryChunk* chunk,
-                                 Executability executable,
+                                 VirtualMemory::Executability executable,
                                  PagedSpace* owner);
 
   void InitializeAsAnchor(PagedSpace* owner);
@@ -862,15 +865,17 @@ STATIC_CHECK(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
 // Space is the abstract superclass for all allocation spaces.
 class Space : public Malloced {
  public:
-  Space(Heap* heap, AllocationSpace id, Executability executable)
-      : heap_(heap), id_(id), executable_(executable) {}
+  Space(Heap* heap,
+        AllocationSpace id,
+        VirtualMemory::Executability executability)
+      : heap_(heap), id_(id), executability_(executability) {}
 
   virtual ~Space() {}
 
   Heap* heap() const { return heap_; }
 
   // Does the space need executable memory?
-  Executability executable() { return executable_; }
+  VirtualMemory::Executability executability() { return executability_; }
 
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
@@ -897,7 +902,7 @@ class Space : public Malloced {
  private:
   Heap* heap_;
   AllocationSpace id_;
-  Executability executable_;
+  VirtualMemory::Executability executability_;
 };
 
 
@@ -1055,11 +1060,13 @@ class MemoryAllocator {
 
   void TearDown();
 
-  Page* AllocatePage(
-      intptr_t size, PagedSpace* owner, Executability executable);
+  Page* AllocatePage(intptr_t size,
+                     PagedSpace* owner,
+                     VirtualMemory::Executability executability);
 
-  LargePage* AllocateLargePage(
-      intptr_t object_size, Space* owner, Executability executable);
+  LargePage* AllocateLargePage(intptr_t object_size,
+                               Space* owner,
+                               VirtualMemory::Executability executability);
 
   void Free(MemoryChunk* chunk);
 
@@ -1100,7 +1107,7 @@ class MemoryAllocator {
   // could be committed later by calling MemoryChunk::CommitArea.
   MemoryChunk* AllocateChunk(intptr_t reserve_area_size,
                              intptr_t commit_area_size,
-                             Executability executable,
+                             VirtualMemory::Executability executability,
                              Space* space);
 
   Address ReserveAlignedMemory(size_t requested,
@@ -1109,19 +1116,26 @@ class MemoryAllocator {
   Address AllocateAlignedMemory(size_t reserve_size,
                                 size_t commit_size,
                                 size_t alignment,
-                                Executability executable,
+                                VirtualMemory::Executability executability,
                                 VirtualMemory* controller);
 
-  bool CommitMemory(Address addr, size_t size, Executability executable);
+  bool CommitMemory(Address addr,
+                    size_t size,
+                    VirtualMemory::Executability executability);
 
-  void FreeMemory(VirtualMemory* reservation, Executability executable);
-  void FreeMemory(Address addr, size_t size, Executability executable);
+  void FreeMemory(VirtualMemory* reservation,
+                  VirtualMemory::Executability executability);
+  void FreeMemory(Address addr,
+                  size_t size,
+                  VirtualMemory::Executability executability);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
   // the address is not NULL, the size is greater than zero, and that the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
-  bool CommitBlock(Address start, size_t size, Executability executable);
+  bool CommitBlock(Address start,
+                   size_t size,
+                   VirtualMemory::Executability executability);
 
   // Uncommit a contiguous block of memory [start..(start+size)[.
   // start is not NULL, the size is greater than zero, and the
@@ -1612,7 +1626,7 @@ class PagedSpace : public Space {
   PagedSpace(Heap* heap,
              intptr_t max_capacity,
              AllocationSpace id,
-             Executability executable);
+             VirtualMemory::Executability executability);
 
   virtual ~PagedSpace() {}
 
@@ -2037,7 +2051,7 @@ class SemiSpace : public Space {
  public:
   // Constructor.
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-    : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+    : Space(heap, NEW_SPACE, VirtualMemory::NOT_EXECUTABLE),
       start_(NULL),
       age_mark_(NULL),
       id_(semispace),
@@ -2290,7 +2304,7 @@ class NewSpace : public Space {
  public:
   // Constructor.
   explicit NewSpace(Heap* heap)
-    : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+    : Space(heap, NEW_SPACE, VirtualMemory::NOT_EXECUTABLE),
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace),
       reservation_(),
@@ -2555,8 +2569,8 @@ class OldSpace : public PagedSpace {
   OldSpace(Heap* heap,
            intptr_t max_capacity,
            AllocationSpace id,
-           Executability executable)
-      : PagedSpace(heap, max_capacity, id, executable) {
+           VirtualMemory::Executability executability)
+      : PagedSpace(heap, max_capacity, id, executability) {
     page_extra_ = 0;
   }
 
@@ -2587,7 +2601,7 @@ class FixedSpace : public PagedSpace {
              intptr_t max_capacity,
              AllocationSpace id,
              int object_size_in_bytes)
-      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
+      : PagedSpace(heap, max_capacity, id, VirtualMemory::NOT_EXECUTABLE),
         object_size_in_bytes_(object_size_in_bytes) {
     page_extra_ = Page::kNonCodeObjectAreaSize % object_size_in_bytes;
   }
@@ -2727,8 +2741,8 @@ class LargeObjectSpace : public Space {
 
   // Shared implementation of AllocateRaw, AllocateRawCode and
   // AllocateRawFixedArray.
-  MUST_USE_RESULT MaybeObject* AllocateRaw(int object_size,
-                                           Executability executable);
+  MUST_USE_RESULT MaybeObject* AllocateRaw(
+      int object_size, VirtualMemory::Executability executability);
 
   // Available bytes for objects in this space.
   inline intptr_t Available();

@@ -91,17 +91,6 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 }
 
 
-// Maximum size of the virtual memory.  0 means there is no artificial
-// limit.
-
-intptr_t OS::MaxVirtualMemory() {
-  struct rlimit limit;
-  int result = getrlimit(RLIMIT_DATA, &limit);
-  if (result != 0) return 0;
-  return limit.rlim_cur;
-}
-
-
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
@@ -117,97 +106,6 @@ int OS::ActivationFrameAlignment() {
   //   see "Mac OS X ABI Function Call Guide"
   return 16;
 #endif
-}
-
-
-intptr_t OS::CommitPageSize() {
-  static intptr_t page_size = getpagesize();
-  return page_size;
-}
-
-
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(address, size);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-// Get rid of writable permission on code allocations.
-void OS::ProtectCode(void* address, const size_t size) {
-#if defined(__CYGWIN__)
-  DWORD old_protect;
-  VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);
-#elif defined(__native_client__)
-  // The Native Client port of V8 uses an interpreter, so
-  // code pages don't need PROT_EXEC.
-  mprotect(address, size, PROT_READ);
-#else
-  mprotect(address, size, PROT_READ | PROT_EXEC);
-#endif
-}
-
-
-// Create guard pages.
-void OS::Guard(void* address, const size_t size) {
-#if defined(__CYGWIN__)
-  DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
-#else
-  mprotect(address, size, PROT_NONE);
-#endif
-}
-
-
-void* OS::GetRandomMmapAddr() {
-#if defined(__native_client__)
-  // TODO(bradchen): restore randomization once Native Client gets
-  // smarter about using mmap address hints.
-  // See http://code.google.com/p/nativeclient/issues/3341
-  return NULL;
-#endif
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  // Note that the current isolate isn't set up in a call path via
-  // CpuFeatures::Probe. We don't care about randomization in this case because
-  // the code page is immediately freed.
-  if (isolate != NULL) {
-    uintptr_t raw_addr;
-    isolate->random_number_generator()->NextBytes(&raw_addr, sizeof(raw_addr));
-#if V8_TARGET_ARCH_X64
-    // Currently available CPUs have 48 bits of virtual addressing.  Truncate
-    // the hint address to 46 bits to give the kernel a fighting chance of
-    // fulfilling our placement request.
-    raw_addr &= V8_UINT64_C(0x3ffffffff000);
-#else
-    raw_addr &= 0x3ffff000;
-
-# ifdef __sun
-    // For our Solaris/illumos mmap hint, we pick a random address in the bottom
-    // half of the top half of the address space (that is, the third quarter).
-    // Because we do not MAP_FIXED, this will be treated only as a hint -- the
-    // system will not fail to mmap() because something else happens to already
-    // be mapped at our random address. We deliberately set the hint high enough
-    // to get well above the system's break (that is, the heap); Solaris and
-    // illumos will try the hint and if that fails allocate as if there were
-    // no hint at all. The high hint prevents the break from getting hemmed in
-    // at low values, ceding half of the address space to the system heap.
-    raw_addr += 0x80000000;
-# else
-    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
-    // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
-    // 10.6 and 10.7.
-    raw_addr += 0x20000000;
-# endif
-#endif
-    return reinterpret_cast<void*>(raw_addr);
-  }
-  return NULL;
-}
-
-
-size_t OS::AllocateAlignment() {
-  return getpagesize();
 }
 
 

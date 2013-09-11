@@ -64,7 +64,8 @@ double fast_exp_simulator(double x) {
 UnaryMathFunction CreateExpFunction() {
   if (!FLAG_fast_math) return &exp;
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
+          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
   if (buffer == NULL) return &exp;
   ExternalReference::InitializeMathExpData();
 
@@ -102,7 +103,9 @@ UnaryMathFunction CreateExpFunction() {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
+  ASSERT(result);
+  USE(result);
 
 #if !defined(USE_SIMULATOR)
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
@@ -122,7 +125,8 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     return stub;
   }
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
+          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
   if (buffer == NULL) return stub;
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -264,7 +268,9 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
+  ASSERT(result);
+  USE(result);
   return FUNCTION_CAST<OS::MemCopyUint8Function>(buffer);
 #endif
 }
@@ -280,7 +286,8 @@ OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     return stub;
   }
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
+          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
   if (buffer == NULL) return stub;
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -352,7 +359,9 @@ OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
   masm.GetCode(&desc);
 
   CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
+  ASSERT(result);
+  USE(result);
 
   return FUNCTION_CAST<OS::MemCopyUint16Uint8Function>(buffer);
 #endif

@@ -449,6 +449,8 @@
         '../../src/platform/semaphore.h',
         '../../src/platform/socket.cc',
         '../../src/platform/socket.h',
+        '../../src/platform/virtual-memory.cc',
+        '../../src/platform/virtual-memory.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',

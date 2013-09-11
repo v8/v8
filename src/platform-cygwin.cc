@@ -73,21 +73,6 @@ double OS::LocalTimeOffset() {
 }
 
 
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
-  const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (mbase == MAP_FAILED) {
-    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
-    return NULL;
-  }
-  *allocated = msize;
-  return mbase;
-}
-
-
 void OS::DumpBacktrace() {
   // Currently unsupported.
 }
@@ -224,7 +209,8 @@ static void* GetRandomAddr() {
   // CpuFeatures::Probe. We don't care about randomization in this case because
   // the code page is immediately freed.
   if (isolate != NULL) {
-    // The address range used to randomize RWX allocations in OS::Allocate
+    // The address range used to randomize RWX allocations in
+    // VirtualMemory::AllocateRegion().
     // Try not to map pages into the default range that windows loads DLLs
     // Use a multiple of 64k to prevent committing unused memory.
     // Note: This does not guarantee RWX regions will be within the
@@ -243,128 +229,6 @@ static void* GetRandomAddr() {
     return reinterpret_cast<void *>(address);
   }
   return NULL;
-}
-
-
-static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
-  LPVOID base = NULL;
-
-  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
-    // For exectutable pages try and randomize the allocation address
-    for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
-      base = VirtualAlloc(GetRandomAddr(), size, action, protection);
-    }
-  }
-
-  // After three attempts give up and let the OS find an address to use.
-  if (base == NULL) base = VirtualAlloc(NULL, size, action, protection);
-
-  return base;
-}
-
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
-
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) { }
-
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
-    : address_(NULL), size_(0) {
-  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
-  size_t request_size = RoundUp(size + alignment,
-                                static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* address = ReserveRegion(request_size);
-  if (address == NULL) return;
-  Address base = RoundUp(static_cast<Address>(address), alignment);
-  // Try reducing the size by freeing and then reallocating a specific area.
-  bool result = ReleaseRegion(address, request_size);
-  USE(result);
-  ASSERT(result);
-  address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
-  if (address != NULL) {
-    request_size = size;
-    ASSERT(base == static_cast<Address>(address));
-  } else {
-    // Resizing failed, just go with a bigger area.
-    address = ReserveRegion(request_size);
-    if (address == NULL) return;
-  }
-  address_ = address;
-  size_ = request_size;
-}
-
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address_, size_);
-    ASSERT(result);
-    USE(result);
-  }
-}
-
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  ASSERT(IsReserved());
-  return UncommitRegion(address, size);
-}
-
-
-void* VirtualMemory::ReserveRegion(size_t size) {
-  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS);
-}
-
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (NULL == VirtualAlloc(base, size, MEM_COMMIT, prot)) {
-    return false;
-  }
-  return true;
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  if (NULL == VirtualAlloc(address,
-                           OS::CommitPageSize(),
-                           MEM_COMMIT,
-                           PAGE_NOACCESS)) {
-    return false;
-  }
-  return true;
-}
-
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return VirtualFree(base, size, MEM_DECOMMIT) != 0;
-}
-
-
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return VirtualFree(base, 0, MEM_RELEASE) != 0;
-}
-
-
-bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
-  return false;
 }
 
 } }  // namespace v8::internal
