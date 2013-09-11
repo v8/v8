@@ -772,7 +772,8 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
       = i::Handle<i::JSObject>(debug->debug_context()->global_object());
   utility_context->Global()->Set(String::New("$debug"),
                                   Utils::ToLocal(js_debug));
-  debug->debug_context()->set_security_token(HEAP->undefined_value());
+  debug->debug_context()->set_security_token(
+      reinterpret_cast<i::Isolate*>(isolate)->heap()->undefined_value());
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
   // Run the d8 shell utility script in the utility context

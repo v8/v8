@@ -141,7 +141,8 @@ Handle<DeoptimizationInputData> Factory::NewDeoptimizationInputData(
     PretenureFlag pretenure) {
   ASSERT(deopt_entry_count > 0);
   CALL_HEAP_FUNCTION(isolate(),
-                     DeoptimizationInputData::Allocate(deopt_entry_count,
+                     DeoptimizationInputData::Allocate(isolate(),
+                                                       deopt_entry_count,
                                                        pretenure),
                      DeoptimizationInputData);
 }
@@ -152,7 +153,8 @@ Handle<DeoptimizationOutputData> Factory::NewDeoptimizationOutputData(
     PretenureFlag pretenure) {
   ASSERT(deopt_entry_count > 0);
   CALL_HEAP_FUNCTION(isolate(),
-                     DeoptimizationOutputData::Allocate(deopt_entry_count,
+                     DeoptimizationOutputData::Allocate(isolate(),
+                                                        deopt_entry_count,
                                                         pretenure),
                      DeoptimizationOutputData);
 }
@@ -1078,13 +1080,6 @@ void Factory::SetContent(Handle<JSArray> array,
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
       array->SetContent(*elements));
-}
-
-
-void Factory::EnsureCanContainHeapObjectElements(Handle<JSArray> array) {
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      array->EnsureCanContainHeapObjectElements());
 }
 
 

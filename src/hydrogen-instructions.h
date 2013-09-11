@@ -374,10 +374,6 @@ class HType V8_FINAL {
     return Combine(other).Equals(other);
   }
 
-  bool IsTagged() const {
-    return ((type_ & kTagged) == kTagged);
-  }
-
   bool IsTaggedPrimitive() const {
     return ((type_ & kTaggedPrimitive) == kTaggedPrimitive);
   }
@@ -4988,19 +4984,18 @@ class HCallStub V8_FINAL : public HUnaryCall {
 
 class HUnknownOSRValue V8_FINAL : public HTemplateInstruction<0> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P0(HUnknownOSRValue)
+  DECLARE_INSTRUCTION_FACTORY_P2(HUnknownOSRValue, HEnvironment*, int);
+
+  virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
 
-  void set_incoming_value(HPhi* value) {
-    incoming_value_ = value;
-  }
-
-  HPhi* incoming_value() {
-    return incoming_value_;
-  }
+  void set_incoming_value(HPhi* value) { incoming_value_ = value; }
+  HPhi* incoming_value() { return incoming_value_; }
+  HEnvironment *environment() { return environment_; }
+  int index() { return index_; }
 
   virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
     if (incoming_value_ == NULL) return Representation::None();
@@ -5010,11 +5005,15 @@ class HUnknownOSRValue V8_FINAL : public HTemplateInstruction<0> {
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue)
 
  private:
-  HUnknownOSRValue()
-      : incoming_value_(NULL) {
+  HUnknownOSRValue(HEnvironment* environment, int index)
+      : environment_(environment),
+        index_(index),
+        incoming_value_(NULL) {
     set_representation(Representation::Tagged());
   }
 
+  HEnvironment* environment_;
+  int index_;
   HPhi* incoming_value_;
 };
 

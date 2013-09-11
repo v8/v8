@@ -1009,18 +1009,26 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
-  // If the result was -1 it means that we couldn't optimize the
-  // function. Just return and continue in the unoptimized version.
-  __ Ret(eq, v0, Operand(Smi::FromInt(-1)));
+  // If the code object is null, just return to the unoptimized code.
+  __ Ret(eq, v0, Operand(Smi::FromInt(0)));
 
-  // Untag the AST id and push it on the stack.
-  __ SmiUntag(v0);
-  __ push(v0);
+  // Load deoptimization data from the code object.
+  // <deopt_data> = <code>[#deoptimization_data_offset]
+  __ lw(a1, MemOperand(v0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
-  // Generate the code for doing the frame-to-frame translation using
-  // the deoptimizer infrastructure.
-  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
-  generator.Generate();
+  // Load the OSR entrypoint offset from the deoptimization data.
+  // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
+  __ lw(a1, MemOperand(a1, FixedArray::OffsetOfElementAt(
+      DeoptimizationInputData::kOsrPcOffsetIndex) - kHeapObjectTag));
+  __ SmiUntag(a1);
+
+  // Compute the target address = code_obj + header_size + osr_offset
+  // <entry_addr> = <code_obj> + #header_size + <osr_offset>
+  __ addu(v0, v0, a1);
+  __ addiu(ra, v0, Code::kHeaderSize - kHeapObjectTag);
+
+  // And "return" to the OSR entry point of the function.
+  __ Ret();
 }
 
 

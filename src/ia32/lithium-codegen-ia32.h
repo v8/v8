@@ -233,6 +233,9 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
   bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
+  // Generates the custom OSR entrypoint and sets the osr_pc_offset.
+  void GenerateOsrPrologue();
+
   enum SafepointMode {
     RECORD_SIMPLE_SAFEPOINT,
     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
@@ -548,7 +551,7 @@ class LDeferredCode : public ZoneObject {
   void SetExit(Label* exit) { external_exit_ = exit; }
   Label* entry() { return &entry_; }
   Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
-  Label* done() { return &done_; }
+  Label* done() { return codegen_->NeedsDeferredFrame() ? &done_ : exit(); }
   int instruction_index() const { return instruction_index_; }
   const LCodeGen::X87Stack& x87_stack() const { return x87_stack_; }
 

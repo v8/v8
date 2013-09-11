@@ -572,7 +572,7 @@ intptr_t ShortLivingIsolate() {
   v8::Isolate* isolate = v8::Isolate::New();
   { v8::Isolate::Scope isolate_scope(isolate);
     v8::Locker lock(isolate);
-    v8::HandleScope handle_scope;
+    v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
   }

@@ -77,6 +77,7 @@ class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
 class MarkingThread;
 class PreallocatedMemoryThread;
+class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
 class UnicodeCache;
@@ -1125,8 +1126,17 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
+  inline RandomNumberGenerator* random_number_generator();
+
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
+
+  bool is_memory_constrained() const {
+    return is_memory_constrained_;
+  }
+  void set_is_memory_constrained(bool value) {
+    is_memory_constrained_ = value;
+  }
 
  private:
   Isolate();
@@ -1299,6 +1309,8 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
+  RandomNumberGenerator* random_number_generator_;
+  bool is_memory_constrained_;
 
   // True if fatal error has been signaled for this isolate.
   bool has_fatal_error_;
@@ -1506,12 +1518,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 };
 
 
-// Temporary macros for accessing current isolate and its subobjects.
-// They provide better readability, especially when used a lot in the code.
-#define HEAP (v8::internal::Isolate::Current()->heap())
-#define ISOLATE (v8::internal::Isolate::Current())
-
-
 // Tells whether the native context is marked with out of memory.
 inline bool Context::has_out_of_memory() {
   return native_context()->out_of_memory()->IsTrue();
@@ -1520,7 +1526,7 @@ inline bool Context::has_out_of_memory() {
 
 // Mark the native context with out of memory.
 inline void Context::mark_out_of_memory() {
-  native_context()->set_out_of_memory(HEAP->true_value());
+  native_context()->set_out_of_memory(GetIsolate()->heap()->true_value());
 }
 
 

@@ -686,7 +686,7 @@ void Profiler::Disengage() {
   Insert(&sample);
   Join();
 
-  LOG(ISOLATE, UncheckedStringEvent("profiler", "end"));
+  LOG(isolate_, UncheckedStringEvent("profiler", "end"));
 }
 
 

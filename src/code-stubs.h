@@ -102,7 +102,6 @@ namespace internal {
   V(GetProperty)               \
   V(SetProperty)               \
   V(InvokeBuiltin)             \
-  V(RegExpCEntry)              \
   V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_ARM(V)
@@ -2296,7 +2295,8 @@ class ProfileEntryHookStub : public PlatformCodeStub {
 
  private:
   static void EntryHookTrampoline(intptr_t function,
-                                  intptr_t stack_pointer);
+                                  intptr_t stack_pointer,
+                                  Isolate* isolate);
 
   Major MajorKey() { return ProfileEntryHook; }
   int MinorKey() { return 0; }

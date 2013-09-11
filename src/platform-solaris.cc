@@ -104,7 +104,7 @@ void* OS::Allocate(const size_t requested,
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
 
   if (mbase == MAP_FAILED) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "mmap failed"));
+    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -360,17 +360,5 @@ bool VirtualMemory::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
 }
-
-
-void OS::SetUp() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly will cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
-  srandom(static_cast<unsigned int>(seed));
-}
-
 
 } }  // namespace v8::internal

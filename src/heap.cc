@@ -38,6 +38,7 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "incremental-marking.h"
+#include "isolate-inl.h"
 #include "mark-compact.h"
 #include "natives.h"
 #include "objects-visiting.h"
@@ -47,6 +48,7 @@
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "store-buffer.h"
+#include "utils/random-number-generator.h"
 #include "v8threads.h"
 #include "v8utils.h"
 #include "vm-state-inl.h"
@@ -729,7 +731,7 @@ void Heap::MoveElements(FixedArray* array,
                         int len) {
   if (len == 0) return;
 
-  ASSERT(array->map() != HEAP->fixed_cow_array_map());
+  ASSERT(array->map() != fixed_cow_array_map());
   Object** dst_objects = array->data_start() + dst_index;
   OS::MemMove(dst_objects,
               array->data_start() + src_index,
@@ -763,9 +765,9 @@ class StringTableVerifier : public ObjectVisitor {
 };
 
 
-static void VerifyStringTable() {
+static void VerifyStringTable(Heap* heap) {
   StringTableVerifier verifier;
-  HEAP->string_table()->IterateElements(&verifier);
+  heap->string_table()->IterateElements(&verifier);
 }
 #endif  // VERIFY_HEAP
 
@@ -920,7 +922,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyStringTable();
+    VerifyStringTable(this);
   }
 #endif
 
@@ -1044,7 +1046,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyStringTable();
+    VerifyStringTable(this);
   }
 #endif
 
@@ -1152,29 +1154,33 @@ class ScavengeVisitor: public ObjectVisitor {
 // new space.
 class VerifyNonPointerSpacePointersVisitor: public ObjectVisitor {
  public:
+  explicit VerifyNonPointerSpacePointersVisitor(Heap* heap) : heap_(heap) {}
   void VisitPointers(Object** start, Object**end) {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
-        CHECK(!HEAP->InNewSpace(HeapObject::cast(*current)));
+        CHECK(!heap_->InNewSpace(HeapObject::cast(*current)));
       }
     }
   }
+
+ private:
+  Heap* heap_;
 };
 
 
-static void VerifyNonPointerSpacePointers() {
+static void VerifyNonPointerSpacePointers(Heap* heap) {
   // Verify that there are no pointers to new space in spaces where we
   // do not expect them.
-  VerifyNonPointerSpacePointersVisitor v;
-  HeapObjectIterator code_it(HEAP->code_space());
+  VerifyNonPointerSpacePointersVisitor v(heap);
+  HeapObjectIterator code_it(heap->code_space());
   for (HeapObject* object = code_it.Next();
        object != NULL; object = code_it.Next())
     object->Iterate(&v);
 
   // The old data space was normally swept conservatively so that the iterator
   // doesn't work, so we normally skip the next bit.
-  if (!HEAP->old_data_space()->was_swept_conservatively()) {
-    HeapObjectIterator data_it(HEAP->old_data_space());
+  if (!heap->old_data_space()->was_swept_conservatively()) {
+    HeapObjectIterator data_it(heap->old_data_space());
     for (HeapObject* object = data_it.Next();
          object != NULL; object = data_it.Next())
       object->Iterate(&v);
@@ -1321,7 +1327,7 @@ void Heap::Scavenge() {
   RelocationLock relocation_lock(this);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
+  if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
 #endif
 
   gc_state_ = SCAVENGE;
@@ -2375,7 +2381,7 @@ void Heap::SelectScavengingVisitorsTable() {
 
 
 void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
-  SLOW_ASSERT(HEAP->InFromSpace(object));
+  SLOW_ASSERT(object->GetIsolate()->heap()->InFromSpace(object));
   MapWord first_word = object->map_word();
   SLOW_ASSERT(!first_word.IsForwardingAddress());
   Map* map = first_word.ToMap();
@@ -5762,7 +5768,7 @@ MaybeObject* Heap::AllocateSymbol() {
   int hash;
   int attempts = 0;
   do {
-    hash = V8::RandomPrivate(isolate()) & Name::kHashBitMask;
+    hash = isolate()->random_number_generator()->NextInt() & Name::kHashBitMask;
     attempts++;
   } while (hash == 0 && attempts < 30);
   if (hash == 0) hash = 1;  // never return 0
@@ -6927,8 +6933,8 @@ bool Heap::SetUp() {
   ASSERT(hash_seed() == 0);
   if (FLAG_randomize_hashes) {
     if (FLAG_hash_seed == 0) {
-      set_hash_seed(
-          Smi::FromInt(V8::RandomPrivate(isolate()) & 0x3fffffff));
+      int rnd = isolate()->random_number_generator()->NextInt();
+      set_hash_seed(Smi::FromInt(rnd & Name::kHashBitMask));
     } else {
       set_hash_seed(Smi::FromInt(FLAG_hash_seed));
     }
@@ -7839,7 +7845,7 @@ int KeyedLookupCache::Lookup(Map* map, Name* name) {
 void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
   if (!name->IsUniqueName()) {
     String* internalized_string;
-    if (!HEAP->InternalizeStringIfExists(
+    if (!map->GetIsolate()->heap()->InternalizeStringIfExists(
             String::cast(name), &internalized_string)) {
       return;
     }
@@ -7847,7 +7853,7 @@ void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
   }
   // This cache is cleared only between mark compact passes, so we expect the
   // cache to only contain old space names.
-  ASSERT(!HEAP->InNewSpace(name));
+  ASSERT(!map->GetIsolate()->heap()->InNewSpace(name));
 
   int index = (Hash(map, name) & kHashMask);
   // After a GC there will be free slots, so we use them in order (this may

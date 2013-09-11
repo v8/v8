@@ -1950,7 +1950,7 @@ void NewSpace::ReportStatistics() {
 #endif  // DEBUG
 
   if (FLAG_log_gc) {
-    Isolate* isolate = ISOLATE;
+    Isolate* isolate = heap()->isolate();
     DoReportStatistics(isolate, allocated_histogram_, "allocated");
     DoReportStatistics(isolate, promoted_histogram_, "promoted");
   }

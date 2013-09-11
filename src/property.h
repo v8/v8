@@ -46,7 +46,8 @@ class Descriptor BASE_EMBEDDED {
  public:
   MUST_USE_RESULT MaybeObject* KeyToUniqueName() {
     if (!key_->IsUniqueName()) {
-      MaybeObject* maybe_result = HEAP->InternalizeString(String::cast(key_));
+      MaybeObject* maybe_result =
+          key_->GetIsolate()->heap()->InternalizeString(String::cast(key_));
       if (!maybe_result->To(&key_)) return maybe_result;
     }
     return key_;

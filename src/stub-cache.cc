@@ -1309,7 +1309,7 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   // can't use either LoadIC or KeyedLoadIC constructors.
   IC ic(IC::NO_EXTRA_FRAME, isolate);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
-  if (!ic.SlowIsUndeclaredGlobal()) return HEAP->undefined_value();
+  if (!ic.SlowIsUndeclaredGlobal()) return isolate->heap()->undefined_value();
 
   // Throw a reference error.
   HandleScope scope(isolate);

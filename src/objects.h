@@ -1214,6 +1214,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kNonSmiValue, "Non-smi value")                                            \
   V(kNotEnoughVirtualRegistersForValues,                                      \
     "not enough virtual registers for values")                                \
+  V(kNotEnoughSpillSlotsForOsr,                                               \
+    "not enough spill slots for OSR")                                         \
   V(kNotEnoughVirtualRegistersRegalloc,                                       \
     "not enough virtual registers (regalloc)")                                \
   V(kObjectFoundInSmiOnlyArray, "object found in smi-only array")             \
@@ -2161,7 +2163,8 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attributes,
       ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
   static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
@@ -2186,6 +2189,13 @@ class JSObject: public JSReceiver {
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
+      Name* key,
+      Object* value,
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
+  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
       Name* key,
       Object* value,
       PropertyAttributes attributes,
@@ -2220,7 +2230,6 @@ class JSObject: public JSReceiver {
                                                      PropertyDetails details);
 
   static void OptimizeAsPrototype(Handle<JSObject> object);
-  MUST_USE_RESULT MaybeObject* OptimizeAsPrototype();
 
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
@@ -2314,7 +2323,7 @@ class JSObject: public JSReceiver {
   inline void ValidateElements();
 
   // Makes sure that this object can contain HeapObject as elements.
-  MUST_USE_RESULT inline MaybeObject* EnsureCanContainHeapObjectElements();
+  static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);
 
   // Makes sure that this object can contain the specified elements.
   MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
@@ -2568,8 +2577,6 @@ class JSObject: public JSReceiver {
   static void UpdateMapCodeCache(Handle<JSObject> object,
                                  Handle<Name> name,
                                  Handle<Code> code);
-
-  MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(Name* name, Code* code);
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
@@ -4628,7 +4635,8 @@ class DeoptimizationInputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationInputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(int deopt_entry_count,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
                                                PretenureFlag pretenure);
 
   // Casting.
@@ -4674,7 +4682,8 @@ class DeoptimizationOutputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationOutputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_deopt_points,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int number_of_deopt_points,
                                                PretenureFlag pretenure);
 
   // Casting.
@@ -5794,6 +5803,9 @@ class Map: public HeapObject {
                                                   TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyForObserved();
 
+  static Handle<Map> CopyNormalized(Handle<Map> map,
+                                    PropertyNormalizationMode mode,
+                                    NormalizedMapSharingMode sharing);
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
 
@@ -6976,8 +6988,10 @@ class JSFunction: public JSObject {
                              ClearExceptionFlag flag);
   static bool CompileLazy(Handle<JSFunction> function,
                           ClearExceptionFlag flag);
+  static Handle<Code> CompileOsr(Handle<JSFunction> function,
+                                 BailoutId osr_ast_id,
+                                 ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function,
-                               BailoutId osr_ast_id,
                                ClearExceptionFlag flag);
 
   // Tells whether or not the function is already marked for lazy

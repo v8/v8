@@ -160,7 +160,7 @@ void OS::LogSharedLibraryAddresses() {
   const int kLibNameLen = FILENAME_MAX + 1;
   char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
 
-  i::Isolate* isolate = ISOLATE;
+  i::Isolate* isolate = Isolate::Current();
   // This loop will terminate once the scanning hits an EOF.
   while (true) {
     uintptr_t start, end;
@@ -396,13 +396,5 @@ bool VirtualMemory::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
 }
-
-
-void OS::SetUp() {
-  // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis()) ^ (getpid() << 16);
-  srandom(static_cast<unsigned int>(seed));
-}
-
 
 } }  // namespace v8::internal

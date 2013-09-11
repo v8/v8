@@ -495,8 +495,6 @@ bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
       return (frame_type == StackFrame::STUB)
           ? FLAG_trace_stub_failures
           : FLAG_trace_deopt;
-    case OSR:
-      return FLAG_trace_osr;
   }
   UNREACHABLE();
   return false;
@@ -509,7 +507,6 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
     case SOFT: return "soft";
     case LAZY: return "lazy";
     case DEBUGGER: return "debugger";
-    case OSR: return "OSR";
   }
   UNREACHABLE();
   return NULL;
@@ -563,6 +560,14 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
     }
   }
   compiled_code_ = FindOptimizedCode(function, optimized_code);
+
+#if DEBUG
+  ASSERT(compiled_code_ != NULL);
+  if (type == EAGER || type == SOFT || type == LAZY) {
+    ASSERT(compiled_code_->kind() != Code::FUNCTION);
+  }
+#endif
+
   StackFrame::Type frame_type = function == NULL
       ? StackFrame::STUB
       : StackFrame::JAVA_SCRIPT;
@@ -587,15 +592,6 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
       return (compiled_code == NULL)
           ? static_cast<Code*>(isolate_->FindCodeObject(from_))
           : compiled_code;
-    }
-    case Deoptimizer::OSR: {
-      // The function has already been optimized and we're transitioning
-      // from the unoptimized shared version to the optimized one in the
-      // function. The return address (from_) points to unoptimized code.
-      Code* compiled_code = function->code();
-      ASSERT(compiled_code->kind() == Code::OPTIMIZED_FUNCTION);
-      ASSERT(!compiled_code->contains(from_));
-      return compiled_code;
     }
     case Deoptimizer::DEBUGGER:
       ASSERT(optimized_code->contains(from_));
@@ -720,11 +716,6 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
-  if (bailout_type_ == OSR) {
-    DoComputeOsrOutputFrame();
-    return;
-  }
-
   // Print some helpful diagnostic information.
   if (FLAG_log_timer_events &&
       compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
@@ -2346,192 +2337,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 }
 
 
-bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
-                                        int* input_offset) {
-  disasm::NameConverter converter;
-  FrameDescription* output = output_[0];
-
-  // The input values are all part of the unoptimized frame so they
-  // are all tagged pointers.
-  uintptr_t input_value = input_->GetFrameSlot(*input_offset);
-  Object* input_object = reinterpret_cast<Object*>(input_value);
-
-  Translation::Opcode opcode =
-      static_cast<Translation::Opcode>(iterator->Next());
-
-  switch (opcode) {
-    case Translation::BEGIN:
-    case Translation::JS_FRAME:
-    case Translation::ARGUMENTS_ADAPTOR_FRAME:
-    case Translation::CONSTRUCT_STUB_FRAME:
-    case Translation::GETTER_STUB_FRAME:
-    case Translation::SETTER_STUB_FRAME:
-    case Translation::COMPILED_STUB_FRAME:
-      UNREACHABLE();  // Malformed input.
-      return false;
-
-    case Translation::REGISTER: {
-      int output_reg = iterator->Next();
-      if (FLAG_trace_osr) {
-        PrintF("    %s <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
-               converter.NameOfCPURegister(output_reg),
-               input_value,
-               *input_offset);
-      }
-      output->SetRegister(output_reg, input_value);
-      break;
-    }
-
-    case Translation::INT32_REGISTER: {
-      int32_t int32_value = 0;
-      if (!input_object->ToInt32(&int32_value)) return false;
-
-      int output_reg = iterator->Next();
-      if (FLAG_trace_osr) {
-        PrintF("    %s <- %d (int32) ; [sp + %d]\n",
-               converter.NameOfCPURegister(output_reg),
-               int32_value,
-               *input_offset);
-      }
-      output->SetRegister(output_reg, int32_value);
-      break;
-    }
-
-    case Translation::UINT32_REGISTER: {
-      uint32_t uint32_value = 0;
-      if (!input_object->ToUint32(&uint32_value)) return false;
-
-      int output_reg = iterator->Next();
-      if (FLAG_trace_osr) {
-        PrintF("    %s <- %u (uint32) ; [sp + %d]\n",
-               converter.NameOfCPURegister(output_reg),
-               uint32_value,
-               *input_offset);
-      }
-      output->SetRegister(output_reg, static_cast<int32_t>(uint32_value));
-    }
-
-
-    case Translation::DOUBLE_REGISTER: {
-      // Abort OSR if we don't have a number.
-      if (!input_object->IsNumber()) return false;
-
-      int output_reg = iterator->Next();
-      double double_value = input_object->Number();
-      if (FLAG_trace_osr) {
-        PrintF("    %s <- %g (double) ; [sp + %d]\n",
-               DoubleRegister::AllocationIndexToString(output_reg),
-               double_value,
-               *input_offset);
-      }
-      output->SetDoubleRegister(output_reg, double_value);
-      break;
-    }
-
-    case Translation::STACK_SLOT: {
-      int output_index = iterator->Next();
-      unsigned output_offset =
-          output->GetOffsetFromSlotIndex(output_index);
-      if (FLAG_trace_osr) {
-        PrintF("    [sp + %d] <- 0x%08" V8PRIxPTR " ; [sp + %d] ",
-               output_offset,
-               input_value,
-               *input_offset);
-        reinterpret_cast<Object*>(input_value)->ShortPrint();
-        PrintF("\n");
-      }
-      output->SetFrameSlot(output_offset, input_value);
-      break;
-    }
-
-    case Translation::INT32_STACK_SLOT: {
-      int32_t int32_value = 0;
-      if (!input_object->ToInt32(&int32_value)) return false;
-
-      int output_index = iterator->Next();
-      unsigned output_offset =
-          output->GetOffsetFromSlotIndex(output_index);
-      if (FLAG_trace_osr) {
-        PrintF("    [sp + %d] <- %d (int32) ; [sp + %d]\n",
-               output_offset,
-               int32_value,
-               *input_offset);
-      }
-      output->SetFrameSlot(output_offset, int32_value);
-      break;
-    }
-
-    case Translation::UINT32_STACK_SLOT: {
-      uint32_t uint32_value = 0;
-      if (!input_object->ToUint32(&uint32_value)) return false;
-
-      int output_index = iterator->Next();
-      unsigned output_offset =
-          output->GetOffsetFromSlotIndex(output_index);
-      if (FLAG_trace_osr) {
-        PrintF("    [sp + %d] <- %u (uint32) ; [sp + %d]\n",
-               output_offset,
-               uint32_value,
-               *input_offset);
-      }
-      output->SetFrameSlot(output_offset, static_cast<int32_t>(uint32_value));
-      break;
-    }
-
-    case Translation::DOUBLE_STACK_SLOT: {
-      static const int kLowerOffset = 0 * kPointerSize;
-      static const int kUpperOffset = 1 * kPointerSize;
-
-      // Abort OSR if we don't have a number.
-      if (!input_object->IsNumber()) return false;
-
-      int output_index = iterator->Next();
-      unsigned output_offset =
-          output->GetOffsetFromSlotIndex(output_index);
-      double double_value = input_object->Number();
-      uint64_t int_value = BitCast<uint64_t, double>(double_value);
-      int32_t lower = static_cast<int32_t>(int_value);
-      int32_t upper = static_cast<int32_t>(int_value >> kBitsPerInt);
-      if (FLAG_trace_osr) {
-        PrintF("    [sp + %d] <- 0x%08x (upper bits of %g) ; [sp + %d]\n",
-               output_offset + kUpperOffset,
-               upper,
-               double_value,
-               *input_offset);
-        PrintF("    [sp + %d] <- 0x%08x (lower bits of %g) ; [sp + %d]\n",
-               output_offset + kLowerOffset,
-               lower,
-               double_value,
-               *input_offset);
-      }
-      output->SetFrameSlot(output_offset + kLowerOffset, lower);
-      output->SetFrameSlot(output_offset + kUpperOffset, upper);
-      break;
-    }
-
-    case Translation::LITERAL: {
-      // Just ignore non-materialized literals.
-      iterator->Next();
-      break;
-    }
-
-    case Translation::DUPLICATED_OBJECT:
-    case Translation::ARGUMENTS_OBJECT:
-    case Translation::CAPTURED_OBJECT: {
-      // Optimized code assumes that the argument object has not been
-      // materialized and so bypasses it when doing arguments access.
-      // We should have bailed out before starting the frame
-      // translation.
-      UNREACHABLE();
-      return false;
-    }
-  }
-
-  *input_offset -= kPointerSize;
-  return true;
-}
-
-
 void Deoptimizer::PatchInterruptCode(Isolate* isolate,
                                      Code* unoptimized) {
   DisallowHeapAllocation no_gc;
@@ -2617,12 +2422,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   // into account so we have to avoid double counting them (-2).
   unsigned result = fixed_size + fp_to_sp_delta_ - (2 * kPointerSize);
 #ifdef DEBUG
-  if (bailout_type_ == OSR) {
-    // TODO(kasperl): It would be nice if we could verify that the
-    // size matches with the stack height we can compute based on the
-    // environment at the OSR entry. The code for that his built into
-    // the DoComputeOsrOutputFrame function for now.
-  } else if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
+  if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();
     unsigned outgoing_size = ComputeOutgoingArgumentSize();
     ASSERT(result == fixed_size + (stack_slots * kPointerSize) + outgoing_size);

@@ -396,7 +396,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
-      (desc.buffer_size > HEAP->MaxOldGenerationSize())) {
+      (desc.buffer_size > isolate()->heap()->MaxOldGenerationSize())) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
@@ -1533,7 +1533,7 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   } else {
     EnsureSpace ensure_space(this);
     ASSERT(value->IsHeapObject());
-    ASSERT(!HEAP->InNewSpace(*value));
+    ASSERT(!isolate()->heap()->InNewSpace(*value));
     emit_rex_64(dst);
     emit(0xB8 | dst.low_bits());
     emitp(value.location(), mode);

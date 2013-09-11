@@ -91,6 +91,7 @@
         'test-platform-tls.cc',
         'test-profile-generator.cc',
         'test-random.cc',
+        'test-random-number-generator.cc',
         'test-regexp.cc',
         'test-reloc-info.cc',
         'test-semaphore.cc',

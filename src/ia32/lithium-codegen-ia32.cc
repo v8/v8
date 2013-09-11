@@ -35,6 +35,7 @@
 #include "deoptimizer.h"
 #include "stub-cache.h"
 #include "codegen.h"
+#include "hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {
@@ -332,6 +333,28 @@ bool LCodeGen::GeneratePrologue() {
 }
 
 
+void LCodeGen::GenerateOsrPrologue() {
+  // Generate the OSR entry prologue at the first unknown OSR value, or if there
+  // are none, at the OSR entrypoint instruction.
+  if (osr_pc_offset_ >= 0) return;
+
+  osr_pc_offset_ = masm()->pc_offset();
+
+  // Save the first local, which is overwritten by the alignment state.
+  Operand alignment_loc = MemOperand(ebp, -3 * kPointerSize);
+  __ push(alignment_loc);
+
+  // Set the dynamic frame alignment state to "not aligned".
+  __ mov(alignment_loc, Immediate(kNoAlignmentPadding));
+
+  // Adjust the frame size, subsuming the unoptimized frame into the
+  // optimized frame.
+  int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
+  ASSERT(slots >= 1);
+  __ sub(esp, Immediate((slots - 1) * kPointerSize));
+}
+
+
 bool LCodeGen::GenerateBody() {
   ASSERT(is_generating());
   bool emit_instructions = true;
@@ -448,8 +471,8 @@ bool LCodeGen::GenerateDeferredCode() {
         Comment(";;; Deferred code");
       }
       code->Generate();
-      __ bind(code->done());
       if (NeedsDeferredFrame()) {
+        __ bind(code->done());
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
         frame_is_built_ = false;
@@ -1317,8 +1340,7 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
 
 
 void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
-  // Record the address of the first unknown OSR value as the place to enter.
-  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
+  GenerateOsrPrologue();
 }
 
 
@@ -2210,11 +2232,36 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
     X87Register left = ToX87Register(instr->left());
     X87Register right = ToX87Register(instr->right());
     X87Register result = ToX87Register(instr->result());
-    X87PrepareBinaryOp(left, right, result);
+    if (instr->op() != Token::MOD) {
+      X87PrepareBinaryOp(left, right, result);
+    }
     switch (instr->op()) {
+      case Token::ADD:
+        __ fadd_i(1);
+        break;
+      case Token::SUB:
+        __ fsub_i(1);
+        break;
       case Token::MUL:
         __ fmul_i(1);
         break;
+      case Token::DIV:
+        __ fdiv_i(1);
+        break;
+      case Token::MOD: {
+        // Pass two doubles as arguments on the stack.
+        __ PrepareCallCFunction(4, eax);
+        X87Mov(Operand(esp, 1 * kDoubleSize), right);
+        X87Mov(Operand(esp, 0), left);
+        X87PrepareToWrite(result);
+        __ CallCFunction(
+            ExternalReference::double_fp_operation(Token::MOD, isolate()),
+            4);
+
+        // Return value is in st(0) on ia32.
+        X87CommitWrite(result);
+        break;
+      }
       default:
         UNREACHABLE();
         break;
@@ -6214,9 +6261,7 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   ASSERT(!environment->HasBeenRegistered());
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
 
-  // Normally we record the first unknown OSR value as the entrypoint to the OSR
-  // code, but if there were none, record the entrypoint here.
-  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
+  GenerateOsrPrologue();
 }
 
 

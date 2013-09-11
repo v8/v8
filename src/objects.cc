@@ -2188,9 +2188,9 @@ static void ZapEndOfFixedArray(Address new_end, int to_trim) {
 
 template<RightTrimMode trim_mode>
 static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
-  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  ASSERT(elms->map() != heap->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
-  ASSERT(!HEAP->lo_space()->Contains(elms));
+  ASSERT(!heap->lo_space()->Contains(elms));
 
   const int len = elms->length();
 
@@ -4029,6 +4029,29 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 }
 
 
+MaybeObject* JSObject::SetLocalPropertyIgnoreAttributesTrampoline(
+    Name* key,
+    Object* value,
+    PropertyAttributes attributes,
+    ValueType value_type,
+    StoreMode mode,
+    ExtensibilityCheck extensibility_check) {
+  // TODO(mstarzinger): The trampoline is a giant hack, don't use it anywhere
+  // else or handlification people will start hating you for all eternity.
+  HandleScope scope(GetIsolate());
+  IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
+  return trampoline.CallWithReturnValue(
+      &JSObject::SetLocalPropertyIgnoreAttributes,
+      Handle<JSObject>(this),
+      Handle<Name>(key),
+      Handle<Object>(value, GetIsolate()),
+      attributes,
+      value_type,
+      mode,
+      extensibility_check);
+}
+
+
 // Set a real local property, even if it is READ_ONLY.  If the property is not
 // present, add it with attributes NONE.  This code is an exact clone of
 // SetProperty, with the check for IsReadOnly and the check for a
@@ -4044,11 +4067,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     Handle<Object> value,
     PropertyAttributes attributes,
     ValueType value_type,
-    StoreMode mode) {
+    StoreMode mode,
+    ExtensibilityCheck extensibility_check) {
   CALL_HEAP_FUNCTION(
     object->GetIsolate(),
     object->SetLocalPropertyIgnoreAttributes(
-        *key, *value, attributes, value_type, mode),
+        *key, *value, attributes, value_type, mode, extensibility_check),
     Object);
 }
 
@@ -4458,27 +4482,17 @@ void NormalizedMapCache::Clear() {
 void JSObject::UpdateMapCodeCache(Handle<JSObject> object,
                                   Handle<Name> name,
                                   Handle<Code> code) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION_VOID(isolate,
-                          object->UpdateMapCodeCache(*name, *code));
-}
-
-
-MaybeObject* JSObject::UpdateMapCodeCache(Name* name, Code* code) {
-  if (map()->is_shared()) {
+  Handle<Map> map(object->map());
+  if (map->is_shared()) {
     // Fast case maps are never marked as shared.
-    ASSERT(!HasFastProperties());
+    ASSERT(!object->HasFastProperties());
     // Replace the map with an identical copy that can be safely modified.
-    Object* obj;
-    { MaybeObject* maybe_obj = map()->CopyNormalized(KEEP_INOBJECT_PROPERTIES,
-                                                     UNIQUE_NORMALIZED_MAP);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    GetIsolate()->counters()->normalized_maps()->Increment();
-
-    set_map(Map::cast(obj));
+    map = Map::CopyNormalized(map, KEEP_INOBJECT_PROPERTIES,
+                              UNIQUE_NORMALIZED_MAP);
+    object->GetIsolate()->counters()->normalized_maps()->Increment();
+    object->set_map(*map);
   }
-  return map()->UpdateCodeCache(name, code);
+  Map::UpdateCodeCache(map, name, code);
 }
 
 
@@ -4729,7 +4743,7 @@ Smi* JSReceiver::GenerateIdentityHash() {
   do {
     // Generate a random 32-bit hash value but limit range to fit
     // within a smi.
-    hash_value = V8::RandomPrivate(isolate) & Smi::kMaxValue;
+    hash_value = isolate->random_number_generator()->NextInt() & Smi::kMaxValue;
     attempts++;
   } while (hash_value == 0 && attempts < 30);
   hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
@@ -4961,13 +4975,13 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
     ASSERT_EQ(hashtable, new_table);
   }
 
-  MaybeObject* store_result =
-      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
-                                       hashtable,
-                                       DONT_ENUM,
-                                       OPTIMAL_REPRESENTATION,
-                                       ALLOW_AS_CONSTANT,
-                                       OMIT_EXTENSIBILITY_CHECK);
+  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
+      GetHeap()->hidden_string(),
+      hashtable,
+      DONT_ENUM,
+      OPTIMAL_REPRESENTATION,
+      ALLOW_AS_CONSTANT,
+      OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return hashtable;
 }
@@ -4994,13 +5008,13 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
       }
     }
   }
-  MaybeObject* store_result =
-      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
-                                       value,
-                                       DONT_ENUM,
-                                       OPTIMAL_REPRESENTATION,
-                                       ALLOW_AS_CONSTANT,
-                                       OMIT_EXTENSIBILITY_CHECK);
+  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
+      GetHeap()->hidden_string(),
+      value,
+      DONT_ENUM,
+      OPTIMAL_REPRESENTATION,
+      ALLOW_AS_CONSTANT,
+      OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return this;
 }
@@ -6510,6 +6524,15 @@ MaybeObject* Map::RawCopy(int instance_size) {
 }
 
 
+Handle<Map> Map::CopyNormalized(Handle<Map> map,
+                                PropertyNormalizationMode mode,
+                                NormalizedMapSharingMode sharing) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->CopyNormalized(mode, sharing),
+                     Map);
+}
+
+
 MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
                                  NormalizedMapSharingMode sharing) {
   int new_instance_size = instance_size();
@@ -7957,19 +7980,21 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 }
 
 
-MaybeObject* DeoptimizationInputData::Allocate(int deopt_entry_count,
+MaybeObject* DeoptimizationInputData::Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
                                                PretenureFlag pretenure) {
   ASSERT(deopt_entry_count > 0);
-  return HEAP->AllocateFixedArray(LengthFor(deopt_entry_count),
-                                  pretenure);
+  return isolate->heap()->AllocateFixedArray(LengthFor(deopt_entry_count),
+                                             pretenure);
 }
 
 
-MaybeObject* DeoptimizationOutputData::Allocate(int number_of_deopt_points,
+MaybeObject* DeoptimizationOutputData::Allocate(Isolate* isolate,
+                                                int number_of_deopt_points,
                                                 PretenureFlag pretenure) {
-  if (number_of_deopt_points == 0) return HEAP->empty_fixed_array();
-  return HEAP->AllocateFixedArray(LengthOfFixedArray(number_of_deopt_points),
-                                  pretenure);
+  if (number_of_deopt_points == 0) return isolate->heap()->empty_fixed_array();
+  return isolate->heap()->AllocateFixedArray(
+      LengthOfFixedArray(number_of_deopt_points), pretenure);
 }
 
 
@@ -9493,11 +9518,25 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
 }
 
 
-bool JSFunction::CompileOptimized(Handle<JSFunction> function,
-                                  BailoutId osr_ast_id,
-                                  ClearExceptionFlag flag) {
+Handle<Code> JSFunction::CompileOsr(Handle<JSFunction> function,
+                                    BailoutId osr_ast_id,
+                                    ClearExceptionFlag flag) {
   CompilationInfoWithZone info(function);
   info.SetOptimizing(osr_ast_id);
+  if (CompileLazyHelper(&info, flag)) {
+    // TODO(titzer): don't install the OSR code.
+    // ASSERT(function->code() != *info.code());
+    return info.code();
+  } else {
+    return Handle<Code>::null();
+  }
+}
+
+
+bool JSFunction::CompileOptimized(Handle<JSFunction> function,
+                                  ClearExceptionFlag flag) {
+  CompilationInfoWithZone info(function);
+  info.SetOptimizing(BailoutId::None());
   return CompileLazyHelper(&info, flag);
 }
 
@@ -9523,21 +9562,13 @@ bool JSFunction::IsInlineable() {
 
 
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(), object->OptimizeAsPrototype());
-}
-
-
-MaybeObject* JSObject::OptimizeAsPrototype() {
-  if (IsGlobalObject()) return this;
+  if (object->IsGlobalObject()) return;
 
   // Make sure prototypes are fast objects and their maps have the bit set
   // so they remain fast.
-  if (!HasFastProperties()) {
-    MaybeObject* new_proto = TransformToFastProperties(0);
-    if (new_proto->IsFailure()) return new_proto;
-    ASSERT(new_proto == this);
+  if (!object->HasFastProperties()) {
+    TransformToFastProperties(object, 0);
   }
-  return this;
 }
 
 
@@ -11403,8 +11434,9 @@ void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
 
 bool DependentCode::Contains(DependencyGroup group, Code* code) {
   GroupStartIndexes starts(this);
-  int number_of_entries = starts.number_of_entries();
-  for (int i = 0; i < number_of_entries; i++) {
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  for (int i = start; i < end; i++) {
     if (object_at(i) == code) return true;
   }
   return false;

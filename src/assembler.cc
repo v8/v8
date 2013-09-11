@@ -43,7 +43,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "ic.h"
-#include "isolate.h"
+#include "isolate-inl.h"
 #include "jsregexp.h"
 #include "lazy-instance.h"
 #include "platform.h"
@@ -119,7 +119,7 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
-    jit_cookie_ = V8::RandomPrivate(isolate);
+    jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
 
   if (buffer == NULL) {

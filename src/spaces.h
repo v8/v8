@@ -307,7 +307,7 @@ class MemoryChunk {
   }
 
   // Only works for addresses in pointer spaces, not data or code spaces.
-  static inline MemoryChunk* FromAnyPointerAddress(Address addr);
+  static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
   Address address() { return reinterpret_cast<Address>(this); }
 

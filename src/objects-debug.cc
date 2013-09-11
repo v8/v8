@@ -230,7 +230,8 @@ void HeapObject::HeapObjectVerify() {
 
 void HeapObject::VerifyHeapPointer(Object* p) {
   CHECK(p->IsHeapObject());
-  CHECK(HEAP->Contains(HeapObject::cast(p)));
+  HeapObject* ho = HeapObject::cast(p);
+  CHECK(ho->GetHeap()->Contains(ho));
 }
 
 
@@ -337,11 +338,12 @@ void JSObject::JSObjectVerify() {
 
 
 void Map::MapVerify() {
-  CHECK(!HEAP->InNewSpace(this));
+  Heap* heap = GetHeap();
+  CHECK(!heap->InNewSpace(this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
          (kPointerSize <= instance_size() &&
-          instance_size() < HEAP->Capacity()));
+          instance_size() < heap->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
   SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
@@ -523,7 +525,7 @@ void String::StringVerify() {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
   if (IsInternalizedString()) {
-    CHECK(!HEAP->InNewSpace(this));
+    CHECK(!GetHeap()->InNewSpace(this));
   }
   if (IsConsString()) {
     ConsString::cast(this)->ConsStringVerify();
@@ -615,7 +617,7 @@ void Oddball::OddballVerify() {
   VerifyHeapPointer(to_string());
   Object* number = to_number();
   if (number->IsHeapObject()) {
-    CHECK(number == HEAP->nan_value());
+    CHECK(number == HeapObject::cast(number)->GetHeap()->nan_value());
   } else {
     CHECK(number->IsSmi());
     int value = Smi::cast(number)->value();
@@ -1043,7 +1045,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       int holes = 0;
       FixedArray* e = FixedArray::cast(elements());
       int len = e->length();
-      Heap* heap = HEAP;
+      Heap* heap = GetHeap();
       for (int i = 0; i < len; i++) {
         if (e->get(i) == heap->the_hole_value()) holes++;
       }

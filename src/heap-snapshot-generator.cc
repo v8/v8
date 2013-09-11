@@ -175,6 +175,8 @@ const char* HeapEntry::TypeAsString() {
     case kHeapNumber: return "/number/";
     case kNative: return "/native/";
     case kSynthetic: return "/synthetic/";
+    case kConsString: return "/concatenated string/";
+    case kSlicedString: return "/sliced string/";
     default: return "???";
   }
 }
@@ -470,7 +472,7 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 
 
 void HeapObjectsMap::UpdateHeapObjectsMap() {
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
   HeapIterator iterator(heap_);
   for (HeapObject* obj = iterator.next();
@@ -558,12 +560,13 @@ void HeapObjectsMap::RemoveDeadEntries() {
 }
 
 
-SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
+SnapshotObjectId HeapObjectsMap::GenerateId(Heap* heap,
+                                            v8::RetainedObjectInfo* info) {
   SnapshotObjectId id = static_cast<SnapshotObjectId>(info->GetHash());
   const char* label = info->GetLabel();
   id ^= StringHasher::HashSequentialString(label,
                                            static_cast<int>(strlen(label)),
-                                           HEAP->HashSeed());
+                                           heap->HashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
@@ -583,6 +586,7 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
+      names_(heap),
       ids_(heap) {
 }
 
@@ -621,7 +625,7 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
     SnapshotObjectId id) {
   // First perform a full GC in order to avoid dead objects.
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::FindHeapObjectById");
   DisallowHeapAllocation no_allocation;
   HeapObject* object = NULL;
@@ -782,6 +786,15 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     }
     return AddEntry(object, HeapEntry::kObject, name);
   } else if (object->IsString()) {
+    String* string = String::cast(object);
+    if (string->IsConsString())
+      return AddEntry(object,
+                      HeapEntry::kConsString,
+                      "(concatenated string)");
+    if (string->IsSlicedString())
+      return AddEntry(object,
+                      HeapEntry::kSlicedString,
+                      "(sliced string)");
     return AddEntry(object,
                     HeapEntry::kString,
                     collection_->names()->GetName(String::cast(object)));
@@ -1921,7 +1934,7 @@ HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
   return snapshot_->AddEntry(
       entries_type_,
       name,
-      HeapObjectsMap::GenerateId(info),
+      HeapObjectsMap::GenerateId(collection_->heap(), info),
       size != -1 ? static_cast<int>(size) : 0);
 }
 
@@ -2097,7 +2110,7 @@ NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
   uint32_t hash = StringHasher::HashSequentialString(
       label_copy,
       static_cast<int>(strlen(label_copy)),
-      HEAP->HashSeed());
+      isolate_->heap()->HashSeed());
   HashMap::Entry* entry = native_groups_.Lookup(const_cast<char*>(label_copy),
                                                 hash, true);
   if (entry->value == NULL) {
@@ -2585,7 +2598,9 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("regexp") ","
             JSON_S("number") ","
             JSON_S("native") ","
-            JSON_S("synthetic")) ","
+            JSON_S("synthetic") ","
+            JSON_S("concatenated string") ","
+            JSON_S("sliced string")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","

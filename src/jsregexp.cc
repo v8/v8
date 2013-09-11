@@ -5834,7 +5834,7 @@ void TextNode::FillInBMInfo(int initial_offset,
         if (bm->compiler()->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
           int length = GetCaseIndependentLetters(
-              ISOLATE,
+              Isolate::Current(),
               character,
               bm->max_char() == String::kMaxOneByteCharCode,
               chars);

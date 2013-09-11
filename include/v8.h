@@ -544,6 +544,14 @@ template <class T, class M> class Persistent {
     Copy(that);
     return *this;
   }
+  /**
+   * The destructor will dispose the Persistent based on the
+   * kResetInDestructor flags in the traits class.  Since not calling dispose
+   * can result in a memory leak, it is recommended to always set this flag.
+   */
+  V8_INLINE(~Persistent()) {
+    if (M::kResetInDestructor) Reset();
+  }
 
   /**
    * If non-empty, destroy the underlying storage cell
@@ -748,9 +756,6 @@ template <class T, class M> class Persistent {
  */
 class V8_EXPORT HandleScope {
  public:
-  // TODO(svenpanne) Deprecate me when Chrome is fixed!
-  HandleScope();
-
   HandleScope(Isolate* isolate);
 
   ~HandleScope();
@@ -809,6 +814,21 @@ class V8_EXPORT HandleScope {
   internal::Object** RawClose(internal::Object** value);
 
   friend class ImplementationUtilities;
+};
+
+
+/**
+ * A simple Maybe type, representing an object which may or may not have a
+ * value.
+ */
+template<class T>
+struct Maybe {
+  Maybe() : has_value(false) {}
+  explicit Maybe(T t) : has_value(true), value(t) {}
+  Maybe(bool has, T t) : has_value(has), value(t) {}
+
+  bool has_value;
+  T value;
 };
 
 
@@ -3743,11 +3763,20 @@ class V8_EXPORT ResourceConstraints {
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
+  Maybe<bool> is_memory_constrained() const { return is_memory_constrained_; }
+  // If set to true, V8 will limit it's memory usage, at the potential cost of
+  // lower performance.  Note, this option is a tentative addition to the API
+  // and may be removed or modified without warning.
+  void set_memory_constrained(bool value) {
+    is_memory_constrained_ = Maybe<bool>(value);
+  }
+
  private:
   int max_young_space_size_;
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
+  Maybe<bool> is_memory_constrained_;
 };
 
 

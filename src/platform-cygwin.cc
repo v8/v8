@@ -80,7 +80,7 @@ void* OS::Allocate(const size_t requested,
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "mmap failed"));
+    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -152,7 +152,7 @@ void OS::LogSharedLibraryAddresses() {
   const int kLibNameLen = FILENAME_MAX + 1;
   char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
 
-  i::Isolate* isolate = ISOLATE;
+  i::Isolate* isolate = Isolate::Current();
   // This loop will terminate once the scanning hits an EOF.
   while (true) {
     uintptr_t start, end;
@@ -236,8 +236,9 @@ static void* GetRandomAddr() {
     static const intptr_t kAllocationRandomAddressMin = 0x04000000;
     static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
-    uintptr_t address = (V8::RandomPrivate(isolate) << kPageSizeBits)
-        | kAllocationRandomAddressMin;
+    uintptr_t address =
+        (isolate->random_number_generator()->NextInt() << kPageSizeBits) |
+        kAllocationRandomAddressMin;
     address &= kAllocationRandomAddressMax;
     return reinterpret_cast<void *>(address);
   }
@@ -344,7 +345,7 @@ bool VirtualMemory::Guard(void* address) {
   if (NULL == VirtualAlloc(address,
                            OS::CommitPageSize(),
                            MEM_COMMIT,
-                           PAGE_READONLY | PAGE_GUARD)) {
+                           PAGE_NOACCESS)) {
     return false;
   }
   return true;
@@ -365,17 +366,5 @@ bool VirtualMemory::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
 }
-
-
-void OS::SetUp() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly can cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
-  srandom(static_cast<unsigned int>(seed));
-}
-
 
 } }  // namespace v8::internal

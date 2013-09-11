@@ -28,9 +28,9 @@
 #ifndef V8_ISOLATE_INL_H_
 #define V8_ISOLATE_INL_H_
 
-#include "isolate.h"
-
 #include "debug.h"
+#include "isolate.h"
+#include "utils/random-number-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -66,6 +66,13 @@ bool Isolate::DebuggerHasBreakPoints() {
 #endif
 }
 
+
+RandomNumberGenerator* Isolate::random_number_generator() {
+  if (random_number_generator_ == NULL) {
+    random_number_generator_ = new RandomNumberGenerator;
+  }
+  return random_number_generator_;
+}
 
 } }  // namespace v8::internal
 

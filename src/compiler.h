@@ -63,7 +63,8 @@ class CompilationInfo {
   Isolate* isolate() const {
     return isolate_;
   }
-  Zone* zone() const { return zone_; }
+  Zone* zone() { return zone_; }
+  bool is_osr() const { return !osr_ast_id_.IsNone(); }
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
@@ -624,11 +625,11 @@ class Compiler : public AllStatic {
                               bool is_toplevel,
                               Handle<Script> script);
 
-  static bool InstallOptimizedCode(OptimizingCompiler* info);
+  static Handle<Code> InstallOptimizedCode(OptimizingCompiler* info);
 
-  static BailoutId CompileForOnStackReplacement(Handle<JSFunction> function);
+  static Handle<Code> CompileForOnStackReplacement(Handle<JSFunction> function);
 
-  static BailoutId CompileForConcurrentOSR(Handle<JSFunction> function);
+  static Handle<Code> CompileForConcurrentOSR(Handle<JSFunction> function);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static bool MakeCodeForLiveEdit(CompilationInfo* info);

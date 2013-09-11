@@ -126,7 +126,6 @@ class Deoptimizer : public Malloced {
     EAGER,
     LAZY,
     SOFT,
-    OSR,
     // This last bailout type is not really a bailout, but used by the
     // debugger to deoptimize stack frames to allow inspection.
     DEBUGGER
@@ -356,7 +355,6 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeOsrOutputFrame();
   void DoComputeJSFrame(TranslationIterator* iterator, int frame_index);
   void DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
                                       int frame_index);
@@ -381,13 +379,6 @@ class Deoptimizer : public Malloced {
       int frame_index,
       unsigned output_offset,
       DeoptimizerTranslatedValueType value_type = TRANSLATED_VALUE_IS_TAGGED);
-
-  // Translate a command for OSR.  Updates the input offset to be used for
-  // the next command.  Returns false if translation of the command failed
-  // (e.g., a number conversion failed) and may or may not have updated the
-  // input offset.
-  bool DoOsrTranslateCommand(TranslationIterator* iterator,
-                             int* input_offset);
 
   unsigned ComputeInputFrameSize() const;
   unsigned ComputeFixedSize(JSFunction* function) const;
