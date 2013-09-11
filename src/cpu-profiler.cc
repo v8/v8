@@ -373,7 +373,7 @@ CpuProfiler::CpuProfiler(Isolate* isolate)
     : isolate_(isolate),
       sampling_interval_(TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
-      profiles_(new CpuProfilesCollection()),
+      profiles_(new CpuProfilesCollection(isolate->heap())),
       next_profile_uid_(1),
       generator_(NULL),
       processor_(NULL),
@@ -410,7 +410,7 @@ void CpuProfiler::set_sampling_interval(TimeDelta value) {
 
 void CpuProfiler::ResetProfiles() {
   delete profiles_;
-  profiles_ = new CpuProfilesCollection();
+  profiles_ = new CpuProfilesCollection(isolate()->heap());
 }
 
 

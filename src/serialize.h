@@ -620,7 +620,8 @@ class PartialSerializer : public Serializer {
     return o->IsName() || o->IsSharedFunctionInfo() ||
            o->IsHeapNumber() || o->IsCode() ||
            o->IsScopeInfo() ||
-           o->map() == HEAP->fixed_cow_array_map();
+           o->map() ==
+               startup_serializer_->isolate()->heap()->fixed_cow_array_map();
   }
 
  private:

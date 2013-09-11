@@ -79,11 +79,13 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
 #ifdef VERIFY_HEAP
 class VerifyMarkingVisitor: public ObjectVisitor {
  public:
+  explicit VerifyMarkingVisitor(Heap* heap) : heap_(heap) {}
+
   void VisitPointers(Object** start, Object** end) {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK(HEAP->mark_compact_collector()->IsMarked(object));
+        CHECK(heap_->mark_compact_collector()->IsMarked(object));
       }
     }
   }
@@ -97,11 +99,14 @@ class VerifyMarkingVisitor: public ObjectVisitor {
       VisitPointer(rinfo->target_object_address());
     }
   }
+
+ private:
+  Heap* heap_;
 };
 
 
-static void VerifyMarking(Address bottom, Address top) {
-  VerifyMarkingVisitor visitor;
+static void VerifyMarking(Heap* heap, Address bottom, Address top) {
+  VerifyMarkingVisitor visitor(heap);
   HeapObject* object;
   Address next_object_must_be_here_or_later = bottom;
 
@@ -129,7 +134,7 @@ static void VerifyMarking(NewSpace* space) {
     NewSpacePage* page = it.next();
     Address limit = it.has_next() ? page->area_end() : end;
     CHECK(limit == end || !page->Contains(end));
-    VerifyMarking(page->area_start(), limit);
+    VerifyMarking(space->heap(), page->area_start(), limit);
   }
 }
 
@@ -139,7 +144,7 @@ static void VerifyMarking(PagedSpace* space) {
 
   while (it.has_next()) {
     Page* p = it.next();
-    VerifyMarking(p->area_start(), p->area_end());
+    VerifyMarking(space->heap(), p->area_start(), p->area_end());
   }
 }
 
@@ -153,7 +158,7 @@ static void VerifyMarking(Heap* heap) {
   VerifyMarking(heap->map_space());
   VerifyMarking(heap->new_space());
 
-  VerifyMarkingVisitor visitor;
+  VerifyMarkingVisitor visitor(heap);
 
   LargeObjectIterator it(heap->lo_space());
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
@@ -1409,7 +1414,7 @@ class MarkCompactMarkingVisitor
                                          HeapObject* obj)) {
 #ifdef DEBUG
     ASSERT(collector->heap()->Contains(obj));
-    ASSERT(!HEAP->mark_compact_collector()->IsMarked(obj));
+    ASSERT(!collector->heap()->mark_compact_collector()->IsMarked(obj));
 #endif
     Map* map = obj->map();
     Heap* heap = obj->GetHeap();

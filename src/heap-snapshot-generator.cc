@@ -586,6 +586,7 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
+      names_(heap),
       ids_(heap) {
 }
 

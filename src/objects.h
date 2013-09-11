@@ -4635,7 +4635,8 @@ class DeoptimizationInputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationInputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(int deopt_entry_count,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
                                                PretenureFlag pretenure);
 
   // Casting.
@@ -4681,7 +4682,8 @@ class DeoptimizationOutputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationOutputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_deopt_points,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int number_of_deopt_points,
                                                PretenureFlag pretenure);
 
   // Casting.

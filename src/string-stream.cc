@@ -350,7 +350,7 @@ void StringStream::PrintName(Object* name) {
 
 void StringStream::PrintUsingMap(JSObject* js_object) {
   Map* map = js_object->map();
-  if (!HEAP->Contains(map) ||
+  if (!js_object->GetHeap()->Contains(map) ||
       !map->IsHeapObject() ||
       !map->IsMap()) {
     Add("<Invalid map>\n");
@@ -384,7 +384,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
 
 
 void StringStream::PrintFixedArray(FixedArray* array, unsigned int limit) {
-  Heap* heap = HEAP;
+  Heap* heap = array->GetHeap();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     Object* element = array->get(i);
     if (element != heap->the_hole_value()) {
@@ -491,48 +491,39 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
 
 
 void StringStream::PrintFunction(Object* f, Object* receiver, Code** code) {
-  if (f->IsHeapObject() &&
-      HEAP->Contains(HeapObject::cast(f)) &&
-      HEAP->Contains(HeapObject::cast(f)->map()) &&
-      HeapObject::cast(f)->map()->IsMap()) {
-    if (f->IsJSFunction()) {
-      JSFunction* fun = JSFunction::cast(f);
-      // Common case: on-stack function present and resolved.
-      PrintPrototype(fun, receiver);
-      *code = fun->code();
-    } else if (f->IsInternalizedString()) {
-      // Unresolved and megamorphic calls: Instead of the function
-      // we have the function name on the stack.
-      PrintName(f);
-      Add("/* unresolved */ ");
-    } else {
-      // Unless this is the frame of a built-in function, we should always have
-      // the callee function or name on the stack. If we don't, we have a
-      // problem or a change of the stack frame layout.
-      Add("%o", f);
-      Add("/* warning: no JSFunction object or function name found */ ");
-    }
-    /* } else if (is_trampoline()) {
-       Print("trampoline ");
-    */
+  if (!f->IsHeapObject()) {
+    Add("/* warning: 'function' was not a heap object */ ");
+    return;
+  }
+  Heap* heap = HeapObject::cast(f)->GetHeap();
+  if (!heap->Contains(HeapObject::cast(f))) {
+    Add("/* warning: 'function' was not on the heap */ ");
+    return;
+  }
+  if (!heap->Contains(HeapObject::cast(f)->map())) {
+    Add("/* warning: function's map was not on the heap */ ");
+    return;
+  }
+  if (!HeapObject::cast(f)->map()->IsMap()) {
+    Add("/* warning: function's map was not a valid map */ ");
+    return;
+  }
+  if (f->IsJSFunction()) {
+    JSFunction* fun = JSFunction::cast(f);
+    // Common case: on-stack function present and resolved.
+    PrintPrototype(fun, receiver);
+    *code = fun->code();
+  } else if (f->IsInternalizedString()) {
+    // Unresolved and megamorphic calls: Instead of the function
+    // we have the function name on the stack.
+    PrintName(f);
+    Add("/* unresolved */ ");
   } else {
-    if (!f->IsHeapObject()) {
-      Add("/* warning: 'function' was not a heap object */ ");
-      return;
-    }
-    if (!HEAP->Contains(HeapObject::cast(f))) {
-      Add("/* warning: 'function' was not on the heap */ ");
-      return;
-    }
-    if (!HEAP->Contains(HeapObject::cast(f)->map())) {
-      Add("/* warning: function's map was not on the heap */ ");
-      return;
-    }
-    if (!HeapObject::cast(f)->map()->IsMap()) {
-      Add("/* warning: function's map was not a valid map */ ");
-      return;
-    }
-    Add("/* warning: Invalid JSFunction object found */ ");
+    // Unless this is the frame of a built-in function, we should always have
+    // the callee function or name on the stack. If we don't, we have a
+    // problem or a change of the stack frame layout.
+    Add("%o", f);
+    Add("/* warning: no JSFunction object or function name found */ ");
   }
 }
 

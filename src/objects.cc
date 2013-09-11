@@ -2188,9 +2188,9 @@ static void ZapEndOfFixedArray(Address new_end, int to_trim) {
 
 template<RightTrimMode trim_mode>
 static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
-  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  ASSERT(elms->map() != heap->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
-  ASSERT(!HEAP->lo_space()->Contains(elms));
+  ASSERT(!heap->lo_space()->Contains(elms));
 
   const int len = elms->length();
 
@@ -7980,19 +7980,21 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 }
 
 
-MaybeObject* DeoptimizationInputData::Allocate(int deopt_entry_count,
+MaybeObject* DeoptimizationInputData::Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
                                                PretenureFlag pretenure) {
   ASSERT(deopt_entry_count > 0);
-  return HEAP->AllocateFixedArray(LengthFor(deopt_entry_count),
-                                  pretenure);
+  return isolate->heap()->AllocateFixedArray(LengthFor(deopt_entry_count),
+                                             pretenure);
 }
 
 
-MaybeObject* DeoptimizationOutputData::Allocate(int number_of_deopt_points,
+MaybeObject* DeoptimizationOutputData::Allocate(Isolate* isolate,
+                                                int number_of_deopt_points,
                                                 PretenureFlag pretenure) {
-  if (number_of_deopt_points == 0) return HEAP->empty_fixed_array();
-  return HEAP->AllocateFixedArray(LengthOfFixedArray(number_of_deopt_points),
-                                  pretenure);
+  if (number_of_deopt_points == 0) return isolate->heap()->empty_fixed_array();
+  return isolate->heap()->AllocateFixedArray(
+      LengthOfFixedArray(number_of_deopt_points), pretenure);
 }
 
 

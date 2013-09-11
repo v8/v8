@@ -41,8 +41,8 @@ namespace v8 {
 namespace internal {
 
 
-StringsStorage::StringsStorage()
-    : names_(StringsMatch) {
+StringsStorage::StringsStorage(Heap* heap)
+    : hash_seed_(heap->HashSeed()), names_(StringsMatch) {
 }
 
 
@@ -61,7 +61,7 @@ const char* StringsStorage::GetCopy(const char* src) {
   OS::StrNCpy(dst, src, len);
   dst[len] = '\0';
   uint32_t hash =
-      StringHasher::HashSequentialString(dst.start(), len, HEAP->HashSeed());
+      StringHasher::HashSequentialString(dst.start(), len, hash_seed_);
   return AddOrDisposeString(dst.start(), hash);
 }
 
@@ -95,7 +95,7 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
     return format;
   }
   uint32_t hash = StringHasher::HashSequentialString(
-      str.start(), len, HEAP->HashSeed());
+      str.start(), len, hash_seed_);
   return AddOrDisposeString(str.start(), hash);
 }
 
@@ -443,8 +443,9 @@ void CodeMap::Print() {
 }
 
 
-CpuProfilesCollection::CpuProfilesCollection()
-    : current_profiles_semaphore_(1) {
+CpuProfilesCollection::CpuProfilesCollection(Heap* heap)
+    : function_and_resource_names_(heap),
+      current_profiles_semaphore_(1) {
 }
 
 
