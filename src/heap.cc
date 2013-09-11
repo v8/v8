@@ -4371,7 +4371,7 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
 
   if (!function->shared()->is_generator()) {
     MaybeObject* maybe_failure =
-        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributesTrampoline(
             constructor_string(), function, DONT_ENUM);
     if (maybe_failure->IsFailure()) return maybe_failure;
   }
