@@ -158,7 +158,7 @@ void* VirtualMemory::ReserveRegion(size_t size, size_t* size_return) {
   if (size < 64 * KB) {
     size = 64 * KB;
   }
-  size = RoundUp(size, GetAllocationGranularity());
+  size = RoundUp(size, GetPageSize());
   LPVOID address = NULL;
   // Try and randomize the allocation address (up to three attempts).
   for (unsigned attempts = 0; address == NULL && attempts < 3; ++attempts) {
@@ -189,13 +189,14 @@ void* VirtualMemory::ReserveRegion(size_t size,
   ASSERT_NE(NULL, size_return);
   ASSERT(IsAligned(alignment, GetAllocationGranularity()));
 
-  size_t reserved_size;
+  size_t reserved_size = RoundUp(size + alignment, GetAllocationGranularity());
   Address reserved_base = static_cast<Address>(
-      ReserveRegion(size + alignment, &reserved_size));
+      ReserveRegion(reserved_size, &reserved_size));
   if (reserved_base == NULL) {
     return NULL;
   }
   ASSERT_LE(size, reserved_size);
+  ASSERT_LE(size + alignment, reserved_size);
   ASSERT(IsAligned(reserved_size, GetPageSize()));
 
   // Try reducing the size by freeing and then reallocating a specific area.
@@ -218,6 +219,7 @@ void* VirtualMemory::ReserveRegion(size_t size,
   }
 
   // Resizing failed, just go with a bigger area.
+  ASSERT(IsAligned(reserved_size, GetAllocationGranularity()));
   return ReserveRegion(reserved_size, size_return);
 }
 
@@ -291,6 +293,7 @@ size_t VirtualMemory::GetAllocationGranularity() {
     allocation_granularity = system_info.dwAllocationGranularity;
     MemoryBarrier();
   }
+  ASSERT_GE(allocation_granularity, GetPageSize());
   return allocation_granularity;
 }
 
