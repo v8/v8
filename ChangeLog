@@ -1,3 +1,20 @@
+2013-09-11: Version 3.21.13
+
+        Added a ResourceConstraint for the embedder to specify that V8 is
+        running on a memory constrained device.
+        (Chromium issue 280984)
+
+        Removed HandleScope default ctor.
+        (Chromium issue 236173)
+
+        Enabled escape analysis for Hydrogen.
+
+        Correctly stringified mixed encoding indirect strings.
+        (Chromium issue 287476)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-09: Version 3.21.12
 
         Fixed bitwise negation on x64.
