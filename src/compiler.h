@@ -627,10 +627,6 @@ class Compiler : public AllStatic {
 
   static Handle<Code> InstallOptimizedCode(OptimizingCompiler* info);
 
-  static Handle<Code> CompileForOnStackReplacement(Handle<JSFunction> function);
-
-  static Handle<Code> CompileForConcurrentOSR(Handle<JSFunction> function);
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static bool MakeCodeForLiveEdit(CompilationInfo* info);
 #endif

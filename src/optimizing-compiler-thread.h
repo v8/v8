@@ -71,9 +71,7 @@ class OptimizingCompilerThread : public Thread {
                                             uint32_t osr_pc_offset);
   bool IsQueuedForOSR(Handle<JSFunction> function, uint32_t osr_pc_offset);
 
-  // Remove the oldest OSR candidates that are ready so that we
-  // only have |limit| left waiting.
-  void RemoveStaleOSRCandidates(int limit = kReadyForOSRLimit);
+  bool IsQueuedForOSR(JSFunction* function);
 
   inline bool IsQueueAvailable() {
     // We don't need a barrier since we have a data dependency right
@@ -95,6 +93,10 @@ class OptimizingCompilerThread : public Thread {
 
  private:
   enum StopFlag { CONTINUE, STOP, FLUSH };
+
+  // Remove the oldest OSR candidates that are ready so that we
+  // only have |limit| left waiting.
+  void RemoveStaleOSRCandidates(int limit = kReadyForOSRLimit);
 
   void FlushInputQueue(bool restore_function_code);
   void FlushOutputQueue(bool restore_function_code);

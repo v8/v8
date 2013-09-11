@@ -1000,13 +1000,22 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  // Lookup the function in the JavaScript frame and push it as an
-  // argument to the on-stack replacement function.
+  // Lookup the function in the JavaScript frame.
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    // Lookup and calculate pc offset.
+    __ lw(a1, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+    __ lw(a2, FieldMemOperand(a0, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kCodeOffset));
+    __ Subu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ Subu(a1, a1, a2);
+    __ SmiTag(a1);
+
+    // Pass both function and pc offset as arguments.
     __ push(a0);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+    __ push(a1);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
   }
 
   // If the code object is null, just return to the unoptimized code.

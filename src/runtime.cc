@@ -8579,38 +8579,125 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationCount) {
 }
 
 
+static bool IsSuitableForOnStackReplacement(Isolate* isolate,
+                                            Handle<JSFunction> function,
+                                            Handle<Code> unoptimized) {
+  // Keep track of whether we've succeeded in optimizing.
+  if (!unoptimized->optimizable()) return false;
+  // If we are trying to do OSR when there are already optimized
+  // activations of the function, it means (a) the function is directly or
+  // indirectly recursive and (b) an optimized invocation has been
+  // deoptimized so that we are currently in an unoptimized activation.
+  // Check for optimized activations of this function.
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    if (frame->is_optimized() && frame->function() == *function) return false;
+  }
+
+  return true;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, pc_offset, Uint32, args[1]);
+  Handle<Code> unoptimized(function->shared()->code(), isolate);
+
+#ifdef DEBUG
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  ASSERT_EQ(frame->function(), *function);
+  ASSERT_EQ(frame->LookupCode(), *unoptimized);
+  ASSERT(unoptimized->contains(frame->pc()));
+
+  ASSERT(pc_offset ==
+         static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start()));
+#endif  // DEBUG
 
   // We're not prepared to handle a function with arguments object.
   ASSERT(!function->shared()->uses_arguments());
 
-  // If the optimization attempt succeeds, return the code object which
-  // the unoptimized code can jump into.
-  Handle<Code> code =
-      (FLAG_concurrent_recompilation && FLAG_concurrent_osr)
-          ? Compiler::CompileForConcurrentOSR(function)
-          : Compiler::CompileForOnStackReplacement(function);
-  if (!code.is_null()) {
-#if DEBUG
-    ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    ASSERT(!BailoutId(data->OsrAstId()->value()).IsNone());
-#endif
-    // TODO(titzer): this is a massive hack to make the deopt counts
-    // match. Fix heuristics for reenabling optimizations!
-    function->shared()->increment_deopt_count();
-    return *code;
-  } else {
-    if (function->IsMarkedForLazyRecompilation() ||
-        function->IsMarkedForConcurrentRecompilation()) {
-      function->ReplaceCode(function->shared()->code());
+  Handle<Code> result = Handle<Code>::null();
+  BailoutId ast_id = BailoutId::None();
+
+  if (FLAG_concurrent_recompilation && FLAG_concurrent_osr) {
+    if (isolate->optimizing_compiler_thread()->
+            IsQueuedForOSR(function, pc_offset)) {
+      // Still waiting for the optimizing compiler thread to finish.  Carry on.
+      if (FLAG_trace_osr) {
+        PrintF("[COSR - polling recompile tasks for ");
+        function->PrintName();
+        PrintF("]\n");
+      }
+      return NULL;
     }
-    return NULL;
+
+    OptimizingCompiler* compiler = isolate->optimizing_compiler_thread()->
+        FindReadyOSRCandidate(function, pc_offset);
+
+    if (compiler == NULL) {
+      if (IsSuitableForOnStackReplacement(isolate, function, unoptimized) &&
+          Compiler::RecompileConcurrent(function, pc_offset)) {
+        if (function->IsMarkedForLazyRecompilation() ||
+            function->IsMarkedForConcurrentRecompilation()) {
+          // Prevent regular recompilation if we queue this for OSR.
+          // TODO(yangguo): remove this as soon as OSR becomes one-shot.
+          function->ReplaceCode(function->shared()->code());
+        }
+        return NULL;
+      }
+      // Fall through to the end in case of failure.
+    } else {
+      // TODO(titzer): don't install the OSR code into the function.
+      ast_id = compiler->info()->osr_ast_id();
+      result = Compiler::InstallOptimizedCode(compiler);
+    }
+  } else if (IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
+    ast_id = unoptimized->TranslatePcOffsetToAstId(pc_offset);
+    ASSERT(!ast_id.IsNone());
+    if (FLAG_trace_osr) {
+      PrintF("[OSR - replacing at AST id %d in ", ast_id.ToInt());
+      function->PrintName();
+      PrintF("]\n");
+    }
+    // Attempt OSR compilation.
+    result = JSFunction::CompileOsr(function, ast_id, CLEAR_EXCEPTION);
   }
+
+  // Revert the patched interrupt now, regardless of whether OSR succeeds.
+  Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
+
+  // Check whether we ended up with usable optimized code.
+  if (!result.is_null() && result->kind() == Code::OPTIMIZED_FUNCTION) {
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(result->deoptimization_data());
+
+    if (data->OsrPcOffset()->value() >= 0) {
+      ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
+      if (FLAG_trace_osr) {
+        PrintF("[OSR - entry at AST id %d, offset %d in optimized code]\n",
+               ast_id.ToInt(), data->OsrPcOffset()->value());
+      }
+      // TODO(titzer): this is a massive hack to make the deopt counts
+      // match. Fix heuristics for reenabling optimizations!
+      function->shared()->increment_deopt_count();
+      return *result;
+    }
+  }
+
+  if (FLAG_trace_osr) {
+    PrintF("[OSR - optimization failed for ");
+    function->PrintName();
+    PrintF("]\n");
+  }
+
+  if (function->IsMarkedForLazyRecompilation() ||
+      function->IsMarkedForConcurrentRecompilation()) {
+    function->ReplaceCode(function->shared()->code());
+  }
+  return NULL;
 }
 
 

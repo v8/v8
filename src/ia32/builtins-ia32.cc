@@ -1327,14 +1327,21 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+  // Lookup the function in the JavaScript frame.
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-
-  // Pass the function to optimize as the argument to the on-stack
-  // replacement runtime function.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    // Lookup and calculate pc offset.
+    __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
+    __ mov(ebx, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
+    __ sub(edx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ sub(edx, FieldOperand(ebx, SharedFunctionInfo::kCodeOffset));
+    __ SmiTag(edx);
+
+    // Pass both function and pc offset as arguments.
     __ push(eax);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+    __ push(edx);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
   }
 
   Label skip;
