@@ -6554,8 +6554,6 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // Also used in StoreIC::GenerateNormal via GenerateDictionaryStore.
   // Also used in KeyedStoreIC::GenerateGeneric.
   { REG(a3), REG(t0), REG(t1), EMIT_REMEMBERED_SET },
-  // Used in CompileStoreGlobal.
-  { REG(t0), REG(a1), REG(a2), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField via GenerateStoreField.
   { REG(a1), REG(a2), REG(a3), EMIT_REMEMBERED_SET },
   { REG(a3), REG(a2), REG(a1), EMIT_REMEMBERED_SET },

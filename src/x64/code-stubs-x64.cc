@@ -5899,8 +5899,6 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(rbx), REG(rax), REG(rdi), EMIT_REMEMBERED_SET },
   // Used in CompileArrayPushCall.
   { REG(rbx), REG(rcx), REG(rdx), EMIT_REMEMBERED_SET },
-  // Used in CompileStoreGlobal.
-  { REG(rbx), REG(rcx), REG(rdx), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField and
   // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
   { REG(rdx), REG(rcx), REG(rbx), EMIT_REMEMBERED_SET },

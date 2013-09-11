@@ -6812,8 +6812,6 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // Used in CompileArrayPushCall.
   { REG(ebx), REG(ecx), REG(edx), EMIT_REMEMBERED_SET },
   { REG(ebx), REG(edi), REG(edx), OMIT_REMEMBERED_SET },
-  // Used in CompileStoreGlobal and CallFunctionStub.
-  { REG(ebx), REG(ecx), REG(edx), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField and
   // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
   { REG(edx), REG(ecx), REG(ebx), EMIT_REMEMBERED_SET },
