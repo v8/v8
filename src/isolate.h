@@ -1518,11 +1518,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 };
 
 
-// Temporary macros for accessing current isolate and its subobjects.
-// They provide better readability, especially when used a lot in the code.
-#define ISOLATE (v8::internal::Isolate::Current())
-
-
 // Tells whether the native context is marked with out of memory.
 inline bool Context::has_out_of_memory() {
   return native_context()->out_of_memory()->IsTrue();

@@ -998,7 +998,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_.GetCode(&code_desc);
-  Isolate* isolate = ISOLATE;
+  Isolate* isolate = this->isolate();
   Handle<Code> code = isolate->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP),
       masm_.CodeObject());

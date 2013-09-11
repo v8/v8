@@ -80,7 +80,7 @@ void* OS::Allocate(const size_t requested,
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "mmap failed"));
+    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -152,7 +152,7 @@ void OS::LogSharedLibraryAddresses() {
   const int kLibNameLen = FILENAME_MAX + 1;
   char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
 
-  i::Isolate* isolate = ISOLATE;
+  i::Isolate* isolate = Isolate::Current();
   // This loop will terminate once the scanning hits an EOF.
   while (true) {
     uintptr_t start, end;

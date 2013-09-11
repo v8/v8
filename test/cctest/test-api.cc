@@ -13401,7 +13401,7 @@ TEST(SetJitCodeEventHandler) {
           v8::Utils::OpenHandle(*env->Global()->Get(v8_str("foo"))))->code());
 
       // Clear the compilation cache to get more wastage.
-      ISOLATE->compilation_cache()->Clear();
+      reinterpret_cast<i::Isolate*>(isolate)->compilation_cache()->Clear();
     }
 
     // Force code movement.
@@ -19735,19 +19735,20 @@ TEST(StaticGetters) {
 
 TEST(IsolateEmbedderData) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   CHECK_EQ(NULL, isolate->GetData());
-  CHECK_EQ(NULL, ISOLATE->GetData());
+  CHECK_EQ(NULL, i_isolate->GetData());
   static void* data1 = reinterpret_cast<void*>(0xacce55ed);
   isolate->SetData(data1);
   CHECK_EQ(data1, isolate->GetData());
-  CHECK_EQ(data1, ISOLATE->GetData());
+  CHECK_EQ(data1, i_isolate->GetData());
   static void* data2 = reinterpret_cast<void*>(0xdecea5ed);
-  ISOLATE->SetData(data2);
+  i_isolate->SetData(data2);
   CHECK_EQ(data2, isolate->GetData());
-  CHECK_EQ(data2, ISOLATE->GetData());
-  ISOLATE->TearDown();
+  CHECK_EQ(data2, i_isolate->GetData());
+  i_isolate->TearDown();
   CHECK_EQ(data2, isolate->GetData());
-  CHECK_EQ(data2, ISOLATE->GetData());
+  CHECK_EQ(data2, i_isolate->GetData());
 }
 
 

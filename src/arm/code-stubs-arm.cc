@@ -2695,7 +2695,7 @@ bool CEntryStub::NeedsImmovableCode() {
 
 
 bool CEntryStub::IsPregenerated() {
-  return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
+  return (!save_doubles_ || Isolate::Current()->fp_stubs_generated()) &&
           result_size_ == 1;
 }
 

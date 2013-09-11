@@ -829,7 +829,7 @@ void* OS::Allocate(const size_t requested,
                                         prot);
 
   if (mbase == NULL) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "VirtualAlloc failed"));
+    LOG(Isolate::Current(), StringEvent("OS::Allocate", "VirtualAlloc failed"));
     return NULL;
   }
 
