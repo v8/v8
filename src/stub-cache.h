@@ -130,20 +130,17 @@ class StubCache {
   Handle<Code> ComputeLoadField(Handle<Name> name,
                                 Handle<JSObject> object,
                                 Handle<JSObject> holder,
-                                Code::Kind kind,
                                 PropertyIndex field_index,
                                 Representation representation);
 
   Handle<Code> ComputeLoadCallback(Handle<Name> name,
                                    Handle<JSObject> object,
                                    Handle<JSObject> holder,
-                                   Code::Kind kind,
                                    Handle<ExecutableAccessorInfo> callback);
 
   Handle<Code> ComputeLoadCallback(Handle<Name> name,
                                    Handle<JSObject> object,
                                    Handle<JSObject> holder,
-                                   Code::Kind kind,
                                    const CallOptimization& call_optimization);
 
   Handle<Code> ComputeLoadViaGetter(Handle<Name> name,
@@ -154,13 +151,11 @@ class StubCache {
   Handle<Code> ComputeLoadConstant(Handle<Name> name,
                                    Handle<JSObject> object,
                                    Handle<JSObject> holder,
-                                   Code::Kind kind,
                                    Handle<Object> value);
 
   Handle<Code> ComputeLoadInterceptor(Handle<Name> name,
                                       Handle<JSObject> object,
-                                      Handle<JSObject> holder,
-                                      Code::Kind kind);
+                                      Handle<JSObject> holder);
 
   Handle<Code> ComputeLoadNormal(Handle<Name> name,
                                  Handle<JSObject> object);
@@ -170,6 +165,35 @@ class StubCache {
                                  Handle<GlobalObject> holder,
                                  Handle<PropertyCell> cell,
                                  bool is_dont_delete);
+
+  // ---
+
+  Handle<Code> ComputeKeyedLoadField(Handle<Name> name,
+                                     Handle<JSObject> object,
+                                     Handle<JSObject> holder,
+                                     PropertyIndex field_index,
+                                     Representation representation);
+
+  Handle<Code> ComputeKeyedLoadCallback(
+      Handle<Name> name,
+      Handle<JSObject> object,
+      Handle<JSObject> holder,
+      Handle<ExecutableAccessorInfo> callback);
+
+  Handle<Code> ComputeKeyedLoadCallback(
+      Handle<Name> name,
+      Handle<JSObject> object,
+      Handle<JSObject> holder,
+      const CallOptimization& call_optimization);
+
+  Handle<Code> ComputeKeyedLoadConstant(Handle<Name> name,
+                                        Handle<JSObject> object,
+                                        Handle<JSObject> holder,
+                                        Handle<Object> value);
+
+  Handle<Code> ComputeKeyedLoadInterceptor(Handle<Name> name,
+                                           Handle<JSObject> object,
+                                           Handle<JSObject> holder);
 
   // ---
 
@@ -618,10 +642,8 @@ enum FrontendCheckType { PERFORM_INITIAL_CHECKS, SKIP_INITIAL_CHECKS };
 
 class BaseLoadStoreStubCompiler: public StubCompiler {
  public:
-  BaseLoadStoreStubCompiler(Isolate* isolate,
-                            Code::Kind kind,
-                            Register* registers)
-      : StubCompiler(isolate), kind_(kind), registers_(registers) { }
+  BaseLoadStoreStubCompiler(Isolate* isolate, Register* registers)
+      : StubCompiler(isolate), registers_(registers) { }
   virtual ~BaseLoadStoreStubCompiler() { }
 
   Handle<Code> CompileMonomorphicIC(Handle<Map> receiver_map,
@@ -649,17 +671,6 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
     return Builtins::kLoadIC_Miss;
   }
 
-  static GDBJITInterface::CodeTag GetGDBJITCodeTag(Code::Kind kind) {
-    switch (kind) {
-      case Code::LOAD_IC: return GDBJITInterface::LOAD_IC;
-      case Code::STORE_IC: return GDBJITInterface::STORE_IC;
-      case Code::KEYED_LOAD_IC: return GDBJITInterface::KEYED_LOAD_IC;
-      case Code::KEYED_STORE_IC: return GDBJITInterface::KEYED_STORE_IC;
-      default: UNREACHABLE();
-    }
-    return static_cast<GDBJITInterface::CodeTag>(0);
-  }
-
  protected:
   virtual Register HandlerFrontendHeader(Handle<JSObject> object,
                                          Register object_reg,
@@ -682,48 +693,24 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
                          Handle<Name> name,
                          InlineCacheState state = MONOMORPHIC);
 
-  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
-    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
-    switch (kind()) {
-      case Code::LOAD_IC: return code->ic_state() == MONOMORPHIC
-          ? Logger::LOAD_IC_TAG : Logger::LOAD_POLYMORPHIC_IC_TAG;
-      case Code::STORE_IC: return code->ic_state() == MONOMORPHIC
-          ? Logger::STORE_IC_TAG : Logger::STORE_POLYMORPHIC_IC_TAG;
-      case Code::KEYED_LOAD_IC: return code->ic_state() == MONOMORPHIC
-          ? Logger::KEYED_LOAD_IC_TAG : Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG;
-      case Code::KEYED_STORE_IC: return code->ic_state() == MONOMORPHIC
-          ? Logger::KEYED_STORE_IC_TAG : Logger::KEYED_STORE_POLYMORPHIC_IC_TAG;
-      default: UNREACHABLE();
-    }
-    return static_cast<Logger::LogEventsAndTags>(0);
-  }
-
-  void JitEvent(Handle<Name> name, Handle<Code> code) {
-    GDBJIT(AddCode(GetGDBJITCodeTag(kind()), *name, *code));
-  }
-
-  Code::Kind kind() const { return kind_; }
-
   virtual Code::ExtraICState extra_state() { return Code::kNoExtraICState; }
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) = 0;
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code) = 0;
+  virtual Code::Kind kind() = 0;
   virtual Register receiver() = 0;
   virtual Register name() = 0;
   virtual Register scratch1() = 0;
   virtual Register scratch2() = 0;
   virtual Register scratch3() = 0;
 
-  static Register* GetRegisters(Code::Kind kind);
-
-  Code::Kind kind_;
   Register* registers_;
 };
 
 
 class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
  public:
-  BaseLoadStubCompiler(Isolate* isolate, Code::Kind kind)
-      : BaseLoadStoreStubCompiler(isolate, kind, GetRegisters(kind)) { }
-  BaseLoadStubCompiler(Isolate* isolate, Code::Kind kind, Register* registers)
-      : BaseLoadStoreStubCompiler(isolate, kind, registers) { }
+  BaseLoadStubCompiler(Isolate* isolate, Register* registers)
+      : BaseLoadStoreStubCompiler(isolate, registers) { }
   virtual ~BaseLoadStubCompiler() { }
 
   Handle<Code> CompileLoadField(Handle<JSObject> object,
@@ -808,7 +795,7 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
 class LoadStubCompiler: public BaseLoadStubCompiler {
  public:
   explicit LoadStubCompiler(Isolate* isolate)
-      : BaseLoadStubCompiler(isolate, Code::LOAD_IC, registers()) { }
+      : BaseLoadStubCompiler(isolate, registers()) { }
 
   Handle<Code> CompileLoadNonexistent(Handle<JSObject> object,
                                       Handle<JSObject> last,
@@ -829,14 +816,22 @@ class LoadStubCompiler: public BaseLoadStubCompiler {
                                  Handle<Name> name,
                                  bool is_dont_delete);
 
+ private:
   static Register* registers();
+  virtual Code::Kind kind() { return Code::LOAD_IC; }
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::LOAD_IC_TAG : Logger::LOAD_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code);
 };
 
 
 class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
  public:
   explicit KeyedLoadStubCompiler(Isolate* isolate)
-      : BaseLoadStubCompiler(isolate, Code::KEYED_LOAD_IC, registers()) { }
+      : BaseLoadStubCompiler(isolate, registers()) { }
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
@@ -845,9 +840,15 @@ class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
 
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
-  static Register* registers();
-
  private:
+  static Register* registers();
+  virtual Code::Kind kind() { return Code::KEYED_LOAD_IC; }
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::KEYED_LOAD_IC_TAG : Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code);
   virtual void GenerateNameCheck(Handle<Name> name,
                                  Register name_reg,
                                  Label* miss);
@@ -857,9 +858,9 @@ class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
 class BaseStoreStubCompiler: public BaseLoadStoreStubCompiler {
  public:
   BaseStoreStubCompiler(Isolate* isolate,
-                        Code::Kind kind,
-                        StrictModeFlag strict_mode)
-      : BaseLoadStoreStubCompiler(isolate, kind, GetRegisters(kind)),
+                        StrictModeFlag strict_mode,
+                        Register* registers)
+      : BaseLoadStoreStubCompiler(isolate, registers),
         strict_mode_(strict_mode) { }
 
   virtual ~BaseStoreStubCompiler() { }
@@ -957,7 +958,7 @@ class BaseStoreStubCompiler: public BaseLoadStoreStubCompiler {
 class StoreStubCompiler: public BaseStoreStubCompiler {
  public:
   StoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
-      : BaseStoreStubCompiler(isolate, Code::STORE_IC, strict_mode) { }
+      : BaseStoreStubCompiler(isolate, strict_mode, registers()) { }
 
 
   Handle<Code> CompileStoreCallback(Handle<JSObject> object,
@@ -981,7 +982,15 @@ class StoreStubCompiler: public BaseStoreStubCompiler {
   Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
                                        Handle<Name> name);
 
+ private:
   static Register* registers();
+  virtual Code::Kind kind() { return Code::STORE_IC; }
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::STORE_IC_TAG : Logger::STORE_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code);
 };
 
 
@@ -990,7 +999,7 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
   KeyedStoreStubCompiler(Isolate* isolate,
                          StrictModeFlag strict_mode,
                          KeyedAccessStoreMode store_mode)
-      : BaseStoreStubCompiler(isolate, Code::KEYED_STORE_IC, strict_mode),
+      : BaseStoreStubCompiler(isolate, strict_mode, registers()),
         store_mode_(store_mode) { }
 
   Handle<Code> CompileStoreElement(Handle<Map> receiver_map);
@@ -1003,8 +1012,6 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
 
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
-  static Register* registers();
-
  protected:
   virtual Code::ExtraICState extra_state() {
     return Code::ComputeExtraICState(store_mode_, strict_mode());
@@ -1015,6 +1022,14 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
     return registers()[3];
   }
 
+  static Register* registers();
+  virtual Code::Kind kind() { return Code::KEYED_STORE_IC; }
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::KEYED_STORE_IC_TAG : Logger::KEYED_STORE_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code);
   virtual void GenerateNameCheck(Handle<Name> name,
                                  Register name_reg,
                                  Label* miss);

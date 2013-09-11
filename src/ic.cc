@@ -1318,7 +1318,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeLoadField(
-          name, receiver, holder, Code::LOAD_IC,
+          name, receiver, holder,
           lookup->GetFieldIndex(), lookup->representation());
     case CONSTANT: {
       Handle<Object> constant(lookup->GetConstant(), isolate());
@@ -1326,7 +1326,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
       // be embedded into code.
       if (constant->IsConsString()) return Handle<Code>::null();
       return isolate()->stub_cache()->ComputeLoadConstant(
-          name, receiver, holder, Code::LOAD_IC, constant);
+          name, receiver, holder, constant);
     }
     case NORMAL:
       if (holder->IsGlobalObject()) {
@@ -1350,7 +1350,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         if (v8::ToCData<Address>(info->getter()) == 0) break;
         if (!info->IsCompatibleReceiver(*receiver)) break;
         return isolate()->stub_cache()->ComputeLoadCallback(
-            name, receiver, holder, Code::LOAD_IC, info);
+            name, receiver, holder, info);
       } else if (callback->IsAccessorPair()) {
         Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter(),
                               isolate());
@@ -1363,7 +1363,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
             call_optimization.IsCompatibleReceiver(*receiver) &&
             FLAG_js_accessor_ics) {
           return isolate()->stub_cache()->ComputeLoadCallback(
-              name, receiver, holder, Code::LOAD_IC, call_optimization);
+              name, receiver, holder, call_optimization);
         }
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, function);
@@ -1372,8 +1372,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         PropertyIndex lengthIndex =
           PropertyIndex::NewHeaderIndex(JSArray::kLengthOffset / kPointerSize);
         return isolate()->stub_cache()->ComputeLoadField(
-            name, receiver, holder, Code::LOAD_IC,
-            lengthIndex, Representation::Tagged());
+            name, receiver, holder, lengthIndex, Representation::Tagged());
       }
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
@@ -1384,7 +1383,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
     case INTERCEPTOR:
       ASSERT(HasInterceptorGetter(*holder));
       return isolate()->stub_cache()->ComputeLoadInterceptor(
-          name, receiver, holder, Code::LOAD_IC);
+          name, receiver, holder);
     default:
       break;
   }
@@ -1539,16 +1538,16 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
   Handle<JSObject> holder(lookup->holder(), isolate());
   switch (lookup->type()) {
     case FIELD:
-      return isolate()->stub_cache()->ComputeLoadField(
-          name, receiver, holder, Code::KEYED_LOAD_IC,
+      return isolate()->stub_cache()->ComputeKeyedLoadField(
+          name, receiver, holder,
           lookup->GetFieldIndex(), lookup->representation());
     case CONSTANT: {
       Handle<Object> constant(lookup->GetConstant(), isolate());
       // TODO(2803): Don't compute a stub for cons strings because they cannot
       // be embedded into code.
       if (constant->IsConsString()) return Handle<Code>::null();
-      return isolate()->stub_cache()->ComputeLoadConstant(
-          name, receiver, holder, Code::KEYED_LOAD_IC, constant);
+      return isolate()->stub_cache()->ComputeKeyedLoadConstant(
+          name, receiver, holder, constant);
     }
     case CALLBACKS: {
       Handle<Object> callback_object(lookup->GetCallbackObject(), isolate());
@@ -1558,8 +1557,8 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
             Handle<ExecutableAccessorInfo>::cast(callback_object);
         if (v8::ToCData<Address>(callback->getter()) == 0) break;
         if (!callback->IsCompatibleReceiver(*receiver)) break;
-        return isolate()->stub_cache()->ComputeLoadCallback(
-            name, receiver, holder, Code::KEYED_LOAD_IC, callback);
+        return isolate()->stub_cache()->ComputeKeyedLoadCallback(
+            name, receiver, holder, callback);
       } else if (callback_object->IsAccessorPair()) {
         Handle<Object> getter(
             Handle<AccessorPair>::cast(callback_object)->getter(),
@@ -1572,16 +1571,16 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
         if (call_optimization.is_simple_api_call() &&
             call_optimization.IsCompatibleReceiver(*receiver) &&
             FLAG_js_accessor_ics) {
-          return isolate()->stub_cache()->ComputeLoadCallback(
-              name, receiver, holder, Code::KEYED_LOAD_IC, call_optimization);
+          return isolate()->stub_cache()->ComputeKeyedLoadCallback(
+              name, receiver, holder, call_optimization);
         }
       }
       break;
     }
     case INTERCEPTOR:
       ASSERT(HasInterceptorGetter(lookup->holder()));
-      return isolate()->stub_cache()->ComputeLoadInterceptor(
-          name, receiver, holder, Code::KEYED_LOAD_IC);
+      return isolate()->stub_cache()->ComputeKeyedLoadInterceptor(
+          name, receiver, holder);
     default:
       // Always rewrite to the generic case so that we do not
       // repeatedly try to rewrite.
