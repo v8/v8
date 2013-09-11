@@ -309,12 +309,8 @@ class UniqueValueId V8_FINAL {
  public:
   UniqueValueId() : raw_address_(NULL) { }
 
-  explicit UniqueValueId(Object* object) {
-    raw_address_ = reinterpret_cast<Address>(object);
-    ASSERT(IsInitialized());
-  }
-
   explicit UniqueValueId(Handle<Object> handle) {
+    ASSERT(!AllowHeapAllocation::IsAllowed());
     static const Address kEmptyHandleSentinel = reinterpret_cast<Address>(1);
     if (handle.is_null()) {
       raw_address_ = kEmptyHandleSentinel;
@@ -342,8 +338,28 @@ class UniqueValueId V8_FINAL {
     return reinterpret_cast<intptr_t>(raw_address_);
   }
 
+#define IMMOVABLE_UNIQUE_VALUE_ID(name)   \
+  static UniqueValueId name(Heap* heap) { return UniqueValueId(heap->name()); }
+
+  IMMOVABLE_UNIQUE_VALUE_ID(free_space_map)
+  IMMOVABLE_UNIQUE_VALUE_ID(minus_zero_value)
+  IMMOVABLE_UNIQUE_VALUE_ID(nan_value)
+  IMMOVABLE_UNIQUE_VALUE_ID(undefined_value)
+  IMMOVABLE_UNIQUE_VALUE_ID(null_value)
+  IMMOVABLE_UNIQUE_VALUE_ID(true_value)
+  IMMOVABLE_UNIQUE_VALUE_ID(false_value)
+  IMMOVABLE_UNIQUE_VALUE_ID(the_hole_value)
+  IMMOVABLE_UNIQUE_VALUE_ID(empty_string)
+
+#undef IMMOVABLE_UNIQUE_VALUE_ID
+
  private:
   Address raw_address_;
+
+  explicit UniqueValueId(Object* object) {
+    raw_address_ = reinterpret_cast<Address>(object);
+    ASSERT(IsInitialized());
+  }
 };
 
 
@@ -3327,14 +3343,14 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
 
     ASSERT(!handle_.is_null());
     Heap* heap = isolate()->heap();
-    ASSERT(unique_id_ != UniqueValueId(heap->minus_zero_value()));
-    ASSERT(unique_id_ != UniqueValueId(heap->nan_value()));
-    return unique_id_ == UniqueValueId(heap->undefined_value()) ||
-           unique_id_ == UniqueValueId(heap->null_value()) ||
-           unique_id_ == UniqueValueId(heap->true_value()) ||
-           unique_id_ == UniqueValueId(heap->false_value()) ||
-           unique_id_ == UniqueValueId(heap->the_hole_value()) ||
-           unique_id_ == UniqueValueId(heap->empty_string());
+    ASSERT(unique_id_ != UniqueValueId::minus_zero_value(heap));
+    ASSERT(unique_id_ != UniqueValueId::nan_value(heap));
+    return unique_id_ == UniqueValueId::undefined_value(heap) ||
+           unique_id_ == UniqueValueId::null_value(heap) ||
+           unique_id_ == UniqueValueId::true_value(heap) ||
+           unique_id_ == UniqueValueId::false_value(heap) ||
+           unique_id_ == UniqueValueId::the_hole_value(heap) ||
+           unique_id_ == UniqueValueId::empty_string(heap);
   }
 
   bool IsCell() const {

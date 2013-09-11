@@ -3455,7 +3455,7 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
       zone,
       context(),
       isolate()->factory()->free_space_map(),
-      UniqueValueId(isolate()->heap()->free_space_map()));
+      UniqueValueId::free_space_map(isolate()->heap()));
   filler_map->InsertAfter(free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
       free_space_instr, HObjectAccess::ForMap(), filler_map);

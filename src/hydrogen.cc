@@ -649,7 +649,7 @@ HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
     HConstant* constant = new(zone()) HConstant(                               \
         isolate()->factory()->name##_value(),                                  \
-        UniqueValueId(isolate()->heap()->name##_value()),                      \
+        UniqueValueId::name##_value(isolate()->heap()),                        \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         false,                                                                 \
