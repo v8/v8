@@ -649,7 +649,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 }
 
 
-bool WriteInt32ToHeapNumberStub::IsPregenerated() {
+bool WriteInt32ToHeapNumberStub::IsPregenerated(Isolate* isolate) {
   // These variants are compiled ahead of time.  See next method.
   if (the_int_.is(a1) &&
       the_heap_number_.is(v0) &&
@@ -2723,8 +2723,8 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated() {
-  return (!save_doubles_ || Isolate::Current()->fp_stubs_generated()) &&
+bool CEntryStub::IsPregenerated(Isolate* isolate) {
+  return (!save_doubles_ || isolate->fp_stubs_generated()) &&
           result_size_ == 1;
 }
 
@@ -6585,7 +6585,7 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 #undef REG
 
 
-bool RecordWriteStub::IsPregenerated() {
+bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
   for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
