@@ -113,7 +113,7 @@ MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
   // object does not have a 'length' property.  Calling SetProperty
   // causes an infinite loop.
   if (!object->IsJSArray()) {
-    return object->SetLocalPropertyIgnoreAttributesTrampoline(
+    return object->SetLocalPropertyIgnoreAttributes(
         isolate->heap()->length_string(), value, NONE);
   }
 
@@ -531,8 +531,9 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
   if (function_raw == NULL) return heap->undefined_value();
   if (!function_raw->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    return object->SetLocalPropertyIgnoreAttributesTrampoline(
-        heap->prototype_string(), value_raw, NONE);
+    return object->SetLocalPropertyIgnoreAttributes(heap->prototype_string(),
+                                                    value_raw,
+                                                    NONE);
   }
 
   HandleScope scope(isolate);

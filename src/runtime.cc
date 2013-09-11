@@ -2276,13 +2276,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   LookupResult lookup(isolate);
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsFound()) {
-    HandleScope handle_scope(isolate);
-    Handle<GlobalObject> global(isolate->context()->global_object());
-    RETURN_IF_EMPTY_HANDLE(
-        isolate,
-        JSObject::SetLocalPropertyIgnoreAttributes(global, name, value,
-                                                   attributes));
-    return *value;
+    return global->SetLocalPropertyIgnoreAttributes(*name,
+                                                    *value,
+                                                    attributes);
   }
 
   if (!lookup.IsReadOnly()) {
@@ -2499,41 +2495,41 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
-  HandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DisallowHeapAllocation no_allocation;
   ASSERT(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_CHECKED(String, source, 1);
   // If source is the empty string we set it to "(?:)" instead as
   // suggested by ECMA-262, 5th, section 15.10.4.1.
-  if (source->length() == 0) source = isolate->factory()->query_colon_string();
+  if (source->length() == 0) source = isolate->heap()->query_colon_string();
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, global, 2);
-  if (!global->IsTrue()) global = isolate->factory()->false_value();
+  Object* global = args[2];
+  if (!global->IsTrue()) global = isolate->heap()->false_value();
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, ignoreCase, 3);
-  if (!ignoreCase->IsTrue()) ignoreCase = isolate->factory()->false_value();
+  Object* ignoreCase = args[3];
+  if (!ignoreCase->IsTrue()) ignoreCase = isolate->heap()->false_value();
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, multiline, 4);
-  if (!multiline->IsTrue()) multiline = isolate->factory()->false_value();
+  Object* multiline = args[4];
+  if (!multiline->IsTrue()) multiline = isolate->heap()->false_value();
 
   Map* map = regexp->map();
   Object* constructor = map->constructor();
   if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *source);
+    regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, source);
     // Both true and false are immovable immortal objects so no need for write
     // barrier.
     regexp->InObjectPropertyAtPut(
-        JSRegExp::kGlobalFieldIndex, *global, SKIP_WRITE_BARRIER);
+        JSRegExp::kGlobalFieldIndex, global, SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(
-        JSRegExp::kIgnoreCaseFieldIndex, *ignoreCase, SKIP_WRITE_BARRIER);
+        JSRegExp::kIgnoreCaseFieldIndex, ignoreCase, SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(
-        JSRegExp::kMultilineFieldIndex, *multiline, SKIP_WRITE_BARRIER);
+        JSRegExp::kMultilineFieldIndex, multiline, SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(
         JSRegExp::kLastIndexFieldIndex, Smi::FromInt(0), SKIP_WRITE_BARRIER);
-    return *regexp;
+    return regexp;
   }
 
   // Map has changed, so use generic, but slower, method.
@@ -2541,19 +2537,34 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
       static_cast<PropertyAttributes>(READ_ONLY | DONT_ENUM | DONT_DELETE);
   PropertyAttributes writable =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-  Handle<Object> zero(Smi::FromInt(0), isolate);
-  Factory* factory = isolate->factory();
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->source_string(), source, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->global_string(), global, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->ignore_case_string(), ignoreCase, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->multiline_string(), multiline, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->last_index_string(), zero, writable));
-  return *regexp;
+  Heap* heap = isolate->heap();
+  MaybeObject* result;
+  result = regexp->SetLocalPropertyIgnoreAttributes(heap->source_string(),
+                                                    source,
+                                                    final);
+  // TODO(jkummerow): Turn these back into ASSERTs when we can be certain
+  // that it never fires in Release mode in the wild.
+  CHECK(!result->IsFailure());
+  result = regexp->SetLocalPropertyIgnoreAttributes(heap->global_string(),
+                                                    global,
+                                                    final);
+  CHECK(!result->IsFailure());
+  result =
+      regexp->SetLocalPropertyIgnoreAttributes(heap->ignore_case_string(),
+                                               ignoreCase,
+                                               final);
+  CHECK(!result->IsFailure());
+  result = regexp->SetLocalPropertyIgnoreAttributes(heap->multiline_string(),
+                                                    multiline,
+                                                    final);
+  CHECK(!result->IsFailure());
+  result =
+      regexp->SetLocalPropertyIgnoreAttributes(heap->last_index_string(),
+                                               Smi::FromInt(0),
+                                               writable);
+  CHECK(!result->IsFailure());
+  USE(result);
+  return regexp;
 }
 
 
@@ -5053,10 +5064,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     JSObject::NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
-    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-        js_object, name, obj_value, attr);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return js_object->SetLocalPropertyIgnoreAttributes(*name,
+                                                       *obj_value,
+                                                       attr);
   }
 
   return Runtime::ForceSetObjectProperty(isolate,
@@ -5242,10 +5252,7 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
           index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-          js_object, name, value, attr);
-      RETURN_IF_EMPTY_HANDLE(isolate, result);
-      return *result;
+      return js_object->SetLocalPropertyIgnoreAttributes(*name, *value, attr);
     }
   }
 
@@ -5260,10 +5267,7 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
     return js_object->SetElement(
         index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
   } else {
-    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-        js_object, name, value, attr);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return js_object->SetLocalPropertyIgnoreAttributes(*name, *value, attr);
   }
 }
 
@@ -5466,11 +5470,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
 // Set a local property, even if it is READ_ONLY.  If the property does not
 // exist, it will be added with attributes NONE.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IgnoreAttributesAndSetProperty) {
-  HandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_CHECKED(Name, name, 1);
   // Compute attributes.
   PropertyAttributes attributes = NONE;
   if (args.length() == 4) {
@@ -5480,10 +5483,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IgnoreAttributesAndSetProperty) {
         (unchecked_value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
     attributes = static_cast<PropertyAttributes>(unchecked_value);
   }
-  Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-      object, name, value, attributes);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
-  return *result;
+
+  return object->
+      SetLocalPropertyIgnoreAttributes(name, args[2], attributes);
 }
 
 
