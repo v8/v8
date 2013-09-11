@@ -1426,12 +1426,15 @@ class SaveContext BASE_EMBEDDED {
 class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
-  AssertNoContextChange() : context_(Isolate::Current()->context()) { }
+  AssertNoContextChange()
+    : isolate_(Isolate::Current()),
+      context_(isolate_->context()) { }
   ~AssertNoContextChange() {
-    ASSERT(Isolate::Current()->context() == *context_);
+    ASSERT(isolate_->context() == *context_);
   }
 
  private:
+  Isolate* isolate_;
   Handle<Context> context_;
 #else
  public:
@@ -1445,15 +1448,17 @@ class AssertNoContextChangeWithHandleScope BASE_EMBEDDED {
 #ifdef DEBUG
  public:
   AssertNoContextChangeWithHandleScope() :
-      scope_(Isolate::Current()),
-      context_(Isolate::Current()->context(), Isolate::Current()) {
+      isolate_(Isolate::Current()),
+      scope_(isolate_),
+      context_(isolate_->context(), isolate_) {
   }
 
   ~AssertNoContextChangeWithHandleScope() {
-    ASSERT(Isolate::Current()->context() == *context_);
+    ASSERT(isolate_->context() == *context_);
   }
 
  private:
+  Isolate* isolate_;
   HandleScope scope_;
   Handle<Context> context_;
 #else

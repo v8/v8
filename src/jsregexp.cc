@@ -1085,8 +1085,8 @@ class RecursionCheck {
 };
 
 
-static RegExpEngine::CompilationResult IrregexpRegExpTooBig() {
-  return RegExpEngine::CompilationResult("RegExp too big");
+static RegExpEngine::CompilationResult IrregexpRegExpTooBig(Isolate* isolate) {
+  return RegExpEngine::CompilationResult(isolate, "RegExp too big");
 }
 
 
@@ -1143,7 +1143,7 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   while (!work_list.is_empty()) {
     work_list.RemoveLast()->Emit(this, &new_trace);
   }
-  if (reg_exp_too_big_) return IrregexpRegExpTooBig();
+  if (reg_exp_too_big_) return IrregexpRegExpTooBig(zone_->isolate());
 
   Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
   heap->IncreaseTotalRegexpCodeGenerated(code->Size());
@@ -5999,7 +5999,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
     bool is_ascii,
     Zone* zone) {
   if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
-    return IrregexpRegExpTooBig();
+    return IrregexpRegExpTooBig(zone->isolate());
   }
   RegExpCompiler compiler(data->capture_count, ignore_case, is_ascii, zone);
 
@@ -6063,7 +6063,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   analysis.EnsureAnalyzed(node);
   if (analysis.has_failed()) {
     const char* error_message = analysis.error_message();
-    return CompilationResult(error_message);
+    return CompilationResult(zone->isolate(), error_message);
   }
 
   // Create the correct assembler for the architecture.

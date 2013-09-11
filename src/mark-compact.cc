@@ -1788,8 +1788,6 @@ void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
 
 
 void MarkCompactCollector::PrepareForCodeFlushing() {
-  ASSERT(heap() == Isolate::Current()->heap());
-
   // Enable code flushing for non-incremental cycles.
   if (FLAG_flush_code && !FLAG_flush_code_incrementally) {
     EnableCodeFlushing(!was_marked_incrementally_);

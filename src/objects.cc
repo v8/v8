@@ -9892,7 +9892,7 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   if (code()->kind() == Code::FUNCTION) {
     code()->set_optimizable(false);
   }
-  PROFILE(Isolate::Current(),
+  PROFILE(GetIsolate(),
       LogExistingFunction(Handle<SharedFunctionInfo>(this),
                           Handle<Code>(code())));
   if (FLAG_trace_opt) {
