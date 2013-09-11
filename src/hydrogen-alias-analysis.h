@@ -65,7 +65,11 @@ class HAliasAnalyzer : public ZoneObject {
       if (a->IsConstant()) return kNoAlias;
     }
 
-    // TODO(titzer): return MustAlias for two equivalent constants.
+    // Constant objects can be distinguished statically.
+    if (a->IsConstant()) {
+      // TODO(titzer): DataEquals() is more efficient, but that's protected.
+      return a->Equals(b) ? kMustAlias : kNoAlias;
+    }
     return kMayAlias;
   }
 
@@ -78,7 +82,7 @@ class HAliasAnalyzer : public ZoneObject {
   }
 
   inline bool MustAlias(HValue* a, HValue* b) {
-    return Query(a, b) == kMayAlias;
+    return Query(a, b) == kMustAlias;
   }
 
   inline bool NoAlias(HValue* a, HValue* b) {
