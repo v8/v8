@@ -39,8 +39,8 @@ namespace internal {
 //
 // This class represents and controls an area of reserved memory.
 // Control of the reserved memory can be assigned to another VirtualMemory
-// object by assignment or contructing. This removes the reserved memory from
-// the original object.
+// object by assignment or copy-constructing. This removes the reserved memory
+// from the original object.
 class VirtualMemory V8_FINAL {
  public:
   // The executability of a memory region.
