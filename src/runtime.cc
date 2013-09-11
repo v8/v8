@@ -14505,6 +14505,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessCheckNeeded) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(HeapObject, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsAccessCheckNeeded());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
@@ -14579,6 +14587,34 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_UnwrapGlobalProxy) {
     if (object->IsNull()) return isolate->heap()->undefined_value();
   }
   return object;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, observer, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
+  ASSERT(object->IsAccessCheckNeeded());
+  Handle<Object> key = args.at<Object>(2);
+  SaveContext save(isolate);
+  isolate->set_context(observer->context());
+  if (!isolate->MayNamedAccess(*object, isolate->heap()->undefined_value(),
+                               v8::ACCESS_KEYS)) {
+    return isolate->heap()->false_value();
+  }
+  bool access_allowed = false;
+  uint32_t index = 0;
+  if (key->ToArrayIndex(&index) ||
+      (key->IsString() && String::cast(*key)->AsArrayIndex(&index))) {
+    access_allowed =
+        isolate->MayIndexedAccess(*object, index, v8::ACCESS_GET) &&
+        isolate->MayIndexedAccess(*object, index, v8::ACCESS_HAS);
+  } else {
+    access_allowed = isolate->MayNamedAccess(*object, *key, v8::ACCESS_GET) &&
+        isolate->MayNamedAccess(*object, *key, v8::ACCESS_HAS);
+  }
+  return isolate->heap()->ToBoolean(access_allowed);
 }
 
 

@@ -367,13 +367,22 @@ function ArrayUnobserve(object, callback) {
   return ObjectUnobserve(object, callback);
 }
 
-function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
+function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
+                                 needsAccessCheck) {
   if (!ObserverIsActive(observer, objectInfo) ||
       !TypeMapHasType(ObserverGetAcceptTypes(observer), changeRecord.type)) {
     return;
   }
 
   var callback = ObserverGetCallback(observer);
+  if (needsAccessCheck &&
+      // Drop all splice records on the floor for access-checked objects
+      (changeRecord.type == 'splice' ||
+       !%IsAccessAllowedForObserver(
+           callback, changeRecord.object, changeRecord.name))) {
+    return;
+  }
+
   var callbackInfo = CallbackInfoNormalize(callback);
   if (!observationState.pendingObservers)
     observationState.pendingObservers = { __proto__: null };
@@ -382,19 +391,25 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   %SetObserverDeliveryPending();
 }
 
-function ObjectInfoEnqueueChangeRecord(objectInfo, changeRecord) {
+function ObjectInfoEnqueueChangeRecord(objectInfo, changeRecord,
+                                       skipAccessCheck) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(changeRecord.name)) return;
 
+  var needsAccessCheck = !skipAccessCheck &&
+      %IsAccessCheckNeeded(changeRecord.object);
+
   if (ChangeObserversIsOptimized(objectInfo.changeObservers)) {
     var observer = objectInfo.changeObservers;
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
+                            needsAccessCheck);
     return;
   }
 
   for (var priority in objectInfo.changeObservers) {
     var observer = objectInfo.changeObservers[priority];
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
+                            needsAccessCheck);
   }
 }
 
@@ -463,7 +478,8 @@ function ObjectNotifierNotify(changeRecord) {
   }
   ObjectFreeze(newRecord);
 
-  ObjectInfoEnqueueChangeRecord(objectInfo, newRecord);
+  ObjectInfoEnqueueChangeRecord(objectInfo, newRecord,
+                                true /* skip access check */);
 }
 
 function ObjectNotifierPerformChange(changeType, changeFn) {
