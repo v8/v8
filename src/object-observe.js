@@ -466,7 +466,7 @@ function ObjectNotifierNotify(changeRecord) {
   ObjectInfoEnqueueChangeRecord(objectInfo, newRecord);
 }
 
-function ObjectNotifierPerformChange(changeType, changeFn, receiver) {
+function ObjectNotifierPerformChange(changeType, changeFn) {
   if (!IS_SPEC_OBJECT(this))
     throw MakeTypeError("called_on_non_object", ["performChange"]);
 
@@ -479,15 +479,9 @@ function ObjectNotifierPerformChange(changeType, changeFn, receiver) {
   if (!IS_SPEC_FUNCTION(changeFn))
     throw MakeTypeError("observe_perform_non_function");
 
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(changeFn) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(changeFn)) {
-    receiver = ToObject(receiver);
-  }
-
   ObjectInfoAddPerformingType(objectInfo, changeType);
   try {
-    %_CallFunction(receiver, changeFn);
+    %_CallFunction(void 0, changeFn);
   } finally {
     ObjectInfoRemovePerformingType(objectInfo, changeType);
   }
@@ -520,7 +514,7 @@ function CallbackDeliverPending(callback) {
   %MoveArrayContents(callbackInfo, delivered);
 
   try {
-    %Call(void 0, delivered, callback);
+    %_CallFunction(void 0, delivered, callback);
   } catch (ex) {}
   return true;
 }
