@@ -324,15 +324,12 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 // See assembler-arm-inl.h for inlined constructors
 
 Operand::Operand(Handle<Object> handle) {
-#ifdef DEBUG
-  Isolate* isolate = Isolate::Current();
-#endif
   AllowDeferredHandleDereference using_raw_address;
   rm_ = no_reg;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!isolate->heap()->InNewSpace(obj));
   if (obj->IsHeapObject()) {
+    ASSERT(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm32_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {

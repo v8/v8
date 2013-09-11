@@ -425,7 +425,7 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Object** call_object_address());
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
-  inline void Visit(ObjectVisitor* v);
+  inline void Visit(Isolate* isolate, ObjectVisitor* v);
 
   // Patch the code with some other code.
   void PatchCode(byte* instructions, int instruction_count);

@@ -3049,13 +3049,14 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 };
 
 
-static inline void UpdateSlot(ObjectVisitor* v,
+static inline void UpdateSlot(Isolate* isolate,
+                              ObjectVisitor* v,
                               SlotsBuffer::SlotType slot_type,
                               Address addr) {
   switch (slot_type) {
     case SlotsBuffer::CODE_TARGET_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, NULL);
-      rinfo.Visit(v);
+      rinfo.Visit(isolate, v);
       break;
     }
     case SlotsBuffer::CODE_ENTRY_SLOT: {
@@ -3069,17 +3070,17 @@ static inline void UpdateSlot(ObjectVisitor* v,
     }
     case SlotsBuffer::DEBUG_TARGET_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT, 0, NULL);
-      if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(v);
+      if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(isolate, v);
       break;
     }
     case SlotsBuffer::JS_RETURN_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::JS_RETURN, 0, NULL);
-      if (rinfo.IsPatchedReturnSequence()) rinfo.Visit(v);
+      if (rinfo.IsPatchedReturnSequence()) rinfo.Visit(isolate, v);
       break;
     }
     case SlotsBuffer::EMBEDDED_OBJECT_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
-      rinfo.Visit(v);
+      rinfo.Visit(isolate, v);
       break;
     }
     default:
@@ -4266,7 +4267,8 @@ void SlotsBuffer::UpdateSlots(Heap* heap) {
     } else {
       ++slot_idx;
       ASSERT(slot_idx < idx_);
-      UpdateSlot(&v,
+      UpdateSlot(heap->isolate(),
+                 &v,
                  DecodeSlotType(slot),
                  reinterpret_cast<Address>(slots_[slot_idx]));
     }
@@ -4288,7 +4290,8 @@ void SlotsBuffer::UpdateSlotsWithFilter(Heap* heap) {
       ASSERT(slot_idx < idx_);
       Address pc = reinterpret_cast<Address>(slots_[slot_idx]);
       if (!IsOnInvalidatedCodeObject(pc)) {
-        UpdateSlot(&v,
+        UpdateSlot(heap->isolate(),
+                   &v,
                    DecodeSlotType(slot),
                    reinterpret_cast<Address>(slots_[slot_idx]));
       }
