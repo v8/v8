@@ -263,7 +263,7 @@ class OS {
 
   // Support for the profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted for.
-  static void LogSharedLibraryAddresses();
+  static void LogSharedLibraryAddresses(Isolate* isolate);
 
   // Support for the profiler.  Notifies the external profiling
   // process that a code moving garbage collection starts.  Can do

@@ -656,7 +656,7 @@ void Profiler::Engage() {
   if (engaged_) return;
   engaged_ = true;
 
-  OS::LogSharedLibraryAddresses();
+  OS::LogSharedLibraryAddresses(isolate_);
 
   // Start thread processing the profiler buffer.
   running_ = true;

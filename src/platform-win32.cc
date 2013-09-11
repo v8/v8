@@ -998,7 +998,7 @@ TLHELP32_FUNCTION_LIST(DLL_FUNC_LOADED)
 
 
 // Load the symbols for generating stack traces.
-static bool LoadSymbols(HANDLE process_handle) {
+static bool LoadSymbols(Isolate* isolate, HANDLE process_handle) {
   static bool symbols_loaded = false;
 
   if (symbols_loaded) return true;
@@ -1047,7 +1047,7 @@ static bool LoadSymbols(HANDLE process_handle) {
       if (err != ERROR_MOD_NOT_FOUND &&
           err != ERROR_INVALID_HANDLE) return false;
     }
-    LOG(i::Isolate::Current(),
+    LOG(isolate,
         SharedLibraryEvent(
             module_entry.szExePath,
             reinterpret_cast<unsigned int>(module_entry.modBaseAddr),
@@ -1062,14 +1062,14 @@ static bool LoadSymbols(HANDLE process_handle) {
 }
 
 
-void OS::LogSharedLibraryAddresses() {
+void OS::LogSharedLibraryAddresses(Isolate* isolate) {
   // SharedLibraryEvents are logged when loading symbol information.
   // Only the shared libraries loaded at the time of the call to
   // LogSharedLibraryAddresses are logged.  DLLs loaded after
   // initialization are not accounted for.
   if (!LoadDbgHelpAndTlHelp32()) return;
   HANDLE process_handle = GetCurrentProcess();
-  LoadSymbols(process_handle);
+  LoadSymbols(isolate, process_handle);
 }
 
 
@@ -1095,7 +1095,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   HANDLE thread_handle = GetCurrentThread();
 
   // Read the symbols.
-  if (!LoadSymbols(process_handle)) return kStackWalkError;
+  if (!LoadSymbols(Isolate::Current(), process_handle)) return kStackWalkError;
 
   // Capture current context.
   CONTEXT context;
@@ -1201,7 +1201,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 #pragma warning(pop)
 
 #else  // __MINGW32__
-void OS::LogSharedLibraryAddresses() { }
+void OS::LogSharedLibraryAddresses(Isolate* isolate) { }
 void OS::SignalCodeMovingGC() { }
 int OS::StackWalk(Vector<OS::StackFrame> frames) { return 0; }
 #endif  // __MINGW32__

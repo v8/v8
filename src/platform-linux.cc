@@ -213,7 +213,7 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 }
 
 
-void OS::LogSharedLibraryAddresses() {
+void OS::LogSharedLibraryAddresses(Isolate* isolate) {
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
@@ -224,7 +224,6 @@ void OS::LogSharedLibraryAddresses() {
   const int kLibNameLen = FILENAME_MAX + 1;
   char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
 
-  i::Isolate* isolate = Isolate::Current();
   // This loop will terminate once the scanning hits an EOF.
   while (true) {
     uintptr_t start, end;

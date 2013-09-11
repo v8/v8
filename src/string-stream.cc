@@ -269,8 +269,8 @@ SmartArrayPointer<const char> StringStream::ToCString() const {
 }
 
 
-void StringStream::Log() {
-  LOG(Isolate::Current(), StringEvent("StackDump", buffer_));
+void StringStream::Log(Isolate* isolate) {
+  LOG(isolate, StringEvent("StackDump", buffer_));
 }
 
 

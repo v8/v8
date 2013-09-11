@@ -866,7 +866,7 @@ void Isolate::PrintStack(FILE* out) {
     PrintStack(&accumulator);
     accumulator.OutputToFile(out);
     InitializeLoggingAndCounters();
-    accumulator.Log();
+    accumulator.Log(this);
     incomplete_message_ = NULL;
     stack_trace_nesting_level_ = 0;
     if (preallocated_message_space_ == NULL) {

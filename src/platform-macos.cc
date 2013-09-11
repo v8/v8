@@ -145,7 +145,7 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 }
 
 
-void OS::LogSharedLibraryAddresses() {
+void OS::LogSharedLibraryAddresses(Isolate* isolate) {
   unsigned int images_count = _dyld_image_count();
   for (unsigned int i = 0; i < images_count; ++i) {
     const mach_header* header = _dyld_get_image_header(i);
@@ -164,7 +164,7 @@ void OS::LogSharedLibraryAddresses() {
     if (code_ptr == NULL) continue;
     const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
-    LOG(Isolate::Current(),
+    LOG(isolate,
         SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
   }
 }

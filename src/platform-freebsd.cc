@@ -139,7 +139,7 @@ static unsigned StringToLong(char* buffer) {
 }
 
 
-void OS::LogSharedLibraryAddresses() {
+void OS::LogSharedLibraryAddresses(Isolate* isolate) {
   static const int MAP_LENGTH = 1024;
   int fd = open("/proc/self/maps", O_RDONLY);
   if (fd < 0) return;
@@ -173,7 +173,7 @@ void OS::LogSharedLibraryAddresses() {
     // There may be no filename in this line.  Skip to next.
     if (start_of_path == NULL) continue;
     buffer[bytes_read] = 0;
-    LOG(i::Isolate::Current(), SharedLibraryEvent(start_of_path, start, end));
+    LOG(isolate SharedLibraryEvent(start_of_path, start, end));
   }
   close(fd);
 }
