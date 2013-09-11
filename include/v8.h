@@ -2512,27 +2512,12 @@ class V8_EXPORT ArrayBuffer : public Object {
      * Allocate |length| bytes. Return NULL if allocation is not successful.
      * Memory does not have to be initialized.
      */
-    virtual void* AllocateUninitialized(size_t length) {
-      // Override with call to |Allocate| for compatibility
-      // with legacy version.
-      return Allocate(length);
-    }
-
+    virtual void* AllocateUninitialized(size_t length) = 0;
     /**
      * Free the memory block of size |length|, pointed to by |data|.
      * That memory is guaranteed to be previously allocated by |Allocate|.
      */
-    virtual void Free(void* data, size_t length) {
-      // Override with call to |Free(void*)| for compatibility
-      // with legacy version.
-      Free(data);
-    }
-
-    /**
-     * Deprecated. Never called directly by V8.
-     * For compatibility with legacy version of this interface.
-     */
-    virtual void Free(void* data);
+    virtual void Free(void* data, size_t length) = 0;
   };
 
   /**
