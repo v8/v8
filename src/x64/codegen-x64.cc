@@ -58,8 +58,9 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
+                                                 &actual_size,
+                                                 true));
   if (buffer == NULL) {
     // Fallback to library function if function cannot be created.
     switch (type) {
@@ -93,9 +94,7 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(result);
-  USE(result);
+  OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -103,8 +102,7 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
 UnaryMathFunction CreateExpFunction() {
   if (!FLAG_fast_math) return &exp;
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &exp;
   ExternalReference::InitializeMathExpData();
 
@@ -127,9 +125,7 @@ UnaryMathFunction CreateExpFunction() {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  bool ok = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(ok);
-  USE(ok);
+  OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -137,8 +133,9 @@ UnaryMathFunction CreateExpFunction() {
 UnaryMathFunction CreateSqrtFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
+                                                 &actual_size,
+                                                 true));
   if (buffer == NULL) return &sqrt;
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -152,9 +149,7 @@ UnaryMathFunction CreateSqrtFunction() {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(result);
-  USE(result);
+  OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -243,9 +238,7 @@ ModuloFunction CreateModuloFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(result);
-  USE(result);
+  OS::ProtectCode(buffer, actual_size);
   // Call the function from C++ through this pointer.
   return FUNCTION_CAST<ModuloFunction>(buffer);
 }

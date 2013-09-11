@@ -108,7 +108,6 @@
         'test-unbound-queue.cc',
         'test-utils.cc',
         'test-version.cc',
-        'test-virtual-memory.cc',
         'test-weakmaps.cc',
         'test-weaksets.cc',
         'test-weaktypedarrays.cc'

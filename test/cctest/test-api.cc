@@ -12670,8 +12670,8 @@ struct CopyablePersistentTraits {
   typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
   static const bool kResetInDestructor = true;
   template<class S, class M>
-  static V8_INLINE void Copy(const Persistent<S, M>& source,
-                             CopyablePersistent* dest) {
+  V8_INLINE(static void Copy(const Persistent<S, M>& source,
+                             CopyablePersistent* dest)) {
     // do nothing, just allow copy
   }
 };

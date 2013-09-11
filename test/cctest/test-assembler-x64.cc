@@ -35,7 +35,34 @@
 #include "serialize.h"
 #include "cctest.h"
 
-using namespace v8::internal;
+using v8::internal::Assembler;
+using v8::internal::Code;
+using v8::internal::CodeDesc;
+using v8::internal::FUNCTION_CAST;
+using v8::internal::Immediate;
+using v8::internal::Isolate;
+using v8::internal::Label;
+using v8::internal::OS;
+using v8::internal::Operand;
+using v8::internal::byte;
+using v8::internal::greater;
+using v8::internal::less_equal;
+using v8::internal::equal;
+using v8::internal::not_equal;
+using v8::internal::r13;
+using v8::internal::r15;
+using v8::internal::r8;
+using v8::internal::r9;
+using v8::internal::rax;
+using v8::internal::rbx;
+using v8::internal::rbp;
+using v8::internal::rcx;
+using v8::internal::rdi;
+using v8::internal::rdx;
+using v8::internal::rsi;
+using v8::internal::rsp;
+using v8::internal::times_1;
+using v8::internal::xmm0;
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -65,10 +92,9 @@ static const v8::internal::Register arg2 = rsi;
 TEST(AssemblerX64ReturnOperation) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
 
@@ -88,10 +114,9 @@ TEST(AssemblerX64ReturnOperation) {
 TEST(AssemblerX64StackOperations) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
 
@@ -121,10 +146,9 @@ TEST(AssemblerX64StackOperations) {
 TEST(AssemblerX64ArithmeticOperations) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
 
@@ -144,10 +168,9 @@ TEST(AssemblerX64ArithmeticOperations) {
 TEST(AssemblerX64ImulOperation) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
 
@@ -173,10 +196,9 @@ TEST(AssemblerX64ImulOperation) {
 TEST(AssemblerX64MemoryOperands) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
 
@@ -208,10 +230,9 @@ TEST(AssemblerX64MemoryOperands) {
 TEST(AssemblerX64ControlFlow) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
 
@@ -238,10 +259,9 @@ TEST(AssemblerX64ControlFlow) {
 TEST(AssemblerX64LoopImmediates) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
   // Assemble two loops using rax as counter, and verify the ending counts.

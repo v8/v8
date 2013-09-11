@@ -103,7 +103,7 @@ class ElapsedTimer V8_FINAL BASE_EMBEDDED {
   }
 
  private:
-  static V8_INLINE TimeTicks Now() {
+  V8_INLINE(static TimeTicks Now()) {
     TimeTicks now = TimeTicks::HighResNow();
     ASSERT(!now.IsNull());
     return now;

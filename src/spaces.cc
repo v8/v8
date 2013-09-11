@@ -245,8 +245,7 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
 
 
 bool CodeRange::CommitRawMemory(Address start, size_t length) {
-  return isolate_->memory_allocator()->CommitMemory(
-      start, length, VirtualMemory::EXECUTABLE);
+  return isolate_->memory_allocator()->CommitMemory(start, length, EXECUTABLE);
 }
 
 
@@ -258,9 +257,7 @@ bool CodeRange::UncommitRawMemory(Address start, size_t length) {
 void CodeRange::FreeRawMemory(Address address, size_t length) {
   ASSERT(IsAddressAligned(address, MemoryChunk::kAlignment));
   free_list_.Add(FreeBlock(address, length));
-  bool result = code_range_->Uncommit(address, length);
-  ASSERT(result);
-  USE(result);
+  code_range_->Uncommit(address, length);
 }
 
 
@@ -311,8 +308,8 @@ void MemoryAllocator::TearDown() {
 
 bool MemoryAllocator::CommitMemory(Address base,
                                    size_t size,
-                                   VirtualMemory::Executability executability) {
-  if (!VirtualMemory::CommitRegion(base, size, executability)) {
+                                   Executability executable) {
+  if (!VirtualMemory::CommitRegion(base, size, executable == EXECUTABLE)) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
@@ -321,7 +318,7 @@ bool MemoryAllocator::CommitMemory(Address base,
 
 
 void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
-                                 VirtualMemory::Executability executability) {
+                                 Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
   ASSERT(reservation->IsReserved());
   size_t size = reservation->size();
@@ -330,38 +327,36 @@ void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
 
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
-  if (executability == VirtualMemory::EXECUTABLE) {
+  if (executable == EXECUTABLE) {
     ASSERT(size_executable_ >= size);
     size_executable_ -= size;
   }
   // Code which is part of the code-range does not have its own VirtualMemory.
   ASSERT(!isolate_->code_range()->contains(
       static_cast<Address>(reservation->address())));
-  ASSERT(executability == VirtualMemory::NOT_EXECUTABLE ||
-         !isolate_->code_range()->exists());
+  ASSERT(executable == NOT_EXECUTABLE || !isolate_->code_range()->exists());
   reservation->Release();
 }
 
 
 void MemoryAllocator::FreeMemory(Address base,
                                  size_t size,
-                                 VirtualMemory::Executability executability) {
+                                 Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
   ASSERT(size_ >= size);
   size_ -= size;
 
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
-  if (executability == VirtualMemory::EXECUTABLE) {
+  if (executable == EXECUTABLE) {
     ASSERT(size_executable_ >= size);
     size_executable_ -= size;
   }
   if (isolate_->code_range()->contains(static_cast<Address>(base))) {
-    ASSERT(executability == VirtualMemory::EXECUTABLE);
+    ASSERT(executable == EXECUTABLE);
     isolate_->code_range()->FreeRawMemory(base, size);
   } else {
-    ASSERT(executability == VirtualMemory::NOT_EXECUTABLE ||
-           !isolate_->code_range()->exists());
+    ASSERT(executable == NOT_EXECUTABLE || !isolate_->code_range()->exists());
     bool result = VirtualMemory::ReleaseRegion(base, size);
     USE(result);
     ASSERT(result);
@@ -383,18 +378,17 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size,
 }
 
 
-Address MemoryAllocator::AllocateAlignedMemory(
-    size_t reserve_size,
-    size_t commit_size,
-    size_t alignment,
-    VirtualMemory::Executability executability,
-    VirtualMemory* controller) {
+Address MemoryAllocator::AllocateAlignedMemory(size_t reserve_size,
+                                               size_t commit_size,
+                                               size_t alignment,
+                                               Executability executable,
+                                               VirtualMemory* controller) {
   ASSERT(commit_size <= reserve_size);
   VirtualMemory reservation;
   Address base = ReserveAlignedMemory(reserve_size, alignment, &reservation);
   if (base == NULL) return NULL;
 
-  if (executability == VirtualMemory::EXECUTABLE) {
+  if (executable == EXECUTABLE) {
     if (!CommitExecutableMemory(&reservation,
                                 base,
                                 commit_size,
@@ -402,7 +396,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
       base = NULL;
     }
   } else {
-    if (reservation.Commit(base, commit_size, VirtualMemory::NOT_EXECUTABLE)) {
+    if (reservation.Commit(base, commit_size, false)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
       base = NULL;
@@ -439,7 +433,7 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap,
                                                Page::kPageSize,
                                                area_start,
                                                area_end,
-                                               VirtualMemory::NOT_EXECUTABLE,
+                                               NOT_EXECUTABLE,
                                                semi_space);
   chunk->set_next_chunk(NULL);
   chunk->set_prev_chunk(NULL);
@@ -470,7 +464,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
                                      size_t size,
                                      Address area_start,
                                      Address area_end,
-                                     VirtualMemory::Executability executability,
+                                     Executability executable,
                                      Space* owner) {
   MemoryChunk* chunk = FromAddress(base);
 
@@ -502,7 +496,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
   ASSERT(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
 
-  if (executability == VirtualMemory::EXECUTABLE) {
+  if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
   }
 
@@ -519,10 +513,9 @@ bool MemoryChunk::CommitArea(size_t requested) {
   size_t guard_size = IsFlagSet(IS_EXECUTABLE) ?
                       MemoryAllocator::CodePageGuardSize() : 0;
   size_t header_size = area_start() - address() - guard_size;
-  size_t commit_size = RoundUp(header_size + requested,
-                               VirtualMemory::GetPageSize());
+  size_t commit_size = RoundUp(header_size + requested, OS::CommitPageSize());
   size_t committed_size = RoundUp(header_size + (area_end() - area_start()),
-                                  VirtualMemory::GetPageSize());
+                                  OS::CommitPageSize());
 
   if (commit_size > committed_size) {
     // Commit size should be less or equal than the reserved size.
@@ -531,10 +524,10 @@ bool MemoryChunk::CommitArea(size_t requested) {
     Address start = address() + committed_size + guard_size;
     size_t length = commit_size - committed_size;
     if (reservation_.IsReserved()) {
-      VirtualMemory::Executability executability = IsFlagSet(IS_EXECUTABLE)
-          ? VirtualMemory::EXECUTABLE : VirtualMemory::NOT_EXECUTABLE;
+      Executability executable = IsFlagSet(IS_EXECUTABLE)
+          ? EXECUTABLE : NOT_EXECUTABLE;
       if (!heap()->isolate()->memory_allocator()->CommitMemory(
-              start, length, executability)) {
+              start, length, executable)) {
         return false;
       }
     } else {
@@ -596,11 +589,10 @@ void MemoryChunk::Unlink() {
 }
 
 
-MemoryChunk* MemoryAllocator::AllocateChunk(
-    intptr_t reserve_area_size,
-    intptr_t commit_area_size,
-    VirtualMemory::Executability executability,
-    Space* owner) {
+MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
+                                            intptr_t commit_area_size,
+                                            Executability executable,
+                                            Space* owner) {
   ASSERT(commit_area_size <= reserve_area_size);
 
   size_t chunk_size;
@@ -640,9 +632,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(
   // +----------------------------+<- base + chunk_size
   //
 
-  if (executability == VirtualMemory::EXECUTABLE) {
+  if (executable == EXECUTABLE) {
     chunk_size = RoundUp(CodePageAreaStartOffset() + reserve_area_size,
-                         VirtualMemory::GetPageSize()) + CodePageGuardSize();
+                         OS::CommitPageSize()) + CodePageGuardSize();
 
     // Check executable memory limit.
     if (size_executable_ + chunk_size > capacity_executable_) {
@@ -654,7 +646,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(
 
     // Size of header (not executable) plus area (executable).
     size_t commit_size = RoundUp(CodePageGuardStartOffset() + commit_area_size,
-                                 VirtualMemory::GetPageSize());
+                                 OS::CommitPageSize());
     // Allocate executable memory either from code range or from the
     // OS.
     if (isolate_->code_range()->exists()) {
@@ -671,7 +663,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(
       base = AllocateAlignedMemory(chunk_size,
                                    commit_size,
                                    MemoryChunk::kAlignment,
-                                   executability,
+                                   executable,
                                    &reservation);
       if (base == NULL) return NULL;
       // Update executable memory size.
@@ -687,14 +679,13 @@ MemoryChunk* MemoryAllocator::AllocateChunk(
     area_end = area_start + commit_area_size;
   } else {
     chunk_size = RoundUp(MemoryChunk::kObjectStartOffset + reserve_area_size,
-                         VirtualMemory::GetPageSize());
-    size_t commit_size = RoundUp(
-        MemoryChunk::kObjectStartOffset + commit_area_size,
-        VirtualMemory::GetPageSize());
+                         OS::CommitPageSize());
+    size_t commit_size = RoundUp(MemoryChunk::kObjectStartOffset +
+                                 commit_area_size, OS::CommitPageSize());
     base = AllocateAlignedMemory(chunk_size,
                                  commit_size,
                                  MemoryChunk::kAlignment,
-                                 executability,
+                                 executable,
                                  &reservation);
 
     if (base == NULL) return NULL;
@@ -723,7 +714,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(
                                                 chunk_size,
                                                 area_start,
                                                 area_end,
-                                                executability,
+                                                executable,
                                                 owner);
   result->set_reserved_memory(&reservation);
   return result;
@@ -739,25 +730,23 @@ void Page::ResetFreeListStatistics() {
 }
 
 
-Page* MemoryAllocator::AllocatePage(
-    intptr_t size,
-    PagedSpace* owner,
-    VirtualMemory::Executability executability) {
-  MemoryChunk* chunk = AllocateChunk(size, size, executability, owner);
+Page* MemoryAllocator::AllocatePage(intptr_t size,
+                                    PagedSpace* owner,
+                                    Executability executable) {
+  MemoryChunk* chunk = AllocateChunk(size, size, executable, owner);
 
   if (chunk == NULL) return NULL;
 
-  return Page::Initialize(isolate_->heap(), chunk, executability, owner);
+  return Page::Initialize(isolate_->heap(), chunk, executable, owner);
 }
 
 
-LargePage* MemoryAllocator::AllocateLargePage(
-    intptr_t object_size,
-    Space* owner,
-    VirtualMemory::Executability executability) {
+LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
+                                              Space* owner,
+                                              Executability executable) {
   MemoryChunk* chunk = AllocateChunk(object_size,
                                      object_size,
-                                     executability,
+                                     executable,
                                      owner);
   if (chunk == NULL) return NULL;
   return LargePage::Initialize(isolate_->heap(), chunk);
@@ -780,19 +769,19 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
 
   VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {
-    FreeMemory(reservation, chunk->executability());
+    FreeMemory(reservation, chunk->executable());
   } else {
     FreeMemory(chunk->address(),
                chunk->size(),
-               chunk->executability());
+               chunk->executable());
   }
 }
 
 
 bool MemoryAllocator::CommitBlock(Address start,
                                   size_t size,
-                                  VirtualMemory::Executability executability) {
-  if (!CommitMemory(start, size, executability)) return false;
+                                  Executability executable) {
+  if (!CommitMemory(start, size, executable)) return false;
 
   if (Heap::ShouldZapGarbage()) {
     ZapBlock(start, size);
@@ -877,12 +866,12 @@ void MemoryAllocator::ReportStatistics() {
 int MemoryAllocator::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
-  return RoundUp(Page::kObjectStartOffset, VirtualMemory::GetPageSize());
+  return RoundUp(Page::kObjectStartOffset, OS::CommitPageSize());
 }
 
 
 int MemoryAllocator::CodePageGuardSize() {
-  return static_cast<int>(VirtualMemory::GetPageSize());
+  return static_cast<int>(OS::CommitPageSize());
 }
 
 
@@ -896,7 +885,7 @@ int MemoryAllocator::CodePageAreaStartOffset() {
 int MemoryAllocator::CodePageAreaEndOffset() {
   // We are guarding code pages: the last OS page will be protected as
   // non-writable.
-  return Page::kPageSize - static_cast<int>(VirtualMemory::GetPageSize());
+  return Page::kPageSize - static_cast<int>(OS::CommitPageSize());
 }
 
 
@@ -907,26 +896,24 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm,
   // Commit page header (not executable).
   if (!vm->Commit(start,
                   CodePageGuardStartOffset(),
-                  VirtualMemory::NOT_EXECUTABLE)) {
+                  false)) {
     return false;
   }
 
   // Create guard page after the header.
-  if (!vm->Guard(start + CodePageGuardStartOffset(),
-                 VirtualMemory::GetPageSize())) {
+  if (!vm->Guard(start + CodePageGuardStartOffset())) {
     return false;
   }
 
   // Commit page body (executable).
   if (!vm->Commit(start + CodePageAreaStartOffset(),
                   commit_size - CodePageGuardStartOffset(),
-                  VirtualMemory::EXECUTABLE)) {
+                  true)) {
     return false;
   }
 
   // Create guard page before the end.
-  if (!vm->Guard(start + reserved_size - CodePageGuardSize(),
-                 VirtualMemory::GetPageSize())) {
+  if (!vm->Guard(start + reserved_size - CodePageGuardSize())) {
     return false;
   }
 
@@ -955,8 +942,8 @@ void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
 PagedSpace::PagedSpace(Heap* heap,
                        intptr_t max_capacity,
                        AllocationSpace id,
-                       VirtualMemory::Executability executability)
-    : Space(heap, id, executability),
+                       Executability executable)
+    : Space(heap, id, executable),
       free_list_(this),
       was_swept_conservatively_(false),
       first_unswept_page_(Page::FromAddress(NULL)),
@@ -1054,7 +1041,7 @@ bool PagedSpace::Expand() {
   }
 
   Page* p = heap()->isolate()->memory_allocator()->AllocatePage(
-      size, this, executability());
+      size, this, executable());
   if (p == NULL) return false;
 
   ASSERT(Capacity() <= max_capacity_);
@@ -1301,8 +1288,8 @@ void NewSpace::TearDown() {
   LOG(heap()->isolate(), DeleteEvent("InitialChunk", chunk_base_));
 
   ASSERT(reservation_.IsReserved());
-  heap()->isolate()->memory_allocator()->FreeMemory(
-      &reservation_, VirtualMemory::NOT_EXECUTABLE);
+  heap()->isolate()->memory_allocator()->FreeMemory(&reservation_,
+                                                    NOT_EXECUTABLE);
   chunk_base_ = NULL;
   chunk_size_ = 0;
 }
@@ -1537,7 +1524,7 @@ bool SemiSpace::Commit() {
   Address start = end - pages * Page::kPageSize;
   if (!heap()->isolate()->memory_allocator()->CommitBlock(start,
                                                           capacity_,
-                                                          executability())) {
+                                                          executable())) {
     return false;
   }
 
@@ -1594,9 +1581,9 @@ bool SemiSpace::GrowTo(int new_capacity) {
   Address start = end - new_capacity;
   size_t delta = new_capacity - capacity_;
 
-  ASSERT(IsAligned(delta, VirtualMemory::GetAllocationGranularity()));
+  ASSERT(IsAligned(delta, OS::AllocateAlignment()));
   if (!heap()->isolate()->memory_allocator()->CommitBlock(
-      start, delta, executability())) {
+      start, delta, executable())) {
     return false;
   }
   capacity_ = new_capacity;
@@ -1629,7 +1616,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
     Address space_end = start_ + maximum_capacity_;
     Address old_start = space_end - capacity_;
     size_t delta = capacity_ - new_capacity;
-    ASSERT(IsAligned(delta, VirtualMemory::GetAllocationGranularity()));
+    ASSERT(IsAligned(delta, OS::AllocateAlignment()));
 
     MemoryAllocator* allocator = heap()->isolate()->memory_allocator();
     if (!allocator->UncommitBlock(old_start, delta)) {
@@ -2937,8 +2924,7 @@ static bool ComparePointers(void* key1, void* key2) {
 LargeObjectSpace::LargeObjectSpace(Heap* heap,
                                    intptr_t max_capacity,
                                    AllocationSpace id)
-    // Managed on a per-allocation basis
-    : Space(heap, id, VirtualMemory::NOT_EXECUTABLE),
+    : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
       max_capacity_(max_capacity),
       first_page_(NULL),
       size_(0),
@@ -2972,8 +2958,8 @@ void LargeObjectSpace::TearDown() {
 }
 
 
-MaybeObject* LargeObjectSpace::AllocateRaw(
-    int object_size, VirtualMemory::Executability executability) {
+MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
+                                           Executability executable) {
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->always_allocate() &&
@@ -2986,7 +2972,7 @@ MaybeObject* LargeObjectSpace::AllocateRaw(
   }
 
   LargePage* page = heap()->isolate()->memory_allocator()->
-      AllocateLargePage(object_size, this, executability);
+      AllocateLargePage(object_size, this, executable);
   if (page == NULL) return Failure::RetryAfterGC(identity());
   ASSERT(page->area_size() >= object_size);
 

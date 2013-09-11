@@ -172,7 +172,8 @@ Heap::Heap()
   max_semispace_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
 #endif
 
-  intptr_t max_virtual = static_cast<intptr_t>(VirtualMemory::GetLimit());
+  intptr_t max_virtual = OS::MaxVirtualMemory();
+
   if (max_virtual > 0) {
     if (code_range_size_ > 0) {
       // Reserve no more than 1/8 of the memory for the code range.
@@ -4150,7 +4151,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   HeapObject* result;
   bool force_lo_space = obj_size > code_space()->AreaSize();
   if (force_lo_space) {
-    maybe_result = lo_space_->AllocateRaw(obj_size, VirtualMemory::EXECUTABLE);
+    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
   }
@@ -4162,7 +4163,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     // Discard the first code allocation, which was on a page where it could be
     // moved.
     CreateFillerObjectAt(result->address(), obj_size);
-    maybe_result = lo_space_->AllocateRaw(obj_size, VirtualMemory::EXECUTABLE);
+    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
     if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
   }
 
@@ -4213,7 +4214,7 @@ MaybeObject* Heap::CopyCode(Code* code) {
   int obj_size = code->Size();
   MaybeObject* maybe_result;
   if (obj_size > code_space()->AreaSize()) {
-    maybe_result = lo_space_->AllocateRaw(obj_size, VirtualMemory::EXECUTABLE);
+    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
   }
@@ -4256,8 +4257,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   MaybeObject* maybe_result;
   if (new_obj_size > code_space()->AreaSize()) {
-    maybe_result = lo_space_->AllocateRaw(
-        new_obj_size, VirtualMemory::EXECUTABLE);
+    maybe_result = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(new_obj_size);
   }
@@ -5370,7 +5370,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
   // Allocate string.
   Object* result;
   { MaybeObject* maybe_result = (size > Page::kMaxNonCodeHeapObjectSize)
-                   ? lo_space_->AllocateRaw(size, VirtualMemory::NOT_EXECUTABLE)
+                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
                    : old_data_space_->AllocateRaw(size);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
@@ -5523,7 +5523,7 @@ MaybeObject* Heap::AllocateRawFixedArray(int length) {
   int size = FixedArray::SizeFor(length);
   return size <= Page::kMaxNonCodeHeapObjectSize
       ? new_space_.AllocateRaw(size)
-      : lo_space_->AllocateRaw(size, VirtualMemory::NOT_EXECUTABLE);
+      : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
 }
 
 
@@ -6878,7 +6878,7 @@ bool Heap::SetUp() {
       new OldSpace(this,
                    max_old_generation_size_,
                    OLD_POINTER_SPACE,
-                   VirtualMemory::NOT_EXECUTABLE);
+                   NOT_EXECUTABLE);
   if (old_pointer_space_ == NULL) return false;
   if (!old_pointer_space_->SetUp()) return false;
 
@@ -6887,7 +6887,7 @@ bool Heap::SetUp() {
       new OldSpace(this,
                    max_old_generation_size_,
                    OLD_DATA_SPACE,
-                   VirtualMemory::NOT_EXECUTABLE);
+                   NOT_EXECUTABLE);
   if (old_data_space_ == NULL) return false;
   if (!old_data_space_->SetUp()) return false;
 
@@ -6901,8 +6901,8 @@ bool Heap::SetUp() {
     }
   }
 
-  code_space_ = new OldSpace(
-      this, max_old_generation_size_, CODE_SPACE, VirtualMemory::EXECUTABLE);
+  code_space_ =
+      new OldSpace(this, max_old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
   if (!code_space_->SetUp()) return false;
 
@@ -7999,9 +7999,8 @@ void Heap::FreeQueuedChunks() {
       MemoryChunk* inner_last = MemoryChunk::FromAddress(chunk_end - 1);
       while (inner <= inner_last) {
         // Size of a large chunk is always a multiple of
-        // VirtualMemory::GetAllocationGranularity() so
-        // there is always enough space for a fake
-        // MemoryChunk header.
+        // OS::AllocateAlignment() so there is always
+        // enough space for a fake MemoryChunk header.
         Address area_end = Min(inner->address() + Page::kPageSize, chunk_end);
         // Guard against overflow.
         if (area_end < inner->address()) area_end = chunk_end;

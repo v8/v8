@@ -72,8 +72,7 @@ void StoreBuffer::SetUp() {
   // Don't know the alignment requirements of the OS, but it is certainly not
   // less than 0xfff.
   ASSERT((reinterpret_cast<uintptr_t>(old_start_) & 0xfff) == 0);
-  int initial_length =
-      static_cast<int>(VirtualMemory::GetPageSize() / kPointerSize);
+  int initial_length = static_cast<int>(OS::CommitPageSize() / kPointerSize);
   ASSERT(initial_length > 0);
   ASSERT(initial_length <= kOldStoreBufferLength);
   old_limit_ = old_start_ + initial_length;
@@ -82,7 +81,7 @@ void StoreBuffer::SetUp() {
   CHECK(old_virtual_memory_->Commit(
             reinterpret_cast<void*>(old_start_),
             (old_limit_ - old_start_) * kPointerSize,
-            VirtualMemory::NOT_EXECUTABLE));
+            false));
 
   ASSERT(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
   ASSERT(reinterpret_cast<Address>(limit_) >= virtual_memory_->address());
@@ -98,7 +97,7 @@ void StoreBuffer::SetUp() {
 
   CHECK(virtual_memory_->Commit(reinterpret_cast<Address>(start_),
                                 kStoreBufferSize,
-                                VirtualMemory::NOT_EXECUTABLE));
+                                false));  // Not executable.
   heap_->public_set_store_buffer_top(start_);
 
   hash_set_1_ = new uintptr_t[kHashSetLength];
@@ -155,7 +154,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
     size_t grow = old_limit_ - old_start_;  // Double size.
     CHECK(old_virtual_memory_->Commit(reinterpret_cast<void*>(old_limit_),
                                       grow * kPointerSize,
-                                      VirtualMemory::NOT_EXECUTABLE));
+                                      false));
     old_limit_ += grow;
   }
 

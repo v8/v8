@@ -151,30 +151,30 @@ static void VerifyMemoryChunk(Isolate* isolate,
                               size_t reserve_area_size,
                               size_t commit_area_size,
                               size_t second_commit_area_size,
-                              VirtualMemory::Executability executability) {
+                              Executability executable) {
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   TestCodeRangeScope test_code_range_scope(isolate, code_range);
 
-  size_t header_size = (executability == VirtualMemory::EXECUTABLE)
+  size_t header_size = (executable == EXECUTABLE)
                        ? MemoryAllocator::CodePageGuardStartOffset()
                        : MemoryChunk::kObjectStartOffset;
-  size_t guard_size = (executability == VirtualMemory::EXECUTABLE)
+  size_t guard_size = (executable == EXECUTABLE)
                        ? MemoryAllocator::CodePageGuardSize()
                        : 0;
 
   MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(reserve_area_size,
                                                               commit_area_size,
-                                                              executability,
+                                                              executable,
                                                               NULL);
   size_t alignment = code_range->exists() ?
-                     MemoryChunk::kAlignment : VirtualMemory::GetPageSize();
-  size_t reserved_size = ((executability == VirtualMemory::EXECUTABLE))
+                     MemoryChunk::kAlignment : OS::CommitPageSize();
+  size_t reserved_size = ((executable == EXECUTABLE))
       ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
                 alignment)
-      : RoundUp(header_size + reserve_area_size, VirtualMemory::GetPageSize());
+      : RoundUp(header_size + reserve_area_size, OS::CommitPageSize());
   CHECK(memory_chunk->size() == reserved_size);
   CHECK(memory_chunk->area_start() < memory_chunk->address() +
                                      memory_chunk->size());
@@ -230,7 +230,7 @@ TEST(MemoryChunk) {
                       reserve_area_size,
                       initial_commit_area_size,
                       second_commit_area_size,
-                      VirtualMemory::EXECUTABLE);
+                      EXECUTABLE);
 
     VerifyMemoryChunk(isolate,
                       heap,
@@ -238,7 +238,7 @@ TEST(MemoryChunk) {
                       reserve_area_size,
                       initial_commit_area_size,
                       second_commit_area_size,
-                      VirtualMemory::NOT_EXECUTABLE);
+                      NOT_EXECUTABLE);
     delete code_range;
 
     // Without CodeRange.
@@ -249,7 +249,7 @@ TEST(MemoryChunk) {
                       reserve_area_size,
                       initial_commit_area_size,
                       second_commit_area_size,
-                      VirtualMemory::EXECUTABLE);
+                      EXECUTABLE);
 
     VerifyMemoryChunk(isolate,
                       heap,
@@ -257,7 +257,7 @@ TEST(MemoryChunk) {
                       reserve_area_size,
                       initial_commit_area_size,
                       second_commit_area_size,
-                      VirtualMemory::NOT_EXECUTABLE);
+                      NOT_EXECUTABLE);
   }
 }
 
@@ -276,9 +276,9 @@ TEST(MemoryAllocator) {
   OldSpace faked_space(heap,
                        heap->MaxReserved(),
                        OLD_POINTER_SPACE,
-                       VirtualMemory::NOT_EXECUTABLE);
+                       NOT_EXECUTABLE);
   Page* first_page = memory_allocator->AllocatePage(
-      faked_space.AreaSize(), &faked_space, VirtualMemory::NOT_EXECUTABLE);
+      faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
 
   first_page->InsertAfter(faked_space.anchor()->prev_page());
   CHECK(first_page->is_valid());
@@ -291,7 +291,7 @@ TEST(MemoryAllocator) {
 
   // Again, we should get n or n - 1 pages.
   Page* other = memory_allocator->AllocatePage(
-      faked_space.AreaSize(), &faked_space, VirtualMemory::NOT_EXECUTABLE);
+      faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
   CHECK(other->is_valid());
   total_pages++;
   other->InsertAfter(first_page);
@@ -353,7 +353,7 @@ TEST(OldSpace) {
   OldSpace* s = new OldSpace(heap,
                              heap->MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,
-                             VirtualMemory::NOT_EXECUTABLE);
+                             NOT_EXECUTABLE);
   CHECK(s != NULL);
 
   CHECK(s->SetUp());
@@ -377,8 +377,7 @@ TEST(LargeObjectSpace) {
 
   int lo_size = Page::kPageSize;
 
-  Object* obj = lo->AllocateRaw(
-      lo_size, VirtualMemory::NOT_EXECUTABLE)->ToObjectUnchecked();
+  Object* obj = lo->AllocateRaw(lo_size, NOT_EXECUTABLE)->ToObjectUnchecked();
   CHECK(obj->IsHeapObject());
 
   HeapObject* ho = HeapObject::cast(obj);
@@ -391,8 +390,7 @@ TEST(LargeObjectSpace) {
 
   while (true) {
     intptr_t available = lo->Available();
-    { MaybeObject* maybe_obj = lo->AllocateRaw(
-            lo_size, VirtualMemory::NOT_EXECUTABLE);
+    { MaybeObject* maybe_obj = lo->AllocateRaw(lo_size, NOT_EXECUTABLE);
       if (!maybe_obj->ToObject(&obj)) break;
     }
     CHECK(lo->Available() < available);
@@ -400,5 +398,5 @@ TEST(LargeObjectSpace) {
 
   CHECK(!lo->IsEmpty());
 
-  CHECK(lo->AllocateRaw(lo_size, VirtualMemory::NOT_EXECUTABLE)->IsFailure());
+  CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE)->IsFailure());
 }

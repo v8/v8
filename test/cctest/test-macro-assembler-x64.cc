@@ -35,7 +35,49 @@
 #include "serialize.h"
 #include "cctest.h"
 
-using namespace v8::internal;
+using v8::internal::Assembler;
+using v8::internal::CodeDesc;
+using v8::internal::Condition;
+using v8::internal::FUNCTION_CAST;
+using v8::internal::HandleScope;
+using v8::internal::Immediate;
+using v8::internal::Isolate;
+using v8::internal::Label;
+using v8::internal::MacroAssembler;
+using v8::internal::OS;
+using v8::internal::Operand;
+using v8::internal::RelocInfo;
+using v8::internal::Smi;
+using v8::internal::SmiIndex;
+using v8::internal::byte;
+using v8::internal::carry;
+using v8::internal::greater;
+using v8::internal::greater_equal;
+using v8::internal::kIntSize;
+using v8::internal::kPointerSize;
+using v8::internal::kSmiTagMask;
+using v8::internal::kSmiValueSize;
+using v8::internal::less_equal;
+using v8::internal::negative;
+using v8::internal::not_carry;
+using v8::internal::not_equal;
+using v8::internal::not_zero;
+using v8::internal::positive;
+using v8::internal::r11;
+using v8::internal::r13;
+using v8::internal::r14;
+using v8::internal::r15;
+using v8::internal::r8;
+using v8::internal::r9;
+using v8::internal::rax;
+using v8::internal::rbp;
+using v8::internal::rbx;
+using v8::internal::rcx;
+using v8::internal::rdi;
+using v8::internal::rdx;
+using v8::internal::rsi;
+using v8::internal::rsp;
+using v8::internal::times_pointer_size;
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -111,10 +153,9 @@ TEST(SmiMove) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                   &actual_size,
+                                                   true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -200,10 +241,10 @@ TEST(SmiCompare) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 2,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -252,10 +293,9 @@ TEST(Integer32ToSmi) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -382,10 +422,9 @@ TEST(Integer64PlusConstantToSmi) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -428,10 +467,9 @@ TEST(SmiCheck) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                   &actual_size,
+                                                   true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -677,10 +715,10 @@ TEST(SmiNeg) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -768,10 +806,9 @@ TEST(SmiAdd) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -959,10 +996,10 @@ TEST(SmiSub) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 2,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1051,10 +1088,9 @@ TEST(SmiMul) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1158,10 +1194,10 @@ TEST(SmiDiv) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 2,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1269,10 +1305,10 @@ TEST(SmiMod) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 2,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1367,10 +1403,10 @@ TEST(SmiIndex) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 3,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1437,10 +1473,10 @@ TEST(SmiSelectNonSmi) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1517,10 +1553,10 @@ TEST(SmiAnd) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1599,10 +1635,10 @@ TEST(SmiOr) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1683,10 +1719,10 @@ TEST(SmiXor) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1751,10 +1787,10 @@ TEST(SmiNot) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1848,10 +1884,10 @@ TEST(SmiShiftLeft) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 4,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -1955,10 +1991,10 @@ TEST(SmiShiftLogicalRight) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 3,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -2025,10 +2061,10 @@ TEST(SmiShiftArithmeticRight) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 2,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -2090,10 +2126,10 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 4,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);
@@ -2134,10 +2170,10 @@ TEST(OperandOffset) {
 
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          Assembler::kMinimalBufferSize * 2,
-          &actual_size,
-          VirtualMemory::EXECUTABLE));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = Isolate::Current();
   HandleScope handles(isolate);

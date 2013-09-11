@@ -187,7 +187,6 @@
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
-//  V8_HAS_ATTRIBUTE_PURE               - __attribute__((pure)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
@@ -217,7 +216,6 @@
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
-# define V8_HAS_ATTRIBUTE_PURE (__has_attribute(pure))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
@@ -248,7 +246,6 @@
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
-# define V8_HAS_ATTRIBUTE_PURE (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (!V8_CC_INTEL && V8_GNUC_PREREQ(4, 1, 0))
@@ -298,27 +295,23 @@
 // Helper macros
 
 // A macro used to make better inlining. Don't bother for debug builds.
-// Use like:
-//   V8_INLINE int GetZero() { return 0; }
 #if !defined(DEBUG) && V8_HAS_ATTRIBUTE_ALWAYS_INLINE
-# define V8_INLINE inline __attribute__((always_inline))
+# define V8_INLINE(declarator) inline __attribute__((always_inline)) declarator
 #elif !defined(DEBUG) && V8_HAS___FORCEINLINE
-# define V8_INLINE __forceinline
+# define V8_INLINE(declarator) __forceinline declarator
 #else
-# define V8_INLINE inline
+# define V8_INLINE(declarator) inline declarator
 #endif
 
 
 // A macro used to tell the compiler to never inline a particular function.
 // Don't bother for debug builds.
-// Use like:
-//   V8_NOINLINE int GetMinusOne() { return -1; }
 #if !defined(DEBUG) && V8_HAS_ATTRIBUTE_NOINLINE
-# define V8_NOINLINE __attribute__((noinline))
+# define V8_NOINLINE(declarator) __attribute__((noinline)) declarator
 #elif !defined(DEBUG) && V8_HAS_DECLSPEC_NOINLINE
-# define V8_NOINLINE __declspec(noinline)
+# define V8_NOINLINE(declarator) __declspec(noinline) declarator
 #else
-# define V8_NOINLINE /* NOT SUPPORTED */
+# define V8_NOINLINE(declarator) declarator
 #endif
 
 
@@ -329,28 +322,6 @@
 # define V8_DEPRECATED(declarator) __declspec(deprecated) declarator
 #else
 # define V8_DEPRECATED(declarator) declarator
-#endif
-
-
-// Many functions have no effects except the return value and their return value
-// depends only on the parameters and/or global variables. Such a function can
-// be subject to common subexpression elimination and loop optimization just as
-// an arithmetic operator would be. These functions should be declared with the
-// attribute V8_PURE. For example,
-//
-//   int square (int) V8_PURE;
-//
-// says that the hypothetical function square is safe to call fewer times than
-// the program says.
-//
-// Some of common examples of pure functions are strlen or memcmp. Interesting
-// non-V8_PURE functions are functions with infinite loops or those depending
-// on volatile memory or other system resource, that may change between two
-// consecutive calls (such as feof in a multithreaded environment).
-#if V8_HAS_ATTRIBUTE_PURE
-# define V8_PURE __attribute__((pure))
-#else
-# define V8_PURE /* NOT SUPPORTED */
 #endif
 
 

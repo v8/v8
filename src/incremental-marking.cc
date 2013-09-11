@@ -558,7 +558,7 @@ void IncrementalMarking::EnsureMarkingDequeIsCommitted() {
     bool success = marking_deque_memory_->Commit(
         reinterpret_cast<Address>(marking_deque_memory_->address()),
         marking_deque_memory_->size(),
-        VirtualMemory::NOT_EXECUTABLE);
+        false);  // Not executable.
     CHECK(success);
     marking_deque_memory_committed_ = true;
   }

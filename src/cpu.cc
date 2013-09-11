@@ -54,7 +54,7 @@ namespace internal {
 // Define __cpuid() for non-MSVC compilers.
 #if !V8_CC_MSVC
 
-static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
+static V8_INLINE(void __cpuid(int cpu_info[4], int info_type)) {
 #if defined(__i386__) && defined(__pic__)
   // Make sure to preserve ebx, which contains the pointer
   // to the GOT in case we're generating PIC.

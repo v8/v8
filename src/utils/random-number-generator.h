@@ -59,7 +59,7 @@ class RandomNumberGenerator V8_FINAL {
   // that one int value is pseudorandomly generated and returned.
   // All 2^32 possible integer values are produced with (approximately) equal
   // probability.
-  V8_INLINE int NextInt() V8_WARN_UNUSED_RESULT {
+  V8_INLINE(int NextInt()) V8_WARN_UNUSED_RESULT {
     return Next(32);
   }
 
@@ -76,7 +76,7 @@ class RandomNumberGenerator V8_FINAL {
   // |NextBoolean()| is that one boolean value is pseudorandomly generated and
   // returned. The values true and false are produced with (approximately) equal
   // probability.
-  V8_INLINE bool NextBool() V8_WARN_UNUSED_RESULT {
+  V8_INLINE(bool NextBool()) V8_WARN_UNUSED_RESULT {
     return Next(1) != 0;
   }
 

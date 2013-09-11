@@ -60,8 +60,9 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
+                                                 &actual_size,
+                                                 true));
   if (buffer == NULL) {
     // Fallback to library function if function cannot be created.
     switch (type) {
@@ -96,9 +97,7 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(result);
-  USE(result);
+  OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -107,8 +106,7 @@ UnaryMathFunction CreateExpFunction() {
   if (!CpuFeatures::IsSupported(SSE2)) return &exp;
   if (!FLAG_fast_math) return &exp;
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &exp;
   ExternalReference::InitializeMathExpData();
 
@@ -137,9 +135,7 @@ UnaryMathFunction CreateExpFunction() {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(result);
-  USE(result);
+  OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -147,8 +143,9 @@ UnaryMathFunction CreateExpFunction() {
 UnaryMathFunction CreateSqrtFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
+                                                 &actual_size,
+                                                 true));
   // If SSE2 is not available, we can use libc's implementation to ensure
   // consistency since code by fullcodegen's calls into runtime in that case.
   if (buffer == NULL || !CpuFeatures::IsSupported(SSE2)) return &sqrt;
@@ -171,9 +168,7 @@ UnaryMathFunction CreateSqrtFunction() {
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
-  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(result);
-  USE(result);
+  OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -267,8 +262,7 @@ class LabelConverter {
 OS::MemMoveFunction CreateMemMoveFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(VirtualMemory::AllocateRegion(
-          1 * KB, &actual_size, VirtualMemory::EXECUTABLE));
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return NULL;
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   LabelConverter conv(buffer);
@@ -645,9 +639,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
   masm.GetCode(&desc);
   ASSERT(!RelocInfo::RequiresRelocation(desc));
   CPU::FlushICache(buffer, actual_size);
-  bool result = VirtualMemory::WriteProtectRegion(buffer, actual_size);
-  ASSERT(result);
-  USE(result);
+  OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.
   return FUNCTION_CAST<OS::MemMoveFunction>(buffer);
