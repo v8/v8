@@ -73,7 +73,6 @@ class LCodeGen;
   V(ClampTToUint8)                              \
   V(ClampTToUint8NoSSE2)                        \
   V(ClassOfTestAndBranch)                       \
-  V(ClobberDoubles)                             \
   V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
   V(CmpHoleAndBranch)                           \
@@ -407,32 +406,19 @@ class LInstructionGap V8_FINAL : public LGap {
 };
 
 
-class LClobberDoubles V8_FINAL : public LTemplateInstruction<0, 0, 0> {
- public:
-  LClobberDoubles() { ASSERT(!CpuFeatures::IsSafeForSnapshot(SSE2)); }
-
-  virtual bool ClobbersDoubleRegisters() const { return true; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ClobberDoubles, "clobber-d")
-};
-
-
 class LGoto V8_FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
-  explicit LGoto(HBasicBlock* block) : block_(block) { }
+  explicit LGoto(int block_id) : block_id_(block_id) { }
 
   virtual bool HasInterestingComment(LCodeGen* gen) const V8_OVERRIDE;
   DECLARE_CONCRETE_INSTRUCTION(Goto, "goto")
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
   virtual bool IsControl() const V8_OVERRIDE { return true; }
 
-  int block_id() const { return block_->block_id(); }
-  virtual bool ClobbersDoubleRegisters() const { return false; }
-
-  bool jumps_to_join() const { return block_->predecessors()->length() > 1; }
+  int block_id() const { return block_id_; }
 
  private:
-  HBasicBlock* block_;
+  int block_id_;
 };
 
 

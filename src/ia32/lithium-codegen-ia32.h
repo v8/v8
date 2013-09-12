@@ -471,7 +471,6 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
     void PrepareToWrite(X87Register reg);
     void CommitWrite(X87Register reg);
     void FlushIfNecessary(LInstruction* instr, LCodeGen* cgen);
-    void LeavingBlock(int current_block_id, LGoto* goto_instr);
     int depth() const { return stack_depth_; }
     void pop() {
       ASSERT(is_mutable_);
