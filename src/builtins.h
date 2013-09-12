@@ -87,8 +87,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(InRecompileQueue,               BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(InstallRecompiledCode,          BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
   V(JSConstructStubCountdown,       BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(JSConstructStubGeneric,         BUILTIN, UNINITIALIZED,             \
@@ -382,7 +380,6 @@ class Builtins {
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
   static void Generate_InRecompileQueue(MacroAssembler* masm);
-  static void Generate_InstallRecompiledCode(MacroAssembler* masm);
   static void Generate_ConcurrentRecompile(MacroAssembler* masm);
   static void Generate_JSConstructStubCountdown(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);

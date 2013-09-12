@@ -88,7 +88,7 @@ namespace internal {
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
   F(ConcurrentRecompile, 1, 1) \
-  F(InstallRecompiledCode, 1, 1) \
+  F(TryInstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyStubFailure, 0, 1) \
   F(NotifyOSR, 0, 1) \

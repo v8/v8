@@ -459,6 +459,22 @@ void StackGuard::RequestGC() {
 }
 
 
+bool StackGuard::IsInstallCodeRequest() {
+  ExecutionAccess access(isolate_);
+  return (thread_local_.interrupt_flags_ & INSTALL_CODE) != 0;
+}
+
+
+void StackGuard::RequestInstallCode() {
+  ExecutionAccess access(isolate_);
+  thread_local_.interrupt_flags_ |= INSTALL_CODE;
+  if (thread_local_.postpone_interrupts_nesting_ == 0) {
+    thread_local_.jslimit_ = thread_local_.climit_ = kInterruptLimit;
+    isolate_->heap()->SetStackLimits();
+  }
+}
+
+
 bool StackGuard::IsFullDeopt() {
   ExecutionAccess access(isolate_);
   return (thread_local_.interrupt_flags_ & FULL_DEOPT) != 0;
@@ -916,7 +932,6 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
 
   isolate->counters()->stack_interrupts()->Increment();
   isolate->counters()->runtime_profiler_ticks()->Increment();
-  isolate->runtime_profiler()->OptimizeNow();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (stack_guard->IsDebugBreak() || stack_guard->IsDebugCommand()) {
     DebugBreakHelper(isolate);
@@ -935,6 +950,12 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
     stack_guard->Continue(FULL_DEOPT);
     Deoptimizer::DeoptimizeAll(isolate);
   }
+  if (stack_guard->IsInstallCodeRequest()) {
+    ASSERT(FLAG_concurrent_recompilation);
+    stack_guard->Continue(INSTALL_CODE);
+    isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
+  }
+  isolate->runtime_profiler()->OptimizeNow();
   return isolate->heap()->undefined_value();
 }
 

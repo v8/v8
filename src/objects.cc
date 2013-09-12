@@ -9321,18 +9321,6 @@ void JSFunction::MarkForConcurrentRecompilation() {
 }
 
 
-void JSFunction::MarkForInstallingRecompiledCode() {
-  // The debugger could have switched the builtin to lazy compile.
-  // In that case, simply carry on.  It will be dealt with later.
-  ASSERT(!IsOptimized());
-  ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_concurrent_recompilation);
-  set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kInstallRecompiledCode));
-  // No write barrier required, since the builtin is part of the root set.
-}
-
-
 void JSFunction::MarkInRecompileQueue() {
   // We can only arrive here via the concurrent-recompilation builtin.  If
   // break points were set, the code would point to the lazy-compile builtin.

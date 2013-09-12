@@ -2110,8 +2110,7 @@ void Debug::PrepareForBreakPoints() {
             function->set_code(*lazy_compile);
             function->shared()->set_code(*lazy_compile);
           } else if (kind == Code::BUILTIN &&
-              (function->IsMarkedForInstallingRecompiledCode() ||
-               function->IsInRecompileQueue() ||
+              (function->IsInRecompileQueue() ||
                function->IsMarkedForLazyRecompilation() ||
                function->IsMarkedForConcurrentRecompilation())) {
             // Abort in-flight compilation.

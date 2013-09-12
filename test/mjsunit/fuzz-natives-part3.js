@@ -151,7 +151,6 @@ var knownProblems = {
   "LazyCompile": true,
   "LazyRecompile": true,
   "ConcurrentRecompile": true,
-  "InstallRecompiledCode": true,
   "NotifyDeoptimized": true,
   "NotifyStubFailure": true,
   "NotifyOSR": true,

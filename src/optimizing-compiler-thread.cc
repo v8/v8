@@ -114,11 +114,8 @@ void OptimizingCompilerThread::CompileNext() {
     osr_candidates_.RemoveElement(optimizing_compiler);
     ready_for_osr_.Add(optimizing_compiler);
   } else {
-    LockGuard<Mutex> mark_and_queue(&install_mutex_);
-    Heap::RelocationLock relocation_lock(isolate_->heap());
-    AllowHandleDereference ahd;
-    optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
     output_queue_.Enqueue(optimizing_compiler);
+    isolate_->stack_guard()->RequestInstallCode();
   }
 }
 
@@ -201,10 +198,7 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   HandleScope handle_scope(isolate_);
   OptimizingCompiler* compiler;
   while (true) {
-    { // Memory barrier to ensure marked functions are queued.
-      LockGuard<Mutex> marked_and_queued(&install_mutex_);
-      if (!output_queue_.Dequeue(&compiler)) return;
-    }
+    if (!output_queue_.Dequeue(&compiler)) return;
     Compiler::InstallOptimizedCode(compiler);
   }
 

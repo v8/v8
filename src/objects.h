@@ -6989,7 +6989,6 @@ class JSFunction: public JSObject {
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
   void MarkForConcurrentRecompilation();
-  void MarkForInstallingRecompiledCode();
   void MarkInRecompileQueue();
 
   // Helpers to compile this function.  Returns true on success, false on
@@ -7008,7 +7007,6 @@ class JSFunction: public JSObject {
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
   inline bool IsMarkedForConcurrentRecompilation();
-  inline bool IsMarkedForInstallingRecompiledCode();
 
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInRecompileQueue();

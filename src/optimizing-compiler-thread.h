@@ -120,7 +120,6 @@ class OptimizingCompilerThread : public Thread {
   // List of recompilation tasks ready for OSR.
   List<OptimizingCompiler*> ready_for_osr_;
 
-  Mutex install_mutex_;
   volatile AtomicWord stop_thread_;
   volatile Atomic32 queue_length_;
   TimeDelta time_spent_compiling_;

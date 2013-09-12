@@ -8346,16 +8346,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
-  HandleScope handle_scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  ASSERT(isolate->use_crankshaft() && FLAG_concurrent_recompilation);
-  isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
-  return function->code();
-}
-
-
 class ActivationsFinder : public ThreadVisitor {
  public:
   Code* code_;
@@ -8553,8 +8543,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_concurrent_recompilation && sync_with_compiler_thread) {
-    while (function->IsInRecompileQueue() ||
-           function->IsMarkedForInstallingRecompiledCode()) {
+    while (function->IsInRecompileQueue()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
     }
@@ -9382,11 +9371,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
 
   // First check if this is a real stack overflow.
   if (isolate->stack_guard()->IsStackOverflow()) {
-    SealHandleScope shs(isolate);
     return isolate->StackOverflow();
   }
 
   return Execution::HandleStackGuardInterrupt(isolate);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TryInstallRecompiledCode) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  // First check if this is a real stack overflow.
+  if (isolate->stack_guard()->IsStackOverflow()) {
+    SealHandleScope shs(isolate);
+    return isolate->StackOverflow();
+  }
+
+  isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
+  return (function->IsOptimized()) ? function->code()
+                                   : function->shared()->code();
 }
 
 
