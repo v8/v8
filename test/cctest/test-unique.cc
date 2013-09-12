@@ -36,6 +36,26 @@
 
 using namespace v8::internal;
 
+template <class T, class U>
+void CheckHashCodeEqual(Unique<T> a, Unique<U> b) {
+  int64_t hasha = static_cast<int64_t>(a.Hashcode());
+  int64_t hashb = static_cast<int64_t>(b.Hashcode());
+  CHECK_NE(static_cast<int64_t>(0), hasha);
+  CHECK_NE(static_cast<int64_t>(0), hashb);
+  CHECK_EQ(hasha, hashb);
+}
+
+
+template <class T, class U>
+void CheckHashCodeNotEqual(Unique<T> a, Unique<U> b) {
+  int64_t hasha = static_cast<int64_t>(a.Hashcode());
+  int64_t hashb = static_cast<int64_t>(b.Hashcode());
+  CHECK_NE(static_cast<int64_t>(0), hasha);
+  CHECK_NE(static_cast<int64_t>(0), hashb);
+  CHECK_NE(hasha, hashb);
+}
+
+
 TEST(UniqueCreate) {
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
@@ -45,28 +65,25 @@ TEST(UniqueCreate) {
   Handle<String> A = factory->InternalizeUtf8String("A");
   Unique<String> HA(A);
 
-  CHECK_NE(static_cast<intptr_t>(0), HA.Hashcode());
   CHECK(*HA.handle() == *A);
   CHECK_EQ(*A, *HA.handle());
 
   Unique<String> HA2(A);
 
-  CHECK_EQ(HA.Hashcode(), HA2.Hashcode());
+  CheckHashCodeEqual(HA, HA2);
   CHECK(HA == HA2);
   CHECK_EQ(*HA.handle(), *HA2.handle());
 
-  CHECK_EQ(HA2.Hashcode(), HA.Hashcode());
   CHECK(HA2 == HA);
   CHECK_EQ(*HA2.handle(), *HA.handle());
 
   Handle<String> B = factory->InternalizeUtf8String("B");
   Unique<String> HB(B);
 
-  CHECK_NE(HA.Hashcode(), HB.Hashcode());
+  CheckHashCodeNotEqual(HA, HB);
   CHECK(HA != HB);
   CHECK_NE(*HA.handle(), *HB.handle());
 
-  CHECK_NE(HB.Hashcode(), HA.Hashcode());
   CHECK(HB != HA);
   CHECK_NE(*HB.handle(), *HA.handle());
 
@@ -83,17 +100,15 @@ TEST(UniqueSubsume) {
   Handle<String> A = factory->InternalizeUtf8String("A");
   Unique<String> HA(A);
 
-  CHECK_NE(static_cast<intptr_t>(0), HA.Hashcode());
   CHECK(*HA.handle() == *A);
   CHECK_EQ(*A, *HA.handle());
 
   Unique<Object> HO = HA;  // Here comes the subsumption, boys.
 
-  CHECK_EQ(HA.Hashcode(), HO.Hashcode());
+  CheckHashCodeEqual(HA, HO);
   CHECK(HA == HO);
   CHECK_EQ(*HA.handle(), *HO.handle());
 
-  CHECK_EQ(HO.Hashcode(), HA.Hashcode());
   CHECK(HO == HA);
   CHECK_EQ(*HO.handle(), *HA.handle());
 }
