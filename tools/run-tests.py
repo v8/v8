@@ -293,7 +293,7 @@ def Execute(arch, mode, args, options, suites, workspace):
   if timeout == -1:
     # Simulators are slow, therefore allow a longer default timeout.
     if arch in SLOW_ARCHS:
-      timeout = 3 * TIMEOUT_DEFAULT;
+      timeout = 2 * TIMEOUT_DEFAULT;
     else:
       timeout = TIMEOUT_DEFAULT;
 

@@ -50,7 +50,7 @@ bool BreakLocationIterator::IsDebugBreakAtReturn()  {
 void BreakLocationIterator::SetDebugBreakAtReturn()  {
   ASSERT(Assembler::kJSReturnSequenceLength >= Assembler::kCallSequenceLength);
   rinfo()->PatchCodeWithCall(
-      Isolate::Current()->debug()->debug_break_return()->entry(),
+      debug_info_->GetIsolate()->debug()->debug_break_return()->entry(),
       Assembler::kJSReturnSequenceLength - Assembler::kCallSequenceLength);
 }
 
@@ -80,7 +80,7 @@ bool BreakLocationIterator::IsDebugBreakAtSlot() {
 void BreakLocationIterator::SetDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   rinfo()->PatchCodeWithCall(
-      Isolate::Current()->debug()->debug_break_slot()->entry(),
+      debug_info_->GetIsolate()->debug()->debug_break_slot()->entry(),
       Assembler::kDebugBreakSlotLength - Assembler::kCallSequenceLength);
 }
 

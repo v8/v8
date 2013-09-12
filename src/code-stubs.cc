@@ -136,7 +136,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   if (UseSpecialCache()
       ? FindCodeInSpecialCache(&code, isolate)
       : FindCodeInCache(&code, isolate)) {
-    ASSERT(IsPregenerated() == code->is_pregenerated());
+    ASSERT(IsPregenerated(isolate) == code->is_pregenerated());
     return Handle<Code>(code);
   }
 

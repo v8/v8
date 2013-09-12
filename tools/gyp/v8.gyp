@@ -336,6 +336,7 @@
         '../../src/heap-snapshot-generator.h',
         '../../src/heap.cc',
         '../../src/heap.h',
+        '../../src/hydrogen-alias-analysis.h',
         '../../src/hydrogen-bce.cc',
         '../../src/hydrogen-bce.h',
         '../../src/hydrogen-bch.cc',

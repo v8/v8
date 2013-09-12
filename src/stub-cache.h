@@ -982,10 +982,6 @@ class StoreStubCompiler: public BaseStoreStubCompiler {
   Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
                                        Handle<Name> name);
 
-  Handle<Code> CompileStoreGlobal(Handle<GlobalObject> object,
-                                  Handle<PropertyCell> holder,
-                                  Handle<Name> name);
-
  private:
   static Register* registers();
   virtual Code::Kind kind() { return Code::STORE_IC; }

@@ -1200,7 +1200,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
       ExternalReference::transcendental_cache_array_address(masm->isolate());
   __ movq(rax, cache_array);
   int cache_array_index =
-      type_ * sizeof(Isolate::Current()->transcendental_cache()->caches_[0]);
+      type_ * sizeof(masm->isolate()->transcendental_cache()->caches_[0]);
   __ movq(rax, Operand(rax, cache_array_index));
   // rax points to the cache for the type type_.
   // If NULL, the cache hasn't been initialized yet, so go through runtime.
@@ -3490,7 +3490,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ SetCallKind(rcx, CALL_AS_METHOD);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
-      Isolate::Current()->builtins()->ArgumentsAdaptorTrampoline();
+      isolate->builtins()->ArgumentsAdaptorTrampoline();
   __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 
@@ -3545,7 +3545,7 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated() {
+bool CEntryStub::IsPregenerated(Isolate* isolate) {
 #ifdef _WIN64
   return result_size_ == 1;
 #else
@@ -5899,8 +5899,6 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(rbx), REG(rax), REG(rdi), EMIT_REMEMBERED_SET },
   // Used in CompileArrayPushCall.
   { REG(rbx), REG(rcx), REG(rdx), EMIT_REMEMBERED_SET },
-  // Used in CompileStoreGlobal.
-  { REG(rbx), REG(rcx), REG(rdx), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField and
   // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
   { REG(rdx), REG(rcx), REG(rbx), EMIT_REMEMBERED_SET },
@@ -5937,7 +5935,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 
 #undef REG
 
-bool RecordWriteStub::IsPregenerated() {
+bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
   for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {

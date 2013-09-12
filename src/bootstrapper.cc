@@ -98,7 +98,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
 
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
-  extensions_cache_.Initialize(create_heap_objects);
+  extensions_cache_.Initialize(isolate_, create_heap_objects);
 }
 
 
@@ -147,7 +147,7 @@ void Bootstrapper::TearDown() {
     delete_these_arrays_on_tear_down_ = NULL;
   }
 
-  extensions_cache_.Initialize(false);  // Yes, symmetrical
+  extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
 

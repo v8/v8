@@ -1,3 +1,13 @@
+2013-09-12: Version 3.21.14
+
+        Added access check for observed objects.
+        (V8 issue 2778)
+
+        Cleaned up v8::ArrayBuffer::Allocator interface.
+        (V8 issue 2823)
+
+        Performance and stability improvements on all platforms.
+
 2013-09-11: Version 3.21.13
 
         Added a ResourceConstraint for the embedder to specify that V8 is

@@ -1615,9 +1615,9 @@ struct RegExpCompileData {
 class RegExpEngine: public AllStatic {
  public:
   struct CompilationResult {
-    explicit CompilationResult(const char* error_message)
+    CompilationResult(Isolate* isolate, const char* error_message)
         : error_message(error_message),
-          code(Isolate::Current()->heap()->the_hole_value()),
+          code(isolate->heap()->the_hole_value()),
           num_registers(0) {}
     CompilationResult(Object* code, int registers)
       : error_message(NULL),

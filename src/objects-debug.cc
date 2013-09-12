@@ -329,11 +329,17 @@ void JSObject::JSObjectVerify() {
       }
     }
   }
-  CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
-             (elements() == GetHeap()->empty_fixed_array())),
-            (elements()->map() == GetHeap()->fixed_array_map() ||
-             elements()->map() == GetHeap()->fixed_cow_array_map()));
-  CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
+
+  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
+  // allocation folding is turned off.
+  if (reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map()) {
+    CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
+              (elements() == GetHeap()->empty_fixed_array())),
+             (elements()->map() == GetHeap()->fixed_array_map() ||
+              elements()->map() == GetHeap()->fixed_cow_array_map()));
+    CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
+  }
 }
 
 
@@ -677,9 +683,19 @@ void Code::VerifyEmbeddedMapsDependency() {
 void JSArray::JSArrayVerify() {
   JSObjectVerify();
   CHECK(length()->IsNumber() || length()->IsUndefined());
-  CHECK(elements()->IsUndefined() ||
-         elements()->IsFixedArray() ||
-         elements()->IsFixedDoubleArray());
+  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
+  // allocation folding is turned off.
+  if (reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map()) {
+    CHECK(elements()->IsUndefined() ||
+          elements()->IsFixedArray() ||
+          elements()->IsFixedDoubleArray());
+    // TODO(mvstanton): to diagnose chromium bug 284577, remove after.
+    AllocationMemento* memento = AllocationMemento::FindForJSObject(this);
+    if (memento != NULL && memento->IsValid()) {
+      memento->AllocationMementoVerify();
+    }
+  }
 }
 
 

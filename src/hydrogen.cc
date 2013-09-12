@@ -649,7 +649,7 @@ HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
     HConstant* constant = new(zone()) HConstant(                               \
         isolate()->factory()->name##_value(),                                  \
-        UniqueValueId(isolate()->heap()->name##_value()),                      \
+        UniqueValueId::name##_value(isolate()->heap()),                        \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         false,                                                                 \
@@ -1824,7 +1824,8 @@ void HGraphBuilder::BuildCompareNil(
 HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
                                                     int previous_object_size,
                                                     HValue* alloc_site) {
-  ASSERT(alloc_site != NULL);
+  // TODO(mvstanton): ASSERT altered to CHECK to diagnose chromium bug 284577
+  CHECK(alloc_site != NULL);
   HInnerAllocatedObject* alloc_memento = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
   Handle<Map> alloc_memento_map(

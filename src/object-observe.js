@@ -367,13 +367,22 @@ function ArrayUnobserve(object, callback) {
   return ObjectUnobserve(object, callback);
 }
 
-function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
+function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
+                                 needsAccessCheck) {
   if (!ObserverIsActive(observer, objectInfo) ||
       !TypeMapHasType(ObserverGetAcceptTypes(observer), changeRecord.type)) {
     return;
   }
 
   var callback = ObserverGetCallback(observer);
+  if (needsAccessCheck &&
+      // Drop all splice records on the floor for access-checked objects
+      (changeRecord.type == 'splice' ||
+       !%IsAccessAllowedForObserver(
+           callback, changeRecord.object, changeRecord.name))) {
+    return;
+  }
+
   var callbackInfo = CallbackInfoNormalize(callback);
   if (!observationState.pendingObservers)
     observationState.pendingObservers = { __proto__: null };
@@ -382,19 +391,25 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   %SetObserverDeliveryPending();
 }
 
-function ObjectInfoEnqueueChangeRecord(objectInfo, changeRecord) {
+function ObjectInfoEnqueueChangeRecord(objectInfo, changeRecord,
+                                       skipAccessCheck) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(changeRecord.name)) return;
 
+  var needsAccessCheck = !skipAccessCheck &&
+      %IsAccessCheckNeeded(changeRecord.object);
+
   if (ChangeObserversIsOptimized(objectInfo.changeObservers)) {
     var observer = objectInfo.changeObservers;
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
+                            needsAccessCheck);
     return;
   }
 
   for (var priority in objectInfo.changeObservers) {
     var observer = objectInfo.changeObservers[priority];
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
+                            needsAccessCheck);
   }
 }
 
@@ -463,10 +478,11 @@ function ObjectNotifierNotify(changeRecord) {
   }
   ObjectFreeze(newRecord);
 
-  ObjectInfoEnqueueChangeRecord(objectInfo, newRecord);
+  ObjectInfoEnqueueChangeRecord(objectInfo, newRecord,
+                                true /* skip access check */);
 }
 
-function ObjectNotifierPerformChange(changeType, changeFn, receiver) {
+function ObjectNotifierPerformChange(changeType, changeFn) {
   if (!IS_SPEC_OBJECT(this))
     throw MakeTypeError("called_on_non_object", ["performChange"]);
 
@@ -479,15 +495,9 @@ function ObjectNotifierPerformChange(changeType, changeFn, receiver) {
   if (!IS_SPEC_FUNCTION(changeFn))
     throw MakeTypeError("observe_perform_non_function");
 
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(changeFn) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(changeFn)) {
-    receiver = ToObject(receiver);
-  }
-
   ObjectInfoAddPerformingType(objectInfo, changeType);
   try {
-    %_CallFunction(receiver, changeFn);
+    %_CallFunction(void 0, changeFn);
   } finally {
     ObjectInfoRemovePerformingType(objectInfo, changeType);
   }
@@ -520,7 +530,7 @@ function CallbackDeliverPending(callback) {
   %MoveArrayContents(callbackInfo, delivered);
 
   try {
-    %Call(void 0, delivered, callback);
+    %_CallFunction(void 0, delivered, callback);
   } catch (ex) {}
   return true;
 }
