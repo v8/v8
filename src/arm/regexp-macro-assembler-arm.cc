@@ -134,7 +134,6 @@ RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(
       exit_label_() {
   ASSERT_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code later.
-  EmitBacktrackConstantPool();
   __ bind(&start_label_);  // And then continue from here.
 }
 
@@ -938,37 +937,8 @@ void RegExpMacroAssemblerARM::PopRegister(int register_index) {
 }
 
 
-static bool is_valid_memory_offset(int value) {
-  if (value < 0) value = -value;
-  return value < (1<<12);
-}
-
-
 void RegExpMacroAssemblerARM::PushBacktrack(Label* label) {
-  if (label->is_bound()) {
-    int target = label->pos();
-    __ mov(r0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
-  } else {
-    int constant_offset = GetBacktrackConstantPoolEntry();
-    masm_->label_at_put(label, constant_offset);
-    // Reading pc-relative is based on the address 8 bytes ahead of
-    // the current opcode.
-    unsigned int offset_of_pc_register_read =
-      masm_->pc_offset() + Assembler::kPcLoadDelta;
-    int pc_offset_of_constant =
-      constant_offset - offset_of_pc_register_read;
-    ASSERT(pc_offset_of_constant < 0);
-    if (is_valid_memory_offset(pc_offset_of_constant)) {
-      Assembler::BlockConstPoolScope block_const_pool(masm_);
-      __ ldr(r0, MemOperand(pc, pc_offset_of_constant));
-    } else {
-      // Not a 12-bit offset, so it needs to be loaded from the constant
-      // pool.
-      Assembler::BlockConstPoolScope block_const_pool(masm_);
-      __ mov(r0, Operand(pc_offset_of_constant + Assembler::kInstrSize));
-      __ ldr(r0, MemOperand(pc, r0));
-    }
-  }
+  __ mov_label_offset(r0, label);
   Push(r0);
   CheckStackLimit();
 }
@@ -1276,38 +1246,6 @@ void RegExpMacroAssemblerARM::CheckStackLimit() {
   __ ldr(r0, MemOperand(r0));
   __ cmp(backtrack_stackpointer(), Operand(r0));
   SafeCall(&stack_overflow_label_, ls);
-}
-
-
-void RegExpMacroAssemblerARM::EmitBacktrackConstantPool() {
-  __ CheckConstPool(false, false);
-  Assembler::BlockConstPoolScope block_const_pool(masm_);
-  backtrack_constant_pool_offset_ = masm_->pc_offset();
-  for (int i = 0; i < kBacktrackConstantPoolSize; i++) {
-    __ emit(0);
-  }
-
-  backtrack_constant_pool_capacity_ = kBacktrackConstantPoolSize;
-}
-
-
-int RegExpMacroAssemblerARM::GetBacktrackConstantPoolEntry() {
-  while (backtrack_constant_pool_capacity_ > 0) {
-    int offset = backtrack_constant_pool_offset_;
-    backtrack_constant_pool_offset_ += kPointerSize;
-    backtrack_constant_pool_capacity_--;
-    if (masm_->pc_offset() - offset < 2 * KB) {
-      return offset;
-    }
-  }
-  Label new_pool_skip;
-  __ jmp(&new_pool_skip);
-  EmitBacktrackConstantPool();
-  __ bind(&new_pool_skip);
-  int offset = backtrack_constant_pool_offset_;
-  backtrack_constant_pool_offset_ += kPointerSize;
-  backtrack_constant_pool_capacity_--;
-  return offset;
 }
 
 
