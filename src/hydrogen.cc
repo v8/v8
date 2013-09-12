@@ -4005,7 +4005,9 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 
 static bool CanInlinePropertyAccess(Map* type) {
-  return !type->is_dictionary_map() && !type->has_named_interceptor();
+  return type->IsJSObjectMap() &&
+      !type->is_dictionary_map() &&
+      !type->has_named_interceptor();
 }
 
 
@@ -5390,6 +5392,12 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     AddCheckMap(object, map);
     Handle<Object> constant(lookup.GetConstantFromMap(*map), isolate());
     return New<HConstant>(constant);
+  }
+
+  if (lookup.IsFound()) {
+    // Cannot handle the property, do a generic load instead.
+    HValue* context = environment()->context();
+    return new(zone()) HLoadNamedGeneric(context, object, name);
   }
 
   // Handle a load from a known field somewhere in the prototype chain.
