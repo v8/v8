@@ -5861,7 +5861,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   __ Branch(&done, lt, scratch1, Operand(FIRST_NONSTRING_TYPE));
 
   // Check the number to string cache.
-  Label not_cached;
   __ bind(&not_string);
   // Puts the cached result into scratch1.
   NumberToStringStub::GenerateLookupNumberStringCache(masm,
@@ -5870,23 +5869,9 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
                                                       scratch2,
                                                       scratch3,
                                                       scratch4,
-                                                      &not_cached);
+                                                      slow);
   __ mov(arg, scratch1);
   __ sw(arg, MemOperand(sp, stack_offset));
-  __ jmp(&done);
-
-  // Check if the argument is a safe string wrapper.
-  __ bind(&not_cached);
-  __ JumpIfSmi(arg, slow);
-  __ GetObjectType(arg, scratch1, scratch2);  // map -> scratch1.
-  __ Branch(slow, ne, scratch2, Operand(JS_VALUE_TYPE));
-  __ lbu(scratch2, FieldMemOperand(scratch1, Map::kBitField2Offset));
-  __ li(scratch4, 1 << Map::kStringWrapperSafeForDefaultValueOf);
-  __ And(scratch2, scratch2, scratch4);
-  __ Branch(slow, ne, scratch2, Operand(scratch4));
-  __ lw(arg, FieldMemOperand(arg, JSValue::kValueOffset));
-  __ sw(arg, MemOperand(sp, stack_offset));
-
   __ bind(&done);
 }
 
