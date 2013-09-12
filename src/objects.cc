@@ -13806,6 +13806,74 @@ MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
 
 
 template<typename Shape, typename Key>
+uint32_t HashTable<Shape, Key>::EntryForProbe(Key key,
+                                              Object* k,
+                                              int probe,
+                                              uint32_t expected) {
+  uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
+  uint32_t capacity = Capacity();
+  uint32_t entry = FirstProbe(hash, capacity);
+  for (int i = 1; i < probe; i++) {
+    if (entry == expected) return expected;
+    entry = NextProbe(entry, i, capacity);
+  }
+  return entry;
+}
+
+
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Swap(uint32_t entry1,
+                                 uint32_t entry2,
+                                 WriteBarrierMode mode) {
+  int index1 = EntryToIndex(entry1);
+  int index2 = EntryToIndex(entry2);
+  Object* temp[Shape::kEntrySize];
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    temp[j] = get(index1 + j);
+  }
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    set(index1 + j, get(index2 + j), mode);
+  }
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    set(index2 + j, temp[j], mode);
+  }
+}
+
+
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Rehash(Key key) {
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
+  uint32_t capacity = Capacity();
+  bool done = false;
+  for (int probe = 1; !done; probe++) {
+    // All elements at entries given by one of the first _probe_ probes
+    // are placed correctly. Other elements might need to be moved.
+    done = true;
+    for (uint32_t current = 0; current < capacity; current++) {
+      Object* current_key = get(EntryToIndex(current));
+      if (IsKey(current_key)) {
+        uint32_t target = EntryForProbe(key, current_key, probe, current);
+        if (current == target) continue;
+        Object* target_key = get(EntryToIndex(target));
+        if (!IsKey(target_key) ||
+            EntryForProbe(key, target_key, probe, target) != target) {
+          // Put the current element into the correct position.
+          Swap(current, target, mode);
+          // The other element will be processed on the next iteration.
+          current--;
+        } else {
+          // The place for the current element is occupied. Leave the element
+          // for the next probe.
+          done = false;
+        }
+      }
+    }
+  }
+}
+
+
+template<typename Shape, typename Key>
 MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;

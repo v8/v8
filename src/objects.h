@@ -3473,6 +3473,9 @@ class HashTable: public FixedArray {
   inline int FindEntry(Key key);
   int FindEntry(Isolate* isolate, Key key);
 
+  // Rehashes the table in-place.
+  void Rehash(Key key);
+
  protected:
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
@@ -3518,6 +3521,13 @@ class HashTable: public FixedArray {
       uint32_t last, uint32_t number, uint32_t size) {
     return (last + number) & (size - 1);
   }
+
+  // Returns _expected_ if one of entries given by the first _probe_ probes is
+  // equal to  _expected_. Otherwise, returns the entry given by the probe
+  // number _probe_.
+  uint32_t EntryForProbe(Key key, Object* k, int probe, uint32_t expected);
+
+  void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
   MUST_USE_RESULT MaybeObject* Rehash(HashTable* new_table, Key key);

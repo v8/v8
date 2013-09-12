@@ -101,6 +101,57 @@ TEST(ObjectHashTable) {
 }
 
 
+class ObjectHashTableTest: public ObjectHashTable {
+ public:
+  void insert(int entry, int key, int value) {
+    set(EntryToIndex(entry), Smi::FromInt(key));
+    set(EntryToIndex(entry) + 1, Smi::FromInt(value));
+  }
+
+  int lookup(int key) {
+    return Smi::cast(Lookup(Smi::FromInt(key)))->value();
+  }
+
+  int capacity() {
+    return Capacity();
+  }
+};
+
+
+TEST(HashTableRehash) {
+  LocalContext context;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(context->GetIsolate());
+  // Test almost filled table.
+  {
+    Handle<ObjectHashTable> table = factory->NewObjectHashTable(100);
+    ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
+    int capacity = t->capacity();
+    for (int i = 0; i < capacity - 1; i++) {
+      t->insert(i, i * i, i);
+    }
+    t->Rehash(Smi::FromInt(0));
+    for (int i = 0; i < capacity - 1; i++) {
+      CHECK_EQ(i, t->lookup(i * i));
+    }
+  }
+  // Test half-filled table.
+  {
+    Handle<ObjectHashTable> table = factory->NewObjectHashTable(100);
+    ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
+    int capacity = t->capacity();
+    for (int i = 0; i < capacity / 2; i++) {
+      t->insert(i, i * i, i);
+    }
+    t->Rehash(Smi::FromInt(0));
+    for (int i = 0; i < capacity / 2; i++) {
+      CHECK_EQ(i, t->lookup(i * i));
+    }
+  }
+}
+
+
 #ifdef DEBUG
 TEST(ObjectHashSetCausesGC) {
   i::FLAG_stress_compaction = false;
