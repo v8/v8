@@ -3891,80 +3891,64 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  class DeferredDoRandom V8_FINAL : public LDeferredCode {
-   public:
-    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() V8_OVERRIDE { codegen()->DoDeferredRandom(instr_); }
-    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
-   private:
-    LRandom* instr_;
-  };
-
-  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
-
-  // Having marked this instruction as a call we can use any
-  // registers.
-  ASSERT(ToDoubleRegister(instr->result()).is(d7));
-  ASSERT(ToRegister(instr->global_object()).is(r0));
-
+  // Assert that the register size is indeed the size of each seed.
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == kSeedSize);
 
-  __ ldr(r0, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
+  // Load native context
+  Register global_object = ToRegister(instr->global_object());
+  Register native_context = global_object;
+  __ ldr(native_context, FieldMemOperand(
+          global_object, GlobalObject::kNativeContextOffset));
+
+  // Load state (FixedArray of the native context's random seeds)
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  __ ldr(r2, FieldMemOperand(r0, kRandomSeedOffset));
-  // r2: FixedArray of the native context's random seeds
+  Register state = native_context;
+  __ ldr(state, FieldMemOperand(native_context, kRandomSeedOffset));
 
   // Load state[0].
-  __ ldr(r1, FieldMemOperand(r2, ByteArray::kHeaderSize));
-  __ cmp(r1, Operand::Zero());
-  __ b(eq, deferred->entry());
+  Register state0 = ToRegister(instr->scratch());
+  __ ldr(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
   // Load state[1].
-  __ ldr(r0, FieldMemOperand(r2, ByteArray::kHeaderSize + kSeedSize));
-  // r1: state[0].
-  // r0: state[1].
+  Register state1 = ToRegister(instr->scratch2());
+  __ ldr(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  __ and_(r3, r1, Operand(0xFFFF));
-  __ mov(r4, Operand(18273));
-  __ mul(r3, r3, r4);
-  __ add(r1, r3, Operand(r1, LSR, 16));
+  Register scratch3 = ToRegister(instr->scratch3());
+  Register scratch4 = scratch0();
+  __ and_(scratch3, state0, Operand(0xFFFF));
+  __ mov(scratch4, Operand(18273));
+  __ mul(scratch3, scratch3, scratch4);
+  __ add(state0, scratch3, Operand(state0, LSR, 16));
   // Save state[0].
-  __ str(r1, FieldMemOperand(r2, ByteArray::kHeaderSize));
+  __ str(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
 
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ and_(r3, r0, Operand(0xFFFF));
-  __ mov(r4, Operand(36969));
-  __ mul(r3, r3, r4);
-  __ add(r0, r3, Operand(r0, LSR, 16));
+  __ and_(scratch3, state1, Operand(0xFFFF));
+  __ mov(scratch4, Operand(36969));
+  __ mul(scratch3, scratch3, scratch4);
+  __ add(state1, scratch3, Operand(state1, LSR, 16));
   // Save state[1].
-  __ str(r0, FieldMemOperand(r2, ByteArray::kHeaderSize + kSeedSize));
+  __ str(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
 
   // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  __ and_(r0, r0, Operand(0x3FFFF));
-  __ add(r0, r0, Operand(r1, LSL, 14));
+  Register random = scratch4;
+  __ and_(random, state1, Operand(0x3FFFF));
+  __ add(random, random, Operand(state0, LSL, 14));
 
-  __ bind(deferred->exit());
   // 0x41300000 is the top half of 1.0 x 2^20 as a double.
   // Create this constant using mov/orr to avoid PC relative load.
-  __ mov(r1, Operand(0x41000000));
-  __ orr(r1, r1, Operand(0x300000));
+  __ mov(scratch3, Operand(0x41000000));
+  __ orr(scratch3, scratch3, Operand(0x300000));
   // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
-  __ vmov(d7, r0, r1);
+  DwVfpRegister result = ToDoubleRegister(instr->result());
+  __ vmov(result, random, scratch3);
   // Move 0x4130000000000000 to VFP.
-  __ mov(r0, Operand::Zero());
-  __ vmov(d8, r0, r1);
-  // Subtract and store the result in the heap number.
-  __ vsub(d7, d7, d8);
-}
-
-
-void LCodeGen::DoDeferredRandom(LRandom* instr) {
-  __ PrepareCallCFunction(1, scratch0());
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-  // Return value is in r0.
+  __ mov(scratch4, Operand::Zero());
+  DwVfpRegister scratch5 = double_scratch0();
+  __ vmov(scratch5, scratch4, scratch3);
+  __ vsub(result, result, scratch5);
 }
 
 

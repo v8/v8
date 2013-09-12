@@ -4126,85 +4126,66 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  class DeferredDoRandom V8_FINAL : public LDeferredCode {
-   public:
-    DeferredDoRandom(LCodeGen* codegen,
-                     LRandom* instr,
-                     const X87Stack& x87_stack)
-        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() V8_OVERRIDE { codegen()->DoDeferredRandom(instr_); }
-    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
-   private:
-    LRandom* instr_;
-  };
-
-  DeferredDoRandom* deferred =
-      new(zone()) DeferredDoRandom(this, instr, x87_stack_);
-
   CpuFeatureScope scope(masm(), SSE2);
-  // Having marked this instruction as a call we can use any
-  // registers.
-  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-  ASSERT(ToRegister(instr->global_object()).is(eax));
+
   // Assert that the register size is indeed the size of each seed.
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == kSeedSize);
 
-  __ mov(eax, FieldOperand(eax, GlobalObject::kNativeContextOffset));
+  // Load native context
+  Register global_object = ToRegister(instr->global_object());
+  Register native_context = global_object;
+  __ mov(native_context, FieldOperand(
+          global_object, GlobalObject::kNativeContextOffset));
+
+  // Load state (FixedArray of the native context's random seeds)
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  __ mov(ebx, FieldOperand(eax, kRandomSeedOffset));
-  // ebx: FixedArray of the native context's random seeds
+  Register state = native_context;
+  __ mov(state, FieldOperand(native_context, kRandomSeedOffset));
 
   // Load state[0].
-  __ mov(ecx, FieldOperand(ebx, ByteArray::kHeaderSize));
-  // If state[0] == 0, call runtime to initialize seeds.
-  __ test(ecx, ecx);
-  __ j(zero, deferred->entry());
+  Register state0 = ToRegister(instr->scratch());
+  __ mov(state0, FieldOperand(state, ByteArray::kHeaderSize));
   // Load state[1].
-  __ mov(eax, FieldOperand(ebx, ByteArray::kHeaderSize + kSeedSize));
-  // ecx: state[0]
-  // eax: state[1]
+  Register state1 = ToRegister(instr->scratch2());
+  __ mov(state1, FieldOperand(state, ByteArray::kHeaderSize + kSeedSize));
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  __ movzx_w(edx, ecx);
-  __ imul(edx, edx, 18273);
-  __ shr(ecx, 16);
-  __ add(ecx, edx);
+  Register scratch3 = ToRegister(instr->scratch3());
+  __ movzx_w(scratch3, state0);
+  __ imul(scratch3, scratch3, 18273);
+  __ shr(state0, 16);
+  __ add(state0, scratch3);
   // Save state[0].
-  __ mov(FieldOperand(ebx, ByteArray::kHeaderSize), ecx);
+  __ mov(FieldOperand(state, ByteArray::kHeaderSize), state0);
 
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ movzx_w(edx, eax);
-  __ imul(edx, edx, 36969);
-  __ shr(eax, 16);
-  __ add(eax, edx);
+  __ movzx_w(scratch3, state1);
+  __ imul(scratch3, scratch3, 36969);
+  __ shr(state1, 16);
+  __ add(state1, scratch3);
   // Save state[1].
-  __ mov(FieldOperand(ebx, ByteArray::kHeaderSize + kSeedSize), eax);
+  __ mov(FieldOperand(state, ByteArray::kHeaderSize + kSeedSize), state1);
 
   // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  __ shl(ecx, 14);
-  __ and_(eax, Immediate(0x3FFFF));
-  __ add(eax, ecx);
+  Register random = state0;
+  __ shl(random, 14);
+  __ and_(state1, Immediate(0x3FFFF));
+  __ add(random, state1);
 
-  __ bind(deferred->exit());
-  // Convert 32 random bits in eax to 0.(32 random bits) in a double
+  // Convert 32 random bits in random to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-  __ movd(xmm2, ebx);
-  __ movd(xmm1, eax);
-  __ cvtss2sd(xmm2, xmm2);
-  __ xorps(xmm1, xmm2);
-  __ subsd(xmm1, xmm2);
-}
-
-
-void LCodeGen::DoDeferredRandom(LRandom* instr) {
-  __ PrepareCallCFunction(1, ebx);
-  __ mov(Operand(esp, 0), eax);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-  // Return value is in eax.
+  XMMRegister result = ToDoubleRegister(instr->result());
+  // We use xmm0 as fixed scratch register here.
+  XMMRegister scratch4 = xmm0;
+  __ mov(scratch3, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+  __ movd(scratch4, scratch3);
+  __ movd(result, random);
+  __ cvtss2sd(scratch4, scratch4);
+  __ xorps(result, scratch4);
+  __ subsd(result, scratch4);
 }
 
 
