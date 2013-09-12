@@ -382,9 +382,13 @@ bool LCodeGen::GenerateBody() {
 
     instr->CompileToNative(this);
 
-    if (!CpuFeatures::IsSupported(SSE2) &&
-        FLAG_debug_code && FLAG_enable_slow_asserts) {
+    if (!CpuFeatures::IsSupported(SSE2)) {
+      if (instr->IsGoto()) {
+        x87_stack_.LeavingBlock(current_block_, LGoto::cast(instr));
+      } else if (FLAG_debug_code && FLAG_enable_slow_asserts &&
+                 !instr->IsGap() && !instr->IsReturn()) {
         __ VerifyX87StackDepth(x87_stack_.depth());
+      }
     }
   }
   EnsureSpaceForLazyDeopt();
@@ -682,6 +686,21 @@ void LCodeGen::X87Stack::FlushIfNecessary(LInstruction* instr, LCodeGen* cgen) {
       __ fstp(0);
       stack_depth_--;
     }
+    if (FLAG_debug_code && FLAG_enable_slow_asserts) __ VerifyX87StackDepth(0);
+  }
+}
+
+
+void LCodeGen::X87Stack::LeavingBlock(int current_block_id, LGoto* goto_instr) {
+  ASSERT(stack_depth_ <= 1);
+  // If ever used for new stubs producing two pairs of doubles joined into two
+  // phis this assert hits. That situation is not handled, since the two stacks
+  // might have st0 and st1 swapped.
+  if (current_block_id + 1 != goto_instr->block_id()) {
+    // If we have a value on the x87 stack on leaving a block, it must be a
+    // phi input. If the next block we compile is not the join block, we have
+    // to discard the stack state.
+    stack_depth_ = 0;
   }
 }
 
@@ -2483,6 +2502,10 @@ void LCodeGen::EmitGoto(int block) {
   if (!IsNextEmittedBlock(block)) {
     __ jmp(chunk_->GetAssemblyLabel(LookupDestination(block)));
   }
+}
+
+
+void LCodeGen::DoClobberDoubles(LClobberDoubles* instr) {
 }
 
 
