@@ -1947,9 +1947,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       // Temp register only necessary for minus zero check.
-      LOperand* temp = instr->deoptimize_on_minus_zero()
-                       ? TempRegister()
-                       : NULL;
+      LOperand* temp = TempRegister();
       LNumberUntagD* res = new(zone()) LNumberUntagD(value, temp);
       return AssignEnvironment(DefineAsRegister(res));
     } else if (to.IsSmi()) {

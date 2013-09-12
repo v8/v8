@@ -5289,11 +5289,13 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
   }
 
   __ bind(&load_smi);
-  __ SmiUntag(input_reg);  // Untag smi before converting to float.
-  __ push(input_reg);
+  // Clobbering a temp is faster than re-tagging the
+  // input register since we avoid dependencies.
+  __ mov(temp_reg, input_reg);
+  __ SmiUntag(temp_reg);  // Untag smi before converting to float.
+  __ push(temp_reg);
   __ fild_s(Operand(esp, 0));
-  __ pop(input_reg);
-  __ SmiTag(input_reg);  // Retag smi.
+  __ add(esp, Immediate(kPointerSize));
   __ bind(&done);
   X87CommitWrite(res_reg);
 }
@@ -5349,11 +5351,12 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
 
-  // Smi to XMM conversion
   __ bind(&load_smi);
-  __ SmiUntag(input_reg);  // Untag smi before converting to float.
-  __ cvtsi2sd(result_reg, Operand(input_reg));
-  __ SmiTag(input_reg);  // Retag smi.
+  // Smi to XMM conversion. Clobbering a temp is faster than re-tagging the
+  // input register since we avoid dependencies.
+  __ mov(temp_reg, input_reg);
+  __ SmiUntag(temp_reg);  // Untag smi before converting to float.
+  __ cvtsi2sd(result_reg, Operand(temp_reg));
   __ bind(&done);
 }
 
@@ -5427,14 +5430,14 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   LOperand* temp = instr->temp();
-  ASSERT(temp == NULL || temp->IsRegister());
+  ASSERT(temp->IsRegister());
   LOperand* result = instr->result();
   ASSERT(result->IsDoubleRegister());
 
   Register input_reg = ToRegister(input);
   bool deoptimize_on_minus_zero =
       instr->hydrogen()->deoptimize_on_minus_zero();
-  Register temp_reg = deoptimize_on_minus_zero ? ToRegister(temp) : no_reg;
+  Register temp_reg = ToRegister(temp);
 
   HValue* value = instr->hydrogen()->value();
   NumberUntagDMode mode = value->representation().IsSmi()
