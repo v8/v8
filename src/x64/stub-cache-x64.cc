@@ -2245,13 +2245,6 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   //  -- ...
   //  -- rsp[(argc + 1) * 4] : receiver
   // -----------------------------------
-
-  if (!CpuFeatures::IsSupported(SSE2)) {
-    return Handle<Code>::null();
-  }
-
-  CpuFeatureScope use_sse2(masm(), SSE2);
-
   const int argc = arguments().immediate();
 
   // If the object is not a JSObject or we got an unexpected number of
