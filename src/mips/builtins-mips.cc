@@ -337,7 +337,7 @@ void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
 
   CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
   // Tail call to returned code.
-  __ Addu(at, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Addu(at, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(at);
 
   __ bind(&ok);
