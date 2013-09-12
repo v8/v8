@@ -1249,6 +1249,9 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
 }
 
 
+static const int kAccessorInfoOffsetInInterceptorArgs = 2;
+
+
 /**
  * Attempts to load a property with an interceptor (which must be present),
  * but doesn't search the prototype chain.
@@ -1257,11 +1260,13 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
  * provide any value for the given name.
  */
 RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
-  ASSERT(args.length() == StubCache::kInterceptorArgsLength);
-  Handle<Name> name_handle =
-      args.at<Name>(StubCache::kInterceptorArgsNameIndex);
-  Handle<InterceptorInfo> interceptor_info =
-      args.at<InterceptorInfo>(StubCache::kInterceptorArgsInfoIndex);
+  typedef PropertyCallbackArguments PCA;
+  static const int kArgsOffset = kAccessorInfoOffsetInInterceptorArgs;
+  Handle<Name> name_handle = args.at<Name>(0);
+  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
+  ASSERT(kArgsOffset == 2);
+  // No ReturnValue in interceptors.
+  ASSERT_EQ(kArgsOffset + PCA::kArgsLength - 2, args.length());
 
   // TODO(rossberg): Support symbols in the API.
   if (name_handle->IsSymbol())
@@ -1274,11 +1279,13 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   ASSERT(getter != NULL);
 
   Handle<JSObject> receiver =
-      args.at<JSObject>(StubCache::kInterceptorArgsThisIndex);
+      args.at<JSObject>(kArgsOffset - PCA::kThisIndex);
   Handle<JSObject> holder =
-      args.at<JSObject>(StubCache::kInterceptorArgsHolderIndex);
-  PropertyCallbackArguments callback_args(
-      isolate, interceptor_info->data(), *receiver, *holder);
+      args.at<JSObject>(kArgsOffset - PCA::kHolderIndex);
+  PropertyCallbackArguments callback_args(isolate,
+                                          interceptor_info->data(),
+                                          *receiver,
+                                          *holder);
   {
     // Use the interceptor getter.
     HandleScope scope(isolate);
@@ -1316,15 +1323,17 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
 
 static MaybeObject* LoadWithInterceptor(Arguments* args,
                                         PropertyAttributes* attrs) {
-  ASSERT(args->length() == StubCache::kInterceptorArgsLength);
-  Handle<Name> name_handle =
-      args->at<Name>(StubCache::kInterceptorArgsNameIndex);
-  Handle<InterceptorInfo> interceptor_info =
-      args->at<InterceptorInfo>(StubCache::kInterceptorArgsInfoIndex);
+  typedef PropertyCallbackArguments PCA;
+  static const int kArgsOffset = kAccessorInfoOffsetInInterceptorArgs;
+  Handle<Name> name_handle = args->at<Name>(0);
+  Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(1);
+  ASSERT(kArgsOffset == 2);
+  // No ReturnValue in interceptors.
+  ASSERT_EQ(kArgsOffset + PCA::kArgsLength - 2, args->length());
   Handle<JSObject> receiver_handle =
-      args->at<JSObject>(StubCache::kInterceptorArgsThisIndex);
+      args->at<JSObject>(kArgsOffset - PCA::kThisIndex);
   Handle<JSObject> holder_handle =
-      args->at<JSObject>(StubCache::kInterceptorArgsHolderIndex);
+      args->at<JSObject>(kArgsOffset - PCA::kHolderIndex);
 
   Isolate* isolate = receiver_handle->GetIsolate();
 
