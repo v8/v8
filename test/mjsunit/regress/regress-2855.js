@@ -39,3 +39,19 @@ for (var i = 0; i < 4; ++i) {
   }
   assertEquals(expected, "" + foo("hello"));
 }
+
+// Make sure we look up "valueOf" only once.
+var count = 0;
+var x = new String("foo");
+Object.defineProperty(x, "valueOf",
+    { get: function() {
+             count++;
+             return function() {
+                      return 11;
+                    }
+           }
+    });
+for (var i = 0; i < 3; i++) {
+  assertEquals("11", "" + x);
+  assertEquals(i + 1, count);
+}
