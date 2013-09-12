@@ -120,7 +120,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(KeyedLoadIC_MissForceGeneric,   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_Slow,               STUB, MONOMORPHIC,                  \
+  V(KeyedLoadIC_Slow,               BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Miss,                   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -142,7 +142,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LoadIC_Getter_ForDeopt,         LOAD_IC, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
-  V(LoadIC_Slow,                    STUB, MONOMORPHIC,                  \
+  V(LoadIC_Slow,                    LOAD_IC, GENERIC,                   \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(KeyedLoadIC_Initialize,         KEYED_LOAD_IC, UNINITIALIZED,       \

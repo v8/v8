@@ -167,14 +167,14 @@ class IC {
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
                                    Handle<String> name,
                                    StrictModeFlag strict_mode) {
     set_target(*handler);
   }
   bool UpdatePolymorphicIC(State state,
-                           Handle<HeapObject> receiver,
+                           Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Code> code,
                            StrictModeFlag strict_mode);
@@ -192,7 +192,7 @@ class IC {
   bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
   void PatchCache(State state,
                   StrictModeFlag strict_mode,
-                  Handle<HeapObject> receiver,
+                  Handle<JSObject> receiver,
                   Handle<String> name,
                   Handle<Code> code);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
@@ -388,7 +388,7 @@ class LoadIC: public IC {
  protected:
   virtual Code::Kind kind() const { return Code::LOAD_IC; }
 
-  virtual Handle<Code> slow_stub() const {
+  virtual Handle<Code> generic_stub() const {
     return isolate()->builtins()->LoadIC_Slow();
   }
 
@@ -403,7 +403,7 @@ class LoadIC: public IC {
                     Handle<Object> object,
                     Handle<String> name);
 
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
                                    Handle<String> name,
                                    StrictModeFlag strict_mode);
@@ -483,12 +483,9 @@ class KeyedLoadIC: public LoadIC {
   virtual Handle<Code> generic_stub() const {
     return isolate()->builtins()->KeyedLoadIC_Generic();
   }
-  virtual Handle<Code> slow_stub() const {
-    return isolate()->builtins()->KeyedLoadIC_Slow();
-  }
 
   // Update the inline cache.
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
                                    Handle<String> name,
                                    StrictModeFlag strict_mode);
@@ -577,7 +574,7 @@ class StoreIC: public IC {
     return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
   }
 
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
                                    Handle<String> name,
                                    StrictModeFlag strict_mode);
@@ -692,7 +689,7 @@ class KeyedStoreIC: public StoreIC {
                                 KeyedAccessStoreMode store_mode,
                                 StrictModeFlag strict_mode);
 
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
                                    Handle<String> name,
                                    StrictModeFlag strict_mode);

@@ -4479,19 +4479,18 @@ void NormalizedMapCache::Clear() {
 }
 
 
-void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
-                                    Handle<Name> name,
-                                    Handle<Code> code) {
+void JSObject::UpdateMapCodeCache(Handle<JSObject> object,
+                                  Handle<Name> name,
+                                  Handle<Code> code) {
   Handle<Map> map(object->map());
   if (map->is_shared()) {
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     // Fast case maps are never marked as shared.
-    ASSERT(!receiver->HasFastProperties());
+    ASSERT(!object->HasFastProperties());
     // Replace the map with an identical copy that can be safely modified.
     map = Map::CopyNormalized(map, KEEP_INOBJECT_PROPERTIES,
                               UNIQUE_NORMALIZED_MAP);
-    receiver->GetIsolate()->counters()->normalized_maps()->Increment();
-    receiver->set_map(*map);
+    object->GetIsolate()->counters()->normalized_maps()->Increment();
+    object->set_map(*map);
   }
   Map::UpdateCodeCache(map, name, code);
 }
