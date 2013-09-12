@@ -1758,6 +1758,13 @@ class HeapObject: public Object {
   // during marking GC.
   static inline Object** RawField(HeapObject* obj, int offset);
 
+  // Adds the |code| object related to |name| to the code cache of this map. If
+  // this map is a dictionary map that is shared, the map copied and installed
+  // onto the object.
+  static void UpdateMapCodeCache(Handle<HeapObject> object,
+                                 Handle<Name> name,
+                                 Handle<Code> code);
+
   // Casting.
   static inline HeapObject* cast(Object* obj);
 
@@ -2568,10 +2575,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object);
 
   MUST_USE_RESULT MaybeObject* NormalizeElements();
-
-  static void UpdateMapCodeCache(Handle<JSObject> object,
-                                 Handle<Name> name,
-                                 Handle<Code> code);
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
@@ -5920,6 +5923,10 @@ class Map: public HeapObject {
   bool CanTransition() {
     // Only JSObject and subtypes have map transitions and back pointers.
     STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+    return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  }
+
+  bool IsJSObjectMap() {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
 

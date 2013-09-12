@@ -2008,7 +2008,7 @@ class HOptimizedGraphBuilder V8_FINAL
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,
                                          HValue* val,
-                                         Expression* prop,
+                                         SmallMapList* maps,
                                          BailoutId ast_id,
                                          int position,
                                          bool is_store,

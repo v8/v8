@@ -104,20 +104,20 @@ class StubCache {
                                 Code::StubType type,
                                 StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeMonomorphicLoadIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicLoadIC(Handle<HeapObject> receiver,
                                         Handle<Code> handler,
                                         Handle<Name> name);
 
-  Handle<Code> ComputeMonomorphicKeyedLoadIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicKeyedLoadIC(Handle<HeapObject> receiver,
                                              Handle<Code> handler,
                                              Handle<Name> name);
 
-  Handle<Code> ComputeMonomorphicStoreIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicStoreIC(Handle<HeapObject> receiver,
                                          Handle<Code> handler,
                                          Handle<Name> name,
                                          StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeMonomorphicKeyedStoreIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicKeyedStoreIC(Handle<HeapObject> receiver,
                                               Handle<Code> handler,
                                               Handle<Name> name,
                                               StrictModeFlag strict_mode);

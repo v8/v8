@@ -996,7 +996,7 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 
 
 bool IC::UpdatePolymorphicIC(State state,
-                             Handle<JSObject> receiver,
+                             Handle<HeapObject> receiver,
                              Handle<String> name,
                              Handle<Code> code,
                              StrictModeFlag strict_mode) {
@@ -1077,44 +1077,44 @@ Handle<Code> StoreIC::ComputePolymorphicIC(MapHandleList* receiver_maps,
 }
 
 
-void LoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+void LoadIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
                                  Handle<Code> handler,
                                  Handle<String> name,
                                  StrictModeFlag strict_mode) {
-  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  if (handler->is_load_stub()) return set_target(*handler);
   Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicLoadIC(
       receiver, handler, name);
   set_target(*ic);
 }
 
 
-void KeyedLoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+void KeyedLoadIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
                                       Handle<Code> handler,
                                       Handle<String> name,
                                       StrictModeFlag strict_mode) {
-  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  if (handler->is_keyed_load_stub()) return set_target(*handler);
   Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicKeyedLoadIC(
       receiver, handler, name);
   set_target(*ic);
 }
 
 
-void StoreIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+void StoreIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
                                   Handle<Code> handler,
                                   Handle<String> name,
                                   StrictModeFlag strict_mode) {
-  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  if (handler->is_store_stub()) return set_target(*handler);
   Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicStoreIC(
       receiver, handler, name, strict_mode);
   set_target(*ic);
 }
 
 
-void KeyedStoreIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+void KeyedStoreIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
                                        Handle<Code> handler,
                                        Handle<String> name,
                                        StrictModeFlag strict_mode) {
-  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  if (handler->is_keyed_store_stub()) return set_target(*handler);
   Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicKeyedStoreIC(
       receiver, handler, name, strict_mode);
   set_target(*ic);
@@ -1155,7 +1155,7 @@ bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
 // not necessarily equal to target()->state().
 void IC::PatchCache(State state,
                     StrictModeFlag strict_mode,
-                    Handle<JSObject> receiver,
+                    Handle<HeapObject> receiver,
                     Handle<String> name,
                     Handle<Code> code) {
   switch (state) {
@@ -1265,32 +1265,26 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           State state,
                           Handle<Object> object,
                           Handle<String> name) {
-  // Bail out if the result is not cacheable.
-  if (!lookup->IsCacheable()) {
-    set_target(*generic_stub());
-    return;
-  }
+  if (!object->IsHeapObject()) return;
 
-  // TODO(jkummerow): It would be nice to support non-JSObjects in
-  // UpdateCaches, then we wouldn't need to go generic here.
-  if (!object->IsJSObject()) {
-    set_target(*generic_stub());
-    return;
-  }
+  Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
 
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   Handle<Code> code;
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
     code = pre_monomorphic_stub();
+  } else if (!lookup->IsCacheable()) {
+    // Bail out if the result is not cacheable.
+    code = slow_stub();
+  } else if (!object->IsJSObject()) {
+    // TODO(jkummerow): It would be nice to support non-JSObjects in
+    // ComputeLoadHandler, then we wouldn't need to go generic here.
+    code = slow_stub();
   } else {
-    code = ComputeLoadHandler(lookup, receiver, name);
-    if (code.is_null()) {
-      set_target(*generic_stub());
-      return;
-    }
+    code = ComputeLoadHandler(lookup, Handle<JSObject>::cast(receiver), name);
+    if (code.is_null()) code = slow_stub();
   }
 
   PatchCache(state, kNonStrictMode, receiver, name, code);
