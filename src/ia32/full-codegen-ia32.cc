@@ -2956,7 +2956,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
   VisitForAccumulatorValue(args->at(0));
 
-  Label materialize_true, materialize_false, skip_lookup;
+  Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
   Label* fall_through = NULL;
@@ -2970,7 +2970,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ test_b(FieldOperand(ebx, Map::kBitField2Offset),
             1 << Map::kStringWrapperSafeForDefaultValueOf);
-  __ j(not_zero, &skip_lookup);
+  __ j(not_zero, if_true);
 
   // Check for fast case object. Return false for slow case objects.
   __ mov(ecx, FieldOperand(eax, JSObject::kPropertiesOffset));
@@ -3013,14 +3013,8 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
   __ bind(&done);
 
-  // Set the bit in the map to indicate that there is no local valueOf field.
-  __ or_(FieldOperand(ebx, Map::kBitField2Offset),
-         Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
-
   // Reload map as register ebx was used as temporary above.
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-
-  __ bind(&skip_lookup);
 
   // If a valueOf property is not found on the object check that its
   // prototype is the un-modified String prototype. If not result is false.
@@ -3033,9 +3027,10 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ cmp(ecx,
          ContextOperand(edx,
                         Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(equal, if_true, if_false, fall_through);
+  __ j(not_equal, if_false);
+  __ jmp(if_true);
 
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   context()->Plug(if_true, if_false);
 }
 

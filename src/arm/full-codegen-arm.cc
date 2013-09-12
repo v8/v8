@@ -3007,7 +3007,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
   VisitForAccumulatorValue(args->at(0));
 
-  Label materialize_true, materialize_false, skip_lookup;
+  Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
   Label* fall_through = NULL;
@@ -3019,7 +3019,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(ip, FieldMemOperand(r1, Map::kBitField2Offset));
   __ tst(ip, Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
-  __ b(ne, &skip_lookup);
+  __ b(ne, if_true);
 
   // Check for fast case object. Generate false result for slow case object.
   __ ldr(r2, FieldMemOperand(r0, JSObject::kPropertiesOffset));
@@ -3065,14 +3065,6 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ b(ne, &loop);
 
   __ bind(&done);
-
-  // Set the bit in the map to indicate that there is no local valueOf field.
-  __ ldrb(r2, FieldMemOperand(r1, Map::kBitField2Offset));
-  __ orr(r2, r2, Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
-  __ strb(r2, FieldMemOperand(r1, Map::kBitField2Offset));
-
-  __ bind(&skip_lookup);
-
   // If a valueOf property is not found on the object check that its
   // prototype is the un-modified String prototype. If not result is false.
   __ ldr(r2, FieldMemOperand(r1, Map::kPrototypeOffset));
@@ -3082,9 +3074,11 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ ldr(r3, FieldMemOperand(r3, GlobalObject::kNativeContextOffset));
   __ ldr(r3, ContextOperand(r3, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
   __ cmp(r2, r3);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
+  __ b(ne, if_false);
 
+  __ jmp(if_true);
+
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   context()->Plug(if_true, if_false);
 }
 
