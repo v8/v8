@@ -2407,11 +2407,11 @@ class PropertyCallbackInfo {
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
   static const int kThisIndex = 0;
-  static const int kHolderIndex = -1;
-  static const int kDataIndex = -2;
-  static const int kReturnValueIndex = -3;
-  static const int kReturnValueDefaultValueIndex = -4;
-  static const int kIsolateIndex = -5;
+  static const int kDataIndex = -1;
+  static const int kReturnValueIndex = -2;
+  static const int kReturnValueDefaultValueIndex = -3;
+  static const int kIsolateIndex = -4;
+  static const int kHolderIndex = -5;
 
   V8_INLINE PropertyCallbackInfo(internal::Object** args) : args_(args) {}
   internal::Object** args_;

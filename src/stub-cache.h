@@ -408,6 +408,16 @@ class StubCache {
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
 
+  // These constants describe the structure of the interceptor arguments on the
+  // stack. The arguments are pushed by the (platform-specific)
+  // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and
+  // LoadWithInterceptor.
+  static const int kInterceptorArgsNameIndex = 0;
+  static const int kInterceptorArgsInfoIndex = 1;
+  static const int kInterceptorArgsThisIndex = 2;
+  static const int kInterceptorArgsHolderIndex = 3;
+  static const int kInterceptorArgsLength = 4;
+
  private:
   explicit StubCache(Isolate* isolate);
 
