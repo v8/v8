@@ -5308,7 +5308,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
-  Label load_smi, done;
+  Label convert, load_smi, done;
 
   if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
@@ -5317,26 +5317,15 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     // Heap number map check.
     __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
            factory()->heap_number_map());
-    if (!can_convert_undefined_to_nan) {
-      DeoptimizeIf(not_equal, env);
+    if (can_convert_undefined_to_nan) {
+      __ j(not_equal, &convert, Label::kNear);
     } else {
-      Label heap_number, convert;
-      __ j(equal, &heap_number, Label::kNear);
-
-      // Convert undefined (and hole) to NaN.
-      __ cmp(input_reg, factory()->undefined_value());
       DeoptimizeIf(not_equal, env);
-
-      __ bind(&convert);
-      ExternalReference nan =
-          ExternalReference::address_of_canonical_non_hole_nan();
-      __ movdbl(result_reg, Operand::StaticVariable(nan));
-      __ jmp(&done, Label::kNear);
-
-      __ bind(&heap_number);
     }
+
     // Heap number to XMM conversion.
     __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+
     if (deoptimize_on_minus_zero) {
       XMMRegister xmm_scratch = xmm0;
       __ xorps(xmm_scratch, xmm_scratch);
@@ -5347,6 +5336,19 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(not_zero, env);
     }
     __ jmp(&done, Label::kNear);
+
+    if (can_convert_undefined_to_nan) {
+      __ bind(&convert);
+
+      // Convert undefined (and hole) to NaN.
+      __ cmp(input_reg, factory()->undefined_value());
+      DeoptimizeIf(not_equal, env);
+
+      ExternalReference nan =
+          ExternalReference::address_of_canonical_non_hole_nan();
+      __ movdbl(result_reg, Operand::StaticVariable(nan));
+      __ jmp(&done, Label::kNear);
+    }
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }

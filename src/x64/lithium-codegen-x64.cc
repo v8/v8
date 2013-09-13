@@ -4623,7 +4623,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
-  Label load_smi, done;
+  Label convert, load_smi, done;
 
   if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
@@ -4632,25 +4632,17 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     // Heap number map check.
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    if (!can_convert_undefined_to_nan) {
-      DeoptimizeIf(not_equal, env);
-    } else {
-      Label heap_number, convert;
-      __ j(equal, &heap_number, Label::kNear);
 
-      // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
-      __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-      DeoptimizeIf(not_equal, env);
-
-      __ bind(&convert);
-      __ xorps(result_reg, result_reg);
-      __ divsd(result_reg, result_reg);
-      __ jmp(&done, Label::kNear);
-
-      __ bind(&heap_number);
-    }
-    // Heap number to XMM conversion.
+    // On x64 it is safe to load at heap number offset before evaluating the map
+    // check, since all heap objects are at least two words long.
     __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+
+    if (can_convert_undefined_to_nan) {
+      __ j(not_equal, &convert);
+    } else {
+      DeoptimizeIf(not_equal, env);
+    }
+
     if (deoptimize_on_minus_zero) {
       XMMRegister xmm_scratch = xmm0;
       __ xorps(xmm_scratch, xmm_scratch);
@@ -4661,6 +4653,18 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(not_zero, env);
     }
     __ jmp(&done, Label::kNear);
+
+    if (can_convert_undefined_to_nan) {
+      __ bind(&convert);
+
+      // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
+      __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+      DeoptimizeIf(not_equal, env);
+
+      __ xorps(result_reg, result_reg);
+      __ divsd(result_reg, result_reg);
+      __ jmp(&done, Label::kNear);
+    }
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
