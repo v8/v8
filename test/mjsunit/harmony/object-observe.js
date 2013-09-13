@@ -110,14 +110,16 @@ Object.defineProperty(changeRecordWithAccessor, 'name', {
 
 
 // Object.observe
-assertThrows(function() { Object.observe("non-object", observer.callback); }, TypeError);
+assertThrows(function() { Object.observe("non-object", observer.callback); },
+             TypeError);
 assertThrows(function() { Object.observe(obj, nonFunction); }, TypeError);
 assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
-assertThrows(function() { Object.observe(obj, function() {}, 1); }, TypeError);
-assertThrows(function() { Object.observe(obj, function() {}, [undefined]); }, TypeError);
-assertThrows(function() { Object.observe(obj, function() {}, [1]); }, TypeError);
-assertThrows(function() { Object.observe(obj, function() {}, ['foo', null]); }, TypeError);
-assertEquals(obj, Object.observe(obj, observer.callback, ['foo', 'bar', 'baz']));
+assertEquals(obj, Object.observe(obj, observer.callback, [1]));
+assertEquals(obj, Object.observe(obj, observer.callback, [true]));
+assertEquals(obj, Object.observe(obj, observer.callback, ['foo', null]));
+assertEquals(obj, Object.observe(obj, observer.callback, [undefined]));
+assertEquals(obj, Object.observe(obj, observer.callback,
+             ['foo', 'bar', 'baz']));
 assertEquals(obj, Object.observe(obj, observer.callback, []));
 assertEquals(obj, Object.observe(obj, observer.callback, undefined));
 assertEquals(obj, Object.observe(obj, observer.callback));
@@ -202,6 +204,25 @@ observer.assertCallbackRecords([
   { object: obj, name: 'bar', type: 'deleted', expando2: 'str' }
 ]);
 
+// Non-string accept values are coerced to strings
+reset();
+Object.observe(obj, observer.callback, [true, 1, null, undefined]);
+notifier = Object.getNotifier(obj);
+notifier.notify({ type: 'true' });
+notifier.notify({ type: 'false' });
+notifier.notify({ type: '1' });
+notifier.notify({ type: '-1' });
+notifier.notify({ type: 'null' });
+notifier.notify({ type: 'nill' });
+notifier.notify({ type: 'undefined' });
+notifier.notify({ type: 'defined' });
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'true' },
+  { object: obj, type: '1' },
+  { object: obj, type: 'null' },
+  { object: obj, type: 'undefined' }
+]);
 
 // No delivery takes place if no records are pending
 reset();
@@ -307,7 +328,7 @@ observer.assertCallbackRecords([
 
 // Accept
 reset();
-Object.observe(obj, observer.callback, []);
+Object.observe(obj, observer.callback, ['somethingElse']);
 Object.getNotifier(obj).notify({
   type: 'new'
 });
