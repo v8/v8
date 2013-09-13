@@ -5135,9 +5135,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     CHECK_ALIVE(VisitForValue(prop->obj()));
     HValue* object = Top();
     HValue* key = NULL;
-    if ((!prop->IsStringLength() &&
-         !prop->IsFunctionPrototype() &&
-         !prop->key()->IsPropertyName()) ||
+    if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
         prop->IsStringAccess()) {
       CHECK_ALIVE(VisitForValue(prop->key()));
       key = Top();
@@ -5827,17 +5825,20 @@ void HOptimizedGraphBuilder::PushLoad(Property* expr,
 }
 
 
+static bool AreStringTypes(SmallMapList* types) {
+  if (types == NULL || types->length() == 0) return false;
+  for (int i = 0; i < types->length(); i++) {
+    if (types->at(i)->instance_type() >= FIRST_NONSTRING_TYPE) return false;
+  }
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::BuildLoad(Property* expr,
                                        int position,
                                        BailoutId ast_id) {
   HInstruction* instr = NULL;
-  if (expr->IsStringLength()) {
-    HValue* string = Pop();
-    BuildCheckHeapObject(string);
-    HInstruction* checkstring =
-        AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
-    instr = BuildLoadStringLength(string, checkstring);
-  } else if (expr->IsStringAccess()) {
+  if (expr->IsStringAccess()) {
     HValue* index = Pop();
     HValue* string = Pop();
     HValue* context = environment()->context();
@@ -5873,6 +5874,12 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
       } else {
         instr = BuildLoadNamedMonomorphic(Pop(), name, map);
       }
+    } else if (AreStringTypes(types) &&
+               name->Equals(isolate()->heap()->length_string())) {
+      BuildCheckHeapObject(Pop());
+      HValue* checked_object =
+          AddInstruction(HCheckInstanceType::NewIsString(object, zone()));
+      instr = BuildLoadStringLength(object, checked_object);
     } else if (types != NULL && types->length() > 1) {
       return HandlePolymorphicLoadNamedField(
           position, ast_id, Pop(), types, name);
@@ -5913,9 +5920,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   if (TryArgumentsAccess(expr)) return;
 
   CHECK_ALIVE(VisitForValue(expr->obj()));
-  if ((!expr->IsStringLength() &&
-       !expr->IsFunctionPrototype() &&
-       !expr->key()->IsPropertyName()) ||
+  if ((!expr->IsFunctionPrototype() && !expr->key()->IsPropertyName()) ||
       expr->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(expr->key()));
   }
@@ -7566,9 +7571,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   HValue* object = Top();
 
   HValue* key = NULL;
-  if ((!prop->IsStringLength() &&
-       !prop->IsFunctionPrototype() &&
-       !prop->key()->IsPropertyName()) ||
+  if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
       prop->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(prop->key()));
     key = Top();

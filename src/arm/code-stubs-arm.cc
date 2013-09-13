@@ -3375,8 +3375,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     receiver = r0;
   }
 
-  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss,
-                                         support_wrapper_);
+  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss);
 
   __ bind(&miss);
   StubCompiler::TailCallBuiltin(

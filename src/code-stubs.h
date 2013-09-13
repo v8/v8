@@ -830,19 +830,12 @@ class FunctionPrototypeStub: public ICStub {
 
 class StringLengthStub: public ICStub {
  public:
-  StringLengthStub(Code::Kind kind, bool support_wrapper)
-      : ICStub(kind), support_wrapper_(support_wrapper) { }
+  explicit StringLengthStub(Code::Kind kind) : ICStub(kind) { }
   virtual void Generate(MacroAssembler* masm);
 
  private:
   STATIC_ASSERT(KindBits::kSize == 4);
-  class WrapperModeBits: public BitField<bool, 4, 1> {};
-  virtual CodeStub::Major MajorKey() { return StringLength; }
-  virtual int MinorKey() {
-    return KindBits::encode(kind()) | WrapperModeBits::encode(support_wrapper_);
-  }
-
-  bool support_wrapper_;
+    virtual CodeStub::Major MajorKey() { return StringLength; }
 };
 
 

@@ -879,16 +879,13 @@ MaybeObject* LoadIC::Load(State state,
     // string wrapper objects.  The length property of string wrapper
     // objects is read-only and therefore always returns the length of
     // the underlying string value.  See ECMA-262 15.5.5.1.
-    if ((object->IsString() || object->IsStringWrapper()) &&
+    if (object->IsStringWrapper() &&
         name->Equals(isolate()->heap()->length_string())) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        StringLengthStub string_length_stub(kind(), !object->IsString());
-        stub = string_length_stub.GetCode(isolate());
-      } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
-        StringLengthStub string_length_stub(kind(), true);
+      } else if (state == PREMONOMORPHIC || state == MONOMORPHIC) {
+        StringLengthStub string_length_stub(kind());
         stub = string_length_stub.GetCode(isolate());
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
@@ -897,14 +894,12 @@ MaybeObject* LoadIC::Load(State state,
       if (!stub.is_null()) {
         set_target(*stub);
 #ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /stringwrapper]\n");
 #endif
       }
       // Get the string if we have a string wrapper object.
-      Handle<Object> string = object->IsJSValue()
-          ? Handle<Object>(Handle<JSValue>::cast(object)->value(), isolate())
-          : object;
-      return Smi::FromInt(String::cast(*string)->length());
+      String* string = String::cast(JSValue::cast(*object)->value());
+      return Smi::FromInt(string->length());
     }
 
     // Use specialized code for getting prototype of functions.
@@ -1265,6 +1260,8 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           State state,
                           Handle<Object> object,
                           Handle<String> name) {
+  // TODO(verwaest): It would be nice to support loading fields from smis as
+  // well. For now just fail to update the cache.
   if (!object->IsHeapObject()) return;
 
   Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
@@ -1278,6 +1275,16 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   } else if (!lookup->IsCacheable()) {
     // Bail out if the result is not cacheable.
     code = slow_stub();
+  } else if (object->IsString() &&
+             name->Equals(isolate()->heap()->length_string())) {
+    int length_index = String::kLengthOffset / kPointerSize;
+    if (target()->is_load_stub()) {
+      LoadFieldStub stub(true, length_index, Representation::Tagged());
+      code = stub.GetCode(isolate());
+    } else {
+      KeyedLoadFieldStub stub(true, length_index, Representation::Tagged());
+      code = stub.GetCode(isolate());
+    }
   } else if (!object->IsJSObject()) {
     // TODO(jkummerow): It would be nice to support non-JSObjects in
     // ComputeLoadHandler, then we wouldn't need to go generic here.
@@ -1362,9 +1369,9 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, function);
       } else if (receiver->IsJSArray() &&
-          name->Equals(isolate()->heap()->length_string())) {
-        PropertyIndex lengthIndex =
-          PropertyIndex::NewHeaderIndex(JSArray::kLengthOffset / kPointerSize);
+                 name->Equals(isolate()->heap()->length_string())) {
+        PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
+            JSArray::kLengthOffset / kPointerSize);
         return isolate()->stub_cache()->ComputeLoadField(
             name, receiver, holder, lengthIndex, Representation::Tagged());
       }
