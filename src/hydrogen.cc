@@ -1831,6 +1831,19 @@ HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
   Handle<Map> alloc_memento_map(
       isolate()->heap()->allocation_memento_map());
   AddStoreMapConstant(alloc_memento, alloc_memento_map);
+
+  {
+    // TODO(mvstanton): the code below is turned on to diagnose chromium bug
+    // 284577.
+    Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_map());
+    IfBuilder builder(this);
+    builder.If<HCompareMap>(alloc_site, alloc_site_map);
+    builder.Then();
+    builder.Else();
+    Add<HDebugBreak>();
+    builder.End();
+  }
+
   HObjectAccess access = HObjectAccess::ForAllocationMementoSite();
   Add<HStoreNamedField>(alloc_memento, access, alloc_site);
   return alloc_memento;
