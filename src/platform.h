@@ -51,6 +51,13 @@
 #include "utils.h"
 #include "v8globals.h"
 
+// This is lined up with blink's method of crashing.
+#if defined(__GNUC__)
+#define V8_IMMEDIATE_CRASH() __builtin_trap()
+#else
+#define V8_IMMEDIATE_CRASH() ((void(*)())0)()
+#endif
+
 #ifdef __sun
 # ifndef signbit
 namespace std {
