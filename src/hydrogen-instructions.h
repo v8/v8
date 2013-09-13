@@ -1303,6 +1303,8 @@ class HDeoptimize V8_FINAL : public HTemplateInstruction<0> {
 // Inserts an int3/stop break instruction for debugging purposes.
 class HDebugBreak V8_FINAL : public HTemplateInstruction<0> {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P0(HDebugBreak);
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
