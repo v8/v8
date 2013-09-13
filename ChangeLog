@@ -1,3 +1,14 @@
+2013-09-13: Version 3.21.15
+
+        Non-JSObject heap objects are now handled using slow-path IC stub
+        guarded by the map.
+        (Chromium issue 280632)
+
+        i18n Javascript code added to the snapshot.
+        (V8 issue 2745)
+
+        Performance and stability improvements on all platforms.
+
 2013-09-12: Version 3.21.14
 
         Added access check for observed objects.
