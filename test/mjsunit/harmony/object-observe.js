@@ -1254,6 +1254,75 @@ observer.assertCallbackRecords([
   { object: array, name: '0', type: 'updated', oldValue: 2 },
 ]);
 
+// Splice emitted after Array mutation methods
+function MockArray(initial, observer) {
+  for (var i = 0; i < initial.length; i++)
+    this[i] = initial[i];
+
+  this.length_ = initial.length;
+  this.observer = observer;
+}
+MockArray.prototype = {
+  set length(length) {
+    Object.getNotifier(this).notify({ type: 'lengthChange' });
+    this.length_ = length;
+    Object.observe(this, this.observer.callback, ['splice']);
+  },
+  get length() {
+    return this.length_;
+  }
+}
+
+reset();
+var array = new MockArray([], observer);
+Object.observe(array, observer.callback, ['lengthChange']);
+Array.prototype.push.call(array, 1);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, type: 'lengthChange' },
+  { object: array, type: 'splice', index: 0, removed: [], addedCount: 1 },
+]);
+
+reset();
+var array = new MockArray([1], observer);
+Object.observe(array, observer.callback, ['lengthChange']);
+Array.prototype.pop.call(array);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, type: 'lengthChange' },
+  { object: array, type: 'splice', index: 0, removed: [1], addedCount: 0 },
+]);
+
+reset();
+var array = new MockArray([1], observer);
+Object.observe(array, observer.callback, ['lengthChange']);
+Array.prototype.shift.call(array);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, type: 'lengthChange' },
+  { object: array, type: 'splice', index: 0, removed: [1], addedCount: 0 },
+]);
+
+reset();
+var array = new MockArray([], observer);
+Object.observe(array, observer.callback, ['lengthChange']);
+Array.prototype.unshift.call(array, 1);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, type: 'lengthChange' },
+  { object: array, type: 'splice', index: 0, removed: [], addedCount: 1 },
+]);
+
+reset();
+var array = new MockArray([0, 1, 2], observer);
+Object.observe(array, observer.callback, ['lengthChange']);
+Array.prototype.splice.call(array, 1, 1);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, type: 'lengthChange' },
+  { object: array, type: 'splice', index: 1, removed: [1], addedCount: 0 },
+]);
+
 //
 // === PLAIN OBJECTS ===
 //
