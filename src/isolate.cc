@@ -1087,7 +1087,7 @@ Failure* Isolate::StackOverflow() {
   Handle<String> key = factory()->stack_overflow_string();
   Handle<JSObject> boilerplate =
       Handle<JSObject>::cast(GetProperty(this, js_builtins_object(), key));
-  Handle<JSObject> exception = Copy(boilerplate);
+  Handle<JSObject> exception = JSObject::Copy(boilerplate);
   DoThrow(*exception, NULL);
 
   // Get stack trace limit.

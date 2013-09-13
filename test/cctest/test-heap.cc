@@ -814,7 +814,7 @@ TEST(JSObjectCopy) {
   obj->SetElement(1, *second, NONE, kNonStrictMode)->ToObjectChecked();
 
   // Make the clone.
-  Handle<JSObject> clone = Copy(obj);
+  Handle<JSObject> clone = JSObject::Copy(obj);
   CHECK(!clone.is_identical_to(obj));
 
   CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 0));

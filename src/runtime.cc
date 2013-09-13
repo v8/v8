@@ -499,7 +499,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
-  return JSObject::cast(*boilerplate)->DeepCopy(isolate);
+
+  Handle<Object> copy = JSObject::DeepCopy(Handle<JSObject>::cast(boilerplate));
+  RETURN_IF_EMPTY_HANDLE(isolate, copy);
+  return *copy;
 }
 
 
@@ -564,8 +567,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
       literals_index, elements);
   RETURN_IF_EMPTY_HANDLE(isolate, site);
 
-  JSObject* boilerplate = JSObject::cast(site->transition_info());
-  return boilerplate->DeepCopy(isolate);
+  Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
+  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate);
+  RETURN_IF_EMPTY_HANDLE(isolate, copy);
+  return *copy;
 }
 
 

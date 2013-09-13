@@ -5635,71 +5635,78 @@ MUST_USE_RESULT MaybeObject* JSObject::SetObserved(Isolate* isolate) {
 }
 
 
-MUST_USE_RESULT MaybeObject* JSObject::DeepCopy(Isolate* isolate) {
-  StackLimitCheck check(isolate);
-  if (check.HasOverflowed()) return isolate->StackOverflow();
-
-  if (map()->is_deprecated()) {
-    MaybeObject* maybe_failure = MigrateInstance();
-    if (maybe_failure->IsFailure()) return maybe_failure;
-  }
-
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<Object> NewStorageFor(Isolate* isolate,
+                                    Handle<Object> object,
+                                    Representation representation) {
   Heap* heap = isolate->heap();
-  Object* result;
-  { MaybeObject* maybe_result = heap->CopyJSObject(this);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  CALL_HEAP_FUNCTION(isolate,
+                     object->AllocateNewStorageFor(heap, representation),
+                     Object);
+}
+
+
+Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
+  Isolate* isolate = object->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     isolate->heap()->CopyJSObject(*object), JSObject);
+}
+
+
+Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
+  Isolate* isolate = object->GetIsolate();
+  StackLimitCheck check(isolate);
+  if (check.HasOverflowed()) {
+    isolate->StackOverflow();
+    return Handle<JSObject>::null();
   }
-  JSObject* copy = JSObject::cast(result);
+
+  if (object->map()->is_deprecated()) {
+    MigrateInstance(object);
+  }
+
+  Handle<JSObject> copy = Copy(object);
 
   // Deep copy local properties.
   if (copy->HasFastProperties()) {
-    DescriptorArray* descriptors = copy->map()->instance_descriptors();
+    Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
     int limit = copy->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < limit; i++) {
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.type() != FIELD) continue;
       int index = descriptors->GetFieldIndex(i);
-      Object* value = RawFastPropertyAt(index);
+      Handle<Object> value(object->RawFastPropertyAt(index), isolate);
       if (value->IsJSObject()) {
-        JSObject* js_object = JSObject::cast(value);
-        MaybeObject* maybe_copy = js_object->DeepCopy(isolate);
-        if (!maybe_copy->To(&value)) return maybe_copy;
+        value = DeepCopy(Handle<JSObject>::cast(value));
+        RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
       } else {
         Representation representation = details.representation();
-        MaybeObject* maybe_storage =
-            value->AllocateNewStorageFor(heap, representation);
-        if (!maybe_storage->To(&value)) return maybe_storage;
+        value = NewStorageFor(isolate, value, representation);
       }
-      copy->FastPropertyAtPut(index, value);
+      copy->FastPropertyAtPut(index, *value);
     }
   } else {
-    { MaybeObject* maybe_result =
-          heap->AllocateFixedArray(copy->NumberOfLocalProperties());
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    FixedArray* names = FixedArray::cast(result);
-    copy->GetLocalPropertyNames(names, 0);
+    Handle<FixedArray> names =
+        isolate->factory()->NewFixedArray(copy->NumberOfLocalProperties());
+    copy->GetLocalPropertyNames(*names, 0);
     for (int i = 0; i < names->length(); i++) {
       ASSERT(names->get(i)->IsString());
-      String* key_string = String::cast(names->get(i));
+      Handle<String> key_string(String::cast(names->get(i)));
       PropertyAttributes attributes =
-          copy->GetLocalPropertyAttribute(key_string);
+          copy->GetLocalPropertyAttribute(*key_string);
       // Only deep copy fields from the object literal expression.
       // In particular, don't try to copy the length attribute of
       // an array.
       if (attributes != NONE) continue;
-      Object* value =
-          copy->GetProperty(key_string, &attributes)->ToObjectUnchecked();
+      Handle<Object> value(
+          copy->GetProperty(*key_string, &attributes)->ToObjectUnchecked(),
+          isolate);
       if (value->IsJSObject()) {
-        JSObject* js_object = JSObject::cast(value);
-        { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        { MaybeObject* maybe_result =
-              // Creating object copy for literals. No strict mode needed.
-              copy->SetProperty(key_string, result, NONE, kNonStrictMode);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
+        Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+        RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+        // Creating object copy for literals. No strict mode needed.
+        CHECK_NOT_EMPTY_HANDLE(isolate, SetProperty(
+            copy, key_string, result, NONE, kNonStrictMode));
       }
     }
   }
@@ -5712,8 +5719,8 @@ MUST_USE_RESULT MaybeObject* JSObject::DeepCopy(Isolate* isolate) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS: {
-      FixedArray* elements = FixedArray::cast(copy->elements());
-      if (elements->map() == heap->fixed_cow_array_map()) {
+      Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
+      if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
         isolate->counters()->cow_arrays_created_runtime()->Increment();
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
@@ -5722,34 +5729,31 @@ MUST_USE_RESULT MaybeObject* JSObject::DeepCopy(Isolate* isolate) {
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
-          Object* value = elements->get(i);
+          Handle<Object> value(elements->get(i), isolate);
           ASSERT(value->IsSmi() ||
                  value->IsTheHole() ||
                  (IsFastObjectElementsKind(copy->GetElementsKind())));
           if (value->IsJSObject()) {
-            JSObject* js_object = JSObject::cast(value);
-            { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
-              if (!maybe_result->ToObject(&result)) return maybe_result;
-            }
-            elements->set(i, result);
+            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+            RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+            elements->set(i, *result);
           }
         }
       }
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      SeededNumberDictionary* element_dictionary = copy->element_dictionary();
+      Handle<SeededNumberDictionary> element_dictionary(
+          copy->element_dictionary());
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object* k = element_dictionary->KeyAt(i);
         if (element_dictionary->IsKey(k)) {
-          Object* value = element_dictionary->ValueAt(i);
+          Handle<Object> value(element_dictionary->ValueAt(i), isolate);
           if (value->IsJSObject()) {
-            JSObject* js_object = JSObject::cast(value);
-            { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
-              if (!maybe_result->ToObject(&result)) return maybe_result;
-            }
-            element_dictionary->ValueAtPut(i, result);
+            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+            RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+            element_dictionary->ValueAtPut(i, *result);
           }
         }
       }

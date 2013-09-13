@@ -2630,8 +2630,9 @@ class JSObject: public JSReceiver {
   // Called the first time an object is observed with ES7 Object.observe.
   MUST_USE_RESULT MaybeObject* SetObserved(Isolate* isolate);
 
-  // Copy object
-  MUST_USE_RESULT MaybeObject* DeepCopy(Isolate* isolate);
+  // Copy object.
+  static Handle<JSObject> Copy(Handle<JSObject> object);
+  static Handle<JSObject> DeepCopy(Handle<JSObject> object);
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);

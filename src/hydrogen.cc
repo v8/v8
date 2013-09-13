@@ -4172,8 +4172,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       IsFastLiteral(Handle<JSObject>::cast(boilerplate),
                     kMaxFastLiteralDepth,
                     &max_properties)) {
-    Handle<JSObject> boilerplate_object =
-        Handle<JSObject>::cast(boilerplate);
+    Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
 
     literal = BuildFastLiteral(boilerplate_object,
                                Handle<Object>::null(),
