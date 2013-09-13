@@ -1724,9 +1724,13 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->global_object()->representation().IsTagged());
-  LOperand* global_object = UseFixed(instr->global_object(), r0);
-  LRandom* result = new(zone()) LRandom(global_object);
-  return MarkAsCall(DefineFixedDouble(result, d7), instr);
+  LOperand* global_object = UseTempRegister(instr->global_object());
+  LOperand* scratch = TempRegister();
+  LOperand* scratch2 = TempRegister();
+  LOperand* scratch3 = TempRegister();
+  LRandom* result = new(zone()) LRandom(
+      global_object, scratch, scratch2, scratch3);
+  return DefineFixedDouble(result, d7);
 }
 
 

@@ -73,6 +73,7 @@ class LCodeGen;
   V(ClampTToUint8)                              \
   V(ClampTToUint8NoSSE2)                        \
   V(ClassOfTestAndBranch)                       \
+  V(ClobberDoubles)                             \
   V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
   V(CmpHoleAndBranch)                           \
@@ -406,19 +407,32 @@ class LInstructionGap V8_FINAL : public LGap {
 };
 
 
+class LClobberDoubles V8_FINAL : public LTemplateInstruction<0, 0, 0> {
+ public:
+  LClobberDoubles() { ASSERT(!CpuFeatures::IsSafeForSnapshot(SSE2)); }
+
+  virtual bool ClobbersDoubleRegisters() const { return true; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClobberDoubles, "clobber-d")
+};
+
+
 class LGoto V8_FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
-  explicit LGoto(int block_id) : block_id_(block_id) { }
+  explicit LGoto(HBasicBlock* block) : block_(block) { }
 
   virtual bool HasInterestingComment(LCodeGen* gen) const V8_OVERRIDE;
   DECLARE_CONCRETE_INSTRUCTION(Goto, "goto")
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
   virtual bool IsControl() const V8_OVERRIDE { return true; }
 
-  int block_id() const { return block_id_; }
+  int block_id() const { return block_->block_id(); }
+  virtual bool ClobbersDoubleRegisters() const { return false; }
+
+  bool jumps_to_join() const { return block_->predecessors()->length() > 1; }
 
  private:
-  int block_id_;
+  HBasicBlock* block_;
 };
 
 
@@ -1448,13 +1462,22 @@ class LPower V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LRandom V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LRandom V8_FINAL : public LTemplateInstruction<1, 1, 3> {
  public:
-  explicit LRandom(LOperand* global_object) {
+  LRandom(LOperand* global_object,
+          LOperand* scratch,
+          LOperand* scratch2,
+          LOperand* scratch3) {
     inputs_[0] = global_object;
+    temps_[0] = scratch;
+    temps_[1] = scratch2;
+    temps_[2] = scratch3;
   }
 
-  LOperand* global_object() { return inputs_[0]; }
+  LOperand* global_object() const { return inputs_[0]; }
+  LOperand* scratch() const { return temps_[0]; }
+  LOperand* scratch2() const { return temps_[1]; }
+  LOperand* scratch3() const { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Random, "random")
   DECLARE_HYDROGEN_ACCESSOR(Random)

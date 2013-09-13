@@ -2798,6 +2798,8 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
 void MacroAssembler::VerifyX87StackDepth(uint32_t depth) {
   // Make sure the floating point stack is either empty or has depth items.
   ASSERT(depth <= 7);
+  // This is very expensive.
+  ASSERT(FLAG_debug_code && FLAG_enable_slow_asserts);
 
   // The top-of-stack (tos) is 7 if there is one item pushed.
   int tos = (8 - depth) % 8;

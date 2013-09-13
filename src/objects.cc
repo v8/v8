@@ -4479,18 +4479,19 @@ void NormalizedMapCache::Clear() {
 }
 
 
-void JSObject::UpdateMapCodeCache(Handle<JSObject> object,
-                                  Handle<Name> name,
-                                  Handle<Code> code) {
+void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
+                                    Handle<Name> name,
+                                    Handle<Code> code) {
   Handle<Map> map(object->map());
   if (map->is_shared()) {
+    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     // Fast case maps are never marked as shared.
-    ASSERT(!object->HasFastProperties());
+    ASSERT(!receiver->HasFastProperties());
     // Replace the map with an identical copy that can be safely modified.
     map = Map::CopyNormalized(map, KEEP_INOBJECT_PROPERTIES,
                               UNIQUE_NORMALIZED_MAP);
-    object->GetIsolate()->counters()->normalized_maps()->Increment();
-    object->set_map(*map);
+    receiver->GetIsolate()->counters()->normalized_maps()->Increment();
+    receiver->set_map(*map);
   }
   Map::UpdateCodeCache(map, name, code);
 }
@@ -9321,18 +9322,6 @@ void JSFunction::MarkForConcurrentRecompilation() {
 }
 
 
-void JSFunction::MarkForInstallingRecompiledCode() {
-  // The debugger could have switched the builtin to lazy compile.
-  // In that case, simply carry on.  It will be dealt with later.
-  ASSERT(!IsOptimized());
-  ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_concurrent_recompilation);
-  set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kInstallRecompiledCode));
-  // No write barrier required, since the builtin is part of the root set.
-}
-
-
 void JSFunction::MarkInRecompileQueue() {
   // We can only arrive here via the concurrent-recompilation builtin.  If
   // break points were set, the code would point to the lazy-compile builtin.
@@ -13802,6 +13791,74 @@ MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
   new_table->SetNumberOfElements(NumberOfElements());
   new_table->SetNumberOfDeletedElements(0);
   return new_table;
+}
+
+
+template<typename Shape, typename Key>
+uint32_t HashTable<Shape, Key>::EntryForProbe(Key key,
+                                              Object* k,
+                                              int probe,
+                                              uint32_t expected) {
+  uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
+  uint32_t capacity = Capacity();
+  uint32_t entry = FirstProbe(hash, capacity);
+  for (int i = 1; i < probe; i++) {
+    if (entry == expected) return expected;
+    entry = NextProbe(entry, i, capacity);
+  }
+  return entry;
+}
+
+
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Swap(uint32_t entry1,
+                                 uint32_t entry2,
+                                 WriteBarrierMode mode) {
+  int index1 = EntryToIndex(entry1);
+  int index2 = EntryToIndex(entry2);
+  Object* temp[Shape::kEntrySize];
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    temp[j] = get(index1 + j);
+  }
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    set(index1 + j, get(index2 + j), mode);
+  }
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    set(index2 + j, temp[j], mode);
+  }
+}
+
+
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Rehash(Key key) {
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
+  uint32_t capacity = Capacity();
+  bool done = false;
+  for (int probe = 1; !done; probe++) {
+    // All elements at entries given by one of the first _probe_ probes
+    // are placed correctly. Other elements might need to be moved.
+    done = true;
+    for (uint32_t current = 0; current < capacity; current++) {
+      Object* current_key = get(EntryToIndex(current));
+      if (IsKey(current_key)) {
+        uint32_t target = EntryForProbe(key, current_key, probe, current);
+        if (current == target) continue;
+        Object* target_key = get(EntryToIndex(target));
+        if (!IsKey(target_key) ||
+            EntryForProbe(key, target_key, probe, target) != target) {
+          // Put the current element into the correct position.
+          Swap(current, target, mode);
+          // The other element will be processed on the next iteration.
+          current--;
+        } else {
+          // The place for the current element is occupied. Leave the element
+          // for the next probe.
+          done = false;
+        }
+      }
+    }
+  }
 }
 
 

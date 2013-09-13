@@ -42,7 +42,8 @@ enum InterruptFlag {
   PREEMPT = 1 << 3,
   TERMINATE = 1 << 4,
   GC_REQUEST = 1 << 5,
-  FULL_DEOPT = 1 << 6
+  FULL_DEOPT = 1 << 6,
+  INSTALL_CODE = 1 << 7
 };
 
 
@@ -213,6 +214,8 @@ class StackGuard {
 #endif
   bool IsGCRequest();
   void RequestGC();
+  bool IsInstallCodeRequest();
+  void RequestInstallCode();
   bool IsFullDeopt();
   void FullDeopt();
   void Continue(InterruptFlag after_what);

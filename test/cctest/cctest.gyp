@@ -106,6 +106,7 @@
         'test-time.cc',
         'test-types.cc',
         'test-unbound-queue.cc',
+        'test-unique.cc',
         'test-utils.cc',
         'test-version.cc',
         'test-weakmaps.cc',

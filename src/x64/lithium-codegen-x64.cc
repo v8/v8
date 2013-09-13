@@ -3667,90 +3667,64 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  class DeferredDoRandom V8_FINAL : public LDeferredCode {
-   public:
-    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() V8_OVERRIDE { codegen()->DoDeferredRandom(instr_); }
-    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
-   private:
-    LRandom* instr_;
-  };
-
-  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
-
-  // Having marked this instruction as a call we can use any
-  // registers.
-  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-
-  // Choose the right register for the first argument depending on
-  // calling convention.
-#ifdef _WIN64
-  ASSERT(ToRegister(instr->global_object()).is(rcx));
-  Register global_object = rcx;
-#else
-  ASSERT(ToRegister(instr->global_object()).is(rdi));
-  Register global_object = rdi;
-#endif
-
+  // Assert that register size is twice the size of each seed.
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == 2 * kSeedSize);
 
-  __ movq(global_object,
-          FieldOperand(global_object, GlobalObject::kNativeContextOffset));
+  // Load native context
+  Register global_object = ToRegister(instr->global_object());
+  Register native_context = global_object;
+  __ movq(native_context, FieldOperand(
+          global_object, GlobalObject::kNativeContextOffset));
+
+  // Load state (FixedArray of the native context's random seeds)
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  __ movq(rbx, FieldOperand(global_object, kRandomSeedOffset));
-  // rbx: FixedArray of the native context's random seeds
+  Register state = native_context;
+  __ movq(state, FieldOperand(native_context, kRandomSeedOffset));
 
   // Load state[0].
-  __ movl(rax, FieldOperand(rbx, ByteArray::kHeaderSize));
-  // If state[0] == 0, call runtime to initialize seeds.
-  __ testl(rax, rax);
-  __ j(zero, deferred->entry());
+  Register state0 = ToRegister(instr->scratch());
+  __ movl(state0, FieldOperand(state, ByteArray::kHeaderSize));
   // Load state[1].
-  __ movl(rcx, FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize));
+  Register state1 = ToRegister(instr->scratch2());
+  __ movl(state1, FieldOperand(state, ByteArray::kHeaderSize + kSeedSize));
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  // Only operate on the lower 32 bit of rax.
-  __ movzxwl(rdx, rax);
-  __ imull(rdx, rdx, Immediate(18273));
-  __ shrl(rax, Immediate(16));
-  __ addl(rax, rdx);
+  Register scratch3 = ToRegister(instr->scratch3());
+  __ movzxwl(scratch3, state0);
+  __ imull(scratch3, scratch3, Immediate(18273));
+  __ shrl(state0, Immediate(16));
+  __ addl(state0, scratch3);
   // Save state[0].
-  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize), rax);
+  __ movl(FieldOperand(state, ByteArray::kHeaderSize), state0);
 
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ movzxwl(rdx, rcx);
-  __ imull(rdx, rdx, Immediate(36969));
-  __ shrl(rcx, Immediate(16));
-  __ addl(rcx, rdx);
+  __ movzxwl(scratch3, state1);
+  __ imull(scratch3, scratch3, Immediate(36969));
+  __ shrl(state1, Immediate(16));
+  __ addl(state1, scratch3);
   // Save state[1].
-  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize), rcx);
+  __ movl(FieldOperand(state, ByteArray::kHeaderSize + kSeedSize), state1);
 
   // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  __ shll(rax, Immediate(14));
-  __ andl(rcx, Immediate(0x3FFFF));
-  __ addl(rax, rcx);
+  Register random = state0;
+  __ shll(random, Immediate(14));
+  __ andl(state1, Immediate(0x3FFFF));
+  __ addl(random, state1);
 
-  __ bind(deferred->exit());
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ movq(rcx, V8_INT64_C(0x4130000000000000),
+  XMMRegister result = ToDoubleRegister(instr->result());
+  // We use xmm0 as fixed scratch register here.
+  XMMRegister scratch4 = xmm0;
+  __ movq(scratch3, V8_INT64_C(0x4130000000000000),
           RelocInfo::NONE64);  // 1.0 x 2^20 as double
-  __ movq(xmm2, rcx);
-  __ movd(xmm1, rax);
-  __ xorps(xmm1, xmm2);
-  __ subsd(xmm1, xmm2);
-}
-
-
-void LCodeGen::DoDeferredRandom(LRandom* instr) {
-  __ PrepareCallCFunction(1);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  // Return value is in rax.
+  __ movq(scratch4, scratch3);
+  __ movd(result, random);
+  __ xorps(result, scratch4);
+  __ subsd(result, scratch4);
 }
 
 

@@ -66,7 +66,7 @@ class Socket V8_FINAL {
   // Set the value of the SO_REUSEADDR socket option.
   bool SetReuseAddress(bool reuse_address);
 
-  V8_INLINE(bool IsValid()) const {
+  V8_INLINE bool IsValid() const {
     return native_handle_ != kInvalidNativeHandle;
   }
 

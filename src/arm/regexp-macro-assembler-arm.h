@@ -160,9 +160,6 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  void EmitBacktrackConstantPool();
-  int GetBacktrackConstantPoolEntry();
-
 
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);

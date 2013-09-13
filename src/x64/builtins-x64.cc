@@ -73,6 +73,24 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
+static void CallRuntimePassFunction(MacroAssembler* masm,
+                                    Runtime::FunctionId function_id) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push a copy of the function onto the stack.
+  __ push(rdi);
+  // Push call kind information.
+  __ push(rcx);
+  // Function is also the parameter to the runtime call.
+  __ push(rdi);
+
+  __ CallRuntime(function_id, 1);
+  // Restore call kind information.
+  __ pop(rcx);
+  // Restore receiver.
+  __ pop(rdi);
+}
+
+
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ movq(kScratchRegister,
           FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -84,57 +102,27 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 
 
 void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+  // Checking whether the queued function is ready for install is optional,
+  // since we come across interrupts and stack checks elsewhere.  However,
+  // not checking may delay installing ready functions, and always checking
+  // would be quite expensive.  A good compromise is to first check against
+  // stack limit as a cue for an interrupt signal.
+  Label ok;
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  __ j(above_equal, &ok);
+
+  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
+  // Tail call to returned code.
+  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rax);
+
+  __ bind(&ok);
   GenerateTailCallToSharedCode(masm);
 }
 
 
-void Builtins::Generate_InstallRecompiledCode(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kInstallRecompiledCode, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore function.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
-  // Do a tail-call of the compiled function.
-  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rax);
-}
-
-
 void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kConcurrentRecompile, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore receiver.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -586,26 +574,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kLazyCompile, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore receiver.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
   // Do a tail-call of the compiled function.
   __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
   __ jmp(rax);
@@ -613,26 +582,7 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
 
 void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(rdi);
-    // Push call kind information.
-    __ push(rcx);
-
-    __ push(rdi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kLazyRecompile, 1);
-
-    // Restore call kind information.
-    __ pop(rcx);
-    // Restore function.
-    __ pop(rdi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
   // Do a tail-call of the compiled function.
   __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
   __ jmp(rax);

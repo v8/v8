@@ -736,6 +736,13 @@ class InstanceofStub: public PlatformCodeStub {
 };
 
 
+enum AllocationSiteOverrideMode {
+  DONT_OVERRIDE,
+  DISABLE_ALLOCATION_SITES,
+  LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
+};
+
+
 class ArrayConstructorStub: public PlatformCodeStub {
  public:
   enum ArgumentCountKey { ANY, NONE, ONE, MORE_THAN_ONE };
@@ -745,6 +752,9 @@ class ArrayConstructorStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
  private:
+  void GenerateDispatchToArrayStub(MacroAssembler* masm,
+                                   AllocationSiteOverrideMode mode);
+
   virtual CodeStub::Major MajorKey() { return ArrayConstructor; }
   virtual int MinorKey() { return argument_count_; }
 
@@ -1863,13 +1873,6 @@ enum ContextCheckMode {
 };
 
 
-enum AllocationSiteOverrideMode {
-  DONT_OVERRIDE,
-  DISABLE_ALLOCATION_SITES,
-  LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
-};
-
-
 class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:
   ArrayConstructorStubBase(ElementsKind kind, ContextCheckMode context_mode,
@@ -1877,7 +1880,8 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
     // It only makes sense to override local allocation site behavior
     // if there is a difference between the global allocation site policy
     // for an ElementsKind and the desired usage of the stub.
-    ASSERT(override_mode != DISABLE_ALLOCATION_SITES ||
+    ASSERT(!(FLAG_track_allocation_sites &&
+             override_mode == DISABLE_ALLOCATION_SITES) ||
            AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
         AllocationSiteOverrideModeBits::encode(override_mode) |

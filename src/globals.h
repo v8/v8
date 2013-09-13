@@ -342,9 +342,9 @@ F FUNCTION_CAST(Address addr) {
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
-// Newly written code should use V8_INLINE() and V8_NOINLINE() directly.
-#define INLINE(declarator)    V8_INLINE(declarator)
-#define NO_INLINE(declarator) V8_NOINLINE(declarator)
+// Newly written code should use V8_INLINE and V8_NOINLINE directly.
+#define INLINE(declarator)    V8_INLINE declarator
+#define NO_INLINE(declarator) V8_NOINLINE declarator
 
 
 // Newly written code should use V8_WARN_UNUSED_RESULT.

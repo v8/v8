@@ -74,6 +74,24 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
+static void CallRuntimePassFunction(MacroAssembler* masm,
+                                    Runtime::FunctionId function_id) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push a copy of the function.
+  __ push(edi);
+  // Push call kind information.
+  __ push(ecx);
+  // Function is also the parameter to the runtime call.
+  __ push(edi);
+
+  __ CallRuntime(function_id, 1);
+  // Restore call kind information.
+  __ pop(ecx);
+  // Restore receiver.
+  __ pop(edi);
+}
+
+
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kCodeOffset));
@@ -83,56 +101,29 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 
 
 void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+  // Checking whether the queued function is ready for install is optional,
+  // since we come across interrupts and stack checks elsewhere.  However,
+  // not checking may delay installing ready functions, and always checking
+  // would be quite expensive.  A good compromise is to first check against
+  // stack limit as a cue for an interrupt signal.
+  Label ok;
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit(masm->isolate());
+  __ cmp(esp, Operand::StaticVariable(stack_limit));
+  __ j(above_equal, &ok, Label::kNear);
+
+  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
+  // Tail call to returned code.
+  __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
+  __ jmp(eax);
+
+  __ bind(&ok);
   GenerateTailCallToSharedCode(masm);
 }
 
 
-void Builtins::Generate_InstallRecompiledCode(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function.
-    __ push(edi);
-    // Push call kind information.
-    __ push(ecx);
-
-    __ push(edi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kInstallRecompiledCode, 1);
-
-    // Restore call kind information.
-    __ pop(ecx);
-    // Restore receiver.
-    __ pop(edi);
-
-    // Tear down internal frame.
-  }
-
-  // Do a tail-call of the compiled function.
-  __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
-  __ jmp(eax);
-}
-
-
 void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(edi);
-    // Push call kind information.
-    __ push(ecx);
-
-    __ push(edi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kConcurrentRecompile, 1);
-
-    // Restore call kind information.
-    __ pop(ecx);
-    // Restore receiver.
-    __ pop(edi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -519,25 +510,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function.
-    __ push(edi);
-    // Push call kind information.
-    __ push(ecx);
-
-    __ push(edi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kLazyCompile, 1);
-
-    // Restore call kind information.
-    __ pop(ecx);
-    // Restore receiver.
-    __ pop(edi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
   // Do a tail-call of the compiled function.
   __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
   __ jmp(eax);
@@ -545,25 +518,7 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
 
 void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function onto the stack.
-    __ push(edi);
-    // Push call kind information.
-    __ push(ecx);
-
-    __ push(edi);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kLazyRecompile, 1);
-
-    // Restore call kind information.
-    __ pop(ecx);
-    // Restore receiver.
-    __ pop(edi);
-
-    // Tear down internal frame.
-  }
-
+  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
   // Do a tail-call of the compiled function.
   __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
   __ jmp(eax);

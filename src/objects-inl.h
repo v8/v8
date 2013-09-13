@@ -4970,12 +4970,6 @@ bool JSFunction::IsMarkedForLazyRecompilation() {
 }
 
 
-bool JSFunction::IsMarkedForInstallingRecompiledCode() {
-  return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kInstallRecompiledCode);
-}
-
-
 bool JSFunction::IsMarkedForConcurrentRecompilation() {
   return code() == GetIsolate()->builtins()->builtin(
       Builtins::kConcurrentRecompile);

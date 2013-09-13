@@ -1113,6 +1113,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kEval, "eval")                                                            \
   V(kExpected0AsASmiSentinel, "Expected 0 as a Smi sentinel")                 \
   V(kExpectedAlignmentMarker, "expected alignment marker")                    \
+  V(kExpectedAllocationSiteInCell,                                            \
+    "Expected AllocationSite in property cell")                               \
   V(kExpectedPropertyCellInRegisterA2,                                        \
     "Expected property cell in register a2")                                  \
   V(kExpectedPropertyCellInRegisterEbx,                                       \
@@ -1756,6 +1758,13 @@ class HeapObject: public Object {
   // during marking GC.
   static inline Object** RawField(HeapObject* obj, int offset);
 
+  // Adds the |code| object related to |name| to the code cache of this map. If
+  // this map is a dictionary map that is shared, the map copied and installed
+  // onto the object.
+  static void UpdateMapCodeCache(Handle<HeapObject> object,
+                                 Handle<Name> name,
+                                 Handle<Code> code);
+
   // Casting.
   static inline HeapObject* cast(Object* obj);
 
@@ -2188,13 +2197,6 @@ class JSObject: public JSReceiver {
   inline MUST_USE_RESULT MaybeObject* TryMigrateInstance();
 
   // Can cause GC.
-  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
       Name* key,
       Object* value,
@@ -2574,10 +2576,6 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
-  static void UpdateMapCodeCache(Handle<JSObject> object,
-                                 Handle<Name> name,
-                                 Handle<Code> code);
-
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
   static void TransformToFastProperties(Handle<JSObject> object,
@@ -2735,6 +2733,15 @@ class JSObject: public JSReceiver {
  private:
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
+
+  // TODO(mstarzinger): Soon to be handlified.
+  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
+      Name* key,
+      Object* value,
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
                                                       Object* structure,
@@ -3473,6 +3480,9 @@ class HashTable: public FixedArray {
   inline int FindEntry(Key key);
   int FindEntry(Isolate* isolate, Key key);
 
+  // Rehashes the table in-place.
+  void Rehash(Key key);
+
  protected:
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
@@ -3518,6 +3528,13 @@ class HashTable: public FixedArray {
       uint32_t last, uint32_t number, uint32_t size) {
     return (last + number) & (size - 1);
   }
+
+  // Returns _expected_ if one of entries given by the first _probe_ probes is
+  // equal to  _expected_. Otherwise, returns the entry given by the probe
+  // number _probe_.
+  uint32_t EntryForProbe(Key key, Object* k, int probe, uint32_t expected);
+
+  void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
   MUST_USE_RESULT MaybeObject* Rehash(HashTable* new_table, Key key);
@@ -5909,6 +5926,10 @@ class Map: public HeapObject {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
 
+  bool IsJSObjectMap() {
+    return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  }
+
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing
   // the descriptor array.
@@ -6979,7 +7000,6 @@ class JSFunction: public JSObject {
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
   void MarkForConcurrentRecompilation();
-  void MarkForInstallingRecompiledCode();
   void MarkInRecompileQueue();
 
   // Helpers to compile this function.  Returns true on success, false on
@@ -6998,7 +7018,6 @@ class JSFunction: public JSObject {
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
   inline bool IsMarkedForConcurrentRecompilation();
-  inline bool IsMarkedForInstallingRecompiledCode();
 
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInRecompileQueue();

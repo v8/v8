@@ -149,7 +149,6 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
       // recompilation race.  This goes away as soon as OSR becomes one-shot.
       return;
     }
-    ASSERT(!function->IsMarkedForInstallingRecompiledCode());
     ASSERT(!function->IsInRecompileQueue());
     function->MarkForConcurrentRecompilation();
   } else {
@@ -226,12 +225,6 @@ void RuntimeProfiler::OptimizeNow() {
   HandleScope scope(isolate_);
 
   if (isolate_->DebuggerHasBreakPoints()) return;
-
-  if (FLAG_concurrent_recompilation) {
-    // Take this as opportunity to process the optimizing compiler thread's
-    // output queue so that it does not unnecessarily keep objects alive.
-    isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
-  }
 
   DisallowHeapAllocation no_gc;
 

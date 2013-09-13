@@ -126,7 +126,6 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
-  void DoDeferredRandom(LRandom* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocate(LAllocate* instr);
