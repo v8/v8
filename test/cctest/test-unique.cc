@@ -146,6 +146,74 @@ TEST(UniqueSet_Add) {
 }
 
 
+TEST(UniqueSet_Contains) {
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  HandleScope sc(isolate);
+
+  Unique<String> A(factory->InternalizeUtf8String("A"));
+  Unique<String> B(factory->InternalizeUtf8String("B"));
+  Unique<String> C(factory->InternalizeUtf8String("C"));
+
+  Zone zone(isolate);
+
+  UniqueSet<String>* set = new(&zone) UniqueSet<String>();
+
+  CHECK_EQ(0, set->size());
+  set->Add(A, &zone);
+  CHECK(set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(!set->Contains(C));
+
+  set->Add(A, &zone);
+  CHECK(set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(!set->Contains(C));
+
+  set->Add(B, &zone);
+  CHECK(set->Contains(A));
+  CHECK(set->Contains(B));
+
+  set->Add(C, &zone);
+  CHECK(set->Contains(A));
+  CHECK(set->Contains(B));
+  CHECK(set->Contains(C));
+}
+
+
+TEST(UniqueSet_At) {
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  HandleScope sc(isolate);
+
+  Unique<String> A(factory->InternalizeUtf8String("A"));
+  Unique<String> B(factory->InternalizeUtf8String("B"));
+  Unique<String> C(factory->InternalizeUtf8String("C"));
+
+  Zone zone(isolate);
+
+  UniqueSet<String>* set = new(&zone) UniqueSet<String>();
+
+  CHECK_EQ(0, set->size());
+  set->Add(A, &zone);
+  CHECK(A == set->at(0));
+
+  set->Add(A, &zone);
+  CHECK(A == set->at(0));
+
+  set->Add(B, &zone);
+  CHECK(A == set->at(0) || B == set->at(0));
+  CHECK(A == set->at(1) || B == set->at(1));
+
+  set->Add(C, &zone);
+  CHECK(A == set->at(0) || B == set->at(0) || C == set->at(0));
+  CHECK(A == set->at(1) || B == set->at(1) || C == set->at(1));
+  CHECK(A == set->at(2) || B == set->at(2) || C == set->at(2));
+}
+
+
 template <class T>
 static void CHECK_SETS(
     UniqueSet<T>* set1, UniqueSet<T>* set2, bool expected) {
