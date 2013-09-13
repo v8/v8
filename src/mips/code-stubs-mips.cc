@@ -6968,87 +6968,125 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
 
 template<class T>
-static void CreateArrayDispatch(MacroAssembler* masm) {
-  int last_index = GetSequenceIndexFromFastElementsKind(
-      TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= last_index; ++i) {
-    Label next;
-    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    __ Branch(&next, ne, a3, Operand(kind));
-    T stub(kind);
+static void CreateArrayDispatch(MacroAssembler* masm,
+                                AllocationSiteOverrideMode mode) {
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    T stub(GetInitialFastElementsKind(),
+           CONTEXT_CHECK_REQUIRED,
+           mode);
     __ TailCallStub(&stub);
-    __ bind(&next);
-  }
+  } else if (mode == DONT_OVERRIDE) {
+    int last_index = GetSequenceIndexFromFastElementsKind(
+        TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next;
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      __ Branch(&next, ne, a3, Operand(kind));
+      T stub(kind);
+      __ TailCallStub(&stub);
+      __ bind(&next);
+    }
 
-  // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    // If we reached this point there is a problem.
+    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 
-static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
-  // a2 - type info cell
-  // a3 - kind
+static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
+                                           AllocationSiteOverrideMode mode) {
+  // a2 - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // a3 - kind (if mode != DISABLE_ALLOCATION_SITES)
   // a0 - number of arguments
   // a1 - constructor?
   // sp[0] - last argument
-  ASSERT(FAST_SMI_ELEMENTS == 0);
-  ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  ASSERT(FAST_ELEMENTS == 2);
-  ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  ASSERT(FAST_DOUBLE_ELEMENTS == 4);
-  ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
-
-  // is the low bit set? If so, we are holey and that is good.
   Label normal_sequence;
-  __ And(at, a3, Operand(1));
-  __ Branch(&normal_sequence, ne, at, Operand(zero_reg));
+  if (mode == DONT_OVERRIDE) {
+    ASSERT(FAST_SMI_ELEMENTS == 0);
+    ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+    ASSERT(FAST_ELEMENTS == 2);
+    ASSERT(FAST_HOLEY_ELEMENTS == 3);
+    ASSERT(FAST_DOUBLE_ELEMENTS == 4);
+    ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+
+    // is the low bit set? If so, we are holey and that is good.
+    __ And(at, a3, Operand(1));
+    __ Branch(&normal_sequence, ne, at, Operand(zero_reg));
+  }
 
   // look at the first argument
   __ lw(t1, MemOperand(sp, 0));
   __ Branch(&normal_sequence, eq, t1, Operand(zero_reg));
 
-  // We are going to create a holey array, but our kind is non-holey.
-  // Fix kind and retry (only if we have an allocation site in the cell).
-  __ Addu(a3, a3, Operand(1));
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&normal_sequence, eq, a2, Operand(at));
-  __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
-  __ lw(t1, FieldMemOperand(t1, 0));
-  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-  __ Branch(&normal_sequence, ne, t1, Operand(at));
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    ElementsKind initial = GetInitialFastElementsKind();
+    ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
-  // Save the resulting elements kind in type info
-  __ SmiTag(a3);
-  __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
-  __ sw(a3, FieldMemOperand(t1, AllocationSite::kTransitionInfoOffset));
-  __ SmiUntag(a3);
+    ArraySingleArgumentConstructorStub stub_holey(holey_initial,
+                                                  CONTEXT_CHECK_REQUIRED,
+                                                  DISABLE_ALLOCATION_SITES);
+    __ TailCallStub(&stub_holey);
 
-  __ bind(&normal_sequence);
-  int last_index = GetSequenceIndexFromFastElementsKind(
-      TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= last_index; ++i) {
-    Label next;
-    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    __ Branch(&next, ne, a3, Operand(kind));
-    ArraySingleArgumentConstructorStub stub(kind);
+    __ bind(&normal_sequence);
+    ArraySingleArgumentConstructorStub stub(initial,
+                                            CONTEXT_CHECK_REQUIRED,
+                                            DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
-    __ bind(&next);
-  }
+  } else if (mode == DONT_OVERRIDE) {
+    // We are going to create a holey array, but our kind is non-holey.
+    // Fix kind and retry (only if we have an allocation site in the cell).
+    __ Addu(a3, a3, Operand(1));
+    __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
 
-  // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    if (FLAG_debug_code) {
+      __ lw(t1, FieldMemOperand(t1, 0));
+      __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+      __ Assert(eq, kExpectedAllocationSiteInCell, t1, Operand(at));
+      __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
+    }
+
+    // Save the resulting elements kind in type info
+    __ SmiTag(a3);
+    __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
+    __ sw(a3, FieldMemOperand(t1, AllocationSite::kTransitionInfoOffset));
+    __ SmiUntag(a3);
+
+    __ bind(&normal_sequence);
+    int last_index = GetSequenceIndexFromFastElementsKind(
+        TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next;
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      __ Branch(&next, ne, a3, Operand(kind));
+      ArraySingleArgumentConstructorStub stub(kind);
+      __ TailCallStub(&stub);
+      __ bind(&next);
+    }
+
+    // If we reached this point there is a problem.
+    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 
 template<class T>
 static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
+  ElementsKind initial_kind = GetInitialFastElementsKind();
+  ElementsKind initial_holey_kind = GetHoleyElementsKind(initial_kind);
+
   int to_index = GetSequenceIndexFromFastElementsKind(
       TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
-    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
+    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
+        (!FLAG_track_allocation_sites &&
+         (kind == initial_kind || kind == initial_holey_kind))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate)->set_is_pregenerated(true);
     }
@@ -7077,6 +7115,33 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
     stubh2.GetCode(isolate)->set_is_pregenerated(true);
     InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
     stubh3.GetCode(isolate)->set_is_pregenerated(true);
+  }
+}
+
+
+void ArrayConstructorStub::GenerateDispatchToArrayStub(
+    MacroAssembler* masm,
+    AllocationSiteOverrideMode mode) {
+  if (argument_count_ == ANY) {
+    Label not_zero_case, not_one_case;
+    __ And(at, a0, a0);
+    __ Branch(&not_zero_case, ne, at, Operand(zero_reg));
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+
+    __ bind(&not_zero_case);
+    __ Branch(&not_one_case, gt, a0, Operand(1));
+    CreateArrayDispatchOneArgument(masm, mode);
+
+    __ bind(&not_one_case);
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+  } else if (argument_count_ == NONE) {
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  } else if (argument_count_ == ONE) {
+    CreateArrayDispatchOneArgument(masm, mode);
+  } else if (argument_count_ == MORE_THAN_ONE) {
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -7114,49 +7179,24 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ bind(&okay_here);
   }
 
-  Label no_info, switch_ready;
+  Label no_info;
   // Get the elements kind and case on that.
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ Branch(&no_info, eq, a2, Operand(at));
   __ lw(a3, FieldMemOperand(a2, Cell::kValueOffset));
 
-  // The type cell may have undefined in its value.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&no_info, eq, a3, Operand(at));
-
-  // The type cell has either an AllocationSite or a JSFunction.
+  // If the type cell is undefined, or contains anything other than an
+  // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ lw(t0, FieldMemOperand(a3, 0));
   __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
   __ Branch(&no_info, ne, t0, Operand(at));
 
   __ lw(a3, FieldMemOperand(a3, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(a3);
-  __ jmp(&switch_ready);
+  GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
+
   __ bind(&no_info);
-  __ li(a3, Operand(GetInitialFastElementsKind()));
-  __ bind(&switch_ready);
-
-  if (argument_count_ == ANY) {
-    Label not_zero_case, not_one_case;
-    __ And(at, a0, a0);
-    __ Branch(&not_zero_case, ne, at, Operand(zero_reg));
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-
-    __ bind(&not_zero_case);
-    __ Branch(&not_one_case, gt, a0, Operand(1));
-    CreateArrayDispatchOneArgument(masm);
-
-    __ bind(&not_one_case);
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-  } else if (argument_count_ == NONE) {
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-  } else if (argument_count_ == ONE) {
-    CreateArrayDispatchOneArgument(masm);
-  } else if (argument_count_ == MORE_THAN_ONE) {
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-  } else {
-    UNREACHABLE();
-  }
+  GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 }
 
 
