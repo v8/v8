@@ -10436,8 +10436,8 @@ bool Code::allowed_in_shared_map_code_cache() {
 }
 
 
-void Code::MakeCodeAgeSequenceYoung(byte* sequence) {
-  PatchPlatformCodeAge(sequence, kNoAge, NO_MARKING_PARITY);
+void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
+  PatchPlatformCodeAge(isolate, sequence, kNoAge, NO_MARKING_PARITY);
 }
 
 
@@ -10448,7 +10448,9 @@ void Code::MakeOlder(MarkingParity current_parity) {
     MarkingParity code_parity;
     GetCodeAgeAndParity(sequence, &age, &code_parity);
     if (age != kLastCodeAge && code_parity != current_parity) {
-      PatchPlatformCodeAge(sequence, static_cast<Age>(age + 1),
+      PatchPlatformCodeAge(GetIsolate(),
+                           sequence,
+                           static_cast<Age>(age + 1),
                            current_parity);
     }
   }
@@ -10511,8 +10513,7 @@ void Code::GetCodeAgeAndParity(Code* code, Age* age,
 }
 
 
-Code* Code::GetCodeAgeStub(Age age, MarkingParity parity) {
-  Isolate* isolate = Isolate::Current();
+Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
   Builtins* builtins = isolate->builtins();
   switch (age) {
 #define HANDLE_CODE_AGE(AGE)                                            \

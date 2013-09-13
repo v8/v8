@@ -2765,9 +2765,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Passing r0.
-    __ PrepareCallCFunction(1, 0, r1);
+    __ PrepareCallCFunction(2, 0, r1);
+    __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
     __ CallCFunction(ExternalReference::perform_gc_function(isolate),
-        1, 0);
+        2, 0);
   }
 
   ExternalReference scope_depth =

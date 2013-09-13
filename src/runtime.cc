@@ -14791,8 +14791,7 @@ const Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
 }
 
 
-void Runtime::PerformGC(Object* result) {
-  Isolate* isolate = Isolate::Current();
+void Runtime::PerformGC(Object* result, Isolate* isolate) {
   Failure* failure = Failure::cast(result);
   if (failure->IsRetryAfterGC()) {
     if (isolate->heap()->new_space()->AddFreshPage()) {

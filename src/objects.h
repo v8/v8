@@ -5155,7 +5155,7 @@ class Code: public HeapObject {
   // being entered through the prologue.  Used to determine when it is
   // relatively safe to flush this code object and replace it with the lazy
   // compilation stub.
-  static void MakeCodeAgeSequenceYoung(byte* sequence);
+  static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
@@ -5301,10 +5301,11 @@ class Code: public HeapObject {
                                   MarkingParity* parity);
   static void GetCodeAgeAndParity(byte* sequence, Age* age,
                                   MarkingParity* parity);
-  static Code* GetCodeAgeStub(Age age, MarkingParity parity);
+  static Code* GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity);
 
   // Code aging -- platform-specific
-  static void PatchPlatformCodeAge(byte* sequence, Age age,
+  static void PatchPlatformCodeAge(Isolate* isolate,
+                                   byte* sequence, Age age,
                                    MarkingParity parity);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
