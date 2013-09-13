@@ -872,8 +872,10 @@ void OS::Sleep(int milliseconds) {
 void OS::Abort() {
   if (IsDebuggerPresent() || FLAG_break_on_abort) {
     DebugBreak();
+  } else {
+    // Make the MSVCRT do a silent abort.
+    raise(SIGABRT);
   }
-  V8_IMMEDIATE_CRASH();
 }
 
 

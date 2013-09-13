@@ -222,7 +222,7 @@ void OS::Abort() {
   if (FLAG_break_on_abort) {
     DebugBreak();
   }
-  V8_IMMEDIATE_CRASH();
+  abort();
 }
 
 
