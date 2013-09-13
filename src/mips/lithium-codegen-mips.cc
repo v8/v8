@@ -1789,33 +1789,43 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
+  LOperand* index_op = instr->index();
   Register value = ToRegister(instr->value());
   Register scratch = scratch0();
   String::Encoding encoding = instr->encoding();
 
   if (FLAG_debug_code) {
-    __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
+    __ lw(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
 
-    __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
+    __ And(scratch, scratch,
+           Operand(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ Subu(at, at, Operand(encoding == String::ONE_BYTE_ENCODING
+    __ Subu(at, scratch, Operand(encoding == String::ONE_BYTE_ENCODING
                                 ? one_byte_seq_type : two_byte_seq_type));
     __ Check(eq, kUnexpectedStringType, at, Operand(zero_reg));
   }
 
-  __ Addu(scratch,
-          string,
-          Operand(SeqString::kHeaderSize - kHeapObjectTag));
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ Addu(at, scratch, index);
-    __ sb(value, MemOperand(at));
+  if (index_op->IsConstantOperand()) {
+    int constant_index = ToInteger32(LConstantOperand::cast(index_op));
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ sb(value,
+          FieldMemOperand(string, SeqString::kHeaderSize + constant_index));
+    } else {
+      __ sh(value,
+          FieldMemOperand(string, SeqString::kHeaderSize + constant_index * 2));
+    }
   } else {
-    __ sll(at, index, 1);
-    __ Addu(at, scratch, at);
-    __ sh(value, MemOperand(at));
+    Register index = ToRegister(index_op);
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ Addu(scratch, string, Operand(index));
+      __ sb(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
+    } else {
+      __ sll(scratch, index, 1);
+      __ Addu(scratch, string, scratch);
+      __ sh(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
+    }
   }
 }
 
