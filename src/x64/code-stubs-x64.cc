@@ -1009,7 +1009,7 @@ static void BinaryOpStub_CheckSmiInput(MacroAssembler* masm,
   __ movsd(xmm0, FieldOperand(input, HeapNumber::kValueOffset));
   // Convert, convert back, and compare the two doubles' bits.
   __ cvttsd2siq(scratch2, xmm0);
-  __ cvtlsi2sd(xmm1, scratch2);
+  __ Cvtlsi2sd(xmm1, scratch2);
   __ movq(scratch1, xmm0);
   __ movq(scratch2, xmm1);
   __ cmpq(scratch1, scratch2);
@@ -1145,7 +1145,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // Then load the bits of the double into rbx.
     __ SmiToInteger32(rax, rax);
     __ subq(rsp, Immediate(kDoubleSize));
-    __ cvtlsi2sd(xmm1, rax);
+    __ Cvtlsi2sd(xmm1, rax);
     __ movsd(Operand(rsp, 0), xmm1);
     __ movq(rbx, xmm1);
     __ movq(rdx, xmm1);
@@ -1477,9 +1477,9 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
 
 void FloatingPointHelper::LoadSSE2SmiOperands(MacroAssembler* masm) {
   __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
+  __ Cvtlsi2sd(xmm0, kScratchRegister);
   __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
+  __ Cvtlsi2sd(xmm1, kScratchRegister);
 }
 
 
@@ -1503,12 +1503,12 @@ void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
 
   __ bind(&load_smi_rdx);
   __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
+  __ Cvtlsi2sd(xmm0, kScratchRegister);
   __ JumpIfNotSmi(rax, &load_nonsmi_rax);
 
   __ bind(&load_smi_rax);
   __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
+  __ Cvtlsi2sd(xmm1, kScratchRegister);
   __ bind(&done);
 }
 
@@ -1541,7 +1541,7 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
   __ cvttsd2siq(smi_result, xmm0);
   // Check if conversion was successful by converting back and
   // comparing to the original double's bits.
-  __ cvtlsi2sd(xmm1, smi_result);
+  __ Cvtlsi2sd(xmm1, smi_result);
   __ movq(kScratchRegister, xmm1);
   __ cmpq(scratch2, kScratchRegister);
   __ j(not_equal, on_not_smis);
@@ -1560,7 +1560,7 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
   __ movsd(xmm0, FieldOperand(second, HeapNumber::kValueOffset));
   __ movq(scratch2, xmm0);
   __ cvttsd2siq(smi_result, xmm0);
-  __ cvtlsi2sd(xmm1, smi_result);
+  __ Cvtlsi2sd(xmm1, smi_result);
   __ movq(kScratchRegister, xmm1);
   __ cmpq(scratch2, kScratchRegister);
   __ j(not_equal, on_not_smis);
@@ -1603,7 +1603,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Save 1 in double_result - we need this several times later on.
   __ movq(scratch, Immediate(1));
-  __ cvtlsi2sd(double_result, scratch);
+  __ Cvtlsi2sd(double_result, scratch);
 
   if (exponent_type_ == ON_STACK) {
     Label base_is_smi, unpack_exponent;
@@ -1623,7 +1623,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
     __ bind(&base_is_smi);
     __ SmiToInteger32(base, base);
-    __ cvtlsi2sd(double_base, base);
+    __ Cvtlsi2sd(double_base, base);
     __ bind(&unpack_exponent);
 
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
@@ -1812,7 +1812,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // and may not have contained the exponent value in the first place when the
   // input was a smi.  We reset it with exponent value before bailing out.
   __ j(not_equal, &done);
-  __ cvtlsi2sd(double_exponent, exponent);
+  __ Cvtlsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
   Counters* counters = masm->isolate()->counters();
@@ -5376,7 +5376,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ jmp(&left, Label::kNear);
   __ bind(&right_smi);
   __ SmiToInteger32(rcx, rax);  // Can't clobber rax yet.
-  __ cvtlsi2sd(xmm1, rcx);
+  __ Cvtlsi2sd(xmm1, rcx);
 
   __ bind(&left);
   __ JumpIfSmi(rdx, &left_smi, Label::kNear);
@@ -5386,7 +5386,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ jmp(&done);
   __ bind(&left_smi);
   __ SmiToInteger32(rcx, rdx);  // Can't clobber rdx yet.
-  __ cvtlsi2sd(xmm0, rcx);
+  __ Cvtlsi2sd(xmm0, rcx);
 
   __ bind(&done);
   // Compare operands

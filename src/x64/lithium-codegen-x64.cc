@@ -3520,7 +3520,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     __ bind(&negative_sign);
     // Truncate, then compare and compensate.
     __ cvttsd2si(output_reg, input_reg);
-    __ cvtlsi2sd(xmm_scratch, output_reg);
+    __ Cvtlsi2sd(xmm_scratch, output_reg);
     __ ucomisd(input_reg, xmm_scratch);
     __ j(equal, &done, Label::kNear);
     __ subl(output_reg, Immediate(1));
@@ -3569,7 +3569,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ RecordComment("D2I conversion overflow");
   DeoptimizeIf(equal, instr->environment());
 
-  __ cvtlsi2sd(xmm_scratch, output_reg);
+  __ Cvtlsi2sd(xmm_scratch, output_reg);
   __ ucomisd(input_reg, xmm_scratch);
   __ j(equal, &restore, Label::kNear);
   __ subl(output_reg, Immediate(1));
@@ -4449,9 +4449,9 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   LOperand* output = instr->result();
   ASSERT(output->IsDoubleRegister());
   if (input->IsRegister()) {
-    __ cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
+    __ Cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
   } else {
-    __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
+    __ Cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
   }
 }
 
@@ -4668,7 +4668,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // Smi to XMM conversion
   __ bind(&load_smi);
   __ SmiToInteger32(kScratchRegister, input_reg);
-  __ cvtlsi2sd(result_reg, kScratchRegister);
+  __ Cvtlsi2sd(result_reg, kScratchRegister);
   __ bind(&done);
 }
 

@@ -842,7 +842,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiToInteger32(scratch1, value_reg);
-    __ cvtlsi2sd(xmm0, scratch1);
+    __ Cvtlsi2sd(xmm0, scratch1);
     __ jmp(&do_store);
 
     __ bind(&heap_number);
@@ -996,7 +996,7 @@ void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     Label do_store, heap_number;
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiToInteger32(scratch2, value_reg);
-    __ cvtlsi2sd(xmm0, scratch2);
+    __ Cvtlsi2sd(xmm0, scratch2);
     __ jmp(&do_store);
 
     __ bind(&heap_number);

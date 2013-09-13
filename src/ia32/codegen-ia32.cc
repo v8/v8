@@ -768,7 +768,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiUntag(ebx);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope fscope(masm, SSE2);
-    __ cvtsi2sd(xmm0, ebx);
+    __ Cvtsi2sd(xmm0, ebx);
     __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
               xmm0);
   } else {

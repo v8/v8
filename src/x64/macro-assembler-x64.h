@@ -784,6 +784,12 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, int64_t x);
 
+  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
+  // hinders register renaming and makes dependence chains longer. So we use
+  // xorps to clear the dst register before cvtsi2sd to solve this issue.
+  void Cvtlsi2sd(XMMRegister dst, Register src);
+  void Cvtlsi2sd(XMMRegister dst, const Operand& src);
+
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 

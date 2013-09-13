@@ -984,7 +984,7 @@ static void BinaryOpStub_GenerateSmiCode(
           ASSERT_EQ(Token::SHL, op);
           if (CpuFeatures::IsSupported(SSE2)) {
             CpuFeatureScope use_sse2(masm, SSE2);
-            __ cvtsi2sd(xmm0, left);
+            __ Cvtsi2sd(xmm0, left);
             __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
           } else {
             __ mov(Operand(esp, 1 * kPointerSize), left);
@@ -1370,7 +1370,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatureScope use_sse2(masm, SSE2);
-          __ cvtsi2sd(xmm0, ebx);
+          __ Cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
           __ mov(Operand(esp, 1 * kPointerSize), ebx);
@@ -1594,7 +1594,7 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatureScope use_sse2(masm, SSE2);
-          __ cvtsi2sd(xmm0, ebx);
+          __ Cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
           __ mov(Operand(esp, 1 * kPointerSize), ebx);
@@ -1782,7 +1782,7 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatureScope use_sse2(masm, SSE2);
-          __ cvtsi2sd(xmm0, ebx);
+          __ Cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
           __ mov(Operand(esp, 1 * kPointerSize), ebx);
@@ -2329,12 +2329,12 @@ void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
   __ jmp(not_numbers);  // Argument in eax is not a number.
   __ bind(&load_smi_edx);
   __ SmiUntag(edx);  // Untag smi before converting to float.
-  __ cvtsi2sd(xmm0, edx);
+  __ Cvtsi2sd(xmm0, edx);
   __ SmiTag(edx);  // Retag smi for heap number overwriting test.
   __ jmp(&load_eax);
   __ bind(&load_smi_eax);
   __ SmiUntag(eax);  // Untag smi before converting to float.
-  __ cvtsi2sd(xmm1, eax);
+  __ Cvtsi2sd(xmm1, eax);
   __ SmiTag(eax);  // Retag smi for heap number overwriting test.
   __ jmp(&done, Label::kNear);
   __ bind(&load_float_eax);
@@ -2350,11 +2350,11 @@ void FloatingPointHelper::LoadSSE2Smis(MacroAssembler* masm,
   __ mov(scratch, left);
   ASSERT(!scratch.is(right));  // We're about to clobber scratch.
   __ SmiUntag(scratch);
-  __ cvtsi2sd(xmm0, scratch);
+  __ Cvtsi2sd(xmm0, scratch);
 
   __ mov(scratch, right);
   __ SmiUntag(scratch);
-  __ cvtsi2sd(xmm1, scratch);
+  __ Cvtsi2sd(xmm1, scratch);
 }
 
 
@@ -2365,7 +2365,7 @@ void FloatingPointHelper::CheckSSE2OperandIsInt32(MacroAssembler* masm,
                                                   Register scratch,
                                                   XMMRegister xmm_scratch) {
   __ cvttsd2si(int32_result, Operand(operand));
-  __ cvtsi2sd(xmm_scratch, int32_result);
+  __ Cvtsi2sd(xmm_scratch, int32_result);
   __ pcmpeqd(xmm_scratch, operand);
   __ movmskps(scratch, xmm_scratch);
   // Two least significant bits should be both set.
@@ -2470,7 +2470,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Save 1 in double_result - we need this several times later on.
   __ mov(scratch, Immediate(1));
-  __ cvtsi2sd(double_result, scratch);
+  __ Cvtsi2sd(double_result, scratch);
 
   if (exponent_type_ == ON_STACK) {
     Label base_is_smi, unpack_exponent;
@@ -2490,7 +2490,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
     __ bind(&base_is_smi);
     __ SmiUntag(base);
-    __ cvtsi2sd(double_base, base);
+    __ Cvtsi2sd(double_base, base);
 
     __ bind(&unpack_exponent);
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
@@ -2683,7 +2683,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // and may not have contained the exponent value in the first place when the
   // exponent is a smi.  We reset it with exponent value before bailing out.
   __ j(not_equal, &done);
-  __ cvtsi2sd(double_exponent, exponent);
+  __ Cvtsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
   Counters* counters = masm->isolate()->counters();
@@ -6258,7 +6258,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
     __ bind(&right_smi);
     __ mov(ecx, eax);  // Can't clobber eax because we can still jump away.
     __ SmiUntag(ecx);
-    __ cvtsi2sd(xmm1, ecx);
+    __ Cvtsi2sd(xmm1, ecx);
 
     __ bind(&left);
     __ JumpIfSmi(edx, &left_smi, Label::kNear);
@@ -6270,7 +6270,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
     __ bind(&left_smi);
     __ mov(ecx, edx);  // Can't clobber edx because we can still jump away.
     __ SmiUntag(ecx);
-    __ cvtsi2sd(xmm0, ecx);
+    __ Cvtsi2sd(xmm0, ecx);
 
     __ bind(&done);
     // Compare operands.

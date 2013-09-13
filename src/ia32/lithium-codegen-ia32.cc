@@ -3977,7 +3977,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     __ bind(&negative_sign);
     // Truncate, then compare and compensate.
     __ cvttsd2si(output_reg, Operand(input_reg));
-    __ cvtsi2sd(xmm_scratch, output_reg);
+    __ Cvtsi2sd(xmm_scratch, output_reg);
     __ ucomisd(input_reg, xmm_scratch);
     __ j(equal, &done, Label::kNear);
     __ sub(output_reg, Immediate(1));
@@ -4027,7 +4027,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ RecordComment("D2I conversion overflow");
   DeoptimizeIf(equal, instr->environment());
 
-  __ cvtsi2sd(xmm_scratch, output_reg);
+  __ Cvtsi2sd(xmm_scratch, output_reg);
   __ ucomisd(xmm_scratch, input_temp);
   __ j(equal, &done);
   __ sub(output_reg, Immediate(1));
@@ -4978,7 +4978,7 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   ASSERT(output->IsDoubleRegister());
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
-    __ cvtsi2sd(ToDoubleRegister(output), ToOperand(input));
+    __ Cvtsi2sd(ToDoubleRegister(output), ToOperand(input));
   } else if (input->IsRegister()) {
     Register input_reg = ToRegister(input);
     __ push(input_reg);
@@ -5087,7 +5087,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
     __ xor_(reg, 0x80000000);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope feature_scope(masm(), SSE2);
-      __ cvtsi2sd(xmm0, Operand(reg));
+      __ Cvtsi2sd(xmm0, Operand(reg));
     } else {
       __ push(reg);
       __ fild_s(Operand(esp, 0));
@@ -5356,7 +5356,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // input register since we avoid dependencies.
   __ mov(temp_reg, input_reg);
   __ SmiUntag(temp_reg);  // Untag smi before converting to float.
-  __ cvtsi2sd(result_reg, Operand(temp_reg));
+  __ Cvtsi2sd(result_reg, Operand(temp_reg));
   __ bind(&done);
 }
 

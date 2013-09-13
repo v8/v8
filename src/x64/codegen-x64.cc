@@ -386,7 +386,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // rbx: current element (smi-tagged)
   __ JumpIfNotSmi(rbx, &convert_hole);
   __ SmiToInteger32(rbx, rbx);
-  __ cvtlsi2sd(xmm0, rbx);
+  __ Cvtlsi2sd(xmm0, rbx);
   __ movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
            xmm0);
   __ jmp(&entry);

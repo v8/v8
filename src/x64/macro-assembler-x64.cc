@@ -936,6 +936,18 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
 }
 
 
+void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
+  xorps(dst, dst);
+  cvtlsi2sd(dst, src);
+}
+
+
+void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
+  xorps(dst, dst);
+  cvtlsi2sd(dst, src);
+}
+
+
 void MacroAssembler::Set(Register dst, int64_t x) {
   if (x == 0) {
     xorl(dst, dst);
@@ -2917,7 +2929,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   // Value is a smi. convert to a double and store.
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
-  cvtlsi2sd(xmm_scratch, kScratchRegister);
+  Cvtlsi2sd(xmm_scratch, kScratchRegister);
   movsd(FieldOperand(elements, index, times_8,
                      FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
@@ -3050,7 +3062,7 @@ void MacroAssembler::DoubleToI(Register result_reg,
                                Label* conversion_failed,
                                Label::Distance dst) {
   cvttsd2si(result_reg, input_reg);
-  cvtlsi2sd(xmm0, result_reg);
+  Cvtlsi2sd(xmm0, result_reg);
   ucomisd(xmm0, input_reg);
   j(not_equal, conversion_failed, dst);
   j(parity_even, conversion_failed, dst);  // NaN.
@@ -3087,7 +3099,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
 
   movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
   cvttsd2si(result_reg, xmm0);
-  cvtlsi2sd(temp, result_reg);
+  Cvtlsi2sd(temp, result_reg);
   ucomisd(xmm0, temp);
   RecordComment("Deferred TaggedToI: lost precision");
   j(not_equal, lost_precision, dst);

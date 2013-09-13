@@ -862,7 +862,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ SmiUntag(value_reg);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ cvtsi2sd(xmm0, value_reg);
+      __ Cvtsi2sd(xmm0, value_reg);
     } else {
       __ push(value_reg);
       __ fild_s(Operand(esp, 0));
@@ -1041,7 +1041,7 @@ void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ SmiUntag(value_reg);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ cvtsi2sd(xmm0, value_reg);
+      __ Cvtsi2sd(xmm0, value_reg);
     } else {
       __ push(value_reg);
       __ fild_s(Operand(esp, 0));
