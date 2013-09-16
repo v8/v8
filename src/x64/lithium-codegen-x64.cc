@@ -4725,12 +4725,16 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   ASSERT(input->Equals(instr->result()));
-
   Register input_reg = ToRegister(input);
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
-  __ JumpIfNotSmi(input_reg, deferred->entry());
-  __ SmiToInteger32(input_reg, input_reg);
-  __ bind(deferred->exit());
+
+  if (instr->hydrogen()->value()->representation().IsSmi()) {
+    __ SmiToInteger32(input_reg, input_reg);
+  } else {
+    DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+    __ JumpIfNotSmi(input_reg, deferred->entry());
+    __ SmiToInteger32(input_reg, input_reg);
+    __ bind(deferred->exit());
+  }
 }
 
 

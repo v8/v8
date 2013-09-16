@@ -1733,9 +1733,9 @@ void LCodeGen::DoMulI(LMulI* instr) {
         case 9:
           __ lea(left, Operand(left, left, times_8, 0));
           break;
-       case 16:
-         __ shl(left, 4);
-         break;
+        case 16:
+          __ shl(left, 4);
+          break;
         default:
           __ imul(left, left, constant);
           break;
@@ -2208,8 +2208,6 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
     XMMRegister left = ToDoubleRegister(instr->left());
     XMMRegister right = ToDoubleRegister(instr->right());
     XMMRegister result = ToDoubleRegister(instr->result());
-    // Modulo uses a fixed result register.
-    ASSERT(instr->op() == Token::MOD || left.is(result));
     switch (instr->op()) {
       case Token::ADD:
         __ addsd(left, right);
@@ -2236,7 +2234,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
             4);
 
         // Return value is in st(0) on ia32.
-        // Store it into the (fixed) result register.
+        // Store it into the result register.
         __ sub(Operand(esp), Immediate(kDoubleSize));
         __ fstp_d(Operand(esp, 0));
         __ movdbl(result, Operand(esp, 0));
@@ -5427,12 +5425,16 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   Register input_reg = ToRegister(input);
   ASSERT(input_reg.is(ToRegister(instr->result())));
 
-  DeferredTaggedToI* deferred =
-      new(zone()) DeferredTaggedToI(this, instr, x87_stack_);
+  if (instr->hydrogen()->value()->representation().IsSmi()) {
+    __ SmiUntag(input_reg);
+  } else {
+    DeferredTaggedToI* deferred =
+        new(zone()) DeferredTaggedToI(this, instr, x87_stack_);
 
-  __ JumpIfNotSmi(input_reg, deferred->entry());
-  __ SmiUntag(input_reg);
-  __ bind(deferred->exit());
+    __ JumpIfNotSmi(input_reg, deferred->entry());
+    __ SmiUntag(input_reg);
+    __ bind(deferred->exit());
+  }
 }
 
 
