@@ -1373,9 +1373,8 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
       LOperand* value = UseRegisterAtStart(instr->left());
-      LDivI* div =
-          new(zone()) LDivI(value, UseOrConstant(instr->right()), NULL);
-      return AssignEnvironment(DefineSameAsFirst(div));
+      LDivI* div = new(zone()) LDivI(value, UseConstant(instr->right()), NULL);
+      return AssignEnvironment(DefineAsRegister(div));
     }
     LOperand* dividend = UseRegister(instr->left());
     LOperand* divisor = UseRegister(instr->right());

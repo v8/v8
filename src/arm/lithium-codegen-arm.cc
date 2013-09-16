@@ -1383,7 +1383,8 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 
 void LCodeGen::DoDivI(LDivI* instr) {
   if (instr->hydrogen()->HasPowerOf2Divisor()) {
-    Register dividend = ToRegister(instr->left());
+    const Register dividend = ToRegister(instr->left());
+    const Register result = ToRegister(instr->result());
     int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
     int32_t test_value = 0;
     int32_t power = 0;
@@ -1394,7 +1395,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     } else {
       // Check for (0 / -x) that will produce negative zero.
       if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        __ tst(dividend, Operand(dividend));
+        __ cmp(dividend, Operand::Zero());
         DeoptimizeIf(eq, instr->environment());
       }
       // Check for (kMinInt / -1).
@@ -1409,20 +1410,26 @@ void LCodeGen::DoDivI(LDivI* instr) {
     if (test_value != 0) {
       if (instr->hydrogen()->CheckFlag(
           HInstruction::kAllUsesTruncatingToInt32)) {
-        __ cmp(dividend, Operand(0));
-        __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
-        __ mov(dividend, Operand(dividend, ASR, power));
-        if (divisor > 0) __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
-        if (divisor < 0) __ rsb(dividend, dividend, Operand(0), LeaveCC, gt);
+        __ sub(result, dividend, Operand::Zero(), SetCC);
+        __ rsb(result, result, Operand::Zero(), LeaveCC, lt);
+        __ mov(result, Operand(result, ASR, power));
+        if (divisor > 0) __ rsb(result, result, Operand::Zero(), LeaveCC, lt);
+        if (divisor < 0) __ rsb(result, result, Operand::Zero(), LeaveCC, gt);
         return;  // Don't fall through to "__ rsb" below.
       } else {
         // Deoptimize if remainder is not 0.
         __ tst(dividend, Operand(test_value));
         DeoptimizeIf(ne, instr->environment());
-        __ mov(dividend, Operand(dividend, ASR, power));
+        __ mov(result, Operand(dividend, ASR, power));
+        if (divisor < 0) __ rsb(result, result, Operand(0));
+      }
+    } else {
+      if (divisor < 0) {
+        __ rsb(result, dividend, Operand(0));
+      } else {
+        __ Move(result, dividend);
       }
     }
-    if (divisor < 0) __ rsb(dividend, dividend, Operand(0));
 
     return;
   }
@@ -1439,12 +1446,15 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    Label left_not_zero;
+    Label positive;
+    if (!instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+      // Do the test only if it hadn't be done above.
+      __ cmp(right, Operand::Zero());
+    }
+    __ b(pl, &positive);
     __ cmp(left, Operand::Zero());
-    __ b(ne, &left_not_zero);
-    __ cmp(right, Operand::Zero());
-    DeoptimizeIf(mi, instr->environment());
-    __ bind(&left_not_zero);
+    DeoptimizeIf(eq, instr->environment());
+    __ bind(&positive);
   }
 
   // Check for (kMinInt / -1).
