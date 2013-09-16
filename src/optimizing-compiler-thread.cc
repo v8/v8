@@ -206,7 +206,7 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   OptimizingCompiler* compiler;
   while (true) {
     { LockGuard<Mutex> access_queue(&queue_mutex_);
-      if (!output_queue_.Dequeue(&optimizing_compiler)) break;
+      if (!output_queue_.Dequeue(&compiler)) break;
     }
     Compiler::InstallOptimizedCode(compiler);
   }
