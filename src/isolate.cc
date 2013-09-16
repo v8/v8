@@ -1776,6 +1776,9 @@ Isolate::Isolate()
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
+      // TODO(rmcilroy) Currently setting this based on
+      // FLAG_force_memory_constrained in Isolate::Init; move to here when
+      // isolate cleanup is done
       is_memory_constrained_(false),
       has_fatal_error_(false),
       use_crankshaft_(true),
@@ -2135,6 +2138,8 @@ bool Isolate::Init(Deserializer* des) {
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
+  if (FLAG_force_memory_constrained.has_value)
+    is_memory_constrained_ = FLAG_force_memory_constrained.value;
 
   has_fatal_error_ = false;
 
