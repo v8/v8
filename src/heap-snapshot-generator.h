@@ -628,7 +628,7 @@ class HeapSnapshotJSONSerializer {
  public:
   explicit HeapSnapshotJSONSerializer(HeapSnapshot* snapshot)
       : snapshot_(snapshot),
-        strings_(ObjectsMatch),
+        strings_(StringsMatch),
         next_node_id_(1),
         next_string_id_(1),
         writer_(NULL) {
@@ -636,14 +636,16 @@ class HeapSnapshotJSONSerializer {
   void Serialize(v8::OutputStream* stream);
 
  private:
-  INLINE(static bool ObjectsMatch(void* key1, void* key2)) {
-    return key1 == key2;
+  INLINE(static bool StringsMatch(void* key1, void* key2)) {
+    return strcmp(reinterpret_cast<char*>(key1),
+                  reinterpret_cast<char*>(key2)) == 0;
   }
 
-  INLINE(static uint32_t ObjectHash(const void* key)) {
-    return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)),
-        v8::internal::kZeroHashSeed);
+  INLINE(static uint32_t StringHash(const void* string)) {
+    const char* s = reinterpret_cast<const char*>(string);
+    int len = static_cast<int>(strlen(s));
+    return StringHasher::HashSequentialString(
+        s, len, v8::internal::kZeroHashSeed);
   }
 
   int GetStringId(const char* s);

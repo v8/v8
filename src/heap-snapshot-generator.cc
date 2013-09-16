@@ -2472,7 +2472,7 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
 
 int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
   HashMap::Entry* cache_entry = strings_.Lookup(
-      const_cast<char*>(s), ObjectHash(s), true);
+      const_cast<char*>(s), StringHash(s), true);
   if (cache_entry->value == NULL) {
     cache_entry->value = reinterpret_cast<void*>(next_string_id_++);
   }
