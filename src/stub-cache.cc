@@ -520,7 +520,7 @@ Handle<Code> StubCache::ComputeStoreTransition(Handle<Name> name,
                                                Handle<Map> transition,
                                                StrictModeFlag strict_mode) {
   Handle<Code> stub = FindStoreHandler(
-      name, receiver, Code::STORE_IC, Code::MAP_TRANSITION, strict_mode);
+      name, receiver, Code::STORE_IC, Code::TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
@@ -702,7 +702,7 @@ Handle<Code> StubCache::ComputeKeyedStoreTransition(
     Handle<Map> transition,
     StrictModeFlag strict_mode) {
   Handle<Code> stub = FindStoreHandler(
-      name, receiver, Code::KEYED_STORE_IC, Code::MAP_TRANSITION, strict_mode);
+      name, receiver, Code::KEYED_STORE_IC, Code::TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
@@ -1849,7 +1849,7 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreTransition(
   TailCallBuiltin(masm(), SlowBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::MAP_TRANSITION, name);
+  return GetCode(kind(), Code::TRANSITION, name);
 }
 
 

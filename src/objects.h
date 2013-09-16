@@ -4812,7 +4812,7 @@ class Code: public HeapObject {
     CONSTANT,
     CALLBACKS,
     INTERCEPTOR,
-    MAP_TRANSITION,
+    TRANSITION,
     NONEXISTENT
   };
 

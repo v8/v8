@@ -10784,7 +10784,7 @@ const char* Code::StubType2String(StubType type) {
     case CONSTANT: return "CONSTANT";
     case CALLBACKS: return "CALLBACKS";
     case INTERCEPTOR: return "INTERCEPTOR";
-    case MAP_TRANSITION: return "MAP_TRANSITION";
+    case TRANSITION: return "TRANSITION";
     case NONEXISTENT: return "NONEXISTENT";
   }
   UNREACHABLE();  // keep the compiler happy
