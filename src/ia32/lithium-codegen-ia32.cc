@@ -2556,10 +2556,18 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
-      CpuFeatureScope scope(masm(), SSE2);
+      if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+        CpuFeatureScope scope(masm(), SSE2);
+        __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
+      } else {
+        X87Fxch(ToX87Register(right));
+        X87Fxch(ToX87Register(left), 1);
+        __ fld(0);
+        __ fld(2);
+        __ FCmp();
+      }
       // Don't base result on EFLAGS when a NaN is involved. Instead
       // jump to the false block.
-      __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
       __ j(parity_even, instr->FalseLabel(chunk_));
     } else {
       if (right->IsConstantOperand()) {
