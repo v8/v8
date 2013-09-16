@@ -923,8 +923,7 @@ void CodeStubGraphBuilderBase::BuildInstallOptimizedCode(
     HValue* native_context,
     HValue* code_object) {
   Counters* counters = isolate()->counters();
-  AddIncrementCounter(counters->fast_new_closure_install_optimized(),
-                      context());
+  AddIncrementCounter(counters->fast_new_closure_install_optimized());
 
   // TODO(fschneider): Idea: store proper code pointers in the optimized code
   // map and either unmangle them on marking or do nothing as the whole map is
@@ -972,7 +971,7 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
   }
   is_optimized.Else();
   {
-    AddIncrementCounter(counters->fast_new_closure_try_optimized(), context());
+    AddIncrementCounter(counters->fast_new_closure_try_optimized());
     // optimized_map points to fixed array of 3-element entries
     // (native context, optimized code, literals).
     // Map must never be empty, so check the first elements.
@@ -1061,7 +1060,7 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   HValue* size = Add<HConstant>(JSFunction::kSize);
   HInstruction* js_function = Add<HAllocate>(size, HType::JSObject(),
                                              NOT_TENURED, JS_FUNCTION_TYPE);
-  AddIncrementCounter(counters->fast_new_closure_total(), context());
+  AddIncrementCounter(counters->fast_new_closure_total());
 
   int map_index = Context::FunctionMapIndex(casted_stub()->language_mode(),
                                             casted_stub()->is_generator());

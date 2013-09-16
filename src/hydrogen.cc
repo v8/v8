@@ -1032,8 +1032,7 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::AddIncrementCounter(StatsCounter* counter,
-                                        HValue* context) {
+void HGraphBuilder::AddIncrementCounter(StatsCounter* counter) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     HValue* reference = Add<HConstant>(ExternalReference(counter));
     HValue* old_value = Add<HLoadNamedField>(reference,
