@@ -782,11 +782,15 @@ class HValue : public ZoneObject {
   // phase (so that live ranges will be shorter).
   virtual bool IsPurelyInformativeDefinition() { return false; }
 
-  // This method must always return the original HValue SSA definition
-  // (regardless of any iDef of this value).
+  // This method must always return the original HValue SSA definition,
+  // regardless of any chain of iDefs of this value.
   HValue* ActualValue() {
-    int index = RedefinedOperandIndex();
-    return index == kNoRedefinedOperand ? this : OperandAt(index);
+    HValue* value = this;
+    int index;
+    while ((index = value->RedefinedOperandIndex()) != kNoRedefinedOperand) {
+      value = value->OperandAt(index);
+    }
+    return value;
   }
 
   bool IsInteger32Constant();
