@@ -819,7 +819,7 @@ class V8_EXPORT HandleScope {
  * value.
  */
 template<class T>
-struct Maybe {
+struct V8_EXPORT Maybe {
   Maybe() : has_value(false) {}
   explicit Maybe(T t) : has_value(true), value(t) {}
   Maybe(bool has, T t) : has_value(has), value(t) {}
