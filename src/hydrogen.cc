@@ -1823,26 +1823,12 @@ void HGraphBuilder::BuildCompareNil(
 HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
                                                     int previous_object_size,
                                                     HValue* alloc_site) {
-  // TODO(mvstanton): ASSERT altered to CHECK to diagnose chromium bug 284577
-  CHECK(alloc_site != NULL);
+  ASSERT(alloc_site != NULL);
   HInnerAllocatedObject* alloc_memento = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
   Handle<Map> alloc_memento_map(
       isolate()->heap()->allocation_memento_map());
   AddStoreMapConstant(alloc_memento, alloc_memento_map);
-
-  {
-    // TODO(mvstanton): the code below is turned on to diagnose chromium bug
-    // 284577.
-    Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_map());
-    IfBuilder builder(this);
-    builder.If<HCompareMap>(alloc_site, alloc_site_map);
-    builder.Then();
-    builder.Else();
-    Add<HDebugBreak>();
-    builder.End();
-  }
-
   HObjectAccess access = HObjectAccess::ForAllocationMementoSite();
   Add<HStoreNamedField>(alloc_memento, access, alloc_site);
   return alloc_memento;

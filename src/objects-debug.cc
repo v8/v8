@@ -692,11 +692,6 @@ void JSArray::JSArrayVerify() {
     CHECK(elements()->IsUndefined() ||
           elements()->IsFixedArray() ||
           elements()->IsFixedDoubleArray());
-    // TODO(mvstanton): to diagnose chromium bug 284577, remove after.
-    AllocationMemento* memento = AllocationMemento::FindForJSObject(this);
-    if (memento != NULL && memento->IsValid()) {
-      memento->AllocationMementoVerify();
-    }
   }
 }
 

@@ -4310,10 +4310,7 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
       reinterpret_cast<Address>(result) + map->instance_size());
   alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-
-  // TODO(mvstanton): To diagnose bug 284577, some extra checks
-  CHECK(allocation_site->map() == allocation_site_map());
-
+  ASSERT(allocation_site->map() == allocation_site_map());
   alloc_memento->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
   return result;
 }
@@ -5057,10 +5054,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
       AllocationMemento* alloc_memento;
       if (maybe_alloc_memento->To(&alloc_memento)) {
         alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-
-        // TODO(mvstanton): To diagnose bug 284577, some extra checks
-        CHECK(site->map() == allocation_site_map());
-
+        ASSERT(site->map() == allocation_site_map());
         alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
       }
     }
@@ -5083,10 +5077,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
     AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(clone) + object_size);
     alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-
-    // TODO(mvstanton): To diagnose bug 284577, some extra checks
-    CHECK(site->map() == allocation_site_map());
-
+    ASSERT(site->map() == allocation_site_map());
     alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 
