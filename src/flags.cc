@@ -55,8 +55,7 @@ namespace {
 // to the actual flag, default value, comment, etc.  This is designed to be POD
 // initialized as to avoid requiring static constructors.
 struct Flag {
-  enum FlagType { TYPE_BOOL, TYPE_MAYBE_BOOL, TYPE_INT, TYPE_FLOAT,
-                  TYPE_STRING, TYPE_ARGS };
+  enum FlagType { TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_ARGS };
 
   FlagType type_;           // What type of flag, bool, int, or string.
   const char* name_;        // Name of the flag, ex "my_flag".
@@ -74,11 +73,6 @@ struct Flag {
   bool* bool_variable() const {
     ASSERT(type_ == TYPE_BOOL);
     return reinterpret_cast<bool*>(valptr_);
-  }
-
-  Maybe<bool>* maybe_bool_variable() const {
-    ASSERT(type_ == TYPE_MAYBE_BOOL);
-    return reinterpret_cast<Maybe<bool>*>(valptr_);
   }
 
   int* int_variable() const {
@@ -139,8 +133,6 @@ struct Flag {
     switch (type_) {
       case TYPE_BOOL:
         return *bool_variable() == bool_default();
-      case TYPE_MAYBE_BOOL:
-        return maybe_bool_variable()->has_value == false;
       case TYPE_INT:
         return *int_variable() == int_default();
       case TYPE_FLOAT:
@@ -164,9 +156,6 @@ struct Flag {
     switch (type_) {
       case TYPE_BOOL:
         *bool_variable() = bool_default();
-        break;
-      case TYPE_MAYBE_BOOL:
-        *maybe_bool_variable() = Maybe<bool>();
         break;
       case TYPE_INT:
         *int_variable() = int_default();
@@ -197,7 +186,6 @@ const size_t num_flags = sizeof(flags) / sizeof(*flags);
 static const char* Type2String(Flag::FlagType type) {
   switch (type) {
     case Flag::TYPE_BOOL: return "bool";
-    case Flag::TYPE_MAYBE_BOOL: return "maybe_bool";
     case Flag::TYPE_INT: return "int";
     case Flag::TYPE_FLOAT: return "float";
     case Flag::TYPE_STRING: return "string";
@@ -214,11 +202,6 @@ static SmartArrayPointer<const char> ToString(Flag* flag) {
   switch (flag->type()) {
     case Flag::TYPE_BOOL:
       buffer.Add("%s", (*flag->bool_variable() ? "true" : "false"));
-      break;
-    case Flag::TYPE_MAYBE_BOOL:
-      buffer.Add("%s", flag->maybe_bool_variable()->has_value
-                       ? (flag->maybe_bool_variable()->value ? "true" : "false")
-                       : "unset");
       break;
     case Flag::TYPE_INT:
       buffer.Add("%d", *flag->int_variable());
@@ -397,7 +380,6 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
 
       // if we still need a flag value, use the next argument if available
       if (flag->type() != Flag::TYPE_BOOL &&
-          flag->type() != Flag::TYPE_MAYBE_BOOL &&
           flag->type() != Flag::TYPE_ARGS &&
           value == NULL) {
         if (i < *argc) {
@@ -416,9 +398,6 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       switch (flag->type()) {
         case Flag::TYPE_BOOL:
           *flag->bool_variable() = !is_bool;
-          break;
-        case Flag::TYPE_MAYBE_BOOL:
-          *flag->maybe_bool_variable() = Maybe<bool>(!is_bool);
           break;
         case Flag::TYPE_INT:
           *flag->int_variable() = strtol(value, &endp, 10);  // NOLINT
@@ -446,9 +425,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       }
 
       // handle errors
-      bool is_bool_type = flag->type() == Flag::TYPE_BOOL ||
-          flag->type() == Flag::TYPE_MAYBE_BOOL;
-      if ((is_bool_type && value != NULL) || (!is_bool_type && is_bool) ||
+      if ((flag->type() == Flag::TYPE_BOOL && value != NULL) ||
+          (flag->type() != Flag::TYPE_BOOL && is_bool) ||
           *endp != '\0') {
         PrintF(stderr, "Error: illegal value for flag %s of type %s\n"
                "Try --help for options\n",
@@ -571,7 +549,6 @@ void FlagList::PrintHelp() {
 }
 
 
-// static
 void FlagList::EnforceFlagImplications() {
 #define FLAG_MODE_DEFINE_IMPLICATIONS
 #include "flag-definitions.h"

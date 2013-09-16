@@ -148,8 +148,6 @@ public:
 #endif
 
 #define DEFINE_bool(nam, def, cmt)   FLAG(BOOL, bool, nam, def, cmt)
-#define DEFINE_maybe_bool(nam, cmt)  FLAG(MAYBE_BOOL, Maybe<bool>, nam,  \
-                                          Maybe<bool>(), cmt)
 #define DEFINE_int(nam, def, cmt)    FLAG(INT, int, nam, def, cmt)
 #define DEFINE_float(nam, def, cmt)  FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_string(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
@@ -602,9 +600,6 @@ DEFINE_int(hash_seed,
            0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
-DEFINE_maybe_bool(force_memory_constrained,
-           "force (if true) or prevent (if false) the runtime from treating "
-           "the device as being memory constrained.")
 
 // v8.cc
 DEFINE_bool(preemption, false,
@@ -615,7 +610,6 @@ DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")
-DEFINE_maybe_bool(testing_maybe_bool_flag, "testing_maybe_bool_flag")
 DEFINE_int(testing_int_flag, 13, "testing_int_flag")
 DEFINE_float(testing_float_flag, 2.5, "float-flag")
 DEFINE_string(testing_string_flag, "Hello, world!", "string-flag")
@@ -840,7 +834,6 @@ DEFINE_implication(print_all_code, trace_codegen)
 #undef FLAG_ALIAS
 
 #undef DEFINE_bool
-#undef DEFINE_maybe_bool
 #undef DEFINE_int
 #undef DEFINE_string
 #undef DEFINE_float

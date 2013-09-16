@@ -624,8 +624,7 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
-  if (constraints->is_memory_constrained().has_value &&
-      !i::FLAG_force_memory_constrained.has_value) {
+  if (constraints->is_memory_constrained().has_value) {
     isolate->set_is_memory_constrained(
         constraints->is_memory_constrained().value);
   }
