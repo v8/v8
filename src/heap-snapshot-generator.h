@@ -658,7 +658,6 @@ class HeapSnapshotJSONSerializer {
   void SerializeSnapshot();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();
-  void SortHashMap(HashMap* map, List<HashMap::Entry*>* sorted_entries);
 
   static const int kEdgeFieldsCount;
   static const int kNodeFieldsCount;
