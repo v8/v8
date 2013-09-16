@@ -952,7 +952,7 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
   }
   if (stack_guard->IsInstallCodeRequest()) {
     ASSERT(FLAG_concurrent_recompilation);
-    stack_guard->Continue(INSTALL_CODE);
+    isolate_->stack_guard()->Continue(INSTALL_CODE);
     isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
   }
   isolate->runtime_profiler()->OptimizeNow();
