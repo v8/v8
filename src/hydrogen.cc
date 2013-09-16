@@ -7633,9 +7633,16 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
 }
 
 
-// Checks if the given shift amounts have form: (sa) and (32 - sa).
+// Checks if the given shift amounts have following forms:
+// (N1) and (N2) with N1 + N2 = 32; (sa) and (32 - sa).
 static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
                                              HValue* const32_minus_sa) {
+  if (sa->IsConstant() && const32_minus_sa->IsConstant()) {
+    const HConstant* c1 = HConstant::cast(sa);
+    const HConstant* c2 = HConstant::cast(const32_minus_sa);
+    return c1->HasInteger32Value() && c2->HasInteger32Value() &&
+        (c1->Integer32Value() + c2->Integer32Value() == 32);
+  }
   if (!const32_minus_sa->IsSub()) return false;
   HSub* sub = HSub::cast(const32_minus_sa);
   if (sa != sub->right()) return false;
