@@ -2099,7 +2099,7 @@ class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
   LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };
@@ -2753,7 +2753,7 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   LInstruction* DoArithmeticD(Token::Value op,
                               HArithmeticBinaryOperation* instr);
   LInstruction* DoArithmeticT(Token::Value op,
-                              HArithmeticBinaryOperation* instr);
+                              HBinaryOperation* instr);
 
   LPlatformChunk* chunk_;
   CompilationInfo* info_;

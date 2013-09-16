@@ -4944,14 +4944,18 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 
   Register input_reg = ToRegister(input);
 
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+  if (instr->hydrogen()->value()->representation().IsSmi()) {
+    __ SmiUntag(input_reg);
+  } else {
+    DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
 
-  // Let the deferred code handle the HeapObject case.
-  __ JumpIfNotSmi(input_reg, deferred->entry());
+    // Let the deferred code handle the HeapObject case.
+    __ JumpIfNotSmi(input_reg, deferred->entry());
 
-  // Smi to int32 conversion.
-  __ SmiUntag(input_reg);
-  __ bind(deferred->exit());
+    // Smi to int32 conversion.
+    __ SmiUntag(input_reg);
+    __ bind(deferred->exit());
+  }
 }
 
 
