@@ -2698,8 +2698,8 @@ void HeapSnapshotJSONSerializer::SerializeStrings() {
   for (HashMap::Entry* entry = strings_.Start();
        entry != NULL;
        entry = strings_.Next(entry)) {
-    sorted_strings[reinterpret_cast<uintptr_t>(entry->value)] =
-        reinterpret_cast<const unsigned char*>(entry->key);
+    int index = static_cast<int>(reinterpret_cast<uintptr_t>(entry->value));
+    sorted_strings[index] = reinterpret_cast<const unsigned char*>(entry->key);
   }
   writer_->AddString("\"<dummy>\"");
   for (int i = 1; i < sorted_strings.length(); ++i) {
