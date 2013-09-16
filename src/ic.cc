@@ -549,9 +549,11 @@ MaybeObject* CallICBase::LoadFunction(State state,
                                       Code::ExtraICState extra_ic_state,
                                       Handle<Object> object,
                                       Handle<String> name) {
+  bool use_ic = FLAG_use_ic;
   if (object->IsJSObject()) {
     Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     if (receiver->map()->is_deprecated()) {
+      use_ic = false;
       JSObject::MigrateInstance(receiver);
     }
   }
@@ -590,9 +592,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
   }
 
   // Lookup is valid: Update inline cache and stub cache.
-  if (FLAG_use_ic) {
-    UpdateCaches(&lookup, state, extra_ic_state, object, name);
-  }
+  if (use_ic) UpdateCaches(&lookup, state, extra_ic_state, object, name);
 
   // Get the property.
   PropertyAttributes attr;
@@ -819,9 +819,11 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
                                     Handle<String>::cast(key));
   }
 
+  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
   if (object->IsJSObject()) {
     Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     if (receiver->map()->is_deprecated()) {
+      use_ic = false;
       JSObject::MigrateInstance(receiver);
     }
   }
@@ -830,7 +832,6 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, key);
   }
 
-  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
   ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic && state != MEGAMORPHIC) {
@@ -874,21 +875,20 @@ MaybeObject* LoadIC::Load(State state,
     return TypeError("non_object_property_load", object, name);
   }
 
-  if (FLAG_use_ic) {
+  bool use_ic = FLAG_use_ic;
+
+  if (use_ic) {
     // Use specialized code for getting the length of strings and
     // string wrapper objects.  The length property of string wrapper
     // objects is read-only and therefore always returns the length of
     // the underlying string value.  See ECMA-262 15.5.5.1.
-    if ((object->IsString() || object->IsStringWrapper()) &&
+    if (object->IsStringWrapper() &&
         name->Equals(isolate()->heap()->length_string())) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        StringLengthStub string_length_stub(kind(), !object->IsString());
-        stub = string_length_stub.GetCode(isolate());
-      } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
-        StringLengthStub string_length_stub(kind(), true);
+      } else if (state == PREMONOMORPHIC || state == MONOMORPHIC) {
+        StringLengthStub string_length_stub(kind());
         stub = string_length_stub.GetCode(isolate());
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
@@ -897,14 +897,12 @@ MaybeObject* LoadIC::Load(State state,
       if (!stub.is_null()) {
         set_target(*stub);
 #ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /stringwrapper]\n");
 #endif
       }
       // Get the string if we have a string wrapper object.
-      Handle<Object> string = object->IsJSValue()
-          ? Handle<Object>(Handle<JSValue>::cast(object)->value(), isolate())
-          : object;
-      return Smi::FromInt(String::cast(*string)->length());
+      String* string = String::cast(JSValue::cast(*object)->value());
+      return Smi::FromInt(string->length());
     }
 
     // Use specialized code for getting prototype of functions.
@@ -936,13 +934,14 @@ MaybeObject* LoadIC::Load(State state,
   uint32_t index;
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
-    if (FLAG_use_ic) set_target(*generic_stub());
+    if (use_ic) set_target(*generic_stub());
     return Runtime::GetElementOrCharAtOrFail(isolate(), object, index);
   }
 
   if (object->IsJSObject()) {
     Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     if (receiver->map()->is_deprecated()) {
+      use_ic = false;
       JSObject::MigrateInstance(receiver);
     }
   }
@@ -960,7 +959,7 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   // Update inline cache and stub cache.
-  if (FLAG_use_ic) UpdateCaches(&lookup, state, object, name);
+  if (use_ic) UpdateCaches(&lookup, state, object, name);
 
   PropertyAttributes attr;
   if (lookup.IsInterceptor() || lookup.IsHandler()) {
@@ -1265,6 +1264,8 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           State state,
                           Handle<Object> object,
                           Handle<String> name) {
+  // TODO(verwaest): It would be nice to support loading fields from smis as
+  // well. For now just fail to update the cache.
   if (!object->IsHeapObject()) return;
 
   Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
@@ -1278,6 +1279,16 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   } else if (!lookup->IsCacheable()) {
     // Bail out if the result is not cacheable.
     code = slow_stub();
+  } else if (object->IsString() &&
+             name->Equals(isolate()->heap()->length_string())) {
+    int length_index = String::kLengthOffset / kPointerSize;
+    if (target()->is_load_stub()) {
+      LoadFieldStub stub(true, length_index, Representation::Tagged());
+      code = stub.GetCode(isolate());
+    } else {
+      KeyedLoadFieldStub stub(true, length_index, Representation::Tagged());
+      code = stub.GetCode(isolate());
+    }
   } else if (!object->IsJSObject()) {
     // TODO(jkummerow): It would be nice to support non-JSObjects in
     // ComputeLoadHandler, then we wouldn't need to go generic here.
@@ -1362,9 +1373,9 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, function);
       } else if (receiver->IsJSArray() &&
-          name->Equals(isolate()->heap()->length_string())) {
-        PropertyIndex lengthIndex =
-          PropertyIndex::NewHeaderIndex(JSArray::kLengthOffset / kPointerSize);
+                 name->Equals(isolate()->heap()->length_string())) {
+        PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
+            JSArray::kLengthOffset / kPointerSize);
         return isolate()->stub_cache()->ComputeLoadField(
             name, receiver, holder, lengthIndex, Representation::Tagged());
       }
@@ -1496,6 +1507,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
       } else if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
         if (receiver->map()->is_deprecated()) {
+          use_ic = false;
           JSObject::MigrateInstance(receiver);
         }
 
@@ -1512,9 +1524,11 @@ MaybeObject* KeyedLoadIC::Load(State state,
     } else {
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "force generic");
     }
-    ASSERT(!stub.is_null());
-    set_target(*stub);
-    TRACE_IC("KeyedLoadIC", key, state, target());
+    if (use_ic) {
+      ASSERT(!stub.is_null());
+      set_target(*stub);
+      TRACE_IC("KeyedLoadIC", key, state, target());
+    }
   }
 
 
@@ -1678,7 +1692,9 @@ MaybeObject* StoreIC::Store(State state,
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
+  bool use_ic = FLAG_use_ic;
   if (receiver->map()->is_deprecated()) {
+    use_ic = false;
     JSObject::MigrateInstance(receiver);
   }
 
@@ -1701,7 +1717,7 @@ MaybeObject* StoreIC::Store(State state,
   // properties. Slow properties might indicate redefinition of the length
   // property. Note that when redefined using Object.freeze, it's possible
   // to have fast properties but a read-only length.
-  if (FLAG_use_ic &&
+  if (use_ic &&
       receiver->IsJSArray() &&
       name->Equals(isolate()->heap()->length_string()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
@@ -1716,7 +1732,7 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   if (receiver->IsJSGlobalProxy()) {
-    if (FLAG_use_ic && kind() != Code::KEYED_STORE_IC) {
+    if (use_ic && kind() != Code::KEYED_STORE_IC) {
       // Generate a generic stub that goes to the runtime when we see a global
       // proxy as receiver.
       Handle<Code> stub = (strict_mode == kStrictMode)
@@ -1738,7 +1754,7 @@ MaybeObject* StoreIC::Store(State state,
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   }
-  if (FLAG_use_ic) {
+  if (use_ic) {
     if (state == UNINITIALIZED) {
       Handle<Code> stub = (strict_mode == kStrictMode)
           ? pre_monomorphic_stub_strict()

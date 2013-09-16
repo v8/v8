@@ -357,40 +357,45 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 
   HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
   HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
+  HValue* push_value;
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
     HValue* elements = AddLoadElements(boilerplate);
 
     IfBuilder if_fixed_cow(this);
     if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
     if_fixed_cow.Then();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               FAST_ELEMENTS,
-                                               0/*copy-on-write*/));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        FAST_ELEMENTS,
+                                        0/*copy-on-write*/);
+    environment()->Push(push_value);
     if_fixed_cow.Else();
 
     IfBuilder if_fixed(this);
     if_fixed.If<HCompareMap>(elements, factory->fixed_array_map());
     if_fixed.Then();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               FAST_ELEMENTS,
-                                               length));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        FAST_ELEMENTS,
+                                        length);
+    environment()->Push(push_value);
     if_fixed.Else();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               FAST_DOUBLE_ELEMENTS,
-                                               length));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        FAST_DOUBLE_ELEMENTS,
+                                        length);
+    environment()->Push(push_value);
   } else {
     ElementsKind elements_kind = casted_stub()->ComputeElementsKind();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               elements_kind,
-                                               length));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        elements_kind,
+                                        length);
+    environment()->Push(push_value);
   }
 
   checker.ElseDeopt("Uninitialized boilerplate literals");

@@ -380,31 +380,27 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
-                                            Label* miss,
-                                            bool support_wrappers) {
+                                            Label* miss) {
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch1 register.
-  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss,
-                      support_wrappers ? &check_wrapper : miss);
+  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss, &check_wrapper);
 
   // Load length directly from the string.
   __ ldr(r0, FieldMemOperand(receiver, String::kLengthOffset));
   __ Ret();
 
-  if (support_wrappers) {
-    // Check if the object is a JSValue wrapper.
-    __ bind(&check_wrapper);
-    __ cmp(scratch1, Operand(JS_VALUE_TYPE));
-    __ b(ne, miss);
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmp(scratch1, Operand(JS_VALUE_TYPE));
+  __ b(ne, miss);
 
-    // Unwrap the value and check if the wrapped value is a string.
-    __ ldr(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
-    GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
-    __ ldr(r0, FieldMemOperand(scratch1, String::kLengthOffset));
-    __ Ret();
-  }
+  // Unwrap the value and check if the wrapped value is a string.
+  __ ldr(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
+  __ ldr(r0, FieldMemOperand(scratch1, String::kLengthOffset));
+  __ Ret();
 }
 
 

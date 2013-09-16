@@ -3813,7 +3813,7 @@ Local<v8::Object> v8::Object::Clone() {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::JSObject> result = i::Copy(self);
+  i::Handle<i::JSObject> result = i::JSObject::Copy(self);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
@@ -6212,7 +6212,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
   EXCEPTION_PREAMBLE(isolate);
   ENTER_V8(isolate);
-  i::Handle<i::JSObject> result = i::Copy(paragon_handle);
+  i::Handle<i::JSObject> result = i::JSObject::Copy(paragon_handle);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);

@@ -264,8 +264,6 @@ class OS {
     char text[kStackWalkMaxTextLen];
   };
 
-  static int StackWalk(Vector<StackFrame> frames);
-
   class MemoryMappedFile {
    public:
     static MemoryMappedFile* open(const char* name);

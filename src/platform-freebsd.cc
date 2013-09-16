@@ -199,10 +199,6 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
-}
-
 
 // Constants used for mmap.
 static const int kMmapFd = -1;

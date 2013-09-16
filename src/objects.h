@@ -2630,8 +2630,9 @@ class JSObject: public JSReceiver {
   // Called the first time an object is observed with ES7 Object.observe.
   MUST_USE_RESULT MaybeObject* SetObserved(Isolate* isolate);
 
-  // Copy object
-  MUST_USE_RESULT MaybeObject* DeepCopy(Isolate* isolate);
+  // Copy object.
+  static Handle<JSObject> Copy(Handle<JSObject> object);
+  static Handle<JSObject> DeepCopy(Handle<JSObject> object);
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -5154,7 +5155,7 @@ class Code: public HeapObject {
   // being entered through the prologue.  Used to determine when it is
   // relatively safe to flush this code object and replace it with the lazy
   // compilation stub.
-  static void MakeCodeAgeSequenceYoung(byte* sequence);
+  static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
@@ -5300,10 +5301,11 @@ class Code: public HeapObject {
                                   MarkingParity* parity);
   static void GetCodeAgeAndParity(byte* sequence, Age* age,
                                   MarkingParity* parity);
-  static Code* GetCodeAgeStub(Age age, MarkingParity parity);
+  static Code* GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity);
 
   // Code aging -- platform-specific
-  static void PatchPlatformCodeAge(byte* sequence, Age age,
+  static void PatchPlatformCodeAge(Isolate* isolate,
+                                   byte* sequence, Age age,
                                    MarkingParity parity);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);

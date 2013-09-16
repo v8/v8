@@ -283,7 +283,7 @@ void MacroAssembler::DoubleToI(Register result_reg,
                                Label::Distance dst) {
   ASSERT(!input_reg.is(scratch));
   cvttsd2si(result_reg, Operand(input_reg));
-  cvtsi2sd(scratch, Operand(result_reg));
+  Cvtsi2sd(scratch, Operand(result_reg));
   ucomisd(scratch, input_reg);
   j(not_equal, conversion_failed, dst);
   j(parity_even, conversion_failed, dst);  // NaN.
@@ -392,7 +392,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
 
     movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     cvttsd2si(result_reg, Operand(xmm0));
-    cvtsi2sd(temp, Operand(result_reg));
+    Cvtsi2sd(temp, Operand(result_reg));
     ucomisd(xmm0, temp);
     RecordComment("Deferred TaggedToI: lost precision");
     j(not_equal, lost_precision, Label::kNear);
@@ -457,7 +457,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
   cmp(src, Immediate(0));
   movdbl(scratch,
          Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
-  cvtsi2sd(dst, src);
+  Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, scratch);
   bind(&done);
@@ -676,6 +676,12 @@ void MacroAssembler::DebugBreak() {
 #endif
 
 
+void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
+  xorps(dst, dst);
+  cvtsi2sd(dst, src);
+}
+
+
 void MacroAssembler::Set(Register dst, const Immediate& x) {
   if (x.is_zero()) {
     xor_(dst, dst);  // Shorter than mov.
@@ -834,7 +840,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   SmiUntag(scratch1);
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
     CpuFeatureScope fscope(this, SSE2);
-    cvtsi2sd(scratch2, scratch1);
+    Cvtsi2sd(scratch2, scratch1);
     movdbl(FieldOperand(elements, key, times_4,
                         FixedDoubleArray::kHeaderSize - elements_offset),
            scratch2);

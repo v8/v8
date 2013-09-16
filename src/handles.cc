@@ -294,21 +294,6 @@ Handle<String> SubString(Handle<String> str,
 }
 
 
-Handle<JSObject> Copy(Handle<JSObject> obj) {
-  Isolate* isolate = obj->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->CopyJSObject(*obj), JSObject);
-}
-
-
-Handle<JSObject> DeepCopy(Handle<JSObject> obj) {
-  Isolate* isolate = obj->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     obj->DeepCopy(isolate),
-                     JSObject);
-}
-
-
 // Wrappers for scripts are kept alive and cached in weak global
 // handles referred from foreign objects held by the scripts as long as
 // they are used. When they are not used anymore, the garbage

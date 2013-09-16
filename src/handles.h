@@ -255,10 +255,6 @@ Handle<Object> GetProperty(Isolate* isolate,
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
 
-Handle<JSObject> Copy(Handle<JSObject> obj);
-
-Handle<JSObject> DeepCopy(Handle<JSObject> obj);
-
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
                                       Handle<JSArray> array);
 

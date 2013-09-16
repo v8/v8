@@ -1,3 +1,12 @@
+2013-09-16: Version 3.21.16
+
+        Every place where AllocationMemento is initialized with an
+        AllocationSite is now checked to be sure a valid Site goes in. This is
+        temporary code to diagnose chromium bug 284577.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-13: Version 3.21.15
 
         Non-JSObject heap objects are now handled using slow-path IC stub

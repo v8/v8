@@ -1646,7 +1646,6 @@ class Property V8_FINAL : public Expression {
 
   BailoutId LoadId() const { return load_id_; }
 
-  bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
   bool IsFunctionPrototype() const { return is_function_prototype_; }
 
@@ -1674,7 +1673,6 @@ class Property V8_FINAL : public Expression {
         load_id_(GetNextId(isolate)),
         is_monomorphic_(false),
         is_uninitialized_(false),
-        is_string_length_(false),
         is_string_access_(false),
         is_function_prototype_(false) { }
 
@@ -1687,7 +1685,6 @@ class Property V8_FINAL : public Expression {
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
   bool is_uninitialized_ : 1;
-  bool is_string_length_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
 };

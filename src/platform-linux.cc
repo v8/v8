@@ -313,16 +313,6 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  // backtrace is a glibc extension.
-#if defined(__GLIBC__) && !defined(__UCLIBC__)
-  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
-#else
-  return 0;
-#endif
-}
-
-
 // Constants used for mmap.
 static const int kMmapFd = -1;
 static const int kMmapFdOffset = 0;
