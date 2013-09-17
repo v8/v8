@@ -2842,7 +2842,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // sp: stack pointer
   // fp: frame pointer
   //  Callee-saved register r4 still holds argc.
-  __ LeaveExitFrame(save_doubles_, r4, true);
+  __ LeaveExitFrame(save_doubles_, r4);
   __ mov(pc, lr);
 
   // check if we should retry or throw exception
@@ -4071,7 +4071,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   DirectCEntryStub stub;
   stub.GenerateCall(masm, r7);
 
-  __ LeaveExitFrame(false, no_reg, true);
+  __ LeaveExitFrame(false, no_reg);
 
   // r0: result
   // subject: subject string (callee saved)

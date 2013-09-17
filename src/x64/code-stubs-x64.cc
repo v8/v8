@@ -2648,7 +2648,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ addq(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ call(r11);
 
-  __ LeaveApiExitFrame(true);
+  __ LeaveApiExitFrame();
 
   // Check the result.
   Label success;

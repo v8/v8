@@ -2364,7 +2364,7 @@ class FunctionCallbackInfo {
   V8_INLINE Isolate* GetIsolate() const;
   V8_INLINE ReturnValue<T> GetReturnValue() const;
   // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 7;
+  static const int kArgsLength = 6;
 
  protected:
   friend class internal::FunctionCallbackArguments;
@@ -2375,7 +2375,6 @@ class FunctionCallbackInfo {
   static const int kDataIndex = -3;
   static const int kCalleeIndex = -4;
   static const int kHolderIndex = -5;
-  static const int kContextSaveIndex = -6;
 
   V8_INLINE FunctionCallbackInfo(internal::Object** implicit_args,
                    internal::Object** values,

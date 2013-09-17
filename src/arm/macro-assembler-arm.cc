@@ -1020,8 +1020,7 @@ int MacroAssembler::ActivationFrameAlignment() {
 
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
-                                    Register argument_count,
-                                    bool restore_context) {
+                                    Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
@@ -1036,14 +1035,10 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(ip));
 
-
   // Restore current context from top and clear it in debug mode.
-  if (restore_context) {
-    mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
-    ldr(cp, MemOperand(ip));
-  }
-#ifdef DEBUG
   mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  ldr(cp, MemOperand(ip));
+#ifdef DEBUG
   str(r3, MemOperand(ip));
 #endif
 
@@ -2285,14 +2280,12 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(
-    ExternalReference function,
-    Address function_address,
-    ExternalReference thunk_ref,
-    Register thunk_last_arg,
-    int stack_space,
-    MemOperand return_value_operand,
-    MemOperand* context_restore_operand) {
+void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
+                                              Address function_address,
+                                              ExternalReference thunk_ref,
+                                              Register thunk_last_arg,
+                                              int stack_space,
+                                              int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -2356,13 +2349,12 @@ void MacroAssembler::CallApiFunctionAndReturn(
   }
 
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label return_value_loaded;
 
   // load value from ReturnValue
-  ldr(r0, return_value_operand);
+  ldr(r0, MemOperand(fp, return_value_offset*kPointerSize));
   bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
@@ -2385,22 +2377,17 @@ void MacroAssembler::CallApiFunctionAndReturn(
   ldr(r5, MemOperand(ip));
   cmp(r4, r5);
   b(ne, &promote_scheduled_exception);
-  bind(&exception_handled);
 
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    ldr(cp, *context_restore_operand);
-  }
   // LeaveExitFrame expects unwind space to be in a register.
   mov(r4, Operand(stack_space));
-  LeaveExitFrame(false, r4, !restore_context);
+  LeaveExitFrame(false, r4);
   mov(pc, lr);
 
   bind(&promote_scheduled_exception);
-  CallExternalReference(
+  TailCallExternalReference(
       ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-      0);
-  jmp(&exception_handled);
+      0,
+      1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
