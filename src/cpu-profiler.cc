@@ -435,8 +435,18 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     logger->is_logging_ = false;
     generator_ = new ProfileGenerator(profiles_);
     Sampler* sampler = logger->sampler();
+#if V8_CC_MSVC && (_MSC_VER >= 1800)
+    // VS2013 reports "warning C4316: 'v8::internal::ProfilerEventsProcessor'
+    // : object allocated on the heap may not be aligned 64".  We need to
+    // figure out if this is a legitimate warning or a compiler bug.
+    #pragma warning(push)
+    #pragma warning(disable:4316)
+#endif
     processor_ = new ProfilerEventsProcessor(
         generator_, sampler, sampling_interval_);
+#if V8_CC_MSVC && (_MSC_VER >= 1800)
+    #pragma warning(pop)
+#endif
     is_profiling_ = true;
     // Enumerate stuff we already have in the heap.
     ASSERT(isolate_->heap()->HasBeenSetUp());
