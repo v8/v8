@@ -17705,32 +17705,73 @@ TEST(Regress618) {
   }
 }
 
+v8::Isolate* gc_callbacks_isolate = NULL;
 int prologue_call_count = 0;
 int epilogue_call_count = 0;
 int prologue_call_count_second = 0;
 int epilogue_call_count_second = 0;
 
-void PrologueCallback(v8::GCType, v8::GCCallbackFlags) {
+void PrologueCallback(v8::GCType, v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
   ++prologue_call_count;
 }
 
 
-void EpilogueCallback(v8::GCType, v8::GCCallbackFlags) {
+void PrologueCallback(v8::Isolate* isolate,
+                      v8::GCType,
+                      v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++prologue_call_count;
+}
+
+
+void EpilogueCallback(v8::GCType, v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
   ++epilogue_call_count;
 }
 
 
-void PrologueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
+void EpilogueCallback(v8::Isolate* isolate,
+                      v8::GCType,
+                      v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++epilogue_call_count;
+}
+
+
+void PrologueCallbackSecond(v8::GCType, v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
   ++prologue_call_count_second;
 }
 
 
-void EpilogueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
+void PrologueCallbackSecond(v8::Isolate* isolate,
+                            v8::GCType,
+                            v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++prologue_call_count_second;
+}
+
+
+void EpilogueCallbackSecond(v8::GCType, v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
   ++epilogue_call_count_second;
 }
 
 
-TEST(GCCallbacks) {
+void EpilogueCallbackSecond(v8::Isolate* isolate,
+                            v8::GCType,
+                            v8::GCCallbackFlags flags) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++epilogue_call_count_second;
+}
+
+
+TEST(GCCallbacksOld) {
   LocalContext context;
 
   v8::V8::AddGCPrologueCallback(PrologueCallback);
@@ -17756,6 +17797,41 @@ TEST(GCCallbacks) {
   CHECK_EQ(2, epilogue_call_count_second);
   v8::V8::RemoveGCPrologueCallback(PrologueCallbackSecond);
   v8::V8::RemoveGCEpilogueCallback(EpilogueCallbackSecond);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(2, prologue_call_count);
+  CHECK_EQ(2, epilogue_call_count);
+  CHECK_EQ(2, prologue_call_count_second);
+  CHECK_EQ(2, epilogue_call_count_second);
+}
+
+
+TEST(GCCallbacks) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  gc_callbacks_isolate = isolate;
+  isolate->AddGCPrologueCallback(PrologueCallback);
+  isolate->AddGCEpilogueCallback(EpilogueCallback);
+  CHECK_EQ(0, prologue_call_count);
+  CHECK_EQ(0, epilogue_call_count);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(1, prologue_call_count);
+  CHECK_EQ(1, epilogue_call_count);
+  isolate->AddGCPrologueCallback(PrologueCallbackSecond);
+  isolate->AddGCEpilogueCallback(EpilogueCallbackSecond);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(2, prologue_call_count);
+  CHECK_EQ(2, epilogue_call_count);
+  CHECK_EQ(1, prologue_call_count_second);
+  CHECK_EQ(1, epilogue_call_count_second);
+  isolate->RemoveGCPrologueCallback(PrologueCallback);
+  isolate->RemoveGCEpilogueCallback(EpilogueCallback);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(2, prologue_call_count);
+  CHECK_EQ(2, epilogue_call_count);
+  CHECK_EQ(2, prologue_call_count_second);
+  CHECK_EQ(2, epilogue_call_count_second);
+  isolate->RemoveGCPrologueCallback(PrologueCallbackSecond);
+  isolate->RemoveGCEpilogueCallback(EpilogueCallbackSecond);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);

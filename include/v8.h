@@ -3871,8 +3871,6 @@ enum GCCallbackFlags {
 typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
 typedef void (*GCEpilogueCallback)(GCType type, GCCallbackFlags flags);
 
-typedef void (*GCCallback)();
-
 
 /**
  * Collection of V8 heap information.
@@ -4055,6 +4053,51 @@ class V8_EXPORT Isolate {
    */
   void SetReference(const Persistent<Object>& parent,
                     const Persistent<Value>& child);
+
+  typedef void (*GCPrologueCallback)(Isolate* isolate,
+                                     GCType type,
+                                     GCCallbackFlags flags);
+  typedef void (*GCEpilogueCallback)(Isolate* isolate,
+                                     GCType type,
+                                     GCCallbackFlags flags);
+
+  /**
+   * Enables the host application to receive a notification before a
+   * garbage collection.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects. It is possible
+   * to specify the GCType filter for your callback. But it is not possible to
+   * register the same callback function two times with different
+   * GCType filters.
+   */
+  void AddGCPrologueCallback(
+      GCPrologueCallback callback, GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes callback which was installed by
+   * AddGCPrologueCallback function.
+   */
+  void RemoveGCPrologueCallback(GCPrologueCallback callback);
+
+  /**
+   * Enables the host application to receive a notification after a
+   * garbage collection.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects. It is possible
+   * to specify the GCType filter for your callback. But it is not possible to
+   * register the same callback function two times with different
+   * GCType filters.
+   */
+  void AddGCEpilogueCallback(
+      GCEpilogueCallback callback, GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes callback which was installed by
+   * AddGCEpilogueCallback function.
+   */
+  void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
 
  private:
   Isolate();
@@ -4413,16 +4456,6 @@ class V8_EXPORT V8 {
   static void RemoveGCPrologueCallback(GCPrologueCallback callback);
 
   /**
-   * The function is deprecated. Please use AddGCPrologueCallback instead.
-   * Enables the host application to receive a notification before a
-   * garbage collection.  Allocations are not allowed in the
-   * callback function, you therefore cannot manipulate objects (set
-   * or delete properties for example) since it is possible such
-   * operations will result in the allocation of objects.
-   */
-  V8_DEPRECATED(static void SetGlobalGCPrologueCallback(GCCallback));
-
-  /**
    * Enables the host application to receive a notification after a
    * garbage collection.  Allocations are not allowed in the
    * callback function, you therefore cannot manipulate objects (set
@@ -4440,16 +4473,6 @@ class V8_EXPORT V8 {
    * AddGCEpilogueCallback function.
    */
   static void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
-
-  /**
-   * The function is deprecated. Please use AddGCEpilogueCallback instead.
-   * Enables the host application to receive a notification after a
-   * major garbage collection.  Allocations are not allowed in the
-   * callback function, you therefore cannot manipulate objects (set
-   * or delete properties for example) since it is possible such
-   * operations will result in the allocation of objects.
-   */
-  V8_DEPRECATED(static void SetGlobalGCEpilogueCallback(GCCallback));
 
   /**
    * Enables the host application to provide a mechanism to be notified

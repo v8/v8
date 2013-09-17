@@ -267,39 +267,6 @@ TEST(MapCompact) {
 }
 #endif
 
-static int gc_starts = 0;
-static int gc_ends = 0;
-
-static void GCPrologueCallbackFunc() {
-  CHECK(gc_starts == gc_ends);
-  gc_starts++;
-}
-
-
-static void GCEpilogueCallbackFunc() {
-  CHECK(gc_starts == gc_ends + 1);
-  gc_ends++;
-}
-
-
-TEST(GCCallback) {
-  i::FLAG_stress_compaction = false;
-  CcTest::InitializeVM();
-
-  HEAP->SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
-  HEAP->SetGlobalGCEpilogueCallback(&GCEpilogueCallbackFunc);
-
-  // Scavenge does not call GC callback functions.
-  HEAP->PerformScavenge();
-
-  CHECK_EQ(0, gc_starts);
-  CHECK_EQ(gc_ends, gc_starts);
-
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
-  CHECK_EQ(1, gc_starts);
-  CHECK_EQ(gc_ends, gc_starts);
-}
-
 
 static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(v8::Isolate* isolate,

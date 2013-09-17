@@ -6685,45 +6685,65 @@ void Isolate::SetReference(const Persistent<Object>& parent,
 }
 
 
-void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCPrologueCallback()")) return;
-  isolate->heap()->SetGlobalGCPrologueCallback(callback);
+void Isolate::AddGCPrologueCallback(GCPrologueCallback callback,
+                                    GCType gc_type) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AddGCPrologueCallback(callback, gc_type);
 }
 
 
-void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCEpilogueCallback()")) return;
-  isolate->heap()->SetGlobalGCEpilogueCallback(callback);
+void Isolate::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RemoveGCPrologueCallback(callback);
+}
+
+
+void Isolate::AddGCEpilogueCallback(GCEpilogueCallback callback,
+                                    GCType gc_type) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AddGCEpilogueCallback(callback, gc_type);
+}
+
+
+void Isolate::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RemoveGCEpilogueCallback(callback);
 }
 
 
 void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddGCPrologueCallback()")) return;
-  isolate->heap()->AddGCPrologueCallback(callback, gc_type);
+  isolate->heap()->AddGCPrologueCallback(
+      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback),
+      gc_type,
+      false);
 }
 
 
 void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveGCPrologueCallback()")) return;
-  isolate->heap()->RemoveGCPrologueCallback(callback);
+  isolate->heap()->RemoveGCPrologueCallback(
+      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback));
 }
 
 
 void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddGCEpilogueCallback()")) return;
-  isolate->heap()->AddGCEpilogueCallback(callback, gc_type);
+  isolate->heap()->AddGCEpilogueCallback(
+      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback),
+      gc_type,
+      false);
 }
 
 
 void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveGCEpilogueCallback()")) return;
-  isolate->heap()->RemoveGCEpilogueCallback(callback);
+  isolate->heap()->RemoveGCEpilogueCallback(
+      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback));
 }
 
 
