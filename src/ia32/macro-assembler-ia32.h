@@ -240,7 +240,7 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
-  void LeaveApiExitFrame();
+  void LeaveApiExitFrame(bool restore_context);
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
@@ -813,7 +813,8 @@ class MacroAssembler: public Assembler {
                                 Address thunk_address,
                                 Operand thunk_last_arg,
                                 int stack_space,
-                                int return_value_offset_from_ebp);
+                                Operand return_value_operand,
+                                Operand* context_restore_operand);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
@@ -963,7 +964,7 @@ class MacroAssembler: public Assembler {
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
-  void LeaveExitFrameEpilogue();
+  void LeaveExitFrameEpilogue(bool restore_context);
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,

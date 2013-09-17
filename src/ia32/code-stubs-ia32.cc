@@ -3494,7 +3494,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ call(edx);
 
   // Drop arguments and come back to JS mode.
-  __ LeaveApiExitFrame();
+  __ LeaveApiExitFrame(true);
 
   // Check the result.
   Label success;
