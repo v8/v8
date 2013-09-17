@@ -1115,14 +1115,16 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Push the return address to get ready to return.
   push(ecx);
 
-  LeaveExitFrameEpilogue();
+  LeaveExitFrameEpilogue(true);
 }
 
 
-void MacroAssembler::LeaveExitFrameEpilogue() {
+void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Isolate::kContextAddress, isolate());
-  mov(esi, Operand::StaticVariable(context_address));
+  if (restore_context) {
+    mov(esi, Operand::StaticVariable(context_address));
+  }
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
@@ -1134,11 +1136,11 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
 }
 
 
-void MacroAssembler::LeaveApiExitFrame() {
+void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
   mov(esp, ebp);
   pop(ebp);
 
-  LeaveExitFrameEpilogue();
+  LeaveExitFrameEpilogue(restore_context);
 }
 
 
@@ -2227,11 +2229,13 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
-                                              Address thunk_address,
-                                              Operand thunk_last_arg,
-                                              int stack_space,
-                                              int return_value_offset) {
+void MacroAssembler::CallApiFunctionAndReturn(
+    Address function_address,
+    Address thunk_address,
+    Operand thunk_last_arg,
+    int stack_space,
+    Operand return_value_operand,
+    Operand* context_restore_operand) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   ExternalReference limit_address =
@@ -2287,9 +2291,10 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
 
   Label prologue;
   // Load the value from ReturnValue
-  mov(eax, Operand(ebp, return_value_offset * kPointerSize));
+  mov(eax, return_value_operand);
 
   Label promote_scheduled_exception;
+  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
@@ -2309,6 +2314,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   cmp(Operand::StaticVariable(scheduled_exception_address),
       Immediate(isolate()->factory()->the_hole_value()));
   j(not_equal, &promote_scheduled_exception);
+  bind(&exception_handled);
 
 #if ENABLE_EXTRA_CHECKS
   // Check if the function returned a valid JavaScript value.
@@ -2345,11 +2351,19 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   bind(&ok);
 #endif
 
-  LeaveApiExitFrame();
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    mov(esi, *context_restore_operand);
+  }
+  LeaveApiExitFrame(!restore_context);
   ret(stack_space * kPointerSize);
 
   bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  {
+    FrameScope frame(this, StackFrame::INTERNAL);
+    CallRuntime(Runtime::kPromoteScheduledException, 0);
+  }
+  jmp(&exception_handled);
 
   // HandleScope limit has changed. Delete allocated extensions.
   ExternalReference delete_extensions =
