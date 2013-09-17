@@ -554,7 +554,7 @@ THREADED_TEST(JSONStringifyNamedInterceptorObject) {
 }
 
 
-THREADED_TEST(CrossContextAccess) {
+THREADED_TEST(AccessorPropertyCrossContext) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
