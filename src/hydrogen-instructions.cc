@@ -2575,10 +2575,6 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
                               Representation::Integer32(),
                               is_not_in_new_space_,
                               handle_);
-  } else {
-    ASSERT(!HasNumberValue());
-    Maybe<HConstant*> number = CopyToTruncatedNumber(zone);
-    if (number.has_value) return number.value->CopyToTruncatedInt32(zone);
   }
   return Maybe<HConstant*>(res != NULL, res);
 }
