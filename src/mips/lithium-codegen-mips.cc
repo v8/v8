@@ -4232,20 +4232,25 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+    Register address = scratch0();
     FPURegister value(ToDoubleRegister(instr->value()));
     if (key_is_constant) {
-      __ Addu(scratch0(), external_pointer, constant_key <<
-          element_size_shift);
+      if (constant_key != 0) {
+        __ Addu(address, external_pointer,
+                Operand(constant_key << element_size_shift));
+      } else {
+        address = external_pointer;
+      }
     } else {
-      __ sll(scratch0(), key, shift_size);
-      __ Addu(scratch0(), scratch0(), external_pointer);
+      __ sll(address, key, shift_size);
+      __ Addu(address, external_pointer, address);
     }
 
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
       __ cvt_s_d(double_scratch0(), value);
-      __ swc1(double_scratch0(), MemOperand(scratch0(), additional_offset));
+      __ swc1(double_scratch0(), MemOperand(address, additional_offset));
     } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ sdc1(value, MemOperand(scratch0(), additional_offset));
+      __ sdc1(value, MemOperand(address, additional_offset));
     }
   } else {
     Register value(ToRegister(instr->value()));
@@ -4287,33 +4292,29 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   DoubleRegister value = ToDoubleRegister(instr->value());
   Register elements = ToRegister(instr->elements());
-  Register key = no_reg;
   Register scratch = scratch0();
+  DoubleRegister double_scratch = double_scratch0();
   bool key_is_constant = instr->key()->IsConstantOperand();
-  int constant_key = 0;
-  Label not_nan;
+  Label not_nan, done;
 
   // Calculate the effective address of the slot in the array to store the
   // double value.
+  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
   if (key_is_constant) {
-    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    int constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
       Abort(kArrayIndexConstantValueTooBig);
     }
+    __ Addu(scratch, elements,
+            Operand((constant_key << element_size_shift) +
+                    FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   } else {
-    key = ToRegister(instr->key());
-  }
-  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
-      ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  if (key_is_constant) {
-    __ Addu(scratch, elements, Operand((constant_key << element_size_shift) +
-            FixedDoubleArray::kHeaderSize - kHeapObjectTag));
-  } else {
-    __ sll(scratch, key, shift_size);
-    __ Addu(scratch, elements, Operand(scratch));
-    __ Addu(scratch, scratch,
+    int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
+        ? (element_size_shift - kSmiTagSize) : element_size_shift;
+    __ Addu(scratch, elements,
             Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+    __ sll(at, ToRegister(instr->key()), shift_size);
+    __ Addu(scratch, scratch, at);
   }
 
   if (instr->NeedsCanonicalization()) {
@@ -4324,12 +4325,17 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
     // Only load canonical NaN if the comparison above set the overflow.
     __ bind(&is_nan);
-    __ Move(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+    __ Move(double_scratch,
+            FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+    __ sdc1(double_scratch, MemOperand(scratch, instr->additional_index() <<
+        element_size_shift));
+    __ Branch(&done);
   }
 
   __ bind(&not_nan);
   __ sdc1(value, MemOperand(scratch, instr->additional_index() <<
       element_size_shift));
+  __ bind(&done);
 }
 
 
