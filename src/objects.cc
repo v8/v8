@@ -5635,6 +5635,8 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
 
   Handle<JSObject> copy = Copy(object);
 
+  HandleScope scope(isolate);
+
   // Deep copy local properties.
   if (copy->HasFastProperties()) {
     Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
