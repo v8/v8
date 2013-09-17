@@ -768,7 +768,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiUntag(ebx);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope fscope(masm, SSE2);
-    __ Cvtsi2sd(xmm0, ebx);
+    __ cvtsi2sd(xmm0, ebx);
     __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
               xmm0);
   } else {
@@ -1165,8 +1165,7 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
 }
 
 
-void Code::PatchPlatformCodeAge(Isolate* isolate,
-                                byte* sequence,
+void Code::PatchPlatformCodeAge(byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
   uint32_t young_length;
@@ -1175,7 +1174,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
-    Code* stub = GetCodeAgeStub(isolate, age, parity);
+    Code* stub = GetCodeAgeStub(age, parity);
     CodePatcher patcher(sequence, young_length);
     patcher.masm()->call(stub->instruction_start(), RelocInfo::NONE32);
   }

@@ -330,11 +330,10 @@ void JSObject::JSObjectVerify() {
     }
   }
 
-  // If a GC was caused while constructing this object, the elements
-  // pointer may point to a one pointer filler map.
-  if ((FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map())) {
+  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
+  // allocation folding is turned off.
+  if (reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
               (elements() == GetHeap()->empty_fixed_array())),
              (elements()->map() == GetHeap()->fixed_array_map() ||
@@ -684,11 +683,10 @@ void Code::VerifyEmbeddedMapsDependency() {
 void JSArray::JSArrayVerify() {
   JSObjectVerify();
   CHECK(length()->IsNumber() || length()->IsUndefined());
-  // If a GC was caused while constructing this array, the elements
-  // pointer may point to a one pointer filler map.
-  if ((FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map())) {
+  // TODO(hpayer): deal gracefully with partially constructed JSObjects, when
+  // allocation folding is turned off.
+  if (reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map()) {
     CHECK(elements()->IsUndefined() ||
           elements()->IsFixedArray() ||
           elements()->IsFixedDoubleArray());

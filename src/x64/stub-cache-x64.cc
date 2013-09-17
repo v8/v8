@@ -304,28 +304,32 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
-                                            Label* miss) {
+                                            Label* miss,
+                                            bool support_wrappers) {
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch register.
-  GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
+  GenerateStringCheck(masm, receiver, scratch1, miss,
+                      support_wrappers ? &check_wrapper : miss);
 
   // Load length directly from the string.
   __ movq(rax, FieldOperand(receiver, String::kLengthOffset));
   __ ret(0);
 
-  // Check if the object is a JSValue wrapper.
-  __ bind(&check_wrapper);
-  __ cmpl(scratch1, Immediate(JS_VALUE_TYPE));
-  __ j(not_equal, miss);
+  if (support_wrappers) {
+    // Check if the object is a JSValue wrapper.
+    __ bind(&check_wrapper);
+    __ cmpl(scratch1, Immediate(JS_VALUE_TYPE));
+    __ j(not_equal, miss);
 
-  // Check if the wrapped value is a string and load the length
-  // directly if it is.
-  __ movq(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-  __ movq(rax, FieldOperand(scratch2, String::kLengthOffset));
-  __ ret(0);
+    // Check if the wrapped value is a string and load the length
+    // directly if it is.
+    __ movq(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
+    GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
+    __ movq(rax, FieldOperand(scratch2, String::kLengthOffset));
+    __ ret(0);
+  }
 }
 
 
@@ -838,7 +842,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiToInteger32(scratch1, value_reg);
-    __ Cvtlsi2sd(xmm0, scratch1);
+    __ cvtlsi2sd(xmm0, scratch1);
     __ jmp(&do_store);
 
     __ bind(&heap_number);
@@ -992,7 +996,7 @@ void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     Label do_store, heap_number;
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiToInteger32(scratch2, value_reg);
-    __ Cvtlsi2sd(xmm0, scratch2);
+    __ cvtlsi2sd(xmm0, scratch2);
     __ jmp(&do_store);
 
     __ bind(&heap_number);

@@ -5635,78 +5635,71 @@ MUST_USE_RESULT MaybeObject* JSObject::SetObserved(Isolate* isolate) {
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<Object> NewStorageFor(Isolate* isolate,
-                                    Handle<Object> object,
-                                    Representation representation) {
-  Heap* heap = isolate->heap();
-  CALL_HEAP_FUNCTION(isolate,
-                     object->AllocateNewStorageFor(heap, representation),
-                     Object);
-}
-
-
-Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->CopyJSObject(*object), JSObject);
-}
-
-
-Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
-  Isolate* isolate = object->GetIsolate();
+MUST_USE_RESULT MaybeObject* JSObject::DeepCopy(Isolate* isolate) {
   StackLimitCheck check(isolate);
-  if (check.HasOverflowed()) {
-    isolate->StackOverflow();
-    return Handle<JSObject>::null();
+  if (check.HasOverflowed()) return isolate->StackOverflow();
+
+  if (map()->is_deprecated()) {
+    MaybeObject* maybe_failure = MigrateInstance();
+    if (maybe_failure->IsFailure()) return maybe_failure;
   }
 
-  if (object->map()->is_deprecated()) {
-    MigrateInstance(object);
+  Heap* heap = isolate->heap();
+  Object* result;
+  { MaybeObject* maybe_result = heap->CopyJSObject(this);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-
-  Handle<JSObject> copy = Copy(object);
+  JSObject* copy = JSObject::cast(result);
 
   // Deep copy local properties.
   if (copy->HasFastProperties()) {
-    Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
+    DescriptorArray* descriptors = copy->map()->instance_descriptors();
     int limit = copy->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < limit; i++) {
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.type() != FIELD) continue;
       int index = descriptors->GetFieldIndex(i);
-      Handle<Object> value(object->RawFastPropertyAt(index), isolate);
+      Object* value = RawFastPropertyAt(index);
       if (value->IsJSObject()) {
-        value = DeepCopy(Handle<JSObject>::cast(value));
-        RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
+        JSObject* js_object = JSObject::cast(value);
+        MaybeObject* maybe_copy = js_object->DeepCopy(isolate);
+        if (!maybe_copy->To(&value)) return maybe_copy;
       } else {
         Representation representation = details.representation();
-        value = NewStorageFor(isolate, value, representation);
+        MaybeObject* maybe_storage =
+            value->AllocateNewStorageFor(heap, representation);
+        if (!maybe_storage->To(&value)) return maybe_storage;
       }
-      copy->FastPropertyAtPut(index, *value);
+      copy->FastPropertyAtPut(index, value);
     }
   } else {
-    Handle<FixedArray> names =
-        isolate->factory()->NewFixedArray(copy->NumberOfLocalProperties());
-    copy->GetLocalPropertyNames(*names, 0);
+    { MaybeObject* maybe_result =
+          heap->AllocateFixedArray(copy->NumberOfLocalProperties());
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
+    FixedArray* names = FixedArray::cast(result);
+    copy->GetLocalPropertyNames(names, 0);
     for (int i = 0; i < names->length(); i++) {
       ASSERT(names->get(i)->IsString());
-      Handle<String> key_string(String::cast(names->get(i)));
+      String* key_string = String::cast(names->get(i));
       PropertyAttributes attributes =
-          copy->GetLocalPropertyAttribute(*key_string);
+          copy->GetLocalPropertyAttribute(key_string);
       // Only deep copy fields from the object literal expression.
       // In particular, don't try to copy the length attribute of
       // an array.
       if (attributes != NONE) continue;
-      Handle<Object> value(
-          copy->GetProperty(*key_string, &attributes)->ToObjectUnchecked(),
-          isolate);
+      Object* value =
+          copy->GetProperty(key_string, &attributes)->ToObjectUnchecked();
       if (value->IsJSObject()) {
-        Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
-        RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-        // Creating object copy for literals. No strict mode needed.
-        CHECK_NOT_EMPTY_HANDLE(isolate, SetProperty(
-            copy, key_string, result, NONE, kNonStrictMode));
+        JSObject* js_object = JSObject::cast(value);
+        { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
+          if (!maybe_result->ToObject(&result)) return maybe_result;
+        }
+        { MaybeObject* maybe_result =
+              // Creating object copy for literals. No strict mode needed.
+              copy->SetProperty(key_string, result, NONE, kNonStrictMode);
+          if (!maybe_result->ToObject(&result)) return maybe_result;
+        }
       }
     }
   }
@@ -5719,8 +5712,8 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
-      if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
+      FixedArray* elements = FixedArray::cast(copy->elements());
+      if (elements->map() == heap->fixed_cow_array_map()) {
         isolate->counters()->cow_arrays_created_runtime()->Increment();
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
@@ -5729,31 +5722,34 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
-          Handle<Object> value(elements->get(i), isolate);
+          Object* value = elements->get(i);
           ASSERT(value->IsSmi() ||
                  value->IsTheHole() ||
                  (IsFastObjectElementsKind(copy->GetElementsKind())));
           if (value->IsJSObject()) {
-            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
-            RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            elements->set(i, *result);
+            JSObject* js_object = JSObject::cast(value);
+            { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
+              if (!maybe_result->ToObject(&result)) return maybe_result;
+            }
+            elements->set(i, result);
           }
         }
       }
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<SeededNumberDictionary> element_dictionary(
-          copy->element_dictionary());
+      SeededNumberDictionary* element_dictionary = copy->element_dictionary();
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object* k = element_dictionary->KeyAt(i);
         if (element_dictionary->IsKey(k)) {
-          Handle<Object> value(element_dictionary->ValueAt(i), isolate);
+          Object* value = element_dictionary->ValueAt(i);
           if (value->IsJSObject()) {
-            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
-            RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            element_dictionary->ValueAtPut(i, *result);
+            JSObject* js_object = JSObject::cast(value);
+            { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
+              if (!maybe_result->ToObject(&result)) return maybe_result;
+            }
+            element_dictionary->ValueAtPut(i, result);
           }
         }
       }
@@ -10436,8 +10432,8 @@ bool Code::allowed_in_shared_map_code_cache() {
 }
 
 
-void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
-  PatchPlatformCodeAge(isolate, sequence, kNoAge, NO_MARKING_PARITY);
+void Code::MakeCodeAgeSequenceYoung(byte* sequence) {
+  PatchPlatformCodeAge(sequence, kNoAge, NO_MARKING_PARITY);
 }
 
 
@@ -10448,9 +10444,7 @@ void Code::MakeOlder(MarkingParity current_parity) {
     MarkingParity code_parity;
     GetCodeAgeAndParity(sequence, &age, &code_parity);
     if (age != kLastCodeAge && code_parity != current_parity) {
-      PatchPlatformCodeAge(GetIsolate(),
-                           sequence,
-                           static_cast<Age>(age + 1),
+      PatchPlatformCodeAge(sequence, static_cast<Age>(age + 1),
                            current_parity);
     }
   }
@@ -10513,7 +10507,8 @@ void Code::GetCodeAgeAndParity(Code* code, Age* age,
 }
 
 
-Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
+Code* Code::GetCodeAgeStub(Age age, MarkingParity parity) {
+  Isolate* isolate = Isolate::Current();
   Builtins* builtins = isolate->builtins();
   switch (age) {
 #define HANDLE_CODE_AGE(AGE)                                            \

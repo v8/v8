@@ -386,7 +386,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // rbx: current element (smi-tagged)
   __ JumpIfNotSmi(rbx, &convert_hole);
   __ SmiToInteger32(rbx, rbx);
-  __ Cvtlsi2sd(xmm0, rbx);
+  __ cvtlsi2sd(xmm0, rbx);
   __ movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
            xmm0);
   __ jmp(&entry);
@@ -723,8 +723,7 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
 }
 
 
-void Code::PatchPlatformCodeAge(Isolate* isolate,
-                                byte* sequence,
+void Code::PatchPlatformCodeAge(byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
   uint32_t young_length;
@@ -733,7 +732,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
-    Code* stub = GetCodeAgeStub(isolate, age, parity);
+    Code* stub = GetCodeAgeStub(age, parity);
     CodePatcher patcher(sequence, young_length);
     patcher.masm()->call(stub->instruction_start());
     for (int i = 0;

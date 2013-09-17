@@ -499,10 +499,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
-
-  Handle<Object> copy = JSObject::DeepCopy(Handle<JSObject>::cast(boilerplate));
-  RETURN_IF_EMPTY_HANDLE(isolate, copy);
-  return *copy;
+  return JSObject::cast(*boilerplate)->DeepCopy(isolate);
 }
 
 
@@ -567,10 +564,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
       literals_index, elements);
   RETURN_IF_EMPTY_HANDLE(isolate, site);
 
-  Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
-  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate);
-  RETURN_IF_EMPTY_HANDLE(isolate, copy);
-  return *copy;
+  JSObject* boilerplate = JSObject::cast(site->transition_info());
+  return boilerplate->DeepCopy(isolate);
 }
 
 
@@ -14791,7 +14786,8 @@ const Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
 }
 
 
-void Runtime::PerformGC(Object* result, Isolate* isolate) {
+void Runtime::PerformGC(Object* result) {
+  Isolate* isolate = Isolate::Current();
   Failure* failure = Failure::cast(result);
   if (failure->IsRetryAfterGC()) {
     if (isolate->heap()->new_space()->AddFreshPage()) {

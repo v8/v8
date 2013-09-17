@@ -2765,10 +2765,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Passing r0.
-    __ PrepareCallCFunction(2, 0, r1);
-    __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
+    __ PrepareCallCFunction(1, 0, r1);
     __ CallCFunction(ExternalReference::perform_gc_function(isolate),
-        2, 0);
+        1, 0);
   }
 
   ExternalReference scope_depth =
@@ -3376,7 +3375,8 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     receiver = r0;
   }
 
-  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss,
+                                         support_wrapper_);
 
   __ bind(&miss);
   StubCompiler::TailCallBuiltin(

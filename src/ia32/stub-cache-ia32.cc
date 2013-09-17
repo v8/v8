@@ -329,28 +329,32 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
-                                            Label* miss) {
+                                            Label* miss,
+                                            bool support_wrappers) {
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch register.
-  GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
+  GenerateStringCheck(masm, receiver, scratch1, miss,
+                      support_wrappers ? &check_wrapper : miss);
 
   // Load length from the string and convert to a smi.
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
   __ ret(0);
 
-  // Check if the object is a JSValue wrapper.
-  __ bind(&check_wrapper);
-  __ cmp(scratch1, JS_VALUE_TYPE);
-  __ j(not_equal, miss);
+  if (support_wrappers) {
+    // Check if the object is a JSValue wrapper.
+    __ bind(&check_wrapper);
+    __ cmp(scratch1, JS_VALUE_TYPE);
+    __ j(not_equal, miss);
 
-  // Check if the wrapped value is a string and load the length
-  // directly if it is.
-  __ mov(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-  __ mov(eax, FieldOperand(scratch2, String::kLengthOffset));
-  __ ret(0);
+    // Check if the wrapped value is a string and load the length
+    // directly if it is.
+    __ mov(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
+    GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
+    __ mov(eax, FieldOperand(scratch2, String::kLengthOffset));
+    __ ret(0);
+  }
 }
 
 
@@ -858,7 +862,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ SmiUntag(value_reg);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ Cvtsi2sd(xmm0, value_reg);
+      __ cvtsi2sd(xmm0, value_reg);
     } else {
       __ push(value_reg);
       __ fild_s(Operand(esp, 0));
@@ -1037,7 +1041,7 @@ void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ SmiUntag(value_reg);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ Cvtsi2sd(xmm0, value_reg);
+      __ cvtsi2sd(xmm0, value_reg);
     } else {
       __ push(value_reg);
       __ fild_s(Operand(esp, 0));
