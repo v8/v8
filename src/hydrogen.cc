@@ -43,6 +43,7 @@
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
 #include "hydrogen-infer-types.h"
+#include "hydrogen-load-elimination.h"
 #include "hydrogen-gvn.h"
 #include "hydrogen-mark-deoptimize.h"
 #include "hydrogen-minus-zero.h"
@@ -2970,6 +2971,8 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
+
+  if (FLAG_load_elimination) Run<HLoadEliminationPhase>();
 
   CollectPhis();
 
