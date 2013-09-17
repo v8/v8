@@ -1566,21 +1566,6 @@ MaybeObject* JSObject::AllocateStorageForMap(Map* map) {
 }
 
 
-MaybeObject* JSObject::MigrateInstance() {
-  // Converting any field to the most specific type will cause the
-  // GeneralizeFieldRepresentation algorithm to create the most general existing
-  // transition that matches the object. This achieves what is needed.
-  Map* original_map = map();
-  MaybeObject* maybe_result = GeneralizeFieldRepresentation(
-      0, Representation::None(), ALLOW_AS_CONSTANT);
-  JSObject* result;
-  if (FLAG_trace_migration && maybe_result->To(&result)) {
-    PrintInstanceMigration(stdout, original_map, result->map());
-  }
-  return maybe_result;
-}
-
-
 MaybeObject* JSObject::TryMigrateInstance() {
   Map* new_map = map()->CurrentMapForDeprecated();
   if (new_map == NULL) return Smi::FromInt(0);

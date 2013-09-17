@@ -14649,11 +14649,12 @@ class RegExpStringModificationTest {
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
         factory->NewStringFromAscii(i::Vector<const char>("input", 5));
-    i::Isolate::Current()->native_context()->global_object()->SetProperty(
-        *input_name,
-        *input_,
+    i::JSReceiver::SetProperty(
+        i::handle(i::Isolate::Current()->native_context()->global_object()),
+        input_name,
+        input_,
         NONE,
-        i::kNonStrictMode)->ToObjectChecked();
+        i::kNonStrictMode);
 
     MorphThread morph_thread(this);
     morph_thread.Start();

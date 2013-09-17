@@ -2201,7 +2201,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   // args[0] == name
   // args[1] == language_mode
   // args[2] == value (optional)
@@ -2212,7 +2212,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   bool assign = args.length() == 3;
 
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  GlobalObject* global = isolate->context()->global_object();
   RUNTIME_ASSERT(args[1]->IsSmi());
   CONVERT_LANGUAGE_MODE_ARG(language_mode, 1);
   StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
@@ -2229,28 +2228,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   // to assign to the property.
   // Note that objects can have hidden prototypes, so we need to traverse
   // the whole chain of hidden prototypes to do a 'local' lookup.
-  Object* object = global;
   LookupResult lookup(isolate);
-  JSObject::cast(object)->LocalLookup(*name, &lookup, true);
+  isolate->context()->global_object()->LocalLookup(*name, &lookup, true);
   if (lookup.IsInterceptor()) {
-    HandleScope handle_scope(isolate);
     PropertyAttributes intercepted =
         lookup.holder()->GetPropertyAttribute(*name);
     if (intercepted != ABSENT && (intercepted & READ_ONLY) == 0) {
       // Found an interceptor that's not read only.
       if (assign) {
-        return lookup.holder()->SetProperty(
-            &lookup, *name, args[2], attributes, strict_mode_flag);
+        CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+        Handle<Object> result = JSObject::SetPropertyForResult(
+            handle(lookup.holder()), &lookup, name, value, attributes,
+            strict_mode_flag);
+        RETURN_IF_EMPTY_HANDLE(isolate, result);
+        return *result;
       } else {
         return isolate->heap()->undefined_value();
       }
     }
   }
 
-  // Reload global in case the loop above performed a GC.
-  global = isolate->context()->global_object();
   if (assign) {
-    return global->SetProperty(*name, args[2], attributes, strict_mode_flag);
+    CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+    Handle<GlobalObject> global(isolate->context()->global_object());
+    Handle<Object> result = JSReceiver::SetProperty(
+        global, name, value, attributes, strict_mode_flag);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
   return isolate->heap()->undefined_value();
 }
@@ -5133,11 +5137,14 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
 
   if (object->IsJSProxy()) {
     bool has_pending_exception = false;
-    Handle<Object> name = key->IsSymbol()
+    Handle<Object> name_object = key->IsSymbol()
         ? key : Execution::ToString(isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
-    return JSProxy::cast(*object)->SetProperty(
-        Name::cast(*name), *value, attr, strict_mode);
+    Handle<Name> name = Handle<Name>::cast(name_object);
+    Handle<Object> result = JSReceiver::SetProperty(
+        Handle<JSProxy>::cast(object), name, value, attr, strict_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
 
   // If the object isn't a JavaScript object, we ignore the store.
@@ -5177,7 +5184,6 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   }
 
   if (key->IsName()) {
-    MaybeObject* result;
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
       if (js_object->HasExternalArrayElements()) {
@@ -5189,13 +5195,15 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
           value = number;
         }
       }
-      result = js_object->SetElement(
+      MaybeObject* result = js_object->SetElement(
           index, *value, attr, strict_mode, true, set_mode);
+      if (result->IsFailure()) return result;
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      result = js_object->SetProperty(*name, *value, attr, strict_mode);
+      Handle<Object> result =
+          JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
+      RETURN_IF_EMPTY_HANDLE(isolate, result);
     }
-    if (result->IsFailure()) return result;
     return *value;
   }
 
@@ -5210,7 +5218,10 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     return js_object->SetElement(
         index, *value, attr, strict_mode, true, set_mode);
   } else {
-    return js_object->SetProperty(*name, *value, attr, strict_mode);
+    Handle<Object> result =
+        JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
 }
 

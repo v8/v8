@@ -1395,17 +1395,19 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
+  HandleScope scope(isolate);
   ASSERT(args.length() == 4);
-  JSObject* recv = JSObject::cast(args[0]);
-  Name* name = Name::cast(args[1]);
-  Object* value = args[2];
+  Handle<JSObject> recv(JSObject::cast(args[0]));
+  Handle<Name> name(Name::cast(args[1]));
+  Handle<Object> value(args[2], isolate);
   ASSERT(args.smi_at(3) == kStrictMode || args.smi_at(3) == kNonStrictMode);
   StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(3));
   ASSERT(recv->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  MaybeObject* result = recv->SetPropertyWithInterceptor(
-      name, value, attr, strict_mode);
-  return result;
+  Handle<Object> result = JSObject::SetPropertyWithInterceptor(
+      recv, name, value, attr, strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 

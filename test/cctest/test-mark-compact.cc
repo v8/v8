@@ -153,6 +153,7 @@ TEST(MarkCompactCollector) {
   Heap* heap = isolate->heap();
 
   v8::HandleScope sc(CcTest::isolate());
+  Handle<GlobalObject> global(isolate->context()->global_object());
 
   // call mark-compact when heap is empty
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 1");
@@ -191,8 +192,8 @@ TEST(MarkCompactCollector) {
       Map::cast(heap->AllocateMap(JS_OBJECT_TYPE,
                                   JSObject::kHeaderSize)->ToObjectChecked());
   function->set_initial_map(initial_map);
-  isolate->context()->global_object()->SetProperty(
-      func_name, function, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetProperty(
+      global, handle(func_name), handle(function), NONE, kNonStrictMode);
 
   JSObject* obj = JSObject::cast(
       heap->AllocateJSObject(function)->ToObjectChecked());
@@ -209,14 +210,13 @@ TEST(MarkCompactCollector) {
   obj = JSObject::cast(heap->AllocateJSObject(function)->ToObjectChecked());
   String* obj_name =
       String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  isolate->context()->global_object()->SetProperty(
-      obj_name, obj, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetProperty(
+      global, handle(obj_name), handle(obj), NONE, kNonStrictMode);
   String* prop_name =
       String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
-  obj->SetProperty(prop_name,
-                   Smi::FromInt(23),
-                   NONE,
-                   kNonStrictMode)->ToObjectChecked();
+  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  JSReceiver::SetProperty(
+      handle(obj), handle(prop_name), twenty_three, NONE, kNonStrictMode);
 
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 

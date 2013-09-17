@@ -1950,42 +1950,24 @@ class JSReceiver: public HeapObject {
   // Casting.
   static inline JSReceiver* cast(Object* obj);
 
+  // Implementation of [[Put]], see ECMA-262 5th edition, section 8.12.5.
   static Handle<Object> SetProperty(Handle<JSReceiver> object,
                                     Handle<Name> key,
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
-                                    StrictModeFlag strict_mode);
+                                    StrictModeFlag strict_mode,
+                                    StoreFromKeyed store_mode =
+                                        MAY_BE_STORE_FROM_KEYED);
   static Handle<Object> SetElement(Handle<JSReceiver> object,
                                    uint32_t index,
                                    Handle<Object> value,
                                    PropertyAttributes attributes,
                                    StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT static MaybeObject* SetPropertyOrFail(
-      Handle<JSReceiver> object,
-      Handle<Name> key,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
-      StoreFromKeyed store_from_keyed = MAY_BE_STORE_FROM_KEYED);
-
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* SetProperty(
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
-      StoreFromKeyed store_from_keyed = MAY_BE_STORE_FROM_KEYED);
-  MUST_USE_RESULT MaybeObject* SetProperty(
-      LookupResult* result,
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
-      StoreFromKeyed store_from_keyed = MAY_BE_STORE_FROM_KEYED);
   MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSReceiver* setter,
                                                             Object* value);
 
+  // Implementation of [[Delete]], see ECMA-262 5th edition, section 8.12.7.
   static Handle<Object> DeleteProperty(Handle<JSReceiver> object,
                                        Handle<Name> name,
                                        DeleteMode mode = NORMAL_DELETION);
@@ -2041,6 +2023,14 @@ class JSReceiver: public HeapObject {
                                                    LookupResult* result,
                                                    Name* name,
                                                    bool continue_search);
+
+  static Handle<Object> SetProperty(Handle<JSReceiver> receiver,
+                                    LookupResult* result,
+                                    Handle<Name> key,
+                                    Handle<Object> value,
+                                    PropertyAttributes attributes,
+                                    StrictModeFlag strict_mode,
+                                    StoreFromKeyed store_from_keyed);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
@@ -2135,13 +2125,6 @@ class JSObject: public JSReceiver {
                                                        Object* structure,
                                                        Name* name);
 
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* SetPropertyForResult(LookupResult* result,
-                                           Name* key,
-                                           Object* value,
-                                           PropertyAttributes attributes,
-                                           StrictModeFlag strict_mode,
-                                           StoreFromKeyed store_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
       Name* name,
@@ -2154,17 +2137,21 @@ class JSObject: public JSReceiver {
       Object* value,
       JSObject* holder,
       StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
-      Name* name,
-      Object* value,
+  static Handle<Object> SetPropertyWithInterceptor(
+      Handle<JSObject> object,
+      Handle<Name> name,
+      Handle<Object> value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
-      Name* name,
-      Object* value,
+
+  static Handle<Object> SetPropertyForResult(
+      Handle<JSObject> object,
+      LookupResult* result,
+      Handle<Name> name,
+      Handle<Object> value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
       Handle<JSObject> object,
@@ -2191,7 +2178,6 @@ class JSObject: public JSReceiver {
   inline MUST_USE_RESULT MaybeObject* AllocateStorageForMap(Map* map);
 
   static void MigrateInstance(Handle<JSObject> instance);
-  inline MUST_USE_RESULT MaybeObject* MigrateInstance();
 
   static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
   inline MUST_USE_RESULT MaybeObject* TryMigrateInstance();
@@ -2483,32 +2469,6 @@ class JSObject: public JSReceiver {
   // Returns the number of enumerable elements.
   int GetEnumElementKeys(FixedArray* storage);
 
-  // Add a property to a fast-case object using a map transition to
-  // new_map.
-  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(
-      Map* new_map,
-      Name* name,
-      Object* value,
-      int field_index,
-      Representation representation);
-
-  // Add a constant function property to a fast-case object.
-  // This leaves a CONSTANT_TRANSITION in the old map, and
-  // if it is called on a second object with this map, a
-  // normal property is added instead, with a map transition.
-  // This avoids the creation of many maps with the same constant
-  // function, all orphaned.
-  MUST_USE_RESULT MaybeObject* AddConstantProperty(
-      Name* name,
-      Object* constant,
-      PropertyAttributes attributes,
-      TransitionFlag flag);
-
-  MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
-      Name* name,
-      Object* value,
-      PropertyAttributes attributes);
-
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
   static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
@@ -2525,37 +2485,12 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
+  static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
-  MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
-      int modify_index,
-      Representation new_representation,
-      StoreMode store_mode);
-
-  // Add a property to a fast-case object.
-  MUST_USE_RESULT MaybeObject* AddFastProperty(
-      Name* name,
-      Object* value,
-      PropertyAttributes attributes,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      TransitionFlag flag = INSERT_TRANSITION);
-
-  // Add a property to a slow-case object.
-  MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
-                                               Object* value,
-                                               PropertyAttributes attributes);
-
-  // Add a property to an object. May cause GC.
-  MUST_USE_RESULT MaybeObject* AddProperty(
-      Name* name,
-      Object* value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      TransitionFlag flag = INSERT_TRANSITION);
+  static void GeneralizeFieldRepresentation(Handle<JSObject> object,
+                                            int modify_index,
+                                            Representation new_representation,
+                                            StoreMode store_mode);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -2735,15 +2670,6 @@ class JSObject: public JSReceiver {
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
 
-  // TODO(mstarzinger): Soon to be handlified.
-  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
-
   MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
                                                       Object* structure,
                                                       uint32_t index,
@@ -2780,13 +2706,81 @@ class JSObject: public JSReceiver {
   // Searches the prototype chain for property 'name'. If it is found and
   // has a setter, invoke it and set '*done' to true. If it is found and is
   // read-only, reject and set '*done' to true. Otherwise, set '*done' to
-  // false. Can cause GC and can return a failure result with '*done==true'.
-  MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypes(
-      Name* name,
-      Object* value,
+  // false. Can throw and return an empty handle with '*done==true'.
+  static Handle<Object> SetPropertyViaPrototypes(
+      Handle<JSObject> object,
+      Handle<Name> name,
+      Handle<Object> value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       bool* done);
+  static Handle<Object> SetPropertyPostInterceptor(
+      Handle<JSObject> object,
+      Handle<Name> name,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode);
+  static Handle<Object> SetPropertyUsingTransition(
+      Handle<JSObject> object,
+      LookupResult* lookup,
+      Handle<Name> name,
+      Handle<Object> value,
+      PropertyAttributes attributes);
+
+  // Add a property to an object.
+  static Handle<Object> AddProperty(
+      Handle<JSObject> object,
+      Handle<Name> name,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode,
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      TransitionFlag flag = INSERT_TRANSITION);
+
+  // Add a constant function property to a fast-case object.
+  // This leaves a CONSTANT_TRANSITION in the old map, and
+  // if it is called on a second object with this map, a
+  // normal property is added instead, with a map transition.
+  // This avoids the creation of many maps with the same constant
+  // function, all orphaned.
+  static void AddConstantProperty(Handle<JSObject> object,
+                                  Handle<Name> name,
+                                  Handle<Object> constant,
+                                  PropertyAttributes attributes,
+                                  TransitionFlag flag);
+
+  // Add a property to a fast-case object.
+  static void AddFastProperty(Handle<JSObject> object,
+                              Handle<Name> name,
+                              Handle<Object> value,
+                              PropertyAttributes attributes,
+                              StoreFromKeyed store_mode,
+                              ValueType value_type,
+                              TransitionFlag flag);
+
+  // Add a property to a fast-case object using a map transition to
+  // new_map.
+  static Handle<Object> AddFastPropertyUsingMap(Handle<JSObject> object,
+                                                Handle<Map> new_map,
+                                                Handle<Name> name,
+                                                Handle<Object> value,
+                                                int field_index,
+                                                Representation representation);
+  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(
+      Map* new_map,
+      Name* name,
+      Object* value,
+      int field_index,
+      Representation representation);
+
+  // Add a property to a slow-case object.
+  static void AddSlowProperty(Handle<JSObject> object,
+                              Handle<Name> name,
+                              Handle<Object> value,
+                              PropertyAttributes attributes);
 
   static Handle<Object> DeleteProperty(Handle<JSObject> object,
                                        Handle<Name> name,
@@ -3176,6 +3170,13 @@ class DescriptorArray: public FixedArray {
                 DescriptorArray* src,
                 int src_index,
                 const WhitenessWitness&);
+  static Handle<DescriptorArray> Merge(Handle<DescriptorArray> desc,
+                                       int verbatim,
+                                       int valid,
+                                       int new_size,
+                                       int modify_index,
+                                       StoreMode store_mode,
+                                       Handle<DescriptorArray> other);
   MUST_USE_RESULT MaybeObject* Merge(int verbatim,
                                      int valid,
                                      int new_size,
@@ -5618,11 +5619,8 @@ class Map: public HeapObject {
       int modify_index,
       Representation new_representation,
       StoreMode store_mode);
-  MUST_USE_RESULT MaybeObject* GeneralizeRepresentation(
-      int modify_index,
-      Representation representation,
-      StoreMode store_mode);
-  MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations(
+  static Handle<Map> CopyGeneralizeAllRepresentations(
+      Handle<Map> map,
       int modify_index,
       StoreMode store_mode,
       PropertyAttributes attributes,
@@ -5802,6 +5800,10 @@ class Map: public HeapObject {
       TransitionFlag flag,
       Name* name = NULL,
       SimpleTransitionFlag simple_flag = FULL_TRANSITION);
+  static Handle<Map> CopyInstallDescriptors(
+      Handle<Map> map,
+      int new_descriptor,
+      Handle<DescriptorArray> descriptors);
   MUST_USE_RESULT MaybeObject* CopyInstallDescriptors(
       int new_descriptor,
       DescriptorArray* descriptors);
@@ -9020,6 +9022,9 @@ class PropertyCell: public Cell {
   // of the cell's current type and the value's type. If the change causes
   // a change of the type of the cell's contents, code dependent on the cell
   // will be deoptimized.
+  static void SetValueInferType(Handle<PropertyCell> cell,
+                                Handle<Object> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   MUST_USE_RESULT MaybeObject* SetValueInferType(
       Object* value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -9082,13 +9087,6 @@ class JSProxy: public JSReceiver {
       Object* receiver,
       uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
-      JSReceiver* receiver,
-      Name* name,
-      Object* value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode);
-
   // If the handler defines an accessor property with a setter, invoke it.
   // If it defines an accessor property without a setter, or a data property
   // that is read-only, throw. In all these cases set '*done' to true,
@@ -9144,6 +9142,12 @@ class JSProxy: public JSReceiver {
  private:
   friend class JSReceiver;
 
+  static Handle<Object> SetPropertyWithHandler(Handle<JSProxy> proxy,
+                                               Handle<JSReceiver> receiver,
+                                               Handle<Name> name,
+                                               Handle<Object> value,
+                                               PropertyAttributes attributes,
+                                               StrictModeFlag strict_mode);
   static Handle<Object> SetElementWithHandler(Handle<JSProxy> proxy,
                                               Handle<JSReceiver> receiver,
                                               uint32_t index,

@@ -1670,8 +1670,10 @@ MaybeObject* StoreIC::Store(State state,
                             JSReceiver::StoreFromKeyed store_mode) {
   // Handle proxies.
   if (object->IsJSProxy()) {
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         Handle<JSReceiver>::cast(object), name, value, NONE, strict_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   // If the object is undefined or null it's illegal to try to set any
@@ -1709,8 +1711,10 @@ MaybeObject* StoreIC::Store(State state,
 
   // Observed objects are always modified through the runtime.
   if (FLAG_harmony_observation && receiver->map()->is_observed()) {
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode, store_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   // Use specialized code for setting the length of arrays with fast
@@ -1727,8 +1731,10 @@ MaybeObject* StoreIC::Store(State state,
         StoreArrayLengthStub(kind(), strict_mode).GetCode(isolate());
     set_target(*stub);
     TRACE_IC("StoreIC", name, state, *stub);
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode, store_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   if (receiver->IsJSGlobalProxy()) {
@@ -1741,8 +1747,10 @@ MaybeObject* StoreIC::Store(State state,
       set_target(*stub);
       TRACE_IC("StoreIC", name, state, *stub);
     }
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode, store_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   LookupResult lookup(isolate());
@@ -1773,8 +1781,10 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Set the property.
-  return JSReceiver::SetPropertyOrFail(
+  Handle<Object> result = JSReceiver::SetProperty(
       receiver, name, value, NONE, strict_mode, store_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  return *result;
 }
 
 
