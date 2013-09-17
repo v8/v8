@@ -207,6 +207,26 @@ CpuFeatureScope::~CpuFeatureScope() {
 
 
 // -----------------------------------------------------------------------------
+// Implementation of PlatformFeatureScope
+
+PlatformFeatureScope::PlatformFeatureScope(CpuFeature f)
+    : old_supported_(CpuFeatures::supported_),
+      old_found_by_runtime_probing_only_(
+          CpuFeatures::found_by_runtime_probing_only_) {
+  uint64_t mask = static_cast<uint64_t>(1) << f;
+  CpuFeatures::supported_ |= mask;
+  CpuFeatures::found_by_runtime_probing_only_ &= ~mask;
+}
+
+
+PlatformFeatureScope::~PlatformFeatureScope() {
+  CpuFeatures::supported_ = old_supported_;
+  CpuFeatures::found_by_runtime_probing_only_ =
+      old_found_by_runtime_probing_only_;
+}
+
+
+// -----------------------------------------------------------------------------
 // Implementation of Label
 
 int Label::pos() const {
