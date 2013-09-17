@@ -808,11 +808,17 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->left()->representation().IsDouble());
   ASSERT(instr->right()->representation().IsDouble());
-  LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
-  LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
-  LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
-  if (op == Token::MOD) return MarkAsCall(DefineSameAsFirst(result), instr);
-  return DefineSameAsFirst(result);
+  if (op == Token::MOD) {
+    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
+    LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
+    return MarkAsCall(DefineSameAsFirst(result), instr);
+  } else {
+    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
+    LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
+    return DefineSameAsFirst(result);
+  }
 }
 
 

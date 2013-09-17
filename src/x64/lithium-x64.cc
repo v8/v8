@@ -760,16 +760,17 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->left()->representation().IsDouble());
   ASSERT(instr->right()->representation().IsDouble());
-  LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
-  LOperand* right = NULL;
   if (op == Token::MOD) {
-    right = UseFixedDouble(instr->BetterRightOperand(), xmm1);
+    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    LOperand* right = UseFixedDouble(instr->BetterRightOperand(), xmm1);
     LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
     return MarkAsCall(DefineSameAsFirst(result), instr);
+  } else {
+    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
+    LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
+    return DefineSameAsFirst(result);
   }
-  right = UseRegisterAtStart(instr->BetterRightOperand());
-  LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
-  return DefineSameAsFirst(result);
 }
 
 
