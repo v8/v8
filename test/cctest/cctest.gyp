@@ -139,8 +139,7 @@
             'test-assembler-arm.cc',
             'test-code-stubs.cc',
             'test-code-stubs-arm.cc',
-            'test-disasm-arm.cc',
-            'test-macro-assembler-arm.cc'
+            'test-disasm-arm.cc'
           ],
         }],
         ['v8_target_arch=="mipsel"', {
