@@ -1620,11 +1620,6 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
     return hydrogen()->is_external();
   }
 
-  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE {
-    return !CpuFeatures::IsSupported(SSE2) &&
-        !IsDoubleOrFloatElementsKind(hydrogen()->elements_kind());
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
 
