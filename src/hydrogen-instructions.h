@@ -128,7 +128,6 @@ class LChunkBuilder;
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
   V(IsObjectAndBranch)                         \
-  V(IsNumberAndBranch)                         \
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
@@ -2787,21 +2786,6 @@ class HCheckSmi V8_FINAL : public HUnaryOperation {
     set_representation(Representation::Smi());
     SetFlag(kUseGVN);
   }
-};
-
-
-class HIsNumberAndBranch V8_FINAL : public HUnaryControlInstruction {
- public:
-  explicit HIsNumberAndBranch(HValue* value)
-    : HUnaryControlInstruction(value, NULL, NULL) {
-    SetFlag(kFlexibleRepresentation);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch)
 };
 
 

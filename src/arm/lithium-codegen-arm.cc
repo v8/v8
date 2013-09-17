@@ -2217,25 +2217,6 @@ void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
 }
 
 
-void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
-  Representation r = instr->hydrogen()->value()->representation();
-  if (r.IsSmiOrInteger32() || r.IsDouble()) {
-    EmitBranch(instr, al);
-  } else {
-    ASSERT(r.IsTagged());
-    Register reg = ToRegister(instr->value());
-    HType type = instr->hydrogen()->value()->type();
-    if (type.IsTaggedNumber()) {
-      EmitBranch(instr, al);
-    }
-    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
-    __ ldr(scratch0(), FieldMemOperand(reg, HeapObject::kMapOffset));
-    __ CompareRoot(scratch0(), Heap::kHeapNumberMapRootIndex);
-    EmitBranch(instr, eq);
-  }
-}
-
-
 void LCodeGen::DoBranch(LBranch* instr) {
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32() || r.IsSmi()) {

@@ -2338,25 +2338,6 @@ void LCodeGen::EmitFalseBranch(InstrType instr, Condition cc) {
 }
 
 
-void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
-  Representation r = instr->hydrogen()->value()->representation();
-  if (r.IsSmiOrInteger32() || r.IsDouble()) {
-    EmitBranch(instr, no_condition);
-  } else {
-    ASSERT(r.IsTagged());
-    Register reg = ToRegister(instr->value());
-    HType type = instr->hydrogen()->value()->type();
-    if (type.IsTaggedNumber()) {
-      EmitBranch(instr, no_condition);
-    }
-    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
-    __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
-           factory()->heap_number_map());
-    EmitBranch(instr, equal);
-  }
-}
-
-
 void LCodeGen::DoBranch(LBranch* instr) {
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsSmiOrInteger32()) {
