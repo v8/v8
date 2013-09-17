@@ -733,9 +733,11 @@ void MacroAssembler::VFPEnsureFPSCRState(Register scratch) {
   bind(&fpscr_done);
 }
 
-void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister value,
+
+void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
+                                        const DwVfpRegister src,
                                         const Condition cond) {
-  vsub(value, value, kDoubleRegZero, cond);
+  vsub(dst, src, kDoubleRegZero, cond);
 }
 
 
