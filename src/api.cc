@@ -2056,7 +2056,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_string();
-    if (!obj->HasProperty(*name)) return v8::Local<Value>();
+    if (!i::JSReceiver::HasProperty(obj, name)) return v8::Local<Value>();
     i::Handle<i::Object> value = i::GetProperty(isolate_, obj, name);
     if (value.is_null()) return v8::Local<Value>();
     return v8::Utils::ToLocal(scope.CloseAndEscape(value));
@@ -3625,7 +3625,7 @@ bool v8::Object::Has(uint32_t index) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasProperty()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return self->HasElement(index);
+  return i::JSReceiver::HasElement(self, index);
 }
 
 
@@ -3679,8 +3679,8 @@ bool v8::Object::HasOwnProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",
              return false);
-  return Utils::OpenHandle(this)->HasLocalProperty(
-      *Utils::OpenHandle(*key));
+  return i::JSReceiver::HasLocalProperty(
+      Utils::OpenHandle(this), Utils::OpenHandle(*key));
 }
 
 

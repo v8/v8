@@ -460,11 +460,10 @@ Handle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
 }
 
 
-bool JSProxy::HasElementWithHandler(uint32_t index) {
-  String* name;
-  MaybeObject* maybe = GetHeap()->Uint32ToString(index);
-  if (!maybe->To<String>(&name)) return maybe;
-  return HasPropertyWithHandler(name);
+bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<String> name = isolate->factory()->Uint32ToString(index);
+  return HasPropertyWithHandler(proxy, name);
 }
 
 
@@ -3440,17 +3439,14 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
 }
 
 
-bool JSProxy::HasPropertyWithHandler(Name* name_raw) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<Object> receiver(this, isolate);
-  Handle<Object> name(name_raw, isolate);
+bool JSProxy::HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name) {
+  Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (name->IsSymbol()) return false;
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = CallTrap(
+  Handle<Object> result = proxy->CallTrap(
     "has", isolate->derived_has_trap(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return false;
 
@@ -5124,7 +5120,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   Handle<Object> old_value;
   bool should_enqueue_change_record = false;
   if (FLAG_harmony_observation && object->map()->is_observed()) {
-    should_enqueue_change_record = object->HasLocalElement(index);
+    should_enqueue_change_record = HasLocalElement(object, index);
     if (should_enqueue_change_record) {
       old_value = object->GetLocalElementAccessorPair(index) != NULL
           ? Handle<Object>::cast(factory->the_hole_value())
@@ -5140,7 +5136,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
     result = AccessorDelete(object, index, mode);
   }
 
-  if (should_enqueue_change_record && !object->HasLocalElement(index)) {
+  if (should_enqueue_change_record && !HasLocalElement(object, index)) {
     Handle<String> name = factory->Uint32ToString(index);
     EnqueueChangeRecord(object, "deleted", name, old_value);
   }
@@ -5215,7 +5211,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
     result = DeleteNormalizedProperty(object, name, mode);
   }
 
-  if (is_observed && !object->HasLocalProperty(*name)) {
+  if (is_observed && !HasLocalProperty(object, name)) {
     EnqueueChangeRecord(object, "deleted", name, old_value);
   }
 
@@ -6166,7 +6162,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   bool preexists = false;
   if (is_observed) {
     if (is_element) {
-      preexists = object->HasLocalElement(index);
+      preexists = HasLocalElement(object, index);
       if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
         old_value = Object::GetElement(isolate, object, index);
       }

@@ -1950,7 +1950,7 @@ class JSReceiver: public HeapObject {
   // Casting.
   static inline JSReceiver* cast(Object* obj);
 
-  // Implementation of [[Put]], see ECMA-262 5th edition, section 8.12.5.
+  // Implementation of [[Put]], ECMA-262 5th edition, section 8.12.5.
   static Handle<Object> SetProperty(Handle<JSReceiver> object,
                                     Handle<Name> key,
                                     Handle<Object> value,
@@ -1967,7 +1967,13 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSReceiver* setter,
                                                             Object* value);
 
-  // Implementation of [[Delete]], see ECMA-262 5th edition, section 8.12.7.
+  // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
+  static inline bool HasProperty(Handle<JSReceiver> object, Handle<Name> name);
+  static inline bool HasLocalProperty(Handle<JSReceiver>, Handle<Name> name);
+  static inline bool HasElement(Handle<JSReceiver> object, uint32_t index);
+  static inline bool HasLocalElement(Handle<JSReceiver> object, uint32_t index);
+
+  // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
   static Handle<Object> DeleteProperty(Handle<JSReceiver> object,
                                        Handle<Name> name,
                                        DeleteMode mode = NORMAL_DELETION);
@@ -1992,12 +1998,6 @@ class JSReceiver: public HeapObject {
 
   inline PropertyAttributes GetElementAttribute(uint32_t index);
   inline PropertyAttributes GetLocalElementAttribute(uint32_t index);
-
-  // Can cause a GC.
-  inline bool HasProperty(Name* name);
-  inline bool HasLocalProperty(Name* name);
-  inline bool HasElement(uint32_t index);
-  inline bool HasLocalElement(uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -9077,9 +9077,6 @@ class JSProxy: public JSReceiver {
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
-  bool HasPropertyWithHandler(Name* name);
-  bool HasElementWithHandler(uint32_t index);
-
   MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(
       Object* receiver,
       Name* name);
@@ -9153,6 +9150,9 @@ class JSProxy: public JSReceiver {
                                               uint32_t index,
                                               Handle<Object> value,
                                               StrictModeFlag strict_mode);
+
+  static bool HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name);
+  static bool HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index);
 
   static Handle<Object> DeletePropertyWithHandler(Handle<JSProxy> proxy,
                                                   Handle<Name> name,

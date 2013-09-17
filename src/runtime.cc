@@ -2169,7 +2169,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
     // Declare the property by setting it to the initial value if provided,
     // or undefined, and use the correct mode (e.g. READ_ONLY attribute for
     // constant declarations).
-    ASSERT(!object->HasLocalProperty(*name));
+    ASSERT(!JSReceiver::HasLocalProperty(object, name));
     Handle<Object> value(isolate->heap()->undefined_value(), isolate);
     if (*initial_value != NULL) value = initial_value;
     // Declaring a const context slot is a conflicting declaration if
@@ -4787,7 +4787,7 @@ MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
-    return isolate->heap()->ToBoolean(object->HasElement(index));
+    return isolate->heap()->ToBoolean(JSReceiver::HasElement(object, index));
   }
 
   // Convert the key to a name - possibly by calling back into JavaScript.
@@ -4802,7 +4802,7 @@ MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
     name = Handle<Name>::cast(converted);
   }
 
-  return isolate->heap()->ToBoolean(object->HasProperty(*name));
+  return isolate->heap()->ToBoolean(JSReceiver::HasProperty(object, name));
 }
 
 MaybeObject* Runtime::GetObjectPropertyOrFail(
@@ -5520,7 +5520,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
 static MaybeObject* HasLocalPropertyImplementation(Isolate* isolate,
                                                    Handle<JSObject> object,
                                                    Handle<Name> key) {
-  if (object->HasLocalProperty(*key)) return isolate->heap()->true_value();
+  if (JSReceiver::HasLocalProperty(object, key)) {
+    return isolate->heap()->true_value();
+  }
   // Handle hidden prototypes.  If there's a hidden prototype above this thing
   // then we have to check it for properties, because they are supposed to
   // look like they are on this object.
@@ -5580,12 +5582,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
 
-  bool result = receiver->HasProperty(key);
+  bool result = JSReceiver::HasProperty(receiver, key);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (isolate->has_pending_exception()) return Failure::Exception();
   return isolate->heap()->ToBoolean(result);
@@ -5593,12 +5595,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_HasElement) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
 
-  bool result = receiver->HasElement(index);
+  bool result = JSReceiver::HasElement(receiver, index);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (isolate->has_pending_exception()) return Failure::Exception();
   return isolate->heap()->ToBoolean(result);
@@ -9209,7 +9211,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
   // property from it.
   if (!holder.is_null()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
-    ASSERT(object->IsJSProxy() || object->HasProperty(*name));
+    ASSERT(object->IsJSProxy() || JSReceiver::HasProperty(object, name));
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(
         object->IsGlobalObject()
@@ -10190,7 +10192,7 @@ static bool IterateElements(Isolate* isolate,
         Handle<Object> element_value(elements->get(j), isolate);
         if (!element_value->IsTheHole()) {
           visitor->visit(j, element_value);
-        } else if (receiver->HasElement(j)) {
+        } else if (JSReceiver::HasElement(receiver, j)) {
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
           element_value = Object::GetElement(isolate, receiver, j);
@@ -10215,7 +10217,7 @@ static bool IterateElements(Isolate* isolate,
           Handle<Object> element_value =
               isolate->factory()->NewNumber(double_value);
           visitor->visit(j, element_value);
-        } else if (receiver->HasElement(j)) {
+        } else if (JSReceiver::HasElement(receiver, j)) {
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
           Handle<Object> element_value =
@@ -11531,7 +11533,7 @@ static bool SetLocalVariableValue(Isolate* isolate,
           !function_context->IsNativeContext()) {
         Handle<JSObject> ext(JSObject::cast(function_context->extension()));
 
-        if (ext->HasProperty(*variable_name)) {
+        if (JSReceiver::HasProperty(ext, variable_name)) {
           // We don't expect this to do anything except replacing
           // property value.
           SetProperty(isolate,
@@ -11619,7 +11621,7 @@ static bool SetClosureVariableValue(Isolate* isolate,
   // be variables introduced by eval.
   if (context->has_extension()) {
     Handle<JSObject> ext(JSObject::cast(context->extension()));
-    if (ext->HasProperty(*variable_name)) {
+    if (JSReceiver::HasProperty(ext, variable_name)) {
       // We don't expect this to do anything except replacing property value.
       SetProperty(isolate,
                   ext,
@@ -12662,7 +12664,8 @@ static Handle<JSObject> MaterializeArgumentsObject(
   // Do not materialize the arguments object for eval or top-level code.
   // Skip if "arguments" is already taken.
   if (!function->shared()->is_function() ||
-      target->HasLocalProperty(isolate->heap()->arguments_string())) {
+      JSReceiver::HasLocalProperty(target,
+                                   isolate->factory()->arguments_string())) {
     return target;
   }
 

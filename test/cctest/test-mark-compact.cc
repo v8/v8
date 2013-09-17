@@ -201,7 +201,7 @@ TEST(MarkCompactCollector) {
 
   func_name = String::cast(
       heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
-  CHECK(isolate->context()->global_object()->HasLocalProperty(func_name));
+  CHECK(JSReceiver::HasLocalProperty(global, handle(func_name)));
   Object* func_value = isolate->context()->global_object()->
       GetProperty(func_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
@@ -222,7 +222,7 @@ TEST(MarkCompactCollector) {
 
   obj_name =
       String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  CHECK(isolate->context()->global_object()->HasLocalProperty(obj_name));
+  CHECK(JSReceiver::HasLocalProperty(global, handle(obj_name)));
   CHECK(isolate->context()->global_object()->
         GetProperty(obj_name)->ToObjectChecked()->IsJSObject());
   obj = JSObject::cast(isolate->context()->global_object()->
