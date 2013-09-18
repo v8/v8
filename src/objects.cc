@@ -1850,46 +1850,39 @@ String* JSReceiver::constructor_name() {
 }
 
 
-Handle<Object> JSObject::AddFastPropertyUsingMap(
-    Handle<JSObject> object,
-    Handle<Map> new_map,
-    Handle<Name> name,
-    Handle<Object> value,
-    int field_index,
-    Representation representation) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->AddFastPropertyUsingMap(
-                         *new_map, *name, *value, field_index, representation),
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<Object> NewStorageFor(Isolate* isolate,
+                                    Handle<Object> object,
+                                    Representation representation) {
+  Heap* heap = isolate->heap();
+  CALL_HEAP_FUNCTION(isolate,
+                     object->AllocateNewStorageFor(heap, representation),
                      Object);
 }
 
 
-MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
-                                               Name* name,
-                                               Object* value,
-                                               int field_index,
-                                               Representation representation) {
+void JSObject::AddFastPropertyUsingMap(Handle<JSObject> object,
+                                       Handle<Map> new_map,
+                                       Handle<Name> name,
+                                       Handle<Object> value,
+                                       int field_index,
+                                       Representation representation) {
+  Isolate* isolate = object->GetIsolate();
+
   // This method is used to transition to a field. If we are transitioning to a
   // double field, allocate new storage.
-  Object* storage;
-  MaybeObject* maybe_storage =
-      value->AllocateNewStorageFor(GetHeap(), representation);
-  if (!maybe_storage->To(&storage)) return maybe_storage;
+  Handle<Object> storage = NewStorageFor(isolate, value, representation);
 
-  if (map()->unused_property_fields() == 0) {
+  if (object->map()->unused_property_fields() == 0) {
     int new_unused = new_map->unused_property_fields();
-    FixedArray* values;
-    MaybeObject* maybe_values =
-        properties()->CopySize(properties()->length() + new_unused + 1);
-    if (!maybe_values->To(&values)) return maybe_values;
-
-    set_properties(values);
+    Handle<FixedArray> properties(object->properties());
+    Handle<FixedArray> values = isolate->factory()->CopySizeFixedArray(
+        properties, properties->length() + new_unused + 1);
+    object->set_properties(*values);
   }
 
-  set_map(new_map);
-
-  FastPropertyAtPut(field_index, storage);
-  return value;
+  object->set_map(*new_map);
+  object->FastPropertyAtPut(field_index, *storage);
 }
 
 
@@ -3791,8 +3784,9 @@ Handle<Object> JSObject::SetPropertyUsingTransition(
   }
 
   int field_index = descriptors->GetFieldIndex(descriptor);
-  return AddFastPropertyUsingMap(
+  AddFastPropertyUsingMap(
       object, transition_map, name, value, field_index, representation);
+  return value;
 }
 
 
@@ -5567,17 +5561,6 @@ MUST_USE_RESULT MaybeObject* JSObject::SetObserved(Isolate* isolate) {
   set_map(new_map);
 
   return heap->undefined_value();
-}
-
-
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<Object> NewStorageFor(Isolate* isolate,
-                                    Handle<Object> object,
-                                    Representation representation) {
-  Heap* heap = isolate->heap();
-  CALL_HEAP_FUNCTION(isolate,
-                     object->AllocateNewStorageFor(heap, representation),
-                     Object);
 }
 
 

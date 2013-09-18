@@ -2761,18 +2761,12 @@ class JSObject: public JSReceiver {
 
   // Add a property to a fast-case object using a map transition to
   // new_map.
-  static Handle<Object> AddFastPropertyUsingMap(Handle<JSObject> object,
-                                                Handle<Map> new_map,
-                                                Handle<Name> name,
-                                                Handle<Object> value,
-                                                int field_index,
-                                                Representation representation);
-  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(
-      Map* new_map,
-      Name* name,
-      Object* value,
-      int field_index,
-      Representation representation);
+  static void AddFastPropertyUsingMap(Handle<JSObject> object,
+                                      Handle<Map> new_map,
+                                      Handle<Name> name,
+                                      Handle<Object> value,
+                                      int field_index,
+                                      Representation representation);
 
   // Add a property to a slow-case object.
   static void AddSlowProperty(Handle<JSObject> object,
