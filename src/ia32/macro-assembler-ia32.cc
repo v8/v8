@@ -283,7 +283,7 @@ void MacroAssembler::DoubleToI(Register result_reg,
                                Label::Distance dst) {
   ASSERT(!input_reg.is(scratch));
   cvttsd2si(result_reg, Operand(input_reg));
-  Cvtsi2sd(scratch, Operand(result_reg));
+  cvtsi2sd(scratch, Operand(result_reg));
   ucomisd(scratch, input_reg);
   j(not_equal, conversion_failed, dst);
   j(parity_even, conversion_failed, dst);  // NaN.
@@ -392,7 +392,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
 
     movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     cvttsd2si(result_reg, Operand(xmm0));
-    Cvtsi2sd(temp, Operand(result_reg));
+    cvtsi2sd(temp, Operand(result_reg));
     ucomisd(xmm0, temp);
     RecordComment("Deferred TaggedToI: lost precision");
     j(not_equal, lost_precision, Label::kNear);
@@ -457,7 +457,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
   cmp(src, Immediate(0));
   movdbl(scratch,
          Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
-  Cvtsi2sd(dst, src);
+  cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, scratch);
   bind(&done);
@@ -676,12 +676,6 @@ void MacroAssembler::DebugBreak() {
 #endif
 
 
-void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
-  xorps(dst, dst);
-  cvtsi2sd(dst, src);
-}
-
-
 void MacroAssembler::Set(Register dst, const Immediate& x) {
   if (x.is_zero()) {
     xor_(dst, dst);  // Shorter than mov.
@@ -840,7 +834,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   SmiUntag(scratch1);
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
     CpuFeatureScope fscope(this, SSE2);
-    Cvtsi2sd(scratch2, scratch1);
+    cvtsi2sd(scratch2, scratch1);
     movdbl(FieldOperand(elements, key, times_4,
                         FixedDoubleArray::kHeaderSize - elements_offset),
            scratch2);
@@ -1115,16 +1109,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Push the return address to get ready to return.
   push(ecx);
 
-  LeaveExitFrameEpilogue(true);
+  LeaveExitFrameEpilogue();
 }
 
 
-void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Isolate::kContextAddress, isolate());
-  if (restore_context) {
-    mov(esi, Operand::StaticVariable(context_address));
-  }
+  mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
@@ -1136,11 +1128,11 @@ void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
 }
 
 
-void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
+void MacroAssembler::LeaveApiExitFrame() {
   mov(esp, ebp);
   pop(ebp);
 
-  LeaveExitFrameEpilogue(restore_context);
+  LeaveExitFrameEpilogue();
 }
 
 
@@ -2229,13 +2221,11 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(
-    Address function_address,
-    Address thunk_address,
-    Operand thunk_last_arg,
-    int stack_space,
-    Operand return_value_operand,
-    Operand* context_restore_operand) {
+void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
+                                              Address thunk_address,
+                                              Operand thunk_last_arg,
+                                              int stack_space,
+                                              int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   ExternalReference limit_address =
@@ -2291,10 +2281,9 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   Label prologue;
   // Load the value from ReturnValue
-  mov(eax, return_value_operand);
+  mov(eax, Operand(ebp, return_value_offset * kPointerSize));
 
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
@@ -2314,7 +2303,6 @@ void MacroAssembler::CallApiFunctionAndReturn(
   cmp(Operand::StaticVariable(scheduled_exception_address),
       Immediate(isolate()->factory()->the_hole_value()));
   j(not_equal, &promote_scheduled_exception);
-  bind(&exception_handled);
 
 #if ENABLE_EXTRA_CHECKS
   // Check if the function returned a valid JavaScript value.
@@ -2351,19 +2339,11 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bind(&ok);
 #endif
 
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    mov(esi, *context_restore_operand);
-  }
-  LeaveApiExitFrame(!restore_context);
+  LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
 
   bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(this, StackFrame::INTERNAL);
-    CallRuntime(Runtime::kPromoteScheduledException, 0);
-  }
-  jmp(&exception_handled);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   ExternalReference delete_extensions =

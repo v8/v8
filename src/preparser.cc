@@ -42,10 +42,10 @@
 #include "unicode.h"
 #include "utils.h"
 
-#if V8_CC_MSVC && (_MSC_VER < 1800)
+#ifdef _MSC_VER
 namespace std {
 
-// Usually defined in math.h, but not in MSVC until VS2013+.
+// Usually defined in math.h, but not in MSVC.
 // Abstracted to work
 int isfinite(double value);
 

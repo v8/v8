@@ -691,16 +691,13 @@ void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(
-    Address function_address,
-    Address thunk_address,
-    Register thunk_last_arg,
-    int stack_space,
-    Operand return_value_operand,
-    Operand* context_restore_operand) {
+void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
+                                              Address thunk_address,
+                                              Register thunk_last_arg,
+                                              int stack_space,
+                                              int return_value_offset) {
   Label prologue;
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label write_back;
@@ -771,7 +768,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   }
 
   // Load the value from ReturnValue
-  movq(rax, return_value_operand);
+  movq(rax, Operand(rbp, return_value_offset * kPointerSize));
   bind(&prologue);
 
   // No more valid handles (the result handle was the last one). Restore
@@ -786,7 +783,6 @@ void MacroAssembler::CallApiFunctionAndReturn(
   movq(rsi, scheduled_exception_address);
   Cmp(Operand(rsi, 0), factory->the_hole_value());
   j(not_equal, &promote_scheduled_exception);
-  bind(&exception_handled);
 
 #if ENABLE_EXTRA_CHECKS
   // Check if the function returned a valid JavaScript value.
@@ -823,19 +819,11 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bind(&ok);
 #endif
 
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    movq(rsi, *context_restore_operand);
-  }
-  LeaveApiExitFrame(!restore_context);
+  LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
 
   bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(this, StackFrame::INTERNAL);
-    CallRuntime(Runtime::kPromoteScheduledException, 0);
-  }
-  jmp(&exception_handled);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
@@ -945,18 +933,6 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
       pop(reg);
     }
   }
-}
-
-
-void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
-  xorps(dst, dst);
-  cvtlsi2sd(dst, src);
-}
-
-
-void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
-  xorps(dst, dst);
-  cvtlsi2sd(dst, src);
 }
 
 
@@ -2941,7 +2917,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   // Value is a smi. convert to a double and store.
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
-  Cvtlsi2sd(xmm_scratch, kScratchRegister);
+  cvtlsi2sd(xmm_scratch, kScratchRegister);
   movsd(FieldOperand(elements, index, times_8,
                      FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
@@ -3074,7 +3050,7 @@ void MacroAssembler::DoubleToI(Register result_reg,
                                Label* conversion_failed,
                                Label::Distance dst) {
   cvttsd2si(result_reg, input_reg);
-  Cvtlsi2sd(xmm0, result_reg);
+  cvtlsi2sd(xmm0, result_reg);
   ucomisd(xmm0, input_reg);
   j(not_equal, conversion_failed, dst);
   j(parity_even, conversion_failed, dst);  // NaN.
@@ -3111,7 +3087,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
 
   movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
   cvttsd2si(result_reg, xmm0);
-  Cvtlsi2sd(temp, result_reg);
+  cvtlsi2sd(temp, result_reg);
   ucomisd(xmm0, temp);
   RecordComment("Deferred TaggedToI: lost precision");
   j(not_equal, lost_precision, dst);
@@ -3707,25 +3683,23 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
   PushReturnAddressFrom(rcx);
 
-  LeaveExitFrameEpilogue(true);
+  LeaveExitFrameEpilogue();
 }
 
 
-void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
+void MacroAssembler::LeaveApiExitFrame() {
   movq(rsp, rbp);
   pop(rbp);
 
-  LeaveExitFrameEpilogue(restore_context);
+  LeaveExitFrameEpilogue();
 }
 
 
-void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Isolate::kContextAddress, isolate());
   Operand context_operand = ExternalOperand(context_address);
-  if (restore_context) {
-    movq(rsi, context_operand);
-  }
+  movq(rsi, context_operand);
 #ifdef DEBUG
   movq(context_operand, Immediate(0));
 #endif

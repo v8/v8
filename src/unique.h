@@ -64,10 +64,6 @@ class Unique V8_FINAL {
     handle_ = handle;
   }
 
-  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
-  Unique(Address raw_address, Handle<T> handle)
-    : raw_address_(raw_address), handle_(handle) { }
-
   // Constructor for handling automatic up casting.
   // Ex. Unique<JSFunction> can be passed when Unique<Object> is expected.
   template <class S> Unique(Unique<S> uniq) {
@@ -142,7 +138,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   }
 
   // Compare this set against another set. O(|this|).
-  bool Equals(UniqueSet<T>* that) const {
+  bool Equals(UniqueSet<T>* that) {
     if (that->size_ != this->size_) return false;
     for (int i = 0; i < this->size_; i++) {
       if (this->array_[i] != that->array_[i]) return false;
@@ -150,17 +146,8 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return true;
   }
 
-  template <typename U>
-  bool Contains(Unique<U> elem) const {
-    // TODO(titzer): use binary search for larger sets.
-    for (int i = 0; i < size_; i++) {
-      if (this->array_[i] == elem) return true;
-    }
-    return false;
-  }
-
   // Check if this set is a subset of the given set. O(|this| + |that|).
-  bool IsSubset(UniqueSet<T>* that) const {
+  bool IsSubset(UniqueSet<T>* that) {
     if (that->size_ < this->size_) return false;
     int j = 0;
     for (int i = 0; i < this->size_; i++) {
@@ -176,7 +163,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Returns a new set representing the intersection of this set and the other.
   // O(|this| + |that|).
-  UniqueSet<T>* Intersect(UniqueSet<T>* that, Zone* zone) const {
+  UniqueSet<T>* Intersect(UniqueSet<T>* that, Zone* zone) {
     if (that->size_ == 0 || this->size_ == 0) return new(zone) UniqueSet<T>();
 
     UniqueSet<T>* out = new(zone) UniqueSet<T>();
@@ -203,7 +190,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Returns a new set representing the union of this set and the other.
   // O(|this| + |that|).
-  UniqueSet<T>* Union(UniqueSet<T>* that, Zone* zone) const {
+  UniqueSet<T>* Union(UniqueSet<T>* that, Zone* zone) {
     if (that->size_ == 0) return this->Copy(zone);
     if (this->size_ == 0) return that->Copy(zone);
 
@@ -235,7 +222,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   }
 
   // Makes an exact copy of this set. O(|this| + |that|).
-  UniqueSet<T>* Copy(Zone* zone) const {
+  UniqueSet<T>* Copy(Zone* zone) {
     UniqueSet<T>* copy = new(zone) UniqueSet<T>();
     copy->size_ = this->size_;
     copy->capacity_ = this->size_;
@@ -244,13 +231,8 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return copy;
   }
 
-  inline int size() const {
+  inline int size() {
     return size_;
-  }
-
-  inline Unique<T> at(int index) const {
-    ASSERT(index >= 0 && index < size_);
-    return array_[index];
   }
 
  private:

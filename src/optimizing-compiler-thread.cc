@@ -74,6 +74,7 @@ void OptimizingCompilerThread::Run() {
         { AllowHandleDereference allow_handle_dereference;
           FlushInputQueue(true);
         }
+        Release_Store(&queue_length_, static_cast<AtomicWord>(0));
         Release_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
         stop_semaphore_.Signal();
         // Return to start of consumer loop.
@@ -113,7 +114,6 @@ void OptimizingCompilerThread::CompileNext() {
     osr_candidates_.RemoveElement(optimizing_compiler);
     ready_for_osr_.Add(optimizing_compiler);
   } else {
-    LockGuard<Mutex> access_queue(&queue_mutex_);
     output_queue_.Enqueue(optimizing_compiler);
     isolate_->stack_guard()->RequestInstallCode();
   }
@@ -134,20 +134,13 @@ void OptimizingCompilerThread::FlushInputQueue(bool restore_function_code) {
     }
     delete info;
   }
-  Release_Store(&queue_length_, static_cast<AtomicWord>(0));
-
-  LockGuard<Mutex> access_osr_lists(&osr_list_mutex_);
-  osr_candidates_.Clear();
 }
 
 
 void OptimizingCompilerThread::FlushOutputQueue(bool restore_function_code) {
   OptimizingCompiler* optimizing_compiler;
   // The optimizing compiler is allocated in the CompilationInfo's zone.
-  while (true) {
-    { LockGuard<Mutex> access_queue(&queue_mutex_);
-      if (!output_queue_.Dequeue(&optimizing_compiler)) break;
-    }
+  while (output_queue_.Dequeue(&optimizing_compiler)) {
     CompilationInfo* info = optimizing_compiler->info();
     if (restore_function_code) {
       Handle<JSFunction> function = info->closure();
@@ -156,6 +149,7 @@ void OptimizingCompilerThread::FlushOutputQueue(bool restore_function_code) {
     delete info;
   }
 
+  osr_candidates_.Clear();
   RemoveStaleOSRCandidates(0);
 }
 
@@ -202,12 +196,9 @@ void OptimizingCompilerThread::Stop() {
 void OptimizingCompilerThread::InstallOptimizedFunctions() {
   ASSERT(!IsOptimizerThread());
   HandleScope handle_scope(isolate_);
-
   OptimizingCompiler* compiler;
   while (true) {
-    { LockGuard<Mutex> access_queue(&queue_mutex_);
-      if (!output_queue_.Dequeue(&compiler)) break;
-    }
+    if (!output_queue_.Dequeue(&compiler)) return;
     Compiler::InstallOptimizedCode(compiler);
   }
 

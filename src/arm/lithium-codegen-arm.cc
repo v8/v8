@@ -1383,8 +1383,7 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 
 void LCodeGen::DoDivI(LDivI* instr) {
   if (instr->hydrogen()->HasPowerOf2Divisor()) {
-    const Register dividend = ToRegister(instr->left());
-    const Register result = ToRegister(instr->result());
+    Register dividend = ToRegister(instr->left());
     int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
     int32_t test_value = 0;
     int32_t power = 0;
@@ -1395,7 +1394,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     } else {
       // Check for (0 / -x) that will produce negative zero.
       if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        __ cmp(dividend, Operand::Zero());
+        __ tst(dividend, Operand(dividend));
         DeoptimizeIf(eq, instr->environment());
       }
       // Check for (kMinInt / -1).
@@ -1410,26 +1409,20 @@ void LCodeGen::DoDivI(LDivI* instr) {
     if (test_value != 0) {
       if (instr->hydrogen()->CheckFlag(
           HInstruction::kAllUsesTruncatingToInt32)) {
-        __ sub(result, dividend, Operand::Zero(), SetCC);
-        __ rsb(result, result, Operand::Zero(), LeaveCC, lt);
-        __ mov(result, Operand(result, ASR, power));
-        if (divisor > 0) __ rsb(result, result, Operand::Zero(), LeaveCC, lt);
-        if (divisor < 0) __ rsb(result, result, Operand::Zero(), LeaveCC, gt);
+        __ cmp(dividend, Operand(0));
+        __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
+        __ mov(dividend, Operand(dividend, ASR, power));
+        if (divisor > 0) __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
+        if (divisor < 0) __ rsb(dividend, dividend, Operand(0), LeaveCC, gt);
         return;  // Don't fall through to "__ rsb" below.
       } else {
         // Deoptimize if remainder is not 0.
         __ tst(dividend, Operand(test_value));
         DeoptimizeIf(ne, instr->environment());
-        __ mov(result, Operand(dividend, ASR, power));
-        if (divisor < 0) __ rsb(result, result, Operand(0));
-      }
-    } else {
-      if (divisor < 0) {
-        __ rsb(result, dividend, Operand(0));
-      } else {
-        __ Move(result, dividend);
+        __ mov(dividend, Operand(dividend, ASR, power));
       }
     }
+    if (divisor < 0) __ rsb(dividend, dividend, Operand(0));
 
     return;
   }
@@ -1446,15 +1439,12 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    Label positive;
-    if (!instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-      // Do the test only if it hadn't be done above.
-      __ cmp(right, Operand::Zero());
-    }
-    __ b(pl, &positive);
+    Label left_not_zero;
     __ cmp(left, Operand::Zero());
-    DeoptimizeIf(eq, instr->environment());
-    __ bind(&positive);
+    __ b(ne, &left_not_zero);
+    __ cmp(right, Operand::Zero());
+    DeoptimizeIf(mi, instr->environment());
+    __ bind(&left_not_zero);
   }
 
   // Check for (kMinInt / -1).
@@ -1985,42 +1975,32 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   Register string = ToRegister(instr->string());
-  LOperand* index_op = instr->index();
+  Register index = ToRegister(instr->index());
   Register value = ToRegister(instr->value());
-  Register scratch = scratch0();
   String::Encoding encoding = instr->encoding();
 
   if (FLAG_debug_code) {
-    __ ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+    __ ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
 
-    __ and_(scratch, scratch,
-            Operand(kStringRepresentationMask | kStringEncodingMask));
+    __ and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(scratch, Operand(encoding == String::ONE_BYTE_ENCODING
-                            ? one_byte_seq_type : two_byte_seq_type));
+    __ cmp(ip, Operand(encoding == String::ONE_BYTE_ENCODING
+                           ? one_byte_seq_type : two_byte_seq_type));
     __ Check(eq, kUnexpectedStringType);
   }
 
-  if (index_op->IsConstantOperand()) {
-    int constant_index = ToInteger32(LConstantOperand::cast(index_op));
-    if (encoding == String::ONE_BYTE_ENCODING) {
-      __ strb(value,
-              FieldMemOperand(string, SeqString::kHeaderSize + constant_index));
-    } else {
-      __ strh(value,
-          FieldMemOperand(string, SeqString::kHeaderSize + constant_index * 2));
-    }
+  __ add(ip,
+         string,
+         Operand(SeqString::kHeaderSize - kHeapObjectTag));
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ strb(value, MemOperand(ip, index));
   } else {
-    Register index = ToRegister(index_op);
-    if (encoding == String::ONE_BYTE_ENCODING) {
-      __ add(scratch, string, Operand(index));
-      __ strb(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
-    } else {
-      __ add(scratch, string, Operand(index, LSL, 1));
-      __ strh(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
-    }
+    // MemOperand with ip as the base register is not allowed for strh, so
+    // we do the address calculation explicitly.
+    __ add(ip, ip, Operand(index, LSL, 1));
+    __ strh(value, MemOperand(ip));
   }
 }
 
@@ -2214,6 +2194,25 @@ void LCodeGen::EmitFalseBranch(InstrType instr, Condition condition) {
 
 void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
   __ stop("LBreak");
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    EmitBranch(instr, al);
+  } else {
+    ASSERT(r.IsTagged());
+    Register reg = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      EmitBranch(instr, al);
+    }
+    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
+    __ ldr(scratch0(), FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ CompareRoot(scratch0(), Heap::kHeapNumberMapRootIndex);
+    EmitBranch(instr, eq);
+  }
 }
 
 
@@ -4312,23 +4311,16 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    Register address = scratch0();
     DwVfpRegister value(ToDoubleRegister(instr->value()));
-    if (key_is_constant) {
-      if (constant_key != 0) {
-        __ add(address, external_pointer,
-               Operand(constant_key << element_size_shift));
-      } else {
-        address = external_pointer;
-      }
-    } else {
-      __ add(address, external_pointer, Operand(key, LSL, shift_size));
-    }
+    Operand operand(key_is_constant
+                    ? Operand(constant_key << element_size_shift)
+                    : Operand(key, LSL, shift_size));
+    __ add(scratch0(), external_pointer, operand);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
       __ vcvt_f32_f64(double_scratch0().low(), value);
-      __ vstr(double_scratch0().low(), address, additional_offset);
+      __ vstr(double_scratch0().low(), scratch0(), additional_offset);
     } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ vstr(value, address, additional_offset);
+      __ vstr(value, scratch0(), additional_offset);
     }
   } else {
     Register value(ToRegister(instr->value()));
@@ -4370,28 +4362,32 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   DwVfpRegister value = ToDoubleRegister(instr->value());
   Register elements = ToRegister(instr->elements());
+  Register key = no_reg;
   Register scratch = scratch0();
-  DwVfpRegister double_scratch = double_scratch0();
   bool key_is_constant = instr->key()->IsConstantOperand();
+  int constant_key = 0;
 
   // Calculate the effective address of the slot in the array to store the
   // double value.
-  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
   if (key_is_constant) {
-    int constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
       Abort(kArrayIndexConstantValueTooBig);
     }
-    __ add(scratch, elements,
-           Operand((constant_key << element_size_shift) +
-                   FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   } else {
-    int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
-        ? (element_size_shift - kSmiTagSize) : element_size_shift;
-    __ add(scratch, elements,
-           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+    key = ToRegister(instr->key());
+  }
+  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
+      ? (element_size_shift - kSmiTagSize) : element_size_shift;
+  Operand operand = key_is_constant
+      ? Operand((constant_key << element_size_shift) +
+                FixedDoubleArray::kHeaderSize - kHeapObjectTag)
+      : Operand(key, LSL, shift_size);
+  __ add(scratch, elements, operand);
+  if (!key_is_constant) {
     __ add(scratch, scratch,
-           Operand(ToRegister(instr->key()), LSL, shift_size));
+           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   }
 
   if (instr->NeedsCanonicalization()) {
@@ -4401,12 +4397,9 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       __ tst(ip, Operand(kVFPDefaultNaNModeControlBit));
       __ Assert(ne, kDefaultNaNModeNotSet);
     }
-    __ VFPCanonicalizeNaN(double_scratch, value);
-    __ vstr(double_scratch, scratch,
-            instr->additional_index() << element_size_shift);
-  } else {
-    __ vstr(value, scratch, instr->additional_index() << element_size_shift);
+    __ VFPCanonicalizeNaN(value);
   }
+  __ vstr(value, scratch, instr->additional_index() << element_size_shift);
 }
 
 
@@ -4994,19 +4987,15 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 
   Register input_reg = ToRegister(input);
 
-  if (instr->hydrogen()->value()->representation().IsSmi()) {
-    __ SmiUntag(input_reg);
-  } else {
-    DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
 
-    // Optimistically untag the input.
-    // If the input is a HeapObject, SmiUntag will set the carry flag.
-    __ SmiUntag(input_reg, SetCC);
-    // Branch to deferred code if the input was tagged.
-    // The deferred code will take care of restoring the tag.
-    __ b(cs, deferred->entry());
-    __ bind(deferred->exit());
-  }
+  // Optimistically untag the input.
+  // If the input is a HeapObject, SmiUntag will set the carry flag.
+  __ SmiUntag(input_reg, SetCC);
+  // Branch to deferred code if the input was tagged.
+  // The deferred code will take care of restoring the tag.
+  __ b(cs, deferred->entry());
+  __ bind(deferred->exit());
 }
 
 

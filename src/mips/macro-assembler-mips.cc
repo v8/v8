@@ -3847,14 +3847,12 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(
-    ExternalReference function,
-    Address function_address,
-    ExternalReference thunk_ref,
-    Register thunk_last_arg,
-    int stack_space,
-    MemOperand return_value_operand,
-    MemOperand* context_restore_operand) {
+void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
+                                              Address function_address,
+                                              ExternalReference thunk_ref,
+                                              Register thunk_last_arg,
+                                              int stack_space,
+                                              int return_value_offset_from_fp) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -3917,13 +3915,12 @@ void MacroAssembler::CallApiFunctionAndReturn(
   }
 
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label return_value_loaded;
 
   // Load value from ReturnValue.
-  lw(v0, return_value_operand);
+  lw(v0, MemOperand(fp, return_value_offset_from_fp*kPointerSize));
   bind(&return_value_loaded);
 
   // No more valid handles (the result handle was the last one). Restore
@@ -3944,23 +3941,14 @@ void MacroAssembler::CallApiFunctionAndReturn(
   li(at, Operand(ExternalReference::scheduled_exception_address(isolate())));
   lw(t1, MemOperand(at));
   Branch(&promote_scheduled_exception, ne, t0, Operand(t1));
-  bind(&exception_handled);
-
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    lw(cp, *context_restore_operand);
-  }
   li(s0, Operand(stack_space));
-  LeaveExitFrame(false, s0, !restore_context, EMIT_RETURN);
+  LeaveExitFrame(false, s0, true);
 
   bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(this, StackFrame::INTERNAL);
-    CallExternalReference(
-        ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-        0);
-  }
-  jmp(&exception_handled);
+  TailCallExternalReference(
+      ExternalReference(Runtime::kPromoteScheduledException, isolate()),
+      0,
+      1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
@@ -4696,7 +4684,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count,
-                                    bool restore_context,
                                     bool do_return) {
   // Optionally restore all double registers.
   if (save_doubles) {
@@ -4713,12 +4700,9 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   sw(zero_reg, MemOperand(t8));
 
   // Restore current context from top and clear it in debug mode.
-  if (restore_context) {
-    li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
-    lw(cp, MemOperand(t8));
-  }
-#ifdef DEBUG
   li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  lw(cp, MemOperand(t8));
+#ifdef DEBUG
   sw(a3, MemOperand(t8));
 #endif
 

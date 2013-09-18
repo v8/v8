@@ -129,6 +129,8 @@ Heap::Heap()
       old_gen_exhausted_(false),
       store_buffer_rebuilder_(store_buffer()),
       hidden_string_(NULL),
+      global_gc_prologue_callback_(NULL),
+      global_gc_epilogue_callback_(NULL),
       gc_safe_size_of_old_object_(NULL),
       total_regexp_code_generated_(0),
       tracer_(NULL),
@@ -1053,17 +1055,12 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
+  if (gc_type == kGCTypeMarkSweepCompact && global_gc_prologue_callback_) {
+    global_gc_prologue_callback_();
+  }
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      if (!gc_prologue_callbacks_[i].pass_isolate_) {
-        v8::GCPrologueCallback callback =
-            reinterpret_cast<v8::GCPrologueCallback>(
-                gc_prologue_callbacks_[i].callback);
-        callback(gc_type, flags);
-      } else {
-        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-        gc_prologue_callbacks_[i].callback(isolate, gc_type, flags);
-      }
+      gc_prologue_callbacks_[i].callback(gc_type, flags);
     }
   }
 }
@@ -1072,17 +1069,11 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
 void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
-      if (!gc_epilogue_callbacks_[i].pass_isolate_) {
-        v8::GCPrologueCallback callback =
-            reinterpret_cast<v8::GCPrologueCallback>(
-                gc_epilogue_callbacks_[i].callback);
-        callback(gc_type, kNoGCCallbackFlags);
-      } else {
-        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-        gc_epilogue_callbacks_[i].callback(
-            isolate, gc_type, kNoGCCallbackFlags);
-      }
+      gc_epilogue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
     }
+  }
+  if (gc_type == kGCTypeMarkSweepCompact && global_gc_epilogue_callback_) {
+    global_gc_epilogue_callback_();
   }
 }
 
@@ -4319,7 +4310,6 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
       reinterpret_cast<Address>(result) + map->instance_size());
   alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-  ASSERT(allocation_site->map() == allocation_site_map());
   alloc_memento->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
   return result;
 }
@@ -5063,7 +5053,6 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
       AllocationMemento* alloc_memento;
       if (maybe_alloc_memento->To(&alloc_memento)) {
         alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-        ASSERT(site->map() == allocation_site_map());
         alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
       }
     }
@@ -5086,7 +5075,6 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
     AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(clone) + object_size);
     alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-    ASSERT(site->map() == allocation_site_map());
     alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 
@@ -7080,17 +7068,15 @@ void Heap::TearDown() {
 }
 
 
-void Heap::AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
-                                 GCType gc_type,
-                                 bool pass_isolate) {
+void Heap::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
   ASSERT(callback != NULL);
-  GCPrologueCallbackPair pair(callback, gc_type, pass_isolate);
+  GCPrologueCallbackPair pair(callback, gc_type);
   ASSERT(!gc_prologue_callbacks_.Contains(pair));
   return gc_prologue_callbacks_.Add(pair);
 }
 
 
-void Heap::RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback) {
+void Heap::RemoveGCPrologueCallback(GCPrologueCallback callback) {
   ASSERT(callback != NULL);
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_prologue_callbacks_[i].callback == callback) {
@@ -7102,17 +7088,15 @@ void Heap::RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback) {
 }
 
 
-void Heap::AddGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback,
-                                 GCType gc_type,
-                                 bool pass_isolate) {
+void Heap::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
   ASSERT(callback != NULL);
-  GCEpilogueCallbackPair pair(callback, gc_type, pass_isolate);
+  GCEpilogueCallbackPair pair(callback, gc_type);
   ASSERT(!gc_epilogue_callbacks_.Contains(pair));
   return gc_epilogue_callbacks_.Add(pair);
 }
 
 
-void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
+void Heap::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
   ASSERT(callback != NULL);
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_epilogue_callbacks_[i].callback == callback) {

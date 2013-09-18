@@ -43,7 +43,6 @@
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
 #include "hydrogen-infer-types.h"
-#include "hydrogen-load-elimination.h"
 #include "hydrogen-gvn.h"
 #include "hydrogen-mark-deoptimize.h"
 #include "hydrogen-minus-zero.h"
@@ -1033,7 +1032,8 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::AddIncrementCounter(StatsCounter* counter) {
+void HGraphBuilder::AddIncrementCounter(StatsCounter* counter,
+                                        HValue* context) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     HValue* reference = Add<HConstant>(ExternalReference(counter));
     HValue* old_value = Add<HLoadNamedField>(reference,
@@ -1824,7 +1824,8 @@ void HGraphBuilder::BuildCompareNil(
 HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
                                                     int previous_object_size,
                                                     HValue* alloc_site) {
-  ASSERT(alloc_site != NULL);
+  // TODO(mvstanton): ASSERT altered to CHECK to diagnose chromium bug 284577
+  CHECK(alloc_site != NULL);
   HInnerAllocatedObject* alloc_memento = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
   Handle<Map> alloc_memento_map(
@@ -2971,8 +2972,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
-
-  if (FLAG_load_elimination) Run<HLoadEliminationPhase>();
 
   CollectPhis();
 
@@ -4173,7 +4172,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       IsFastLiteral(Handle<JSObject>::cast(boilerplate),
                     kMaxFastLiteralDepth,
                     &max_properties)) {
-    Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
+    Handle<JSObject> boilerplate_object =
+        Handle<JSObject>::cast(boilerplate);
 
     literal = BuildFastLiteral(boilerplate_object,
                                Handle<Object>::null(),
@@ -5136,7 +5136,9 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     CHECK_ALIVE(VisitForValue(prop->obj()));
     HValue* object = Top();
     HValue* key = NULL;
-    if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
+    if ((!prop->IsStringLength() &&
+         !prop->IsFunctionPrototype() &&
+         !prop->key()->IsPropertyName()) ||
         prop->IsStringAccess()) {
       CHECK_ALIVE(VisitForValue(prop->key()));
       key = Top();
@@ -5826,20 +5828,17 @@ void HOptimizedGraphBuilder::PushLoad(Property* expr,
 }
 
 
-static bool AreStringTypes(SmallMapList* types) {
-  if (types == NULL || types->length() == 0) return false;
-  for (int i = 0; i < types->length(); i++) {
-    if (types->at(i)->instance_type() >= FIRST_NONSTRING_TYPE) return false;
-  }
-  return true;
-}
-
-
 void HOptimizedGraphBuilder::BuildLoad(Property* expr,
                                        int position,
                                        BailoutId ast_id) {
   HInstruction* instr = NULL;
-  if (expr->IsStringAccess()) {
+  if (expr->IsStringLength()) {
+    HValue* string = Pop();
+    BuildCheckHeapObject(string);
+    HInstruction* checkstring =
+        AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
+    instr = BuildLoadStringLength(string, checkstring);
+  } else if (expr->IsStringAccess()) {
     HValue* index = Pop();
     HValue* string = Pop();
     HValue* context = environment()->context();
@@ -5875,12 +5874,6 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
       } else {
         instr = BuildLoadNamedMonomorphic(Pop(), name, map);
       }
-    } else if (AreStringTypes(types) &&
-               name->Equals(isolate()->heap()->length_string())) {
-      BuildCheckHeapObject(Pop());
-      HValue* checked_object =
-          AddInstruction(HCheckInstanceType::NewIsString(object, zone()));
-      instr = BuildLoadStringLength(object, checked_object);
     } else if (types != NULL && types->length() > 1) {
       return HandlePolymorphicLoadNamedField(
           position, ast_id, Pop(), types, name);
@@ -5921,7 +5914,9 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   if (TryArgumentsAccess(expr)) return;
 
   CHECK_ALIVE(VisitForValue(expr->obj()));
-  if ((!expr->IsFunctionPrototype() && !expr->key()->IsPropertyName()) ||
+  if ((!expr->IsStringLength() &&
+       !expr->IsFunctionPrototype() &&
+       !expr->key()->IsPropertyName()) ||
       expr->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(expr->key()));
   }
@@ -7572,7 +7567,9 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   HValue* object = Top();
 
   HValue* key = NULL;
-  if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
+  if ((!prop->IsStringLength() &&
+       !prop->IsFunctionPrototype() &&
+       !prop->key()->IsPropertyName()) ||
       prop->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(prop->key()));
     key = Top();
@@ -7622,16 +7619,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
 }
 
 
-// Checks if the given shift amounts have following forms:
-// (N1) and (N2) with N1 + N2 = 32; (sa) and (32 - sa).
+// Checks if the given shift amounts have form: (sa) and (32 - sa).
 static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
                                              HValue* const32_minus_sa) {
-  if (sa->IsConstant() && const32_minus_sa->IsConstant()) {
-    const HConstant* c1 = HConstant::cast(sa);
-    const HConstant* c2 = HConstant::cast(const32_minus_sa);
-    return c1->HasInteger32Value() && c2->HasInteger32Value() &&
-        (c1->Integer32Value() + c2->Integer32Value() == 32);
-  }
   if (!const32_minus_sa->IsSub()) return false;
   HSub* sub = HSub::cast(const32_minus_sa);
   if (sa != sub->right()) return false;

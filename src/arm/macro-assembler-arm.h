@@ -469,13 +469,8 @@ class MacroAssembler: public Assembler {
   void VFPEnsureFPSCRState(Register scratch);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
-  void VFPCanonicalizeNaN(const DwVfpRegister dst,
-                          const DwVfpRegister src,
-                          const Condition cond = al);
   void VFPCanonicalizeNaN(const DwVfpRegister value,
-                          const Condition cond = al) {
-    VFPCanonicalizeNaN(value, value, cond);
-  }
+                          const Condition cond = al);
 
   // Compare double values and move the result to the normal condition flags.
   void VFPCompareAndSetFlags(const DwVfpRegister src1,
@@ -546,9 +541,7 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
   // remove in a register (or no_reg, if there is nothing to remove).
-  void LeaveExitFrame(bool save_doubles,
-                      Register argument_count,
-                      bool restore_context);
+  void LeaveExitFrame(bool save_doubles, Register argument_count);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1118,8 +1111,7 @@ class MacroAssembler: public Assembler {
                                 ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,
-                                MemOperand return_value_operand,
-                                MemOperand* context_restore_operand);
+                                int return_value_offset_from_fp);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);

@@ -51,12 +51,6 @@ class JumpTarget;
 // MIPS generated code calls C code, it must be via t9 register.
 
 
-// Flags used for LeaveExitFrame function.
-enum LeaveExitFrameMode {
-  EMIT_RETURN = true,
-  NO_EMIT_RETURN = false
-};
-
 // Flags used for AllocateHeapNumber
 enum TaggingMode {
   // Tag the result.
@@ -854,8 +848,7 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame.
   void LeaveExitFrame(bool save_doubles,
                       Register arg_count,
-                      bool restore_context,
-                      bool do_return = NO_EMIT_RETURN);
+                      bool do_return = false);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1278,8 +1271,7 @@ class MacroAssembler: public Assembler {
                                 ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,
-                                MemOperand return_value_operand,
-                                MemOperand* context_restore_operand);
+                                int return_value_offset_from_fp);
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,

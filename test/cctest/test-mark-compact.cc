@@ -153,7 +153,6 @@ TEST(MarkCompactCollector) {
   Heap* heap = isolate->heap();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<GlobalObject> global(isolate->context()->global_object());
 
   // call mark-compact when heap is empty
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 1");
@@ -192,8 +191,8 @@ TEST(MarkCompactCollector) {
       Map::cast(heap->AllocateMap(JS_OBJECT_TYPE,
                                   JSObject::kHeaderSize)->ToObjectChecked());
   function->set_initial_map(initial_map);
-  JSReceiver::SetProperty(
-      global, handle(func_name), handle(function), NONE, kNonStrictMode);
+  isolate->context()->global_object()->SetProperty(
+      func_name, function, NONE, kNonStrictMode)->ToObjectChecked();
 
   JSObject* obj = JSObject::cast(
       heap->AllocateJSObject(function)->ToObjectChecked());
@@ -201,7 +200,7 @@ TEST(MarkCompactCollector) {
 
   func_name = String::cast(
       heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
-  CHECK(JSReceiver::HasLocalProperty(global, handle(func_name)));
+  CHECK(isolate->context()->global_object()->HasLocalProperty(func_name));
   Object* func_value = isolate->context()->global_object()->
       GetProperty(func_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
@@ -210,19 +209,20 @@ TEST(MarkCompactCollector) {
   obj = JSObject::cast(heap->AllocateJSObject(function)->ToObjectChecked());
   String* obj_name =
       String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  JSReceiver::SetProperty(
-      global, handle(obj_name), handle(obj), NONE, kNonStrictMode);
+  isolate->context()->global_object()->SetProperty(
+      obj_name, obj, NONE, kNonStrictMode)->ToObjectChecked();
   String* prop_name =
       String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  JSReceiver::SetProperty(
-      handle(obj), handle(prop_name), twenty_three, NONE, kNonStrictMode);
+  obj->SetProperty(prop_name,
+                   Smi::FromInt(23),
+                   NONE,
+                   kNonStrictMode)->ToObjectChecked();
 
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 
   obj_name =
       String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  CHECK(JSReceiver::HasLocalProperty(global, handle(obj_name)));
+  CHECK(isolate->context()->global_object()->HasLocalProperty(obj_name));
   CHECK(isolate->context()->global_object()->
         GetProperty(obj_name)->ToObjectChecked()->IsJSObject());
   obj = JSObject::cast(isolate->context()->global_object()->
@@ -266,6 +266,39 @@ TEST(MapCompact) {
   CHECK(HEAP->map_space()->MapPointersEncodable());
 }
 #endif
+
+static int gc_starts = 0;
+static int gc_ends = 0;
+
+static void GCPrologueCallbackFunc() {
+  CHECK(gc_starts == gc_ends);
+  gc_starts++;
+}
+
+
+static void GCEpilogueCallbackFunc() {
+  CHECK(gc_starts == gc_ends + 1);
+  gc_ends++;
+}
+
+
+TEST(GCCallback) {
+  i::FLAG_stress_compaction = false;
+  CcTest::InitializeVM();
+
+  HEAP->SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
+  HEAP->SetGlobalGCEpilogueCallback(&GCEpilogueCallbackFunc);
+
+  // Scavenge does not call GC callback functions.
+  HEAP->PerformScavenge();
+
+  CHECK_EQ(0, gc_starts);
+  CHECK_EQ(gc_ends, gc_starts);
+
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  CHECK_EQ(1, gc_starts);
+  CHECK_EQ(gc_ends, gc_starts);
+}
 
 
 static int NumberOfWeakCalls = 0;

@@ -240,7 +240,7 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
-  void LeaveApiExitFrame(bool restore_context);
+  void LeaveApiExitFrame();
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
@@ -365,12 +365,6 @@ class MacroAssembler: public Assembler {
   // Expression support
   void Set(Register dst, const Immediate& x);
   void Set(const Operand& dst, const Immediate& x);
-
-  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
-  // hinders register renaming and makes dependence chains longer. So we use
-  // xorps to clear the dst register before cvtsi2sd to solve this issue.
-  void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
-  void Cvtsi2sd(XMMRegister dst, const Operand& src);
 
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);
@@ -813,8 +807,7 @@ class MacroAssembler: public Assembler {
                                 Address thunk_address,
                                 Operand thunk_last_arg,
                                 int stack_space,
-                                Operand return_value_operand,
-                                Operand* context_restore_operand);
+                                int return_value_offset_from_ebp);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
@@ -964,7 +957,7 @@ class MacroAssembler: public Assembler {
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
-  void LeaveExitFrameEpilogue(bool restore_context);
+  void LeaveExitFrameEpilogue();
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,

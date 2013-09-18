@@ -81,13 +81,13 @@
         }],
         ['v8_enable_i18n_support==1', {
           'dependencies': [
-            '<(icu_gyp_path):icui18n',
-            '<(icu_gyp_path):icuuc',
+            '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
+            '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
           ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
-            '<(icu_gyp_path):icudata',
+            '<(DEPTH)/third_party/icu/icu.gyp:icudata',
           ],
         }],
       ],

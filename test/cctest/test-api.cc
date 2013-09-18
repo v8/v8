@@ -77,20 +77,12 @@ using ::v8::V8;
 using ::v8::Value;
 
 
-// TODO(bmeurer): Don't run profiled tests when using the simulator.
-// This is a temporary work-around, until the profiler is fixed.
-#if USE_SIMULATOR
-#define THREADED_PROFILED_TEST(Name)                                 \
-  THREADED_TEST(Name)
-#else
 #define THREADED_PROFILED_TEST(Name)                                 \
   static void Test##Name();                                          \
   TEST(Name##WithProfiler) {                                         \
     RunWithProfiler(&Test##Name);                                    \
   }                                                                  \
   THREADED_TEST(Name)
-#endif
-
 
 void RunWithProfiler(void (*test)()) {
   LocalContext env;
@@ -14649,12 +14641,11 @@ class RegExpStringModificationTest {
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
         factory->NewStringFromAscii(i::Vector<const char>("input", 5));
-    i::JSReceiver::SetProperty(
-        i::handle(i::Isolate::Current()->native_context()->global_object()),
-        input_name,
-        input_,
+    i::Isolate::Current()->native_context()->global_object()->SetProperty(
+        *input_name,
+        *input_,
         NONE,
-        i::kNonStrictMode);
+        i::kNonStrictMode)->ToObjectChecked();
 
     MorphThread morph_thread(this);
     morph_thread.Start();
@@ -17705,73 +17696,32 @@ TEST(Regress618) {
   }
 }
 
-v8::Isolate* gc_callbacks_isolate = NULL;
 int prologue_call_count = 0;
 int epilogue_call_count = 0;
 int prologue_call_count_second = 0;
 int epilogue_call_count_second = 0;
 
-void PrologueCallback(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+void PrologueCallback(v8::GCType, v8::GCCallbackFlags) {
   ++prologue_call_count;
 }
 
 
-void PrologueCallback(v8::Isolate* isolate,
-                      v8::GCType,
-                      v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  CHECK_EQ(gc_callbacks_isolate, isolate);
-  ++prologue_call_count;
-}
-
-
-void EpilogueCallback(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+void EpilogueCallback(v8::GCType, v8::GCCallbackFlags) {
   ++epilogue_call_count;
 }
 
 
-void EpilogueCallback(v8::Isolate* isolate,
-                      v8::GCType,
-                      v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  CHECK_EQ(gc_callbacks_isolate, isolate);
-  ++epilogue_call_count;
-}
-
-
-void PrologueCallbackSecond(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+void PrologueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
   ++prologue_call_count_second;
 }
 
 
-void PrologueCallbackSecond(v8::Isolate* isolate,
-                            v8::GCType,
-                            v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  CHECK_EQ(gc_callbacks_isolate, isolate);
-  ++prologue_call_count_second;
-}
-
-
-void EpilogueCallbackSecond(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+void EpilogueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
   ++epilogue_call_count_second;
 }
 
 
-void EpilogueCallbackSecond(v8::Isolate* isolate,
-                            v8::GCType,
-                            v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  CHECK_EQ(gc_callbacks_isolate, isolate);
-  ++epilogue_call_count_second;
-}
-
-
-TEST(GCCallbacksOld) {
+TEST(GCCallbacks) {
   LocalContext context;
 
   v8::V8::AddGCPrologueCallback(PrologueCallback);
@@ -17797,41 +17747,6 @@ TEST(GCCallbacksOld) {
   CHECK_EQ(2, epilogue_call_count_second);
   v8::V8::RemoveGCPrologueCallback(PrologueCallbackSecond);
   v8::V8::RemoveGCEpilogueCallback(EpilogueCallbackSecond);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(2, prologue_call_count);
-  CHECK_EQ(2, epilogue_call_count);
-  CHECK_EQ(2, prologue_call_count_second);
-  CHECK_EQ(2, epilogue_call_count_second);
-}
-
-
-TEST(GCCallbacks) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  gc_callbacks_isolate = isolate;
-  isolate->AddGCPrologueCallback(PrologueCallback);
-  isolate->AddGCEpilogueCallback(EpilogueCallback);
-  CHECK_EQ(0, prologue_call_count);
-  CHECK_EQ(0, epilogue_call_count);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(1, prologue_call_count);
-  CHECK_EQ(1, epilogue_call_count);
-  isolate->AddGCPrologueCallback(PrologueCallbackSecond);
-  isolate->AddGCEpilogueCallback(EpilogueCallbackSecond);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(2, prologue_call_count);
-  CHECK_EQ(2, epilogue_call_count);
-  CHECK_EQ(1, prologue_call_count_second);
-  CHECK_EQ(1, epilogue_call_count_second);
-  isolate->RemoveGCPrologueCallback(PrologueCallback);
-  isolate->RemoveGCEpilogueCallback(EpilogueCallback);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(2, prologue_call_count);
-  CHECK_EQ(2, epilogue_call_count);
-  CHECK_EQ(2, prologue_call_count_second);
-  CHECK_EQ(2, epilogue_call_count_second);
-  isolate->RemoveGCPrologueCallback(PrologueCallbackSecond);
-  isolate->RemoveGCEpilogueCallback(EpilogueCallbackSecond);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
@@ -20669,15 +20584,6 @@ THREADED_TEST(FunctionNew) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Object* elm = i_isolate->native_context()->function_cache()
       ->GetElementNoExceptionThrown(i_isolate, serial_number);
-  CHECK(elm->IsUndefined());
-  // Verify that each Function::New creates a new function instance
-  Local<Object> data2 = v8::Object::New();
-  function_new_expected_env = data2;
-  Local<Function> func2 = Function::New(isolate, FunctionNewCallback, data2);
-  CHECK(!func2->IsNull());
-  CHECK_NE(func, func2);
-  env->Global()->Set(v8_str("func2"), func2);
-  Local<Value> result2 = CompileRun("func2();");
-  CHECK_EQ(v8::Integer::New(17, isolate), result2);
+  CHECK(elm->IsNull());
 }
 

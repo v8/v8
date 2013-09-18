@@ -807,13 +807,12 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // The following registers must be saved and restored when calling through to
   // the runtime:
   //   r0 - contains return address (beginning of patch sequence)
-  //   r1 - isolate
+  //   r1 - function object
   FrameScope scope(masm, StackFrame::MANUAL);
   __ stm(db_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
-  __ PrepareCallCFunction(1, 0, r2);
-  __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ PrepareCallCFunction(1, 0, r1);
   __ CallCFunction(
-      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
+      ExternalReference::get_make_code_young_function(masm->isolate()), 1);
   __ ldm(ia_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
   __ mov(pc, r0);
 }

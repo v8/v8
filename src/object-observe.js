@@ -284,6 +284,11 @@ function AcceptArgIsValid(arg) {
       arg.length < 0)
     return false;
 
+  var length = arg.length;
+  for (var i = 0; i < length; i++) {
+    if (!IS_STRING(arg[i]))
+      return false;
+  }
   return true;
 }
 

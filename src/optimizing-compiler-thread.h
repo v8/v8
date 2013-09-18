@@ -115,7 +115,7 @@ class OptimizingCompilerThread : public Thread {
   UnboundQueue<OptimizingCompiler*> input_queue_;
   // Queue of recompilation tasks ready to be installed (excluding OSR).
   UnboundQueue<OptimizingCompiler*> output_queue_;
-  // List of recompilation tasks for OSR in the input queue.
+  // List of all OSR related recompilation tasks (both incoming and ready ones).
   List<OptimizingCompiler*> osr_candidates_;
   // List of recompilation tasks ready for OSR.
   List<OptimizingCompiler*> ready_for_osr_;
@@ -125,8 +125,6 @@ class OptimizingCompilerThread : public Thread {
   TimeDelta time_spent_compiling_;
   TimeDelta time_spent_total_;
 
-  // TODO(yangguo): remove this once the memory leak has been figured out.
-  Mutex queue_mutex_;
   Mutex osr_list_mutex_;
   int osr_hits_;
   int osr_attempts_;
