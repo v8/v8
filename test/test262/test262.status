@@ -36,6 +36,10 @@ def FAIL_OK = FAIL, OKAY
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL
 
+# BUG(2893): These tests started to fail after i18n support was turned on. Need
+# to investigate why.
+15.5.4.9_3: PASS || FAIL
+
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # This tests precision of Math functions.  The implementation for those

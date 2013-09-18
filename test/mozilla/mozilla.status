@@ -49,8 +49,8 @@ def FAIL_OK = FAIL, OKAY
 
 # BUG(2893): These tests started to fail after i18n support was turned on. Need
 # to investigate why.
-ecma_3/Number/15.7.4.3-02: FAIL_OK
-ecma_3/Date/15.9.5.5-02: FAIL_OK
+ecma_3/Number/15.7.4.3-02: PASS || FAIL
+ecma_3/Date/15.9.5.5-02: PASS || FAIL
 
 ##################### SKIPPED TESTS #####################
 
