@@ -1945,13 +1945,81 @@ class HOptimizedGraphBuilder V8_FINAL
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
   void HandlePolymorphicLoadNamedField(int position,
+                                       BailoutId ast_id,
                                        BailoutId return_id,
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
-  HInstruction* TryLoadPolymorphicAsMonomorphic(HValue* object,
-                                                SmallMapList* types,
-                                                Handle<String> name);
+
+  class PropertyAccessInfo {
+   public:
+    PropertyAccessInfo(Isolate* isolate, Handle<Map> map, Handle<String> name)
+        : lookup_(isolate),
+          map_(map),
+          name_(name),
+          access_(HObjectAccess::ForMap()) { }
+
+    // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
+    // load named. It additionally fills in the fields necessary to generate the
+    // lookup code.
+    bool CanLoadMonomorphic();
+
+    // Checks whether all types behave uniform when loading name. If all maps
+    // behave the same, a single monomorphic load instruction can be emitted,
+    // guarded by a single map-checks instruction that whether the receiver is
+    // an instance of any of the types.
+    // This method skips the first type in types, assuming that this
+    // PropertyAccessInfo is built for types->first().
+    bool CanLoadAsMonomorphic(SmallMapList* types);
+
+    bool IsStringLength() {
+      return map_->instance_type() < FIRST_NONSTRING_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
+
+    bool IsArrayLength() {
+      return map_->instance_type() == JS_ARRAY_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
+
+    bool has_holder() { return !holder_.is_null(); }
+
+    LookupResult* lookup() { return &lookup_; }
+    Handle<Map> map() { return map_; }
+    Handle<JSObject> holder() { return holder_; }
+    Handle<JSFunction> accessor() { return accessor_; }
+    Handle<Object> constant() { return constant_; }
+    HObjectAccess access() { return access_; }
+
+   private:
+    Isolate* isolate() { return lookup_.isolate(); }
+
+    bool LoadResult(Handle<Map> map);
+    bool LookupDescriptor();
+    bool LookupInPrototypes();
+    bool IsCompatibleForLoad(PropertyAccessInfo* other);
+
+    void GeneralizeRepresentation(Representation r) {
+      access_ = access_.WithRepresentation(
+          access_.representation().generalize(r));
+    }
+
+    LookupResult lookup_;
+    Handle<Map> map_;
+    Handle<String> name_;
+    Handle<JSObject> holder_;
+    Handle<JSFunction> accessor_;
+    Handle<Object> constant_;
+    HObjectAccess access_;
+  };
+
+  HInstruction* BuildLoadMonomorphic(PropertyAccessInfo* info,
+                                     HValue* object,
+                                     HInstruction* checked_object,
+                                     BailoutId ast_id,
+                                     BailoutId return_id,
+                                     bool can_inline_accessor = true);
+
   void HandlePolymorphicStoreNamedField(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
@@ -2030,9 +2098,6 @@ class HOptimizedGraphBuilder V8_FINAL
                                 Handle<Map> map,
                                 Handle<JSFunction> getter,
                                 Handle<JSObject> holder);
-  HInstruction* BuildLoadNamedMonomorphic(HValue* object,
-                                          Handle<String> name,
-                                          Handle<Map> map);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
