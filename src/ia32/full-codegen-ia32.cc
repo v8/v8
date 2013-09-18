@@ -1586,21 +1586,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1) {
-    __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ push(FieldOperand(edi, JSFunction::kLiteralsOffset));
-    __ push(Immediate(Smi::FromInt(expr->literal_index())));
-    __ push(Immediate(constant_properties));
-    __ push(Immediate(Smi::FromInt(flags)));
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  } else if (Serializer::enabled() || flags != ObjectLiteral::kFastElements ||
+      expr->depth() > 1 || Serializer::enabled() ||
+      flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(edi, JSFunction::kLiteralsOffset));
     __ push(Immediate(Smi::FromInt(expr->literal_index())));
     __ push(Immediate(constant_properties));
     __ push(Immediate(Smi::FromInt(flags)));
-    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ mov(eax, FieldOperand(edi, JSFunction::kLiteralsOffset));

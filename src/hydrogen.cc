@@ -4179,9 +4179,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Add<HPushArgument>(Add<HConstant>(constant_properties));
     Add<HPushArgument>(Add<HConstant>(flags));
 
-    Runtime::FunctionId function_id =
-        (expr->depth() > 1 || expr->may_store_doubles())
-        ? Runtime::kCreateObjectLiteral : Runtime::kCreateObjectLiteralShallow;
+    Runtime::FunctionId function_id = Runtime::kCreateObjectLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
                                 4);

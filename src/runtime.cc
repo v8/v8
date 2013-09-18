@@ -506,32 +506,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteralShallow) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, constant_properties, 2);
-  CONVERT_SMI_ARG_CHECKED(flags, 3);
-  bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
-  bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
-
-  // Check if boilerplate exists. If not, create it first.
-  Handle<Object> boilerplate(literals->get(literals_index), isolate);
-  if (*boilerplate == isolate->heap()->undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(isolate,
-                                                 literals,
-                                                 constant_properties,
-                                                 should_have_fast_elements,
-                                                 has_function_literal);
-    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
-    // Update the functions literal and return the boilerplate.
-    literals->set(literals_index, *boilerplate);
-  }
-  return isolate->heap()->CopyJSObject(JSObject::cast(*boilerplate));
-}
-
-
 static Handle<AllocationSite> GetLiteralAllocationSite(
     Isolate* isolate,
     Handle<FixedArray> literals,
