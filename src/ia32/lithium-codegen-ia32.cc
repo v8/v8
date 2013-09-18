@@ -340,12 +340,41 @@ void LCodeGen::GenerateOsrPrologue() {
 
   osr_pc_offset_ = masm()->pc_offset();
 
+    // Move state of dynamic frame alignment into edx.
+  __ mov(edx, Immediate(kNoAlignmentPadding));
+
+  if (support_aligned_spilled_doubles_ && dynamic_frame_alignment_) {
+    Label do_not_pad, align_loop;
+    // Align ebp + 4 to a multiple of 2 * kPointerSize.
+    __ test(ebp, Immediate(kPointerSize));
+    __ j(zero, &do_not_pad, Label::kNear);
+    __ push(Immediate(0));
+    __ mov(ebx, esp);
+    __ mov(edx, Immediate(kAlignmentPaddingPushed));
+
+    // Move all parts of the frame over one word. The frame consists of:
+    // unoptimized frame slots, alignment state, context, frame pointer, return
+    // address, receiver, and the arguments.
+    __ mov(ecx, Immediate(scope()->num_parameters() +
+           5 + graph()->osr()->UnoptimizedFrameSlots()));
+
+    __ bind(&align_loop);
+    __ mov(eax, Operand(ebx, 1 * kPointerSize));
+    __ mov(Operand(ebx, 0), eax);
+    __ add(Operand(ebx), Immediate(kPointerSize));
+    __ dec(ecx);
+    __ j(not_zero, &align_loop, Label::kNear);
+    __ mov(Operand(ebx, 0), Immediate(kAlignmentZapValue));
+    __ sub(Operand(ebp), Immediate(kPointerSize));
+    __ bind(&do_not_pad);
+  }
+
   // Save the first local, which is overwritten by the alignment state.
   Operand alignment_loc = MemOperand(ebp, -3 * kPointerSize);
   __ push(alignment_loc);
 
-  // Set the dynamic frame alignment state to "not aligned".
-  __ mov(alignment_loc, Immediate(kNoAlignmentPadding));
+  // Set the dynamic frame alignment state.
+  __ mov(alignment_loc, edx);
 
   // Adjust the frame size, subsuming the unoptimized frame into the
   // optimized frame.
