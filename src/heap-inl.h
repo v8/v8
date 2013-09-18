@@ -532,14 +532,6 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-MaybeObject* Heap::AllocateEmptyJSArrayWithAllocationSite(
-      ElementsKind elements_kind,
-      Handle<AllocationSite> allocation_site) {
-  return AllocateJSArrayAndStorageWithAllocationSite(elements_kind, 0, 0,
-      allocation_site, DONT_INITIALIZE_ARRAY_ELEMENTS);
-}
-
-
 bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason) {
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);

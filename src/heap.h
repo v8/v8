@@ -635,10 +635,6 @@ class Heap {
                                      pretenure);
   }
 
-  inline MUST_USE_RESULT MaybeObject* AllocateEmptyJSArrayWithAllocationSite(
-      ElementsKind elements_kind,
-      Handle<AllocationSite> allocation_site);
-
   // Allocate a JSArray with a specified length but elements that are left
   // uninitialized.
   MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
@@ -647,13 +643,6 @@ class Heap {
       int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorageWithAllocationSite(
-      ElementsKind elements_kind,
-      int length,
-      int capacity,
-      Handle<AllocationSite> allocation_site,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   MUST_USE_RESULT MaybeObject* AllocateJSArrayStorage(
       JSArray* array,
@@ -2113,10 +2102,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSArray(
       ElementsKind elements_kind,
       PretenureFlag pretenure = NOT_TENURED);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayWithAllocationSite(
-      ElementsKind elements_kind,
-      Handle<AllocationSite> allocation_site);
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();

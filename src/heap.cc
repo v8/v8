@@ -4755,20 +4755,6 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
 }
 
 
-MaybeObject* Heap::AllocateJSArrayAndStorageWithAllocationSite(
-    ElementsKind elements_kind,
-    int length,
-    int capacity,
-    Handle<AllocationSite> allocation_site,
-    ArrayStorageAllocationMode mode) {
-  MaybeObject* maybe_array = AllocateJSArrayWithAllocationSite(elements_kind,
-      allocation_site);
-  JSArray* array;
-  if (!maybe_array->To(&array)) return maybe_array;
-  return AllocateJSArrayStorage(array, length, capacity, mode);
-}
-
-
 MaybeObject* Heap::AllocateJSArrayStorage(
     JSArray* array,
     int length,
@@ -5483,24 +5469,6 @@ MaybeObject* Heap::AllocateJSArray(
   Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
   if (transition_map != NULL) map = transition_map;
   return AllocateJSObjectFromMap(map, pretenure);
-}
-
-
-MaybeObject* Heap::AllocateJSArrayWithAllocationSite(
-    ElementsKind elements_kind,
-    Handle<AllocationSite> allocation_site) {
-  Context* native_context = isolate()->context()->native_context();
-  JSFunction* array_function = native_context->array_function();
-  Map* map = array_function->initial_map();
-  Object* maybe_map_array = native_context->js_array_maps();
-  if (!maybe_map_array->IsUndefined()) {
-    Object* maybe_transitioned_map =
-        FixedArray::cast(maybe_map_array)->get(elements_kind);
-    if (!maybe_transitioned_map->IsUndefined()) {
-      map = Map::cast(maybe_transitioned_map);
-    }
-  }
-  return AllocateJSObjectFromMapWithAllocationSite(map, allocation_site);
 }
 
 
