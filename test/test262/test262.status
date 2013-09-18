@@ -36,9 +36,10 @@ def FAIL_OK = FAIL, OKAY
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL
 
-# BUG(2893): These tests started to fail after i18n support was turned on. Need
-# to investigate why.
-15.5.4.9_3: PASS || FAIL
+# Strings that are considered canonically equivalent by the Unicode standard
+# return a non-zero value on String.prototype.localeCompare calls.
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=2413
+15.5.4.9_CE: FAIL
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 

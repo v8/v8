@@ -124,10 +124,9 @@ endif
 ifeq ($(regexp), interpreted)
   GYPFLAGS += -Dv8_interpreted_regexp=1
 endif
-# i18nsupport=off
-ifeq ($(i18nsupport), off)
-  GYPFLAGS += -Dv8_enable_i18n_support=0
-  TESTFLAGS += --noi18n
+# i18nsupport=on
+ifeq ($(i18nsupport), on)
+  GYPFLAGS += -Dv8_enable_i18n_support=1
 endif
 # arm specific flags.
 # armv7=false/true
@@ -332,7 +331,7 @@ $(addsuffix .check, $(ANDROID_ARCHES)): \
 $(addsuffix .check, $(NACL_BUILDS)): $$(basename $$@)
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	     --arch-and-mode=$(basename $@) \
-	     --timeout=600 --nopresubmit --noi18n \
+	     --timeout=600 --nopresubmit \
 	     --command-prefix="tools/nacl-run.py"
 
 $(addsuffix .check, $(NACL_ARCHES)): \

@@ -54,7 +54,7 @@
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
     # add a dependency on the ICU library.
-    'v8_enable_i18n_support%': 1,
+    'v8_enable_i18n_support%': 0,
   },
   'target_defaults': {
     'conditions': [
