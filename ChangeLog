@@ -1,3 +1,20 @@
+2013-09-18: Version 3.21.17
+
+        Implemented local load/store elimination on basic blocks.
+
+        Added mutex when accessing concurrent recompilation output queue.
+        (Chromium issue 291236)
+
+        Don't lookup the cache for the result of Function::New.
+        (Chromium issue 272579)
+
+        Tweaked HConstant::EmitAtUses() to eliminate useless constant
+        generation.
+        (Chromium issue 2881)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-16: Version 3.21.16
 
         Every place where AllocationMemento is initialized with an
