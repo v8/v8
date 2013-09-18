@@ -4717,7 +4717,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
       set_current_block(if_true);
 
       HInstruction* load = BuildLoadMonomorphic(
-          &info, object, compare, ast_id, return_id, FLAG_polymorphic_inlining);
+          &info, object, compare, ast_id, return_id, false);
       if (load == NULL) {
         if (HasStackOverflow()) return;
       } else {
