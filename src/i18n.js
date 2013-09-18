@@ -258,8 +258,8 @@ function addBoundMethod(obj, methodName, implementation, length) {
           // DateTimeFormat.format needs to be 0 arg method, but can stil
           // receive optional dateValue param. If one was provided, pass it
           // along.
-          if (arguments.length > 0) {
-            return implementation(that, arguments[0]);
+          if (%_ArgumentsLength() > 0) {
+            return implementation(that, %_Arguments(0));
           } else {
             return implementation(that);
           }
@@ -978,8 +978,8 @@ function initializeCollator(collator, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'Collator', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1038,7 +1038,7 @@ function initializeCollator(collator, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('collator', locales, arguments[1]);
+    return supportedLocalesOf('collator', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1207,8 +1207,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'NumberFormat', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1286,7 +1286,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('numberformat', locales, arguments[1]);
+    return supportedLocalesOf('numberformat', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1606,8 +1606,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'DateTimeFormat', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1685,7 +1685,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('dateformat', locales, arguments[1]);
+    return supportedLocalesOf('dateformat', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1812,8 +1812,8 @@ function initializeBreakIterator(iterator, locales, options) {
  * @constructor
  */
 %SetProperty(Intl, 'v8BreakIterator', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1868,7 +1868,7 @@ function initializeBreakIterator(iterator, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    return supportedLocalesOf('breakiterator', locales, arguments[1]);
+    return supportedLocalesOf('breakiterator', locales, %_Arguments(1));
   },
   DONT_ENUM
 );
@@ -1975,8 +1975,8 @@ $Object.defineProperty($String.prototype, 'localeCompare', {
       throw new $TypeError('Method invoked on undefined or null value.');
     }
 
-    var locales = arguments[1];
-    var options = arguments[2];
+    var locales = %_Arguments(1);
+    var options = %_Arguments(2);
     var collator = cachedOrNewService('collator', locales, options);
     return compare(collator, this, that);
   },
@@ -2003,8 +2003,8 @@ $Object.defineProperty($Number.prototype, 'toLocaleString', {
       throw new $TypeError('Method invoked on an object that is not Number.');
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     var numberFormat = cachedOrNewService('numberformat', locales, options);
     return formatNumber(numberFormat, this);
   },
@@ -2049,8 +2049,8 @@ $Object.defineProperty($Date.prototype, 'toLocaleString', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'any', 'all', 'dateformatall');
   },
@@ -2074,8 +2074,8 @@ $Object.defineProperty($Date.prototype, 'toLocaleDateString', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'date', 'date', 'dateformatdate');
   },
@@ -2099,8 +2099,8 @@ $Object.defineProperty($Date.prototype, 'toLocaleTimeString', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    var locales = arguments[0];
-    var options = arguments[1];
+    var locales = %_Arguments(0);
+    var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'time', 'time', 'dateformattime');
   },
