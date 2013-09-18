@@ -2125,18 +2125,14 @@ class JSObject: public JSReceiver {
                                                        Object* structure,
                                                        Name* name);
 
-  MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
-      LookupResult* result,
-      Name* name,
-      Object* value,
-      bool check_prototype,
+  static Handle<Object> SetPropertyWithCallback(
+      Handle<JSObject> object,
+      Handle<Object> structure,
+      Handle<Name> name,
+      Handle<Object> value,
+      Handle<JSObject> holder,
       StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(
-      Object* structure,
-      Name* name,
-      Object* value,
-      JSObject* holder,
-      StrictModeFlag strict_mode);
+
   static Handle<Object> SetPropertyWithInterceptor(
       Handle<JSObject> object,
       Handle<Name> name,
@@ -2195,27 +2191,18 @@ class JSObject: public JSReceiver {
   // Handles the special representation of JS global objects.
   Object* GetNormalizedProperty(LookupResult* result);
 
-  // Sets the property value in a normalized object given (key, value).
-  // Handles the special representation of JS global objects.
-  static Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
-                                              LookupResult* result,
-                                              Handle<Object> value);
-
   // Sets the property value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
-  MUST_USE_RESULT MaybeObject* SetNormalizedProperty(LookupResult* result,
-                                                     Object* value);
+  static void SetNormalizedProperty(Handle<JSObject> object,
+                                    LookupResult* result,
+                                    Handle<Object> value);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
-  static Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
-                                              Handle<Name> key,
-                                              Handle<Object> value,
-                                              PropertyDetails details);
-
-  MUST_USE_RESULT MaybeObject* SetNormalizedProperty(Name* name,
-                                                     Object* value,
-                                                     PropertyDetails details);
+  static void SetNormalizedProperty(Handle<JSObject> object,
+                                    Handle<Name> key,
+                                    Handle<Object> value,
+                                    PropertyDetails details);
 
   static void OptimizeAsPrototype(Handle<JSObject> object);
 
@@ -2442,8 +2429,6 @@ class JSObject: public JSReceiver {
   void LocalLookupRealNamedProperty(Name* name, LookupResult* result);
   void LookupRealNamedProperty(Name* name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(Name* name, LookupResult* result);
-  MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
-      uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
   void LookupCallbackProperty(Name* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
@@ -2682,11 +2667,12 @@ class JSObject: public JSReceiver {
       JSReceiver* receiver,
       uint32_t index,
       bool continue_search);
-  MUST_USE_RESULT MaybeObject* SetElementWithCallback(
-      Object* structure,
+  static Handle<Object> SetElementWithCallback(
+      Handle<JSObject> object,
+      Handle<Object> structure,
       uint32_t index,
-      Object* value,
-      JSObject* holder,
+      Handle<Object> value,
+      Handle<JSObject> holder,
       StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(
       uint32_t index,
@@ -2702,6 +2688,11 @@ class JSObject: public JSReceiver {
       StrictModeFlag strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode);
+  MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
+      uint32_t index,
+      Object* value,
+      bool* found,
+      StrictModeFlag strict_mode);
 
   // Searches the prototype chain for property 'name'. If it is found and
   // has a setter, invoke it and set '*done' to true. If it is found and is
@@ -2726,6 +2717,13 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes);
+  static Handle<Object> SetPropertyWithFailedAccessCheck(
+      Handle<JSObject> object,
+      LookupResult* result,
+      Handle<Name> name,
+      Handle<Object> value,
+      bool check_prototype,
+      StrictModeFlag strict_mode);
 
   // Add a property to an object.
   static Handle<Object> AddProperty(
@@ -9088,10 +9086,11 @@ class JSProxy: public JSReceiver {
   // If it defines an accessor property without a setter, or a data property
   // that is read-only, throw. In all these cases set '*done' to true,
   // otherwise set it to false.
-  MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypesWithHandler(
-      JSReceiver* receiver,
-      Name* name,
-      Object* value,
+  static Handle<Object> SetPropertyViaPrototypesWithHandler(
+      Handle<JSProxy> proxy,
+      Handle<JSReceiver> receiver,
+      Handle<Name> name,
+      Handle<Object> value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       bool* done);
