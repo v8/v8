@@ -209,10 +209,9 @@ TEST(HeapObjects) {
   CHECK(s->IsString());
   CHECK_EQ(10, s->length());
 
-  String* object_string = String::cast(heap->Object_string());
-  CHECK(
-      Isolate::Current()->context()->global_object()->HasLocalProperty(
-          object_string));
+  Handle<String> object_string = Handle<String>::cast(factory->Object_string());
+  Handle<GlobalObject> global(Isolate::Current()->context()->global_object());
+  CHECK(JSReceiver::HasLocalProperty(global, object_string));
 
   // Check ToString for oddballs
   CheckOddball(isolate, heap->true_value(), "true");
@@ -258,10 +257,13 @@ TEST(GarbageCollection) {
   // Check GC.
   heap->CollectGarbage(NEW_SPACE);
 
+  Handle<GlobalObject> global(Isolate::Current()->context()->global_object());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
   Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
+  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
 
   {
     HandleScope inner_scope(isolate);
@@ -271,14 +273,11 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    Isolate::Current()->context()->global_object()->SetProperty(
-        *name, *function, NONE, kNonStrictMode)->ToObjectChecked();
+    JSReceiver::SetProperty(global, name, function, NONE, kNonStrictMode);
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    obj->SetProperty(
-        *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
-    obj->SetProperty(
-        *prop_namex, Smi::FromInt(24), NONE, kNonStrictMode)->ToObjectChecked();
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
+    JSReceiver::SetProperty(obj, prop_namex, twenty_four, NONE, kNonStrictMode);
 
     CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
     CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
@@ -287,8 +286,7 @@ TEST(GarbageCollection) {
   heap->CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(*name));
+  CHECK(JSReceiver::HasLocalProperty(global, name));
   // Check function is retained.
   Object* func_value = Isolate::Current()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
@@ -299,17 +297,14 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    Isolate::Current()->context()->global_object()->SetProperty(
-        *obj_name, *obj, NONE, kNonStrictMode)->ToObjectChecked();
-    obj->SetProperty(
-        *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
+    JSReceiver::SetProperty(global, obj_name, obj, NONE, kNonStrictMode);
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
   }
 
   // After gc, it should survive.
   heap->CollectGarbage(NEW_SPACE);
 
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(*obj_name));
+  CHECK(JSReceiver::HasLocalProperty(global, obj_name));
   CHECK(Isolate::Current()->context()->global_object()->
         GetProperty(*obj_name)->ToObjectChecked()->IsJSObject());
   Object* obj = Isolate::Current()->context()->global_object()->
@@ -628,14 +623,16 @@ TEST(FunctionAllocation) {
       factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   function->set_initial_map(*initial_map);
 
+  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
+
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
-  obj->SetProperty(
-      *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
   // Check that we can add properties to function objects.
-  function->SetProperty(
-      *prop_name, Smi::FromInt(24), NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetProperty(function, prop_name, twenty_four, NONE,
+                          kNonStrictMode);
   CHECK_EQ(Smi::FromInt(24), function->GetProperty(*prop_name));
 }
 
@@ -655,63 +652,59 @@ TEST(ObjectProperties) {
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
 
+  Handle<Smi> one(Smi::FromInt(1), isolate);
+  Handle<Smi> two(Smi::FromInt(2), isolate);
+
   // check for empty
-  CHECK(!obj->HasLocalProperty(*first));
+  CHECK(!JSReceiver::HasLocalProperty(obj, first));
 
   // add first
-  obj->SetProperty(
-      *first, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
-  CHECK(obj->HasLocalProperty(*first));
+  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
+  CHECK(JSReceiver::HasLocalProperty(obj, first));
 
   // delete first
   JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
-  CHECK(!obj->HasLocalProperty(*first));
+  CHECK(!JSReceiver::HasLocalProperty(obj, first));
 
   // add first and then second
-  obj->SetProperty(
-      *first, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
-  obj->SetProperty(
-      *second, Smi::FromInt(2), NONE, kNonStrictMode)->ToObjectChecked();
-  CHECK(obj->HasLocalProperty(*first));
-  CHECK(obj->HasLocalProperty(*second));
+  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
+  CHECK(JSReceiver::HasLocalProperty(obj, first));
+  CHECK(JSReceiver::HasLocalProperty(obj, second));
 
   // delete first and then second
   JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
-  CHECK(obj->HasLocalProperty(*second));
+  CHECK(JSReceiver::HasLocalProperty(obj, second));
   JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION);
-  CHECK(!obj->HasLocalProperty(*first));
-  CHECK(!obj->HasLocalProperty(*second));
+  CHECK(!JSReceiver::HasLocalProperty(obj, first));
+  CHECK(!JSReceiver::HasLocalProperty(obj, second));
 
   // add first and then second
-  obj->SetProperty(
-      *first, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
-  obj->SetProperty(
-      *second, Smi::FromInt(2), NONE, kNonStrictMode)->ToObjectChecked();
-  CHECK(obj->HasLocalProperty(*first));
-  CHECK(obj->HasLocalProperty(*second));
+  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
+  CHECK(JSReceiver::HasLocalProperty(obj, first));
+  CHECK(JSReceiver::HasLocalProperty(obj, second));
 
   // delete second and then first
   JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION);
-  CHECK(obj->HasLocalProperty(*first));
+  CHECK(JSReceiver::HasLocalProperty(obj, first));
   JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
-  CHECK(!obj->HasLocalProperty(*first));
-  CHECK(!obj->HasLocalProperty(*second));
+  CHECK(!JSReceiver::HasLocalProperty(obj, first));
+  CHECK(!JSReceiver::HasLocalProperty(obj, second));
 
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAscii(CStrVector(string1));
-  obj->SetProperty(
-      *s1, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetProperty(obj, s1, one, NONE, kNonStrictMode);
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
-  CHECK(obj->HasLocalProperty(*s1_string));
+  CHECK(JSReceiver::HasLocalProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
-  obj->SetProperty(
-      *s2_string, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetProperty(obj, s2_string, one, NONE, kNonStrictMode);
   Handle<String> s2 = factory->NewStringFromAscii(CStrVector(string2));
-  CHECK(obj->HasLocalProperty(*s2));
+  CHECK(JSReceiver::HasLocalProperty(obj, s2));
 }
 
 
@@ -732,8 +725,8 @@ TEST(JSObjectMaps) {
   Handle<JSObject> obj = factory->NewJSObject(function);
 
   // Set a propery
-  obj->SetProperty(
-      *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
+  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
 
   // Check the map has changed
@@ -805,16 +798,17 @@ TEST(JSObjectCopy) {
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
 
-  obj->SetProperty(
-      *first, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
-  obj->SetProperty(
-      *second, Smi::FromInt(2), NONE, kNonStrictMode)->ToObjectChecked();
+  Handle<Smi> one(Smi::FromInt(1), isolate);
+  Handle<Smi> two(Smi::FromInt(2), isolate);
+
+  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
 
   obj->SetElement(0, *first, NONE, kNonStrictMode)->ToObjectChecked();
   obj->SetElement(1, *second, NONE, kNonStrictMode)->ToObjectChecked();
 
   // Make the clone.
-  Handle<JSObject> clone = Copy(obj);
+  Handle<JSObject> clone = JSObject::Copy(obj);
   CHECK(!clone.is_identical_to(obj));
 
   CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 0));
@@ -824,10 +818,8 @@ TEST(JSObjectCopy) {
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
 
   // Flip the values.
-  clone->SetProperty(
-      *first, Smi::FromInt(2), NONE, kNonStrictMode)->ToObjectChecked();
-  clone->SetProperty(
-      *second, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetProperty(clone, first, two, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(clone, second, one, NONE, kNonStrictMode);
 
   clone->SetElement(0, *second, NONE, kNonStrictMode)->ToObjectChecked();
   clone->SetElement(1, *first, NONE, kNonStrictMode)->ToObjectChecked();
@@ -3009,9 +3001,10 @@ TEST(Regression144230) {
   // visited later, causing the CallIC to be cleared.
   Handle<String> name = isolate->factory()->InternalizeUtf8String("call");
   Handle<GlobalObject> global(isolate->context()->global_object());
+  Handle<Smi> zero(Smi::FromInt(0), isolate);
   MaybeObject* maybe_call = global->GetProperty(*name);
   JSFunction* call = JSFunction::cast(maybe_call->ToObjectChecked());
-  USE(global->SetProperty(*name, Smi::FromInt(0), NONE, kNonStrictMode));
+  JSReceiver::SetProperty(global, name, zero, NONE, kNonStrictMode);
   isolate->compilation_cache()->Clear();
   call->shared()->set_ic_age(heap->global_ic_age() + 1);
   Handle<Object> call_code(call->code(), isolate);
@@ -3022,7 +3015,7 @@ TEST(Regression144230) {
 
   // Either heap verification caught the problem already or we go kaboom once
   // the CallIC is executed the next time.
-  USE(global->SetProperty(*name, *call_function, NONE, kNonStrictMode));
+  JSReceiver::SetProperty(global, name, call_function, NONE, kNonStrictMode);
   CompileRun("call();");
 }
 

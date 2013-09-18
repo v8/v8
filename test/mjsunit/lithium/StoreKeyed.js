@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+// Flags: --allow-natives-syntax --no-use-osr
 
-#if !defined(ANDROID)
-#include <cxxabi.h>
-#endif
-#include <stdio.h>
+function foo(a, i, v) {
+  a[0] = v;
+  a[i] = v;
+}
 
-#include "platform.h"
+function foo_int(a, i, v) {
+  a[0] = v;
+  a[i] = v;
+}
 
-namespace v8 {
-namespace internal {
+var A1 = [1.2, 2.3];
+var A2 = [1.2, 2.3];
+var A3 = [1.2, 2.3];
 
-// Used by platform implementation files during OS::DumpBacktrace()
-template<int (*backtrace)(void**, int),
-         char** (*backtrace_symbols)(void* const*, int)>
-struct POSIXBacktraceHelper {
-  static void DumpBacktrace() {
-    void* trace[100];
-    int size = backtrace(trace, ARRAY_SIZE(trace));
-    char** symbols = backtrace_symbols(trace, size);
-    fprintf(stderr, "\n==== C stack trace ===============================\n\n");
-    if (size == 0) {
-      fprintf(stderr, "(empty)\n");
-    } else if (symbols == NULL) {
-      fprintf(stderr, "(no symbols)\n");
-    } else {
-      for (int i = 1; i < size; ++i) {
-        fprintf(stderr, "%2d: ", i);
-        char mangled[201];
-        if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {// NOLINT
-          char* demangled = NULL;
-#if !defined(ANDROID)
-          int status;
-          size_t length;
-          demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
-#endif
-          fprintf(stderr, "%s\n", demangled != NULL ? demangled : mangled);
-          free(demangled);
-        } else {
-          fprintf(stderr, "??\n");
-        }
-      }
-    }
-    fflush(stderr);
-    free(symbols);
-  }
-};
+var A1_int = [12, 23];
+var A2_int = [12, 23];
+var A3_int = [12, 23];
 
-} }  // namespace v8::internal
+foo(A1, 1, 3.4);
+foo(A2, 1, 3.4);
+%OptimizeFunctionOnNextCall(foo);
+foo(A3, 1, 3.4);
 
-#endif  // V8_PLATFORM_POSIX_H_
+foo_int(A1_int, 1, 34);
+foo_int(A2_int, 1, 34);
+%OptimizeFunctionOnNextCall(foo_int);
+foo_int(A3_int, 1, 34);
+
+assertEquals(A1[0], A3[0]);
+assertEquals(A1[1], A3[1]);
+assertEquals(A1_int[0], A3_int[0]);
+assertEquals(A1_int[1], A3_int[1]);

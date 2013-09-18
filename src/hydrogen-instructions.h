@@ -128,7 +128,6 @@ class LChunkBuilder;
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
   V(IsObjectAndBranch)                         \
-  V(IsNumberAndBranch)                         \
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
@@ -782,11 +781,15 @@ class HValue : public ZoneObject {
   // phase (so that live ranges will be shorter).
   virtual bool IsPurelyInformativeDefinition() { return false; }
 
-  // This method must always return the original HValue SSA definition
-  // (regardless of any iDef of this value).
+  // This method must always return the original HValue SSA definition,
+  // regardless of any chain of iDefs of this value.
   HValue* ActualValue() {
-    int index = RedefinedOperandIndex();
-    return index == kNoRedefinedOperand ? this : OperandAt(index);
+    HValue* value = this;
+    int index;
+    while ((index = value->RedefinedOperandIndex()) != kNoRedefinedOperand) {
+      value = value->OperandAt(index);
+    }
+    return value;
   }
 
   bool IsInteger32Constant();
@@ -1303,6 +1306,8 @@ class HDeoptimize V8_FINAL : public HTemplateInstruction<0> {
 // Inserts an int3/stop break instruction for debugging purposes.
 class HDebugBreak V8_FINAL : public HTemplateInstruction<0> {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P0(HDebugBreak);
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
@@ -2781,21 +2786,6 @@ class HCheckSmi V8_FINAL : public HUnaryOperation {
     set_representation(Representation::Smi());
     SetFlag(kUseGVN);
   }
-};
-
-
-class HIsNumberAndBranch V8_FINAL : public HUnaryControlInstruction {
- public:
-  explicit HIsNumberAndBranch(HValue* value)
-    : HUnaryControlInstruction(value, NULL, NULL) {
-    SetFlag(kFlexibleRepresentation);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch)
 };
 
 

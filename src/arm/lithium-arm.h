@@ -113,7 +113,6 @@ class LCodeGen;
   V(IsConstructCallAndBranch)                   \
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
-  V(IsNumberAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
@@ -936,19 +935,6 @@ class LIsObjectAndBranch V8_FINAL : public LControlInstruction<1, 1> {
   DECLARE_HYDROGEN_ACCESSOR(IsObjectAndBranch)
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-};
-
-
-class LIsNumberAndBranch V8_FINAL : public LControlInstruction<1, 0> {
- public:
-  explicit LIsNumberAndBranch(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch, "is-number-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNumberAndBranch)
 };
 
 
@@ -2119,7 +2105,7 @@ class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
   LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };
@@ -2778,7 +2764,7 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   LInstruction* DoArithmeticD(Token::Value op,
                               HArithmeticBinaryOperation* instr);
   LInstruction* DoArithmeticT(Token::Value op,
-                              HArithmeticBinaryOperation* instr);
+                              HBinaryOperation* instr);
 
   LPlatformChunk* chunk_;
   CompilationInfo* info_;

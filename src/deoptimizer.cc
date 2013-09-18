@@ -1617,9 +1617,10 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     Handle<Map> map = Handle<Map>::cast(MaterializeNextValue());
     switch (map->instance_type()) {
       case HEAP_NUMBER_TYPE: {
-        Handle<HeapNumber> number =
-            Handle<HeapNumber>::cast(MaterializeNextValue());
-        materialized_objects_->Add(number);
+        Handle<HeapNumber> object = isolate_->factory()->NewHeapNumber(0.0);
+        materialized_objects_->Add(object);
+        Handle<Object> number = MaterializeNextValue();
+        object->set_value(number->Number());
         materialization_value_index_ += kDoubleSize / kPointerSize - 1;
         break;
       }

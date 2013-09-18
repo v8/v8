@@ -2765,9 +2765,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Passing r0.
-    __ PrepareCallCFunction(1, 0, r1);
+    __ PrepareCallCFunction(2, 0, r1);
+    __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
     __ CallCFunction(ExternalReference::perform_gc_function(isolate),
-        1, 0);
+        2, 0);
   }
 
   ExternalReference scope_depth =
@@ -2841,7 +2842,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // sp: stack pointer
   // fp: frame pointer
   //  Callee-saved register r4 still holds argc.
-  __ LeaveExitFrame(save_doubles_, r4);
+  __ LeaveExitFrame(save_doubles_, r4, true);
   __ mov(pc, lr);
 
   // check if we should retry or throw exception
@@ -3375,8 +3376,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     receiver = r0;
   }
 
-  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss,
-                                         support_wrapper_);
+  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss);
 
   __ bind(&miss);
   StubCompiler::TailCallBuiltin(
@@ -4071,7 +4071,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   DirectCEntryStub stub;
   stub.GenerateCall(masm, r7);
 
-  __ LeaveExitFrame(false, no_reg);
+  __ LeaveExitFrame(false, no_reg, true);
 
   // r0: result
   // subject: subject string (callee saved)

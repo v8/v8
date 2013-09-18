@@ -838,7 +838,7 @@ class Runtime : public AllStatic {
       JSArrayBuffer* phantom_array_buffer);
 
   // Helper functions used stubs.
-  static void PerformGC(Object* result);
+  static void PerformGC(Object* result, Isolate* isolate);
 
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   static Handle<Object> CreateArrayLiteralBoilerplate(

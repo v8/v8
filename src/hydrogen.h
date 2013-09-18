@@ -1271,8 +1271,7 @@ class HGraphBuilder {
   void FinishExitWithHardDeoptimization(const char* reason,
                                         HBasicBlock* continuation);
 
-  void AddIncrementCounter(StatsCounter* counter,
-                           HValue* context);
+  void AddIncrementCounter(StatsCounter* counter);
 
   class IfBuilder V8_FINAL {
    public:

@@ -1272,22 +1272,15 @@ class Heap {
   void GarbageCollectionGreedyCheck();
 #endif
 
-  void AddGCPrologueCallback(
-      GCPrologueCallback callback, GCType gc_type_filter);
-  void RemoveGCPrologueCallback(GCPrologueCallback callback);
+  void AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
+                             GCType gc_type_filter,
+                             bool pass_isolate = true);
+  void RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback);
 
-  void AddGCEpilogueCallback(
-      GCEpilogueCallback callback, GCType gc_type_filter);
-  void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
-
-  void SetGlobalGCPrologueCallback(GCCallback callback) {
-    ASSERT((callback == NULL) ^ (global_gc_prologue_callback_ == NULL));
-    global_gc_prologue_callback_ = callback;
-  }
-  void SetGlobalGCEpilogueCallback(GCCallback callback) {
-    ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
-    global_gc_epilogue_callback_ = callback;
-  }
+  void AddGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback,
+                             GCType gc_type_filter,
+                             bool pass_isolate = true);
+  void RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback);
 
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
@@ -2032,31 +2025,36 @@ class Heap {
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.
   struct GCPrologueCallbackPair {
-    GCPrologueCallbackPair(GCPrologueCallback callback, GCType gc_type)
-        : callback(callback), gc_type(gc_type) {
+    GCPrologueCallbackPair(v8::Isolate::GCPrologueCallback callback,
+                           GCType gc_type,
+                           bool pass_isolate)
+        : callback(callback), gc_type(gc_type), pass_isolate_(pass_isolate) {
     }
     bool operator==(const GCPrologueCallbackPair& pair) const {
       return pair.callback == callback;
     }
-    GCPrologueCallback callback;
+    v8::Isolate::GCPrologueCallback callback;
     GCType gc_type;
+    // TODO(dcarney): remove variable
+    bool pass_isolate_;
   };
   List<GCPrologueCallbackPair> gc_prologue_callbacks_;
 
   struct GCEpilogueCallbackPair {
-    GCEpilogueCallbackPair(GCEpilogueCallback callback, GCType gc_type)
-        : callback(callback), gc_type(gc_type) {
+    GCEpilogueCallbackPair(v8::Isolate::GCPrologueCallback callback,
+                           GCType gc_type,
+                           bool pass_isolate)
+        : callback(callback), gc_type(gc_type), pass_isolate_(pass_isolate) {
     }
     bool operator==(const GCEpilogueCallbackPair& pair) const {
       return pair.callback == callback;
     }
-    GCEpilogueCallback callback;
+    v8::Isolate::GCPrologueCallback callback;
     GCType gc_type;
+    // TODO(dcarney): remove variable
+    bool pass_isolate_;
   };
   List<GCEpilogueCallbackPair> gc_epilogue_callbacks_;
-
-  GCCallback global_gc_prologue_callback_;
-  GCCallback global_gc_epilogue_callback_;
 
   // Support for computing object sizes during GC.
   HeapObjectCallback gc_safe_size_of_old_object_;

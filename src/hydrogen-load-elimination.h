@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+#ifndef V8_HYDROGEN_LOAD_ELIMINATION_H_
+#define V8_HYDROGEN_LOAD_ELIMINATION_H_
 
-#if !defined(ANDROID)
-#include <cxxabi.h>
-#endif
-#include <stdio.h>
-
-#include "platform.h"
+#include "hydrogen.h"
 
 namespace v8 {
 namespace internal {
 
-// Used by platform implementation files during OS::DumpBacktrace()
-template<int (*backtrace)(void**, int),
-         char** (*backtrace_symbols)(void* const*, int)>
-struct POSIXBacktraceHelper {
-  static void DumpBacktrace() {
-    void* trace[100];
-    int size = backtrace(trace, ARRAY_SIZE(trace));
-    char** symbols = backtrace_symbols(trace, size);
-    fprintf(stderr, "\n==== C stack trace ===============================\n\n");
-    if (size == 0) {
-      fprintf(stderr, "(empty)\n");
-    } else if (symbols == NULL) {
-      fprintf(stderr, "(no symbols)\n");
-    } else {
-      for (int i = 1; i < size; ++i) {
-        fprintf(stderr, "%2d: ", i);
-        char mangled[201];
-        if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {// NOLINT
-          char* demangled = NULL;
-#if !defined(ANDROID)
-          int status;
-          size_t length;
-          demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
-#endif
-          fprintf(stderr, "%s\n", demangled != NULL ? demangled : mangled);
-          free(demangled);
-        } else {
-          fprintf(stderr, "??\n");
-        }
-      }
-    }
-    fflush(stderr);
-    free(symbols);
-  }
+class HLoadEliminationPhase : public HPhase {
+ public:
+  explicit HLoadEliminationPhase(HGraph* graph)
+      : HPhase("H_Load elimination", graph) { }
+
+  void Run();
+
+ private:
+  void EliminateLoads(HBasicBlock* block);
 };
+
 
 } }  // namespace v8::internal
 
-#endif  // V8_PLATFORM_POSIX_H_
+#endif  // V8_HYDROGEN_LOAD_ELIMINATION_H_

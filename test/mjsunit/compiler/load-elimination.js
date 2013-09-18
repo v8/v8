@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,82 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+// Flags: --allow-natives-syntax --load-elimination
 
-#if !defined(ANDROID)
-#include <cxxabi.h>
-#endif
-#include <stdio.h>
+// Test local load elimination of redundant loads and stores.
 
-#include "platform.h"
+function B(x, y) {
+  this.x = x;
+  this.y = y;
+  return this;
+}
 
-namespace v8 {
-namespace internal {
+function test_load() {
+  var a = new B(1, 2);
+  return a.x + a.x + a.x + a.x;
+}
 
-// Used by platform implementation files during OS::DumpBacktrace()
-template<int (*backtrace)(void**, int),
-         char** (*backtrace_symbols)(void* const*, int)>
-struct POSIXBacktraceHelper {
-  static void DumpBacktrace() {
-    void* trace[100];
-    int size = backtrace(trace, ARRAY_SIZE(trace));
-    char** symbols = backtrace_symbols(trace, size);
-    fprintf(stderr, "\n==== C stack trace ===============================\n\n");
-    if (size == 0) {
-      fprintf(stderr, "(empty)\n");
-    } else if (symbols == NULL) {
-      fprintf(stderr, "(no symbols)\n");
-    } else {
-      for (int i = 1; i < size; ++i) {
-        fprintf(stderr, "%2d: ", i);
-        char mangled[201];
-        if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {// NOLINT
-          char* demangled = NULL;
-#if !defined(ANDROID)
-          int status;
-          size_t length;
-          demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
-#endif
-          fprintf(stderr, "%s\n", demangled != NULL ? demangled : mangled);
-          free(demangled);
-        } else {
-          fprintf(stderr, "??\n");
-        }
-      }
-    }
-    fflush(stderr);
-    free(symbols);
-  }
-};
+function test_store_load() {
+  var a = new B(1, 2);
+  a.x = 4;
+  var f = a.x;
+  a.x = 5;
+  var g = a.x;
+  a.x = 6;
+  var h = a.x;
+  a.x = 7;
+  return f + g + h + a.x;
+}
 
-} }  // namespace v8::internal
+function test_nonaliasing_store1() {
+  var a = new B(2, 3), b = new B(3, 4);
+  b.x = 4;
+  var f = a.x;
+  b.x = 5;
+  var g = a.x;
+  b.x = 6;
+  var h = a.x;
+  b.x = 7;
+  return f + g + h + a.x;
+}
 
-#endif  // V8_PLATFORM_POSIX_H_
+function killall() {
+  try { } catch(e) { }
+}
+
+%NeverOptimizeFunction(killall);
+
+function test_store_load_kill() {
+  var a = new B(1, 2);
+  a.x = 4;
+  var f = a.x;
+  a.x = 5;
+  var g = a.x;
+  killall();
+  a.x = 6;
+  var h = a.x;
+  a.x = 7;
+  return f + g + h + a.x;
+}
+
+function test_store_store() {
+  var a = new B(6, 7);
+  a.x = 7;
+  a.x = 7;
+  a.x = 7;
+  a.x = 7;
+  return a.x;
+}
+
+function test(x, f) {
+  assertEquals(x, f());
+  assertEquals(x, f());
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(x, f());
+}
+
+test(4, test_load);
+test(22, test_store_load);
+test(8, test_nonaliasing_store1);
+test(22, test_store_load_kill);
+test(7, test_store_store);

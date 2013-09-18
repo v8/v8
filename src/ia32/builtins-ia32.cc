@@ -539,10 +539,12 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   __ mov(eax, Operand(esp, 8 * kPointerSize));
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(1, ebx);
+    __ PrepareCallCFunction(2, ebx);
+    __ mov(Operand(esp, 1 * kPointerSize),
+           Immediate(ExternalReference::isolate_address(masm->isolate())));
     __ mov(Operand(esp, 0), eax);
     __ CallCFunction(
-        ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+        ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   }
   __ popad();
   __ ret(0);

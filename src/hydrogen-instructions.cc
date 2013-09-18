@@ -2526,9 +2526,11 @@ void HConstant::Initialize(Representation r) {
 
 bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
-  if (block()->graph()->has_osr()) {
-    return block()->graph()->IsStandardConstant(this);
+  if (block()->graph()->has_osr() &&
+      block()->graph()->IsStandardConstant(this)) {
+    return true;
   }
+  if (UseCount() == 0) return true;
   if (IsCell()) return false;
   if (representation().IsDouble()) return false;
   return true;
@@ -2573,10 +2575,6 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
                               Representation::Integer32(),
                               is_not_in_new_space_,
                               handle_);
-  } else {
-    ASSERT(!HasNumberValue());
-    Maybe<HConstant*> number = CopyToTruncatedNumber(zone);
-    if (number.has_value) return number.value->CopyToTruncatedInt32(zone);
   }
   return Maybe<HConstant*>(res != NULL, res);
 }
