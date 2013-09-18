@@ -8196,8 +8196,9 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   int object_size = boilerplate_object->map()->instance_size();
   int object_offset = object_size;
 
+  InstanceType instance_type = boilerplate_object->map()->instance_type();
   bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
-      AllocationSite::CanTrack(boilerplate_object->map()->instance_type());
+      AllocationSite::CanTrack(instance_type);
 
   // If using allocation sites, then the payload on the site should already
   // be filled in as a valid (boilerplate) array.
@@ -8208,9 +8209,12 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     object_size += AllocationMemento::kSize;
   }
 
+  ASSERT(instance_type == JS_ARRAY_TYPE || instance_type == JS_OBJECT_TYPE);
+  HType type = instance_type == JS_ARRAY_TYPE
+      ? HType::JSArray() : HType::JSObject();
   HValue* object_size_constant = Add<HConstant>(object_size);
-  HInstruction* object = Add<HAllocate>(object_size_constant, HType::JSObject(),
-      isolate()->heap()->GetPretenureMode(), JS_OBJECT_TYPE);
+  HInstruction* object = Add<HAllocate>(object_size_constant, type,
+      isolate()->heap()->GetPretenureMode(), instance_type);
 
 
   BuildEmitObjectHeader(boilerplate_object, object);
