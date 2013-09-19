@@ -8971,18 +8971,7 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
           object->GetHeap()->allocation_memento_map()) {
         AllocationMemento* memento = AllocationMemento::cast(
             reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-
-        // TODO(mvstanton): because of chromium bug 284577, put extra care
-        // into validating that the memento points to a valid AllocationSite.
-        // This check is expensive so remove it asap. Also, this check
-        // HIDES bug 284577, so it must be disabled to debug/diagnose.
-        Object* site = memento->allocation_site();
-        Heap* heap = object->GetHeap();
-        if (heap->InOldPointerSpace(site) &&
-            site->IsHeapObject() &&
-            HeapObject::cast(site)->map() == heap->allocation_site_map()) {
-          return memento;
-        }
+        return memento;
       }
     }
   }
