@@ -79,7 +79,7 @@ v8::DeclareExtension kPrintExtensionDeclaration(&kPrintExtension);
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
   return isolate->context()->global_object()->GetProperty(*internalized_name);
@@ -87,7 +87,7 @@ static MaybeObject* GetGlobalProperty(const char* name) {
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Handle<Object> object(value, isolate);
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
@@ -97,7 +97,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
 
 
 static Handle<JSFunction> Compile(const char* source) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Handle<String> source_code(
       isolate->factory()->NewStringFromUtf8(CStrVector(source)));
   Handle<SharedFunctionInfo> shared_function =
@@ -312,7 +312,7 @@ TEST(C2JSFrames) {
 // source resulted in crash.
 TEST(Regression236) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 

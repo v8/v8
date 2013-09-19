@@ -84,7 +84,7 @@ static int* counter_function(const char* name) {
 
 template <class T>
 static Address AddressOf(T id) {
-  return ExternalReference(id, i::Isolate::Current()).address();
+  return ExternalReference(id, CcTest::i_isolate()).address();
 }
 
 
@@ -100,7 +100,7 @@ static int make_code(TypeCode type, int id) {
 
 
 TEST(ExternalReferenceEncoder) {
-  Isolate* isolate = i::Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->stats_table()->SetCounterFunction(counter_function);
   v8::V8::Initialize();
 
@@ -137,7 +137,7 @@ TEST(ExternalReferenceEncoder) {
 
 
 TEST(ExternalReferenceDecoder) {
-  Isolate* isolate = i::Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->stats_table()->SetCounterFunction(counter_function);
   v8::V8::Initialize();
 
@@ -264,7 +264,7 @@ static void Serialize() {
 // Test that the whole heap can be serialized.
 UNINITIALIZED_TEST(Serialize) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    Serializer::Enable(Isolate::Current());
+    Serializer::Enable(CcTest::i_isolate());
     v8::V8::Initialize();
     Serialize();
   }
@@ -274,7 +274,7 @@ UNINITIALIZED_TEST(Serialize) {
 // Test that heap serialization is non-destructive.
 UNINITIALIZED_TEST(SerializeTwice) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    Serializer::Enable(Isolate::Current());
+    Serializer::Enable(CcTest::i_isolate());
     v8::V8::Initialize();
     Serialize();
     Serialize();
@@ -291,7 +291,7 @@ static void Deserialize() {
 
 
 static void SanityCheck() {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
 #ifdef VERIFY_HEAP
   HEAP->Verify();
@@ -372,7 +372,7 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
 
 UNINITIALIZED_TEST(PartialSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = CcTest::i_isolate();
     Serializer::Enable(isolate);
     v8::V8::Initialize();
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -495,7 +495,7 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
     int snapshot_size = 0;
     byte* snapshot = ReadBytes(file_name, &snapshot_size);
 
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = CcTest::i_isolate();
     Object* root;
     {
       SnapshotByteSource source(snapshot, snapshot_size);
@@ -523,7 +523,7 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
 
 UNINITIALIZED_TEST(ContextSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = CcTest::i_isolate();
     Serializer::Enable(isolate);
     v8::V8::Initialize();
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -607,7 +607,7 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
     int snapshot_size = 0;
     byte* snapshot = ReadBytes(file_name, &snapshot_size);
 
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = CcTest::i_isolate();
     Object* root;
     {
       SnapshotByteSource source(snapshot, snapshot_size);

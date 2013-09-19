@@ -121,7 +121,7 @@ TEST(NoPromotion) {
   // Allocate a big Fixed array in the new space.
   int length = (Page::kMaxNonCodeHeapObjectSize -
       FixedArray::kHeaderSize) / (2 * kPointerSize);
-  Object* obj = i::Isolate::Current()->heap()->AllocateFixedArray(length)->
+  Object* obj = CcTest::i_isolate()->heap()->AllocateFixedArray(length)->
       ToObjectChecked();
 
   Handle<FixedArray> array(FixedArray::cast(obj));
@@ -149,7 +149,7 @@ TEST(NoPromotion) {
 TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
 
   v8::HandleScope sc(CcTest::isolate());
@@ -243,7 +243,7 @@ static Handle<Map> CreateMap(Isolate* isolate) {
 TEST(MapCompact) {
   FLAG_max_map_space_pages = 16;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   {
@@ -281,7 +281,7 @@ static void WeakPointerCallback(v8::Isolate* isolate,
 TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
 
   NumberOfWeakCalls = 0;
   v8::HandleScope handle_scope(CcTest::isolate());
@@ -409,7 +409,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 TEST(EmptyObjectGroups) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 

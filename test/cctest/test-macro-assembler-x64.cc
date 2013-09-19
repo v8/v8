@@ -157,7 +157,7 @@ TEST(SmiMove) {
                                                    &actual_size,
                                                    true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
@@ -246,7 +246,7 @@ TEST(SmiCompare) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -297,7 +297,7 @@ TEST(Integer32ToSmi) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -426,7 +426,7 @@ TEST(Integer64PlusConstantToSmi) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -471,7 +471,7 @@ TEST(SmiCheck) {
                                                    &actual_size,
                                                    true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -720,7 +720,7 @@ TEST(SmiNeg) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -810,7 +810,7 @@ TEST(SmiAdd) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1001,7 +1001,7 @@ TEST(SmiSub) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1092,7 +1092,7 @@ TEST(SmiMul) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1199,7 +1199,7 @@ TEST(SmiDiv) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1310,7 +1310,7 @@ TEST(SmiMod) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1408,7 +1408,7 @@ TEST(SmiIndex) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1478,7 +1478,7 @@ TEST(SmiSelectNonSmi) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1558,7 +1558,7 @@ TEST(SmiAnd) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1640,7 +1640,7 @@ TEST(SmiOr) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1724,7 +1724,7 @@ TEST(SmiXor) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1792,7 +1792,7 @@ TEST(SmiNot) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1889,7 +1889,7 @@ TEST(SmiShiftLeft) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -1996,7 +1996,7 @@ TEST(SmiShiftLogicalRight) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -2066,7 +2066,7 @@ TEST(SmiShiftArithmeticRight) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -2131,7 +2131,7 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
@@ -2175,7 +2175,7 @@ TEST(OperandOffset) {
                                       &actual_size,
                                       true));
   CHECK(buffer);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 

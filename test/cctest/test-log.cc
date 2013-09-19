@@ -62,7 +62,7 @@ class ScopedLoggerInitializer {
         trick_to_run_init_flags_(init_flags_()),
         scope_(CcTest::isolate()),
         env_(v8::Context::New(CcTest::isolate())),
-        logger_(i::Isolate::Current()->logger()) {
+        logger_(CcTest::i_isolate()->logger()) {
     env_->Enter();
   }
 
@@ -169,8 +169,8 @@ class LoopingJsThread : public LoopingThread {
       : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
-    CHECK(i::Isolate::Current() != NULL);
-    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
+    CHECK(CcTest::i_isolate() != NULL);
+    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     SetV8ThreadId();
     while (IsRunning()) {
       v8::HandleScope scope;
@@ -197,8 +197,8 @@ class LoopingNonJsThread : public LoopingThread {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
-    CHECK(i::Isolate::Current() != NULL);
-    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
+    CHECK(CcTest::i_isolate() != NULL);
+    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     double i = 10;
     SignalRunning();
     while (IsRunning()) {
@@ -243,14 +243,14 @@ TEST(ProfMultipleThreads) {
   TestSampler* sampler = NULL;
   {
     v8::Locker locker;
-    sampler = new TestSampler(v8::internal::Isolate::Current());
+    sampler = new TestSampler(CcTest::i_isolate());
     sampler->Start();
     CHECK(sampler->IsActive());
   }
 
-  LoopingJsThread jsThread(v8::internal::Isolate::Current());
+  LoopingJsThread jsThread(CcTest::i_isolate());
   jsThread.Start();
-  LoopingNonJsThread nonJsThread(v8::internal::Isolate::Current());
+  LoopingNonJsThread nonJsThread(CcTest::i_isolate());
   nonJsThread.Start();
 
   CHECK(!sampler->WasSampleStackCalled());
@@ -317,7 +317,7 @@ TEST(Issue23768) {
   i_source->set_resource(NULL);
 
   // Must not crash.
-  i::Isolate::Current()->logger()->LogCompiledFunctions();
+  CcTest::i_isolate()->logger()->LogCompiledFunctions();
 }
 
 

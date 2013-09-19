@@ -207,7 +207,7 @@ static unsigned int Pseudorandom() {
 
 
 TEST(MemoryChunk) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
   CHECK(heap->ConfigureHeapDefault());
@@ -263,7 +263,7 @@ TEST(MemoryChunk) {
 
 
 TEST(MemoryAllocator) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
   CHECK(isolate->heap()->ConfigureHeapDefault());
@@ -312,7 +312,7 @@ TEST(MemoryAllocator) {
 
 
 TEST(NewSpace) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
   CHECK(heap->ConfigureHeapDefault());
@@ -341,7 +341,7 @@ TEST(NewSpace) {
 
 
 TEST(OldSpace) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
   CHECK(heap->ConfigureHeapDefault());

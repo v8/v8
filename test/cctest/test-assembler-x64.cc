@@ -96,7 +96,7 @@ TEST(AssemblerX64ReturnOperation) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ movq(rax, arg2);
@@ -118,7 +118,7 @@ TEST(AssemblerX64StackOperations) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
   // We compile without stack frame pointers, so the gdb debugger shows
@@ -150,7 +150,7 @@ TEST(AssemblerX64ArithmeticOperations) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that adds arguments returning the sum.
   __ movq(rax, arg2);
@@ -172,7 +172,7 @@ TEST(AssemblerX64ImulOperation) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that multiplies arguments returning the high
   // word.
@@ -200,7 +200,7 @@ TEST(AssemblerX64MemoryOperands) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ push(rbp);
@@ -234,7 +234,7 @@ TEST(AssemblerX64ControlFlow) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 1 and returns it.
   __ push(rbp);
@@ -263,7 +263,7 @@ TEST(AssemblerX64LoopImmediates) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(Isolate::Current(), buffer, static_cast<int>(actual_size));
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
   // Assemble two loops using rax as counter, and verify the ending counts.
   Label Fail;
   __ movq(rax, Immediate(-3));
@@ -353,7 +353,7 @@ TEST(AssemblerX64LabelChaining) {
   // Test chaining of label usages within instructions (issue 1644).
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(CcTest::i_isolate(), NULL, 0);
 
   Label target;
   __ j(equal, &target);
@@ -367,7 +367,7 @@ TEST(AssemblerMultiByteNop) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::internal::byte buffer[1024];
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Assembler assm(isolate, buffer, sizeof(buffer));
   __ push(rbx);
   __ push(rcx);
@@ -441,7 +441,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(args[0]);
   CHECK_EQ(ELEMENT_COUNT, vec->Length());
 
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Assembler assm(isolate, buffer, sizeof(buffer));
 
   // Remove return address from the stack for fix stack frame alignment.

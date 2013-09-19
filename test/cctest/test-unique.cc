@@ -58,7 +58,7 @@ void CheckHashCodeNotEqual(Unique<T> a, Unique<U> b) {
 
 TEST(UniqueCreate) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -93,7 +93,7 @@ TEST(UniqueCreate) {
 
 TEST(UniqueSubsume) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -116,7 +116,7 @@ TEST(UniqueSubsume) {
 
 TEST(UniqueSet_Add) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -148,7 +148,7 @@ TEST(UniqueSet_Add) {
 
 TEST(UniqueSet_Contains) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -184,7 +184,7 @@ TEST(UniqueSet_Contains) {
 
 TEST(UniqueSet_At) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -226,7 +226,7 @@ static void CHECK_SETS(
 
 TEST(UniqueSet_Equals) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -269,7 +269,7 @@ TEST(UniqueSet_Equals) {
 
 TEST(UniqueSet_IsSubset1) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -309,7 +309,7 @@ TEST(UniqueSet_IsSubset1) {
 
 TEST(UniqueSet_IsSubset2) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -361,7 +361,7 @@ TEST(UniqueSet_IsSubsetExhaustive) {
   const int kSetSize = 6;
 
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -393,7 +393,7 @@ TEST(UniqueSet_IsSubsetExhaustive) {
 
 TEST(UniqueSet_Intersect1) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -439,7 +439,7 @@ TEST(UniqueSet_IntersectExhaustive) {
   const int kSetSize = 6;
 
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -475,7 +475,7 @@ TEST(UniqueSet_IntersectExhaustive) {
 
 TEST(UniqueSet_Union1) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 
@@ -521,7 +521,7 @@ TEST(UniqueSet_UnionExhaustive) {
   const int kSetSize = 6;
 
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope sc(isolate);
 

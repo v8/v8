@@ -526,7 +526,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
     CHECK_EQ(0, dispose_count);
   }
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
+  CcTest::i_isolate()->compilation_cache()->Clear();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(1, dispose_count);
 }
@@ -555,7 +555,7 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
     CHECK_EQ(0, dispose_count);
   }
-  i::Isolate::Current()->compilation_cache()->Clear();
+  CcTest::i_isolate()->compilation_cache()->Clear();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(1, dispose_count);
 }
@@ -586,7 +586,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
     CHECK_EQ(0, dispose_count);
   }
-  i::Isolate::Current()->compilation_cache()->Clear();
+  CcTest::i_isolate()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, dispose_count);
 }
@@ -612,7 +612,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
     CHECK_EQ(0, dispose_count);
   }
-  i::Isolate::Current()->compilation_cache()->Clear();
+  CcTest::i_isolate()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, dispose_count);
 }
@@ -737,7 +737,7 @@ TEST(MakingExternalUnalignedAsciiString) {
 
 
 THREADED_TEST(UsingExternalString) {
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   {
     v8::HandleScope scope(CcTest::isolate());
     uint16_t* two_byte_string = AsciiToTwoByteString("test string");
@@ -757,7 +757,7 @@ THREADED_TEST(UsingExternalString) {
 
 
 THREADED_TEST(UsingExternalAsciiString) {
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   {
     v8::HandleScope scope(CcTest::isolate());
     const char* one_byte_string = "test string";
@@ -860,7 +860,7 @@ TEST(ExternalStringWithDisposeHandling) {
     HEAP->CollectAllAvailableGarbage();
     CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
   }
-  i::Isolate::Current()->compilation_cache()->Clear();
+  CcTest::i_isolate()->compilation_cache()->Clear();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
@@ -881,7 +881,7 @@ TEST(ExternalStringWithDisposeHandling) {
     HEAP->CollectAllAvailableGarbage();
     CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
   }
-  i::Isolate::Current()->compilation_cache()->Clear();
+  CcTest::i_isolate()->compilation_cache()->Clear();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_count);
@@ -928,7 +928,7 @@ THREADED_TEST(StringConcat) {
     CHECK(value->IsNumber());
     CHECK_EQ(68, value->Int32Value());
   }
-  i::Isolate::Current()->compilation_cache()->Clear();
+  CcTest::i_isolate()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
@@ -4672,7 +4672,7 @@ void CThrowCountDown(const v8::FunctionCallbackInfo<v8::Value>& args) {
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
         CHECK(result.IsEmpty());
-        CHECK(!i::Isolate::Current()->has_scheduled_exception());
+        CHECK(!CcTest::i_isolate()->has_scheduled_exception());
       } else {
         CHECK_NE(expected, count);
       }
@@ -9684,7 +9684,7 @@ THREADED_TEST(SetPrototypeThrows) {
   v8::TryCatch try_catch;
   CHECK(!o1->SetPrototype(o0));
   CHECK(!try_catch.HasCaught());
-  ASSERT(!i::Isolate::Current()->has_pending_exception());
+  ASSERT(!CcTest::i_isolate()->has_pending_exception());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")->Int32Value());
 }
@@ -12105,8 +12105,8 @@ static void ThrowingCallbackWithTryCatch(
   try_catch.SetVerbose(true);
   CompileRun("throw 'from JS';");
   CHECK(try_catch.HasCaught());
-  CHECK(!i::Isolate::Current()->has_pending_exception());
-  CHECK(!i::Isolate::Current()->has_scheduled_exception());
+  CHECK(!CcTest::i_isolate()->has_pending_exception());
+  CHECK(!CcTest::i_isolate()->has_scheduled_exception());
 }
 
 
@@ -12611,7 +12611,7 @@ THREADED_TEST(LockUnlockLock) {
 
 
 static int GetGlobalObjectsCount() {
-  i::Isolate::Current()->heap()->EnsureHeapIsIterable();
+  CcTest::i_isolate()->heap()->EnsureHeapIsIterable();
   int count = 0;
   i::HeapIterator it(HEAP);
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
@@ -14532,7 +14532,7 @@ THREADED_TEST(MorphCompositeStringTest) {
   uint16_t* two_byte_string = AsciiToTwoByteString(c_string);
   {
     LocalContext env;
-    i::Factory* factory = i::Isolate::Current()->factory();
+    i::Factory* factory = CcTest::i_isolate()->factory();
     v8::HandleScope scope(env->GetIsolate());
     AsciiVectorResource ascii_resource(
         i::Vector<const char>(c_string, i::StrLength(c_string)));
@@ -14630,7 +14630,7 @@ class RegExpStringModificationTest {
         uc16_resource_(i::Vector<const uint16_t>(two_byte_content_, 15)) {}
   ~RegExpStringModificationTest() {}
   void RunTest() {
-    i::Factory* factory = i::Isolate::Current()->factory();
+    i::Factory* factory = CcTest::i_isolate()->factory();
 
     regexp_success_ = false;
     morph_success_ = false;
@@ -14650,7 +14650,7 @@ class RegExpStringModificationTest {
     i::Handle<i::String> input_name =
         factory->NewStringFromAscii(i::Vector<const char>("input", 5));
     i::JSReceiver::SetProperty(
-        i::handle(i::Isolate::Current()->native_context()->global_object()),
+        i::handle(CcTest::i_isolate()->native_context()->global_object()),
         input_name,
         input_,
         NONE,
@@ -15045,7 +15045,7 @@ static void GetCallingContextCallback(
 
 
 THREADED_TEST(GetCurrentContextWhenNotInContext) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   CHECK(isolate != NULL);
   CHECK(isolate->context() == NULL);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -15162,7 +15162,7 @@ static void CheckElementValue(i::Isolate* isolate,
 
 THREADED_TEST(PixelArray) {
   LocalContext context;
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 260;
@@ -15576,7 +15576,7 @@ static void NotHandledIndexedPropertySetter(
 
 THREADED_TEST(PixelArrayWithInterceptor) {
   LocalContext context;
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
@@ -15942,7 +15942,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                                     int64_t low,
                                     int64_t high) {
   LocalContext context;
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 40;
@@ -16944,7 +16944,7 @@ TEST(DynamicWithSourceURLInStackTrace) {
 
 
 static void CreateGarbageInOldSpace() {
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
   i::AlwaysAllocateScope always_allocate;
   for (int i = 0; i < 1000; i++) {
@@ -17051,7 +17051,7 @@ static uint32_t* stack_limit;
 static void GetStackLimitCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   stack_limit = reinterpret_cast<uint32_t*>(
-      i::Isolate::Current()->stack_guard()->real_climit());
+      CcTest::i_isolate()->stack_guard()->real_climit());
 }
 
 
@@ -19301,15 +19301,15 @@ THREADED_TEST(Regress1516) {
 
   int elements;
   { i::MapCache* map_cache =
-        i::MapCache::cast(i::Isolate::Current()->context()->map_cache());
+        i::MapCache::cast(CcTest::i_isolate()->context()->map_cache());
     elements = map_cache->NumberOfElements();
     CHECK_LE(1, elements);
   }
 
-  i::Isolate::Current()->heap()->CollectAllGarbage(
+  CcTest::i_isolate()->heap()->CollectAllGarbage(
       i::Heap::kAbortIncrementalMarkingMask);
-  { i::Object* raw_map_cache = i::Isolate::Current()->context()->map_cache();
-    if (raw_map_cache != i::Isolate::Current()->heap()->undefined_value()) {
+  { i::Object* raw_map_cache = CcTest::i_isolate()->context()->map_cache();
+    if (raw_map_cache != CcTest::i_isolate()->heap()->undefined_value()) {
       i::MapCache* map_cache = i::MapCache::cast(raw_map_cache);
       CHECK_GT(elements, map_cache->NumberOfElements());
     }
@@ -19716,7 +19716,7 @@ TEST(PrimaryStubCache) {
 
 TEST(StaticGetters) {
   LocalContext context;
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   i::Handle<i::Object> undefined_value = factory->undefined_value();
@@ -19755,7 +19755,7 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
 
 TEST(StringEmpty) {
   LocalContext context;
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   i::Handle<i::Object> empty_string = factory->empty_string();

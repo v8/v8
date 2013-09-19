@@ -41,7 +41,7 @@ using namespace v8::internal;
 
 TEST(ObjectHashTable) {
   LocalContext context;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   Handle<ObjectHashTable> table = factory->NewObjectHashTable(23);
@@ -120,7 +120,7 @@ class ObjectHashTableTest: public ObjectHashTable {
 
 TEST(HashTableRehash) {
   LocalContext context;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   // Test almost filled table.
@@ -156,7 +156,7 @@ TEST(HashTableRehash) {
 TEST(ObjectHashSetCausesGC) {
   i::FLAG_stress_compaction = false;
   LocalContext context;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   Handle<ObjectHashSet> table = factory->NewObjectHashSet(1);
@@ -189,7 +189,7 @@ TEST(ObjectHashSetCausesGC) {
 TEST(ObjectHashTableCausesGC) {
   i::FLAG_stress_compaction = false;
   LocalContext context;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   Handle<ObjectHashTable> table = factory->NewObjectHashTable(1);

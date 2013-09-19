@@ -612,7 +612,7 @@ TEST(RecordStackTraceAtStartProfiling) {
   v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
   context->Enter();
 
-  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());
   CompileRun(
       "function c() { startProfiling(); }\n"
@@ -744,7 +744,7 @@ static const char* line_number_test_source_profile_time_functions =
 "function lazy_func_at_6th_line() {}";
 
 int GetFunctionLineNumber(LocalContext* env, const char* name) {
-  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CodeMap* code_map = profiler->generator()->code_map();
   i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(
@@ -761,7 +761,7 @@ TEST(LineNumber) {
 
   CcTest::InitializeVM();
   LocalContext env;
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   TestSetup test_setup;
 
   i::HandleScope scope(isolate);

@@ -51,7 +51,7 @@ using ::v8::internal::String;
 static void CheckFunctionName(v8::Handle<v8::Script> script,
                               const char* func_pos_src,
                               const char* ref_inferred_name) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   // Get script source.

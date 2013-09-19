@@ -72,8 +72,8 @@ using namespace v8::internal;
 static bool CheckParse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(Isolate::Current());
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  Zone zone(CcTest::i_isolate());
+  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   return v8::internal::RegExpParser::ParseRegExp(
       &reader, false, &result, &zone);
@@ -83,8 +83,8 @@ static bool CheckParse(const char* input) {
 static SmartArrayPointer<const char> Parse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(Isolate::Current());
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  Zone zone(CcTest::i_isolate());
+  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       &reader, false, &result, &zone));
@@ -98,8 +98,8 @@ static SmartArrayPointer<const char> Parse(const char* input) {
 static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(Isolate::Current());
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  Zone zone(CcTest::i_isolate());
+  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       &reader, false, &result, &zone));
@@ -117,8 +117,8 @@ struct MinMaxPair {
 static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(Isolate::Current());
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  Zone zone(CcTest::i_isolate());
+  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       &reader, false, &result, &zone));
@@ -391,8 +391,8 @@ static void ExpectError(const char* input,
                         const char* expected) {
   V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(Isolate::Current());
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  Zone zone(CcTest::i_isolate());
+  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(!v8::internal::RegExpParser::ParseRegExp(
       &reader, false, &result, &zone));
@@ -475,7 +475,7 @@ static bool NotWord(uc16 c) {
 
 
 static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange>* ranges =
       new(&zone) ZoneList<CharacterRange>(2, &zone);
   CharacterRange::AddClassEscape(c, ranges, &zone);
@@ -507,7 +507,7 @@ static RegExpNode* Compile(const char* input,
                            bool is_ascii,
                            Zone* zone) {
   V8::Initialize(NULL);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData compile_data;
   if (!v8::internal::RegExpParser::ParseRegExp(&reader, multiline,
@@ -534,7 +534,7 @@ static void Execute(const char* input,
                     bool is_ascii,
                     bool dot_output = false) {
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   RegExpNode* node = Compile(input, multiline, is_ascii, &zone);
   USE(node);
 #ifdef DEBUG
@@ -574,7 +574,7 @@ static unsigned PseudoRandom(int i, int j) {
 TEST(SplayTreeSimple) {
   v8::internal::V8::Initialize(NULL);
   static const unsigned kLimit = 1000;
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   ZoneSplayTree<TestConfig> tree(&zone);
   bool seen[kLimit];
   for (unsigned i = 0; i < kLimit; i++) seen[i] = false;
@@ -642,7 +642,7 @@ TEST(DispatchTableConstruction) {
     }
   }
   // Enter test data into dispatch table.
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   DispatchTable table(&zone);
   for (int i = 0; i < kRangeCount; i++) {
     uc16* range = ranges[i];
@@ -737,14 +737,14 @@ static ArchRegExpMacroAssembler::Result Execute(Code* code,
       input_end,
       captures,
       0,
-      Isolate::Current());
+      CcTest::i_isolate());
 }
 
 
 TEST(MacroAssemblerNativeSuccess) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -781,7 +781,7 @@ TEST(MacroAssemblerNativeSuccess) {
 TEST(MacroAssemblerNativeSimple) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -847,7 +847,7 @@ TEST(MacroAssemblerNativeSimple) {
 TEST(MacroAssemblerNativeSimpleUC16) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -918,7 +918,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 TEST(MacroAssemblerNativeBacktrack) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -958,7 +958,7 @@ TEST(MacroAssemblerNativeBacktrack) {
 TEST(MacroAssemblerNativeBackReferenceASCII) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -1007,7 +1007,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
 TEST(MacroAssemblerNativeBackReferenceUC16) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -1059,7 +1059,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
 TEST(MacroAssemblernativeAtStart) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -1118,7 +1118,7 @@ TEST(MacroAssemblernativeAtStart) {
 TEST(MacroAssemblerNativeBackRefNoCase) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -1177,7 +1177,7 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
 TEST(MacroAssemblerNativeRegisters) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -1280,7 +1280,7 @@ TEST(MacroAssemblerNativeRegisters) {
 TEST(MacroAssemblerStackOverflow) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -1319,7 +1319,7 @@ TEST(MacroAssemblerStackOverflow) {
 TEST(MacroAssemblerNativeLotsOfRegisters) {
   v8::V8::Initialize();
   ContextInitializer initializer;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
@@ -1370,7 +1370,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
 TEST(MacroAssembler) {
   V8::Initialize(NULL);
   byte codes[1024];
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024), &zone);
   // ^f(o)o.
   Label start, fail, backtrack;
@@ -1403,7 +1403,7 @@ TEST(MacroAssembler) {
   m.PopRegister(0);
   m.Fail();
 
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1438,7 +1438,7 @@ TEST(AddInverseToTable) {
   static const int kLimit = 1000;
   static const int kRangeCount = 16;
   for (int t = 0; t < 10; t++) {
-    Zone zone(Isolate::Current());
+    Zone zone(CcTest::i_isolate());
     ZoneList<CharacterRange>* ranges =
         new(&zone) ZoneList<CharacterRange>(kRangeCount, &zone);
     for (int i = 0; i < kRangeCount; i++) {
@@ -1459,7 +1459,7 @@ TEST(AddInverseToTable) {
       CHECK_EQ(is_on, set->Get(0) == false);
     }
   }
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange>* ranges =
       new(&zone) ZoneList<CharacterRange>(1, &zone);
   ranges->Add(CharacterRange(0xFFF0, 0xFFFE), &zone);
@@ -1572,7 +1572,7 @@ TEST(UncanonicalizeEquivalence) {
 
 static void TestRangeCaseIndependence(CharacterRange input,
                                       Vector<CharacterRange> expected) {
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   int count = expected.length();
   ZoneList<CharacterRange>* list =
       new(&zone) ZoneList<CharacterRange>(count, &zone);
@@ -1637,7 +1637,7 @@ static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
 
 TEST(CharClassDifference) {
   v8::internal::V8::Initialize(NULL);
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange>* base =
       new(&zone) ZoneList<CharacterRange>(1, &zone);
   base->Add(CharacterRange::Everything(), &zone);
@@ -1665,7 +1665,7 @@ TEST(CharClassDifference) {
 
 TEST(CanonicalizeCharacterSets) {
   v8::internal::V8::Initialize(NULL);
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange>* list =
       new(&zone) ZoneList<CharacterRange>(4, &zone);
   CharacterSet set(list);
@@ -1727,7 +1727,7 @@ TEST(CanonicalizeCharacterSets) {
 
 TEST(CharacterRangeMerge) {
   v8::internal::V8::Initialize(NULL);
-  Zone zone(Isolate::Current());
+  Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange> l1(4, &zone);
   ZoneList<CharacterRange> l2(4, &zone);
   // Create all combinations of intersections of ranges, both singletons and

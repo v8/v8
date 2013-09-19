@@ -172,7 +172,7 @@ class TerminatorThread : public v8::internal::Thread {
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
   semaphore = new v8::internal::Semaphore(0);
-  TerminatorThread thread(i::Isolate::Current());
+  TerminatorThread thread(CcTest::i_isolate());
   thread.Start();
 
   v8::HandleScope scope(CcTest::isolate());

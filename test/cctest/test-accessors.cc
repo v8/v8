@@ -293,7 +293,7 @@ THREADED_TEST(HandleScopePop) {
   obj->SetAccessor(v8_str("many"), HandleAllocatingGetter<1024>);
   v8::Handle<v8::Object> inst = obj->NewInstance();
   context->Global()->Set(v8::String::New("obj"), inst);
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   int count_before = i::HandleScope::NumberOfHandles(isolate);
   {
     v8::HandleScope scope(context->GetIsolate());

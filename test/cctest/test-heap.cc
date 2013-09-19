@@ -148,7 +148,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
 TEST(HeapObjects) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
@@ -210,7 +210,7 @@ TEST(HeapObjects) {
   CHECK_EQ(10, s->length());
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
-  Handle<GlobalObject> global(Isolate::Current()->context()->global_object());
+  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
   CHECK(JSReceiver::HasLocalProperty(global, object_string));
 
   // Check ToString for oddballs
@@ -249,7 +249,7 @@ TEST(Tagging) {
 
 TEST(GarbageCollection) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
 
@@ -257,7 +257,7 @@ TEST(GarbageCollection) {
   // Check GC.
   heap->CollectGarbage(NEW_SPACE);
 
-  Handle<GlobalObject> global(Isolate::Current()->context()->global_object());
+  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
@@ -288,7 +288,7 @@ TEST(GarbageCollection) {
   // Function should be alive.
   CHECK(JSReceiver::HasLocalProperty(global, name));
   // Check function is retained.
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  Object* func_value = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -305,9 +305,9 @@ TEST(GarbageCollection) {
   heap->CollectGarbage(NEW_SPACE);
 
   CHECK(JSReceiver::HasLocalProperty(global, obj_name));
-  CHECK(Isolate::Current()->context()->global_object()->
+  CHECK(CcTest::i_isolate()->context()->global_object()->
         GetProperty(*obj_name)->ToObjectChecked()->IsJSObject());
-  Object* obj = Isolate::Current()->context()->global_object()->
+  Object* obj = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*obj_name)->ToObjectChecked();
   JSObject* js_obj = JSObject::cast(obj);
   CHECK_EQ(Smi::FromInt(23), js_obj->GetProperty(*prop_name));
@@ -338,7 +338,7 @@ TEST(String) {
 
 TEST(LocalHandles) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   v8::HandleScope scope(CcTest::isolate());
@@ -350,7 +350,7 @@ TEST(LocalHandles) {
 
 TEST(GlobalHandles) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
@@ -403,7 +403,7 @@ static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
 TEST(WeakGlobalHandlesScavenge) {
   i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
@@ -444,7 +444,7 @@ TEST(WeakGlobalHandlesScavenge) {
 
 TEST(WeakGlobalHandlesMark) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
@@ -490,7 +490,7 @@ TEST(WeakGlobalHandlesMark) {
 TEST(DeleteWeakGlobalHandle) {
   i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
@@ -612,7 +612,7 @@ TEST(StringTable) {
 
 TEST(FunctionAllocation) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
@@ -639,12 +639,12 @@ TEST(FunctionAllocation) {
 
 TEST(ObjectProperties) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
   String* object_string = String::cast(HEAP->Object_string());
-  Object* raw_object = Isolate::Current()->context()->global_object()->
+  Object* raw_object = CcTest::i_isolate()->context()->global_object()->
       GetProperty(object_string)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -710,7 +710,7 @@ TEST(ObjectProperties) {
 
 TEST(JSObjectMaps) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
@@ -736,12 +736,12 @@ TEST(JSObjectMaps) {
 
 TEST(JSArray) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("Array");
-  Object* raw_object = Isolate::Current()->context()->global_object()->
+  Object* raw_object = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
   Handle<JSFunction> function = Handle<JSFunction>(
       JSFunction::cast(raw_object));
@@ -785,12 +785,12 @@ TEST(JSArray) {
 
 TEST(JSObjectCopy) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
   String* object_string = String::cast(HEAP->Object_string());
-  Object* raw_object = Isolate::Current()->context()->global_object()->
+  Object* raw_object = CcTest::i_isolate()->context()->global_object()->
       GetProperty(object_string)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -834,7 +834,7 @@ TEST(JSObjectCopy) {
 
 TEST(StringAllocation) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   const unsigned char chars[] = { 0xe5, 0xa4, 0xa7 };
@@ -889,7 +889,7 @@ static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
 
 TEST(Iteration) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -951,7 +951,7 @@ static int LenFromSize(int size) {
 TEST(Regression39128) {
   // Test case for crbug.com/39128.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
@@ -965,7 +965,7 @@ TEST(Regression39128) {
 
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
   Handle<JSFunction> object_ctor(
-      Isolate::Current()->native_context()->object_function());
+      CcTest::i_isolate()->native_context()->object_function());
   CHECK(object_ctor->has_initial_map());
   Handle<Map> object_map(object_ctor->initial_map());
   // Create a map with single inobject property.
@@ -1030,7 +1030,7 @@ TEST(TestCodeFlushing) {
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
   const char* source = "function foo() {"
@@ -1047,7 +1047,7 @@ TEST(TestCodeFlushing) {
   }
 
   // Check function is compiled.
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  Object* func_value = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -1079,7 +1079,7 @@ TEST(TestCodeFlushingIncremental) {
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
   const char* source = "function foo() {"
@@ -1096,7 +1096,7 @@ TEST(TestCodeFlushingIncremental) {
   }
 
   // Check function is compiled.
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  Object* func_value = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -1147,7 +1147,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
   const char* source = "var foo = function() {"
@@ -1172,12 +1172,12 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   }
 
   // Check functions are compiled.
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  Object* func_value = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());
-  Object* func_value2 = Isolate::Current()->context()->global_object()->
+  Object* func_value2 = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*bar_name)->ToObjectChecked();
   CHECK(func_value2->IsJSFunction());
   Handle<JSFunction> function2(JSFunction::cast(func_value2));
@@ -1215,7 +1215,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
@@ -1233,7 +1233,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   }
 
   // Check function is compiled.
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  Object* func_value = CcTest::i_isolate()->context()->global_object()->
       GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -1311,7 +1311,7 @@ TEST(TestInternalWeakLists) {
 
   static const int kNumTestContexts = 10;
 
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   v8::Handle<v8::Context> ctx[kNumTestContexts];
@@ -1454,7 +1454,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
 
 TEST(TestInternalWeakListsTraverseWithGC) {
   v8::V8::Initialize();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
 
   static const int kNumTestContexts = 10;
 
@@ -1871,7 +1871,7 @@ TEST(InstanceOfStubWriteBarrier) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft()) return;
+  if (!CcTest::i_isolate()->use_crankshaft()) return;
   if (i::FLAG_force_marking_deque_overflows) return;
   v8::HandleScope outer_scope(CcTest::isolate());
 
@@ -1922,7 +1922,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
 TEST(PrototypeTransitionClearing) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1988,7 +1988,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft()) return;
+  if (!CcTest::i_isolate()->use_crankshaft()) return;
   v8::HandleScope outer_scope(CcTest::isolate());
 
   {
@@ -2045,7 +2045,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft()) return;
+  if (!CcTest::i_isolate()->use_crankshaft()) return;
   v8::HandleScope outer_scope(CcTest::isolate());
 
   {
@@ -2084,7 +2084,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 TEST(OptimizedAllocationAlwaysInNewSpace) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2113,7 +2113,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2149,7 +2149,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2185,7 +2185,7 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
 TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2210,7 +2210,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2241,7 +2241,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 TEST(OptimizedPretenuringDoubleArrayProperties) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2266,7 +2266,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 TEST(OptimizedPretenuringdoubleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2291,7 +2291,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2325,7 +2325,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 TEST(OptimizedPretenuringNestedObjectLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2359,7 +2359,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 TEST(OptimizedPretenuringNestedDoubleLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2396,7 +2396,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 TEST(OptimizedAllocationArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2423,7 +2423,7 @@ TEST(OptimizedPretenuringCallNew) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_pretenuring_call_new = true;
   CcTest::InitializeVM();
-  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2580,7 +2580,7 @@ TEST(ReleaseOverReservedPages) {
   i::FLAG_crankshaft = false;
   i::FLAG_always_opt = false;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
   static const int number_of_test_pages = 20;
@@ -2622,7 +2622,7 @@ TEST(ReleaseOverReservedPages) {
 TEST(Regress2237) {
   i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
   Handle<String> slice(HEAP->empty_string());
@@ -2675,7 +2675,7 @@ TEST(Regress2211) {
 
   v8::Handle<v8::String> value = v8_str("val string");
   Smi* hash = Smi::FromInt(321);
-  Heap* heap = Isolate::Current()->heap();
+  Heap* heap = CcTest::i_isolate()->heap();
 
   for (int i = 0; i < 2; i++) {
     // Store identity hash first and common hidden property second.
@@ -2960,7 +2960,7 @@ TEST(ReleaseStackTraceData) {
 TEST(Regression144230) {
   i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -3024,7 +3024,7 @@ TEST(Regress159140) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -3086,7 +3086,7 @@ TEST(Regress165495) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -3135,7 +3135,7 @@ TEST(Regress169209) {
   i::FLAG_flush_code_incrementally = true;
 
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -3221,7 +3221,7 @@ TEST(Regress169928) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_crankshaft = false;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -3296,7 +3296,7 @@ TEST(Regress168801) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -3352,7 +3352,7 @@ TEST(Regress173458) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -3409,7 +3409,7 @@ class DummyVisitor : public ObjectVisitor {
 
 TEST(DeferredHandles) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
   v8::ImplementationUtilities::HandleScopeData* data =

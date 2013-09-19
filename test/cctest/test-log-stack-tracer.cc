@@ -72,7 +72,7 @@ static void DoTrace(Address fp) {
   // sp is only used to define stack high bound
   regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
-  trace_env.sample->Init(Isolate::Current(), regs);
+  trace_env.sample->Init(CcTest::i_isolate(), regs);
 }
 
 
@@ -80,11 +80,11 @@ static void DoTrace(Address fp) {
 // pure JS code is being executed
 static void DoTraceHideCEntryFPAddress(Address fp) {
   v8::internal::Address saved_c_frame_fp =
-      *(Isolate::Current()->c_entry_fp_address());
+      *(CcTest::i_isolate()->c_entry_fp_address());
   CHECK(saved_c_frame_fp);
-  *(Isolate::Current()->c_entry_fp_address()) = 0;
+  *(CcTest::i_isolate()->c_entry_fp_address()) = 0;
   DoTrace(fp);
-  *(Isolate::Current()->c_entry_fp_address()) = saved_c_frame_fp;
+  *(CcTest::i_isolate()->c_entry_fp_address()) = saved_c_frame_fp;
 }
 
 
@@ -156,8 +156,8 @@ void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 static Address GetJsEntrySp() {
-  CHECK_NE(NULL, i::Isolate::Current()->thread_local_top());
-  return i::Isolate::Current()->js_entry_sp();
+  CHECK_NE(NULL, CcTest::i_isolate()->thread_local_top());
+  return CcTest::i_isolate()->js_entry_sp();
 }
 
 

@@ -422,7 +422,7 @@ TEST(HeapSnapshotConsString) {
   v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(1, global->InternalFieldCount());
 
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = CcTest::i_isolate()->factory();
   i::Handle<i::String> first =
       factory->NewStringFromAscii(i::CStrVector("0123456789"));
   i::Handle<i::String> second =
@@ -1482,7 +1482,7 @@ TEST(NoHandleLeaks) {
   CompileRun("document = { URL:\"abcdefgh\" };");
 
   v8::Handle<v8::String> name(v8_str("leakz"));
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   int count_before = i::HandleScope::NumberOfHandles(isolate);
   heap_profiler->TakeHeapSnapshot(name);
   int count_after = i::HandleScope::NumberOfHandles(isolate);
@@ -1800,7 +1800,7 @@ TEST(NoDebugObjectInSnapshot) {
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  v8::internal::Isolate::Current()->debug()->Load();
+  CcTest::i_isolate()->debug()->Load();
   CompileRun("foo = {};");
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));

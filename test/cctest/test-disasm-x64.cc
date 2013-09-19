@@ -50,7 +50,7 @@ TEST(DisasmX64) {
   CcTest::InitializeVM();
   v8::HandleScope scope;
   v8::internal::byte buffer[2048];
-  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions
@@ -239,7 +239,7 @@ TEST(DisasmX64) {
   __ bind(&L2);
   __ call(Operand(rbx, rcx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+  Handle<Code> ic(CcTest::i_isolate()->builtins()->builtin(
       Builtins::kLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();

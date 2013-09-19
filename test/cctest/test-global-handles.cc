@@ -86,7 +86,7 @@ class TestObjectVisitor : public ObjectVisitor {
 
 TEST(IterateObjectGroupsOldApi) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
@@ -181,7 +181,7 @@ TEST(IterateObjectGroupsOldApi) {
 
 TEST(IterateObjectGroups) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
@@ -275,7 +275,7 @@ TEST(IterateObjectGroups) {
 
 TEST(ImplicitReferences) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
@@ -319,7 +319,7 @@ TEST(ImplicitReferences) {
 
 TEST(EternalHandles) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   EternalHandles* eternal_handles = isolate->eternal_handles();
 

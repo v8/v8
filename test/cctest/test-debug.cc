@@ -302,7 +302,7 @@ static int SetScriptBreakPointByNameFromJS(const char* script_name,
 
 // Clear a break point.
 static void ClearBreakPoint(int break_point) {
-  v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
+  v8::internal::Isolate* isolate = CcTest::i_isolate();
   v8::internal::Debug* debug = isolate->debug();
   debug->ClearBreakPoint(
       Handle<Object>(v8::internal::Smi::FromInt(break_point), isolate));
@@ -364,7 +364,7 @@ static void ChangeScriptBreakPointIgnoreCountFromJS(int break_point_number,
 
 // Change break on exception.
 static void ChangeBreakOnException(bool caught, bool uncaught) {
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   debug->ChangeBreakOnException(v8::internal::BreakException, caught);
   debug->ChangeBreakOnException(v8::internal::BreakUncaughtException, uncaught);
 }
@@ -391,7 +391,7 @@ static void ChangeBreakOnExceptionFromJS(bool caught, bool uncaught) {
 
 // Prepare to step to next break location.
 static void PrepareStep(StepAction step_action) {
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   debug->PrepareStep(step_action, 1, StackFrame::NO_ID);
 }
 
@@ -403,7 +403,7 @@ namespace internal {
 
 // Collect the currently debugged functions.
 Handle<FixedArray> GetDebuggedFunctions() {
-  Debug* debug = Isolate::Current()->debug();
+  Debug* debug = CcTest::i_isolate()->debug();
 
   v8::internal::DebugInfoListNode* node = debug->debug_info_list_;
 
@@ -416,7 +416,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
   // Allocate array for the debugged functions
   Handle<FixedArray> debugged_functions =
-      Isolate::Current()->factory()->NewFixedArray(count);
+      CcTest::i_isolate()->factory()->NewFixedArray(count);
 
   // Run through the debug info objects and collect all functions.
   count = 0;
@@ -430,7 +430,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
 
 static Handle<Code> ComputeCallDebugBreak(int argc) {
-  return Isolate::Current()->stub_cache()->ComputeCallDebugBreak(argc,
+  return CcTest::i_isolate()->stub_cache()->ComputeCallDebugBreak(argc,
                                                                  Code::CALL_IC);
 }
 
@@ -439,8 +439,8 @@ static Handle<Code> ComputeCallDebugBreak(int argc) {
 void CheckDebuggerUnloaded(bool check_functions) {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
-  CHECK(Isolate::Current()->debug()->debug_context().is_null());
-  CHECK_EQ(NULL, Isolate::Current()->debug()->debug_info_list_);
+  CHECK(CcTest::i_isolate()->debug()->debug_context().is_null());
+  CHECK_EQ(NULL, CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
@@ -472,8 +472,8 @@ void CheckDebuggerUnloaded(bool check_functions) {
 
 
 void ForceUnloadDebugger() {
-  Isolate::Current()->debugger()->never_unload_debugger_ = false;
-  Isolate::Current()->debugger()->UnloadDebugger();
+  CcTest::i_isolate()->debugger()->never_unload_debugger_ = false;
+  CcTest::i_isolate()->debugger()->UnloadDebugger();
 }
 
 
@@ -508,7 +508,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
                              const char* source, const char* name,
                              int position, v8::internal::RelocInfo::Mode mode,
                              Code* debug_break) {
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
 
   // Create function and set the break point.
   Handle<v8::internal::JSFunction> fun = v8::Utils::OpenHandle(
@@ -674,7 +674,7 @@ static void DebugEventBreakPointHitCount(
   v8::DebugEvent event = event_details.GetEvent();
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
   v8::Handle<v8::Object> event_data = event_details.GetEventData();
-  v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
+  v8::internal::Isolate* isolate = CcTest::i_isolate();
   Debug* debug = isolate->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
@@ -787,7 +787,7 @@ static void DebugEventCounter(
   v8::DebugEvent event = event_details.GetEvent();
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
   v8::Handle<v8::Object> event_data = event_details.GetEventData();
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
 
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
@@ -849,7 +849,7 @@ static void DebugEventEvaluate(
     const v8::Debug::EventDetails& event_details) {
   v8::DebugEvent event = event_details.GetEvent();
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
 
@@ -876,7 +876,7 @@ static void DebugEventRemoveBreakPoint(
     const v8::Debug::EventDetails& event_details) {
   v8::DebugEvent event = event_details.GetEvent();
   v8::Handle<v8::Value> data = event_details.GetCallbackData();
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
 
@@ -894,7 +894,7 @@ StepAction step_action = StepIn;  // Step action to perform when stepping.
 static void DebugEventStep(
     const v8::Debug::EventDetails& event_details) {
   v8::DebugEvent event = event_details.GetEvent();
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
 
@@ -921,7 +921,7 @@ static void DebugEventStepSequence(
     const v8::Debug::EventDetails& event_details) {
   v8::DebugEvent event = event_details.GetEvent();
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
 
@@ -950,7 +950,7 @@ static void DebugEventStepSequence(
 static void DebugEventBreakPointCollectGarbage(
     const v8::Debug::EventDetails& event_details) {
   v8::DebugEvent event = event_details.GetEvent();
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
 
@@ -1076,13 +1076,13 @@ TEST(DebugStub) {
                           "function f2(){x=1;}", "f2",
                           0,
                           v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
-                          Isolate::Current()->builtins()->builtin(
+                          CcTest::i_isolate()->builtins()->builtin(
                               Builtins::kStoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",
                           0,
                           v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
-                          Isolate::Current()->builtins()->builtin(
+                          CcTest::i_isolate()->builtins()->builtin(
                               Builtins::kLoadIC_DebugBreak));
 
 // TODO(1240753): Make the test architecture independent or split
@@ -1096,7 +1096,7 @@ TEST(DebugStub) {
       "f4",
       0,
       v8::internal::RelocInfo::CODE_TARGET,
-      Isolate::Current()->builtins()->builtin(
+      CcTest::i_isolate()->builtins()->builtin(
           Builtins::kKeyedStoreIC_DebugBreak));
   CheckDebugBreakFunction(
       &env,
@@ -1104,7 +1104,7 @@ TEST(DebugStub) {
       "f5",
       0,
       v8::internal::RelocInfo::CODE_TARGET,
-      Isolate::Current()->builtins()->builtin(
+      CcTest::i_isolate()->builtins()->builtin(
           Builtins::kKeyedLoadIC_DebugBreak));
 #endif
 
@@ -1114,7 +1114,7 @@ TEST(DebugStub) {
       "f6",
       0,
       v8::internal::RelocInfo::CODE_TARGET,
-      Isolate::Current()->builtins()->builtin(
+      CcTest::i_isolate()->builtins()->builtin(
           Builtins::kCompareNilIC_DebugBreak));
 
   // Check the debug break code stubs for call ICs with different number of
@@ -3847,7 +3847,7 @@ TEST(BreakOnException) {
   v8::HandleScope scope(env->GetIsolate());
   env.ExposeDebug();
 
-  v8::internal::Isolate::Current()->TraceException(false);
+  CcTest::i_isolate()->TraceException(false);
 
   // Create functions for testing break on exception.
   CompileFunction(&env, "function throws(){throw 1;}", "throws");
@@ -3993,7 +3993,7 @@ TEST(BreakOnCompileException) {
   // For this test, we want to break on uncaught exceptions:
   ChangeBreakOnException(false, true);
 
-  v8::internal::Isolate::Current()->TraceException(false);
+  CcTest::i_isolate()->TraceException(false);
 
   // Create a function for checking the function when hitting a break point.
   frame_count = CompileFunction(&env, frame_count_source, "frame_count");
@@ -5919,7 +5919,7 @@ UNINITIALIZED_TEST(DebuggerDebugMessageDispatch) {
 
 TEST(DebuggerAgent) {
   v8::V8::Initialize();
-  i::Debugger* debugger = i::Isolate::Current()->debugger();
+  i::Debugger* debugger = CcTest::i_isolate()->debugger();
   // Make sure these ports is not used by other tests to allow tests to run in
   // parallel.
   const int kPort1 = 5858 + FlagDependentPortOffset();
@@ -6536,7 +6536,7 @@ static void DebugEventScriptCollectedEvent(
 
 // Test that scripts collected are reported through the debug event listener.
 TEST(ScriptCollectedEvent) {
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   break_point_hit_count = 0;
   script_collected_count = 0;
   DebugLocalContext env;
@@ -6774,7 +6774,7 @@ TEST(ProvisionalBreakpointOnLineOutOfRange) {
 
 
 static void BreakMessageHandler(const v8::Debug::Message& message) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   if (message.IsEvent() && message.GetEvent() == v8::Break) {
     // Count the number of breaks.
     break_point_hit_count++;
@@ -7039,7 +7039,7 @@ static void DebugEventGetAtgumentPropertyValue(
 
 
 TEST(CallingContextIsNotDebugContext) {
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // Create and enter a debugee context.
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -7195,7 +7195,7 @@ static void DebugEventBreakDeoptimize(
         v8::Handle<v8::String> function_name(result->ToString());
         function_name->WriteUtf8(fn);
         if (strcmp(fn, "bar") == 0) {
-          i::Deoptimizer::DeoptimizeAll(v8::internal::Isolate::Current());
+          i::Deoptimizer::DeoptimizeAll(CcTest::i_isolate());
           debug_event_break_deoptimize_done = true;
         }
       }

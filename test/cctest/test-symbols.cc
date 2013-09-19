@@ -15,7 +15,7 @@ using namespace v8::internal;
 
 TEST(Create) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   const int kNumSymbols = 30;
