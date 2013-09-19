@@ -3073,10 +3073,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowGeneratorStateError) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectFreeze) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  return object->Freeze(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  Handle<Object> result = JSObject::Freeze(object);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 

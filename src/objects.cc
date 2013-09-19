@@ -4593,6 +4593,18 @@ static MUST_USE_RESULT MaybeObject* CopyFastElementsToDictionary(
 }
 
 
+static Handle<SeededNumberDictionary> CopyFastElementsToDictionary(
+    Handle<FixedArrayBase> array,
+    int length,
+    Handle<SeededNumberDictionary> dict) {
+  Isolate* isolate = array->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     CopyFastElementsToDictionary(
+                         isolate, *array, length, *dict),
+                     SeededNumberDictionary);
+}
+
+
 Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     Handle<JSObject> object) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
@@ -5408,122 +5420,114 @@ static void FreezeDictionary(Dictionary* dictionary) {
 }
 
 
-MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
+Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
   // Freezing non-strict arguments should be handled elsewhere.
-  ASSERT(!HasNonStrictArgumentsElements());
+  ASSERT(!object->HasNonStrictArgumentsElements());
 
-  Heap* heap = isolate->heap();
+  if (object->map()->is_frozen()) return object;
 
-  if (map()->is_frozen()) return this;
-
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(this,
-                               heap->undefined_value(),
+  Isolate* isolate = object->GetIsolate();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object,
+                               isolate->heap()->undefined_value(),
                                v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return heap->false_value();
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return isolate->factory()->false_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return this;
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return object;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->Freeze(isolate);
+    return Freeze(Handle<JSObject>::cast(proto));
   }
 
   // It's not possible to freeze objects with external array elements
-  if (HasExternalArrayElements()) {
-    HandleScope scope(isolate);
-    Handle<Object> object(this, isolate);
+  if (object->HasExternalArrayElements()) {
     Handle<Object> error  =
         isolate->factory()->NewTypeError(
             "cant_prevent_ext_external_array_elements",
             HandleVector(&object, 1));
-    return isolate->Throw(*error);
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
-  SeededNumberDictionary* new_element_dictionary = NULL;
-  if (!elements()->IsDictionary()) {
-    int length = IsJSArray()
-        ? Smi::cast(JSArray::cast(this)->length())->value()
-        : elements()->length();
+  Handle<SeededNumberDictionary> new_element_dictionary;
+  if (!object->elements()->IsDictionary()) {
+    int length = object->IsJSArray()
+        ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
+        : object->elements()->length();
     if (length > 0) {
       int capacity = 0;
       int used = 0;
-      GetElementsCapacityAndUsage(&capacity, &used);
-      MaybeObject* maybe_dict = SeededNumberDictionary::Allocate(heap, used);
-      if (!maybe_dict->To(&new_element_dictionary)) return maybe_dict;
+      object->GetElementsCapacityAndUsage(&capacity, &used);
+      new_element_dictionary =
+          isolate->factory()->NewSeededNumberDictionary(used);
 
       // Move elements to a dictionary; avoid calling NormalizeElements to avoid
       // unnecessary transitions.
-      maybe_dict = CopyFastElementsToDictionary(isolate, elements(), length,
-                                                new_element_dictionary);
-      if (!maybe_dict->To(&new_element_dictionary)) return maybe_dict;
+      new_element_dictionary = CopyFastElementsToDictionary(
+          handle(object->elements()), length, new_element_dictionary);
     } else {
       // No existing elements, use a pre-allocated empty backing store
-      new_element_dictionary = heap->empty_slow_element_dictionary();
+      new_element_dictionary =
+          isolate->factory()->empty_slow_element_dictionary();
     }
   }
 
   LookupResult result(isolate);
-  map()->LookupTransition(this, heap->frozen_symbol(), &result);
+  Handle<Map> old_map(object->map());
+  old_map->LookupTransition(*object, isolate->heap()->frozen_symbol(), &result);
   if (result.IsTransition()) {
     Map* transition_map = result.GetTransitionTarget();
     ASSERT(transition_map->has_dictionary_elements());
     ASSERT(transition_map->is_frozen());
     ASSERT(!transition_map->is_extensible());
-    set_map(transition_map);
-  } else if (HasFastProperties() && map()->CanHaveMoreTransitions()) {
+    object->set_map(transition_map);
+  } else if (object->HasFastProperties() && old_map->CanHaveMoreTransitions()) {
     // Create a new descriptor array with fully-frozen properties
-    int num_descriptors = map()->NumberOfOwnDescriptors();
-    DescriptorArray* new_descriptors;
-    MaybeObject* maybe_descriptors =
-        map()->instance_descriptors()->CopyUpToAddAttributes(num_descriptors,
-                                                             FROZEN);
-    if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-
-    Map* new_map;
-    MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(
-        new_descriptors, INSERT_TRANSITION, heap->frozen_symbol());
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    int num_descriptors = old_map->NumberOfOwnDescriptors();
+    Handle<DescriptorArray> new_descriptors =
+        DescriptorArray::CopyUpToAddAttributes(
+            handle(old_map->instance_descriptors()), num_descriptors, FROZEN);
+    Handle<Map> new_map = Map::CopyReplaceDescriptors(
+        old_map, new_descriptors, INSERT_TRANSITION,
+        isolate->factory()->frozen_symbol());
     new_map->freeze();
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
-    set_map(new_map);
+    object->set_map(*new_map);
   } else {
     // Slow path: need to normalize properties for safety
-    MaybeObject* maybe = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-    if (maybe->IsFailure()) return maybe;
+    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
 
     // Create a new map, since other objects with this map may be extensible.
     // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-    Map* new_map;
-    MaybeObject* maybe_copy = map()->Copy();
-    if (!maybe_copy->To(&new_map)) return maybe_copy;
+    Handle<Map> new_map = Map::Copy(handle(object->map()));
     new_map->freeze();
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
-    set_map(new_map);
+    object->set_map(*new_map);
 
     // Freeze dictionary-mode properties
-    FreezeDictionary(property_dictionary());
+    FreezeDictionary(object->property_dictionary());
   }
 
-  ASSERT(map()->has_dictionary_elements());
-  if (new_element_dictionary != NULL) {
-    set_elements(new_element_dictionary);
+  ASSERT(object->map()->has_dictionary_elements());
+  if (!new_element_dictionary.is_null()) {
+    object->set_elements(*new_element_dictionary);
   }
 
-  if (elements() != heap->empty_slow_element_dictionary()) {
-    SeededNumberDictionary* dictionary = element_dictionary();
+  if (object->elements() != isolate->heap()->empty_slow_element_dictionary()) {
+    SeededNumberDictionary* dictionary = object->element_dictionary();
     // Make sure we never go back to the fast case
     dictionary->set_requires_slow_elements();
     // Freeze all elements in the dictionary
     FreezeDictionary(dictionary);
   }
 
-  return this;
+  return object;
 }
 
 
@@ -6581,6 +6585,16 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
 }
 
 
+Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
+                                        Handle<DescriptorArray> descriptors,
+                                        TransitionFlag flag,
+                                        Handle<Name> name) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->CopyReplaceDescriptors(*descriptors, flag, *name),
+                     Map);
+}
+
+
 MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
                                          TransitionFlag flag,
                                          Name* name,
@@ -6831,6 +6845,16 @@ MaybeObject* Map::CopyInsertDescriptor(Descriptor* descriptor,
     return CopyReplaceDescriptor(old_descriptors, descriptor, index, flag);
   }
   return CopyAddDescriptor(descriptor, flag);
+}
+
+
+Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
+    Handle<DescriptorArray> desc,
+    int enumeration_index,
+    PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(desc->GetIsolate(),
+                     desc->CopyUpToAddAttributes(enumeration_index, attributes),
+                     DescriptorArray);
 }
 
 

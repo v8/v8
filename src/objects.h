@@ -2545,8 +2545,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* PreventExtensions();
 
   // ES5 Object.freeze
-  MUST_USE_RESULT MaybeObject* Freeze(Isolate* isolate);
-
+  static Handle<Object> Freeze(Handle<JSObject> object);
 
   // Called the first time an object is observed with ES7 Object.observe.
   MUST_USE_RESULT MaybeObject* SetObserved(Isolate* isolate);
@@ -3186,6 +3185,10 @@ class DescriptorArray: public FixedArray {
     return CopyUpToAddAttributes(enumeration_index, NONE);
   }
 
+  static Handle<DescriptorArray> CopyUpToAddAttributes(
+      Handle<DescriptorArray> desc,
+      int enumeration_index,
+      PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* CopyUpToAddAttributes(
       int enumeration_index,
       PropertyAttributes attributes);
@@ -5788,6 +5791,10 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
+  static Handle<Map> CopyReplaceDescriptors(Handle<Map> map,
+                                            Handle<DescriptorArray> descriptors,
+                                            TransitionFlag flag,
+                                            Handle<Name> name);
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
       TransitionFlag flag,
