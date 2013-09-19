@@ -1285,29 +1285,29 @@ class HGraphBuilder {
     }
 
     template<class Condition>
-    HInstruction* If(HValue *p) {
-      HControlInstruction* compare = new(zone()) Condition(p);
+    Condition* If(HValue *p) {
+      Condition* compare = builder()->New<Condition>(p);
       AddCompare(compare);
       return compare;
     }
 
     template<class Condition, class P2>
-    HInstruction* If(HValue* p1, P2 p2) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2);
+    Condition* If(HValue* p1, P2 p2) {
+      Condition* compare = builder()->New<Condition>(p1, p2);
       AddCompare(compare);
       return compare;
     }
 
     template<class Condition, class P2, class P3>
-    HInstruction* If(HValue* p1, P2 p2, P3 p3) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2, p3);
+    Condition* If(HValue* p1, P2 p2, P3 p3) {
+      Condition* compare = builder()->New<Condition>(p1, p2, p3);
       AddCompare(compare);
       return compare;
     }
 
     template<class Condition, class P2>
-    HInstruction* IfNot(HValue* p1, P2 p2) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2);
+    Condition* IfNot(HValue* p1, P2 p2) {
+      Condition* compare = builder()->New<Condition>(p1, p2);
       AddCompare(compare);
       HBasicBlock* block0 = compare->SuccessorAt(0);
       HBasicBlock* block1 = compare->SuccessorAt(1);
@@ -1317,8 +1317,8 @@ class HGraphBuilder {
     }
 
     template<class Condition, class P2, class P3>
-    HInstruction* IfNot(HValue* p1, P2 p2, P3 p3) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2, p3);
+    Condition* IfNot(HValue* p1, P2 p2, P3 p3) {
+      Condition* compare = builder()->New<Condition>(p1, p2, p3);
       AddCompare(compare);
       HBasicBlock* block0 = compare->SuccessorAt(0);
       HBasicBlock* block1 = compare->SuccessorAt(1);
@@ -1328,37 +1328,37 @@ class HGraphBuilder {
     }
 
     template<class Condition>
-    HInstruction* OrIf(HValue *p) {
+    Condition* OrIf(HValue *p) {
       Or();
       return If<Condition>(p);
     }
 
     template<class Condition, class P2>
-    HInstruction* OrIf(HValue* p1, P2 p2) {
+    Condition* OrIf(HValue* p1, P2 p2) {
       Or();
       return If<Condition>(p1, p2);
     }
 
     template<class Condition, class P2, class P3>
-    HInstruction* OrIf(HValue* p1, P2 p2, P3 p3) {
+    Condition* OrIf(HValue* p1, P2 p2, P3 p3) {
       Or();
       return If<Condition>(p1, p2, p3);
     }
 
     template<class Condition>
-    HInstruction* AndIf(HValue *p) {
+    Condition* AndIf(HValue *p) {
       And();
       return If<Condition>(p);
     }
 
     template<class Condition, class P2>
-    HInstruction* AndIf(HValue* p1, P2 p2) {
+    Condition* AndIf(HValue* p1, P2 p2) {
       And();
       return If<Condition>(p1, p2);
     }
 
     template<class Condition, class P2, class P3>
-    HInstruction* AndIf(HValue* p1, P2 p2, P3 p3) {
+    Condition* AndIf(HValue* p1, P2 p2, P3 p3) {
       And();
       return If<Condition>(p1, p2, p3);
     }
@@ -1383,7 +1383,7 @@ class HGraphBuilder {
    private:
     void AddCompare(HControlInstruction* compare);
 
-    Zone* zone() { return builder_->zone(); }
+    HGraphBuilder* builder() const { return builder_; }
 
     HGraphBuilder* builder_;
     int position_;

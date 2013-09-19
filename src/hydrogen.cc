@@ -815,9 +815,8 @@ void HGraphBuilder::IfBuilder::Then() {
     HConstant* constant_false = builder_->graph()->GetConstantFalse();
     ToBooleanStub::Types boolean_type = ToBooleanStub::Types();
     boolean_type.Add(ToBooleanStub::BOOLEAN);
-    HBranch* branch =
-        new(zone()) HBranch(constant_false, boolean_type, first_true_block_,
-                            first_false_block_);
+    HBranch* branch = builder()->New<HBranch>(
+        constant_false, boolean_type, first_true_block_, first_false_block_);
     builder_->current_block()->Finish(branch);
   }
   builder_->set_current_block(first_true_block_);
@@ -949,11 +948,8 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
 
   builder_->set_current_block(header_block_);
   env->Pop();
-  HCompareNumericAndBranch* compare =
-      new(zone()) HCompareNumericAndBranch(phi_, terminating, token);
-  compare->SetSuccessorAt(0, body_block_);
-  compare->SetSuccessorAt(1, exit_block_);
-  builder_->current_block()->Finish(compare);
+  builder_->current_block()->Finish(builder_->New<HCompareNumericAndBranch>(
+          phi_, terminating, token, body_block_, exit_block_));
 
   builder_->set_current_block(body_block_);
   if (direction_ == kPreIncrement || direction_ == kPreDecrement) {
@@ -2772,8 +2768,8 @@ void TestContext::BuildBranch(HValue* value) {
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   ToBooleanStub::Types expected(condition()->to_boolean_types());
-  HBranch* test = new(zone()) HBranch(value, expected, empty_true, empty_false);
-  builder->current_block()->Finish(test);
+  builder->current_block()->Finish(builder->New<HBranch>(
+          value, expected, empty_true, empty_false));
 
   empty_true->Goto(if_true(), builder->function_state());
   empty_false->Goto(if_false(), builder->function_state());
@@ -3374,12 +3370,10 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
   // Test switch's tag value if all clauses are string literals
   if (stmt->switch_type() == SwitchStatement::STRING_SWITCH) {
-    string_check = new(zone()) HIsStringAndBranch(tag_value);
     first_test_block = graph()->CreateBasicBlock();
     not_string_block = graph()->CreateBasicBlock();
-
-    string_check->SetSuccessorAt(0, first_test_block);
-    string_check->SetSuccessorAt(1, not_string_block);
+    string_check = New<HIsStringAndBranch>(
+        tag_value, first_test_block, not_string_block);
     current_block()->Finish(string_check);
 
     set_current_block(first_test_block);
@@ -3409,9 +3403,9 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
       }
 
       HCompareNumericAndBranch* compare_ =
-          new(zone()) HCompareNumericAndBranch(tag_value,
-                                               label_value,
-                                               Token::EQ_STRICT);
+          New<HCompareNumericAndBranch>(tag_value,
+                                        label_value,
+                                        Token::EQ_STRICT);
       compare_->set_observed_input_representation(
           Representation::Smi(), Representation::Smi());
       compare = compare_;
@@ -3695,7 +3689,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 
   // Check that we still have more keys.
   HCompareNumericAndBranch* compare_index =
-      new(zone()) HCompareNumericAndBranch(index, limit, Token::LT);
+      New<HCompareNumericAndBranch>(index, limit, Token::LT);
   compare_index->set_observed_input_representation(
       Representation::Smi(), Representation::Smi());
 
@@ -4710,7 +4704,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
       ++count;
       HBasicBlock* if_true = graph()->CreateBasicBlock();
       HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare = new(zone()) HCompareMap(
+      HCompareMap* compare = New<HCompareMap>(
           object, info.map(),  if_true, if_false);
       current_block()->Finish(compare);
 
@@ -4849,8 +4843,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
       ++count;
       HBasicBlock* if_true = graph()->CreateBasicBlock();
       HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare =
-          new(zone()) HCompareMap(object, map,  if_true, if_false);
+      HCompareMap* compare = New<HCompareMap>(object, map,  if_true, if_false);
       current_block()->Finish(compare);
 
       set_current_block(if_true);
@@ -5572,7 +5565,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HBasicBlock* this_map = graph()->CreateBasicBlock();
     HBasicBlock* other_map = graph()->CreateBasicBlock();
     HCompareMap* mapcompare =
-        new(zone()) HCompareMap(object, map, this_map, other_map);
+        New<HCompareMap>(object, map, this_map, other_map);
     current_block()->Finish(mapcompare);
 
     set_current_block(this_map);
@@ -6040,10 +6033,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         HBasicBlock* empty_smi_block = graph()->CreateBasicBlock();
         HBasicBlock* not_smi_block = graph()->CreateBasicBlock();
         number_block = graph()->CreateBasicBlock();
-        HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(receiver);
-        smicheck->SetSuccessorAt(0, empty_smi_block);
-        smicheck->SetSuccessorAt(1, not_smi_block);
-        current_block()->Finish(smicheck);
+        current_block()->Finish(New<HIsSmiAndBranch>(
+                receiver, empty_smi_block, not_smi_block));
         empty_smi_block->Goto(number_block);
         set_current_block(not_smi_block);
       } else {
@@ -6055,20 +6046,17 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     HUnaryControlInstruction* compare;
 
     if (handle_smi && map.is_identical_to(number_marker_map)) {
-      compare = new(zone()) HCompareMap(
-          receiver, heap_number_map, if_true, if_false);
+      compare = New<HCompareMap>(receiver, heap_number_map, if_true, if_false);
       map = initial_number_map;
       expr->set_number_check(
           Handle<JSObject>(JSObject::cast(map->prototype())));
     } else if (map.is_identical_to(string_marker_map)) {
-      compare = new(zone()) HIsStringAndBranch(receiver);
-      compare->SetSuccessorAt(0, if_true);
-      compare->SetSuccessorAt(1, if_false);
+      compare = New<HIsStringAndBranch>(receiver, if_true, if_false);
       map = initial_string_map;
       expr->set_string_check(
           Handle<JSObject>(JSObject::cast(map->prototype())));
     } else {
-      compare = new(zone()) HCompareMap(receiver, map, if_true, if_false);
+      compare = New<HCompareMap>(receiver, map, if_true, if_false);
       expr->set_map_check();
     }
 
@@ -7812,8 +7800,8 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
     ToBooleanStub::Types expected(expr->left()->to_boolean_types());
     HBranch* test = is_logical_and
-        ? new(zone()) HBranch(left_value, expected, eval_right, empty_block)
-        : new(zone()) HBranch(left_value, expected, empty_block, eval_right);
+        ? New<HBranch>(left_value, expected, eval_right, empty_block)
+        : New<HBranch>(left_value, expected, empty_block, eval_right);
     current_block()->Finish(test);
 
     set_current_block(eval_right);
@@ -8036,7 +8024,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
           BuildCheckHeapObject(right);
           AddInstruction(HCheckInstanceType::NewIsSpecObject(right, zone()));
           HCompareObjectEqAndBranch* result =
-              new(zone()) HCompareObjectEqAndBranch(left, right);
+              New<HCompareObjectEqAndBranch>(left, right);
           result->set_position(expr->position());
           return ast_context()->ReturnControl(result, expr->id());
         }
@@ -8051,7 +8039,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     BuildCheckHeapObject(right);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(right, zone()));
     HCompareObjectEqAndBranch* result =
-        new(zone()) HCompareObjectEqAndBranch(left, right);
+        New<HCompareObjectEqAndBranch>(left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnControl(result, expr->id());
   } else {
@@ -8064,7 +8052,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
       HCompareNumericAndBranch* result =
-          new(zone()) HCompareNumericAndBranch(left, right, op);
+          New<HCompareNumericAndBranch>(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
       result->set_position(expr->position());
       return ast_context()->ReturnControl(result, expr->id());
@@ -8506,7 +8494,7 @@ void HOptimizedGraphBuilder::GenerateIsSmi(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
-  HIsSmiAndBranch* result = new(zone()) HIsSmiAndBranch(value);
+  HIsSmiAndBranch* result = New<HIsSmiAndBranch>(value);
   return ast_context()->ReturnControl(result, call->id());
 }
 
@@ -8567,7 +8555,7 @@ void HOptimizedGraphBuilder::GenerateIsObject(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
-  HIsObjectAndBranch* result = new(zone()) HIsObjectAndBranch(value);
+  HIsObjectAndBranch* result = New<HIsObjectAndBranch>(value);
   return ast_context()->ReturnControl(result, call->id());
 }
 
@@ -8581,8 +8569,7 @@ void HOptimizedGraphBuilder::GenerateIsUndetectableObject(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
-  HIsUndetectableAndBranch* result =
-      new(zone()) HIsUndetectableAndBranch(value);
+  HIsUndetectableAndBranch* result = New<HIsUndetectableAndBranch>(value);
   return ast_context()->ReturnControl(result, call->id());
 }
 
@@ -8704,13 +8691,10 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
   HValue* value = Pop();
   HValue* object = Pop();
   // Check if object is a not a smi.
-  HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(object);
   HBasicBlock* if_smi = graph()->CreateBasicBlock();
   HBasicBlock* if_heap_object = graph()->CreateBasicBlock();
   HBasicBlock* join = graph()->CreateBasicBlock();
-  smicheck->SetSuccessorAt(0, if_smi);
-  smicheck->SetSuccessorAt(1, if_heap_object);
-  current_block()->Finish(smicheck);
+  current_block()->Finish(New<HIsSmiAndBranch>(object, if_smi, if_heap_object));
   if_smi->Goto(join);
 
   // Check if object is a JSValue.

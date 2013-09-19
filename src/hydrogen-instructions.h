@@ -1351,14 +1351,12 @@ class HUnaryControlInstruction : public HTemplateControlInstruction<2, 1> {
 
 class HBranch V8_FINAL : public HUnaryControlInstruction {
  public:
-  HBranch(HValue* value,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types(),
-          HBasicBlock* true_target = NULL,
-          HBasicBlock* false_target = NULL)
-      : HUnaryControlInstruction(value, true_target, false_target),
-        expected_input_types_(expected_input_types) {
-    SetFlag(kAllowUndefinedAsNaN);
-  }
+  DECLARE_INSTRUCTION_FACTORY_P1(HBranch, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P2(HBranch, HValue*,
+                                 ToBooleanStub::Types);
+  DECLARE_INSTRUCTION_FACTORY_P4(HBranch, HValue*,
+                                 ToBooleanStub::Types,
+                                 HBasicBlock*, HBasicBlock*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
@@ -1372,20 +1370,24 @@ class HBranch V8_FINAL : public HUnaryControlInstruction {
   DECLARE_CONCRETE_INSTRUCTION(Branch)
 
  private:
+  HBranch(HValue* value,
+          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types(),
+          HBasicBlock* true_target = NULL,
+          HBasicBlock* false_target = NULL)
+      : HUnaryControlInstruction(value, true_target, false_target),
+        expected_input_types_(expected_input_types) {
+    SetFlag(kAllowUndefinedAsNaN);
+  }
+
   ToBooleanStub::Types expected_input_types_;
 };
 
 
 class HCompareMap V8_FINAL : public HUnaryControlInstruction {
  public:
-  HCompareMap(HValue* value,
-              Handle<Map> map,
-              HBasicBlock* true_target = NULL,
-              HBasicBlock* false_target = NULL)
-      : HUnaryControlInstruction(value, true_target, false_target),
-      map_(map) {
-    ASSERT(!map.is_null());
-  }
+  DECLARE_INSTRUCTION_FACTORY_P2(HCompareMap, HValue*, Handle<Map>);
+  DECLARE_INSTRUCTION_FACTORY_P4(HCompareMap, HValue*, Handle<Map>,
+                                 HBasicBlock*, HBasicBlock*);
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
@@ -1401,6 +1403,14 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
   virtual int RedefinedOperandIndex() { return 0; }
 
  private:
+  HCompareMap(HValue* value,
+              Handle<Map> map,
+              HBasicBlock* true_target = NULL,
+              HBasicBlock* false_target = NULL)
+      : HUnaryControlInstruction(value, true_target, false_target), map_(map) {
+    ASSERT(!map.is_null());
+  }
+
   Handle<Map> map_;
 };
 
@@ -4033,13 +4043,11 @@ class HCompareGeneric V8_FINAL : public HBinaryOperation {
 
 class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
  public:
-  HCompareNumericAndBranch(HValue* left, HValue* right, Token::Value token)
-      : token_(token) {
-    SetFlag(kFlexibleRepresentation);
-    ASSERT(Token::IsCompareOp(token));
-    SetOperandAt(0, left);
-    SetOperandAt(1, right);
-  }
+  DECLARE_INSTRUCTION_FACTORY_P3(HCompareNumericAndBranch,
+                                 HValue*, HValue*, Token::Value);
+  DECLARE_INSTRUCTION_FACTORY_P5(HCompareNumericAndBranch,
+                                 HValue*, HValue*, Token::Value,
+                                 HBasicBlock*, HBasicBlock*);
 
   HValue* left() { return OperandAt(0); }
   HValue* right() { return OperandAt(1); }
@@ -4065,6 +4073,20 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
   DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
  private:
+  HCompareNumericAndBranch(HValue* left,
+                           HValue* right,
+                           Token::Value token,
+                           HBasicBlock* true_target = NULL,
+                           HBasicBlock* false_target = NULL)
+      : token_(token) {
+    SetFlag(kFlexibleRepresentation);
+    ASSERT(Token::IsCompareOp(token));
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
+    SetSuccessorAt(0, true_target);
+    SetSuccessorAt(1, false_target);
+  }
+
   Representation observed_input_representation_[2];
   Token::Value token_;
 };
@@ -4072,16 +4094,6 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 
 class HCompareHoleAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
-  // TODO(danno): make this private when the IfBuilder properly constructs
-  // control flow instructions.
-  HCompareHoleAndBranch(HValue* value,
-                        HBasicBlock* true_target = NULL,
-                        HBasicBlock* false_target = NULL)
-      : HUnaryControlInstruction(value, true_target, false_target) {
-    SetFlag(kFlexibleRepresentation);
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-
   DECLARE_INSTRUCTION_FACTORY_P1(HCompareHoleAndBranch, HValue*);
   DECLARE_INSTRUCTION_FACTORY_P3(HCompareHoleAndBranch, HValue*,
                                  HBasicBlock*, HBasicBlock*);
@@ -4094,20 +4106,23 @@ class HCompareHoleAndBranch V8_FINAL : public HUnaryControlInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareHoleAndBranch)
+
+ private:
+  HCompareHoleAndBranch(HValue* value,
+                        HBasicBlock* true_target = NULL,
+                        HBasicBlock* false_target = NULL)
+      : HUnaryControlInstruction(value, true_target, false_target) {
+    SetFlag(kFlexibleRepresentation);
+    SetFlag(kAllowUndefinedAsNaN);
+  }
 };
 
 
 class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
  public:
-  // TODO(danno): make this private when the IfBuilder properly constructs
-  // control flow instructions.
-  HCompareObjectEqAndBranch(HValue* left,
-                            HValue* right) {
-    SetOperandAt(0, left);
-    SetOperandAt(1, right);
-  }
-
   DECLARE_INSTRUCTION_FACTORY_P2(HCompareObjectEqAndBranch, HValue*, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P4(HCompareObjectEqAndBranch, HValue*, HValue*,
+                                 HBasicBlock*, HBasicBlock*);
 
   HValue* left() { return OperandAt(0); }
   HValue* right() { return OperandAt(1); }
@@ -4123,38 +4138,65 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareObjectEqAndBranch)
+
+ private:
+  HCompareObjectEqAndBranch(HValue* left,
+                            HValue* right,
+                            HBasicBlock* true_target = NULL,
+                            HBasicBlock* false_target = NULL) {
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
+    SetSuccessorAt(0, true_target);
+    SetSuccessorAt(1, false_target);
+  }
 };
 
 
 class HIsObjectAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
-  explicit HIsObjectAndBranch(HValue* value)
-    : HUnaryControlInstruction(value, NULL, NULL) { }
+  DECLARE_INSTRUCTION_FACTORY_P1(HIsObjectAndBranch, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P3(HIsObjectAndBranch, HValue*,
+                                 HBasicBlock*, HBasicBlock*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch)
+
+ private:
+  HIsObjectAndBranch(HValue* value,
+                     HBasicBlock* true_target = NULL,
+                     HBasicBlock* false_target = NULL)
+    : HUnaryControlInstruction(value, true_target, false_target) {}
 };
+
 
 class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
-  explicit HIsStringAndBranch(HValue* value)
-    : HUnaryControlInstruction(value, NULL, NULL) { }
+  DECLARE_INSTRUCTION_FACTORY_P1(HIsStringAndBranch, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P3(HIsStringAndBranch, HValue*,
+                                 HBasicBlock*, HBasicBlock*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
+
+ private:
+  HIsStringAndBranch(HValue* value,
+                     HBasicBlock* true_target = NULL,
+                     HBasicBlock* false_target = NULL)
+    : HUnaryControlInstruction(value, true_target, false_target) {}
 };
 
 
 class HIsSmiAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
-  explicit HIsSmiAndBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) { }
+  DECLARE_INSTRUCTION_FACTORY_P1(HIsSmiAndBranch, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P3(HIsSmiAndBranch, HValue*,
+                                 HBasicBlock*, HBasicBlock*);
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmiAndBranch)
 
@@ -4164,19 +4206,32 @@ class HIsSmiAndBranch V8_FINAL : public HUnaryControlInstruction {
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+
+ private:
+  HIsSmiAndBranch(HValue* value,
+                  HBasicBlock* true_target = NULL,
+                  HBasicBlock* false_target = NULL)
+      : HUnaryControlInstruction(value, true_target, false_target) {}
 };
 
 
 class HIsUndetectableAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
-  explicit HIsUndetectableAndBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) { }
+  DECLARE_INSTRUCTION_FACTORY_P1(HIsUndetectableAndBranch, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P3(HIsUndetectableAndBranch, HValue*,
+                                 HBasicBlock*, HBasicBlock*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch)
+
+ private:
+  HIsUndetectableAndBranch(HValue* value,
+                           HBasicBlock* true_target = NULL,
+                           HBasicBlock* false_target = NULL)
+      : HUnaryControlInstruction(value, true_target, false_target) {}
 };
 
 
