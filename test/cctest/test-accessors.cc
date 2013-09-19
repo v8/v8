@@ -120,7 +120,7 @@ THREADED_TEST(GlobalVariableAccess) {
   foo = 0;
   bar = -4;
   baz = 10;
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
   templ->InstanceTemplate()->SetAccessor(v8_str("foo"),
                                          GetIntValue,
@@ -148,7 +148,7 @@ static v8::Handle<v8::Object> x_holder;
 template<class Info>
 static void XGetter(const Info& info, int offset) {
   ApiTestFuzzer::Fuzz();
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_receiver, info.This());
   info.GetReturnValue().Set(v8_num(x_register[offset]));
@@ -170,7 +170,7 @@ static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 template<class Info>
 static void XSetter(Local<Value> value, const Info& info, int offset) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_holder, info.This());
   CHECK_EQ(x_holder, info.Holder());
@@ -310,15 +310,15 @@ THREADED_TEST(HandleScopePop) {
 static void CheckAccessorArgsCorrect(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
+  CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   ApiTestFuzzer::Fuzz();
-  CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
+  CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
+  CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   info.GetReturnValue().Set(17);
@@ -370,7 +370,7 @@ THREADED_TEST(EmptyResult) {
 THREADED_TEST(NoReuseRegress) {
   // Check that the IC generated for the one test doesn't get reused
   // for the other.
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   {
     v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
     obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8::String::New("data"));

@@ -70,7 +70,7 @@ TEST(CrankshaftRandom) {
   v8::V8::Initialize();
   // Skip test if crankshaft is disabled.
   if (!Isolate::Current()->use_crankshaft()) return;
-  v8::Isolate* v8_isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Context::Scope context_scope(v8::Context::New(v8_isolate));
 

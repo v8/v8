@@ -142,9 +142,9 @@ class DebugLocalContext {
       v8::Handle<v8::ObjectTemplate> global_template =
           v8::Handle<v8::ObjectTemplate>(),
       v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
-      : scope_(v8::Isolate::GetCurrent()),
+      : scope_(CcTest::isolate()),
         context_(
-          v8::Context::New(v8::Isolate::GetCurrent(),
+          v8::Context::New(CcTest::isolate(),
                            extensions,
                            global_template,
                            global_object)) {
@@ -2552,7 +2552,7 @@ v8::Handle<v8::Function> checkFrameEvalFunction;
 static void CheckDebugEval(const v8::Debug::EventDetails& eventDetails) {
   if (eventDetails.GetEvent() == v8::Break) {
     ++debugEventCount;
-    v8::HandleScope handleScope(v8::Isolate::GetCurrent());
+    v8::HandleScope handleScope(CcTest::isolate());
 
     v8::Handle<v8::Value> args[] = { eventDetails.GetExecutionState() };
     CHECK(checkGlobalEvalFunction->Call(
@@ -4229,7 +4229,7 @@ static const char* kSimpleExtensionSource =
 // http://crbug.com/28933
 // Test that debug break is disabled when bootstrapper is active.
 TEST(NoBreakWhenBootstrapping) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which sets the break flag and counts.
@@ -5149,7 +5149,7 @@ void V8Thread::Run() {
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->Set(v8::String::New("ThreadedAtBarrier1"),
                        v8::FunctionTemplate::New(ThreadedAtBarrier1));
-  v8::Handle<v8::Context> context = v8::Context::New(v8::Isolate::GetCurrent(),
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
                                                      NULL,
                                                      global_template);
   v8::Context::Scope context_scope(context);
@@ -5502,7 +5502,7 @@ static void CheckClosure(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(CallFunctionInDebugger) {
   // Create and enter a context with the functions CheckFrameCount,
   // CheckSourceLine and CheckDataParameter installed.
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->Set(v8::String::New("CheckFrameCount"),
                        v8::FunctionTemplate::New(CheckFrameCount));
@@ -5512,7 +5512,7 @@ TEST(CallFunctionInDebugger) {
                        v8::FunctionTemplate::New(CheckDataParameter));
   global_template->Set(v8::String::New("CheckClosure"),
                        v8::FunctionTemplate::New(CheckClosure));
-  v8::Handle<v8::Context> context = v8::Context::New(v8::Isolate::GetCurrent(),
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
                                                      NULL,
                                                      global_template);
   v8::Context::Scope context_scope(context);
@@ -6234,7 +6234,7 @@ static void ContextCheckMessageHandler(const v8::Debug::Message& message) {
 // Checks that this data is set correctly and that when the debug message
 // handler is called the expected context is the one active.
 TEST(ContextData) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
   // Create two contexts.
@@ -6411,7 +6411,7 @@ static void ExecuteScriptForContextCheck(
   v8::Handle<v8::ObjectTemplate> global_template =
       v8::Handle<v8::ObjectTemplate>();
   context_1 =
-      v8::Context::New(v8::Isolate::GetCurrent(), NULL, global_template);
+      v8::Context::New(CcTest::isolate(), NULL, global_template);
 
   v8::Debug::SetMessageHandler2(message_handler);
 
@@ -6444,7 +6444,7 @@ static void ExecuteScriptForContextCheck(
 // break event in an eval statement the expected context is the one returned by
 // Message.GetEventContext.
 TEST(EvalContextData) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
 
   ExecuteScriptForContextCheck(ContextCheckMessageHandler);
 
@@ -6507,7 +6507,7 @@ static void DebugEvalContextCheckMessageHandler(
 // Tests that context returned for break event is correct when the event occurs
 // in 'evaluate' debugger request.
 TEST(NestedBreakEventContextData) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   break_count = 0;
   message_handler_hit_count = 0;
 
@@ -6583,7 +6583,7 @@ static void ScriptCollectedMessageHandler(const v8::Debug::Message& message) {
 // ScriptCollected events.
 TEST(ScriptCollectedEventContext) {
   i::FLAG_stress_compaction = false;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::internal::Debug* debug =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->debug();
   script_collected_message_count = 0;
@@ -7079,7 +7079,7 @@ TEST(CallingContextIsNotDebugContext) {
 
 
 TEST(DebugContextIsPreservedBetweenAccesses) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> context1 = v8::Debug::GetDebugContext();
   v8::Local<v8::Context> context2 = v8::Debug::GetDebugContext();
   CHECK_EQ(*context1, *context2);
@@ -7095,7 +7095,7 @@ static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
 
 // Check that event details contain context where debug event occured.
 TEST(DebugEventContext) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   expected_callback_data = v8::Int32::New(2010);
   expected_context = v8::Context::New(isolate);
@@ -7201,7 +7201,7 @@ static void DebugEventBreakDeoptimize(
       }
     }
 
-    v8::Debug::DebugBreak(v8::Isolate::GetCurrent());
+    v8::Debug::DebugBreak(CcTest::isolate());
   }
 }
 

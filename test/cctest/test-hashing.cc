@@ -230,7 +230,7 @@ static uint32_t PseudoRandom(uint32_t i, uint32_t j) {
 
 
 TEST(StringHash) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(v8::Context::New(isolate));
 
@@ -251,7 +251,7 @@ TEST(StringHash) {
 
 
 TEST(NumberHash) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(v8::Context::New(isolate));
 

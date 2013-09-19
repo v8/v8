@@ -1227,7 +1227,7 @@ TEST(AsciiArrayJoin) {
       "for (var i = 1; i <= two_14; i++) a.push(s);"
       "a.join("");";
 
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   v8::V8::IgnoreOutOfMemoryException();
   v8::Local<v8::Script> script =

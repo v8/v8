@@ -71,7 +71,7 @@ using namespace v8::internal;
 
 static bool CheckParse(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   Zone zone(Isolate::Current());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -82,7 +82,7 @@ static bool CheckParse(const char* input) {
 
 static SmartArrayPointer<const char> Parse(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   Zone zone(Isolate::Current());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -97,7 +97,7 @@ static SmartArrayPointer<const char> Parse(const char* input) {
 
 static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   Zone zone(Isolate::Current());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -116,7 +116,7 @@ struct MinMaxPair {
 
 static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   Zone zone(Isolate::Current());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -390,7 +390,7 @@ TEST(ParserRegression) {
 static void ExpectError(const char* input,
                         const char* expected) {
   V8::Initialize(NULL);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   Zone zone(Isolate::Current());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -533,7 +533,7 @@ static void Execute(const char* input,
                     bool multiline,
                     bool is_ascii,
                     bool dot_output = false) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   Zone zone(Isolate::Current());
   RegExpNode* node = Compile(input, multiline, is_ascii, &zone);
   USE(node);
@@ -710,8 +710,8 @@ typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
 class ContextInitializer {
  public:
   ContextInitializer()
-      : scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New(v8::Isolate::GetCurrent())) {
+      : scope_(CcTest::isolate()),
+        env_(v8::Context::New(CcTest::isolate())) {
     env_->Enter();
   }
   ~ContextInitializer() {

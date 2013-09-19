@@ -173,7 +173,7 @@ class ScriptResource : public v8::String::ExternalAsciiStringResource {
 
 
 TEST(Preparsing) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -352,7 +352,7 @@ TEST(Regress928) {
       "try { } catch (e) { var foo = function () { /* first */ } }"
       "var bar = function () { /* second */ }";
 
-  v8::HandleScope handles(v8::Isolate::GetCurrent());
+  v8::HandleScope handles(CcTest::isolate());
   i::Handle<i::String> source(
       factory->NewStringFromAscii(i::CStrVector(program)));
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
@@ -544,7 +544,7 @@ void TestCharacterStream(const char* ascii_source,
 
 
 TEST(CharacterStreams) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -993,8 +993,8 @@ TEST(ScopePositions) {
   i::Isolate* isolate = i::Isolate::Current();
   i::Factory* factory = isolate->factory();
 
-  v8::HandleScope handles(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> context = v8::Context::New(v8::Isolate::GetCurrent());
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   int marker;
@@ -1267,8 +1267,8 @@ TEST(ParserSync) {
   i::Isolate* isolate = i::Isolate::Current();
   i::Factory* factory = isolate->factory();
 
-  v8::HandleScope handles(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> context = v8::Context::New(v8::Isolate::GetCurrent());
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   int marker;
@@ -1308,9 +1308,9 @@ TEST(PreparserStrictOctal) {
   // such (issue 2220).
   v8::internal::FLAG_min_preparse_length = 1;  // Force preparsing.
   v8::V8::Initialize();
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(
-      v8::Context::New(v8::Isolate::GetCurrent()));
+      v8::Context::New(CcTest::isolate()));
   v8::TryCatch try_catch;
   const char* script =
       "\"use strict\";       \n"

@@ -485,7 +485,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(StackAlignmentForSSE2) {
   CHECK_EQ(0, OS::ActivationFrameAlignment() % 16);
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->Set(v8_str("do_sse2"), v8::FunctionTemplate::New(DoSSE2));

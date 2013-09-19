@@ -60,8 +60,8 @@ class ScopedLoggerInitializer {
         temp_file_(NULL),
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_()),
-        scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New(v8::Isolate::GetCurrent())),
+        scope_(CcTest::isolate()),
+        env_(v8::Context::New(CcTest::isolate())),
         logger_(i::Isolate::Current()->logger()) {
     env_->Enter();
   }
@@ -299,8 +299,8 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 }  // namespace
 
 TEST(Issue23768) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> env = v8::Context::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
   SimpleExternalString source_ext_str("(function ext() {})();");
@@ -330,7 +330,7 @@ UNINITIALIZED_TEST(LogCallbacks) {
   Logger* logger = initialize_logger.logger();
 
   v8::Local<v8::FunctionTemplate> obj =
-      v8::Local<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+      v8::Local<v8::FunctionTemplate>::New(CcTest::isolate(),
                                            v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
@@ -379,7 +379,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
   Logger* logger = initialize_logger.logger();
 
   v8::Local<v8::FunctionTemplate> obj =
-      v8::Local<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+      v8::Local<v8::FunctionTemplate>::New(CcTest::isolate(),
                                            v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();

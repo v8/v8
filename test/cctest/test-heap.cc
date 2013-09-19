@@ -1320,7 +1320,7 @@ TEST(TestInternalWeakLists) {
 
   // Create a number of global contests which gets linked together.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
+    ctx[i] = v8::Context::New(CcTest::isolate());
 
     // Collect garbage that might have been created by one of the
     // installed extensions.
@@ -1466,7 +1466,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
   // Create an number of contexts and check the length of the weak list both
   // with and without GCs while iterating the list.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
+    ctx[i] = v8::Context::New(CcTest::isolate());
     CHECK_EQ(i + 1, CountNativeContexts());
     CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
   }
@@ -1684,7 +1684,7 @@ static int NumberOfGlobalObjects() {
 // optimized code.
 TEST(LeakNativeContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
   v8::Persistent<v8::Context> ctx1p;
   v8::Persistent<v8::Context> ctx2p;
@@ -1730,7 +1730,7 @@ TEST(LeakNativeContextViaMap) {
 // optimized code.
 TEST(LeakNativeContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
   v8::Persistent<v8::Context> ctx1p;
   v8::Persistent<v8::Context> ctx2p;
@@ -1774,7 +1774,7 @@ TEST(LeakNativeContextViaFunction) {
 
 TEST(LeakNativeContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
   v8::Persistent<v8::Context> ctx1p;
   v8::Persistent<v8::Context> ctx2p;
@@ -1818,7 +1818,7 @@ TEST(LeakNativeContextViaMapKeyed) {
 
 TEST(LeakNativeContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer_scope(isolate);
   v8::Persistent<v8::Context> ctx1p;
   v8::Persistent<v8::Context> ctx2p;
@@ -1873,10 +1873,10 @@ TEST(InstanceOfStubWriteBarrier) {
   CcTest::InitializeVM();
   if (!i::Isolate::Current()->use_crankshaft()) return;
   if (i::FLAG_force_marking_deque_overflows) return;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
+  v8::HandleScope outer_scope(CcTest::isolate());
 
   {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::HandleScope scope(CcTest::isolate());
     CompileRun(
         "function foo () { }"
         "function mkbar () { return new (new Function(\"\")) (); }"
@@ -1908,7 +1908,7 @@ TEST(InstanceOfStubWriteBarrier) {
   CHECK(marking->IsMarking());
 
   {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::HandleScope scope(CcTest::isolate());
     v8::Handle<v8::Object> global = v8::Context::GetCurrent()->Global();
     v8::Handle<v8::Function> g =
         v8::Handle<v8::Function>::Cast(global->Get(v8_str("g")));
@@ -1989,10 +1989,10 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
   CcTest::InitializeVM();
   if (!i::Isolate::Current()->use_crankshaft()) return;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
+  v8::HandleScope outer_scope(CcTest::isolate());
 
   {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::HandleScope scope(CcTest::isolate());
     CompileRun(
         "function f () {"
         "  var s = 0;"
