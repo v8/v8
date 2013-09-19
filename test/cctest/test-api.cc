@@ -12364,7 +12364,7 @@ void ApiTestFuzzer::Run() {
   gate_.Wait();
   {
     // ... get the V8 lock and start running the test.
-    v8::Locker locker(CcTest::default_isolate());
+    v8::Locker locker(CcTest::isolate());
     CallTest();
   }
   // This test finished.
@@ -12428,7 +12428,7 @@ void ApiTestFuzzer::ContextSwitch() {
   // If the new thread is the same as the current thread there is nothing to do.
   if (NextThread()) {
     // Now it can start.
-    v8::Unlocker unlocker(CcTest::default_isolate());
+    v8::Unlocker unlocker(CcTest::isolate());
     // Wait till someone starts us again.
     gate_.Wait();
     // And we're off.
@@ -12484,12 +12484,12 @@ void ApiTestFuzzer::CallTest() {
 
 
 static void ThrowInJS(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
+  CHECK(v8::Locker::IsLocked(CcTest::isolate()));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker(CcTest::default_isolate());
+  v8::Unlocker unlocker(CcTest::isolate());
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker(CcTest::default_isolate());
+    v8::Locker nested_locker(CcTest::isolate());
     v8::HandleScope scope(args.GetIsolate());
     v8::Handle<Value> exception;
     { v8::TryCatch try_catch;
@@ -12507,12 +12507,12 @@ static void ThrowInJS(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 static void ThrowInJSNoCatch(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
+  CHECK(v8::Locker::IsLocked(CcTest::isolate()));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker(CcTest::default_isolate());
+  v8::Unlocker unlocker(CcTest::isolate());
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker(CcTest::default_isolate());
+    v8::Locker nested_locker(CcTest::isolate());
     v8::HandleScope scope(args.GetIsolate());
     v8::Handle<Value> value = CompileRun(code);
     CHECK(value.IsEmpty());
@@ -12524,8 +12524,8 @@ static void ThrowInJSNoCatch(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // These are locking tests that don't need to be run again
 // as part of the locking aggregation tests.
 TEST(NestedLockers) {
-  v8::Locker locker(CcTest::default_isolate());
-  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
+  v8::Locker locker(CcTest::isolate());
+  CHECK(v8::Locker::IsLocked(CcTest::isolate()));
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(ThrowInJS);
@@ -12546,7 +12546,7 @@ TEST(NestedLockers) {
 // These are locking tests that don't need to be run again
 // as part of the locking aggregation tests.
 TEST(NestedLockersNoTryCatch) {
-  v8::Locker locker(CcTest::default_isolate());
+  v8::Locker locker(CcTest::isolate());
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   Local<v8::FunctionTemplate> fun_templ =
@@ -12566,24 +12566,24 @@ TEST(NestedLockersNoTryCatch) {
 
 
 THREADED_TEST(RecursiveLocking) {
-  v8::Locker locker(CcTest::default_isolate());
+  v8::Locker locker(CcTest::isolate());
   {
-    v8::Locker locker2(CcTest::default_isolate());
-    CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
+    v8::Locker locker2(CcTest::isolate());
+    CHECK(v8::Locker::IsLocked(CcTest::isolate()));
   }
 }
 
 
 static void UnlockForAMoment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker(CcTest::default_isolate());
+  v8::Unlocker unlocker(CcTest::isolate());
 }
 
 
 THREADED_TEST(LockUnlockLock) {
   {
-    v8::Locker locker(CcTest::default_isolate());
-    v8::HandleScope scope(CcTest::default_isolate());
+    v8::Locker locker(CcTest::isolate());
+    v8::HandleScope scope(CcTest::isolate());
     LocalContext env;
     Local<v8::FunctionTemplate> fun_templ =
         v8::FunctionTemplate::New(UnlockForAMoment);
@@ -12596,8 +12596,8 @@ THREADED_TEST(LockUnlockLock) {
     CHECK_EQ(42, script->Run()->Int32Value());
   }
   {
-    v8::Locker locker(CcTest::default_isolate());
-    v8::HandleScope scope(CcTest::default_isolate());
+    v8::Locker locker(CcTest::isolate());
+    v8::HandleScope scope(CcTest::isolate());
     LocalContext env;
     Local<v8::FunctionTemplate> fun_templ =
         v8::FunctionTemplate::New(UnlockForAMoment);
@@ -14229,7 +14229,7 @@ class RegExpInterruptTest {
 
     LongRunningRegExp();
     {
-      v8::Unlocker unlock(CcTest::default_isolate());
+      v8::Unlocker unlock(CcTest::isolate());
       gc_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -14256,7 +14256,7 @@ class RegExpInterruptTest {
     block_.Wait();
     while (gc_during_regexp_ < kRequiredGCs) {
       {
-        v8::Locker lock(CcTest::default_isolate());
+        v8::Locker lock(CcTest::isolate());
         // TODO(lrn): Perhaps create some garbage before collecting.
         CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
@@ -14316,9 +14316,9 @@ class RegExpInterruptTest {
 // Test that a regular expression execution can be interrupted and
 // survive a garbage collection.
 UNINITIALIZED_TEST(RegExpInterruption) {
-  v8::Locker lock(CcTest::default_isolate());
+  v8::Locker lock(CcTest::isolate());
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::default_isolate());
+  v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
   {
     LocalContext env;
@@ -14351,7 +14351,7 @@ class ApplyInterruptTest {
 
     LongRunningApply();
     {
-      v8::Unlocker unlock(CcTest::default_isolate());
+      v8::Unlocker unlock(CcTest::isolate());
       gc_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -14378,7 +14378,7 @@ class ApplyInterruptTest {
     block_.Wait();
     while (gc_during_apply_ < kRequiredGCs) {
       {
-        v8::Locker lock(CcTest::default_isolate());
+        v8::Locker lock(CcTest::isolate());
         CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
       }
@@ -14424,9 +14424,9 @@ class ApplyInterruptTest {
 // Test that nothing bad happens if we get a preemption just when we were
 // about to do an apply().
 UNINITIALIZED_TEST(ApplyInterruption) {
-  v8::Locker lock(CcTest::default_isolate());
+  v8::Locker lock(CcTest::isolate());
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::default_isolate());
+  v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
   {
     LocalContext env;
@@ -14664,7 +14664,7 @@ class RegExpStringModificationTest {
     v8::Locker::StartPreemption(1);
     LongRunningRegExp();
     {
-      v8::Unlocker unlock(CcTest::default_isolate());
+      v8::Unlocker unlock(CcTest::isolate());
       morph_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -14693,7 +14693,7 @@ class RegExpStringModificationTest {
     while (morphs_during_regexp_ < kRequiredModifications &&
            morphs_ < kMaxModifications) {
       {
-        v8::Locker lock(CcTest::default_isolate());
+        v8::Locker lock(CcTest::isolate());
         // Swap string between ascii and two-byte representation.
         i::String* string = *input_;
         MorphAString(string, &ascii_resource_, &uc16_resource_);
@@ -14741,9 +14741,9 @@ class RegExpStringModificationTest {
 // Test that a regular expression execution can be interrupted and
 // the string changed without failing.
 UNINITIALIZED_TEST(RegExpStringModification) {
-  v8::Locker lock(CcTest::default_isolate());
+  v8::Locker lock(CcTest::isolate());
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::default_isolate());
+  v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
   {
     LocalContext env;
@@ -17100,7 +17100,7 @@ TEST(SetResourceConstraints) {
 TEST(SetResourceConstraintsInThread) {
   uint32_t* set_limit;
   {
-    v8::Locker locker(CcTest::default_isolate());
+    v8::Locker locker(CcTest::isolate());
     set_limit = ComputeStackLimit(stack_breathing_room);
 
     // Set stack limit.
@@ -17109,7 +17109,7 @@ TEST(SetResourceConstraintsInThread) {
     CHECK(v8::SetResourceConstraints(&constraints));
 
     // Execute a script.
-    v8::HandleScope scope(CcTest::default_isolate());
+    v8::HandleScope scope(CcTest::isolate());
     LocalContext env;
     Local<v8::FunctionTemplate> fun_templ =
         v8::FunctionTemplate::New(GetStackLimitCallback);
@@ -17120,7 +17120,7 @@ TEST(SetResourceConstraintsInThread) {
     CHECK(stack_limit == set_limit);
   }
   {
-    v8::Locker locker(CcTest::default_isolate());
+    v8::Locker locker(CcTest::isolate());
     CHECK(stack_limit == set_limit);
   }
 }

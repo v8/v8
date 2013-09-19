@@ -2727,7 +2727,7 @@ TEST(DebugEvaluateWithoutStack) {
       "    \"expression\":\"v1\",\"disable_break\":true"
       "}}";
 
-  v8::Isolate* isolate = CcTest::default_isolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_111, buffer));
 
   const char* command_112 = "{\"seq\":112,"
@@ -4891,7 +4891,7 @@ void MessageQueueDebuggerThread::Run() {
   // until the execution of source_2.
   // Note: AsciiToUtf16 executes before SendCommand, so command is copied
   // to buffer before buffer is sent to SendCommand.
-  v8::Isolate* isolate = CcTest::default_isolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::Debug::SendCommand(isolate, buffer_1, AsciiToUtf16(command_1, buffer_1));
   v8::Debug::SendCommand(isolate, buffer_2, AsciiToUtf16(command_2, buffer_2));
   v8::Debug::SendCommand(isolate, buffer_2, AsciiToUtf16(command_3, buffer_2));

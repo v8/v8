@@ -91,7 +91,7 @@ void CcTest::InitializeVM(CcTestExtensionFlags extensions) {
   if (extensions.Contains(Name##_ID)) extension_names[extension_count++] = Id;
   EXTENSION_LIST(CHECK_EXTENSION_FLAG)
 #undef CHECK_EXTENSION_FLAG
-  v8::Isolate* isolate = default_isolate();
+  v8::Isolate* isolate = CcTest::isolate();
   if (context_.IsEmpty()) {
     v8::HandleScope scope(isolate);
     v8::ExtensionConfiguration config(extension_count, extension_names);

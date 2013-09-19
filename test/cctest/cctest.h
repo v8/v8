@@ -91,7 +91,6 @@ class CcTest {
   const char* name() { return name_; }
   const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
-  static v8::Isolate* default_isolate() { return isolate(); }
 
   static v8::Handle<v8::Context> env() {
     return v8::Local<v8::Context>::New(isolate(), context_);

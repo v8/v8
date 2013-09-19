@@ -545,7 +545,7 @@ class LockUnlockLockThread : public JoinableThread {
   virtual void Run() {
     v8::Locker lock1(isolate_);
     CHECK(v8::Locker::IsLocked(isolate_));
-    CHECK(!v8::Locker::IsLocked(CcTest::default_isolate()));
+    CHECK(!v8::Locker::IsLocked(CcTest::isolate()));
     {
       v8::Isolate::Scope isolate_scope(isolate_);
       v8::HandleScope handle_scope(isolate_);
@@ -557,13 +557,13 @@ class LockUnlockLockThread : public JoinableThread {
     {
       v8::Unlocker unlock1(isolate_);
       CHECK(!v8::Locker::IsLocked(isolate_));
-      CHECK(!v8::Locker::IsLocked(CcTest::default_isolate()));
+      CHECK(!v8::Locker::IsLocked(CcTest::isolate()));
       {
         v8::Locker lock2(isolate_);
         v8::Isolate::Scope isolate_scope(isolate_);
         v8::HandleScope handle_scope(isolate_);
         CHECK(v8::Locker::IsLocked(isolate_));
-        CHECK(!v8::Locker::IsLocked(CcTest::default_isolate()));
+        CHECK(!v8::Locker::IsLocked(CcTest::isolate()));
         v8::Local<v8::Context> context =
             v8::Local<v8::Context>::New(isolate_, context_);
         v8::Context::Scope context_scope(context);
@@ -605,24 +605,24 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
  public:
   explicit LockUnlockLockDefaultIsolateThread(v8::Handle<v8::Context> context)
       : JoinableThread("LockUnlockLockDefaultIsolateThread"),
-        context_(CcTest::default_isolate(), context) {}
+        context_(CcTest::isolate(), context) {}
 
   virtual void Run() {
-    v8::Locker lock1(CcTest::default_isolate());
+    v8::Locker lock1(CcTest::isolate());
     {
-      v8::HandleScope handle_scope(CcTest::default_isolate());
+      v8::HandleScope handle_scope(CcTest::isolate());
       v8::Local<v8::Context> context =
-          v8::Local<v8::Context>::New(CcTest::default_isolate(), context_);
+          v8::Local<v8::Context>::New(CcTest::isolate(), context_);
       v8::Context::Scope context_scope(context);
       CalcFibAndCheck();
     }
     {
-      v8::Unlocker unlock1(CcTest::default_isolate());
+      v8::Unlocker unlock1(CcTest::isolate());
       {
-        v8::Locker lock2(CcTest::default_isolate());
-        v8::HandleScope handle_scope(CcTest::default_isolate());
+        v8::Locker lock2(CcTest::isolate());
+        v8::HandleScope handle_scope(CcTest::isolate());
         v8::Local<v8::Context> context =
-            v8::Local<v8::Context>::New(CcTest::default_isolate(), context_);
+            v8::Local<v8::Context>::New(CcTest::isolate(), context_);
         v8::Context::Scope context_scope(context);
         CalcFibAndCheck();
       }
@@ -644,9 +644,9 @@ UNINITIALIZED_TEST(LockUnlockLockDefaultIsolateMultithreaded) {
   Local<v8::Context> context;
   i::List<JoinableThread*> threads(kNThreads);
   {
-    v8::Locker locker_(CcTest::default_isolate());
-    v8::HandleScope handle_scope(CcTest::default_isolate());
-    context = v8::Context::New(CcTest::default_isolate());
+    v8::Locker locker_(CcTest::isolate());
+    v8::HandleScope handle_scope(CcTest::isolate());
+    context = v8::Context::New(CcTest::isolate());
     for (int i = 0; i < kNThreads; i++) {
       threads.Add(new LockUnlockLockDefaultIsolateThread(context));
     }
