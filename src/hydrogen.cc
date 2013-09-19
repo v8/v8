@@ -4630,6 +4630,13 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
     return true;
   }
 
+  if (IsTypedArrayLength()) {
+    for (int i = 1; i < types->length(); ++i) {
+      if (types->at(i)->instance_type() != JS_TYPED_ARRAY_TYPE) return false;
+    }
+    return true;
+  }
+
   for (int i = 1; i < types->length(); ++i) {
     PropertyAccessInfo test_info(isolate(), types->at(i), name_);
     if (!test_info.IsCompatibleForLoad(this)) return false;
@@ -4655,6 +4662,11 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
     return New<HLoadNamedField>(
         checked_object, HObjectAccess::ForArrayLength(
             info->map()->elements_kind()));
+  }
+
+  if (info->IsTypedArrayLength()) {
+    return New<HLoadNamedField>(
+        checked_object, HObjectAccess::ForTypedArrayLength());
   }
 
   HValue* checked_holder = checked_object;

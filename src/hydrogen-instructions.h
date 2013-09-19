@@ -5670,6 +5670,13 @@ class HObjectAccess V8_FINAL {
                 ? Representation::Smi() : Representation::Tagged());
   }
 
+  static HObjectAccess ForTypedArrayLength() {
+    return HObjectAccess(
+        kInobject,
+        JSTypedArray::kLengthOffset,
+        Representation::Tagged());
+  }
+
   static HObjectAccess ForAllocationSiteTransitionInfo() {
     return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
   }

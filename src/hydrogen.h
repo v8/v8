@@ -1982,6 +1982,11 @@ class HOptimizedGraphBuilder V8_FINAL
           name_->Equals(isolate()->heap()->length_string());
     }
 
+    bool IsTypedArrayLength() {
+      return map_->instance_type() == JS_TYPED_ARRAY_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
+
     bool has_holder() { return !holder_.is_null(); }
 
     LookupResult* lookup() { return &lookup_; }

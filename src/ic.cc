@@ -1349,6 +1349,19 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
       return isolate()->stub_cache()->ComputeLoadNormal(name, receiver);
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
+      if (name->Equals(isolate()->heap()->length_string())) {
+        if (receiver->IsJSArray()) {
+          PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
+              JSArray::kLengthOffset / kPointerSize);
+          return isolate()->stub_cache()->ComputeLoadField(
+              name, receiver, receiver, lengthIndex, Representation::Tagged());
+        } else if (receiver->IsJSTypedArray()) {
+          PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
+              JSTypedArray::kLengthOffset / kPointerSize);
+          return isolate()->stub_cache()->ComputeLoadField(
+              name, receiver, receiver, lengthIndex, Representation::Tagged());
+        }
+      }
       if (callback->IsExecutableAccessorInfo()) {
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(callback);
@@ -1371,12 +1384,6 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         }
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, function);
-      } else if (receiver->IsJSArray() &&
-                 name->Equals(isolate()->heap()->length_string())) {
-        PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
-            JSArray::kLengthOffset / kPointerSize);
-        return isolate()->stub_cache()->ComputeLoadField(
-            name, receiver, holder, lengthIndex, Representation::Tagged());
       }
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
