@@ -10905,6 +10905,10 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     }
     ValidateElements();
     set_map_and_elements(new_map, new_elements);
+
+    // Transition through the allocation site as well if present.
+    maybe_obj = UpdateAllocationSite(new_elements_kind);
+    if (maybe_obj->IsFailure()) return maybe_obj;
   } else {
     FixedArray* parameter_map = FixedArray::cast(old_elements);
     parameter_map->set(1, new_elements);
@@ -12442,7 +12446,7 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     if (IsHoleyElementsKind(kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
     }
-    if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
       uint32_t length = 0;
@@ -12464,7 +12468,7 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     if (IsHoleyElementsKind(kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
     }
-    if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
       if (FLAG_trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
                reinterpret_cast<void*>(this),

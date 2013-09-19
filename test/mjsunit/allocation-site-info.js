@@ -150,17 +150,14 @@ if (support_smi_only_arrays) {
   // Verify that we will not pretransition the double->fast path.
   obj = fastliteralcase(get_standard_literal(), "elliot");
   assertKind(elements_kind.fast, obj);
-  // This fails until we turn off optimistic transitions to the
-  // most general elements kind seen on keyed stores. It's a goal
-  // to turn it off, but for now we need it.
-  // obj = fastliteralcase(3);
-  // assertKind(elements_kind.fast_double, obj);
+  obj = fastliteralcase(get_standard_literal(), 3);
+  assertKind(elements_kind.fast, obj);
 
   // Make sure this works in crankshafted code too.
   %OptimizeFunctionOnNextCall(get_standard_literal);
   get_standard_literal();
   obj = get_standard_literal();
-  assertKind(elements_kind.fast_double, obj);
+  assertKind(elements_kind.fast, obj);
 
   function fastliteralcase_smifast(value) {
     var literal = [1, 2, 3, 4];
@@ -231,16 +228,14 @@ if (support_smi_only_arrays) {
   obj = newarraycase_length_smidouble(2);
   assertKind(elements_kind.fast_double, obj);
 
-  // Try to continue the transition to fast object, but
-  // we will not pretransition from double->fast, because
-  // it may hurt performance ("poisoning").
+  // Try to continue the transition to fast object. This won't work for
+  // constructed arrays because constructor dispatch is done on the
+  // elements kind, and a DOUBLE array constructor won't create an allocation
+  // memento.
   obj = newarraycase_length_smidouble("coates");
   assertKind(elements_kind.fast, obj);
-  obj = newarraycase_length_smidouble(2.5);
-  // However, because of optimistic transitions, we will
-  // transition to the most general kind of elements kind found,
-  // therefore I can't count on this assert yet.
-  // assertKind(elements_kind.fast_double, obj);
+  obj = newarraycase_length_smidouble(2);
+  assertKind(elements_kind.fast_double, obj);
 
   function newarraycase_length_smiobj(value) {
     var a = new Array(3);
