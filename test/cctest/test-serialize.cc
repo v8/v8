@@ -256,8 +256,10 @@ static void Serialize() {
     v8::HandleScope scope(isolate);
     v8::Context::New(isolate);
   }
-  WriteToFile(reinterpret_cast<Isolate*>(isolate),
-              FLAG_testing_serialization_file);
+
+  Isolate* internal_isolate = CcTest::i_isolate();
+  internal_isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "serialize");
+  WriteToFile(internal_isolate, FLAG_testing_serialization_file);
 }
 
 
