@@ -92,12 +92,9 @@ class CcTest {
   const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
 
-  static v8::Handle<v8::Context> env() {
-    return v8::Local<v8::Context>::New(isolate(), context_);
-  }
-
   static v8::Isolate* isolate() {
-    return default_isolate_;
+    isolate_used_ = true;
+    return isolate_;
   }
 
   static i::Isolate* i_isolate() {
@@ -108,8 +105,21 @@ class CcTest {
     return i_isolate()->heap();
   }
 
-  // Helper function to initialize the VM.
-  static void InitializeVM(CcTestExtensionFlags extensions = NO_EXTENSIONS);
+  // TODO(dcarney): Remove.
+  // This must be called first in a test.
+  static void InitializeVM() {
+    CHECK(!isolate_used_);
+    CHECK(!initialize_called_);
+    initialize_called_ = true;
+    v8::HandleScope handle_scope(CcTest::isolate());
+    v8::Context::New(CcTest::isolate())->Enter();
+  }
+
+  // Helper function to configure a context.
+  // Must be in a HandleScope.
+  static v8::Local<v8::Context> NewContext(
+      CcTestExtensionFlags extensions,
+      v8::Isolate* isolate = CcTest::isolate());
 
  private:
   friend int main(int argc, char** argv);
@@ -121,10 +131,9 @@ class CcTest {
   bool initialize_;
   CcTest* prev_;
   static CcTest* last_;
-  static v8::Isolate* default_isolate_;
-  enum InitializationState {kUnset, kUnintialized, kInitialized};
-  static InitializationState initialization_state_;
-  static v8::Persistent<v8::Context> context_;
+  static v8::Isolate* isolate_;
+  static bool initialize_called_;
+  static bool isolate_used_;
 };
 
 // Switches between all the Api tests using the threading support.

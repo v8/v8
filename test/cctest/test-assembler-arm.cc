@@ -443,7 +443,6 @@ static void TestRoundingMode(VCVTTypes types,
                              double value,
                              int expected,
                              bool expected_exception = false) {
-  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
@@ -511,6 +510,7 @@ static void TestRoundingMode(VCVTTypes types,
 
 
 TEST(7) {
+  CcTest::InitializeVM();
   // Test vfp rounding modes.
 
   // s32_f64 (double to integer).

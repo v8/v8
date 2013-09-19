@@ -77,14 +77,14 @@ TEST(Promotion) {
   // skip the entire test.
   if (FLAG_never_compact) return;
 
+  CcTest::InitializeVM();
+
   // Ensure that we get a compacting collection so that objects are promoted
   // from new space.
   FLAG_gc_global = true;
   FLAG_always_compact = true;
   Heap* heap = CcTest::heap();
   heap->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
-
-  CcTest::InitializeVM();
 
   v8::HandleScope sc(CcTest::isolate());
 
@@ -108,11 +108,11 @@ TEST(Promotion) {
 
 
 TEST(NoPromotion) {
-  CcTest::heap()->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
-
   // Test the situation that some objects in new space are promoted to
   // the old space
   CcTest::InitializeVM();
+
+  CcTest::heap()->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
 
   v8::HandleScope sc(CcTest::isolate());
 

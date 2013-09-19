@@ -29,9 +29,14 @@
 #include "cctest.h"
 #include "debug.h"
 
+enum InitializationState {kUnset, kUnintialized, kInitialized};
+static InitializationState initialization_state_  = kUnset;
 
 CcTest* CcTest::last_ = NULL;
-CcTest::InitializationState CcTest::initialization_state_ = kUnset;
+bool CcTest::initialize_called_ = false;
+bool CcTest::isolate_used_ = false;
+v8::Isolate* CcTest::isolate_ = NULL;
+
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
                const char* dependency, bool enabled, bool initialize)
@@ -62,48 +67,37 @@ void CcTest::Run() {
     CHECK(initialization_state_ != kInitialized);
     initialization_state_ = kUnintialized;
     // TODO(dcarney): Remove this when default isolate is gone.
-    if (default_isolate_ == NULL) {
-      default_isolate_ = v8::Isolate::GetCurrent();
+    if (isolate_ == NULL) {
+      isolate_ = v8::Isolate::GetCurrent();
     }
   } else {
     CHECK(initialization_state_ != kUnintialized);
     initialization_state_ = kInitialized;
     i::Isolate::SetCrashIfDefaultIsolateInitialized();
-    if (default_isolate_ == NULL) {
-      default_isolate_ = v8::Isolate::New();
+    if (isolate_ == NULL) {
+      isolate_ = v8::Isolate::New();
     }
-    default_isolate_->Enter();
+    isolate_->Enter();
   }
   callback_();
   if (initialize_) {
-    default_isolate_->Exit();
+    isolate_->Exit();
   }
 }
 
 
-v8::Persistent<v8::Context> CcTest::context_;
-
-
-void CcTest::InitializeVM(CcTestExtensionFlags extensions) {
-  const char* extension_names[kMaxExtensions];
-  int extension_count = 0;
-#define CHECK_EXTENSION_FLAG(Name, Id) \
-  if (extensions.Contains(Name##_ID)) extension_names[extension_count++] = Id;
-  EXTENSION_LIST(CHECK_EXTENSION_FLAG)
-#undef CHECK_EXTENSION_FLAG
-  v8::Isolate* isolate = CcTest::isolate();
-  if (context_.IsEmpty()) {
-    v8::HandleScope scope(isolate);
+v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
+                                          v8::Isolate* isolate) {
+    const char* extension_names[kMaxExtensions];
+    int extension_count = 0;
+  #define CHECK_EXTENSION_FLAG(Name, Id) \
+    if (extensions.Contains(Name##_ID)) extension_names[extension_count++] = Id;
+    EXTENSION_LIST(CHECK_EXTENSION_FLAG)
+  #undef CHECK_EXTENSION_FLAG
     v8::ExtensionConfiguration config(extension_count, extension_names);
     v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
-    context_.Reset(isolate, context);
-  }
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> context =
-        v8::Local<v8::Context>::New(isolate, context_);
-    context->Enter();
-  }
+    CHECK(!context.IsEmpty());
+    return context;
 }
 
 
@@ -117,9 +111,6 @@ static void PrintTestList(CcTest* current) {
     printf("%s/%s<\n", current->file(), current->name());
   }
 }
-
-
-v8::Isolate* CcTest::default_isolate_ = NULL;
 
 
 class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {

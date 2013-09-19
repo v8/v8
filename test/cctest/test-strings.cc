@@ -933,7 +933,7 @@ TEST(ExternalShortStringAdd) {
   Isolate* isolate = CcTest::i_isolate();
   Zone zone(isolate);
 
-  CcTest::InitializeVM();
+  LocalContext context;
   v8::HandleScope handle_scope(CcTest::isolate());
 
   // Make sure we cover all always-flat lengths and at least one above.
@@ -974,7 +974,7 @@ TEST(ExternalShortStringAdd) {
   }
 
   // Add the arrays with the short external strings in the global object.
-  v8::Handle<v8::Object> global = CcTest::env()->Global();
+  v8::Handle<v8::Object> global = context->Global();
   global->Set(v8_str("external_ascii"), ascii_external_strings);
   global->Set(v8_str("external_non_ascii"), non_ascii_external_strings);
   global->Set(v8_str("max_length"), v8::Integer::New(kMaxLength));
@@ -1018,9 +1018,9 @@ TEST(ExternalShortStringAdd) {
 
 
 TEST(JSONStringifySliceMadeExternal) {
+  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Zone zone(isolate);
-  CcTest::InitializeVM();
   // Create a sliced string from a one-byte string.  The latter is turned
   // into a two-byte external string.  Check that JSON.stringify works.
   v8::HandleScope handle_scope(CcTest::isolate());
@@ -1048,13 +1048,13 @@ TEST(JSONStringifySliceMadeExternal) {
 
 
 TEST(CachedHashOverflow) {
+  CcTest::InitializeVM();
   // We incorrectly allowed strings to be tagged as array indices even if their
   // values didn't fit in the hash field.
   // See http://code.google.com/p/v8/issues/detail?id=728
   Isolate* isolate = CcTest::i_isolate();
   Zone zone(isolate);
 
-  CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());
   // Lines must be executed sequentially. Combining them into one script
   // makes the bug go away.

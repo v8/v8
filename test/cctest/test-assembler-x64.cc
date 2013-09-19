@@ -433,7 +433,6 @@ TEST(AssemblerMultiByteNop) {
 #define ELEMENT_COUNT 4
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::internal::byte buffer[1024];
 
@@ -483,6 +482,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 TEST(StackAlignmentForSSE2) {
+  CcTest::InitializeVM();
   CHECK_EQ(0, OS::ActivationFrameAlignment() % 16);
 
   v8::Isolate* isolate = CcTest::isolate();

@@ -202,8 +202,9 @@ TEST(Sum) {
 
 
 TEST(Print) {
-  CcTest::InitializeVM(PRINT_EXTENSION);
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
+  v8::Context::Scope context_scope(context);
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
@@ -273,8 +274,10 @@ TEST(UncaughtThrow) {
 //   |      JS       |
 //   |   C-to-JS     |
 TEST(C2JSFrames) {
-  CcTest::InitializeVM(PRINT_EXTENSION | GC_EXTENSION);
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context =
+    CcTest::NewContext(PRINT_EXTENSION | GC_EXTENSION);
+  v8::Context::Scope context_scope(context);
 
   const char* source = "function foo(a) { gc(), print(a); }";
 
@@ -325,7 +328,7 @@ TEST(Regression236) {
 
 
 TEST(GetScriptLineNumber) {
-  CcTest::InitializeVM();
+  LocalContext context;
   v8::HandleScope scope(CcTest::isolate());
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
   const char function_f[] = "function f() {}";
@@ -342,7 +345,7 @@ TEST(GetScriptLineNumber) {
     v8::Handle<v8::String> script_body = v8::String::New(buffer.start());
     v8::Script::Compile(script_body, &origin)->Run();
     v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-        CcTest::env()->Global()->Get(v8::String::New("f")));
+        context->Global()->Get(v8::String::New("f")));
     CHECK_EQ(i, f->GetScriptLineNumber());
   }
 }
@@ -420,16 +423,16 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
 
 TEST(SplitConstantsInFullCompiler) {
-  CcTest::InitializeVM();
+  LocalContext context;
   v8::HandleScope scope(CcTest::isolate());
 
   CompileRun("function f() { a = 12345678 }; f();");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
   CompileRun("function f(x) { a = 12345678 + x}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
   CompileRun("function f(x) { var arguments = 1; x += 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
   CompileRun("function f(x) { var arguments = 1; x = 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(CcTest::env()->Global(), "f"));
+  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
 }
 #endif
