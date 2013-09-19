@@ -36,7 +36,7 @@
     'clang%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
-    'v8_enable_i18n_support%': 0,
+    'v8_enable_i18n_support%': 1,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'variables': {
