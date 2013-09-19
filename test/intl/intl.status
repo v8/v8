@@ -34,3 +34,6 @@ general/v8Intl-exists: FAIL
 
 # TODO(jochen): The following test is flaky.
 overrides/caching: PASS || FAIL
+
+# BUG(2899): default locale for search fails on mac.
+collator/default-locale: PASS || FAIL
