@@ -2814,10 +2814,8 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
     Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
     if (setter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      CALL_HEAP_FUNCTION(isolate,
-                         object->SetPropertyWithDefinedSetter(
-                             JSReceiver::cast(*setter), *value),
-                         Object);
+      return SetPropertyWithDefinedSetter(
+          object, Handle<JSReceiver>::cast(setter), value);
     } else {
       if (strict_mode == kNonStrictMode) {
         return value;
@@ -2841,28 +2839,29 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
-                                                      Object* value) {
-  Isolate* isolate = GetIsolate();
-  Handle<Object> value_handle(value, isolate);
-  Handle<JSReceiver> fun(setter, isolate);
-  Handle<JSReceiver> self(this, isolate);
+Handle<Object> JSReceiver::SetPropertyWithDefinedSetter(
+    Handle<JSReceiver> object,
+    Handle<JSReceiver> setter,
+    Handle<Object> value) {
+  Isolate* isolate = object->GetIsolate();
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into a setter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->StepInActive() && fun->IsJSFunction()) {
+  if (debug->StepInActive() && setter->IsJSFunction()) {
     debug->HandleStepIn(
-        Handle<JSFunction>::cast(fun), Handle<Object>::null(), 0, false);
+        Handle<JSFunction>::cast(setter), Handle<Object>::null(), 0, false);
   }
 #endif
+
   bool has_pending_exception;
-  Handle<Object> argv[] = { value_handle };
+  Handle<Object> argv[] = { value };
   Execution::Call(
-      isolate, fun, self, ARRAY_SIZE(argv), argv, &has_pending_exception);
+      isolate, setter, object, ARRAY_SIZE(argv), argv, &has_pending_exception);
   // Check for pending exception and return the result.
-  if (has_pending_exception) return Failure::Exception();
-  return *value_handle;
+  if (has_pending_exception) return Handle<Object>();
+  return value;
 }
 
 
@@ -3535,10 +3534,8 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   ASSERT(!isolate->has_pending_exception());
   if (!setter->IsUndefined()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
-    CALL_HEAP_FUNCTION(isolate,
-                       receiver->SetPropertyWithDefinedSetter(
-                           JSReceiver::cast(*setter), *value),
-                       Object);
+    return SetPropertyWithDefinedSetter(
+        receiver, Handle<JSReceiver>::cast(setter), value);
   }
 
   if (strict_mode == kNonStrictMode) return value;
@@ -11701,10 +11698,8 @@ Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
     Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
     if (setter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      CALL_HEAP_FUNCTION(isolate,
-                         object->SetPropertyWithDefinedSetter(
-                             JSReceiver::cast(*setter), *value),
-                         Object);
+      return SetPropertyWithDefinedSetter(
+          object, Handle<JSReceiver>::cast(setter), value);
     } else {
       if (strict_mode == kNonStrictMode) {
         return value;

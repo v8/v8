@@ -1964,9 +1964,6 @@ class JSReceiver: public HeapObject {
                                    PropertyAttributes attributes,
                                    StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSReceiver* setter,
-                                                            Object* value);
-
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   static inline bool HasProperty(Handle<JSReceiver> object, Handle<Name> name);
   static inline bool HasLocalProperty(Handle<JSReceiver>, Handle<Name> name);
@@ -2017,6 +2014,10 @@ class JSReceiver: public HeapObject {
 
  protected:
   Smi* GenerateIdentityHash();
+
+  static Handle<Object> SetPropertyWithDefinedSetter(Handle<JSReceiver> object,
+                                                     Handle<JSReceiver> setter,
+                                                     Handle<Object> value);
 
  private:
   PropertyAttributes GetPropertyAttributeForResult(JSReceiver* receiver,
