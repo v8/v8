@@ -36,6 +36,30 @@ def FAIL_OK = FAIL, OKAY
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL
 
+######################## NEEDS INVESTIGATION ###########################
+
+# These test failures are specific to the intl402 suite and need investigation
+# to be either marked as bugs with issues filed for them or as deliberate
+# incompatibilities if the test cases turn out to be broken or ambiguous.
+6.2.3: FAIL
+9.2.1_2: FAIL
+9.2.5_11_g_ii_2: FAIL
+9.2.6_2: FAIL
+10.1.1_a: FAIL
+10.1.2.1_4: FAIL
+10.3_a: FAIL
+11.1.1_20_c: FAIL
+11.1.1_a: FAIL
+11.1.2.1_4: FAIL
+11.3.2_TRP: FAIL
+11.3_a: FAIL
+12.1.1_a: FAIL
+12.1.2.1_4: FAIL
+12.3.2_FDT_7_a_iv: FAIL
+12.3.3: FAIL
+12.3_a: FAIL
+15.5.4.9_3: PASS || FAIL
+
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # This tests precision of Math functions.  The implementation for those
