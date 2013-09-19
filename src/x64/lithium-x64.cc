@@ -1647,8 +1647,8 @@ LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
 
 LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
     HCompareHoleAndBranch* instr) {
-  LOperand* object = UseRegisterAtStart(instr->object());
-  return new(zone()) LCmpHoleAndBranch(object);
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return new(zone()) LCmpHoleAndBranch(value);
 }
 
 

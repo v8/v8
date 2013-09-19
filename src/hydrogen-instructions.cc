@@ -2857,15 +2857,9 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareHoleAndBranch::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
 void HCompareHoleAndBranch::InferRepresentation(
     HInferRepresentationPhase* h_infer) {
-  ChangeRepresentation(object()->representation());
+  ChangeRepresentation(value()->representation());
 }
 
 

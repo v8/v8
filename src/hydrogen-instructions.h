@@ -4035,20 +4035,21 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 };
 
 
-class HCompareHoleAndBranch V8_FINAL
-    : public HTemplateControlInstruction<2, 1> {
+class HCompareHoleAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
   // TODO(danno): make this private when the IfBuilder properly constructs
   // control flow instructions.
-  explicit HCompareHoleAndBranch(HValue* object) {
+  HCompareHoleAndBranch(HValue* value,
+                        HBasicBlock* true_target = NULL,
+                        HBasicBlock* false_target = NULL)
+      : HUnaryControlInstruction(value, true_target, false_target) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
-    SetOperandAt(0, object);
   }
 
   DECLARE_INSTRUCTION_FACTORY_P1(HCompareHoleAndBranch, HValue*);
-
-  HValue* object() { return OperandAt(0); }
+  DECLARE_INSTRUCTION_FACTORY_P3(HCompareHoleAndBranch, HValue*,
+                                 HBasicBlock*, HBasicBlock*);
 
   virtual void InferRepresentation(
       HInferRepresentationPhase* h_infer) V8_OVERRIDE;
@@ -4056,8 +4057,6 @@ class HCompareHoleAndBranch V8_FINAL
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return representation();
   }
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(CompareHoleAndBranch)
 };
