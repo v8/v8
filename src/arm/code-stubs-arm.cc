@@ -972,99 +972,13 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
 }
 
 
-void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
-                                                         Register object,
-                                                         Register result,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         Register scratch3,
-                                                         Label* not_found) {
-  // Use of registers. Register result is used as a temporary.
-  Register number_string_cache = result;
-  Register mask = scratch3;
-
-  // Load the number string cache.
-  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
-
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  __ ldr(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
-  // Divide length by two (length is a smi).
-  __ mov(mask, Operand(mask, ASR, kSmiTagSize + 1));
-  __ sub(mask, mask, Operand(1));  // Make mask.
-
-  // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value, and the hash for
-  // doubles is the xor of the upper and lower words. See
-  // Heap::GetNumberStringCache.
-  Isolate* isolate = masm->isolate();
-  Label is_smi;
-  Label load_result_from_cache;
-  __ JumpIfSmi(object, &is_smi);
-  __ CheckMap(object,
-              scratch1,
-              Heap::kHeapNumberMapRootIndex,
-              not_found,
-              DONT_DO_SMI_CHECK);
-
-  STATIC_ASSERT(8 == kDoubleSize);
-  __ add(scratch1,
-          object,
-          Operand(HeapNumber::kValueOffset - kHeapObjectTag));
-  __ ldm(ia, scratch1, scratch1.bit() | scratch2.bit());
-  __ eor(scratch1, scratch1, Operand(scratch2));
-  __ and_(scratch1, scratch1, Operand(mask));
-
-  // Calculate address of entry in string cache: each entry consists
-  // of two pointer sized fields.
-  __ add(scratch1,
-          number_string_cache,
-          Operand(scratch1, LSL, kPointerSizeLog2 + 1));
-
-  Register probe = mask;
-  __ ldr(probe,
-          FieldMemOperand(scratch1, FixedArray::kHeaderSize));
-  __ JumpIfSmi(probe, not_found);
-  __ sub(scratch2, object, Operand(kHeapObjectTag));
-  __ vldr(d0, scratch2, HeapNumber::kValueOffset);
-  __ sub(probe, probe, Operand(kHeapObjectTag));
-  __ vldr(d1, probe, HeapNumber::kValueOffset);
-  __ VFPCompareAndSetFlags(d0, d1);
-  __ b(ne, not_found);  // The cache did not contain this value.
-  __ b(&load_result_from_cache);
-
-  __ bind(&is_smi);
-  Register scratch = scratch1;
-  __ and_(scratch, mask, Operand(object, ASR, 1));
-  // Calculate address of entry in string cache: each entry consists
-  // of two pointer sized fields.
-  __ add(scratch,
-         number_string_cache,
-         Operand(scratch, LSL, kPointerSizeLog2 + 1));
-
-  // Check if the entry is the smi we are looking for.
-  __ ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
-  __ cmp(object, probe);
-  __ b(ne, not_found);
-
-  // Get the result from the cache.
-  __ bind(&load_result_from_cache);
-  __ ldr(result,
-         FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
-  __ IncrementCounter(isolate->counters()->number_to_string_native(),
-                      1,
-                      scratch1,
-                      scratch2);
-}
-
-
 void NumberToStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
   __ ldr(r1, MemOperand(sp, 0));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, r1, r0, r2, r3, r4, &runtime);
+  __ LookupNumberStringCache(r1, r0, r2, r3, r4, &runtime);
   __ add(sp, sp, Operand(1 * kPointerSize));
   __ Ret();
 
@@ -5792,13 +5706,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   // Check the number to string cache.
   __ bind(&not_string);
   // Puts the cached result into scratch1.
-  NumberToStringStub::GenerateLookupNumberStringCache(masm,
-                                                      arg,
-                                                      scratch1,
-                                                      scratch2,
-                                                      scratch3,
-                                                      scratch4,
-                                                      slow);
+  __ LookupNumberStringCache(arg, scratch1, scratch2, scratch3, scratch4, slow);
   __ mov(arg, scratch1);
   __ str(arg, MemOperand(sp, stack_offset));
   __ bind(&done);
