@@ -1431,11 +1431,9 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
     if (!store->has_transition() || store->object() != value()) return;
     HConstant* transition = HConstant::cast(store->transition());
-    for (int i = 0; i < map_set()->length(); i++) {
-      if (transition->UniqueValueIdsMatch(map_unique_ids_.at(i))) {
-        DeleteAndReplaceWith(NULL);
-        return;
-      }
+    if (map_set_.Contains(transition->GetUnique())) {
+      DeleteAndReplaceWith(NULL);
+      return;
     }
   }
 }
@@ -1443,9 +1441,9 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
 
 void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" [%p", *map_set()->first());
-  for (int i = 1; i < map_set()->length(); ++i) {
-    stream->Add(",%p", *map_set()->at(i));
+  stream->Add(" [%p", *map_set_.at(0).handle());
+  for (int i = 1; i < map_set_.size(); ++i) {
+    stream->Add(",%p", *map_set_.at(i).handle());
   }
   stream->Add("]%s", CanOmitMapChecks() ? "(omitted)" : "");
 }
@@ -1454,13 +1452,13 @@ void HCheckMaps::PrintDataTo(StringStream* stream) {
 void HCheckValue::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
-  object()->ShortPrint(stream);
+  object().handle()->ShortPrint(stream);
 }
 
 
 HValue* HCheckValue::Canonicalize() {
   return (value()->IsConstant() &&
-          HConstant::cast(value())->UniqueValueIdsMatch(object_unique_id_))
+          HConstant::cast(value())->GetUnique() == object_)
       ? NULL
       : this;
 }
@@ -2929,19 +2927,14 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
       HConstant::cast(value)->HasMap(map)) {
-    check_map->omit(info);
+    // TODO(titzer): collect dependent map checks into a list.
+    check_map->omit_ = true;
+    if (map->CanTransition()) {
+      map->AddDependentCompilationInfo(
+          DependentCode::kPrototypeCheckGroup, info);
+    }
   }
   return check_map;
-}
-
-
-void HCheckMaps::FinalizeUniqueValueId() {
-  if (!map_unique_ids_.is_empty()) return;
-  Zone* zone = block()->zone();
-  map_unique_ids_.Initialize(map_set_.length(), zone);
-  for (int i = 0; i < map_set_.length(); i++) {
-    map_unique_ids_.Add(UniqueValueId(map_set_.at(i)), zone);
-  }
 }
 
 

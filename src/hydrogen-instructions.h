@@ -36,6 +36,7 @@
 #include "deoptimizer.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
+#include "unique.h"
 #include "v8conversions.h"
 #include "v8utils.h"
 #include "zone.h"
@@ -2603,7 +2604,6 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     for (int i = 0; i < maps->length(); i++) {
       check_map->Add(maps->at(i), zone);
     }
-    check_map->map_set_.Sort();
     return check_map;
   }
 
@@ -2618,38 +2618,26 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   HValue* value() { return OperandAt(0); }
-  SmallMapList* map_set() { return &map_set_; }
-  ZoneList<UniqueValueId>* map_unique_ids() { return &map_unique_ids_; }
 
-  bool has_migration_target() {
+  Unique<Map> first_map() const { return map_set_.at(0); }
+  UniqueSet<Map> map_set() const { return map_set_; }
+
+  bool has_migration_target() const {
     return has_migration_target_;
   }
-
-  virtual void FinalizeUniqueValueId() V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    ASSERT_EQ(map_set_.length(), map_unique_ids_.length());
-    HCheckMaps* b = HCheckMaps::cast(other);
-    // Relies on the fact that map_set has been sorted before.
-    if (map_unique_ids_.length() != b->map_unique_ids_.length()) {
-      return false;
-    }
-    for (int i = 0; i < map_unique_ids_.length(); i++) {
-      if (map_unique_ids_.at(i) != b->map_unique_ids_.at(i)) {
-        return false;
-      }
-    }
-    return true;
+    return this->map_set_.Equals(&HCheckMaps::cast(other)->map_set_);
   }
 
   virtual int RedefinedOperandIndex() { return 0; }
 
  private:
   void Add(Handle<Map> map, Zone* zone) {
-    map_set_.Add(map, zone);
+    map_set_.Add(Unique<Map>(map), zone);
     if (!has_migration_target_ && map->is_migration_target()) {
       has_migration_target_ = true;
       SetGVNFlag(kChangesNewSpacePromotion);
@@ -2659,10 +2647,9 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
       : HTemplateInstruction<2>(value->type()),
-        omit_(false), has_migration_target_(false), map_unique_ids_(0, zone) {
+        omit_(false), has_migration_target_(false) {
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
-    // TODO(titzer): do GVN flags already express this dependency?
     SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
@@ -2671,36 +2658,33 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     SetGVNFlag(kDependsOnElementsKind);
   }
 
-  void omit(CompilationInfo* info) {
-    omit_ = true;
-    for (int i = 0; i < map_set_.length(); i++) {
-      Handle<Map> map = map_set_.at(i);
-      if (!map->CanTransition()) continue;
-      map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
-                                       info);
-    }
-  }
-
   bool omit_;
   bool has_migration_target_;
-  SmallMapList map_set_;
-  ZoneList<UniqueValueId> map_unique_ids_;
+  UniqueSet<Map> map_set_;
 };
 
 
 class HCheckValue V8_FINAL : public HUnaryOperation {
  public:
   static HCheckValue* New(Zone* zone, HValue* context,
-                          HValue* value, Handle<JSFunction> target) {
-    bool in_new_space = zone->isolate()->heap()->InNewSpace(*target);
+                          HValue* value, Handle<JSFunction> func) {
+    bool in_new_space = zone->isolate()->heap()->InNewSpace(*func);
+    // NOTE: We create an uninitialized Unique and initialize it later.
+    // This is because a JSFunction can move due to GC during graph creation.
+    // TODO(titzer): This is a migration crutch. Replace with some kind of
+    // Uniqueness scope later.
+    Unique<JSFunction> target = Unique<JSFunction>::CreateUninitialized(func);
     HCheckValue* check = new(zone) HCheckValue(value, target, in_new_space);
     return check;
   }
   static HCheckValue* New(Zone* zone, HValue* context,
-                          HValue* value, Handle<Map> map, UniqueValueId id) {
-    HCheckValue* check = new(zone) HCheckValue(value, map, false);
-    check->object_unique_id_ = id;
-    return check;
+                          HValue* value, Unique<HeapObject> target,
+                          bool object_in_new_space) {
+    return new(zone) HCheckValue(value, target, object_in_new_space);
+  }
+
+  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
+    object_ = Unique<HeapObject>(object_.handle());
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
@@ -2714,11 +2698,7 @@ class HCheckValue V8_FINAL : public HUnaryOperation {
   virtual void Verify() V8_OVERRIDE;
 #endif
 
-  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
-    object_unique_id_ = UniqueValueId(object_);
-  }
-
-  Handle<HeapObject> object() const { return object_; }
+  Unique<HeapObject> object() const { return object_; }
   bool object_in_new_space() const { return object_in_new_space_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckValue)
@@ -2726,19 +2706,20 @@ class HCheckValue V8_FINAL : public HUnaryOperation {
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     HCheckValue* b = HCheckValue::cast(other);
-    return object_unique_id_ == b->object_unique_id_;
+    return object_ == b->object_;
   }
 
  private:
-  HCheckValue(HValue* value, Handle<HeapObject> object, bool in_new_space)
+  HCheckValue(HValue* value, Unique<HeapObject> object,
+               bool object_in_new_space)
       : HUnaryOperation(value, value->type()),
-        object_(object), object_in_new_space_(in_new_space) {
+        object_(object),
+        object_in_new_space_(object_in_new_space) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
 
-  Handle<HeapObject> object_;
-  UniqueValueId object_unique_id_;
+  Unique<HeapObject> object_;
   bool object_in_new_space_;
 };
 
@@ -3484,6 +3465,12 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   bool UniqueValueIdsMatch(UniqueValueId other) {
     return !has_double_value_ && !has_external_reference_value_ &&
         unique_id_ == other;
+  }
+
+  Unique<Object> GetUnique() const {
+    // TODO(titzer): store a Unique<HeapObject> inside the HConstant.
+    Address raw_address = reinterpret_cast<Address>(unique_id_.Hashcode());
+    return Unique<Object>(raw_address, handle_);
   }
 
 #ifdef DEBUG

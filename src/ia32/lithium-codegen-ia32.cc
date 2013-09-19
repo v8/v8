@@ -5622,7 +5622,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 
 void LCodeGen::DoCheckValue(LCheckValue* instr) {
-  Handle<HeapObject> object = instr->hydrogen()->object();
+  Handle<HeapObject> object = instr->hydrogen()->object().handle();
   if (instr->hydrogen()->object_in_new_space()) {
     Register reg = ToRegister(instr->value());
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
@@ -5677,22 +5677,21 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
 
-  SmallMapList* map_set = instr->hydrogen()->map_set();
-
   DeferredCheckMaps* deferred = NULL;
   if (instr->hydrogen()->has_migration_target()) {
     deferred = new(zone()) DeferredCheckMaps(this, instr, reg, x87_stack_);
     __ bind(deferred->check_maps());
   }
 
+  UniqueSet<Map> map_set = instr->hydrogen()->map_set();
   Label success;
-  for (int i = 0; i < map_set->length() - 1; i++) {
-    Handle<Map> map = map_set->at(i);
+  for (int i = 0; i < map_set.size() - 1; i++) {
+    Handle<Map> map = map_set.at(i).handle();
     __ CompareMap(reg, map, &success);
     __ j(equal, &success);
   }
 
-  Handle<Map> map = map_set->last();
+  Handle<Map> map = map_set.at(map_set.size() - 1).handle();
   __ CompareMap(reg, map, &success);
   if (instr->hydrogen()->has_migration_target()) {
     __ j(not_equal, deferred->entry());
