@@ -421,7 +421,7 @@ typedef i::NativesCollection<i::TEST> TestSources;
 
 // Test that logging of code create / move events is equivalent to traversal of
 // a resulting heap.
-TEST(EquivalenceOfLoggingAndTraversal) {
+UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
   // This test needs to be run on a "clean" V8 to ensure that snapshot log
   // is loaded. This is always true when running using tools/test.py because
   // it launches a new cctest instance for every test. To be sure that launching
