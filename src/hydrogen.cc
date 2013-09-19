@@ -4712,7 +4712,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
       set_current_block(if_true);
 
       HInstruction* load = BuildLoadMonomorphic(
-          &info, object, compare, ast_id, return_id, false);
+          &info, object, compare, ast_id, return_id, FLAG_polymorphic_inlining);
       if (load == NULL) {
         if (HasStackOverflow()) return;
       } else {
@@ -4732,6 +4732,10 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
+    // Because the deopt may be the only path in the polymorphic load, make sure
+    // that the environment stack matches the depth on deopt that it otherwise
+    // would have had after a successful load.
+    if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
     FinishExitWithHardDeoptimization("Unknown map in polymorphic load", join);
   } else {
     HValue* context = environment()->context();
