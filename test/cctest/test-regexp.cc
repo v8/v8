@@ -403,7 +403,7 @@ static void ExpectError(const char* input,
 }
 
 
-TEST(Errors) {
+UNINITIALIZED_TEST(Errors) {
   V8::Initialize(NULL);
   const char* kEndBackslash = "\\ at end of pattern";
   ExpectError("\\", kEndBackslash);

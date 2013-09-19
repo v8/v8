@@ -396,26 +396,6 @@ TEST(DeleteCpuProfile) {
 }
 
 
-TEST(GetProfilerWhenIsolateIsNotInitialized) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  CHECK(i::Isolate::Current()->IsDefaultIsolate());
-  CHECK(!i::Isolate::Current()->IsInitialized());
-  CHECK_EQ(NULL, isolate->GetCpuProfiler());
-  {
-    v8::Isolate::Scope isolateScope(isolate);
-    LocalContext env;
-    v8::HandleScope scope(isolate);
-    CHECK_NE(NULL, isolate->GetCpuProfiler());
-    isolate->GetCpuProfiler()->StartCpuProfiling(v8::String::New("Test"));
-    isolate->GetCpuProfiler()->StopCpuProfiling(v8::String::New("Test"));
-  }
-  CHECK(i::Isolate::Current()->IsInitialized());
-  CHECK_NE(NULL, isolate->GetCpuProfiler());
-  isolate->Dispose();
-  CHECK_EQ(NULL, isolate->GetCpuProfiler());
-}
-
-
 TEST(ProfileStartEndTime) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

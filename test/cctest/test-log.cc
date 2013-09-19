@@ -325,7 +325,7 @@ static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-TEST(LogCallbacks) {
+UNINITIALIZED_TEST(LogCallbacks) {
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 
@@ -374,7 +374,7 @@ static void Prop2Getter(v8::Local<v8::String> property,
 }
 
 
-TEST(LogAccessorCallbacks) {
+UNINITIALIZED_TEST(LogAccessorCallbacks) {
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 

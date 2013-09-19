@@ -497,6 +497,7 @@ class Isolate {
 
   bool IsDefaultIsolate() const { return this == default_isolate_; }
 
+  static void SetCrashIfDefaultIsolateInitialized();
   // Ensures that process-wide resources and the default isolate have been
   // allocated. It is only necessary to call this method in rare cases, for
   // example if you are using V8 from within the body of a static initializer.

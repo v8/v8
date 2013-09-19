@@ -129,7 +129,7 @@ class ThreadB : public v8::internal::Thread {
 };
 
 
-TEST(JSFunctionResultCachesInTwoThreads) {
+UNINITIALIZED_TEST(JSFunctionResultCachesInTwoThreads) {
   v8::V8::Initialize();
 
   ThreadA threadA;

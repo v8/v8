@@ -31,11 +31,12 @@
 
 
 CcTest* CcTest::last_ = NULL;
-
+CcTest::InitializationState CcTest::initialization_state_ = kUnset;
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
-               const char* dependency, bool enabled)
-    : callback_(callback), name_(name), dependency_(dependency), prev_(last_) {
+               const char* dependency, bool enabled, bool initialize)
+    : callback_(callback), name_(name), dependency_(dependency),
+      enabled_(enabled), initialize_(initialize), prev_(last_) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
   if (!basename) {
@@ -51,9 +52,32 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
   if (extension) *extension = 0;
   // Install this test in the list of tests
   file_ = basename;
-  enabled_ = enabled;
   prev_ = last_;
   last_ = this;
+}
+
+
+void CcTest::Run() {
+  if (!initialize_) {
+    CHECK(initialization_state_ != kInitialized);
+    initialization_state_ = kUnintialized;
+    // TODO(dcarney): Remove this when default isolate is gone.
+    if (default_isolate_ == NULL) {
+      default_isolate_ = v8::Isolate::GetCurrent();
+    }
+  } else {
+    CHECK(initialization_state_ != kUnintialized);
+    initialization_state_ = kInitialized;
+    i::Isolate::SetCrashIfDefaultIsolateInitialized();
+    if (default_isolate_ == NULL) {
+      default_isolate_ = v8::Isolate::New();
+    }
+    default_isolate_->Enter();
+  }
+  callback_();
+  if (initialize_) {
+    default_isolate_->Exit();
+  }
 }
 
 
@@ -95,7 +119,7 @@ static void PrintTestList(CcTest* current) {
 }
 
 
-v8::Isolate* CcTest::default_isolate_;
+v8::Isolate* CcTest::default_isolate_ = NULL;
 
 
 class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
@@ -120,8 +144,6 @@ int main(int argc, char* argv[]) {
   CcTestArrayBufferAllocator array_buffer_allocator;
   v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
 
-  CcTest::set_default_isolate(v8::Isolate::GetCurrent());
-  CHECK(CcTest::default_isolate() != NULL);
   int tests_run = 0;
   bool print_run_count = true;
   for (int i = 1; i < argc; i++) {

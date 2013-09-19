@@ -40,7 +40,7 @@ void Signal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void TerminateCurrentThread(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(!v8::V8::IsExecutionTerminating());
-  v8::V8::TerminateExecution();
+  v8::V8::TerminateExecution(args.GetIsolate());
 }
 
 
@@ -231,7 +231,7 @@ void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 // Test that we correctly handle termination exceptions if they are
 // triggered by the creation of error objects in connection with ICs.
-TEST(TerminateLoadICException) {
+UNINITIALIZED_TEST(TerminateLoadICException) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   global->Set(v8::String::New("terminate_or_return_object"),

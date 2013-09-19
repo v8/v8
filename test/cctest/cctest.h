@@ -31,23 +31,30 @@
 #include "v8.h"
 
 #ifndef TEST
-#define TEST(Name)                                                       \
-  static void Test##Name();                                              \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true);  \
+#define TEST(Name)                                                             \
+  static void Test##Name();                                                    \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, true);  \
+  static void Test##Name()
+#endif
+
+#ifndef UNINITIALIZED_TEST
+#define UNINITIALIZED_TEST(Name)                                               \
+  static void Test##Name();                                                    \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, false); \
   static void Test##Name()
 #endif
 
 #ifndef DEPENDENT_TEST
-#define DEPENDENT_TEST(Name, Dep)                                        \
-  static void Test##Name();                                              \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true);  \
+#define DEPENDENT_TEST(Name, Dep)                                              \
+  static void Test##Name();                                                    \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, true);  \
   static void Test##Name()
 #endif
 
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                              \
-  static void Test##Name();                                              \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, false); \
+#define DISABLED_TEST(Name)                                                    \
+  static void Test##Name();                                                    \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, false, true); \
   static void Test##Name()
 #endif
 
@@ -79,24 +86,26 @@ class CcTest {
  public:
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         const char* dependency, bool enabled);
-  void Run() { callback_(); }
+         const char* dependency, bool enabled, bool initialize);
+  void Run();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
   const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
-  static v8::Isolate* default_isolate() { return default_isolate_; }
+  static v8::Isolate* default_isolate() { return isolate(); }
 
   static v8::Handle<v8::Context> env() {
-    return v8::Local<v8::Context>::New(default_isolate_, context_);
+    return v8::Local<v8::Context>::New(isolate(), context_);
   }
 
-  static v8::Isolate* isolate() { return default_isolate_; }
+  static v8::Isolate* isolate() {
+    return default_isolate_;
+  }
 
   static i::Isolate* i_isolate() {
-    return reinterpret_cast<i::Isolate*>(default_isolate_);
+    return reinterpret_cast<i::Isolate*>(isolate());
   }
 
   // Helper function to initialize the VM.
@@ -104,17 +113,17 @@ class CcTest {
 
  private:
   friend int main(int argc, char** argv);
-  static void set_default_isolate(v8::Isolate* default_isolate) {
-    default_isolate_ = default_isolate;
-  }
   TestFunction* callback_;
   const char* file_;
   const char* name_;
   const char* dependency_;
   bool enabled_;
+  bool initialize_;
   CcTest* prev_;
   static CcTest* last_;
   static v8::Isolate* default_isolate_;
+  enum InitializationState {kUnset, kUnintialized, kInitialized};
+  static InitializationState initialization_state_;
   static v8::Persistent<v8::Context> context_;
 };
 

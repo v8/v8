@@ -345,6 +345,14 @@ Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
 Mutex Isolate::process_wide_mutex_;
+// TODO(dcarney): Remove with default isolate.
+enum DefaultIsolateStatus {
+  kDefaultIsolateUninitialized,
+  kDefaultIsolateInitialized,
+  kDefaultIsolateCrashIfInitialized
+};
+static DefaultIsolateStatus default_isolate_status_
+    = kDefaultIsolateUninitialized;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Atomic32 Isolate::isolate_counter_ = 0;
 
@@ -382,8 +390,16 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 }
 
 
+void Isolate::SetCrashIfDefaultIsolateInitialized() {
+  LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+  CHECK(default_isolate_status_ != kDefaultIsolateInitialized);
+  default_isolate_status_ = kDefaultIsolateCrashIfInitialized;
+}
+
+
 void Isolate::EnsureDefaultIsolate() {
   LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+  CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
   if (default_isolate_ == NULL) {
     isolate_key_ = Thread::CreateThreadLocalKey();
     thread_id_key_ = Thread::CreateThreadLocalKey();

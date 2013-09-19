@@ -635,7 +635,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
 
 
 // Locker inside an Unlocker inside a Locker for default isolate.
-TEST(LockUnlockLockDefaultIsolateMultithreaded) {
+UNINITIALIZED_TEST(LockUnlockLockDefaultIsolateMultithreaded) {
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else

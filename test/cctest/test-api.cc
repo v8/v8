@@ -12444,28 +12444,28 @@ void ApiTestFuzzer::TearDown() {
 
 
 // Lets not be needlessly self-referential.
-TEST(Threading1) {
+UNINITIALIZED_TEST(Threading1) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-TEST(Threading2) {
+UNINITIALIZED_TEST(Threading2) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::SECOND_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-TEST(Threading3) {
+UNINITIALIZED_TEST(Threading3) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::THIRD_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-TEST(Threading4) {
+UNINITIALIZED_TEST(Threading4) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
@@ -14312,7 +14312,7 @@ class RegExpInterruptTest {
 
 // Test that a regular expression execution can be interrupted and
 // survive a garbage collection.
-TEST(RegExpInterruption) {
+UNINITIALIZED_TEST(RegExpInterruption) {
   v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::default_isolate());
@@ -14420,7 +14420,7 @@ class ApplyInterruptTest {
 
 // Test that nothing bad happens if we get a preemption just when we were
 // about to do an apply().
-TEST(ApplyInterruption) {
+UNINITIALIZED_TEST(ApplyInterruption) {
   v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::default_isolate());
@@ -14737,7 +14737,7 @@ class RegExpStringModificationTest {
 
 // Test that a regular expression execution can be interrupted and
 // the string changed without failing.
-TEST(RegExpStringModification) {
+UNINITIALIZED_TEST(RegExpStringModification) {
   v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::default_isolate());
@@ -18197,14 +18197,6 @@ TEST(GCInFailedAccessCheckCallback) {
 }
 
 
-TEST(DefaultIsolateGetCurrent) {
-  CHECK(v8::Isolate::GetCurrent() != NULL);
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  CHECK(reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
-  printf("*** %s\n", "DefaultIsolateGetCurrent success");
-}
-
-
 TEST(IsolateNewDispose) {
   v8::Isolate* current_isolate = v8::Isolate::GetCurrent();
   v8::Isolate* isolate = v8::Isolate::New();
@@ -18221,87 +18213,7 @@ TEST(IsolateNewDispose) {
 }
 
 
-TEST(IsolateEnterExitDefault) {
-  v8::Isolate* current_isolate = v8::Isolate::GetCurrent();
-  CHECK(current_isolate != NULL);  // Default isolate.
-  v8::HandleScope scope(current_isolate);
-  LocalContext context;
-  ExpectString("'hello'", "hello");
-  current_isolate->Enter();
-  ExpectString("'still working'", "still working");
-  current_isolate->Exit();
-  ExpectString("'still working 2'", "still working 2");
-  current_isolate->Exit();
-  // Default isolate is always, well, 'default current'.
-  CHECK_EQ(v8::Isolate::GetCurrent(), current_isolate);
-  // Still working since default isolate is auto-entering any thread
-  // that has no isolate and attempts to execute V8 APIs.
-  ExpectString("'still working 3'", "still working 3");
-}
-
-
-TEST(DisposeDefaultIsolate) {
-  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
-
-  // Run some V8 code to trigger default isolate to become 'current'.
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  LocalContext context;
-  ExpectString("'run some V8'", "run some V8");
-
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  CHECK(reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
-  last_location = last_message = NULL;
-  isolate->Dispose();
-  // It is not possible to dispose default isolate via Isolate API.
-  CHECK_NE(last_location, NULL);
-  CHECK_NE(last_message, NULL);
-}
-
-
-TEST(RunDefaultAndAnotherIsolate) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  LocalContext context;
-
-  // Enter new isolate.
-  v8::Isolate* isolate = v8::Isolate::New();
-  CHECK(isolate);
-  isolate->Enter();
-  { // Need this block because subsequent Exit() will deallocate Heap,
-    // so we need all scope objects to be deconstructed when it happens.
-    v8::HandleScope scope_new(isolate);
-    LocalContext context_new;
-
-    // Run something in new isolate.
-    CompileRun("var foo = 153;");
-    ExpectTrue("function f() { return foo == 153; }; f()");
-  }
-  isolate->Exit();
-
-  // This runs automatically in default isolate.
-  // Variables in another isolate should be not available.
-  ExpectTrue("function f() {"
-             "  try {"
-             "    foo;"
-             "    return false;"
-             "  } catch(e) {"
-             "    return true;"
-             "  }"
-             "};"
-             "var bar = 371;"
-             "f()");
-
-  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
-  last_location = last_message = NULL;
-  isolate->Dispose();
-  CHECK_EQ(last_location, NULL);
-  CHECK_EQ(last_message, NULL);
-
-  // Check that default isolate still runs.
-  ExpectTrue("function f() { return bar == 371; }; f()");
-}
-
-
-TEST(DisposeIsolateWhenInUse) {
+UNINITIALIZED_TEST(DisposeIsolateWhenInUse) {
   v8::Isolate* isolate = v8::Isolate::New();
   CHECK(isolate);
   isolate->Enter();
@@ -18548,6 +18460,8 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
         result_(false) { }
 
   void Run() {
+    v8::Isolate* isolate = v8::Isolate::New();
+    isolate->Enter();
     switch (testCase_) {
     case IgnoreOOM:
       v8::V8::IgnoreOutOfMemoryException();
@@ -18578,6 +18492,8 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
       v8::V8::SetAddHistogramSampleFunction(NULL);
       break;
     }
+    isolate->Exit();
+    isolate->Dispose();
     result_ = true;
   }
 
@@ -19818,7 +19734,7 @@ TEST(StaticGetters) {
 }
 
 
-TEST(IsolateEmbedderData) {
+UNINITIALIZED_TEST(IsolateEmbedderData) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   CHECK_EQ(NULL, isolate->GetData());

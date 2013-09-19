@@ -5424,7 +5424,6 @@ Local<Context> v8::Context::New(
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
     v8::Handle<Value> global_object) {
-  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   EnsureInitializedForIsolate(isolate, "v8::Context::New()");
   LOG_API(isolate, "Context::New");
@@ -6768,7 +6767,6 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (callback == NULL) return;
-  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddLeaveScriptCallback()")) return;
   i::V8::AddCallCompletedCallback(callback);
@@ -6776,7 +6774,6 @@ void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
-  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveLeaveScriptCallback()")) return;
   i::V8::RemoveCallCompletedCallback(callback);
@@ -7080,6 +7077,16 @@ void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
   ENTER_V8(isolate);
   isolate->debugger()->SetMessageHandler(handler);
+}
+
+
+void Debug::SendCommand(Isolate* isolate,
+                        const uint16_t* command,
+                        int length,
+                        ClientData* client_data) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debugger()->ProcessCommand(
+      i::Vector<const uint16_t>(command, length), client_data);
 }
 
 
