@@ -1052,7 +1052,7 @@ Representation HBranch::observed_input_representation(int index) {
 
 void HCompareMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" (%p)", *map());
+  stream->Add(" (%p)", *map().handle());
   HControlInstruction::PrintDataTo(stream);
 }
 

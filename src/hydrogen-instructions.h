@@ -1393,7 +1393,7 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Map> map() const { return map_; }
+  Unique<Map> map() const { return map_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -1409,11 +1409,12 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
               Handle<Map> map,
               HBasicBlock* true_target = NULL,
               HBasicBlock* false_target = NULL)
-      : HUnaryControlInstruction(value, true_target, false_target), map_(map) {
+      : HUnaryControlInstruction(value, true_target, false_target),
+        map_(Unique<Map>(map)) {
     ASSERT(!map.is_null());
   }
 
-  Handle<Map> map_;
+  Unique<Map> map_;
 };
 
 
