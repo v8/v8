@@ -139,65 +139,6 @@ class FullCodeGenerator: public AstVisitor {
 #error Unsupported target architecture.
 #endif
 
-  class BackEdgeTableIterator {
-   public:
-    explicit BackEdgeTableIterator(Code* unoptimized,
-                                   DisallowHeapAllocation* required) {
-      ASSERT(unoptimized->kind() == Code::FUNCTION);
-      instruction_start_ = unoptimized->instruction_start();
-      cursor_ = instruction_start_ + unoptimized->back_edge_table_offset();
-      ASSERT(cursor_ < instruction_start_ + unoptimized->instruction_size());
-      table_length_ = Memory::uint32_at(cursor_);
-      cursor_ += kTableLengthSize;
-      end_ = cursor_ + table_length_ * kEntrySize;
-    }
-
-    bool Done() { return cursor_ >= end_; }
-
-    void Next() {
-      ASSERT(!Done());
-      cursor_ += kEntrySize;
-    }
-
-    BailoutId ast_id() {
-      ASSERT(!Done());
-      return BailoutId(static_cast<int>(
-          Memory::uint32_at(cursor_ + kAstIdOffset)));
-    }
-
-    uint32_t loop_depth() {
-      ASSERT(!Done());
-      return Memory::uint32_at(cursor_ + kLoopDepthOffset);
-    }
-
-    uint32_t pc_offset() {
-      ASSERT(!Done());
-      return Memory::uint32_at(cursor_ + kPcOffsetOffset);
-    }
-
-    Address pc() {
-      ASSERT(!Done());
-      return instruction_start_ + pc_offset();
-    }
-
-    uint32_t table_length() { return table_length_; }
-
-   private:
-    static const int kTableLengthSize = kIntSize;
-    static const int kAstIdOffset = 0 * kIntSize;
-    static const int kPcOffsetOffset = 1 * kIntSize;
-    static const int kLoopDepthOffset = 2 * kIntSize;
-    static const int kEntrySize = 3 * kIntSize;
-
-    Address cursor_;
-    Address end_;
-    Address instruction_start_;
-    uint32_t table_length_;
-
-    DISALLOW_COPY_AND_ASSIGN(BackEdgeTableIterator);
-  };
-
-
  private:
   class Breakable;
   class Iteration;
@@ -937,6 +878,91 @@ class AccessorTable: public TemplateHashMap<Literal,
 
  private:
   Zone* zone_;
+};
+
+
+class BackEdgeTable {
+ public:
+  BackEdgeTable(Code* code, DisallowHeapAllocation* required) {
+    ASSERT(code->kind() == Code::FUNCTION);
+    instruction_start_ = code->instruction_start();
+    Address table_address = instruction_start_ + code->back_edge_table_offset();
+    length_ = Memory::uint32_at(table_address);
+    start_ = table_address + kTableLengthSize;
+  }
+
+  uint32_t length() { return length_; }
+
+  BailoutId ast_id(uint32_t index) {
+    return BailoutId(static_cast<int>(
+        Memory::uint32_at(entry_at(index) + kAstIdOffset)));
+  }
+
+  uint32_t loop_depth(uint32_t index) {
+    return Memory::uint32_at(entry_at(index) + kLoopDepthOffset);
+  }
+
+  uint32_t pc_offset(uint32_t index) {
+    return Memory::uint32_at(entry_at(index) + kPcOffsetOffset);
+  }
+
+  Address pc(uint32_t index) {
+    return instruction_start_ + pc_offset(index);
+  }
+
+  enum BackEdgeState {
+    INTERRUPT,
+    ON_STACK_REPLACEMENT
+  };
+
+  // Patch all interrupts with allowed loop depth in the unoptimized code to
+  // unconditionally call replacement_code.
+  static void Patch(Isolate* isolate,
+                    Code* unoptimized_code);
+
+  // Patch the interrupt at the instruction before pc_after in
+  // the unoptimized code to unconditionally call replacement_code.
+  static void PatchAt(Code* unoptimized_code,
+                      Address pc_after,
+                      Code* replacement_code);
+
+  // Change all patched interrupts patched in the unoptimized code
+  // back to normal interrupts.
+  static void Revert(Isolate* isolate,
+                     Code* unoptimized_code);
+
+  // Change patched interrupt in the unoptimized code
+  // back to a normal interrupt.
+  static void RevertAt(Code* unoptimized_code,
+                       Address pc_after,
+                       Code* interrupt_code);
+
+#ifdef DEBUG
+  static BackEdgeState GetBackEdgeState(Isolate* isolate,
+                                        Code* unoptimized_code,
+                                        Address pc_after);
+
+  // Verify that all back edges of a certain loop depth are patched.
+  static bool Verify(Isolate* isolate,
+                     Code* unoptimized_code,
+                     int loop_nesting_level);
+#endif  // DEBUG
+
+ private:
+  Address entry_at(uint32_t index) {
+    ASSERT(index < length_);
+    return start_ + index * kEntrySize;
+  }
+
+  static const int kTableLengthSize = kIntSize;
+  static const int kAstIdOffset = 0 * kIntSize;
+  static const int kPcOffsetOffset = 1 * kIntSize;
+  static const int kLoopDepthOffset = 2 * kIntSize;
+  static const int kEntrySize = 3 * kIntSize;
+
+  Address start_;
+  Address instruction_start_;
+  uint32_t length_;
 };
 
 

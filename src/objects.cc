@@ -10367,10 +10367,9 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
 BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
   DisallowHeapAllocation no_gc;
   ASSERT(kind() == FUNCTION);
-  for (FullCodeGenerator::BackEdgeTableIterator it(this, &no_gc);
-       !it.Done();
-       it.Next()) {
-    if (it.pc_offset() == pc_offset) return it.ast_id();
+  BackEdgeTable back_edges(this, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    if (back_edges.pc_offset(i) == pc_offset) return back_edges.ast_id(i);
   }
   return BailoutId::None();
 }
@@ -10838,15 +10837,15 @@ void Code::Disassemble(const char* name, FILE* out) {
     // (due to alignment) the end of the instruction stream.
     if (static_cast<int>(offset) < instruction_size()) {
       DisallowHeapAllocation no_gc;
-      FullCodeGenerator::BackEdgeTableIterator back_edges(this, &no_gc);
+      BackEdgeTable back_edges(this, &no_gc);
 
-      PrintF(out, "Back edges (size = %u)\n", back_edges.table_length());
+      PrintF(out, "Back edges (size = %u)\n", back_edges.length());
       PrintF(out, "ast_id  pc_offset  loop_depth\n");
 
-      for ( ; !back_edges.Done(); back_edges.Next()) {
-        PrintF(out, "%6d  %9u  %10u\n", back_edges.ast_id().ToInt(),
-                                        back_edges.pc_offset(),
-                                        back_edges.loop_depth());
+      for (uint32_t i = 0; i < back_edges.length(); i++) {
+        PrintF(out, "%6d  %9u  %10u\n", back_edges.ast_id(i).ToInt(),
+                                        back_edges.pc_offset(i),
+                                        back_edges.loop_depth(i));
       }
 
       PrintF(out, "\n");

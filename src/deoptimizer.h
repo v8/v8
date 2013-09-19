@@ -131,11 +131,6 @@ class Deoptimizer : public Malloced {
     DEBUGGER
   };
 
-  enum InterruptPatchState {
-    NOT_PATCHED,
-    PATCHED_FOR_OSR
-  };
-
   static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
   struct JumpTableEntry {
@@ -212,39 +207,6 @@ class Deoptimizer : public Malloced {
 
   // The size in bytes of the code required at a lazy deopt patch site.
   static int patch_size();
-
-  // Patch all interrupts with allowed loop depth in the unoptimized code to
-  // unconditionally call replacement_code.
-  static void PatchInterruptCode(Isolate* isolate,
-                                 Code* unoptimized_code);
-
-  // Patch the interrupt at the instruction before pc_after in
-  // the unoptimized code to unconditionally call replacement_code.
-  static void PatchInterruptCodeAt(Code* unoptimized_code,
-                                   Address pc_after,
-                                   Code* replacement_code);
-
-  // Change all patched interrupts patched in the unoptimized code
-  // back to normal interrupts.
-  static void RevertInterruptCode(Isolate* isolate,
-                                  Code* unoptimized_code);
-
-  // Change patched interrupt in the unoptimized code
-  // back to a normal interrupt.
-  static void RevertInterruptCodeAt(Code* unoptimized_code,
-                                    Address pc_after,
-                                    Code* interrupt_code);
-
-#ifdef DEBUG
-  static InterruptPatchState GetInterruptPatchState(Isolate* isolate,
-                                                    Code* unoptimized_code,
-                                                    Address pc_after);
-
-  // Verify that all back edges of a certain loop depth are patched.
-  static bool VerifyInterruptCode(Isolate* isolate,
-                                  Code* unoptimized_code,
-                                  int loop_nesting_level);
-#endif  // DEBUG
 
   ~Deoptimizer();
 

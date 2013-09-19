@@ -4892,6 +4892,101 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 
 #undef __
 
+
+static const int32_t kBranchBeforeInterrupt =  0x5a000004;
+
+// The back edge bookkeeping code matches the pattern:
+//
+//  <decrement profiling counter>
+//  2a 00 00 01       bpl ok
+//  e5 9f c? ??       ldr ip, [pc, <interrupt stub address>]
+//  e1 2f ff 3c       blx ip
+//  ok-label
+//
+// We patch the code to the following form:
+//
+//  <decrement profiling counter>
+//  e1 a0 00 00       mov r0, r0 (NOP)
+//  e5 9f c? ??       ldr ip, [pc, <on-stack replacement address>]
+//  e1 2f ff 3c       blx ip
+//  ok-label
+
+void BackEdgeTable::PatchAt(Code* unoptimized_code,
+                            Address pc_after,
+                            Code* replacement_code) {
+  static const int kInstrSize = Assembler::kInstrSize;
+  // Turn the jump into nops.
+  CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
+  patcher.masm()->nop();
+  // Replace the call address.
+  uint32_t interrupt_address_offset = Memory::uint16_at(pc_after -
+      2 * kInstrSize) & 0xfff;
+  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
+  Memory::uint32_at(interrupt_address_pointer) =
+      reinterpret_cast<uint32_t>(replacement_code->entry());
+
+  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 2 * kInstrSize, replacement_code);
+}
+
+
+void BackEdgeTable::RevertAt(Code* unoptimized_code,
+                             Address pc_after,
+                             Code* interrupt_code) {
+  static const int kInstrSize = Assembler::kInstrSize;
+  // Restore the original jump.
+  CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
+  patcher.masm()->b(4 * kInstrSize, pl);  // ok-label is 4 instructions later.
+  ASSERT_EQ(kBranchBeforeInterrupt,
+            Memory::int32_at(pc_after - 3 * kInstrSize));
+  // Restore the original call address.
+  uint32_t interrupt_address_offset = Memory::uint16_at(pc_after -
+      2 * kInstrSize) & 0xfff;
+  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
+  Memory::uint32_at(interrupt_address_pointer) =
+      reinterpret_cast<uint32_t>(interrupt_code->entry());
+
+  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 2 * kInstrSize, interrupt_code);
+}
+
+
+#ifdef DEBUG
+BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc_after) {
+  static const int kInstrSize = Assembler::kInstrSize;
+  ASSERT(Memory::int32_at(pc_after - kInstrSize) == kBlxIp);
+
+  uint32_t interrupt_address_offset =
+      Memory::uint16_at(pc_after - 2 * kInstrSize) & 0xfff;
+  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
+
+  if (Assembler::IsNop(Assembler::instr_at(pc_after - 3 * kInstrSize))) {
+    ASSERT(Assembler::IsLdrPcImmediateOffset(
+        Assembler::instr_at(pc_after - 2 * kInstrSize)));
+    Code* osr_builtin =
+        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+    ASSERT(reinterpret_cast<uint32_t>(osr_builtin->entry()) ==
+           Memory::uint32_at(interrupt_address_pointer));
+    return ON_STACK_REPLACEMENT;
+  } else {
+    // Get the interrupt stub code object to match against from cache.
+    Code* interrupt_builtin =
+        isolate->builtins()->builtin(Builtins::kInterruptCheck);
+    ASSERT(Assembler::IsLdrPcImmediateOffset(
+        Assembler::instr_at(pc_after - 2 * kInstrSize)));
+    ASSERT_EQ(kBranchBeforeInterrupt,
+              Memory::int32_at(pc_after - 3 * kInstrSize));
+    ASSERT(reinterpret_cast<uint32_t>(interrupt_builtin->entry()) ==
+           Memory::uint32_at(interrupt_address_pointer));
+    return INTERRUPT;
+  }
+}
+#endif  // DEBUG
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_ARM

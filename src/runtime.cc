@@ -8497,8 +8497,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
     if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr"))) {
       // Start patching from the currently patched loop nesting level.
       int current_level = unoptimized->allow_osr_at_loop_nesting_level();
-      ASSERT(Deoptimizer::VerifyInterruptCode(
-                 isolate, unoptimized, current_level));
+      ASSERT(BackEdgeTable::Verify(isolate, unoptimized, current_level));
       for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
         unoptimized->set_allow_osr_at_loop_nesting_level(i);
         isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
@@ -8651,8 +8650,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     result = JSFunction::CompileOsr(function, ast_id, CLEAR_EXCEPTION);
   }
 
-  // Revert the patched interrupt now, regardless of whether OSR succeeds.
-  Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
+  // Revert the patched back edge table, regardless of whether OSR succeeds.
+  BackEdgeTable::Revert(isolate, *unoptimized);
 
   // Check whether we ended up with usable optimized code.
   if (!result.is_null() && result->kind() == Code::OPTIMIZED_FUNCTION) {
