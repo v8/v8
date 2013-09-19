@@ -727,6 +727,7 @@ HGraphBuilder::IfBuilder::IfBuilder(
       captured_(false),
       needs_compare_(false),
       first_true_block_(NULL),
+      last_true_block_(NULL),
       first_false_block_(NULL),
       split_edge_merge_block_(NULL),
       merge_block_(NULL) {
