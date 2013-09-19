@@ -139,6 +139,8 @@ static void SuggestTestHarness(int tests) {
 
 
 int main(int argc, char* argv[]) {
+  v8::V8::InitializeICU();
+
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
 
   CcTestArrayBufferAllocator array_buffer_allocator;
