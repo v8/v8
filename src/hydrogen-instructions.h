@@ -142,6 +142,7 @@ class LChunkBuilder;
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
+  V(LoadRoot)                                  \
   V(MapEnumLength)                             \
   V(MathFloorOfDiv)                            \
   V(MathMinMax)                                \
@@ -2511,6 +2512,40 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
   BuiltinFunctionId op_;
+};
+
+
+class HLoadRoot V8_FINAL : public HTemplateInstruction<0> {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P1(HLoadRoot, Heap::RootListIndex);
+  DECLARE_INSTRUCTION_FACTORY_P2(HLoadRoot, Heap::RootListIndex, HType);
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return Representation::None();
+  }
+
+  Heap::RootListIndex index() const { return index_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadRoot)
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    HLoadRoot* b = HLoadRoot::cast(other);
+    return index_ == b->index_;
+  }
+
+ private:
+  HLoadRoot(Heap::RootListIndex index, HType type = HType::Tagged())
+      : HTemplateInstruction<0>(type), index_(index) {
+    SetFlag(kUseGVN);
+    // TODO(bmeurer): We'll need kDependsOnRoots once we add the
+    // corresponding HStoreRoot instruction.
+    SetGVNFlag(kDependsOnCalls);
+  }
+
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+
+  const Heap::RootListIndex index_;
 };
 
 
