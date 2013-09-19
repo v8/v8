@@ -7837,11 +7837,10 @@ class AllocationSite: public Struct {
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
   DECL_ACCESSORS(transition_info, Object)
+  DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
-  void Initialize() {
-    SetElementsKind(GetInitialFastElementsKind());
-  }
+  inline void Initialize();
 
   ElementsKind GetElementsKind() {
     ASSERT(!IsLiteralSite());
@@ -7869,11 +7868,12 @@ class AllocationSite: public Struct {
   static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
-  static const int kWeakNextOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kDependentCodeOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 
   typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
-                              kTransitionInfoOffset + kPointerSize,
+                              kDependentCodeOffset + kPointerSize,
                               kSize> BodyDescriptor;
 
  private:

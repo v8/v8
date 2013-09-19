@@ -351,6 +351,7 @@ class UniqueValueId V8_FINAL {
   IMMOVABLE_UNIQUE_VALUE_ID(false_value)
   IMMOVABLE_UNIQUE_VALUE_ID(the_hole_value)
   IMMOVABLE_UNIQUE_VALUE_ID(empty_string)
+  IMMOVABLE_UNIQUE_VALUE_ID(empty_fixed_array)
 
 #undef IMMOVABLE_UNIQUE_VALUE_ID
 
@@ -3366,7 +3367,8 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
            unique_id_ == UniqueValueId::true_value(heap) ||
            unique_id_ == UniqueValueId::false_value(heap) ||
            unique_id_ == UniqueValueId::the_hole_value(heap) ||
-           unique_id_ == UniqueValueId::empty_string(heap);
+           unique_id_ == UniqueValueId::empty_string(heap) ||
+           unique_id_ == UniqueValueId::empty_fixed_array(heap);
   }
 
   bool IsCell() const {
@@ -5669,6 +5671,10 @@ class HObjectAccess V8_FINAL {
 
   static HObjectAccess ForAllocationSiteTransitionInfo() {
     return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
+  }
+
+  static HObjectAccess ForAllocationSiteDependentCode() {
+    return HObjectAccess(kInobject, AllocationSite::kDependentCodeOffset);
   }
 
   static HObjectAccess ForAllocationSiteWeakNext() {

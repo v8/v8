@@ -1323,6 +1323,13 @@ bool JSObject::ShouldTrackAllocationInfo() {
 }
 
 
+void AllocationSite::Initialize() {
+  SetElementsKind(GetInitialFastElementsKind());
+  set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
+                     SKIP_WRITE_BARRIER);
+}
+
+
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
 AllocationSiteMode AllocationSite::GetMode(
@@ -4480,6 +4487,8 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
+ACCESSORS(AllocationSite, dependent_code, DependentCode,
+          kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
