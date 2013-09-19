@@ -37,7 +37,7 @@ using namespace v8::internal;
 static MaybeObject* AllocateAfterFailures() {
   static int attempts = 0;
   if (++attempts < 3) return Failure::RetryAfterGC();
-  Heap* heap = CcTest::i_isolate()->heap();
+  Heap* heap = CcTest::heap();
 
   // New space.
   SimulateFullSpace(heap->new_space());

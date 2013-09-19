@@ -37,8 +37,8 @@ TEST(Create) {
 #endif
   }
 
-  HEAP->PerformScavenge();
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {

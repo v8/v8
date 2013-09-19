@@ -143,7 +143,7 @@ void DeclarationContext::Check(const char* source,
   InitializeIfNeeded();
   // A retry after a GC may pollute the counts, so perform gc now
   // to avoid that.
-  HEAP->CollectGarbage(v8::internal::NEW_SPACE);
+  CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
   HandleScope scope(CcTest::isolate());
   TryCatch catcher;
   catcher.SetVerbose(true);
@@ -169,7 +169,8 @@ void DeclarationContext::Check(const char* source,
       CHECK_EQ(value, catcher.Exception());
     }
   }
-  HEAP->CollectAllAvailableGarbage();  // Clean slate for the next test.
+  // Clean slate for the next test.
+  CcTest::heap()->CollectAllAvailableGarbage();
 }
 
 

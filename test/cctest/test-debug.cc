@@ -443,11 +443,11 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK_EQ(NULL, CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Iterate the head and check that there are no debugger related objects left.
-  HeapIterator iterator(HEAP);
+  HeapIterator iterator(CcTest::heap());
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CHECK(!obj->IsDebugInfo());
     CHECK(!obj->IsBreakPointInfo());
@@ -961,10 +961,10 @@ static void DebugEventBreakPointCollectGarbage(
     break_point_hit_count++;
     if (break_point_hit_count % 2 == 0) {
       // Scavenge.
-      HEAP->CollectGarbage(v8::internal::NEW_SPACE);
+      CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
     } else {
       // Mark sweep compact.
-      HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+      CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
     }
   }
 }
@@ -985,7 +985,7 @@ static void DebugEventBreak(
 
     // Run the garbage collector to enforce heap verification if option
     // --verify-heap is set.
-    HEAP->CollectGarbage(v8::internal::NEW_SPACE);
+    CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
 
     // Set the break flag again to come back here as soon as possible.
     v8::Debug::DebugBreak(CcTest::isolate());
@@ -1450,12 +1450,12 @@ static void CallAndGC(v8::Local<v8::Object> recv,
     CHECK_EQ(1 + i * 3, break_point_hit_count);
 
     // Scavenge and call function.
-    HEAP->CollectGarbage(v8::internal::NEW_SPACE);
+    CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
     f->Call(recv, 0, NULL);
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -2259,7 +2259,7 @@ TEST(ScriptBreakPointLineTopLevel) {
   }
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
 
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   SetScriptBreakPointByNameFromJS("test.html", 3, -1);
 
@@ -6547,7 +6547,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to ensure that only the script in this test will be
   // collected afterwards.
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   script_collected_count = 0;
   v8::Debug::SetDebugEventListener2(DebugEventScriptCollectedEvent);
@@ -6558,7 +6558,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   CHECK_EQ(2, script_collected_count);
 
@@ -6609,7 +6609,7 @@ TEST(ScriptCollectedEventContext) {
 
   // Do garbage collection to ensure that only the script in this test will be
   // collected afterwards.
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
   v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
@@ -6626,7 +6626,7 @@ TEST(ScriptCollectedEventContext) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   CHECK_EQ(2, script_collected_message_count);
 

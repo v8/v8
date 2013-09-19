@@ -294,11 +294,11 @@ static void SanityCheck() {
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
 #ifdef VERIFY_HEAP
-  HEAP->Verify();
+  CcTest::heap()->Verify();
 #endif
   CHECK(isolate->global_object()->IsJSObject());
   CHECK(isolate->native_context()->IsContext());
-  CHECK(HEAP->string_table()->IsStringTable());
+  CHECK(CcTest::heap()->string_table()->IsStringTable());
   CHECK(!isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("Empty"))->IsFailure());
 }

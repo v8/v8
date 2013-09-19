@@ -953,7 +953,7 @@ TEST(FunctionCallSample) {
   v8::HandleScope scope(env->GetIsolate());
 
   // Collect garbage that might have be generated while installing extensions.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   v8::Script::Compile(v8::String::New(call_function_test_source))->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(

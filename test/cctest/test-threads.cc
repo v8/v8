@@ -117,7 +117,7 @@ class ThreadB : public v8::internal::Thread {
           v8::Context::Scope context_scope(context);
 
           // Clear the caches by forcing major GC.
-          HEAP->CollectAllGarbage(v8::internal::Heap::kNoGCFlags);
+          CcTest::heap()->CollectAllGarbage(v8::internal::Heap::kNoGCFlags);
           turn = SECOND_TIME_FILL_CACHE;
           break;
         }

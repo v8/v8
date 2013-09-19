@@ -399,7 +399,7 @@ class TestSetup {
 
 TEST(RecordTickSample) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate()->heap());
+  CpuProfilesCollection profiles(CcTest::heap());
   profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -465,7 +465,7 @@ static void CheckNodeIds(ProfileNode* node, int* expectedId) {
 
 TEST(SampleIds) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate()->heap());
+  CpuProfilesCollection profiles(CcTest::heap());
   profiles.StartProfiling("", 1, true);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -513,7 +513,7 @@ TEST(SampleIds) {
 
 TEST(NoSamples) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate()->heap());
+  CpuProfilesCollection profiles(CcTest::heap());
   profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -652,7 +652,7 @@ TEST(RecordStackTraceAtStartProfiling) {
 
 
 TEST(Issue51919) {
-  CpuProfilesCollection collection(CcTest::i_isolate()->heap());
+  CpuProfilesCollection collection(CcTest::heap());
   i::EmbeddedVector<char*,
       CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {

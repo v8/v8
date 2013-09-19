@@ -78,9 +78,6 @@ typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
   EXTENSION_LIST(DEFINE_EXTENSION_FLAG)
 #undef DEFINE_EXTENSION_FLAG
 
-// Temporary macros for accessing current isolate and its subobjects.
-// They provide better readability, especially when used a lot in the code.
-#define HEAP (v8::internal::Isolate::Current()->heap())
 
 class CcTest {
  public:
@@ -106,6 +103,10 @@ class CcTest {
 
   static i::Isolate* i_isolate() {
     return reinterpret_cast<i::Isolate*>(isolate());
+  }
+
+  static i::Heap* heap() {
+    return i_isolate()->heap();
   }
 
   // Helper function to initialize the VM.

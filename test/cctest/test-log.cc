@@ -439,7 +439,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       "    (function a(j) { return function b() { return j; } })(100);\n"
       "})(this);");
   logger->StopProfiler();
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   logger->StringEvent("test-logging-done", "");
 
   // Iterate heap to find compiled functions, will write to log.

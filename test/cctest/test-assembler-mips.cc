@@ -61,7 +61,7 @@ TEST(MIPS0) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -100,7 +100,7 @@ TEST(MIPS1) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -241,7 +241,7 @@ TEST(MIPS2) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -314,7 +314,7 @@ TEST(MIPS3) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -382,7 +382,7 @@ TEST(MIPS4) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -448,7 +448,7 @@ TEST(MIPS5) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -521,7 +521,7 @@ TEST(MIPS6) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -598,7 +598,7 @@ TEST(MIPS7) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -697,7 +697,7 @@ TEST(MIPS8) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -745,7 +745,7 @@ TEST(MIPS9) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -805,7 +805,7 @@ TEST(MIPS10) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = CcTest::heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
         Handle<Code>())->ToObjectChecked();
@@ -938,7 +938,7 @@ TEST(MIPS11) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -1043,7 +1043,7 @@ TEST(MIPS12) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -1100,7 +1100,7 @@ TEST(MIPS13) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();
@@ -1221,7 +1221,7 @@ TEST(MIPS14) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();

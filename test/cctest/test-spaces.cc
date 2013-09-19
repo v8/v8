@@ -72,7 +72,7 @@ TEST(Page) {
 
   Page* p = Page::FromAddress(page_start);
   // Initialized Page has heap pointer, normally set by memory_allocator.
-  p->heap_ = HEAP;
+  p->heap_ = CcTest::heap();
   CHECK(p->address() == page_start);
   CHECK(p->is_valid());
 
@@ -323,8 +323,8 @@ TEST(NewSpace) {
 
   NewSpace new_space(heap);
 
-  CHECK(new_space.SetUp(HEAP->ReservedSemiSpaceSize(),
-                        HEAP->ReservedSemiSpaceSize()));
+  CHECK(new_space.SetUp(CcTest::heap()->ReservedSemiSpaceSize(),
+                        CcTest::heap()->ReservedSemiSpaceSize()));
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= Page::kMaxNonCodeHeapObjectSize) {
@@ -372,7 +372,7 @@ TEST(OldSpace) {
 TEST(LargeObjectSpace) {
   v8::V8::Initialize();
 
-  LargeObjectSpace* lo = HEAP->lo_space();
+  LargeObjectSpace* lo = CcTest::heap()->lo_space();
   CHECK(lo != NULL);
 
   int lo_size = Page::kPageSize;

@@ -401,7 +401,7 @@ TEST(DisasmX64) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = CcTest::heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
       Handle<Code>())->ToObjectChecked();

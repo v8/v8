@@ -81,7 +81,8 @@ TEST(Promotion) {
   // from new space.
   FLAG_gc_global = true;
   FLAG_always_compact = true;
-  HEAP->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
+  Heap* heap = CcTest::heap();
+  heap->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
 
   CcTest::InitializeVM();
 
@@ -91,23 +92,23 @@ TEST(Promotion) {
   int array_size =
       (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
       (kPointerSize * 4);
-  Object* obj = HEAP->AllocateFixedArray(array_size)->ToObjectChecked();
+  Object* obj = heap->AllocateFixedArray(array_size)->ToObjectChecked();
 
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array should be in the new space.
-  CHECK(HEAP->InSpace(*array, NEW_SPACE));
+  CHECK(heap->InSpace(*array, NEW_SPACE));
 
   // Call the m-c collector, so array becomes an old object.
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
 
   // Array now sits in the old space
-  CHECK(HEAP->InSpace(*array, OLD_POINTER_SPACE));
+  CHECK(heap->InSpace(*array, OLD_POINTER_SPACE));
 }
 
 
 TEST(NoPromotion) {
-  HEAP->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
+  CcTest::heap()->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
 
   // Test the situation that some objects in new space are promoted to
   // the old space
@@ -116,24 +117,24 @@ TEST(NoPromotion) {
   v8::HandleScope sc(CcTest::isolate());
 
   // Do a mark compact GC to shrink the heap.
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  CcTest::heap()->CollectGarbage(OLD_POINTER_SPACE);
 
   // Allocate a big Fixed array in the new space.
   int length = (Page::kMaxNonCodeHeapObjectSize -
       FixedArray::kHeaderSize) / (2 * kPointerSize);
-  Object* obj = CcTest::i_isolate()->heap()->AllocateFixedArray(length)->
+  Object* obj = CcTest::heap()->AllocateFixedArray(length)->
       ToObjectChecked();
 
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array still stays in the new space.
-  CHECK(HEAP->InSpace(*array, NEW_SPACE));
+  CHECK(CcTest::heap()->InSpace(*array, NEW_SPACE));
 
   // Allocate objects in the old space until out of memory.
   FixedArray* host = *array;
   while (true) {
     Object* obj;
-    { MaybeObject* maybe_obj = HEAP->AllocateFixedArray(100, TENURED);
+    { MaybeObject* maybe_obj = CcTest::heap()->AllocateFixedArray(100, TENURED);
       if (!maybe_obj->ToObject(&obj)) break;
     }
 
@@ -142,7 +143,7 @@ TEST(NoPromotion) {
   }
 
   // Call mark compact GC, and it should pass.
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  CcTest::heap()->CollectGarbage(OLD_POINTER_SPACE);
 }
 
 
@@ -255,15 +256,15 @@ TEST(MapCompact) {
       Handle<Map> map = CreateMap();
       map->set_prototype(*root);
       root = factory->NewJSObjectFromMap(map);
-    } while (HEAP->map_space()->MapPointersEncodable());
+    } while (CcTest::heap()->map_space()->MapPointersEncodable());
   }
   // Now, as we don't have any handles to just allocated maps, we should
   // be able to trigger map compaction.
   // To give an additional chance to fail, try to force compaction which
   // should be impossible right now.
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+  CcTest::heap()->CollectAllGarbage(Heap::kForceCompactionMask);
   // And now map pointers should be encodable again.
-  CHECK(HEAP->map_space()->MapPointersEncodable());
+  CHECK(CcTest::heap()->map_space()->MapPointersEncodable());
 }
 #endif
 
@@ -282,16 +283,16 @@ TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
   GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-
+  Heap* heap = CcTest::heap();
   NumberOfWeakCalls = 0;
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1s2 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1c1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   global_handles->MakeWeak(g1s1.location(),
                            reinterpret_cast<void*>(1234),
                            &WeakPointerCallback);
@@ -303,11 +304,11 @@ TEST(ObjectGroups) {
                            &WeakPointerCallback);
 
   Handle<Object> g2s1 =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2s2 =
-    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2c1 =
-    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
   global_handles->MakeWeak(g2s1.location(),
                            reinterpret_cast<void*>(1234),
                            &WeakPointerCallback);
@@ -337,7 +338,7 @@ TEST(ObjectGroups) {
         Handle<HeapObject>::cast(g2s1).location(), g2_children, 1);
   }
   // Do a full GC
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
 
   // All object should be alive.
   CHECK_EQ(0, NumberOfWeakCalls);
@@ -365,7 +366,7 @@ TEST(ObjectGroups) {
         Handle<HeapObject>::cast(g2s1).location(), g2_children, 1);
   }
 
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, NumberOfWeakCalls);
@@ -378,7 +379,7 @@ TEST(ObjectGroups) {
                            reinterpret_cast<void*>(1234),
                            &WeakPointerCallback);
 
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
   CHECK_EQ(7, NumberOfWeakCalls);
 }
 
@@ -413,8 +414,8 @@ TEST(EmptyObjectGroups) {
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
-  Handle<Object> object =
-      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> object = global_handles->Create(
+      CcTest::heap()->AllocateFixedArray(1)->ToObjectChecked());
 
   TestRetainedObjectInfo info;
   global_handles->AddObjectGroup(NULL, 0, &info);

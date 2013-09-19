@@ -290,7 +290,7 @@ ConsStringGenerationData::ConsStringGenerationData(bool long_blocks,
   rng_.init();
   InitializeBuildingBlocks(
       building_blocks_, kNumberOfBuildingBlocks, long_blocks, &rng_, zone);
-  empty_string_ = CcTest::i_isolate()->heap()->empty_string();
+  empty_string_ = CcTest::heap()->empty_string();
   Reset();
 }
 
