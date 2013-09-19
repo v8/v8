@@ -13364,7 +13364,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 }
 
 
-TEST(SetJitCodeEventHandler) {
+UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::FLAG_stress_compaction = true;
   i::FLAG_incremental_marking = false;
   const char* script =
@@ -13400,7 +13400,7 @@ TEST(SetJitCodeEventHandler) {
     // different fragmented code-space pages.
     const int kIterations = 10;
     for (int i = 0; i < kIterations; ++i) {
-      LocalContext env;
+      LocalContext env(isolate);
       i::AlwaysAllocateScope always_allocate;
       SimulateFullSpace(heap->code_space());
       CompileRun(script);
@@ -13438,7 +13438,7 @@ TEST(SetJitCodeEventHandler) {
   // request enumeration of existing code.
   {
     v8::HandleScope scope(isolate);
-    LocalContext env;
+    LocalContext env(isolate);
     CompileRun(script);
 
     // Now get code through initial iteration.
@@ -18221,7 +18221,7 @@ UNINITIALIZED_TEST(DisposeIsolateWhenInUse) {
   CHECK(isolate);
   isolate->Enter();
   v8::HandleScope scope(isolate);
-  LocalContext context;
+  LocalContext context(isolate);
   // Run something in this isolate.
   ExpectTrue("true");
   v8::V8::SetFatalErrorHandler(StoringErrorCallback);
@@ -18361,7 +18361,7 @@ TEST(RunTwoIsolatesOnSingleThread) {
 static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
-  LocalContext context;
+  LocalContext context(isolate);
   i::ScopedVector<char> code(1024);
   i::OS::SNPrintF(code, "function fib(n) {"
                         "  if (n <= 2) return 1;"

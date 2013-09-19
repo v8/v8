@@ -183,7 +183,7 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
     v8::Locker locker(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
-    LocalContext local_context;
+    LocalContext local_context(isolate_);
     CHECK_EQ(isolate_, v8::internal::Isolate::Current());
     CalcFibAndCheck();
   }
@@ -267,7 +267,7 @@ class IsolateNestedLockingThread : public JoinableThread {
     v8::Locker lock(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
-    LocalContext local_context;
+    LocalContext local_context(isolate_);
     {
       v8::Locker another_lock(isolate_);
       CalcFibAndCheck();
@@ -311,7 +311,7 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
     v8::Locker lock(isolate1_);
     v8::Isolate::Scope isolate_scope(isolate1_);
     v8::HandleScope handle_scope(isolate1_);
-    LocalContext local_context;
+    LocalContext local_context(isolate1_);
 
     IsolateLockingThreadWithLocalContext threadB(isolate2_);
     threadB.Start();
