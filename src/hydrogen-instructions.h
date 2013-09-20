@@ -4961,9 +4961,11 @@ class HSar V8_FINAL : public HBitwiseBinaryOperation {
 
 class HRor V8_FINAL : public HBitwiseBinaryOperation {
  public:
-  HRor(HValue* context, HValue* left, HValue* right)
-       : HBitwiseBinaryOperation(context, left, right) {
-    ChangeRepresentation(Representation::Integer32());
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right) {
+    return new(zone) HRor(context, left, right);
   }
 
   virtual void UpdateRepresentation(Representation new_rep,
@@ -4977,6 +4979,12 @@ class HRor V8_FINAL : public HBitwiseBinaryOperation {
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+
+ private:
+  HRor(HValue* context, HValue* left, HValue* right)
+       : HBitwiseBinaryOperation(context, left, right) {
+    ChangeRepresentation(Representation::Integer32());
+  }
 };
 
 

@@ -7714,14 +7714,13 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
     HValue* right) {
-  HValue* context = environment()->context();
   Handle<Type> left_type = expr->left()->bounds().lower;
   Handle<Type> right_type = expr->right()->bounds().lower;
   Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
 
   return HGraphBuilder::BuildBinaryOperation(expr->op(), left, right,
-      left_type, right_type, result_type, fixed_right_arg, context);
+      left_type, right_type, result_type, fixed_right_arg);
 }
 
 
@@ -7732,8 +7731,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     Handle<Type> left_type,
     Handle<Type> right_type,
     Handle<Type> result_type,
-    Maybe<int> fixed_right_arg,
-    HValue* context) {
+    Maybe<int> fixed_right_arg) {
 
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
@@ -7784,22 +7782,22 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
           flags = (flags == STRING_ADD_CHECK_BOTH)
               ? STRING_ADD_CHECK_LEFT : STRING_ADD_CHECK_NONE;
         }
-        instr = HStringAdd::New(zone(), context, left, right, flags);
+        instr = NewUncasted<HStringAdd>(left, right, flags);
       } else {
-        instr = HAdd::New(zone(), context, left, right);
+        instr = NewUncasted<HAdd>(left, right);
       }
       break;
     case Token::SUB:
-      instr = HSub::New(zone(), context, left, right);
+      instr = NewUncasted<HSub>(left, right);
       break;
     case Token::MUL:
-      instr = HMul::New(zone(), context, left, right);
+      instr = NewUncasted<HMul>(left, right);
       break;
     case Token::MOD:
-      instr = HMod::New(zone(), context, left, right, fixed_right_arg);
+      instr = NewUncasted<HMod>(left, right, fixed_right_arg);
       break;
     case Token::DIV:
-      instr = HDiv::New(zone(), context, left, right);
+      instr = NewUncasted<HDiv>(left, right);
       break;
     case Token::BIT_XOR:
     case Token::BIT_AND:
@@ -7810,24 +7808,24 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       if (left_type->Is(Type::Signed32()) &&
           right_type->Is(Type::Signed32()) &&
           MatchRotateRight(left, right, &operand, &shift_amount)) {
-        instr = new(zone()) HRor(context, operand, shift_amount);
+        instr = NewUncasted<HRor>(operand, shift_amount);
       } else {
         instr = NewUncasted<HBitwise>(op, left, right);
       }
       break;
     }
     case Token::SAR:
-      instr = HSar::New(zone(), context, left, right);
+      instr = NewUncasted<HSar>(left, right);
       break;
     case Token::SHR:
-      instr = HShr::New(zone(), context, left, right);
+      instr = NewUncasted<HShr>(left, right);
       if (FLAG_opt_safe_uint32_operations && instr->IsShr() &&
           CanBeZero(right)) {
         graph()->RecordUint32Instruction(instr);
       }
       break;
     case Token::SHL:
-      instr = HShl::New(zone(), context, left, right);
+      instr = NewUncasted<HShl>(left, right);
       break;
     default:
       UNREACHABLE();
