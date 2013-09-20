@@ -19754,9 +19754,8 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
   i_isolate->SetData(data2);
   CHECK_EQ(data2, isolate->GetData());
   CHECK_EQ(data2, i_isolate->GetData());
-  i_isolate->TearDown();
-  CHECK_EQ(data2, isolate->GetData());
-  CHECK_EQ(data2, i_isolate->GetData());
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 
