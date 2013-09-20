@@ -5923,12 +5923,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ToFastProperties) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  Object* object = args[0];
-  return (object->IsJSObject() && !object->IsGlobalObject())
-      ? JSObject::cast(object)->TransformToFastProperties(0)
-      : object;
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  if (object->IsJSObject() && !object->IsGlobalObject()) {
+    JSObject::TransformToFastProperties(Handle<JSObject>::cast(object), 0);
+  }
+  return *object;
 }
 
 

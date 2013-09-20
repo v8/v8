@@ -2486,10 +2486,6 @@ class JSObject: public JSReceiver {
                                   PropertyNormalizationMode mode,
                                   int expected_additional_properties);
 
-  MUST_USE_RESULT MaybeObject* NormalizeProperties(
-      PropertyNormalizationMode mode,
-      int expected_additional_properties);
-
   // Convert and update the elements backing store to be a
   // SeededNumberDictionary dictionary.  Returns the backing after conversion.
   static Handle<SeededNumberDictionary> NormalizeElements(
@@ -2498,12 +2494,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
   // Transform slow named properties to fast variants.
-  // Returns failure if allocation failed.
   static void TransformToFastProperties(Handle<JSObject> object,
                                         int unused_property_fields);
-
-  MUST_USE_RESULT MaybeObject* TransformToFastProperties(
-      int unused_property_fields);
 
   // Access fast-case object properties at index.
   MUST_USE_RESULT inline MaybeObject* FastPropertyAt(
@@ -2537,9 +2529,6 @@ class JSObject: public JSReceiver {
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);
 
-  // Casting.
-  static inline JSObject* cast(Object* obj);
-
   // Disalow further properties to be added to the object.
   static Handle<Object> PreventExtensions(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* PreventExtensions();
@@ -2553,6 +2542,9 @@ class JSObject: public JSReceiver {
   // Copy object.
   static Handle<JSObject> Copy(Handle<JSObject> object);
   static Handle<JSObject> DeepCopy(Handle<JSObject> object);
+
+  // Casting.
+  static inline JSObject* cast(Object* obj);
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -4231,8 +4223,9 @@ class NormalizedMapCache: public FixedArray {
  public:
   static const int kEntries = 64;
 
-  MUST_USE_RESULT MaybeObject* Get(JSObject* object,
-                                   PropertyNormalizationMode mode);
+  static Handle<Map> Get(Handle<NormalizedMapCache> cache,
+                         Handle<JSObject> object,
+                         PropertyNormalizationMode mode);
 
   void Clear();
 

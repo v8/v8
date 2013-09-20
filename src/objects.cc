@@ -4348,12 +4348,12 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
 }
 
 
-MaybeObject* NormalizedMapCache::Get(JSObject* obj,
-                                     PropertyNormalizationMode mode) {
-  Isolate* isolate = obj->GetIsolate();
+Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
+                                    Handle<JSObject> obj,
+                                    PropertyNormalizationMode mode) {
   Map* fast = obj->map();
   int index = fast->Hash() % kEntries;
-  Object* result = get(index);
+  Object* result = cache->get(index);
   if (result->IsMap() &&
       Map::cast(result)->EquivalentToForNormalization(fast, mode)) {
 #ifdef VERIFY_HEAP
@@ -4382,18 +4382,17 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
       }
     }
 #endif
-    return result;
+    return handle(Map::cast(result));
   }
 
-  { MaybeObject* maybe_result =
-        fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  ASSERT(Map::cast(result)->is_dictionary_map());
-  set(index, result);
+  Isolate* isolate = cache->GetIsolate();
+  Handle<Map> map = Map::CopyNormalized(handle(fast), mode,
+                                        SHARED_NORMALIZED_MAP);
+  ASSERT(map->is_dictionary_map());
+  cache->set(index, *map);
   isolate->counters()->normalized_maps()->Increment();
 
-  return result;
+  return map;
 }
 
 
@@ -4426,65 +4425,55 @@ void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
 void JSObject::NormalizeProperties(Handle<JSObject> object,
                                    PropertyNormalizationMode mode,
                                    int expected_additional_properties) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->NormalizeProperties(
-                              mode, expected_additional_properties));
-}
-
-
-MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
-                                           int expected_additional_properties) {
-  if (!HasFastProperties()) return this;
+  if (!object->HasFastProperties()) return;
 
   // The global object is always normalized.
-  ASSERT(!IsGlobalObject());
+  ASSERT(!object->IsGlobalObject());
   // JSGlobalProxy must never be normalized
-  ASSERT(!IsJSGlobalProxy());
+  ASSERT(!object->IsJSGlobalProxy());
 
-  Map* map_of_this = map();
+  Isolate* isolate = object->GetIsolate();
+  HandleScope scope(isolate);
+  Handle<Map> map(object->map());
 
   // Allocate new content.
-  int real_size = map_of_this->NumberOfOwnDescriptors();
+  int real_size = map->NumberOfOwnDescriptors();
   int property_count = real_size;
   if (expected_additional_properties > 0) {
     property_count += expected_additional_properties;
   } else {
     property_count += 2;  // Make space for two more properties.
   }
-  NameDictionary* dictionary;
-  MaybeObject* maybe_dictionary =
-      NameDictionary::Allocate(GetHeap(), property_count);
-  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+  Handle<NameDictionary> dictionary =
+      isolate->factory()->NewNameDictionary(property_count);
 
-  DescriptorArray* descs = map_of_this->instance_descriptors();
+  Handle<DescriptorArray> descs(map->instance_descriptors());
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
       case CONSTANT: {
+        Handle<Name> key(descs->GetKey(i));
+        Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), NORMAL, i + 1);
-        Object* value = descs->GetConstant(i);
-        MaybeObject* maybe_dictionary =
-            dictionary->Add(descs->GetKey(i), value, d);
-        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case FIELD: {
+        Handle<Name> key(descs->GetKey(i));
+        Handle<Object> value(
+            object->RawFastPropertyAt(descs->GetFieldIndex(i)), isolate);
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
-        Object* value = RawFastPropertyAt(descs->GetFieldIndex(i));
-        MaybeObject* maybe_dictionary =
-            dictionary->Add(descs->GetKey(i), value, d);
-        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case CALLBACKS: {
-        Object* value = descs->GetCallbacksObject(i);
+        Handle<Name> key(descs->GetKey(i));
+        Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), CALLBACKS, i + 1);
-        MaybeObject* maybe_dictionary =
-            dictionary->Add(descs->GetKey(i), value, d);
-        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case INTERCEPTOR:
@@ -4498,62 +4487,52 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     }
   }
 
-  Heap* current_heap = GetHeap();
-
   // Copy the next enumeration index from instance descriptor.
   dictionary->SetNextEnumerationIndex(real_size + 1);
 
-  Map* new_map;
-  MaybeObject* maybe_map =
-      current_heap->isolate()->context()->native_context()->
-      normalized_map_cache()->Get(this, mode);
-  if (!maybe_map->To(&new_map)) return maybe_map;
+  Handle<NormalizedMapCache> cache(
+      isolate->context()->native_context()->normalized_map_cache());
+  Handle<Map> new_map = NormalizedMapCache::Get(cache, object, mode);
   ASSERT(new_map->is_dictionary_map());
 
-  // We have now successfully allocated all the necessary objects.
-  // Changes can now be made with the guarantee that all of them take effect.
+  // From here on we cannot fail and we shouldn't GC anymore.
+  DisallowHeapAllocation no_allocation;
 
   // Resize the object in the heap if necessary.
   int new_instance_size = new_map->instance_size();
-  int instance_size_delta = map_of_this->instance_size() - new_instance_size;
+  int instance_size_delta = map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  current_heap->CreateFillerObjectAt(this->address() + new_instance_size,
-                                     instance_size_delta);
-  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+  isolate->heap()->CreateFillerObjectAt(object->address() + new_instance_size,
+                                        instance_size_delta);
+  if (Marking::IsBlack(Marking::MarkBitFrom(*object))) {
+    MemoryChunk::IncrementLiveBytesFromMutator(object->address(),
                                                -instance_size_delta);
   }
 
-  set_map(new_map);
-  map_of_this->NotifyLeafMapLayoutChange();
+  object->set_map(*new_map);
+  map->NotifyLeafMapLayoutChange();
 
-  set_properties(dictionary);
+  object->set_properties(*dictionary);
 
-  current_heap->isolate()->counters()->props_to_dictionary()->Increment();
+  isolate->counters()->props_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
     PrintF("Object properties have been normalized:\n");
-    Print();
+    object->Print();
   }
 #endif
-  return this;
 }
 
 
 void JSObject::TransformToFastProperties(Handle<JSObject> object,
                                          int unused_property_fields) {
+  if (object->HasFastProperties()) return;
+  ASSERT(!object->IsGlobalObject());
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
-      object->TransformToFastProperties(unused_property_fields));
-}
-
-
-MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
-  if (HasFastProperties()) return this;
-  ASSERT(!IsGlobalObject());
-  return property_dictionary()->
-      TransformPropertiesToFastFor(this, unused_property_fields);
+      object->property_dictionary()->TransformPropertiesToFastFor(
+          *object, unused_property_fields));
 }
 
 
