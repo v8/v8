@@ -1305,10 +1305,19 @@ class HGraphBuilder {
       return compare;
     }
 
+    template<class Condition>
+    Condition* IfNot(HValue* p) {
+      Condition* compare = If<Condition>(p);
+      HBasicBlock* block0 = compare->SuccessorAt(0);
+      HBasicBlock* block1 = compare->SuccessorAt(1);
+      compare->SetSuccessorAt(0, block1);
+      compare->SetSuccessorAt(1, block0);
+      return compare;
+    }
+
     template<class Condition, class P2>
     Condition* IfNot(HValue* p1, P2 p2) {
-      Condition* compare = builder()->New<Condition>(p1, p2);
-      AddCompare(compare);
+      Condition* compare = If<Condition>(p1, p2);
       HBasicBlock* block0 = compare->SuccessorAt(0);
       HBasicBlock* block1 = compare->SuccessorAt(1);
       compare->SetSuccessorAt(0, block1);
@@ -1318,8 +1327,7 @@ class HGraphBuilder {
 
     template<class Condition, class P2, class P3>
     Condition* IfNot(HValue* p1, P2 p2, P3 p3) {
-      Condition* compare = builder()->New<Condition>(p1, p2, p3);
-      AddCompare(compare);
+      Condition* compare = If<Condition>(p1, p2, p3);
       HBasicBlock* block0 = compare->SuccessorAt(0);
       HBasicBlock* block1 = compare->SuccessorAt(1);
       compare->SetSuccessorAt(0, block1);
