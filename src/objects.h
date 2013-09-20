@@ -4813,11 +4813,6 @@ class Code: public HeapObject {
     NONEXISTENT
   };
 
-  enum StubHolder {
-    OWN_STUB,
-    PROTOTYPE_STUB
-  };
-
   typedef int ExtraICState;
 
   static const ExtraICState kNoExtraICState = 0;
@@ -5022,8 +5017,6 @@ class Code: public HeapObject {
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
 
-  class ExtraICStateStubHolder: public BitField<StubHolder, 0, 1> {};
-
   static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
     return ExtraICStateStrictMode::decode(extra_ic_state);
   }
@@ -5038,10 +5031,6 @@ class Code: public HeapObject {
       StrictModeFlag strict_mode) {
     return ExtraICStateKeyedAccessStoreMode::encode(store_mode) |
         ExtraICStateStrictMode::encode(strict_mode);
-  }
-
-  static inline ExtraICState ComputeExtraICState(StubHolder stub_holder) {
-    return ExtraICStateStubHolder::encode(stub_holder);
   }
 
   // Flags operations.

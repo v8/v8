@@ -136,12 +136,11 @@ Handle<Code> StubCache::FindLoadHandler(Handle<Name> name,
                                         Handle<JSObject> stub_holder,
                                         Code::Kind kind,
                                         Code::StubType type) {
-  Code::ExtraICState extra_ic_state = Code::ComputeExtraICState(
-      receiver.is_identical_to(stub_holder) ? Code::OWN_STUB
-                                            : Code::PROTOTYPE_STUB);
+  InlineCacheHolderFlag holder_flag = receiver.is_identical_to(stub_holder)
+      ? OWN_MAP : PROTOTYPE_MAP;
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STUB, extra_ic_state, type, kind);
+      Code::STUB, Code::kNoExtraICState, type, kind, holder_flag);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
