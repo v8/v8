@@ -403,8 +403,7 @@ static void ExpectError(const char* input,
 }
 
 
-UNINITIALIZED_TEST(Errors) {
-  V8::Initialize(NULL);
+TEST(Errors) {
   const char* kEndBackslash = "\\ at end of pattern";
   ExpectError("\\", kEndBackslash);
   const char* kUnterminatedGroup = "Unterminated group";

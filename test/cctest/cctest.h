@@ -93,6 +93,7 @@ class CcTest {
   bool enabled() { return enabled_; }
 
   static v8::Isolate* isolate() {
+    CHECK(isolate_ != NULL);
     isolate_used_ = true;
     return isolate_;
   }
@@ -114,6 +115,9 @@ class CcTest {
     v8::HandleScope handle_scope(CcTest::isolate());
     v8::Context::New(CcTest::isolate())->Enter();
   }
+
+  // Only for UNINITIALIZED_TESTs
+  static void DisableAutomaticDispose();
 
   // Helper function to configure a context.
   // Must be in a HandleScope.

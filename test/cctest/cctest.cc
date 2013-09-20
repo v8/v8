@@ -31,6 +31,7 @@
 
 enum InitializationState {kUnset, kUnintialized, kInitialized};
 static InitializationState initialization_state_  = kUnset;
+static bool disable_automatic_dispose_ = false;
 
 CcTest* CcTest::last_ = NULL;
 bool CcTest::initialize_called_ = false;
@@ -66,14 +67,10 @@ void CcTest::Run() {
   if (!initialize_) {
     CHECK(initialization_state_ != kInitialized);
     initialization_state_ = kUnintialized;
-    // TODO(dcarney): Remove this when default isolate is gone.
-    if (isolate_ == NULL) {
-      isolate_ = v8::Isolate::GetCurrent();
-    }
+    CHECK(CcTest::isolate_ == NULL);
   } else {
     CHECK(initialization_state_ != kUnintialized);
     initialization_state_ = kInitialized;
-    i::Isolate::SetCrashIfDefaultIsolateInitialized();
     if (isolate_ == NULL) {
       isolate_ = v8::Isolate::New();
     }
@@ -98,6 +95,12 @@ v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
     v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
     CHECK(!context.IsEmpty());
     return context;
+}
+
+
+void CcTest::DisableAutomaticDispose() {
+  CHECK_EQ(kUnintialized, initialization_state_);
+  disable_automatic_dispose_ = true;
 }
 
 
@@ -131,6 +134,7 @@ static void SuggestTestHarness(int tests) {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  i::Isolate::SetCrashIfDefaultIsolateInitialized();
 
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
 
@@ -184,7 +188,7 @@ int main(int argc, char* argv[]) {
   }
   if (print_run_count && tests_run != 1)
     printf("Ran %i tests.\n", tests_run);
-  v8::V8::Dispose();
+  if (!disable_automatic_dispose_) v8::V8::Dispose();
   return 0;
 }
 

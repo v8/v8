@@ -71,6 +71,7 @@ class ThreadA : public v8::internal::Thread {
   void Run() {
     v8::Isolate* isolate = CcTest::isolate();
     v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope scope(isolate);
     v8::Handle<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
@@ -111,6 +112,7 @@ class ThreadB : public v8::internal::Thread {
       {
         v8::Isolate* isolate = CcTest::isolate();
         v8::Locker locker(isolate);
+        v8::Isolate::Scope isolate_scope(isolate);
         if (turn == CLEAN_CACHE) {
           v8::HandleScope scope(isolate);
           v8::Handle<v8::Context> context = v8::Context::New(isolate);
@@ -129,9 +131,7 @@ class ThreadB : public v8::internal::Thread {
 };
 
 
-UNINITIALIZED_TEST(JSFunctionResultCachesInTwoThreads) {
-  v8::V8::Initialize();
-
+TEST(JSFunctionResultCachesInTwoThreads) {
   ThreadA threadA;
   ThreadB threadB;
 

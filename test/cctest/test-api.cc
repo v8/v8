@@ -12446,28 +12446,28 @@ void ApiTestFuzzer::TearDown() {
 
 
 // Lets not be needlessly self-referential.
-UNINITIALIZED_TEST(Threading1) {
+TEST(Threading1) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-UNINITIALIZED_TEST(Threading2) {
+TEST(Threading2) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::SECOND_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-UNINITIALIZED_TEST(Threading3) {
+TEST(Threading3) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::THIRD_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-UNINITIALIZED_TEST(Threading4) {
+TEST(Threading4) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
@@ -12475,6 +12475,7 @@ UNINITIALIZED_TEST(Threading4) {
 
 
 void ApiTestFuzzer::CallTest() {
+  v8::Isolate::Scope scope(CcTest::isolate());
   if (kLogThreading)
     printf("Start test %d\n", test_number_);
   CallTestNumber(test_number_);
@@ -14257,6 +14258,7 @@ class RegExpInterruptTest {
     while (gc_during_regexp_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::isolate());
+        v8::Isolate::Scope isolate_scope(CcTest::isolate());
         // TODO(lrn): Perhaps create some garbage before collecting.
         CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
@@ -14315,9 +14317,8 @@ class RegExpInterruptTest {
 
 // Test that a regular expression execution can be interrupted and
 // survive a garbage collection.
-UNINITIALIZED_TEST(RegExpInterruption) {
+TEST(RegExpInterruption) {
   v8::Locker lock(CcTest::isolate());
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
   {
@@ -14379,6 +14380,7 @@ class ApplyInterruptTest {
     while (gc_during_apply_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::isolate());
+        v8::Isolate::Scope isolate_scope(CcTest::isolate());
         CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
       }
@@ -14423,7 +14425,7 @@ class ApplyInterruptTest {
 
 // Test that nothing bad happens if we get a preemption just when we were
 // about to do an apply().
-UNINITIALIZED_TEST(ApplyInterruption) {
+TEST(ApplyInterruption) {
   v8::Locker lock(CcTest::isolate());
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
@@ -14694,6 +14696,7 @@ class RegExpStringModificationTest {
            morphs_ < kMaxModifications) {
       {
         v8::Locker lock(CcTest::isolate());
+        v8::Isolate::Scope isolate_scope(CcTest::isolate());
         // Swap string between ascii and two-byte representation.
         i::String* string = *input_;
         MorphAString(string, &ascii_resource_, &uc16_resource_);
@@ -14740,9 +14743,8 @@ class RegExpStringModificationTest {
 
 // Test that a regular expression execution can be interrupted and
 // the string changed without failing.
-UNINITIALIZED_TEST(RegExpStringModification) {
+TEST(RegExpStringModification) {
   v8::Locker lock(CcTest::isolate());
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
   {
@@ -19738,7 +19740,9 @@ TEST(StaticGetters) {
 
 
 UNINITIALIZED_TEST(IsolateEmbedderData) {
-  v8::Isolate* isolate = CcTest::isolate();
+  CcTest::DisableAutomaticDispose();
+  v8::Isolate* isolate = v8::Isolate::New();
+  isolate->Enter();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   CHECK_EQ(NULL, isolate->GetData());
   CHECK_EQ(NULL, i_isolate->GetData());

@@ -610,6 +610,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
   virtual void Run() {
     v8::Locker lock1(CcTest::isolate());
     {
+      v8::Isolate::Scope isolate_scope(CcTest::isolate());
       v8::HandleScope handle_scope(CcTest::isolate());
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(CcTest::isolate(), context_);
@@ -620,6 +621,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
       v8::Unlocker unlock1(CcTest::isolate());
       {
         v8::Locker lock2(CcTest::isolate());
+        v8::Isolate::Scope isolate_scope(CcTest::isolate());
         v8::HandleScope handle_scope(CcTest::isolate());
         v8::Local<v8::Context> context =
             v8::Local<v8::Context>::New(CcTest::isolate(), context_);
@@ -635,7 +637,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
 
 
 // Locker inside an Unlocker inside a Locker for default isolate.
-UNINITIALIZED_TEST(LockUnlockLockDefaultIsolateMultithreaded) {
+TEST(LockUnlockLockDefaultIsolateMultithreaded) {
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
@@ -645,6 +647,7 @@ UNINITIALIZED_TEST(LockUnlockLockDefaultIsolateMultithreaded) {
   i::List<JoinableThread*> threads(kNThreads);
   {
     v8::Locker locker_(CcTest::isolate());
+    v8::Isolate::Scope isolate_scope(CcTest::isolate());
     v8::HandleScope handle_scope(CcTest::isolate());
     context = v8::Context::New(CcTest::isolate());
     for (int i = 0; i < kNThreads; i++) {
