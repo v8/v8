@@ -3133,12 +3133,12 @@ void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 
 void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  ElementsKind from_kind = original_map()->elements_kind();
-  ElementsKind to_kind = transitioned_map()->elements_kind();
+  ElementsKind from_kind = original_map().handle()->elements_kind();
+  ElementsKind to_kind = transitioned_map().handle()->elements_kind();
   stream->Add(" %p [%s] -> %p [%s]",
-              *original_map(),
+              *original_map().handle(),
               ElementsAccessor::ForKind(from_kind)->name(),
-              *transitioned_map(),
+              *transitioned_map().handle(),
               ElementsAccessor::ForKind(to_kind)->name());
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
 }

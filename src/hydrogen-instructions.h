@@ -6513,25 +6513,20 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
 
   HValue* object() { return OperandAt(0); }
   HValue* context() { return OperandAt(1); }
-  Handle<Map> original_map() { return original_map_; }
-  Handle<Map> transitioned_map() { return transitioned_map_; }
+  Unique<Map> original_map() { return original_map_; }
+  Unique<Map> transitioned_map() { return transitioned_map_; }
   ElementsKind from_kind() { return from_kind_; }
   ElementsKind to_kind() { return to_kind_; }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
-    original_map_unique_id_ = UniqueValueId(original_map_);
-    transitioned_map_unique_id_ = UniqueValueId(transitioned_map_);
-  }
 
   DECLARE_CONCRETE_INSTRUCTION(TransitionElementsKind)
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     HTransitionElementsKind* instr = HTransitionElementsKind::cast(other);
-    return original_map_unique_id_ == instr->original_map_unique_id_ &&
-           transitioned_map_unique_id_ == instr->transitioned_map_unique_id_;
+    return original_map_ == instr->original_map_ &&
+           transitioned_map_ == instr->transitioned_map_;
   }
 
  private:
@@ -6539,10 +6534,8 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
                           HValue* object,
                           Handle<Map> original_map,
                           Handle<Map> transitioned_map)
-      : original_map_(original_map),
-        transitioned_map_(transitioned_map),
-        original_map_unique_id_(),
-        transitioned_map_unique_id_(),
+      : original_map_(Unique<Map>(original_map)),
+        transitioned_map_(Unique<Map>(transitioned_map)),
         from_kind_(original_map->elements_kind()),
         to_kind_(transitioned_map->elements_kind()) {
     SetOperandAt(0, object);
@@ -6556,10 +6549,8 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
   }
 
-  Handle<Map> original_map_;
-  Handle<Map> transitioned_map_;
-  UniqueValueId original_map_unique_id_;
-  UniqueValueId transitioned_map_unique_id_;
+  Unique<Map> original_map_;
+  Unique<Map> transitioned_map_;
   ElementsKind from_kind_;
   ElementsKind to_kind_;
 };
