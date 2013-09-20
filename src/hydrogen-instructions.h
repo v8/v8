@@ -5122,23 +5122,23 @@ class HUnknownOSRValue V8_FINAL : public HTemplateInstruction<0> {
 class HLoadGlobalCell V8_FINAL : public HTemplateInstruction<0> {
  public:
   HLoadGlobalCell(Handle<Cell> cell, PropertyDetails details)
-      : cell_(cell), details_(details), unique_id_() {
+    : cell_(Unique<Cell>::CreateUninitialized(cell)), details_(details) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnGlobalVars);
   }
 
-  Handle<Cell> cell() const { return cell_; }
+  Unique<Cell> cell() const { return cell_; }
   bool RequiresHoleCheck() const;
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   virtual intptr_t Hashcode() V8_OVERRIDE {
-    return unique_id_.Hashcode();
+    return cell_.Hashcode();
   }
 
   virtual void FinalizeUniqueValueId() V8_OVERRIDE {
-    unique_id_ = UniqueValueId(cell_);
+    cell_ = Unique<Cell>(cell_.handle());
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
@@ -5149,16 +5149,14 @@ class HLoadGlobalCell V8_FINAL : public HTemplateInstruction<0> {
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    HLoadGlobalCell* b = HLoadGlobalCell::cast(other);
-    return unique_id_ == b->unique_id_;
+    return cell_ == HLoadGlobalCell::cast(other)->cell_;
   }
 
  private:
   virtual bool IsDeletable() const V8_OVERRIDE { return !RequiresHoleCheck(); }
 
-  Handle<Cell> cell_;
+  Unique<Cell> cell_;
   PropertyDetails details_;
-  UniqueValueId unique_id_;
 };
 
 
@@ -5429,12 +5427,16 @@ class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreGlobalCell, HValue*,
                                  Handle<PropertyCell>, PropertyDetails);
 
-  Handle<PropertyCell> cell() const { return cell_; }
+  Unique<PropertyCell> cell() const { return cell_; }
   bool RequiresHoleCheck() {
     return !details_.IsDontDelete() || details_.IsReadOnly();
   }
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
+  }
+
+  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
+    cell_ = Unique<PropertyCell>(cell_.handle());
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
@@ -5449,12 +5451,12 @@ class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
                    Handle<PropertyCell> cell,
                    PropertyDetails details)
       : HUnaryOperation(value),
-        cell_(cell),
+        cell_(Unique<PropertyCell>::CreateUninitialized(cell)),
         details_(details) {
     SetGVNFlag(kChangesGlobalVars);
   }
 
-  Handle<PropertyCell> cell_;
+  Unique<PropertyCell> cell_;
   PropertyDetails details_;
 };
 

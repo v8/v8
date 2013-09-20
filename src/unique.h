@@ -90,34 +90,34 @@ class Unique V8_FINAL {
   }
 
   template <typename U>
-  bool operator==(const Unique<U>& other) const {
+  inline bool operator==(const Unique<U>& other) const {
     ASSERT(IsInitialized() && other.IsInitialized());
     return raw_address_ == other.raw_address_;
   }
 
   template <typename U>
-  bool operator!=(const Unique<U>& other) const {
+  inline bool operator!=(const Unique<U>& other) const {
     ASSERT(IsInitialized() && other.IsInitialized());
     return raw_address_ != other.raw_address_;
   }
 
-  intptr_t Hashcode() const {
+  inline intptr_t Hashcode() const {
     ASSERT(IsInitialized());
     return reinterpret_cast<intptr_t>(raw_address_);
   }
 
-  bool IsNull() const {
+  inline bool IsNull() const {
     ASSERT(IsInitialized());
     return raw_address_ == NULL;
   }
 
   // Extract the handle from this Unique in order to dereference it.
   // WARNING: Only do this if you have access to the heap.
-  Handle<T> handle() const {
+  inline Handle<T> handle() const {
     return handle_;
   }
 
-  bool IsInitialized() const {
+  inline bool IsInitialized() const {
     return raw_address_ != NULL || handle_.is_null();
   }
 

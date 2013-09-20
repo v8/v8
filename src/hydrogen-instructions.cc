@@ -3145,7 +3145,7 @@ void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
 
 
 void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p]", *cell());
+  stream->Add("[%p]", *cell().handle());
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
   if (details_.IsReadOnly()) stream->Add(" (read-only)");
 }
@@ -3173,7 +3173,7 @@ void HInnerAllocatedObject::PrintDataTo(StringStream* stream) {
 
 
 void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p] = ", *cell());
+  stream->Add("[%p] = ", *cell().handle());
   value()->PrintNameTo(stream);
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
   if (details_.IsReadOnly()) stream->Add(" (read-only)");
