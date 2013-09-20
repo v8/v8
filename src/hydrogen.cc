@@ -806,6 +806,28 @@ void HGraphBuilder::IfBuilder::CaptureContinuation(
 }
 
 
+void HGraphBuilder::IfBuilder::JoinContinuation(HIfContinuation* continuation) {
+  ASSERT(!finished_);
+  ASSERT(!captured_);
+  HBasicBlock* true_block = last_true_block_ == NULL
+      ? first_true_block_
+      : last_true_block_;
+  HBasicBlock* false_block = did_else_ && (first_false_block_ != NULL)
+      ? builder_->current_block()
+      : first_false_block_;
+  if (true_block != NULL && !true_block->IsFinished()) {
+    ASSERT(continuation->IsTrueReachable());
+    true_block->GotoNoSimulate(continuation->true_branch());
+  }
+  if (false_block != NULL && !false_block->IsFinished()) {
+    ASSERT(continuation->IsFalseReachable());
+    false_block->GotoNoSimulate(continuation->false_branch());
+  }
+  captured_ = true;
+  End();
+}
+
+
 void HGraphBuilder::IfBuilder::Then() {
   ASSERT(!captured_);
   ASSERT(!finished_);
