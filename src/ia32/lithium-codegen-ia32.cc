@@ -1996,9 +1996,10 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
         __ movd(res, Operand(temp));
         __ psllq(res, 32);
         if (lower != 0) {
+          XMMRegister xmm_scratch = double_scratch0();
           __ Set(temp, Immediate(lower));
-          __ movd(xmm0, Operand(temp));
-          __ por(res, xmm0);
+          __ movd(xmm_scratch, Operand(temp));
+          __ por(res, xmm_scratch);
         }
       }
     }
@@ -2207,7 +2208,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ jmp(&return_right, Label::kNear);
 
     __ bind(&check_zero);
-    XMMRegister xmm_scratch = xmm0;
+    XMMRegister xmm_scratch = double_scratch0();
     __ xorps(xmm_scratch, xmm_scratch);
     __ ucomisd(left_reg, xmm_scratch);
     __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
@@ -2377,8 +2378,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
     ASSERT(!info()->IsStub());
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister reg = ToDoubleRegister(instr->value());
-    __ xorps(xmm0, xmm0);
-    __ ucomisd(reg, xmm0);
+    XMMRegister xmm_scratch = double_scratch0();
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ ucomisd(reg, xmm_scratch);
     EmitBranch(instr, not_equal);
   } else {
     ASSERT(r.IsTagged());
@@ -2398,8 +2400,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
     } else if (type.IsHeapNumber()) {
       ASSERT(!info()->IsStub());
       CpuFeatureScope scope(masm(), SSE2);
-      __ xorps(xmm0, xmm0);
-      __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+      XMMRegister xmm_scratch = double_scratch0();
+      __ xorps(xmm_scratch, xmm_scratch);
+      __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
       EmitBranch(instr, not_equal);
     } else if (type.IsString()) {
       ASSERT(!info()->IsStub());
@@ -2484,8 +2487,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(not_equal, &not_heap_number, Label::kNear);
         if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
           CpuFeatureScope scope(masm(), SSE2);
-          __ xorps(xmm0, xmm0);
-          __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+          XMMRegister xmm_scratch = double_scratch0();
+          __ xorps(xmm_scratch, xmm_scratch);
+          __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
         } else {
           __ fldz();
           __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
@@ -3925,7 +3929,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
 
   CpuFeatureScope scope(masm(), SSE2);
   if (r.IsDouble()) {
-    XMMRegister  scratch = xmm0;
+    XMMRegister scratch = double_scratch0();
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
@@ -3946,7 +3950,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
 
 void LCodeGen::DoMathFloor(LMathFloor* instr) {
   CpuFeatureScope scope(masm(), SSE2);
-  XMMRegister xmm_scratch = xmm0;
+  XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
 
@@ -4014,7 +4018,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   CpuFeatureScope scope(masm(), SSE2);
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
-  XMMRegister xmm_scratch = xmm0;
+  XMMRegister xmm_scratch = double_scratch0();
   XMMRegister input_temp = ToDoubleRegister(instr->temp());
   ExternalReference one_half = ExternalReference::address_of_one_half();
   ExternalReference minus_one_half =
@@ -4081,7 +4085,7 @@ void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   CpuFeatureScope scope(masm(), SSE2);
-  XMMRegister xmm_scratch = xmm0;
+  XMMRegister xmm_scratch = double_scratch0();
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   Register scratch = ToRegister(instr->temp());
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
@@ -4200,8 +4204,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   XMMRegister result = ToDoubleRegister(instr->result());
-  // We use xmm0 as fixed scratch register here.
-  XMMRegister scratch4 = xmm0;
+  XMMRegister scratch4 = double_scratch0();
   __ mov(scratch3, Immediate(0x49800000));  // 1.0 x 2^20 as single.
   __ movd(scratch4, scratch3);
   __ movd(result, random);
@@ -4215,9 +4218,10 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   CpuFeatureScope scope(masm(), SSE2);
   ASSERT(instr->value()->Equals(instr->result()));
   XMMRegister input_reg = ToDoubleRegister(instr->value());
+  XMMRegister xmm_scratch = double_scratch0();
   Label positive, done, zero;
-  __ xorps(xmm0, xmm0);
-  __ ucomisd(input_reg, xmm0);
+  __ xorps(xmm_scratch, xmm_scratch);
+  __ ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
   __ j(equal, &zero, Label::kNear);
   ExternalReference nan =
@@ -4247,10 +4251,11 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
   CpuFeatureScope scope(masm(), SSE2);
   XMMRegister input = ToDoubleRegister(instr->value());
   XMMRegister result = ToDoubleRegister(instr->result());
+  XMMRegister temp0 = double_scratch0();
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
 
-  MathExpGenerator::EmitMathExp(masm(), input, result, xmm0, temp1, temp2);
+  MathExpGenerator::EmitMathExp(masm(), input, result, temp0, temp1, temp2);
 }
 
 
@@ -4631,8 +4636,9 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
-      __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
-      __ movss(operand, xmm0);
+      XMMRegister xmm_scratch = double_scratch0();
+      __ cvtsd2ss(xmm_scratch, ToDoubleRegister(instr->value()));
+      __ movss(operand, xmm_scratch);
     } else {
       __ fld(0);
       __ fstp_s(operand);
@@ -5095,6 +5101,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   Label slow;
   Register reg = ToRegister(value);
   Register tmp = reg.is(eax) ? ecx : eax;
+  XMMRegister xmm_scratch = double_scratch0();
 
   // Preserve the value of all registers.
   PushSafepointRegistersScope scope(this);
@@ -5109,7 +5116,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
     __ xor_(reg, 0x80000000);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope feature_scope(masm(), SSE2);
-      __ Cvtsi2sd(xmm0, Operand(reg));
+      __ Cvtsi2sd(xmm_scratch, Operand(reg));
     } else {
       __ push(reg);
       __ fild_s(Operand(esp, 0));
@@ -5118,7 +5125,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   } else {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope feature_scope(masm(), SSE2);
-      __ LoadUint32(xmm0, reg,
+      __ LoadUint32(xmm_scratch, reg,
                     ToDoubleRegister(LNumberTagU::cast(instr)->temp()));
     } else {
       // There's no fild variant for unsigned values, so zero-extend to a 64-bit
@@ -5154,12 +5161,12 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   if (!reg.is(eax)) __ mov(reg, eax);
 
-  // Done. Put the value in xmm0 into the value of the allocated heap
+  // Done. Put the value in xmm_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope feature_scope(masm(), SSE2);
-    __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), xmm0);
+    __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), xmm_scratch);
   } else {
     __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
@@ -5349,7 +5356,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
 
     if (deoptimize_on_minus_zero) {
-      XMMRegister xmm_scratch = xmm0;
+      XMMRegister xmm_scratch = double_scratch0();
       __ xorps(xmm_scratch, xmm_scratch);
       __ ucomisd(result_reg, xmm_scratch);
       __ j(not_zero, &done, Label::kNear);
@@ -5515,7 +5522,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister input_reg = ToDoubleRegister(input);
-       __ DoubleToI(result_reg, input_reg, xmm0,
+      XMMRegister xmm_scratch = double_scratch0();
+       __ DoubleToI(result_reg, input_reg, xmm_scratch,
            instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
     } else {
       X87Register input_reg = ToX87Register(input);
@@ -5542,7 +5550,8 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(input);
-    __ DoubleToI(result_reg, input_reg, xmm0,
+    XMMRegister xmm_scratch = double_scratch0();
+    __ DoubleToI(result_reg, input_reg, xmm_scratch,
         instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
   } else {
     X87Register input_reg = ToX87Register(input);
@@ -5706,8 +5715,9 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
   CpuFeatureScope scope(masm(), SSE2);
   XMMRegister value_reg = ToDoubleRegister(instr->unclamped());
+  XMMRegister xmm_scratch = double_scratch0();
   Register result_reg = ToRegister(instr->result());
-  __ ClampDoubleToUint8(value_reg, xmm0, result_reg);
+  __ ClampDoubleToUint8(value_reg, xmm_scratch, result_reg);
 }
 
 
@@ -5723,6 +5733,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   ASSERT(instr->unclamped()->Equals(instr->result()));
   Register input_reg = ToRegister(instr->unclamped());
+  XMMRegister xmm_scratch = double_scratch0();
   Label is_smi, done, heap_number;
 
   __ JumpIfSmi(input_reg, &is_smi);
@@ -5741,8 +5752,8 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ ClampDoubleToUint8(xmm0, xmm1, input_reg);
+  __ movdbl(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ ClampDoubleToUint8(xmm_scratch, xmm1, input_reg);
   __ jmp(&done, Label::kNear);
 
   // smi

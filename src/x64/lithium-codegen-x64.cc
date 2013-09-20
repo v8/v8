@@ -1832,7 +1832,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ jmp(&return_right, Label::kNear);
 
     __ bind(&check_zero);
-    XMMRegister xmm_scratch = xmm0;
+    XMMRegister xmm_scratch = double_scratch0();
     __ xorps(xmm_scratch, xmm_scratch);
     __ ucomisd(left_reg, xmm_scratch);
     __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
@@ -1878,15 +1878,17 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       // when there is a mulsd depending on the result
       __ movaps(left, left);
       break;
-    case Token::MOD:
+    case Token::MOD: {
+      XMMRegister xmm_scratch = double_scratch0();
       __ PrepareCallCFunction(2);
-      __ movaps(xmm0, left);
+      __ movaps(xmm_scratch, left);
       ASSERT(right.is(xmm1));
       __ CallCFunction(
           ExternalReference::double_fp_operation(Token::MOD, isolate()), 2);
       __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-      __ movaps(result, xmm0);
+      __ movaps(result, xmm_scratch);
       break;
+    }
     default:
       UNREACHABLE();
       break;
@@ -1962,8 +1964,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else if (r.IsDouble()) {
     ASSERT(!info()->IsStub());
     XMMRegister reg = ToDoubleRegister(instr->value());
-    __ xorps(xmm0, xmm0);
-    __ ucomisd(reg, xmm0);
+    XMMRegister xmm_scratch = double_scratch0();
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ ucomisd(reg, xmm_scratch);
     EmitBranch(instr, not_equal);
   } else {
     ASSERT(r.IsTagged());
@@ -1982,8 +1985,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitBranch(instr, no_condition);
     } else if (type.IsHeapNumber()) {
       ASSERT(!info()->IsStub());
-      __ xorps(xmm0, xmm0);
-      __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+      XMMRegister xmm_scratch = double_scratch0();
+      __ xorps(xmm_scratch, xmm_scratch);
+      __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
       EmitBranch(instr, not_equal);
     } else if (type.IsString()) {
       ASSERT(!info()->IsStub());
@@ -2064,8 +2068,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
         Label not_heap_number;
         __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
         __ j(not_equal, &not_heap_number, Label::kNear);
-        __ xorps(xmm0, xmm0);
-        __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+        XMMRegister xmm_scratch = double_scratch0();
+        __ xorps(xmm_scratch, xmm_scratch);
+        __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
         __ j(zero, instr->FalseLabel(chunk_));
         __ jmp(instr->TrueLabel(chunk_));
         __ bind(&not_heap_number);
@@ -3447,7 +3452,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   Representation r = instr->hydrogen()->value()->representation();
 
   if (r.IsDouble()) {
-    XMMRegister scratch = xmm0;
+    XMMRegister scratch = double_scratch0();
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
@@ -3469,7 +3474,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
 
 
 void LCodeGen::DoMathFloor(LMathFloor* instr) {
-  XMMRegister xmm_scratch = xmm0;
+  XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
 
@@ -3528,7 +3533,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
 
 
 void LCodeGen::DoMathRound(LMathRound* instr) {
-  const XMMRegister xmm_scratch = xmm0;
+  const XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   static int64_t one_half = V8_INT64_C(0x3FE0000000000000);  // 0.5
@@ -3596,7 +3601,7 @@ void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
 
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
-  XMMRegister xmm_scratch = xmm0;
+  XMMRegister xmm_scratch = double_scratch0();
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
 
@@ -3713,8 +3718,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   XMMRegister result = ToDoubleRegister(instr->result());
-  // We use xmm0 as fixed scratch register here.
-  XMMRegister scratch4 = xmm0;
+  XMMRegister scratch4 = double_scratch0();
   __ movq(scratch3, V8_INT64_C(0x4130000000000000),
           RelocInfo::NONE64);  // 1.0 x 2^20 as double
   __ movq(scratch4, scratch3);
@@ -3727,10 +3731,11 @@ void LCodeGen::DoRandom(LRandom* instr) {
 void LCodeGen::DoMathExp(LMathExp* instr) {
   XMMRegister input = ToDoubleRegister(instr->value());
   XMMRegister result = ToDoubleRegister(instr->result());
+  XMMRegister temp0 = double_scratch0();
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
 
-  MathExpGenerator::EmitMathExp(masm(), input, result, xmm0, temp1, temp2);
+  MathExpGenerator::EmitMathExp(masm(), input, result, temp0, temp1, temp2);
 }
 
 
@@ -4531,7 +4536,8 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
   // Load value into xmm1 which will be preserved across potential call to
   // runtime (MacroAssembler::EnterExitFrameEpilogue preserves only allocatable
   // XMM registers on x64).
-  __ LoadUint32(xmm1, reg, xmm0);
+  XMMRegister xmm_scratch = double_scratch0();
+  __ LoadUint32(xmm1, reg, xmm_scratch);
 
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, &slow);
@@ -4650,7 +4656,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     }
 
     if (deoptimize_on_minus_zero) {
-      XMMRegister xmm_scratch = xmm0;
+      XMMRegister xmm_scratch = double_scratch0();
       __ xorps(xmm_scratch, xmm_scratch);
       __ ucomisd(xmm_scratch, result_reg);
       __ j(not_equal, &done, Label::kNear);
@@ -4778,7 +4784,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     __ TruncateDoubleToI(result_reg, input_reg);
   } else {
     Label bailout, done;
-    __ DoubleToI(result_reg, input_reg, xmm0,
+    XMMRegister xmm_scratch = double_scratch0();
+    __ DoubleToI(result_reg, input_reg, xmm_scratch,
         instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
 
     __ jmp(&done, Label::kNear);
@@ -4799,7 +4806,8 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   Register result_reg = ToRegister(result);
 
   Label bailout, done;
-  __ DoubleToI(result_reg, input_reg, xmm0,
+  XMMRegister xmm_scratch = double_scratch0();
+  __ DoubleToI(result_reg, input_reg, xmm_scratch,
       instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
 
   __ jmp(&done, Label::kNear);
@@ -4945,8 +4953,9 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
   XMMRegister value_reg = ToDoubleRegister(instr->unclamped());
+  XMMRegister xmm_scratch = double_scratch0();
   Register result_reg = ToRegister(instr->result());
-  __ ClampDoubleToUint8(value_reg, xmm0, result_reg);
+  __ ClampDoubleToUint8(value_reg, xmm_scratch, result_reg);
 }
 
 
@@ -4961,6 +4970,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   ASSERT(instr->unclamped()->Equals(instr->result()));
   Register input_reg = ToRegister(instr->unclamped());
   XMMRegister temp_xmm_reg = ToDoubleRegister(instr->temp_xmm());
+  XMMRegister xmm_scratch = double_scratch0();
   Label is_smi, done, heap_number;
 
   __ JumpIfSmi(input_reg, &is_smi);
@@ -4979,8 +4989,8 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ ClampDoubleToUint8(xmm0, temp_xmm_reg, input_reg);
+  __ movsd(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ ClampDoubleToUint8(xmm_scratch, temp_xmm_reg, input_reg);
   __ jmp(&done, Label::kNear);
 
   // smi
