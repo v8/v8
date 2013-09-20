@@ -36,8 +36,7 @@ def FAIL_OK = FAIL, OKAY
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL
 
-# TODO(jochen): Needs to be skipped only in noi18n mode.
-15.5.4.9_CE: SKIP
+15.5.4.9_CE: SKIP if $no_i18n
 
 ######################## NEEDS INVESTIGATION ###########################
 

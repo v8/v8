@@ -317,6 +317,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "system": utils.GuessOS(),
     "isolates": options.isolates,
     "deopt_fuzzer": False,
+    "no_i18n": options.no_i18n,
   }
   all_tests = []
   num_tests = 0
