@@ -464,8 +464,7 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
       JS_OBJECT_TYPE);
 
   // Store the map
-  Handle<Map> allocation_site_map(isolate()->heap()->allocation_site_map(),
-                                  isolate());
+  Handle<Map> allocation_site_map = isolate()->factory()->allocation_site_map();
   AddStoreMapConstant(object, allocation_site_map);
 
   // Store the payload (smi elements kind)
@@ -1064,11 +1063,12 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
       Add<HConstant>(factory->empty_fixed_array());
   HValue* shared_info = GetParameter(0);
 
+  AddIncrementCounter(counters->fast_new_closure_total());
+
   // Create a new closure from the given function info in new space
   HValue* size = Add<HConstant>(JSFunction::kSize);
   HInstruction* js_function = Add<HAllocate>(size, HType::JSObject(),
                                              NOT_TENURED, JS_FUNCTION_TYPE);
-  AddIncrementCounter(counters->fast_new_closure_total());
 
   int map_index = Context::FunctionMapIndex(casted_stub()->language_mode(),
                                             casted_stub()->is_generator());

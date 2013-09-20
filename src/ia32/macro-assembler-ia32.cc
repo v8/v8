@@ -3525,7 +3525,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   cmp(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
   j(greater, &no_memento_available);
   cmp(MemOperand(scratch_reg, -AllocationMemento::kSize),
-      Immediate(Handle<Map>(isolate()->heap()->allocation_memento_map())));
+      Immediate(isolate()->factory()->allocation_memento_map()));
   bind(&no_memento_available);
 }
 

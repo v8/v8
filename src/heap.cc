@@ -2967,17 +2967,16 @@ MaybeObject* Heap::AllocateBox(Object* value, PretenureFlag pretenure) {
 
 
 MaybeObject* Heap::AllocateAllocationSite() {
-  Object* result;
+  AllocationSite* site;
   MaybeObject* maybe_result = Allocate(allocation_site_map(),
                                        OLD_POINTER_SPACE);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
-  AllocationSite* site = AllocationSite::cast(result);
+  if (!maybe_result->To(&site)) return maybe_result;
   site->Initialize();
 
   // Link the site
   site->set_weak_next(allocation_sites_list());
   set_allocation_sites_list(site);
-  return result;
+  return site;
 }
 
 
@@ -4924,7 +4923,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 }
 
 
-MaybeObject* Heap::CopyJSObject(JSObject* source) {
+MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
   SLOW_ASSERT(!source->IsJSFunction());
@@ -4933,6 +4932,9 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   Map* map = source->map();
   int object_size = map->instance_size();
   Object* clone;
+
+  ASSERT(site == NULL || (AllocationSite::CanTrack(map->instance_type()) &&
+                          map->instance_type() == JS_ARRAY_TYPE));
 
   WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
 
@@ -4954,7 +4956,10 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   } else {
     wb_mode = SKIP_WRITE_BARRIER;
 
-    { MaybeObject* maybe_clone = new_space_.AllocateRaw(object_size);
+    { int adjusted_object_size = site != NULL
+          ? object_size + AllocationMemento::kSize
+          : object_size;
+      MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     SLOW_ASSERT(InNewSpace(clone));
@@ -4963,117 +4968,14 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
     CopyBlock(HeapObject::cast(clone)->address(),
               source->address(),
               object_size);
-  }
 
-  SLOW_ASSERT(
-      JSObject::cast(clone)->GetElementsKind() == source->GetElementsKind());
-  FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
-  FixedArray* properties = FixedArray::cast(source->properties());
-  // Update elements if necessary.
-  if (elements->length() > 0) {
-    Object* elem;
-    { MaybeObject* maybe_elem;
-      if (elements->map() == fixed_cow_array_map()) {
-        maybe_elem = FixedArray::cast(elements);
-      } else if (source->HasFastDoubleElements()) {
-        maybe_elem = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
-      } else {
-        maybe_elem = CopyFixedArray(FixedArray::cast(elements));
-      }
-      if (!maybe_elem->ToObject(&elem)) return maybe_elem;
+    if (site != NULL) {
+      AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
+          reinterpret_cast<Address>(clone) + object_size);
+      alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+      ASSERT(site->map() == allocation_site_map());
+      alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
     }
-    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem), wb_mode);
-  }
-  // Update properties if necessary.
-  if (properties->length() > 0) {
-    Object* prop;
-    { MaybeObject* maybe_prop = CopyFixedArray(properties);
-      if (!maybe_prop->ToObject(&prop)) return maybe_prop;
-    }
-    JSObject::cast(clone)->set_properties(FixedArray::cast(prop), wb_mode);
-  }
-  // Return the new clone.
-  return clone;
-}
-
-
-MaybeObject* Heap::CopyJSObjectWithAllocationSite(
-    JSObject* source,
-    AllocationSite* site) {
-  // Never used to copy functions.  If functions need to be copied we
-  // have to be careful to clear the literals array.
-  SLOW_ASSERT(!source->IsJSFunction());
-
-  // Make the clone.
-  Map* map = source->map();
-  int object_size = map->instance_size();
-  Object* clone;
-
-  ASSERT(AllocationSite::CanTrack(map->instance_type()));
-  ASSERT(map->instance_type() == JS_ARRAY_TYPE);
-  WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
-
-  // If we're forced to always allocate, we use the general allocation
-  // functions which may leave us with an object in old space.
-  int adjusted_object_size = object_size;
-  if (always_allocate()) {
-    // We'll only track origin if we are certain to allocate in new space
-    const int kMinFreeNewSpaceAfterGC = InitialSemiSpaceSize() * 3/4;
-    if ((object_size + AllocationMemento::kSize) < kMinFreeNewSpaceAfterGC) {
-      adjusted_object_size += AllocationMemento::kSize;
-    }
-
-    { MaybeObject* maybe_clone =
-          AllocateRaw(adjusted_object_size, NEW_SPACE, OLD_POINTER_SPACE);
-      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
-    }
-    Address clone_address = HeapObject::cast(clone)->address();
-    CopyBlock(clone_address,
-              source->address(),
-              object_size);
-    // Update write barrier for all fields that lie beyond the header.
-    int write_barrier_offset = adjusted_object_size > object_size
-        ? JSArray::kSize + AllocationMemento::kSize
-        : JSObject::kHeaderSize;
-    if (((object_size - write_barrier_offset) / kPointerSize) > 0) {
-      RecordWrites(clone_address,
-                   write_barrier_offset,
-                   (object_size - write_barrier_offset) / kPointerSize);
-    }
-
-    // Track allocation site information, if we failed to allocate it inline.
-    if (InNewSpace(clone) &&
-        adjusted_object_size == object_size) {
-      MaybeObject* maybe_alloc_memento =
-          AllocateStruct(ALLOCATION_MEMENTO_TYPE);
-      AllocationMemento* alloc_memento;
-      if (maybe_alloc_memento->To(&alloc_memento)) {
-        alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-        ASSERT(site->map() == allocation_site_map());
-        alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
-      }
-    }
-  } else {
-    wb_mode = SKIP_WRITE_BARRIER;
-    adjusted_object_size += AllocationMemento::kSize;
-
-    { MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
-      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
-    }
-    SLOW_ASSERT(InNewSpace(clone));
-    // Since we know the clone is allocated in new space, we can copy
-    // the contents without worrying about updating the write barrier.
-    CopyBlock(HeapObject::cast(clone)->address(),
-              source->address(),
-              object_size);
-  }
-
-  if (adjusted_object_size > object_size) {
-    AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
-        reinterpret_cast<Address>(clone) + object_size);
-    alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-    ASSERT(site->map() == allocation_site_map());
-    alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 
   SLOW_ASSERT(

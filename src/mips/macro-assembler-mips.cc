@@ -5603,7 +5603,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   Branch(&no_memento_available, gt, scratch_reg, Operand(at));
   lw(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
   Branch(allocation_memento_present, cond, scratch_reg,
-      Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
+         Operand(isolate()->factory()->allocation_memento_map()));
   bind(&no_memento_available);
 }
 

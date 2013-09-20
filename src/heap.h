@@ -666,10 +666,9 @@ class Heap {
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
-  MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source);
-
-  MUST_USE_RESULT MaybeObject* CopyJSObjectWithAllocationSite(
-      JSObject* source, AllocationSite* site);
+  // Optionally takes an AllocationSite to be appended in an AllocationMemento.
+  MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
+                                            AllocationSite* site = NULL);
 
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

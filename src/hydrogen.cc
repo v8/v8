@@ -1826,8 +1826,8 @@ HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
   ASSERT(alloc_site != NULL);
   HInnerAllocatedObject* alloc_memento = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
-  Handle<Map> alloc_memento_map(
-      isolate()->heap()->allocation_memento_map());
+  Handle<Map> alloc_memento_map =
+      isolate()->factory()->allocation_memento_map();
   AddStoreMapConstant(alloc_memento, alloc_memento_map);
   HObjectAccess access = HObjectAccess::ForAllocationMementoSite();
   Add<HStoreNamedField>(alloc_memento, access, alloc_site);
@@ -4297,17 +4297,26 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   ElementsKind boilerplate_elements_kind =
       Handle<JSObject>::cast(boilerplate_object)->GetElementsKind();
 
-  // TODO(mvstanton): This heuristic is only a temporary solution.  In the
-  // end, we want to quit creating allocation site info after a certain number
-  // of GCs for a call site.
-  AllocationSiteMode mode = AllocationSite::GetMode(
-      boilerplate_elements_kind);
+  ASSERT(AllocationSite::CanTrack(boilerplate_object->map()->instance_type()));
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int max_properties = kMaxFastLiteralProperties;
   if (IsFastLiteral(boilerplate_object,
                     kMaxFastLiteralDepth,
                     &max_properties)) {
+    // TODO(mvstanton): This heuristic is only a temporary solution.  In the
+    // end, we want to quit creating allocation site info after a certain number
+    // of GCs for a call site.
+    AllocationSiteMode mode = AllocationSite::GetMode(
+        boilerplate_elements_kind);
+
+    // it doesn't make sense to create allocation mementos if we are going to
+    // create in old space.
+    if (mode == TRACK_ALLOCATION_SITE &&
+        isolate()->heap()->GetPretenureMode() == TENURED) {
+      mode = DONT_TRACK_ALLOCATION_SITE;
+    }
+
     literal = BuildFastLiteral(boilerplate_object,
                                site,
                                mode);
@@ -8238,13 +8247,15 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   int object_offset = object_size;
 
   InstanceType instance_type = boilerplate_object->map()->instance_type();
-  bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
-      AllocationSite::CanTrack(instance_type);
+  bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE;
 
-  // If using allocation sites, then the payload on the site should already
-  // be filled in as a valid (boilerplate) array.
+  // If using allocation sites, then
+  // 1) the payload on the site should already be filled in as a valid
+  //    (boilerplate) array, and
+  // 2) we shouldn't be pretenuring the allocations.
   ASSERT(!create_allocation_site_info ||
-         AllocationSite::cast(*allocation_site_object)->IsLiteralSite());
+         (AllocationSite::cast(*allocation_site_object)->IsLiteralSite() &&
+          isolate()->heap()->GetPretenureMode() == NOT_TENURED));
 
   if (create_allocation_site_info) {
     object_size += AllocationMemento::kSize;
@@ -8256,7 +8267,6 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HValue* object_size_constant = Add<HConstant>(object_size);
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
       isolate()->heap()->GetPretenureMode(), instance_type);
-
 
   BuildEmitObjectHeader(boilerplate_object, object);
 

@@ -4119,6 +4119,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
+  // eax : number of arguments to the construct function
   // ebx : cache cell for call target
   // edi : the function to call
   Isolate* isolate = masm->isolate();
@@ -4138,9 +4139,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // If we didn't have a matching function, and we didn't find the megamorph
   // sentinel, then we have in the cell either some other function or an
   // AllocationSite. Do a map check on the object in ecx.
-  Handle<Map> allocation_site_map(
-      masm->isolate()->heap()->allocation_site_map(),
-      masm->isolate());
+  Handle<Map> allocation_site_map =
+      masm->isolate()->factory()->allocation_site_map();
   __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
   __ j(not_equal, &miss);
 
@@ -4179,6 +4179,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Arguments register must be smi-tagged to call out.
     __ SmiTag(eax);
     __ push(eax);
     __ push(edi);
@@ -7211,9 +7212,8 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     __ inc(edx);
     __ mov(ecx, FieldOperand(ebx, Cell::kValueOffset));
     if (FLAG_debug_code) {
-      Handle<Map> allocation_site_map(
-          masm->isolate()->heap()->allocation_site_map(),
-          masm->isolate());
+      Handle<Map> allocation_site_map =
+          masm->isolate()->factory()->allocation_site_map();
       __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
       __ Assert(equal, kExpectedAllocationSiteInCell);
     }
@@ -7358,8 +7358,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ cmp(ebx, Immediate(undefined_sentinel));
   __ j(equal, &no_info);
   __ mov(edx, FieldOperand(ebx, Cell::kValueOffset));
-  __ cmp(FieldOperand(edx, 0), Immediate(Handle<Map>(
-      masm->isolate()->heap()->allocation_site_map())));
+  __ cmp(FieldOperand(edx, 0), Immediate(
+      masm->isolate()->factory()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
   __ mov(edx, FieldOperand(edx, AllocationSite::kTransitionInfoOffset));

@@ -518,7 +518,10 @@ static Handle<AllocationSite> GetLiteralAllocationSite(
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
     Handle<Object> boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    if (boilerplate.is_null()) return site;
+    if (boilerplate.is_null()) {
+      ASSERT(site.is_null());
+      return site;
+    }
     site = isolate->factory()->NewAllocationSite();
     site->set_transition_info(*boilerplate);
     literals->set(literals_index, *site);
@@ -568,8 +571,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   AllocationSiteMode mode = AllocationSite::GetMode(
       boilerplate->GetElementsKind());
   if (mode == TRACK_ALLOCATION_SITE) {
-    return isolate->heap()->CopyJSObjectWithAllocationSite(
-        boilerplate, *site);
+    return isolate->heap()->CopyJSObject(boilerplate, *site);
   }
 
   return isolate->heap()->CopyJSObject(boilerplate);
