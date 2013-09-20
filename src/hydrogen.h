@@ -1260,10 +1260,26 @@ class HGraphBuilder {
   HInstruction* BuildLoadStringLength(HValue* object, HValue* checked_value);
   HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map>);
   HLoadNamedField* AddLoadElements(HValue* object);
+
+  bool MatchRotateRight(HValue* left,
+                        HValue* right,
+                        HValue** operand,
+                        HValue** shift_amount);
+
+  HInstruction* BuildBinaryOperation(Token::Value op,
+                                     HValue* left,
+                                     HValue* right,
+                                     Handle<Type> left_type,
+                                     Handle<Type> right_type,
+                                     Handle<Type> result_type,
+                                     Maybe<int> fixed_right_arg,
+                                     HValue* context);
+
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
 
+  HValue* EnforceNumberType(HValue* number, Handle<Type> expected);
   HValue* TruncateToNumber(HValue* value, Handle<Type>* expected);
 
   void PushAndAdd(HInstruction* instr);
@@ -1308,30 +1324,21 @@ class HGraphBuilder {
     template<class Condition>
     Condition* IfNot(HValue* p) {
       Condition* compare = If<Condition>(p);
-      HBasicBlock* block0 = compare->SuccessorAt(0);
-      HBasicBlock* block1 = compare->SuccessorAt(1);
-      compare->SetSuccessorAt(0, block1);
-      compare->SetSuccessorAt(1, block0);
+      compare->Not();
       return compare;
     }
 
     template<class Condition, class P2>
     Condition* IfNot(HValue* p1, P2 p2) {
       Condition* compare = If<Condition>(p1, p2);
-      HBasicBlock* block0 = compare->SuccessorAt(0);
-      HBasicBlock* block1 = compare->SuccessorAt(1);
-      compare->SetSuccessorAt(0, block1);
-      compare->SetSuccessorAt(1, block0);
+      compare->Not();
       return compare;
     }
 
     template<class Condition, class P2, class P3>
     Condition* IfNot(HValue* p1, P2 p2, P3 p3) {
       Condition* compare = If<Condition>(p1, p2, p3);
-      HBasicBlock* block0 = compare->SuccessorAt(0);
-      HBasicBlock* block1 = compare->SuccessorAt(1);
-      compare->SetSuccessorAt(0, block1);
-      compare->SetSuccessorAt(1, block0);
+      compare->Not();
       return compare;
     }
 
@@ -1389,7 +1396,7 @@ class HGraphBuilder {
     void Return(HValue* value);
 
    private:
-    void AddCompare(HControlInstruction* compare);
+    HControlInstruction* AddCompare(HControlInstruction* compare);
 
     HGraphBuilder* builder() const { return builder_; }
 
@@ -2188,11 +2195,6 @@ class HOptimizedGraphBuilder V8_FINAL
   void AddCheckConstantFunction(Handle<JSObject> holder,
                                 HValue* receiver,
                                 Handle<Map> receiver_map);
-
-  bool MatchRotateRight(HValue* left,
-                        HValue* right,
-                        HValue** operand,
-                        HValue** shift_amount);
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;

@@ -737,7 +737,8 @@ HGraphBuilder::IfBuilder::IfBuilder(
 }
 
 
-void HGraphBuilder::IfBuilder::AddCompare(HControlInstruction* compare) {
+HControlInstruction* HGraphBuilder::IfBuilder::AddCompare(
+    HControlInstruction* compare) {
   if (split_edge_merge_block_ != NULL) {
     HEnvironment* env = first_false_block_->last_environment();
     HBasicBlock* split_edge =
@@ -756,6 +757,7 @@ void HGraphBuilder::IfBuilder::AddCompare(HControlInstruction* compare) {
   }
   builder_->current_block()->Finish(compare);
   needs_compare_ = false;
+  return compare;
 }
 
 
@@ -7581,10 +7583,10 @@ static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
 // directions that can be replaced by one rotate right instruction or not.
 // Returns the operand and the shift amount for the rotate instruction in the
 // former case.
-bool HOptimizedGraphBuilder::MatchRotateRight(HValue* left,
-                                              HValue* right,
-                                              HValue** operand,
-                                              HValue** shift_amount) {
+bool HGraphBuilder::MatchRotateRight(HValue* left,
+                                     HValue* right,
+                                     HValue** operand,
+                                     HValue** shift_amount) {
   HShl* shl;
   HShr* shr;
   if (left->IsShl() && right->IsShr()) {
@@ -7620,6 +7622,18 @@ bool CanBeZero(HValue* right) {
 }
 
 
+HValue* HGraphBuilder::EnforceNumberType(HValue* number,
+                                         Handle<Type> expected) {
+  if (expected->Is(Type::Smi())) {
+    return Add<HForceRepresentation>(number, Representation::Smi());
+  }
+  if (expected->Is(Type::Signed32())) {
+    return Add<HForceRepresentation>(number, Representation::Integer32());
+  }
+  return number;
+}
+
+
 HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
@@ -7628,6 +7642,63 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
       *expected = handle(Type::Number(), isolate());
       return AddInstruction(number.value);
     }
+  }
+
+  Handle<Type> expected_type = *expected;
+
+  // Separate the number type from the rest.
+  Handle<Type> expected_obj = handle(Type::Intersect(
+      expected_type, handle(Type::NonNumber(), isolate())), isolate());
+  Handle<Type> expected_number = handle(Type::Intersect(
+      expected_type, handle(Type::Number(), isolate())), isolate());
+
+  // We expect to get a number.
+  // (We need to check first, since Type::None->Is(Type::Any()) == true.
+  if (expected_obj->Is(Type::None())) {
+    ASSERT(!expected_number->Is(Type::None()));
+    return value;
+  }
+
+  if (expected_obj->Is(Type::Undefined())) {
+    // This is already done by HChange.
+    *expected = handle(Type::Union(
+          expected_number, handle(Type::Double(), isolate())), isolate());
+    return value;
+  }
+
+  if (expected_obj->Is(Type::Null())) {
+    *expected = handle(Type::Union(
+          expected_number, handle(Type::Smi(), isolate())), isolate());
+    IfBuilder if_null(this);
+    if_null.If<HCompareObjectEqAndBranch>(value,
+                                          graph()->GetConstantNull());
+    if_null.Then();
+    Push(graph()->GetConstant0());
+    if_null.Else();
+    Push(value);
+    if_null.End();
+    return Pop();
+  }
+
+  if (expected_obj->Is(Type::Boolean())) {
+    *expected = handle(Type::Union(
+          expected_number, handle(Type::Smi(), isolate())), isolate());
+    IfBuilder if_true(this);
+    if_true.If<HCompareObjectEqAndBranch>(value,
+                                          graph()->GetConstantTrue());
+    if_true.Then();
+    Push(graph()->GetConstant1());
+    if_true.Else();
+    IfBuilder if_false(this);
+    if_false.If<HCompareObjectEqAndBranch>(value,
+                                           graph()->GetConstantFalse());
+    if_false.Then();
+    Push(graph()->GetConstant0());
+    if_false.Else();
+    Push(value);
+    if_false.End();
+    if_true.End();
+    return Pop();
   }
 
   return value;
@@ -7643,38 +7714,72 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   Handle<Type> right_type = expr->right()->bounds().lower;
   Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
+
+  return HGraphBuilder::BuildBinaryOperation(expr->op(), left, right,
+      left_type, right_type, result_type, fixed_right_arg, context);
+}
+
+
+HInstruction* HGraphBuilder::BuildBinaryOperation(
+    Token::Value op,
+    HValue* left,
+    HValue* right,
+    Handle<Type> left_type,
+    Handle<Type> right_type,
+    Handle<Type> result_type,
+    Maybe<int> fixed_right_arg,
+    HValue* context) {
+
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
-  Representation result_rep = Representation::FromType(result_type);
 
-  if (expr->op() != Token::ADD ||
-      (left->type().IsNonString() && right->type().IsNonString())) {
-    // For addition we can only truncate the arguments to number if we can
-    // prove that we will not end up in string concatenation mode.
-    left = TruncateToNumber(left, &left_type);
-    right = TruncateToNumber(right, &right_type);
-  }
+  bool maybe_string_add = op == Token::ADD &&
+                          (left_type->Maybe(Type::String()) ||
+                           right_type->Maybe(Type::String()));
 
   if (left_type->Is(Type::None())) {
     Add<HDeoptimize>("Insufficient type feedback for LHS of binary operation",
                      Deoptimizer::SOFT);
-    // TODO(rossberg): we should be able to get rid of non-continuous defaults.
+    // TODO(rossberg): we should be able to get rid of non-continuous
+    // defaults.
     left_type = handle(Type::Any(), isolate());
+  } else {
+    if (!maybe_string_add) left = TruncateToNumber(left, &left_type);
+    left_rep = Representation::FromType(left_type);
   }
+
   if (right_type->Is(Type::None())) {
     Add<HDeoptimize>("Insufficient type feedback for RHS of binary operation",
                      Deoptimizer::SOFT);
     right_type = handle(Type::Any(), isolate());
+  } else {
+    if (!maybe_string_add) right = TruncateToNumber(right, &right_type);
+    right_rep = Representation::FromType(right_type);
   }
+
+  Representation result_rep = Representation::FromType(result_type);
+
+  bool is_string_add = op == Token::ADD &&
+                       (left_type->Is(Type::String()) ||
+                        right_type->Is(Type::String()));
+
   HInstruction* instr = NULL;
-  switch (expr->op()) {
+  switch (op) {
     case Token::ADD:
-      if (left_type->Is(Type::String()) && right_type->Is(Type::String())) {
-        BuildCheckHeapObject(left);
-        AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
-        BuildCheckHeapObject(right);
-        AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
-        instr = HStringAdd::New(zone(), context, left, right);
+      if (is_string_add) {
+        StringAddFlags flags = STRING_ADD_CHECK_BOTH;
+        if (left_type->Is(Type::String())) {
+          BuildCheckHeapObject(left);
+          AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
+          flags = STRING_ADD_CHECK_RIGHT;
+        }
+        if (right_type->Is(Type::String())) {
+          BuildCheckHeapObject(right);
+          AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
+          flags = (flags == STRING_ADD_CHECK_BOTH)
+              ? STRING_ADD_CHECK_LEFT : STRING_ADD_CHECK_NONE;
+        }
+        instr = HStringAdd::New(zone(), context, left, right, flags);
       } else {
         instr = HAdd::New(zone(), context, left, right);
       }
@@ -7693,7 +7798,7 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
       break;
     case Token::BIT_XOR:
     case Token::BIT_AND:
-      instr = NewUncasted<HBitwise>(expr->op(), left, right);
+      instr = NewUncasted<HBitwise>(op, left, right);
       break;
     case Token::BIT_OR: {
       HValue* operand, *shift_amount;
@@ -7702,7 +7807,7 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
           MatchRotateRight(left, right, &operand, &shift_amount)) {
         instr = new(zone()) HRor(context, operand, shift_amount);
       } else {
-        instr = NewUncasted<HBitwise>(expr->op(), left, right);
+        instr = NewUncasted<HBitwise>(op, left, right);
       }
       break;
     }

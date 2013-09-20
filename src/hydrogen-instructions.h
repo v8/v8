@@ -1207,6 +1207,12 @@ class HControlInstruction : public HInstruction {
     return SuccessorCount() > 1 ? SuccessorAt(1) : NULL;
   }
 
+  void Not() {
+    HBasicBlock* swap = SuccessorAt(0);
+    SetSuccessorAt(0, SuccessorAt(1));
+    SetSuccessorAt(1, swap);
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(ControlInstruction)
 };
 
@@ -3907,13 +3913,13 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (!to.IsTagged()) {
+    if (to.IsTagged()) {
+      SetAllSideEffects();
+      ClearFlag(kUseGVN);
+    } else {
       ASSERT(to.IsSmiOrInteger32());
       ClearAllSideEffects();
       SetFlag(kUseGVN);
-    } else {
-      SetAllSideEffects();
-      ClearFlag(kUseGVN);
     }
   }
 
@@ -4591,10 +4597,12 @@ class HMul V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* right);
 
   static HInstruction* NewImul(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right) {
-    HMul* mul = new(zone) HMul(context, left, right);
+                         HValue* context,
+                         HValue* left,
+                         HValue* right) {
+    HInstruction* instr = HMul::New(zone, context, left, right);
+    if (!instr->IsMul()) return instr;
+    HMul* mul = HMul::cast(instr);
     // TODO(mstarzinger): Prevent bailout on minus zero for imul.
     mul->AssumeRepresentation(Representation::Integer32());
     mul->ClearFlag(HValue::kCanOverflow);
@@ -6572,14 +6580,21 @@ class HStringAdd V8_FINAL : public HBinaryOperation {
   HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
       : HBinaryOperation(context, left, right, HType::String()), flags_(flags) {
     set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    if (flags_ == STRING_ADD_CHECK_NONE) {
+      SetFlag(kUseGVN);
+      SetGVNFlag(kDependsOnMaps);
+      SetGVNFlag(kChangesNewSpacePromotion);
+    } else {
+      SetAllSideEffects();
+    }
   }
 
-  // No side-effects except possible allocation.
-  // NOTE: this instruction _does not_ call ToString() on its inputs.
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+  // No side-effects except possible allocation:
+  // NOTE: this instruction does not call ToString() on its inputs, when flags_
+  // is set to STRING_ADD_CHECK_NONE.
+  virtual bool IsDeletable() const V8_OVERRIDE {
+    return flags_ == STRING_ADD_CHECK_NONE;
+  }
 
   const StringAddFlags flags_;
 };
