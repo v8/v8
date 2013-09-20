@@ -2531,7 +2531,6 @@ class JSObject: public JSReceiver {
 
   // Disalow further properties to be added to the object.
   static Handle<Object> PreventExtensions(Handle<JSObject> object);
-  MUST_USE_RESULT MaybeObject* PreventExtensions();
 
   // ES5 Object.freeze
   static Handle<Object> Freeze(Handle<JSObject> object);

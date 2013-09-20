@@ -5322,59 +5322,50 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(), object->PreventExtensions(), Object);
-}
-
-
-MaybeObject* JSObject::PreventExtensions() {
-  Isolate* isolate = GetIsolate();
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(this,
+  Isolate* isolate = object->GetIsolate();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object,
                                isolate->heap()->undefined_value(),
                                v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->false_value();
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return isolate->factory()->false_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return this;
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return object;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->PreventExtensions();
+    return PreventExtensions(Handle<JSObject>::cast(proto));
   }
 
   // It's not possible to seal objects with external array elements
-  if (HasExternalArrayElements()) {
-    HandleScope scope(isolate);
-    Handle<Object> object(this, isolate);
+  if (object->HasExternalArrayElements()) {
     Handle<Object> error  =
         isolate->factory()->NewTypeError(
             "cant_prevent_ext_external_array_elements",
             HandleVector(&object, 1));
-    return isolate->Throw(*error);
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
   // If there are fast elements we normalize.
-  SeededNumberDictionary* dictionary = NULL;
-  { MaybeObject* maybe = NormalizeElements();
-    if (!maybe->To<SeededNumberDictionary>(&dictionary)) return maybe;
-  }
-  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
+  Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
+  ASSERT(object->HasDictionaryElements() ||
+         object->HasDictionaryArgumentsElements());
+
   // Make sure that we never go back to fast case.
   dictionary->set_requires_slow_elements();
 
   // Do a map transition, other objects with this map may still
   // be extensible.
   // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-  Map* new_map;
-  MaybeObject* maybe = map()->Copy();
-  if (!maybe->To(&new_map)) return maybe;
+  Handle<Map> new_map = Map::Copy(handle(object->map()));
 
   new_map->set_is_extensible(false);
-  set_map(new_map);
-  ASSERT(!map()->is_extensible());
-  return new_map;
+  object->set_map(*new_map);
+  ASSERT(!object->map()->is_extensible());
+  return object;
 }
 
 
