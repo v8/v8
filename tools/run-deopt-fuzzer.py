@@ -358,7 +358,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         mode_flags, options.verbose,
                         timeout, options.isolates,
                         options.command_prefix,
-                        options.extra_flags)
+                        options.extra_flags,
+                        False)
 
   # Find available test suites and read test cases from them.
   variables = {

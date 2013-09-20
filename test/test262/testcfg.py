@@ -59,6 +59,8 @@ class Test262TestSuite(testsuite.TestSuite):
     for dirname, dirs, files in os.walk(self.testroot):
       for dotted in [x for x in dirs if x.startswith(".")]:
         dirs.remove(dotted)
+      if context.noi18n and "intl402" in dirs:
+        dirs.remove("intl402")
       dirs.sort()
       files.sort()
       for filename in files:
