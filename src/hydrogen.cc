@@ -7644,6 +7644,11 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
     }
   }
 
+  // We put temporary values on the stack, which don't correspond to anything
+  // in baseline code. Since nothing is observable we avoid recording those
+  // pushes with a NoObservableSideEffectsScope.
+  NoObservableSideEffectsScope no_effects(this);
+
   Handle<Type> expected_type = *expected;
 
   // Separate the number type from the rest.
