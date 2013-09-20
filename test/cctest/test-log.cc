@@ -91,6 +91,7 @@ class ScopedLoggerInitializer {
     i::FLAG_log = true;
     i::FLAG_prof = true;
     i::FLAG_logfile = i::Log::kLogToTemporaryFile;
+    i::FLAG_logfile_per_isolate = false;
     return false;
   }
 
