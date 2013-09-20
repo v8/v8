@@ -1284,7 +1284,6 @@ Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
       root_index_wave_front_(0) {
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
-  ASSERT(isolate_->IsDefaultIsolate());
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
