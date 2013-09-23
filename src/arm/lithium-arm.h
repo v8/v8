@@ -76,7 +76,7 @@ class LCodeGen;
   V(CmpObjectEqAndBranch)                       \
   V(CmpHoleAndBranch)                           \
   V(CmpMapAndBranch)                            \
-  V(CmpT)                                       \
+  V(CompareGenericAndBranch)                    \
   V(ConstantD)                                  \
   V(ConstantE)                                  \
   V(ConstantI)                                  \
@@ -1073,9 +1073,9 @@ class LClassOfTestAndBranch V8_FINAL : public LControlInstruction<1, 1> {
 };
 
 
-class LCmpT V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LCompareGenericAndBranch V8_FINAL : public LControlInstruction<2, 0> {
  public:
-  LCmpT(LOperand* left, LOperand* right) {
+  LCompareGenericAndBranch(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -1083,8 +1083,9 @@ class LCmpT V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpT, "cmp-t")
-  DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
+  DECLARE_CONCRETE_INSTRUCTION(CompareGenericAndBranch,
+                               "compare-generic-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareGenericAndBranch)
 
   Token::Value op() const { return hydrogen()->token(); }
 };

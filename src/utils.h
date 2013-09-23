@@ -1115,8 +1115,10 @@ class BailoutId {
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
   static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
+  static BailoutId PendingMarker() { return BailoutId(kPendingMarkerId); }
 
   bool IsNone() const { return id_ == kNoneId; }
+  bool IsPendingMarker() const { return id_ == kPendingMarkerId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
 
  private:
@@ -1135,6 +1137,10 @@ class BailoutId {
 
   // Every compiled stub starts with this id.
   static const int kStubEntryId = 5;
+
+  // For Control instructions we cannot verify the ast_id, since there is no
+  // 1:1 mapping but it corresponds to two simulates for each branch.
+  static const int kPendingMarkerId = 6;
 
   int id_;
 };

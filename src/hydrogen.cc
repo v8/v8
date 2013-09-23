@@ -2655,7 +2655,6 @@ void EffectContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
 
 void EffectContext::ReturnControl(HControlInstruction* instr,
                                   BailoutId ast_id) {
-  ASSERT(!instr->HasObservableSideEffects());
   HBasicBlock* empty_true = owner()->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = owner()->graph()->CreateBasicBlock();
   instr->SetSuccessorAt(0, empty_true);
@@ -2696,7 +2695,6 @@ void ValueContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
 
 
 void ValueContext::ReturnControl(HControlInstruction* instr, BailoutId ast_id) {
-  ASSERT(!instr->HasObservableSideEffects());
   if (!arguments_allowed() && instr->CheckFlag(HValue::kIsArguments)) {
     return owner()->Bailout(kBadValueContextForArgumentsObjectValue);
   }
@@ -2754,7 +2752,9 @@ void TestContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
 
 
 void TestContext::ReturnControl(HControlInstruction* instr, BailoutId ast_id) {
-  ASSERT(!instr->HasObservableSideEffects());
+  // We can ignore ObservableSideEffects here since both HGoto instructions
+  // insert a different Simulate, thus we will directly deoptimize into the
+  // correct branch.
   HBasicBlock* empty_true = owner()->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = owner()->graph()->CreateBasicBlock();
   instr->SetSuccessorAt(0, empty_true);
@@ -8201,12 +8201,11 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(result, expr->id());
   } else {
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
-      HCompareGeneric* result =
-          new(zone()) HCompareGeneric(context, left, right, op);
-      result->set_observed_input_representation(1, left_rep);
-      result->set_observed_input_representation(2, right_rep);
+      HCompareGenericAndBranch* result =
+          New<HCompareGenericAndBranch>(left, right, op);
+      result->set_observed_input_representation(left_rep, right_rep);
       result->set_position(expr->position());
-      return ast_context()->ReturnInstruction(result, expr->id());
+      return ast_context()->ReturnControl(result, expr->id());
     } else {
       HCompareNumericAndBranch* result =
           New<HCompareNumericAndBranch>(left, right, op);

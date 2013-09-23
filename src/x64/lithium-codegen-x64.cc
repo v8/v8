@@ -2604,7 +2604,7 @@ void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
 }
 
 
-void LCodeGen::DoCmpT(LCmpT* instr) {
+void LCodeGen::DoCompareGenericAndBranch(LCompareGenericAndBranch* instr) {
   Token::Value op = instr->op();
 
   Handle<Code> ic = CompareIC::GetUninitialized(isolate(), op);
@@ -2613,12 +2613,7 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   Condition condition = TokenToCondition(op, false);
   Label true_value, done;
   __ testq(rax, rax);
-  __ j(condition, &true_value, Label::kNear);
-  __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex);
-  __ jmp(&done, Label::kNear);
-  __ bind(&true_value);
-  __ LoadRoot(ToRegister(instr->result()), Heap::kTrueValueRootIndex);
-  __ bind(&done);
+  EmitBranch(instr, condition);
 }
 
 

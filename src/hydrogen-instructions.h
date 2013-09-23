@@ -98,7 +98,7 @@ class LChunkBuilder;
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
   V(CompareHoleAndBranch)                      \
-  V(CompareGeneric)                            \
+  V(CompareGenericAndBranch)                   \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
   V(Constant)                                  \
@@ -1069,14 +1069,29 @@ class HValue : public ZoneObject {
 };
 
 
+#define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P0(I)                         \
+  static I* New(Zone* zone, HValue* context) {                                 \
+    return new(zone) I(context);                                               \
+}
+
 #define DECLARE_INSTRUCTION_FACTORY_P0(I)                                      \
   static I* New(Zone* zone, HValue* context) {                                 \
     return new(zone) I();                                                      \
 }
 
+#define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(I, P1)                     \
+  static I* New(Zone* zone, HValue* context, P1 p1) {                          \
+    return new(zone) I(context, p1);                                           \
+  }
+
 #define DECLARE_INSTRUCTION_FACTORY_P1(I, P1)                                  \
   static I* New(Zone* zone, HValue* context, P1 p1) {                          \
     return new(zone) I(p1);                                                    \
+  }
+
+#define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(I, P1, P2)                 \
+  static I* New(Zone* zone, HValue* context, P1 p1, P2 p2) {                   \
+    return new(zone) I(context, p1, p2);                                       \
   }
 
 #define DECLARE_INSTRUCTION_FACTORY_P2(I, P1, P2)                              \
@@ -1084,9 +1099,24 @@ class HValue : public ZoneObject {
     return new(zone) I(p1, p2);                                                \
   }
 
+#define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(I, P1, P2, P3)             \
+  static I* New(Zone* zone, HValue* context, P1 p1, P2 p2, P3 p3) {            \
+    return new(zone) I(context, p1, p2, p3);                                   \
+  }
+
 #define DECLARE_INSTRUCTION_FACTORY_P3(I, P1, P2, P3)                          \
   static I* New(Zone* zone, HValue* context, P1 p1, P2 p2, P3 p3) {            \
     return new(zone) I(p1, p2, p3);                                            \
+  }
+
+#define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(I, P1, P2, P3, P4)         \
+  static I* New(Zone* zone,                                                    \
+                HValue* context,                                               \
+                P1 p1,                                                         \
+                P2 p2,                                                         \
+                P3 p3,                                                         \
+                P4 p4) {                                                       \
+    return new(zone) I(context, p1, p2, p3, p4);                               \
   }
 
 #define DECLARE_INSTRUCTION_FACTORY_P4(I, P1, P2, P3, P4)                      \
@@ -1097,6 +1127,17 @@ class HValue : public ZoneObject {
                 P3 p3,                                                         \
                 P4 p4) {                                                       \
     return new(zone) I(p1, p2, p3, p4);                                        \
+  }
+
+#define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(I, P1, P2, P3, P4, P5)     \
+  static I* New(Zone* zone,                                                    \
+                HValue* context,                                               \
+                P1 p1,                                                         \
+                P2 p2,                                                         \
+                P3 p3,                                                         \
+                P4 p4,                                                         \
+                P5 p5) {                                                       \
+    return new(zone) I(context, p1, p2, p3, p4, p5);                           \
   }
 
 #define DECLARE_INSTRUCTION_FACTORY_P5(I, P1, P2, P3, P4, P5)                  \
@@ -1212,6 +1253,10 @@ class HControlInstruction : public HInstruction {
     SetSuccessorAt(0, SuccessorAt(1));
     SetSuccessorAt(1, swap);
   }
+
+#ifdef DEBUG
+  virtual void Verify() V8_OVERRIDE;
+#endif
 
   DECLARE_ABSTRACT_INSTRUCTION(ControlInstruction)
 };
@@ -4008,18 +4053,18 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
 };
 
 
-class HCompareGeneric V8_FINAL : public HBinaryOperation {
+class HCompareGenericAndBranch V8_FINAL
+    : public HTemplateControlInstruction<2, 3> {
  public:
-  HCompareGeneric(HValue* context,
-                  HValue* left,
-                  HValue* right,
-                  Token::Value token)
-      : HBinaryOperation(context, left, right, HType::Boolean()),
-        token_(token) {
-    ASSERT(Token::IsCompareOp(token));
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCompareGenericAndBranch,
+                                              HValue*, HValue*, Token::Value);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(HCompareGenericAndBranch,
+                                              HValue*, HValue*, Token::Value,
+                                              HBasicBlock*, HBasicBlock*);
+  HValue* context() { return OperandAt(0); }
+  HValue* left() { return OperandAt(1); }
+  HValue* right() { return OperandAt(2); }
+  Token::Value token() const { return token_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return index == 0
@@ -4027,12 +4072,34 @@ class HCompareGeneric V8_FINAL : public HBinaryOperation {
         : representation();
   }
 
-  Token::Value token() const { return token_; }
+  void set_observed_input_representation(Representation left,
+                                         Representation right) {
+      observed_input_representation_[0] = left;
+      observed_input_representation_[1] = right;
+  }
+
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  DECLARE_CONCRETE_INSTRUCTION(CompareGeneric)
+  DECLARE_CONCRETE_INSTRUCTION(CompareGenericAndBranch)
 
  private:
+  HCompareGenericAndBranch(HValue* context,
+                           HValue* left,
+                           HValue* right,
+                           Token::Value token,
+                           HBasicBlock* true_target = NULL,
+                           HBasicBlock* false_target = NULL)
+      : token_(token) {
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+    SetOperandAt(0, context);
+    SetOperandAt(1, left);
+    SetOperandAt(2, right);
+    SetSuccessorAt(0, true_target);
+    SetSuccessorAt(1, false_target);
+  }
+
+  Representation observed_input_representation_[2];
   Token::Value token_;
 };
 
@@ -4234,9 +4301,9 @@ class HIsUndetectableAndBranch V8_FINAL : public HUnaryControlInstruction {
 class HStringCompareAndBranch : public HTemplateControlInstruction<2, 3> {
  public:
   HStringCompareAndBranch(HValue* context,
-                           HValue* left,
-                           HValue* right,
-                           Token::Value token)
+                          HValue* left,
+                          HValue* right,
+                          Token::Value token)
       : token_(token) {
     ASSERT(Token::IsCompareOp(token));
     SetOperandAt(0, context);

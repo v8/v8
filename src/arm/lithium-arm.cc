@@ -630,12 +630,16 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   instr = AssignPointerMap(instr);
 
   if (hinstr->HasObservableSideEffects()) {
-    ASSERT(hinstr->next()->IsSimulate());
-    HSimulate* sim = HSimulate::cast(hinstr->next());
     ASSERT(instruction_pending_deoptimization_environment_ == NULL);
     ASSERT(pending_deoptimization_ast_id_.IsNone());
+    if (!hinstr->IsControlInstruction()) {
+      ASSERT(hinstr->next()->IsSimulate());
+      HSimulate* sim = HSimulate::cast(hinstr->next());
+      pending_deoptimization_ast_id_ = sim->ast_id();
+    } else {
+      pending_deoptimization_ast_id_ = BailoutId::PendingMarker();
+    }
     instruction_pending_deoptimization_environment_ = instr;
-    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -1716,13 +1720,13 @@ LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
+LInstruction* LChunkBuilder::DoCompareGenericAndBranch(
+    HCompareGenericAndBranch* instr) {
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
   LOperand* left = UseFixed(instr->left(), r1);
   LOperand* right = UseFixed(instr->right(), r0);
-  LCmpT* result = new(zone()) LCmpT(left, right);
-  return MarkAsCall(DefineFixed(result, r0), instr);
+  return MarkAsCall(new(zone()) LCompareGenericAndBranch(left, right), instr);
 }
 
 
@@ -2515,7 +2519,9 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
-  if (pending_deoptimization_ast_id_ == instr->ast_id()) {
+  if (!pending_deoptimization_ast_id_.IsNone()) {
+    ASSERT(pending_deoptimization_ast_id_ == instr->ast_id() ||
+           pending_deoptimization_ast_id_.IsPendingMarker());
     LInstruction* result = new(zone()) LLazyBailout;
     result = AssignEnvironment(result);
     // Store the lazy deopt environment with the instruction if needed. Right
