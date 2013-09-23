@@ -907,10 +907,9 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateFixedArray(int length,
-                                                  PretenureFlag pretenure);
-  // Allocates a fixed array initialized with undefined values
-  MUST_USE_RESULT MaybeObject* AllocateFixedArray(int length);
+  MUST_USE_RESULT MaybeObject* AllocateFixedArray(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates an uninitialized fixed array. It must be filled by the caller.
   //
@@ -1039,10 +1038,7 @@ class Heap {
 
   // Allocated a HeapNumber from value.
   MUST_USE_RESULT MaybeObject* AllocateHeapNumber(
-      double value,
-      PretenureFlag pretenure);
-  // pretenure = NOT_TENURED
-  MUST_USE_RESULT MaybeObject* AllocateHeapNumber(double value);
+      double value, PretenureFlag pretenure = NOT_TENURED);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

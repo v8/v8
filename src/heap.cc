@@ -2911,23 +2911,6 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateHeapNumber(double value) {
-  // Use general version, if we're forced to always allocate.
-  if (always_allocate()) return AllocateHeapNumber(value, TENURED);
-
-  // This version of AllocateHeapNumber is optimized for
-  // allocation in new space.
-  STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxNonCodeHeapObjectSize);
-  Object* result;
-  { MaybeObject* maybe_result = new_space_.AllocateRaw(HeapNumber::kSize);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  HeapObject::cast(result)->set_map_no_write_barrier(heap_number_map());
-  HeapNumber::cast(result)->set_value(value);
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateCell(Object* value) {
   Object* result;
   { MaybeObject* maybe_result = AllocateRawCell();
@@ -5411,24 +5394,6 @@ MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
       src->address() + FixedDoubleArray::kLengthOffset,
       FixedDoubleArray::SizeFor(len) - FixedDoubleArray::kLengthOffset);
   return obj;
-}
-
-
-MaybeObject* Heap::AllocateFixedArray(int length) {
-  ASSERT(length >= 0);
-  if (length == 0) return empty_fixed_array();
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRawFixedArray(length);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  // Initialize header.
-  FixedArray* array = reinterpret_cast<FixedArray*>(result);
-  array->set_map_no_write_barrier(fixed_array_map());
-  array->set_length(length);
-  // Initialize body.
-  ASSERT(!InNewSpace(undefined_value()));
-  MemsetPointer(array->data_start(), undefined_value(), length);
-  return result;
 }
 
 
