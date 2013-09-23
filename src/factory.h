@@ -328,11 +328,6 @@ class Factory {
 
   void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
 
-  void EnsureCanContainElements(Handle<JSArray> array,
-                                Handle<FixedArrayBase> elements,
-                                uint32_t length,
-                                EnsureElementsMode mode);
-
   Handle<JSArrayBuffer> NewJSArrayBuffer();
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
