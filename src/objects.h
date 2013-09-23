@@ -1440,7 +1440,8 @@ class Object : public MaybeObject {
   }
 
   inline MaybeObject* AllocateNewStorageFor(Heap* heap,
-                                            Representation representation);
+                                            Representation representation,
+                                            PretenureFlag tenure = NOT_TENURED);
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -2172,13 +2173,10 @@ class JSObject: public JSReceiver {
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
 
-  // Migrates the given object to a map whose field representations are the
-  // lowest upper bound of all known representations for that field.
   static void MigrateInstance(Handle<JSObject> instance);
 
-  // Migrates the given object only if the target map is already available,
-  // or returns an empty handle if such a map is not yet available.
   static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
+  inline MUST_USE_RESULT MaybeObject* TryMigrateInstance();
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
@@ -2472,8 +2470,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
-  // TODO(mstarzinger): Both public because of ConvertAnsSetLocalProperty().
   static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
+  MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,

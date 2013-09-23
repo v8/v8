@@ -285,13 +285,14 @@ bool Object::HasValidElements() {
 
 
 MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
-                                           Representation representation) {
+                                           Representation representation,
+                                           PretenureFlag tenure) {
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
   if (IsUninitialized()) {
-    return heap->AllocateHeapNumber(0);
+    return heap->AllocateHeapNumber(0, tenure);
   }
-  return heap->AllocateHeapNumber(Number());
+  return heap->AllocateHeapNumber(Number(), tenure);
 }
 
 
@@ -1538,6 +1539,19 @@ MaybeObject* JSObject::ResetElements() {
   initialize_elements();
 
   return this;
+}
+
+
+MaybeObject* JSObject::TryMigrateInstance() {
+  Map* new_map = map()->CurrentMapForDeprecated();
+  if (new_map == NULL) return Smi::FromInt(0);
+  Map* original_map = map();
+  MaybeObject* maybe_result = MigrateToMap(new_map);
+  JSObject* result;
+  if (FLAG_trace_migration && maybe_result->To(&result)) {
+    PrintInstanceMigration(stdout, original_map, result->map());
+  }
+  return maybe_result;
 }
 
 

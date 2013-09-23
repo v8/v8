@@ -2270,6 +2270,11 @@ bool Map::InstancesNeedRewriting(Map* target,
 }
 
 
+void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(), object->MigrateToMap(*new_map));
+}
+
+
 // To migrate an instance to a map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
@@ -2285,24 +2290,25 @@ bool Map::InstancesNeedRewriting(Map* target,
 //     to temporarily store the inobject properties.
 //   * If there are properties left in the backing store, install the backing
 //     store.
-void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
-  Isolate* isolate = object->GetIsolate();
-  Handle<Map> old_map(object->map());
+MaybeObject* JSObject::MigrateToMap(Map* new_map) {
+  Heap* heap = GetHeap();
+  Map* old_map = map();
   int number_of_fields = new_map->NumberOfFields();
   int inobject = new_map->inobject_properties();
   int unused = new_map->unused_property_fields();
 
-  // Nothing to do if no functions were converted to fields and no smis were
-  // converted to doubles.
+  // Nothing to do if no functions were converted to fields.
   if (!old_map->InstancesNeedRewriting(
-          *new_map, number_of_fields, inobject, unused)) {
-    object->set_map(*new_map);
-    return;
+          new_map, number_of_fields, inobject, unused)) {
+    set_map(new_map);
+    return this;
   }
 
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(total_size);
+  FixedArray* array;
+  MaybeObject* maybe_array = heap->AllocateFixedArray(total_size);
+  if (!maybe_array->To(&array)) return maybe_array;
 
   DescriptorArray* old_descriptors = old_map->instance_descriptors();
   DescriptorArray* new_descriptors = new_map->instance_descriptors();
@@ -2318,51 +2324,55 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
     }
     ASSERT(old_details.type() == CONSTANT ||
            old_details.type() == FIELD);
-    Object* raw_value = old_details.type() == CONSTANT
+    Object* value = old_details.type() == CONSTANT
         ? old_descriptors->GetValue(i)
-        : object->RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
-    Handle<Object> value(raw_value, isolate);
+        : RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
     if (FLAG_track_double_fields &&
         !old_details.representation().IsDouble() &&
         details.representation().IsDouble()) {
-      if (old_details.representation().IsNone()) {
-        value = handle(Smi::FromInt(0), isolate);
-      }
-      value = NewStorageFor(isolate, value, details.representation());
+      if (old_details.representation().IsNone()) value = Smi::FromInt(0);
+      // Objects must be allocated in the old object space, since the
+      // overall number of HeapNumbers needed for the conversion might
+      // exceed the capacity of new space, and we would fail repeatedly
+      // trying to migrate the instance.
+      MaybeObject* maybe_storage =
+          value->AllocateNewStorageFor(heap, details.representation(), TENURED);
+      if (!maybe_storage->To(&value)) return maybe_storage;
     }
     ASSERT(!(FLAG_track_double_fields &&
              details.representation().IsDouble() &&
              value->IsSmi()));
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
     if (target_index < 0) target_index += total_size;
-    array->set(target_index, *value);
+    array->set(target_index, value);
   }
 
-  // From here on we cannot fail and we shouldn't GC anymore.
-  DisallowHeapAllocation no_allocation;
+  // From here on we cannot fail anymore.
 
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
   int limit = Min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
-    object->FastPropertyAtPut(i, array->get(external + i));
+    FastPropertyAtPut(i, array->get(external + i));
   }
 
   // Create filler object past the new instance size.
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  Address address = object->address() + new_instance_size;
-  isolate->heap()->CreateFillerObjectAt(address, instance_size_delta);
+  Address address = this->address() + new_instance_size;
+  heap->CreateFillerObjectAt(address, instance_size_delta);
 
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.
   if (external > 0) {
-    RightTrimFixedArray<FROM_MUTATOR>(isolate->heap(), *array, inobject);
-    object->set_properties(*array);
+    RightTrimFixedArray<FROM_MUTATOR>(heap, array, inobject);
+    set_properties(array);
   }
 
-  object->set_map(*new_map);
+  set_map(new_map);
+
+  return this;
 }
 
 
@@ -3748,13 +3758,7 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 
 
 Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
-  Map* new_map = object->map()->CurrentMapForDeprecated();
-  if (new_map == NULL) return Handle<Object>();
-  Handle<Map> original_map(object->map());
-  JSObject::MigrateToMap(object, handle(new_map));
-  if (FLAG_trace_migration) {
-    object->PrintInstanceMigration(stdout, *original_map, object->map());
-  }
+  MigrateInstance(object);
   return object;
 }
 
