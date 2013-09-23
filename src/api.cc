@@ -5175,6 +5175,13 @@ bool v8::V8::Initialize() {
 
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
+  // The entropy source must be set before the library is initialized,
+  // as otherwise not all random number generators will pick up the
+  // entropy source and will fall back to weak entropy instead.
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  ApiCheck(isolate != NULL && isolate->IsInitialized(),
+           "v8::V8::SetEntropySource",
+           "Cannot set entropy source once V8 is initialized.");
   i::RandomNumberGenerator::SetEntropySource(entropy_source);
 }
 
