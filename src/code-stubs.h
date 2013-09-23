@@ -464,25 +464,6 @@ class ToNumberStub: public HydrogenCodeStub {
 };
 
 
-class NumberToStringStub V8_FINAL : public HydrogenCodeStub {
- public:
-  NumberToStringStub() {}
-
-  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
-
-  virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate,
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
-
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kNumber = 0;
-
- private:
-  virtual Major MajorKey() V8_OVERRIDE { return NumberToString; }
-  virtual int NotMissMinorKey() V8_OVERRIDE { return 0; }
-};
-
-
 class FastNewClosureStub : public HydrogenCodeStub {
  public:
   explicit FastNewClosureStub(LanguageMode language_mode, bool is_generator)

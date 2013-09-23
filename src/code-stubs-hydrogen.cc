@@ -339,19 +339,6 @@ Handle<Code> ToNumberStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
-HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
-  info()->MarkAsSavesCallerDoubles();
-  HValue* number = GetParameter(NumberToStringStub::kNumber);
-  return BuildNumberToString(number);
-}
-
-
-Handle<Code> NumberToStringStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();

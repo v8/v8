@@ -5667,18 +5667,6 @@ class HObjectAccess V8_FINAL {
         kDouble, HeapNumber::kValueOffset, Representation::Double());
   }
 
-  static HObjectAccess ForHeapNumberValueLowestBits() {
-    return HObjectAccess(kDouble,
-                         HeapNumber::kValueOffset,
-                         Representation::Integer32());
-  }
-
-  static HObjectAccess ForHeapNumberValueHighestBits() {
-    return HObjectAccess(kDouble,
-                         HeapNumber::kValueOffset + kIntSize,
-                         Representation::Integer32());
-  }
-
   static HObjectAccess ForElementsPointer() {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }
