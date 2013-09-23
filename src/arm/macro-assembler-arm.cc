@@ -3291,20 +3291,19 @@ void MacroAssembler::CopyBytes(Register src,
                                Register dst,
                                Register length,
                                Register scratch) {
-  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+  Label align_loop_1, word_loop, byte_loop, byte_loop_1, done;
 
   // Align src before copying in word size chunks.
-  bind(&align_loop);
-  cmp(length, Operand::Zero());
-  b(eq, &done);
+  cmp(length, Operand(kPointerSize));
+  b(le, &byte_loop);
+
   bind(&align_loop_1);
   tst(src, Operand(kPointerSize - 1));
   b(eq, &word_loop);
   ldrb(scratch, MemOperand(src, 1, PostIndex));
   strb(scratch, MemOperand(dst, 1, PostIndex));
   sub(length, length, Operand(1), SetCC);
-  b(ne, &byte_loop_1);
-
+  b(&align_loop_1);
   // Copy bytes in word size chunks.
   bind(&word_loop);
   if (emit_debug_code()) {
