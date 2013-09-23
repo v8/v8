@@ -200,8 +200,10 @@ static v8::Local<v8::Function> CompileFunction(DebugLocalContext* env,
 static v8::Local<v8::Function> CompileFunction(const char* source,
                                                const char* function_name) {
   v8::Script::Compile(v8::String::New(source))->Run();
+  v8::Local<v8::Object> global =
+      CcTest::isolate()->GetCurrentContext()->Global();
   return v8::Local<v8::Function>::Cast(
-    v8::Context::GetCurrent()->Global()->Get(v8::String::New(function_name)));
+      global->Get(v8::String::New(function_name)));
 }
 
 
@@ -7007,10 +7009,10 @@ static void NamedGetterWithCallingContextCheck(
     v8::Local<v8::String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK_EQ(0, strcmp(*v8::String::Utf8Value(name), "a"));
-  v8::Handle<v8::Context> current = v8::Context::GetCurrent();
+  v8::Handle<v8::Context> current = info.GetIsolate()->GetCurrentContext();
   CHECK(current == debugee_context);
   CHECK(current != debugger_context);
-  v8::Handle<v8::Context> calling = v8::Context::GetCalling();
+  v8::Handle<v8::Context> calling = info.GetIsolate()->GetCallingContext();
   CHECK(calling == debugee_context);
   CHECK(calling != debugger_context);
   info.GetReturnValue().Set(1);
@@ -7026,7 +7028,7 @@ static void DebugEventGetAtgumentPropertyValue(
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
   if (event == v8::Break) {
     break_point_hit_count++;
-    CHECK(debugger_context == v8::Context::GetCurrent());
+    CHECK(debugger_context == CcTest::isolate()->GetCurrentContext());
     v8::Handle<v8::Function> func = v8::Handle<v8::Function>::Cast(CompileRun(
         "(function(exec_state) {\n"
         "    return (exec_state.frame(0).argumentValue(0).property('a').\n"

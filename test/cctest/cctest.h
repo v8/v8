@@ -106,6 +106,10 @@ class CcTest {
     return i_isolate()->heap();
   }
 
+  static v8::Local<v8::Object> global() {
+    return isolate()->GetCurrentContext()->Global();
+  }
+
   // TODO(dcarney): Remove.
   // This must be called first in a test.
   static void InitializeVM() {

@@ -543,7 +543,7 @@ class HandleScopeImplementer {
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Handle<Object> context);
-  inline bool LeaveLastContext();
+  inline bool LeaveContext(Handle<Object> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
@@ -635,8 +635,10 @@ void HandleScopeImplementer::EnterContext(Handle<Object> context) {
 }
 
 
-bool HandleScopeImplementer::LeaveLastContext() {
+bool HandleScopeImplementer::LeaveContext(Handle<Object> context) {
   if (entered_contexts_.is_empty()) return false;
+  // TODO(dcarney): figure out what's wrong here
+  // if (*entered_contexts_.last() != *context) return false;
   entered_contexts_.RemoveLast();
   return true;
 }

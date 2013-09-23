@@ -750,29 +750,22 @@ i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
 void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::Context::Enter()")) return;
   ENTER_V8(isolate);
-
   isolate->handle_scope_implementer()->EnterContext(env);
-
   isolate->handle_scope_implementer()->SaveContext(isolate->context());
   isolate->set_context(*env);
 }
 
 
 void Context::Exit() {
-  // Exit is essentially a static function and doesn't use the
-  // receiver, so we have to get the current isolate from the thread
-  // local.
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return;
-
-  if (!ApiCheck(isolate->handle_scope_implementer()->LeaveLastContext(),
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  ENTER_V8(isolate);
+  if (!ApiCheck(isolate->handle_scope_implementer()->LeaveContext(context),
                 "v8::Context::Exit()",
                 "Cannot exit non-entered context")) {
     return;
   }
-
   // Content of 'last_context' could be NULL.
   i::Context* last_context =
       isolate->handle_scope_implementer()->RestoreContext();
@@ -5494,11 +5487,7 @@ v8::Local<v8::Context> Context::GetEntered() {
   if (!EnsureInitializedForIsolate(isolate, "v8::Context::GetEntered()")) {
     return Local<Context>();
   }
-  i::Handle<i::Object> last =
-      isolate->handle_scope_implementer()->LastEnteredContext();
-  if (last.is_null()) return Local<Context>();
-  i::Handle<i::Context> context = i::Handle<i::Context>::cast(last);
-  return Utils::ToLocal(context);
+  return reinterpret_cast<Isolate*>(isolate)->GetEnteredContext();
 }
 
 
@@ -5516,45 +5505,30 @@ v8::Local<v8::Context> Context::GetCalling() {
   if (IsDeadCheck(isolate, "v8::Context::GetCalling()")) {
     return Local<Context>();
   }
-  i::Handle<i::Object> calling =
-      isolate->GetCallingNativeContext();
-  if (calling.is_null()) return Local<Context>();
-  i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
-  return Utils::ToLocal(context);
+  return reinterpret_cast<Isolate*>(isolate)->GetCallingContext();
 }
 
 
 v8::Local<v8::Object> Context::Global() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::Global()")) {
-    return Local<v8::Object>();
-  }
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   i::Handle<i::Object> global(context->global_proxy(), isolate);
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(global));
 }
 
 
 void Context::DetachGlobal() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::DetachGlobal()")) return;
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
   isolate->bootstrapper()->DetachGlobal(context);
 }
 
 
 void Context::ReattachGlobal(Handle<Object> global_object) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::ReattachGlobal()")) return;
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
   i::Handle<i::JSGlobalProxy> global_proxy =
       i::Handle<i::JSGlobalProxy>::cast(Utils::OpenHandle(*global_object));
   isolate->bootstrapper()->ReattachGlobal(context, global_proxy);
@@ -5562,44 +5536,23 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
 
 
 void Context::AllowCodeGenerationFromStrings(bool allow) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::AllowCodeGenerationFromStrings()")) {
-    return;
-  }
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
   context->set_allow_code_gen_from_strings(
       allow ? isolate->heap()->true_value() : isolate->heap()->false_value());
 }
 
 
 bool Context::IsCodeGenerationFromStringsAllowed() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate,
-                  "v8::Context::IsCodeGenerationFromStringsAllowed()")) {
-    return false;
-  }
-  ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
   return !context->allow_code_gen_from_strings()->IsFalse();
 }
 
 
 void Context::SetErrorMessageForCodeGenerationFromStrings(
     Handle<String> error) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate,
-      "v8::Context::SetErrorMessageForCodeGenerationFromStrings()")) {
-    return;
-  }
-  ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Handle<i::String> error_handle = Utils::OpenHandle(*error);
   context->set_error_message_for_code_gen_from_strings(*error_handle);
 }
@@ -6647,13 +6600,36 @@ CpuProfiler* Isolate::GetCpuProfiler() {
 }
 
 
+bool Isolate::InContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->context() != NULL;
+}
+
+
 v8::Local<v8::Context> Isolate::GetCurrentContext() {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Context* context = internal_isolate->context();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Context* context = isolate->context();
   if (context == NULL) return Local<Context>();
   i::Context* native_context = context->global_object()->native_context();
   if (native_context == NULL) return Local<Context>();
   return Utils::ToLocal(i::Handle<i::Context>(native_context));
+}
+
+
+v8::Local<v8::Context> Isolate::GetCallingContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Object> calling = isolate->GetCallingNativeContext();
+  if (calling.is_null()) return Local<Context>();
+  return Utils::ToLocal(i::Handle<i::Context>::cast(calling));
+}
+
+
+v8::Local<v8::Context> Isolate::GetEnteredContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Object> last =
+      isolate->handle_scope_implementer()->LastEnteredContext();
+  if (last.is_null()) return Local<Context>();
+  return Utils::ToLocal(i::Handle<i::Context>::cast(last));
 }
 
 

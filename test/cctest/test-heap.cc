@@ -1897,7 +1897,7 @@ TEST(InstanceOfStubWriteBarrier) {
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+              CcTest::global()->Get(v8_str("f"))));
 
   CHECK(f->IsOptimized());
 
@@ -1912,7 +1912,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   {
     v8::HandleScope scope(CcTest::isolate());
-    v8::Handle<v8::Object> global = v8::Context::GetCurrent()->Global();
+    v8::Handle<v8::Object> global = CcTest::global();
     v8::Handle<v8::Function> g =
         v8::Handle<v8::Function>::Cast(global->Get(v8_str("g")));
     g->Call(global, 0, NULL);
@@ -1942,7 +1942,7 @@ TEST(PrototypeTransitionClearing) {
   Handle<JSObject> baseObject =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("base"))));
+              CcTest::global()->Get(v8_str("base"))));
 
   // Verify that only dead prototype transitions are cleared.
   CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
@@ -2009,7 +2009,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+              CcTest::global()->Get(v8_str("f"))));
   CHECK(f->IsOptimized());
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
@@ -2066,7 +2066,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+              CcTest::global()->Get(v8_str("f"))));
   CHECK(f->IsOptimized());
 
   CcTest::heap()->incremental_marking()->Abort();
@@ -2475,7 +2475,7 @@ TEST(Regress1465) {
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+              CcTest::global()->Get(v8_str("root"))));
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(root->map());
@@ -2525,7 +2525,7 @@ TEST(Regress2143a) {
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+              CcTest::global()->Get(v8_str("root"))));
 
   // The root object should be in a sane state.
   CHECK(root->IsJSObject());
@@ -2569,7 +2569,7 @@ TEST(Regress2143b) {
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+              CcTest::global()->Get(v8_str("root"))));
 
   // The root object should be in a sane state.
   CHECK(root->IsJSObject());
@@ -2665,7 +2665,7 @@ TEST(PrintSharedFunctionInfo) {
   Handle<JSFunction> g =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("g"))));
+              CcTest::global()->Get(v8_str("g"))));
 
   DisallowHeapAllocation no_allocation;
   g->shared()->PrintLn();
@@ -2728,13 +2728,13 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
 
   // Prepare function f that contains type feedback for closures
   // originating from two different native contexts.
-  v8::Context::GetCurrent()->Global()->Set(v8_str("fun1"), fun1);
-  v8::Context::GetCurrent()->Global()->Set(v8_str("fun2"), fun2);
+  CcTest::global()->Set(v8_str("fun1"), fun1);
+  CcTest::global()->Set(v8_str("fun2"), fun2);
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+              CcTest::global()->Get(v8_str("f"))));
   Handle<TypeFeedbackCells> cells(TypeFeedbackInfo::cast(
       f->shared()->code()->type_feedback_info())->type_feedback_cells());
 
@@ -2779,7 +2779,7 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+              CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CHECK(ic_before->ic_state() == MONOMORPHIC);
@@ -2806,12 +2806,12 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
 
   // Prepare function f that contains a monomorphic IC for object
   // originating from a different native context.
-  v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
+  CcTest::global()->Set(v8_str("obj1"), obj1);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+              CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CHECK(ic_before->ic_state() == MONOMORPHIC);
@@ -2846,13 +2846,13 @@ TEST(IncrementalMarkingClearsPolymorhpicIC) {
 
   // Prepare function f that contains a polymorphic IC for objects
   // originating from two different native contexts.
-  v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
-  v8::Context::GetCurrent()->Global()->Set(v8_str("obj2"), obj2);
+  CcTest::global()->Set(v8_str("obj1"), obj1);
+  CcTest::global()->Set(v8_str("obj2"), obj2);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
-              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+              CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CHECK(ic_before->ic_state() == POLYMORPHIC);
@@ -3057,14 +3057,14 @@ TEST(Regress159140) {
     Handle<JSFunction> f =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
-                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+                CcTest::global()->Get(v8_str("f"))));
     CHECK(f->is_compiled());
     CompileRun("f = null;");
 
     Handle<JSFunction> g =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
-                v8::Context::GetCurrent()->Global()->Get(v8_str("g"))));
+                CcTest::global()->Get(v8_str("g"))));
     CHECK(g->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -3112,7 +3112,7 @@ TEST(Regress165495) {
     Handle<JSFunction> f =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
-                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+                CcTest::global()->Get(v8_str("f"))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -3160,7 +3160,7 @@ TEST(Regress169209) {
     Handle<JSFunction> f =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
-                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+                CcTest::global()->Get(v8_str("f"))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -3181,7 +3181,7 @@ TEST(Regress169209) {
     Handle<JSFunction> f =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
-                v8::Context::GetCurrent()->Global()->Get(v8_str("flushMe"))));
+                CcTest::global()->Get(v8_str("flushMe"))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -3251,7 +3251,7 @@ TEST(Regress169928) {
       v8_str("fastliteralcase(mote, 2.5);");
 
   v8::Local<v8::String> array_name = v8_str("mote");
-  v8::Context::GetCurrent()->Global()->Set(array_name, v8::Int32::New(0));
+  CcTest::global()->Set(array_name, v8::Int32::New(0));
 
   // First make sure we flip spaces
   CcTest::heap()->CollectGarbage(NEW_SPACE);
@@ -3285,7 +3285,7 @@ TEST(Regress169928) {
 
   // Give the array a name, making sure not to allocate strings.
   v8::Handle<v8::Object> array_obj = v8::Utils::ToLocal(array);
-  v8::Context::GetCurrent()->Global()->Set(array_name, array_obj);
+  CcTest::global()->Set(array_name, array_obj);
 
   // This should crash with a protection violation if we are running a build
   // with the bug.
@@ -3323,7 +3323,7 @@ TEST(Regress168801) {
     Handle<JSFunction> f =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
-                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+                CcTest::global()->Get(v8_str("f"))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -3379,7 +3379,7 @@ TEST(Regress173458) {
     Handle<JSFunction> f =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
-                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+                CcTest::global()->Get(v8_str("f"))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {

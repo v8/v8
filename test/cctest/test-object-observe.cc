@@ -472,7 +472,9 @@ static bool NamedAccessAllowUnlessBlocked(Local<Object> host,
                                              AccessType type,
                                              Local<Value>) {
   if (type != g_access_block_type) return true;
-  Handle<Object> global = Context::GetCurrent()->Global();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
+      Utils::OpenHandle(*host)->GetIsolate());
+  Handle<Object> global = isolate->GetCurrentContext()->Global();
   Handle<Value> blacklist = global->Get(String::New("blacklist"));
   if (!blacklist->IsObject()) return true;
   if (key->IsString()) return !blacklist.As<Object>()->Has(key);
@@ -485,7 +487,9 @@ static bool IndexedAccessAllowUnlessBlocked(Local<Object> host,
                                                AccessType type,
                                                Local<Value>) {
   if (type != ACCESS_GET) return true;
-  Handle<Object> global = Context::GetCurrent()->Global();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
+      Utils::OpenHandle(*host)->GetIsolate());
+  Handle<Object> global = isolate->GetCurrentContext()->Global();
   Handle<Value> blacklist = global->Get(String::New("blacklist"));
   if (!blacklist->IsObject()) return true;
   return !blacklist.As<Object>()->Has(index);
@@ -494,7 +498,9 @@ static bool IndexedAccessAllowUnlessBlocked(Local<Object> host,
 
 static bool BlockAccessKeys(Local<Object> host, Local<Value> key,
                             AccessType type, Local<Value>) {
-  Handle<Object> global = Context::GetCurrent()->Global();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
+      Utils::OpenHandle(*host)->GetIsolate());
+  Handle<Object> global = isolate->GetCurrentContext()->Global();
   Handle<Value> blacklist = global->Get(String::New("blacklist"));
   if (!blacklist->IsObject()) return true;
   return type != ACCESS_KEYS ||

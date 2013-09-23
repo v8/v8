@@ -259,7 +259,7 @@ int RunMain(int argc, char* argv[]) {
 
   if (cycle_type == CycleInCpp) {
     bool res = RunCppCycle(script,
-                           v8::Context::GetCurrent(),
+                           isolate->GetCurrentContext(),
                            report_exceptions);
     return !res;
   } else {
@@ -306,7 +306,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
     v8::Handle<v8::Value> result;
     {
       v8::TryCatch try_catch;
-      result = process_fun->Call(v8::Context::GetCurrent()->Global(),
+      result = process_fun->Call(isolate->GetCurrentContext()->Global(),
                                  argc, argv);
       if (try_catch.HasCaught()) {
         if (report_exceptions)

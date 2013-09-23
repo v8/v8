@@ -263,7 +263,8 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_current_ = 0;
   data_->realm_switch_ = 0;
   data_->realms_ = new Persistent<Context>[1];
-  data_->realms_[0].Reset(data_->isolate_, Context::GetEntered());
+  data_->realms_[0].Reset(data_->isolate_,
+                          data_->isolate_->GetEnteredContext());
   data_->realm_shared_.Clear();
 }
 
@@ -290,7 +291,7 @@ int PerIsolateData::RealmFind(Handle<Context> context) {
 void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  int index = data->RealmFind(Context::GetEntered());
+  int index = data->RealmFind(isolate->GetEnteredContext());
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }

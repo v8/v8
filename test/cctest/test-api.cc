@@ -4661,7 +4661,8 @@ void CThrowCountDown(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::ThrowException(v8_str("FromC"));
     return;
   } else {
-    Local<v8::Object> global = Context::GetCurrent()->Global();
+    Local<v8::Object> global =
+        args.GetIsolate()->GetCurrentContext()->Global();
     Local<Value> fun = global->Get(v8_str("JSThrowCountDown"));
     v8::Handle<Value> argv[] = { v8_num(count - 1),
                                  args[1],
@@ -7078,7 +7079,8 @@ static void PGetter(Local<String> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   p_getter_count++;
-  v8::Handle<v8::Object> global = Context::GetCurrent()->Global();
+  v8::Handle<v8::Object> global =
+      info.GetIsolate()->GetCurrentContext()->Global();
   CHECK_EQ(info.Holder(), global->Get(v8_str("o1")));
   if (name->Equals(v8_str("p1"))) {
     CHECK_EQ(info.This(), global->Get(v8_str("o1")));
@@ -7112,7 +7114,8 @@ static void PGetter2(Local<String> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   p_getter_count2++;
-  v8::Handle<v8::Object> global = Context::GetCurrent()->Global();
+  v8::Handle<v8::Object> global =
+      info.GetIsolate()->GetCurrentContext()->Global();
   CHECK_EQ(info.Holder(), global->Get(v8_str("o1")));
   if (name->Equals(v8_str("p1"))) {
     CHECK_EQ(info.This(), global->Get(v8_str("o1")));
@@ -7218,7 +7221,7 @@ THREADED_TEST(StringWrite) {
       "for (var i = 0; i < 0xd800; i += 4) {"
       "  right = String.fromCharCode(i) + right;"
       "}");
-  v8::Handle<v8::Object> global = Context::GetCurrent()->Global();
+  v8::Handle<v8::Object> global = context->Global();
   Handle<String> left_tree = global->Get(v8_str("left")).As<String>();
   Handle<String> right_tree = global->Get(v8_str("right")).As<String>();
 
@@ -7805,7 +7808,8 @@ static void TroubleCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   trouble_nesting++;
 
   // Call a JS function that throws an uncaught exception.
-  Local<v8::Object> arg_this = Context::GetCurrent()->Global();
+  Local<v8::Object> arg_this =
+      args.GetIsolate()->GetCurrentContext()->Global();
   Local<Value> trouble_callee = (trouble_nesting == 3) ?
     arg_this->Get(v8_str("trouble_callee")) :
     arg_this->Get(v8_str("trouble_caller"));
@@ -8327,7 +8331,7 @@ static bool NamedAccessBlocker(Local<v8::Object> global,
                                Local<Value> name,
                                v8::AccessType type,
                                Local<Value> data) {
-  return Context::GetCurrent()->Global()->Equals(global) ||
+  return CcTest::isolate()->GetCurrentContext()->Global()->Equals(global) ||
       allowed_access_type[type];
 }
 
@@ -8336,7 +8340,7 @@ static bool IndexedAccessBlocker(Local<v8::Object> global,
                                  uint32_t key,
                                  v8::AccessType type,
                                  Local<Value> data) {
-  return Context::GetCurrent()->Global()->Equals(global) ||
+  return CcTest::isolate()->GetCurrentContext()->Global()->Equals(global) ||
       allowed_access_type[type];
 }
 
@@ -13484,28 +13488,6 @@ THREADED_TEST(ExternalAllocatedMemory) {
 }
 
 
-THREADED_TEST(DisposeEnteredContext) {
-  LocalContext outer;
-  v8::Isolate* isolate = outer->GetIsolate();
-  v8::Persistent<v8::Context> inner;
-  {
-    v8::HandleScope scope(isolate);
-    inner.Reset(isolate, v8::Context::New(isolate));
-  }
-  v8::HandleScope scope(isolate);
-  {
-    // Don't want a handle here, so do this unsafely
-    v8::Handle<v8::Context> inner_local =
-        v8::Utils::Convert<i::Object, v8::Context>(
-            v8::Utils::OpenPersistent(inner));
-    inner_local->Enter();
-    inner.Dispose();
-    inner.Clear();
-    inner_local->Exit();
-  }
-}
-
-
 // Regression test for issue 54, object templates with internal fields
 // but no accessors or interceptors did not get their internal field
 // count set on instances.
@@ -15041,10 +15023,9 @@ static v8::Local<Context> calling_context2;
 static void GetCallingContextCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
-  CHECK(Context::GetCurrent() == calling_context0);
   CHECK(args.GetIsolate()->GetCurrentContext() == calling_context0);
-  CHECK(Context::GetCalling() == calling_context1);
-  CHECK(Context::GetEntered() == calling_context2);
+  CHECK(args.GetIsolate()->GetCallingContext() == calling_context1);
+  CHECK(args.GetIsolate()->GetEnteredContext() == calling_context2);
   args.GetReturnValue().Set(42);
 }
 
