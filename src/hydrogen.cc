@@ -1273,6 +1273,142 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
 }
 
 
+HValue* HGraphBuilder::BuildLookupNumberStringCache(
+    HValue* object,
+    HIfContinuation* continuation) {
+  // Create a joinable continuation.
+  HIfContinuation found(graph()->CreateBasicBlock(),
+                        graph()->CreateBasicBlock());
+
+  // Load the number string cache.
+  HValue* number_string_cache =
+      Add<HLoadRoot>(Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash maks from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  HValue* mask = AddLoadFixedArrayLength(number_string_cache);
+  mask->set_type(HType::Smi());
+  mask = Add<HSar>(mask, graph()->GetConstant1());
+  mask = Add<HSub>(mask, graph()->GetConstant1());
+
+  // Check whether object is a smi.
+  IfBuilder if_objectissmi(this);
+  if_objectissmi.If<HIsSmiAndBranch>(object);
+  if_objectissmi.Then();
+  {
+    // Compute hash for smi similar to smi_get_hash().
+    HValue* hash = Add<HBitwise>(Token::BIT_AND, object, mask);
+
+    // Load the key.
+    HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
+    HValue* key = AddFastElementAccess(number_string_cache, key_index,
+                                       NULL, NULL, FAST_ELEMENTS, false,
+                                       ALLOW_RETURN_HOLE, STANDARD_STORE);
+
+    // Check if object == key.
+    IfBuilder if_objectiskey(this);
+    if_objectiskey.If<HCompareObjectEqAndBranch>(key, object);
+    if_objectiskey.Then();
+    {
+      // Make the key_index available.
+      Push(key_index);
+    }
+    if_objectiskey.JoinContinuation(&found);
+  }
+  if_objectissmi.Else();
+  {
+    // Check if object is a heap number.
+    IfBuilder if_objectisnumber(this);
+    if_objectisnumber.If<HCompareMap>(
+        object, isolate()->factory()->heap_number_map());
+    if_objectisnumber.Then();
+    {
+      // Compute hash for heap number similar to double_get_hash().
+      HValue* low = Add<HLoadNamedField>(
+          object, HObjectAccess::ForHeapNumberValueLowestBits());
+      HValue* high = Add<HLoadNamedField>(
+          object, HObjectAccess::ForHeapNumberValueHighestBits());
+      HValue* hash = Add<HBitwise>(Token::BIT_XOR, low, high);
+      hash = Add<HBitwise>(Token::BIT_AND, hash, mask);
+
+      // Load the key.
+      HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
+      HValue* key = AddFastElementAccess(number_string_cache, key_index,
+                                        NULL, NULL, FAST_ELEMENTS, false,
+                                        ALLOW_RETURN_HOLE, STANDARD_STORE);
+
+      // Check if key is a heap number.
+      IfBuilder if_keyisnumber(this);
+      if_keyisnumber.IfNot<HIsSmiAndBranch>(key);
+      if_keyisnumber.AndIf<HCompareMap>(
+          key, isolate()->factory()->heap_number_map());
+      if_keyisnumber.Then();
+      {
+        // Check if values of key and object match.
+        IfBuilder if_keyeqobject(this);
+        if_keyeqobject.If<HCompareNumericAndBranch>(
+            Add<HLoadNamedField>(key, HObjectAccess::ForHeapNumberValue()),
+            Add<HLoadNamedField>(object, HObjectAccess::ForHeapNumberValue()),
+            Token::EQ);
+        if_keyeqobject.Then();
+        {
+          // Make the key_index available.
+          Push(key_index);
+        }
+        if_keyeqobject.JoinContinuation(&found);
+      }
+      if_keyisnumber.JoinContinuation(&found);
+    }
+    if_objectisnumber.JoinContinuation(&found);
+  }
+  if_objectissmi.End();
+
+  // Check for cache hit.
+  IfBuilder if_found(this, &found);
+  if_found.Then();
+
+  // Load the value in case of cache hit.
+  HValue* key_index = Pop();
+  HValue* value_index = Add<HAdd>(key_index, graph()->GetConstant1());
+  HValue* value = AddFastElementAccess(number_string_cache, value_index,
+                                      NULL, NULL, FAST_ELEMENTS, false,
+                                      ALLOW_RETURN_HOLE, STANDARD_STORE);
+  AddIncrementCounter(isolate()->counters()->number_to_string_native());
+
+  if_found.CaptureContinuation(continuation);
+
+  // The value is only available in true branch of continuation.
+  return value;
+}
+
+
+HValue* HGraphBuilder::BuildNumberToString(HValue* number) {
+  NoObservableSideEffectsScope scope(this);
+
+  // Lookup the number in the number string cache.
+  HIfContinuation continuation;
+  HValue* value = BuildLookupNumberStringCache(number, &continuation);
+  IfBuilder if_found(this, &continuation);
+  if_found.Then();
+
+  // Cache hit.
+  Push(value);
+
+  if_found.Else();
+
+  // Cache miss, fallback to runtime.
+  Add<HPushArgument>(number);
+  Push(Add<HCallRuntime>(
+          isolate()->factory()->empty_string(),
+          Runtime::FunctionForId(Runtime::kNumberToStringSkipCache),
+          1));
+
+  if_found.End();
+
+  return Pop();
+}
+
+
 HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     HValue* checked_object,
     HValue* key,
@@ -9009,12 +9145,10 @@ void HOptimizedGraphBuilder::GenerateGetFromCache(CallRuntime* call) {
 // Fast support for number to string.
 void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HValue* context = environment()->context();
-  HCallStub* result =
-      new(zone()) HCallStub(context, CodeStub::NumberToString, 1);
-  Drop(1);
-  return ast_context()->ReturnInstruction(result, call->id());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* number = Pop();
+  HValue* result = BuildNumberToString(number);
+  return ast_context()->ReturnValue(result);
 }
 
 
