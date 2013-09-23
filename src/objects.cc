@@ -3708,10 +3708,39 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
 }
 
 
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<Map> MapAsElementsKind(Handle<Map> map, ElementsKind kind) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(), map->AsElementsKind(kind), Map);
+}
+
+
 void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->AllocateStorageForMap(*map));
+  ASSERT(object->map()->inobject_properties() == map->inobject_properties());
+  ElementsKind obj_kind = object->map()->elements_kind();
+  ElementsKind map_kind = map->elements_kind();
+  if (map_kind != obj_kind) {
+    ElementsKind to_kind = map_kind;
+    if (IsMoreGeneralElementsKindTransition(map_kind, obj_kind) ||
+        IsDictionaryElementsKind(obj_kind)) {
+      to_kind = obj_kind;
+    }
+    if (IsDictionaryElementsKind(to_kind)) {
+      NormalizeElements(object);
+    } else {
+      TransitionElementsKind(object, to_kind);
+    }
+    map = MapAsElementsKind(map, to_kind);
+  }
+  int total_size =
+      map->NumberOfOwnDescriptors() + map->unused_property_fields();
+  int out_of_object = total_size - map->inobject_properties();
+  if (out_of_object != object->properties()->length()) {
+    Isolate* isolate = object->GetIsolate();
+    Handle<FixedArray> new_properties = isolate->factory()->CopySizeFixedArray(
+        handle(object->properties()), out_of_object);
+    object->set_properties(*new_properties);
+  }
+  object->set_map(*map);
 }
 
 
@@ -12408,11 +12437,10 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
 }
 
 
-Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
-                                                ElementsKind to_kind) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->TransitionElementsKind(to_kind),
-                     Object);
+void JSObject::TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+                          object->TransitionElementsKind(to_kind));
 }
 
 

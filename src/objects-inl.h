@@ -1542,37 +1542,6 @@ MaybeObject* JSObject::ResetElements() {
 }
 
 
-MaybeObject* JSObject::AllocateStorageForMap(Map* map) {
-  ASSERT(this->map()->inobject_properties() == map->inobject_properties());
-  ElementsKind obj_kind = this->map()->elements_kind();
-  ElementsKind map_kind = map->elements_kind();
-  if (map_kind != obj_kind) {
-    ElementsKind to_kind = map_kind;
-    if (IsMoreGeneralElementsKindTransition(map_kind, obj_kind) ||
-        IsDictionaryElementsKind(obj_kind)) {
-      to_kind = obj_kind;
-    }
-    MaybeObject* maybe_obj =
-        IsDictionaryElementsKind(to_kind) ? NormalizeElements()
-                                          : TransitionElementsKind(to_kind);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-    MaybeObject* maybe_map = map->AsElementsKind(to_kind);
-    if (!maybe_map->To(&map)) return maybe_map;
-  }
-  int total_size =
-      map->NumberOfOwnDescriptors() + map->unused_property_fields();
-  int out_of_object = total_size - map->inobject_properties();
-  if (out_of_object != properties()->length()) {
-    FixedArray* new_properties;
-    MaybeObject* maybe_properties = properties()->CopySize(out_of_object);
-    if (!maybe_properties->To(&new_properties)) return maybe_properties;
-    set_properties(new_properties);
-  }
-  set_map(map);
-  return this;
-}
-
-
 MaybeObject* JSObject::TryMigrateInstance() {
   Map* new_map = map()->CurrentMapForDeprecated();
   if (new_map == NULL) return Smi::FromInt(0);

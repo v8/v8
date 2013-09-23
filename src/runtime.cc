@@ -348,10 +348,8 @@ MaybeObject* TransitionElements(Handle<Object> object,
   ElementsKind from_kind =
       Handle<JSObject>::cast(object)->map()->elements_kind();
   if (Map::IsValidElementsTransition(from_kind, to_kind)) {
-    Handle<Object> result = JSObject::TransitionElementsKind(
-        Handle<JSObject>::cast(object), to_kind);
-    if (result.is_null()) return isolate->ThrowIllegalOperation();
-    return *result;
+    JSObject::TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
+    return *object;
   }
   return isolate->ThrowIllegalOperation();
 }

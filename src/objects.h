@@ -2172,7 +2172,6 @@ class JSObject: public JSReceiver {
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
-  inline MUST_USE_RESULT MaybeObject* AllocateStorageForMap(Map* map);
 
   static void MigrateInstance(Handle<JSObject> instance);
 
@@ -2465,8 +2464,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetElementsTransitionMapSlow(
       ElementsKind elements_kind);
 
-  static Handle<Object> TransitionElementsKind(Handle<JSObject> object,
-                                               ElementsKind to_kind);
+  static void TransitionElementsKind(Handle<JSObject> object,
+                                     ElementsKind to_kind);
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
