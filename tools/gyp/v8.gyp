@@ -432,7 +432,6 @@
         '../../src/platform/elapsed-timer.h',
         '../../src/platform/time.cc',
         '../../src/platform/time.h',
-        '../../src/platform-posix.h',
         '../../src/platform.h',
         '../../src/platform/condition-variable.cc',
         '../../src/platform/condition-variable.h',
