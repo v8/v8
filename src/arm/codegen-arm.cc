@@ -444,15 +444,16 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ push(lr);
   __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  // r4: source FixedArray
   // r5: number of elements (smi-tagged)
 
   // Allocate new FixedDoubleArray.
   // Use lr as a temporary register.
   __ mov(lr, Operand(r5, LSL, 2));
   __ add(lr, lr, Operand(FixedDoubleArray::kHeaderSize));
-  __ Allocate(lr, r6, r7, r9, &gc_required, DOUBLE_ALIGNMENT);
+  __ Allocate(lr, r6, r4, r9, &gc_required, DOUBLE_ALIGNMENT);
   // r6: destination FixedDoubleArray, not tagged as heap object.
+  __ ldr(r4, FieldMemOperand(r2, JSObject::kElementsOffset));
+  // r4: source FixedArray.
 
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(r9, Heap::kFixedDoubleArrayMapRootIndex);
@@ -483,15 +484,15 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Prepare for conversion loop.
   __ add(r3, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(r7, r6, Operand(FixedDoubleArray::kHeaderSize));
-  __ add(r6, r7, Operand(r5, LSL, 2));
+  __ add(r9, r6, Operand(FixedDoubleArray::kHeaderSize));
+  __ add(r6, r9, Operand(r5, LSL, 2));
   __ mov(r4, Operand(kHoleNanLower32));
   __ mov(r5, Operand(kHoleNanUpper32));
   // r3: begin of source FixedArray element fields, not tagged
   // r4: kHoleNanLower32
   // r5: kHoleNanUpper32
   // r6: end of destination FixedDoubleArray, not tagged
-  // r7: begin of FixedDoubleArray element fields, not tagged
+  // r9: begin of FixedDoubleArray element fields, not tagged
 
   __ b(&entry);
 
@@ -514,30 +515,30 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Convert and copy elements.
   __ bind(&loop);
-  __ ldr(r9, MemOperand(r3, 4, PostIndex));
-  // r9: current element
-  __ UntagAndJumpIfNotSmi(r9, r9, &convert_hole);
+  __ ldr(lr, MemOperand(r3, 4, PostIndex));
+  // lr: current element
+  __ UntagAndJumpIfNotSmi(lr, lr, &convert_hole);
 
   // Normal smi, convert to double and store.
-  __ vmov(s0, r9);
+  __ vmov(s0, lr);
   __ vcvt_f64_s32(d0, s0);
-  __ vstr(d0, r7, 0);
-  __ add(r7, r7, Operand(8));
+  __ vstr(d0, r9, 0);
+  __ add(r9, r9, Operand(8));
   __ b(&entry);
 
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
   if (FLAG_debug_code) {
     // Restore a "smi-untagged" heap object.
-    __ SmiTag(r9);
-    __ orr(r9, r9, Operand(1));
-    __ CompareRoot(r9, Heap::kTheHoleValueRootIndex);
+    __ SmiTag(lr);
+    __ orr(lr, lr, Operand(1));
+    __ CompareRoot(lr, Heap::kTheHoleValueRootIndex);
     __ Assert(eq, kObjectFoundInSmiOnlyArray);
   }
-  __ Strd(r4, r5, MemOperand(r7, 8, PostIndex));
+  __ Strd(r4, r5, MemOperand(r9, 8, PostIndex));
 
   __ bind(&entry);
-  __ cmp(r7, r6);
+  __ cmp(r9, r6);
   __ b(lt, &loop);
 
   __ pop(lr);
@@ -577,7 +578,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Allocate new FixedArray.
   __ mov(r0, Operand(FixedDoubleArray::kHeaderSize));
   __ add(r0, r0, Operand(r5, LSL, 1));
-  __ Allocate(r0, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
+  __ Allocate(r0, r6, r3, r9, &gc_required, NO_ALLOCATION_FLAGS);
   // r6: destination FixedArray, not tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(r9, Heap::kFixedArrayMapRootIndex);
@@ -589,14 +590,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ add(r3, r6, Operand(FixedArray::kHeaderSize));
   __ add(r6, r6, Operand(kHeapObjectTag));
   __ add(r5, r3, Operand(r5, LSL, 1));
-  __ LoadRoot(r7, Heap::kTheHoleValueRootIndex);
   __ LoadRoot(r9, Heap::kHeapNumberMapRootIndex);
   // Using offsetted addresses in r4 to fully take advantage of post-indexing.
   // r3: begin of destination FixedArray element fields, not tagged
   // r4: begin of source FixedDoubleArray element fields, not tagged, +4
   // r5: end of destination FixedArray, not tagged
   // r6: destination FixedArray
-  // r7: the-hole pointer
   // r9: heap number map
   __ b(&entry);
 
@@ -608,7 +607,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   __ bind(&loop);
   __ ldr(r1, MemOperand(r4, 8, PostIndex));
-  // lr: current element's upper 32 bit
+  // r1: current element's upper 32 bit
   // r4: address of next element's upper 32 bit
   __ cmp(r1, Operand(kHoleNanUpper32));
   __ b(eq, &convert_hole);
@@ -631,7 +630,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
-  __ str(r7, MemOperand(r3, 4, PostIndex));
+  __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
+  __ str(r0, MemOperand(r3, 4, PostIndex));
 
   __ bind(&entry);
   __ cmp(r3, r5);

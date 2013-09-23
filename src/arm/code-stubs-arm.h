@@ -106,7 +106,6 @@ class StringHelper : public AllStatic {
                                          Register scratch2,
                                          Register scratch3,
                                          Register scratch4,
-                                         Register scratch5,
                                          int flags);
 
 

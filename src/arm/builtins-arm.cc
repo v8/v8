@@ -445,9 +445,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r3: object size (in words)
       // r4: JSObject (not tagged)
       // r5: First in-object property of JSObject (not tagged)
-      __ add(r6, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
       ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
-      __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
+      __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
       if (count_constructions) {
         __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
         __ Ubfx(r0, r0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
@@ -455,14 +454,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ add(r0, r5, Operand(r0, LSL, kPointerSizeLog2));
         // r0: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
-          __ cmp(r0, r6);
+          __ add(ip, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
+          __ cmp(r0, ip);
           __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
         }
-        __ InitializeFieldsWithFiller(r5, r0, r7);
+        __ InitializeFieldsWithFiller(r5, r0, r6);
         // To allow for truncation.
-        __ LoadRoot(r7, Heap::kOnePointerFillerMapRootIndex);
+        __ LoadRoot(r6, Heap::kOnePointerFillerMapRootIndex);
       }
-      __ InitializeFieldsWithFiller(r5, r6, r7);
+      __ add(r0, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
+      __ InitializeFieldsWithFiller(r5, r0, r6);
 
       // Add the object tag to make the JSObject real, so that we can continue
       // and jump into the continuation code at any time from now on. Any
@@ -527,16 +528,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ add(r6, r2, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
       ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
       { Label loop, entry;
-        if (count_constructions) {
-          __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
-        } else if (FLAG_debug_code) {
-          __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
-          __ cmp(r7, r8);
-          __ Assert(eq, kUndefinedValueNotLoaded);
-        }
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
         __ b(&entry);
         __ bind(&loop);
-        __ str(r7, MemOperand(r2, kPointerSize, PostIndex));
+        __ str(r0, MemOperand(r2, kPointerSize, PostIndex));
         __ bind(&entry);
         __ cmp(r2, r6);
         __ b(lt, &loop);
@@ -700,7 +695,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2: receiver
   // r3: argc
   // r4: argv
-  // r5-r7, cp may be clobbered
+  // r5-r6, r7 (if not FLAG_enable_ool_constant_pool) and cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the internal frame.
@@ -740,7 +735,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
     __ mov(r5, Operand(r4));
     __ mov(r6, Operand(r4));
-    __ mov(r7, Operand(r4));
+    if (!FLAG_enable_ool_constant_pool) {
+      __ mov(r7, Operand(r4));
+    }
     if (kR9Available == 1) {
       __ mov(r9, Operand(r4));
     }

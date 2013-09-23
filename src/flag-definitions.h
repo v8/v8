@@ -826,6 +826,16 @@ DEFINE_implication(print_all_code, trace_codegen)
 #endif
 #endif
 
+//
+// Read-only flags
+//
+#undef FLAG
+#define FLAG FLAG_READONLY
+
+// assembler-arm.h
+DEFINE_bool(enable_ool_constant_pool, false,
+            "enable use of out-of-line constant pools (ARM only)")
+
 // Cleanup...
 #undef FLAG_FULL
 #undef FLAG_READONLY

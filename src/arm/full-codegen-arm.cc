@@ -3962,9 +3962,8 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
-  Label bailout, done, one_char_separator, long_separator,
-      non_trivial_array, not_size_one_array, loop,
-      empty_separator_loop, one_char_separator_loop,
+  Label bailout, done, one_char_separator, long_separator, non_trivial_array,
+      not_size_one_array, loop, empty_separator_loop, one_char_separator_loop,
       one_char_separator_loop_entry, long_separator_loop;
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
@@ -3982,19 +3981,18 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   Register string = r4;
   Register element = r5;
   Register elements_end = r6;
-  Register scratch1 = r7;
-  Register scratch2 = r9;
+  Register scratch = r9;
 
   // Separator operand is on the stack.
   __ pop(separator);
 
   // Check that the array is a JSArray.
   __ JumpIfSmi(array, &bailout);
-  __ CompareObjectType(array, scratch1, scratch2, JS_ARRAY_TYPE);
+  __ CompareObjectType(array, scratch, array_length, JS_ARRAY_TYPE);
   __ b(ne, &bailout);
 
   // Check that the array has fast elements.
-  __ CheckFastElements(scratch1, scratch2, &bailout);
+  __ CheckFastElements(scratch, array_length, &bailout);
 
   // If the array has length zero, return the empty string.
   __ ldr(array_length, FieldMemOperand(array, JSArray::kLengthOffset));
@@ -4031,11 +4029,11 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ bind(&loop);
   __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
   __ JumpIfSmi(string, &bailout);
-  __ ldr(scratch1, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  __ JumpIfInstanceTypeIsNotSequentialAscii(scratch1, scratch2, &bailout);
-  __ ldr(scratch1, FieldMemOperand(string, SeqOneByteString::kLengthOffset));
-  __ add(string_length, string_length, Operand(scratch1), SetCC);
+  __ ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ JumpIfInstanceTypeIsNotSequentialAscii(scratch, scratch, &bailout);
+  __ ldr(scratch, FieldMemOperand(string, SeqOneByteString::kLengthOffset));
+  __ add(string_length, string_length, Operand(scratch), SetCC);
   __ b(vs, &bailout);
   __ cmp(element, elements_end);
   __ b(lt, &loop);
@@ -4056,23 +4054,23 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // Check that the separator is a flat ASCII string.
   __ JumpIfSmi(separator, &bailout);
-  __ ldr(scratch1, FieldMemOperand(separator, HeapObject::kMapOffset));
-  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  __ JumpIfInstanceTypeIsNotSequentialAscii(scratch1, scratch2, &bailout);
+  __ ldr(scratch, FieldMemOperand(separator, HeapObject::kMapOffset));
+  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ JumpIfInstanceTypeIsNotSequentialAscii(scratch, scratch, &bailout);
 
   // Add (separator length times array_length) - separator length to the
   // string_length to get the length of the result string. array_length is not
   // smi but the other values are, so the result is a smi
-  __ ldr(scratch1, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
-  __ sub(string_length, string_length, Operand(scratch1));
-  __ smull(scratch2, ip, array_length, scratch1);
+  __ ldr(scratch, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
+  __ sub(string_length, string_length, Operand(scratch));
+  __ smull(scratch, ip, array_length, scratch);
   // Check for smi overflow. No overflow if higher 33 bits of 64-bit result are
   // zero.
   __ cmp(ip, Operand::Zero());
   __ b(ne, &bailout);
-  __ tst(scratch2, Operand(0x80000000));
+  __ tst(scratch, Operand(0x80000000));
   __ b(ne, &bailout);
-  __ add(string_length, string_length, Operand(scratch2), SetCC);
+  __ add(string_length, string_length, Operand(scratch), SetCC);
   __ b(vs, &bailout);
   __ SmiUntag(string_length);
 
@@ -4089,9 +4087,9 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   array_length: Length of the array.
   __ AllocateAsciiString(result,
                          string_length,
-                         scratch1,
-                         scratch2,
-                         elements_end,
+                         scratch,
+                         string,  // used as scratch
+                         elements_end,  // used as scratch
                          &bailout);
   // Prepare for looping. Set up elements_end to end of the array. Set
   // result_pos to the position of the result where to write the first
@@ -4104,8 +4102,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
   // Check the length of the separator.
-  __ ldr(scratch1, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
-  __ cmp(scratch1, Operand(Smi::FromInt(1)));
+  __ ldr(scratch, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
+  __ cmp(scratch, Operand(Smi::FromInt(1)));
   __ b(eq, &one_char_separator);
   __ b(gt, &long_separator);
 
@@ -4123,7 +4121,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ add(string,
          string,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ CopyBytes(string, result_pos, string_length, scratch1);
+  __ CopyBytes(string, result_pos, string_length, scratch);
   __ cmp(element, elements_end);
   __ b(lt, &empty_separator_loop);  // End while (element < elements_end).
   ASSERT(result.is(r0));
@@ -4155,7 +4153,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ add(string,
          string,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ CopyBytes(string, result_pos, string_length, scratch1);
+  __ CopyBytes(string, result_pos, string_length, scratch);
   __ cmp(element, elements_end);
   __ b(lt, &one_char_separator_loop);  // End while (element < elements_end).
   ASSERT(result.is(r0));
@@ -4176,7 +4174,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ add(string,
          separator,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ CopyBytes(string, result_pos, string_length, scratch1);
+  __ CopyBytes(string, result_pos, string_length, scratch);
 
   __ bind(&long_separator);
   __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
@@ -4185,7 +4183,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ add(string,
          string,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ CopyBytes(string, result_pos, string_length, scratch1);
+  __ CopyBytes(string, result_pos, string_length, scratch);
   __ cmp(element, elements_end);
   __ b(lt, &long_separator_loop);  // End while (element < elements_end).
   ASSERT(result.is(r0));

@@ -3879,9 +3879,9 @@ void LCodeGen::DoPower(LPower* instr) {
   } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(r2, &no_deopt);
-    __ ldr(r7, FieldMemOperand(r2, HeapObject::kMapOffset));
+    __ ldr(r6, FieldMemOperand(r2, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-    __ cmp(r7, Operand(ip));
+    __ cmp(r6, Operand(ip));
     DeoptimizeIf(ne, instr->environment());
     __ bind(&no_deopt);
     MathPowStub stub(MathPowStub::TAGGED);
@@ -5386,24 +5386,24 @@ void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   Label materialized;
   // Registers will be used as follows:
-  // r7 = literals array.
+  // r6 = literals array.
   // r1 = regexp literal.
   // r0 = regexp literal clone.
-  // r2 and r4-r6 are used as temporaries.
+  // r2-5 are used as temporaries.
   int literal_offset =
       FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
-  __ LoadHeapObject(r7, instr->hydrogen()->literals());
-  __ ldr(r1, FieldMemOperand(r7, literal_offset));
+  __ LoadHeapObject(r6, instr->hydrogen()->literals());
+  __ ldr(r1, FieldMemOperand(r6, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r1, ip);
   __ b(ne, &materialized);
 
   // Create regexp literal using runtime function
   // Result will be in r0.
-  __ mov(r6, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ mov(r5, Operand(instr->hydrogen()->pattern()));
-  __ mov(r4, Operand(instr->hydrogen()->flags()));
-  __ Push(r7, r6, r5, r4);
+  __ mov(r5, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
+  __ mov(r4, Operand(instr->hydrogen()->pattern()));
+  __ mov(r3, Operand(instr->hydrogen()->flags()));
+  __ Push(r6, r5, r4, r3);
   CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
   __ mov(r1, r0);
 

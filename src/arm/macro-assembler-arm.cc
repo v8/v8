@@ -1337,7 +1337,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
-  // For the JSEntry handler, we must preserve r0-r4, r5-r7 are available.
+  // For the JSEntry handler, we must preserve r0-r4, r5-r6 are available.
   // We will build up the handler from the bottom by pushing on the stack.
   // Set up the code object (r5) and the state (r6) for pushing.
   unsigned state =
@@ -1348,9 +1348,9 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
 
   // Push the frame pointer, context, state, and code object.
   if (kind == StackHandler::JS_ENTRY) {
-    mov(r7, Operand(Smi::FromInt(0)));  // Indicates no context.
+    mov(cp, Operand(Smi::FromInt(0)));  // Indicates no context.
     mov(ip, Operand::Zero());  // NULL frame pointer.
-    stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | ip.bit());
+    stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | ip.bit());
   } else {
     stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | fp.bit());
   }
@@ -2305,13 +2305,15 @@ void MacroAssembler::CallApiFunctionAndReturn(
       ExternalReference::handle_scope_level_address(isolate()),
       next_address);
 
+  ASSERT(!thunk_last_arg.is(r3));
+
   // Allocate HandleScope in callee-save registers.
-  mov(r7, Operand(next_address));
-  ldr(r4, MemOperand(r7, kNextOffset));
-  ldr(r5, MemOperand(r7, kLimitOffset));
-  ldr(r6, MemOperand(r7, kLevelOffset));
+  mov(r9, Operand(next_address));
+  ldr(r4, MemOperand(r9, kNextOffset));
+  ldr(r5, MemOperand(r9, kLimitOffset));
+  ldr(r6, MemOperand(r9, kLevelOffset));
   add(r6, r6, Operand(1));
-  str(r6, MemOperand(r7, kLevelOffset));
+  str(r6, MemOperand(r9, kLevelOffset));
 
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);
@@ -2322,7 +2324,6 @@ void MacroAssembler::CallApiFunctionAndReturn(
     PopSafepointRegisters();
   }
 
-  ASSERT(!thunk_last_arg.is(r3));
   Label profiler_disabled;
   Label end_profiler_check;
   bool* is_profiling_flag =
@@ -2368,15 +2369,15 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  str(r4, MemOperand(r7, kNextOffset));
+  str(r4, MemOperand(r9, kNextOffset));
   if (emit_debug_code()) {
-    ldr(r1, MemOperand(r7, kLevelOffset));
+    ldr(r1, MemOperand(r9, kLevelOffset));
     cmp(r1, r6);
     Check(eq, kUnexpectedLevelAfterReturnFromApiCall);
   }
   sub(r6, r6, Operand(1));
-  str(r6, MemOperand(r7, kLevelOffset));
-  ldr(ip, MemOperand(r7, kLimitOffset));
+  str(r6, MemOperand(r9, kLevelOffset));
+  ldr(ip, MemOperand(r9, kLimitOffset));
   cmp(r5, ip);
   b(ne, &delete_allocated_handles);
 
@@ -2409,7 +2410,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
-  str(r5, MemOperand(r7, kLimitOffset));
+  str(r5, MemOperand(r9, kLimitOffset));
   mov(r4, r0);
   PrepareCallCFunction(1, r5);
   mov(r0, Operand(ExternalReference::isolate_address(isolate())));
