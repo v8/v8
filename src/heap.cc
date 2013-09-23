@@ -129,8 +129,6 @@ Heap::Heap()
       old_gen_exhausted_(false),
       store_buffer_rebuilder_(store_buffer()),
       hidden_string_(NULL),
-      global_gc_prologue_callback_(NULL),
-      global_gc_epilogue_callback_(NULL),
       gc_safe_size_of_old_object_(NULL),
       total_regexp_code_generated_(0),
       tracer_(NULL),
@@ -1055,12 +1053,17 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
-  if (gc_type == kGCTypeMarkSweepCompact && global_gc_prologue_callback_) {
-    global_gc_prologue_callback_();
-  }
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      gc_prologue_callbacks_[i].callback(gc_type, flags);
+      if (!gc_prologue_callbacks_[i].pass_isolate_) {
+        v8::GCPrologueCallback callback =
+            reinterpret_cast<v8::GCPrologueCallback>(
+                gc_prologue_callbacks_[i].callback);
+        callback(gc_type, flags);
+      } else {
+        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
+        gc_prologue_callbacks_[i].callback(isolate, gc_type, flags);
+      }
     }
   }
 }
@@ -1069,11 +1072,17 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
 void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
-      gc_epilogue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+      if (!gc_epilogue_callbacks_[i].pass_isolate_) {
+        v8::GCPrologueCallback callback =
+            reinterpret_cast<v8::GCPrologueCallback>(
+                gc_epilogue_callbacks_[i].callback);
+        callback(gc_type, kNoGCCallbackFlags);
+      } else {
+        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
+        gc_epilogue_callbacks_[i].callback(
+            isolate, gc_type, kNoGCCallbackFlags);
+      }
     }
-  }
-  if (gc_type == kGCTypeMarkSweepCompact && global_gc_epilogue_callback_) {
-    global_gc_epilogue_callback_();
   }
 }
 
@@ -2958,17 +2967,16 @@ MaybeObject* Heap::AllocateBox(Object* value, PretenureFlag pretenure) {
 
 
 MaybeObject* Heap::AllocateAllocationSite() {
-  Object* result;
+  AllocationSite* site;
   MaybeObject* maybe_result = Allocate(allocation_site_map(),
                                        OLD_POINTER_SPACE);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
-  AllocationSite* site = AllocationSite::cast(result);
+  if (!maybe_result->To(&site)) return maybe_result;
   site->Initialize();
 
   // Link the site
   site->set_weak_next(allocation_sites_list());
   set_allocation_sites_list(site);
-  return result;
+  return site;
 }
 
 
@@ -4310,6 +4318,7 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
       reinterpret_cast<Address>(result) + map->instance_size());
   alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+  ASSERT(allocation_site->map() == allocation_site_map());
   alloc_memento->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
   return result;
 }
@@ -4745,20 +4754,6 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
 }
 
 
-MaybeObject* Heap::AllocateJSArrayAndStorageWithAllocationSite(
-    ElementsKind elements_kind,
-    int length,
-    int capacity,
-    Handle<AllocationSite> allocation_site,
-    ArrayStorageAllocationMode mode) {
-  MaybeObject* maybe_array = AllocateJSArrayWithAllocationSite(elements_kind,
-      allocation_site);
-  JSArray* array;
-  if (!maybe_array->To(&array)) return maybe_array;
-  return AllocateJSArrayStorage(array, length, capacity, mode);
-}
-
-
 MaybeObject* Heap::AllocateJSArrayStorage(
     JSArray* array,
     int length,
@@ -4928,7 +4923,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 }
 
 
-MaybeObject* Heap::CopyJSObject(JSObject* source) {
+MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
   SLOW_ASSERT(!source->IsJSFunction());
@@ -4937,6 +4932,9 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   Map* map = source->map();
   int object_size = map->instance_size();
   Object* clone;
+
+  ASSERT(site == NULL || (AllocationSite::CanTrack(map->instance_type()) &&
+                          map->instance_type() == JS_ARRAY_TYPE));
 
   WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
 
@@ -4958,7 +4956,10 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   } else {
     wb_mode = SKIP_WRITE_BARRIER;
 
-    { MaybeObject* maybe_clone = new_space_.AllocateRaw(object_size);
+    { int adjusted_object_size = site != NULL
+          ? object_size + AllocationMemento::kSize
+          : object_size;
+      MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     SLOW_ASSERT(InNewSpace(clone));
@@ -4967,115 +4968,14 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
     CopyBlock(HeapObject::cast(clone)->address(),
               source->address(),
               object_size);
-  }
 
-  SLOW_ASSERT(
-      JSObject::cast(clone)->GetElementsKind() == source->GetElementsKind());
-  FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
-  FixedArray* properties = FixedArray::cast(source->properties());
-  // Update elements if necessary.
-  if (elements->length() > 0) {
-    Object* elem;
-    { MaybeObject* maybe_elem;
-      if (elements->map() == fixed_cow_array_map()) {
-        maybe_elem = FixedArray::cast(elements);
-      } else if (source->HasFastDoubleElements()) {
-        maybe_elem = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
-      } else {
-        maybe_elem = CopyFixedArray(FixedArray::cast(elements));
-      }
-      if (!maybe_elem->ToObject(&elem)) return maybe_elem;
+    if (site != NULL) {
+      AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
+          reinterpret_cast<Address>(clone) + object_size);
+      alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+      ASSERT(site->map() == allocation_site_map());
+      alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
     }
-    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem), wb_mode);
-  }
-  // Update properties if necessary.
-  if (properties->length() > 0) {
-    Object* prop;
-    { MaybeObject* maybe_prop = CopyFixedArray(properties);
-      if (!maybe_prop->ToObject(&prop)) return maybe_prop;
-    }
-    JSObject::cast(clone)->set_properties(FixedArray::cast(prop), wb_mode);
-  }
-  // Return the new clone.
-  return clone;
-}
-
-
-MaybeObject* Heap::CopyJSObjectWithAllocationSite(
-    JSObject* source,
-    AllocationSite* site) {
-  // Never used to copy functions.  If functions need to be copied we
-  // have to be careful to clear the literals array.
-  SLOW_ASSERT(!source->IsJSFunction());
-
-  // Make the clone.
-  Map* map = source->map();
-  int object_size = map->instance_size();
-  Object* clone;
-
-  ASSERT(AllocationSite::CanTrack(map->instance_type()));
-  ASSERT(map->instance_type() == JS_ARRAY_TYPE);
-  WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
-
-  // If we're forced to always allocate, we use the general allocation
-  // functions which may leave us with an object in old space.
-  int adjusted_object_size = object_size;
-  if (always_allocate()) {
-    // We'll only track origin if we are certain to allocate in new space
-    const int kMinFreeNewSpaceAfterGC = InitialSemiSpaceSize() * 3/4;
-    if ((object_size + AllocationMemento::kSize) < kMinFreeNewSpaceAfterGC) {
-      adjusted_object_size += AllocationMemento::kSize;
-    }
-
-    { MaybeObject* maybe_clone =
-          AllocateRaw(adjusted_object_size, NEW_SPACE, OLD_POINTER_SPACE);
-      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
-    }
-    Address clone_address = HeapObject::cast(clone)->address();
-    CopyBlock(clone_address,
-              source->address(),
-              object_size);
-    // Update write barrier for all fields that lie beyond the header.
-    int write_barrier_offset = adjusted_object_size > object_size
-        ? JSArray::kSize + AllocationMemento::kSize
-        : JSObject::kHeaderSize;
-    if (((object_size - write_barrier_offset) / kPointerSize) > 0) {
-      RecordWrites(clone_address,
-                   write_barrier_offset,
-                   (object_size - write_barrier_offset) / kPointerSize);
-    }
-
-    // Track allocation site information, if we failed to allocate it inline.
-    if (InNewSpace(clone) &&
-        adjusted_object_size == object_size) {
-      MaybeObject* maybe_alloc_memento =
-          AllocateStruct(ALLOCATION_MEMENTO_TYPE);
-      AllocationMemento* alloc_memento;
-      if (maybe_alloc_memento->To(&alloc_memento)) {
-        alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-        alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
-      }
-    }
-  } else {
-    wb_mode = SKIP_WRITE_BARRIER;
-    adjusted_object_size += AllocationMemento::kSize;
-
-    { MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
-      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
-    }
-    SLOW_ASSERT(InNewSpace(clone));
-    // Since we know the clone is allocated in new space, we can copy
-    // the contents without worrying about updating the write barrier.
-    CopyBlock(HeapObject::cast(clone)->address(),
-              source->address(),
-              object_size);
-  }
-
-  if (adjusted_object_size > object_size) {
-    AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
-        reinterpret_cast<Address>(clone) + object_size);
-    alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-    alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 
   SLOW_ASSERT(
@@ -5471,24 +5371,6 @@ MaybeObject* Heap::AllocateJSArray(
   Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
   if (transition_map != NULL) map = transition_map;
   return AllocateJSObjectFromMap(map, pretenure);
-}
-
-
-MaybeObject* Heap::AllocateJSArrayWithAllocationSite(
-    ElementsKind elements_kind,
-    Handle<AllocationSite> allocation_site) {
-  Context* native_context = isolate()->context()->native_context();
-  JSFunction* array_function = native_context->array_function();
-  Map* map = array_function->initial_map();
-  Object* maybe_map_array = native_context->js_array_maps();
-  if (!maybe_map_array->IsUndefined()) {
-    Object* maybe_transitioned_map =
-        FixedArray::cast(maybe_map_array)->get(elements_kind);
-    if (!maybe_transitioned_map->IsUndefined()) {
-      map = Map::cast(maybe_transitioned_map);
-    }
-  }
-  return AllocateJSObjectFromMapWithAllocationSite(map, allocation_site);
 }
 
 
@@ -7068,15 +6950,17 @@ void Heap::TearDown() {
 }
 
 
-void Heap::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
+void Heap::AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
+                                 GCType gc_type,
+                                 bool pass_isolate) {
   ASSERT(callback != NULL);
-  GCPrologueCallbackPair pair(callback, gc_type);
+  GCPrologueCallbackPair pair(callback, gc_type, pass_isolate);
   ASSERT(!gc_prologue_callbacks_.Contains(pair));
   return gc_prologue_callbacks_.Add(pair);
 }
 
 
-void Heap::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+void Heap::RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback) {
   ASSERT(callback != NULL);
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_prologue_callbacks_[i].callback == callback) {
@@ -7088,15 +6972,17 @@ void Heap::RemoveGCPrologueCallback(GCPrologueCallback callback) {
 }
 
 
-void Heap::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
+void Heap::AddGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback,
+                                 GCType gc_type,
+                                 bool pass_isolate) {
   ASSERT(callback != NULL);
-  GCEpilogueCallbackPair pair(callback, gc_type);
+  GCEpilogueCallbackPair pair(callback, gc_type, pass_isolate);
   ASSERT(!gc_epilogue_callbacks_.Contains(pair));
   return gc_epilogue_callbacks_.Add(pair);
 }
 
 
-void Heap::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
   ASSERT(callback != NULL);
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_epilogue_callbacks_[i].callback == callback) {

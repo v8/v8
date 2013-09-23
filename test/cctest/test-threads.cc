@@ -34,7 +34,7 @@
 
 
 TEST(Preemption) {
-  v8::Isolate* isolate = CcTest::default_isolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::Locker locker(isolate);
   v8::V8::Initialize();
   v8::HandleScope scope(isolate);
@@ -69,8 +69,9 @@ class ThreadA : public v8::internal::Thread {
  public:
   ThreadA() : Thread("ThreadA") { }
   void Run() {
-    v8::Isolate* isolate = CcTest::default_isolate();
+    v8::Isolate* isolate = CcTest::isolate();
     v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope scope(isolate);
     v8::Handle<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
@@ -90,7 +91,7 @@ class ThreadA : public v8::internal::Thread {
     turn = CLEAN_CACHE;
     do {
       {
-        v8::Unlocker unlocker(CcTest::default_isolate());
+        v8::Unlocker unlocker(CcTest::isolate());
         Thread::YieldCPU();
       }
     } while (turn != SECOND_TIME_FILL_CACHE);
@@ -109,15 +110,16 @@ class ThreadB : public v8::internal::Thread {
   void Run() {
     do {
       {
-        v8::Isolate* isolate = CcTest::default_isolate();
+        v8::Isolate* isolate = CcTest::isolate();
         v8::Locker locker(isolate);
+        v8::Isolate::Scope isolate_scope(isolate);
         if (turn == CLEAN_CACHE) {
           v8::HandleScope scope(isolate);
           v8::Handle<v8::Context> context = v8::Context::New(isolate);
           v8::Context::Scope context_scope(context);
 
           // Clear the caches by forcing major GC.
-          HEAP->CollectAllGarbage(v8::internal::Heap::kNoGCFlags);
+          CcTest::heap()->CollectAllGarbage(v8::internal::Heap::kNoGCFlags);
           turn = SECOND_TIME_FILL_CACHE;
           break;
         }
@@ -130,8 +132,6 @@ class ThreadB : public v8::internal::Thread {
 
 
 TEST(JSFunctionResultCachesInTwoThreads) {
-  v8::V8::Initialize();
-
   ThreadA threadA;
   ThreadB threadB;
 

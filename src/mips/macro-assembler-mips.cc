@@ -3847,12 +3847,14 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
-                                              Address function_address,
-                                              ExternalReference thunk_ref,
-                                              Register thunk_last_arg,
-                                              int stack_space,
-                                              int return_value_offset_from_fp) {
+void MacroAssembler::CallApiFunctionAndReturn(
+    ExternalReference function,
+    Address function_address,
+    ExternalReference thunk_ref,
+    Register thunk_last_arg,
+    int stack_space,
+    MemOperand return_value_operand,
+    MemOperand* context_restore_operand) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -3915,12 +3917,13 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   }
 
   Label promote_scheduled_exception;
+  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label return_value_loaded;
 
   // Load value from ReturnValue.
-  lw(v0, MemOperand(fp, return_value_offset_from_fp*kPointerSize));
+  lw(v0, return_value_operand);
   bind(&return_value_loaded);
 
   // No more valid handles (the result handle was the last one). Restore
@@ -3941,14 +3944,23 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   li(at, Operand(ExternalReference::scheduled_exception_address(isolate())));
   lw(t1, MemOperand(at));
   Branch(&promote_scheduled_exception, ne, t0, Operand(t1));
+  bind(&exception_handled);
+
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    lw(cp, *context_restore_operand);
+  }
   li(s0, Operand(stack_space));
-  LeaveExitFrame(false, s0, true);
+  LeaveExitFrame(false, s0, !restore_context, EMIT_RETURN);
 
   bind(&promote_scheduled_exception);
-  TailCallExternalReference(
-      ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-      0,
-      1);
+  {
+    FrameScope frame(this, StackFrame::INTERNAL);
+    CallExternalReference(
+        ExternalReference(Runtime::kPromoteScheduledException, isolate()),
+        0);
+  }
+  jmp(&exception_handled);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
@@ -4684,6 +4696,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count,
+                                    bool restore_context,
                                     bool do_return) {
   // Optionally restore all double registers.
   if (save_doubles) {
@@ -4700,9 +4713,12 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   sw(zero_reg, MemOperand(t8));
 
   // Restore current context from top and clear it in debug mode.
-  li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
-  lw(cp, MemOperand(t8));
+  if (restore_context) {
+    li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+    lw(cp, MemOperand(t8));
+  }
 #ifdef DEBUG
+  li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   sw(a3, MemOperand(t8));
 #endif
 
@@ -4926,6 +4942,86 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
   lw(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
   AssertIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   Branch(on_not_heap_number, ne, scratch, Operand(heap_number_map));
+}
+
+
+void MacroAssembler::LookupNumberStringCache(Register object,
+                                             Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Register scratch3,
+                                             Label* not_found) {
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch3;
+
+  // Load the number string cache.
+  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  lw(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
+  // Divide length by two (length is a smi).
+  sra(mask, mask, kSmiTagSize + 1);
+  Addu(mask, mask, -1);  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  JumpIfSmi(object, &is_smi);
+  CheckMap(object,
+           scratch1,
+           Heap::kHeapNumberMapRootIndex,
+           not_found,
+           DONT_DO_SMI_CHECK);
+
+  STATIC_ASSERT(8 == kDoubleSize);
+  Addu(scratch1,
+       object,
+       Operand(HeapNumber::kValueOffset - kHeapObjectTag));
+  lw(scratch2, MemOperand(scratch1, kPointerSize));
+  lw(scratch1, MemOperand(scratch1, 0));
+  Xor(scratch1, scratch1, Operand(scratch2));
+  And(scratch1, scratch1, Operand(mask));
+
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  sll(scratch1, scratch1, kPointerSizeLog2 + 1);
+  Addu(scratch1, number_string_cache, scratch1);
+
+  Register probe = mask;
+  lw(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  JumpIfSmi(probe, not_found);
+  ldc1(f12, FieldMemOperand(object, HeapNumber::kValueOffset));
+  ldc1(f14, FieldMemOperand(probe, HeapNumber::kValueOffset));
+  BranchF(&load_result_from_cache, NULL, eq, f12, f14);
+  Branch(not_found);
+
+  bind(&is_smi);
+  Register scratch = scratch1;
+  sra(scratch, object, 1);   // Shift away the tag.
+  And(scratch, mask, Operand(scratch));
+
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  sll(scratch, scratch, kPointerSizeLog2 + 1);
+  Addu(scratch, number_string_cache, scratch);
+
+  // Check if the entry is the smi we are looking for.
+  lw(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  Branch(not_found, ne, object, Operand(probe));
+
+  // Get the result from the cache.
+  bind(&load_result_from_cache);
+  lw(result, FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
+
+  IncrementCounter(isolate()->counters()->number_to_string_native(),
+                   1,
+                   scratch1,
+                   scratch2);
 }
 
 
@@ -5507,7 +5603,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   Branch(&no_memento_available, gt, scratch_reg, Operand(at));
   lw(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
   Branch(allocation_memento_present, cond, scratch_reg,
-      Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
+         Operand(isolate()->factory()->allocation_memento_map()));
   bind(&no_memento_available);
 }
 

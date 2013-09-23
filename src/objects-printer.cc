@@ -1100,9 +1100,10 @@ void AllocationSite::AllocationSitePrint(FILE* out) {
   HeapObject::PrintHeader(out, "AllocationSite");
   PrintF(out, " - weak_next: ");
   weak_next()->ShortPrint(out);
-  PrintF(out, "\n");
+  PrintF(out, "\n - dependent code: ");
+  dependent_code()->ShortPrint(out);
 
-  PrintF(out, " - transition_info: ");
+  PrintF(out, "\n - transition_info: ");
   if (transition_info()->IsCell()) {
     Cell* cell = Cell::cast(transition_info());
     Object* cell_contents = cell->value();

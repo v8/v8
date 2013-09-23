@@ -328,11 +328,6 @@ class Factory {
 
   void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
 
-  void EnsureCanContainElements(Handle<JSArray> array,
-                                Handle<FixedArrayBase> elements,
-                                uint32_t length,
-                                EnsureElementsMode mode);
-
   Handle<JSArrayBuffer> NewJSArrayBuffer();
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
@@ -462,7 +457,15 @@ class Factory {
         &isolate()->heap()->roots_[Heap::k##camel_name##RootIndex]));          \
   }
   ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR_ACCESSOR
+#undef ROOT_ACCESSOR
+
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                                  \
+  inline Handle<Map> name##_map() {                                            \
+    return Handle<Map>(BitCast<Map**>(                                         \
+        &isolate()->heap()->roots_[Heap::k##Name##MapRootIndex]));             \
+    }
+  STRUCT_LIST(STRUCT_MAP_ACCESSOR)
+#undef STRUCT_MAP_ACCESSOR
 
 #define STRING_ACCESSOR(name, str)                                             \
   inline Handle<String> name() {                                               \

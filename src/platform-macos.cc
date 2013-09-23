@@ -220,14 +220,6 @@ double OS::LocalTimeOffset() {
 }
 
 
-int OS::StackWalk(Vector<StackFrame> frames) {
-  // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
-  if (backtrace == NULL) return 0;
-
-  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
-}
-
-
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 

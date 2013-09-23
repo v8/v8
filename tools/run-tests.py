@@ -112,6 +112,9 @@ def BuildOptions():
   result.add_option("-m", "--mode",
                     help="The test modes in which to run (comma-separated)",
                     default="release,debug")
+  result.add_option("--no-i18n", "--noi18n",
+                    help="Skip internationalization tests",
+                    default=False, action="store_true")
   result.add_option("--no-network", "--nonetwork",
                     help="Don't distribute tests on the network",
                     default=(utils.GuessOS() != "linux"),
@@ -210,6 +213,8 @@ def ProcessOptions(options):
   if not options.flaky_tests in ["run", "skip", "dontcare"]:
     print "Unknown flaky test mode %s" % options.flaky_tests
     return False
+  if not options.no_i18n:
+    DEFAULT_TESTS.append("intl")
   return True
 
 
@@ -302,7 +307,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         mode_flags, options.verbose,
                         timeout, options.isolates,
                         options.command_prefix,
-                        options.extra_flags)
+                        options.extra_flags,
+                        options.no_i18n)
 
   # Find available test suites and read test cases from them.
   variables = {
@@ -311,6 +317,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "system": utils.GuessOS(),
     "isolates": options.isolates,
     "deopt_fuzzer": False,
+    "no_i18n": options.no_i18n,
   }
   all_tests = []
   num_tests = 0

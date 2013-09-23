@@ -136,12 +136,11 @@ Handle<Code> StubCache::FindLoadHandler(Handle<Name> name,
                                         Handle<JSObject> stub_holder,
                                         Code::Kind kind,
                                         Code::StubType type) {
-  Code::ExtraICState extra_ic_state = Code::ComputeExtraICState(
-      receiver.is_identical_to(stub_holder) ? Code::OWN_STUB
-                                            : Code::PROTOTYPE_STUB);
+  InlineCacheHolderFlag holder_flag = receiver.is_identical_to(stub_holder)
+      ? OWN_MAP : PROTOTYPE_MAP;
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STUB, extra_ic_state, type, kind);
+      Code::STUB, Code::kNoExtraICState, type, kind, holder_flag);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -520,7 +519,7 @@ Handle<Code> StubCache::ComputeStoreTransition(Handle<Name> name,
                                                Handle<Map> transition,
                                                StrictModeFlag strict_mode) {
   Handle<Code> stub = FindStoreHandler(
-      name, receiver, Code::STORE_IC, Code::MAP_TRANSITION, strict_mode);
+      name, receiver, Code::STORE_IC, Code::TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
@@ -702,7 +701,7 @@ Handle<Code> StubCache::ComputeKeyedStoreTransition(
     Handle<Map> transition,
     StrictModeFlag strict_mode) {
   Handle<Code> stub = FindStoreHandler(
-      name, receiver, Code::KEYED_STORE_IC, Code::MAP_TRANSITION, strict_mode);
+      name, receiver, Code::KEYED_STORE_IC, Code::TRANSITION, strict_mode);
   if (!stub.is_null()) return stub;
 
   KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
@@ -1395,17 +1394,19 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
+  HandleScope scope(isolate);
   ASSERT(args.length() == 4);
-  JSObject* recv = JSObject::cast(args[0]);
-  Name* name = Name::cast(args[1]);
-  Object* value = args[2];
+  Handle<JSObject> recv(JSObject::cast(args[0]));
+  Handle<Name> name(Name::cast(args[1]));
+  Handle<Object> value(args[2], isolate);
   ASSERT(args.smi_at(3) == kStrictMode || args.smi_at(3) == kNonStrictMode);
   StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(3));
   ASSERT(recv->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  MaybeObject* result = recv->SetPropertyWithInterceptor(
-      name, value, attr, strict_mode);
-  return result;
+  Handle<Object> result = JSObject::SetPropertyWithInterceptor(
+      recv, name, value, attr, strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -1849,7 +1850,7 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreTransition(
   TailCallBuiltin(masm(), SlowBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::MAP_TRANSITION, name);
+  return GetCode(kind(), Code::TRANSITION, name);
 }
 
 

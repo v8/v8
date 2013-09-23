@@ -635,10 +635,6 @@ class Heap {
                                      pretenure);
   }
 
-  inline MUST_USE_RESULT MaybeObject* AllocateEmptyJSArrayWithAllocationSite(
-      ElementsKind elements_kind,
-      Handle<AllocationSite> allocation_site);
-
   // Allocate a JSArray with a specified length but elements that are left
   // uninitialized.
   MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
@@ -647,13 +643,6 @@ class Heap {
       int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorageWithAllocationSite(
-      ElementsKind elements_kind,
-      int length,
-      int capacity,
-      Handle<AllocationSite> allocation_site,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   MUST_USE_RESULT MaybeObject* AllocateJSArrayStorage(
       JSArray* array,
@@ -677,10 +666,9 @@ class Heap {
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
-  MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source);
-
-  MUST_USE_RESULT MaybeObject* CopyJSObjectWithAllocationSite(
-      JSObject* source, AllocationSite* site);
+  // Optionally takes an AllocationSite to be appended in an AllocationMemento.
+  MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
+                                            AllocationSite* site = NULL);
 
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1272,22 +1260,15 @@ class Heap {
   void GarbageCollectionGreedyCheck();
 #endif
 
-  void AddGCPrologueCallback(
-      GCPrologueCallback callback, GCType gc_type_filter);
-  void RemoveGCPrologueCallback(GCPrologueCallback callback);
+  void AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
+                             GCType gc_type_filter,
+                             bool pass_isolate = true);
+  void RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback);
 
-  void AddGCEpilogueCallback(
-      GCEpilogueCallback callback, GCType gc_type_filter);
-  void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
-
-  void SetGlobalGCPrologueCallback(GCCallback callback) {
-    ASSERT((callback == NULL) ^ (global_gc_prologue_callback_ == NULL));
-    global_gc_prologue_callback_ = callback;
-  }
-  void SetGlobalGCEpilogueCallback(GCCallback callback) {
-    ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
-    global_gc_epilogue_callback_ = callback;
-  }
+  void AddGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback,
+                             GCType gc_type_filter,
+                             bool pass_isolate = true);
+  void RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback);
 
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
@@ -2032,31 +2013,36 @@ class Heap {
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.
   struct GCPrologueCallbackPair {
-    GCPrologueCallbackPair(GCPrologueCallback callback, GCType gc_type)
-        : callback(callback), gc_type(gc_type) {
+    GCPrologueCallbackPair(v8::Isolate::GCPrologueCallback callback,
+                           GCType gc_type,
+                           bool pass_isolate)
+        : callback(callback), gc_type(gc_type), pass_isolate_(pass_isolate) {
     }
     bool operator==(const GCPrologueCallbackPair& pair) const {
       return pair.callback == callback;
     }
-    GCPrologueCallback callback;
+    v8::Isolate::GCPrologueCallback callback;
     GCType gc_type;
+    // TODO(dcarney): remove variable
+    bool pass_isolate_;
   };
   List<GCPrologueCallbackPair> gc_prologue_callbacks_;
 
   struct GCEpilogueCallbackPair {
-    GCEpilogueCallbackPair(GCEpilogueCallback callback, GCType gc_type)
-        : callback(callback), gc_type(gc_type) {
+    GCEpilogueCallbackPair(v8::Isolate::GCPrologueCallback callback,
+                           GCType gc_type,
+                           bool pass_isolate)
+        : callback(callback), gc_type(gc_type), pass_isolate_(pass_isolate) {
     }
     bool operator==(const GCEpilogueCallbackPair& pair) const {
       return pair.callback == callback;
     }
-    GCEpilogueCallback callback;
+    v8::Isolate::GCPrologueCallback callback;
     GCType gc_type;
+    // TODO(dcarney): remove variable
+    bool pass_isolate_;
   };
   List<GCEpilogueCallbackPair> gc_epilogue_callbacks_;
-
-  GCCallback global_gc_prologue_callback_;
-  GCCallback global_gc_epilogue_callback_;
 
   // Support for computing object sizes during GC.
   HeapObjectCallback gc_safe_size_of_old_object_;
@@ -2115,10 +2101,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSArray(
       ElementsKind elements_kind,
       PretenureFlag pretenure = NOT_TENURED);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayWithAllocationSite(
-      ElementsKind elements_kind,
-      Handle<AllocationSite> allocation_site);
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();

@@ -1323,6 +1323,13 @@ bool JSObject::ShouldTrackAllocationInfo() {
 }
 
 
+void AllocationSite::Initialize() {
+  SetElementsKind(GetInitialFastElementsKind());
+  set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
+                     SKIP_WRITE_BARRIER);
+}
+
+
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
 AllocationSiteMode AllocationSite::GetMode(
@@ -1532,52 +1539,6 @@ MaybeObject* JSObject::ResetElements() {
   initialize_elements();
 
   return this;
-}
-
-
-MaybeObject* JSObject::AllocateStorageForMap(Map* map) {
-  ASSERT(this->map()->inobject_properties() == map->inobject_properties());
-  ElementsKind obj_kind = this->map()->elements_kind();
-  ElementsKind map_kind = map->elements_kind();
-  if (map_kind != obj_kind) {
-    ElementsKind to_kind = map_kind;
-    if (IsMoreGeneralElementsKindTransition(map_kind, obj_kind) ||
-        IsDictionaryElementsKind(obj_kind)) {
-      to_kind = obj_kind;
-    }
-    MaybeObject* maybe_obj =
-        IsDictionaryElementsKind(to_kind) ? NormalizeElements()
-                                          : TransitionElementsKind(to_kind);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-    MaybeObject* maybe_map = map->AsElementsKind(to_kind);
-    if (!maybe_map->To(&map)) return maybe_map;
-  }
-  int total_size =
-      map->NumberOfOwnDescriptors() + map->unused_property_fields();
-  int out_of_object = total_size - map->inobject_properties();
-  if (out_of_object != properties()->length()) {
-    FixedArray* new_properties;
-    MaybeObject* maybe_properties = properties()->CopySize(out_of_object);
-    if (!maybe_properties->To(&new_properties)) return maybe_properties;
-    set_properties(new_properties);
-  }
-  set_map(map);
-  return this;
-}
-
-
-MaybeObject* JSObject::MigrateInstance() {
-  // Converting any field to the most specific type will cause the
-  // GeneralizeFieldRepresentation algorithm to create the most general existing
-  // transition that matches the object. This achieves what is needed.
-  Map* original_map = map();
-  MaybeObject* maybe_result = GeneralizeFieldRepresentation(
-      0, Representation::None(), ALLOW_AS_CONSTANT);
-  JSObject* result;
-  if (FLAG_trace_migration && maybe_result->To(&result)) {
-    PrintInstanceMigration(stdout, original_map, result->map());
-  }
-  return maybe_result;
 }
 
 
@@ -4495,6 +4456,8 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
+ACCESSORS(AllocationSite, dependent_code, DependentCode,
+          kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
@@ -5729,19 +5692,23 @@ Object* JSReceiver::GetConstructor() {
 }
 
 
-bool JSReceiver::HasProperty(Name* name) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->HasPropertyWithHandler(name);
+bool JSReceiver::HasProperty(Handle<JSReceiver> object,
+                             Handle<Name> name) {
+  if (object->IsJSProxy()) {
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return GetPropertyAttribute(name) != ABSENT;
+  return object->GetPropertyAttribute(*name) != ABSENT;
 }
 
 
-bool JSReceiver::HasLocalProperty(Name* name) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->HasPropertyWithHandler(name);
+bool JSReceiver::HasLocalProperty(Handle<JSReceiver> object,
+                                  Handle<Name> name) {
+  if (object->IsJSProxy()) {
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return GetLocalPropertyAttribute(name) != ABSENT;
+  return object->GetLocalPropertyAttribute(*name) != ABSENT;
 }
 
 
@@ -5783,21 +5750,23 @@ MaybeObject* JSReceiver::GetIdentityHash(CreationFlag flag) {
 }
 
 
-bool JSReceiver::HasElement(uint32_t index) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->HasElementWithHandler(index);
+bool JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
+  if (object->IsJSProxy()) {
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    return JSProxy::HasElementWithHandler(proxy, index);
   }
-  return JSObject::cast(this)->GetElementAttributeWithReceiver(
-      this, index, true) != ABSENT;
+  return Handle<JSObject>::cast(object)->GetElementAttributeWithReceiver(
+      *object, index, true) != ABSENT;
 }
 
 
-bool JSReceiver::HasLocalElement(uint32_t index) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->HasElementWithHandler(index);
+bool JSReceiver::HasLocalElement(Handle<JSReceiver> object, uint32_t index) {
+  if (object->IsJSProxy()) {
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    return JSProxy::HasElementWithHandler(proxy, index);
   }
-  return JSObject::cast(this)->GetElementAttributeWithReceiver(
-      this, index, false) != ABSENT;
+  return Handle<JSObject>::cast(object)->GetElementAttributeWithReceiver(
+      *object, index, false) != ABSENT;
 }
 
 

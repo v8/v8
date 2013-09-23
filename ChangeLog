@@ -1,3 +1,20 @@
+2013-09-23: Version 3.22.0
+
+        LiveEdit to mark more closure functions for re-instantiation when scope
+        layout changes.
+        (issue 2872)
+
+        Made bounds check elimination iterative instead of recursive.
+        (Chromium issue 289706)
+
+        Turned on i18n support by default.
+
+        Set the proper instance-type on HAllocate in BuildFastLiteral.
+        (Chromium issue 284577)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-18: Version 3.21.17
 
         Implemented local load/store elimination on basic blocks.

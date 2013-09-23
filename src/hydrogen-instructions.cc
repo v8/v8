@@ -1052,7 +1052,7 @@ Representation HBranch::observed_input_representation(int index) {
 
 void HCompareMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" (%p)", *map());
+  stream->Add(" (%p)", *map().handle());
   HControlInstruction::PrintDataTo(stream);
 }
 
@@ -1431,11 +1431,9 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
     if (!store->has_transition() || store->object() != value()) return;
     HConstant* transition = HConstant::cast(store->transition());
-    for (int i = 0; i < map_set()->length(); i++) {
-      if (transition->UniqueValueIdsMatch(map_unique_ids_.at(i))) {
-        DeleteAndReplaceWith(NULL);
-        return;
-      }
+    if (map_set_.Contains(transition->GetUnique())) {
+      DeleteAndReplaceWith(NULL);
+      return;
     }
   }
 }
@@ -1443,9 +1441,9 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
 
 void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" [%p", *map_set()->first());
-  for (int i = 1; i < map_set()->length(); ++i) {
-    stream->Add(",%p", *map_set()->at(i));
+  stream->Add(" [%p", *map_set_.at(0).handle());
+  for (int i = 1; i < map_set_.size(); ++i) {
+    stream->Add(",%p", *map_set_.at(i).handle());
   }
   stream->Add("]%s", CanOmitMapChecks() ? "(omitted)" : "");
 }
@@ -1454,13 +1452,13 @@ void HCheckMaps::PrintDataTo(StringStream* stream) {
 void HCheckValue::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
-  object()->ShortPrint(stream);
+  object().handle()->ShortPrint(stream);
 }
 
 
 HValue* HCheckValue::Canonicalize() {
   return (value()->IsConstant() &&
-          HConstant::cast(value())->UniqueValueIdsMatch(object_unique_id_))
+          HConstant::cast(value())->GetUnique() == object_)
       ? NULL
       : this;
 }
@@ -2526,9 +2524,11 @@ void HConstant::Initialize(Representation r) {
 
 bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
-  if (block()->graph()->has_osr()) {
-    return block()->graph()->IsStandardConstant(this);
+  if (block()->graph()->has_osr() &&
+      block()->graph()->IsStandardConstant(this)) {
+    return true;
   }
+  if (UseCount() == 0) return true;
   if (IsCell()) return false;
   if (representation().IsDouble()) return false;
   return true;
@@ -2573,10 +2573,6 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
                               Representation::Integer32(),
                               is_not_in_new_space_,
                               handle_);
-  } else {
-    ASSERT(!HasNumberValue());
-    Maybe<HConstant*> number = CopyToTruncatedNumber(zone);
-    if (number.has_value) return number.value->CopyToTruncatedInt32(zone);
   }
   return Maybe<HConstant*>(res != NULL, res);
 }
@@ -2859,15 +2855,9 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareHoleAndBranch::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
 void HCompareHoleAndBranch::InferRepresentation(
     HInferRepresentationPhase* h_infer) {
-  ChangeRepresentation(object()->representation());
+  ChangeRepresentation(value()->representation());
 }
 
 
@@ -2937,19 +2927,14 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
       HConstant::cast(value)->HasMap(map)) {
-    check_map->omit(info);
+    // TODO(titzer): collect dependent map checks into a list.
+    check_map->omit_ = true;
+    if (map->CanTransition()) {
+      map->AddDependentCompilationInfo(
+          DependentCode::kPrototypeCheckGroup, info);
+    }
   }
   return check_map;
-}
-
-
-void HCheckMaps::FinalizeUniqueValueId() {
-  if (!map_unique_ids_.is_empty()) return;
-  Zone* zone = block()->zone();
-  map_unique_ids_.Initialize(map_set_.length(), zone);
-  for (int i = 0; i < map_set_.length(); i++) {
-    map_unique_ids_.Add(UniqueValueId(map_set_.at(i)), zone);
-  }
 }
 
 
@@ -3148,19 +3133,19 @@ void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 
 void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  ElementsKind from_kind = original_map()->elements_kind();
-  ElementsKind to_kind = transitioned_map()->elements_kind();
+  ElementsKind from_kind = original_map().handle()->elements_kind();
+  ElementsKind to_kind = transitioned_map().handle()->elements_kind();
   stream->Add(" %p [%s] -> %p [%s]",
-              *original_map(),
+              *original_map().handle(),
               ElementsAccessor::ForKind(from_kind)->name(),
-              *transitioned_map(),
+              *transitioned_map().handle(),
               ElementsAccessor::ForKind(to_kind)->name());
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
 }
 
 
 void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p]", *cell());
+  stream->Add("[%p]", *cell().handle());
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
   if (details_.IsReadOnly()) stream->Add(" (read-only)");
 }
@@ -3188,7 +3173,7 @@ void HInnerAllocatedObject::PrintDataTo(StringStream* stream) {
 
 
 void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p] = ", *cell());
+  stream->Add("[%p] = ", *cell().handle());
   value()->PrintNameTo(stream);
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
   if (details_.IsReadOnly()) stream->Add(" (read-only)");

@@ -201,14 +201,12 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   Register argument = a2;
   Label not_cached, argument_is_string;
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      a0,        // Input.
-      argument,  // Result.
-      a3,        // Scratch.
-      t0,        // Scratch.
-      t1,        // Scratch.
-      &not_cached);
+  __ LookupNumberStringCache(a0,        // Input.
+                             argument,  // Result.
+                             a3,        // Scratch.
+                             t0,        // Scratch.
+                             t1,        // Scratch.
+                             &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1, a3, t0);
   __ bind(&argument_is_string);
 
@@ -833,14 +831,15 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // The following registers must be saved and restored when calling through to
   // the runtime:
   //   a0 - contains return address (beginning of patch sequence)
-  //   a1 - function object
+  //   a1 - isolate
   RegList saved_regs =
       (a0.bit() | a1.bit() | ra.bit() | fp.bit()) & ~sp.bit();
   FrameScope scope(masm, StackFrame::MANUAL);
   __ MultiPush(saved_regs);
-  __ PrepareCallCFunction(1, 0, a1);
+  __ PrepareCallCFunction(1, 0, a2);
+  __ li(a1, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
-      ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   __ MultiPop(saved_regs);
   __ Jump(a0);
 }

@@ -237,6 +237,7 @@ class FunctionCallbackArguments
   typedef FunctionCallbackInfo<Value> T;
   typedef CustomArguments<T> Super;
   static const int kArgsLength = T::kArgsLength;
+  static const int kHolderIndex = T::kHolderIndex;
 
   FunctionCallbackArguments(internal::Isolate* isolate,
       internal::Object* data,
@@ -253,6 +254,7 @@ class FunctionCallbackArguments
     values[T::kDataIndex] = data;
     values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
+    values[T::kContextSaveIndex] = isolate->heap()->the_hole_value();
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
     // Here the hole is set as default value.
     // It cannot escape into js as it's remove in Call below.

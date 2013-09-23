@@ -624,7 +624,8 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
-  if (constraints->is_memory_constrained().has_value) {
+  if (constraints->is_memory_constrained().has_value &&
+      !i::FLAG_force_memory_constrained.has_value) {
     isolate->set_is_memory_constrained(
         constraints->is_memory_constrained().value);
   }
@@ -749,29 +750,22 @@ i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
 void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::Context::Enter()")) return;
   ENTER_V8(isolate);
-
   isolate->handle_scope_implementer()->EnterContext(env);
-
   isolate->handle_scope_implementer()->SaveContext(isolate->context());
   isolate->set_context(*env);
 }
 
 
 void Context::Exit() {
-  // Exit is essentially a static function and doesn't use the
-  // receiver, so we have to get the current isolate from the thread
-  // local.
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return;
-
-  if (!ApiCheck(isolate->handle_scope_implementer()->LeaveLastContext(),
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  ENTER_V8(isolate);
+  if (!ApiCheck(isolate->handle_scope_implementer()->LeaveContext(context),
                 "v8::Context::Exit()",
                 "Cannot exit non-entered context")) {
     return;
   }
-
   // Content of 'last_context' could be NULL.
   i::Context* last_context =
       isolate->handle_scope_implementer()->RestoreContext();
@@ -2056,7 +2050,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_string();
-    if (!obj->HasProperty(*name)) return v8::Local<Value>();
+    if (!i::JSReceiver::HasProperty(obj, name)) return v8::Local<Value>();
     i::Handle<i::Object> value = i::GetProperty(isolate_, obj, name);
     if (value.is_null()) return v8::Local<Value>();
     return v8::Utils::ToLocal(scope.CloseAndEscape(value));
@@ -3625,7 +3619,7 @@ bool v8::Object::Has(uint32_t index) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasProperty()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return self->HasElement(index);
+  return i::JSReceiver::HasElement(self, index);
 }
 
 
@@ -3679,8 +3673,8 @@ bool v8::Object::HasOwnProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",
              return false);
-  return Utils::OpenHandle(this)->HasLocalProperty(
-      *Utils::OpenHandle(*key));
+  return i::JSReceiver::HasLocalProperty(
+      Utils::OpenHandle(this), Utils::OpenHandle(*key));
 }
 
 
@@ -3813,7 +3807,7 @@ Local<v8::Object> v8::Object::Clone() {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::JSObject> result = i::Copy(self);
+  i::Handle<i::JSObject> result = i::JSObject::Copy(self);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
@@ -5423,7 +5417,6 @@ Local<Context> v8::Context::New(
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
     v8::Handle<Value> global_object) {
-  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   EnsureInitializedForIsolate(isolate, "v8::Context::New()");
   LOG_API(isolate, "Context::New");
@@ -5494,11 +5487,7 @@ v8::Local<v8::Context> Context::GetEntered() {
   if (!EnsureInitializedForIsolate(isolate, "v8::Context::GetEntered()")) {
     return Local<Context>();
   }
-  i::Handle<i::Object> last =
-      isolate->handle_scope_implementer()->LastEnteredContext();
-  if (last.is_null()) return Local<Context>();
-  i::Handle<i::Context> context = i::Handle<i::Context>::cast(last);
-  return Utils::ToLocal(context);
+  return reinterpret_cast<Isolate*>(isolate)->GetEnteredContext();
 }
 
 
@@ -5516,45 +5505,30 @@ v8::Local<v8::Context> Context::GetCalling() {
   if (IsDeadCheck(isolate, "v8::Context::GetCalling()")) {
     return Local<Context>();
   }
-  i::Handle<i::Object> calling =
-      isolate->GetCallingNativeContext();
-  if (calling.is_null()) return Local<Context>();
-  i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
-  return Utils::ToLocal(context);
+  return reinterpret_cast<Isolate*>(isolate)->GetCallingContext();
 }
 
 
 v8::Local<v8::Object> Context::Global() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::Global()")) {
-    return Local<v8::Object>();
-  }
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   i::Handle<i::Object> global(context->global_proxy(), isolate);
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(global));
 }
 
 
 void Context::DetachGlobal() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::DetachGlobal()")) return;
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
   isolate->bootstrapper()->DetachGlobal(context);
 }
 
 
 void Context::ReattachGlobal(Handle<Object> global_object) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::ReattachGlobal()")) return;
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
   i::Handle<i::JSGlobalProxy> global_proxy =
       i::Handle<i::JSGlobalProxy>::cast(Utils::OpenHandle(*global_object));
   isolate->bootstrapper()->ReattachGlobal(context, global_proxy);
@@ -5562,44 +5536,23 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
 
 
 void Context::AllowCodeGenerationFromStrings(bool allow) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::AllowCodeGenerationFromStrings()")) {
-    return;
-  }
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
   context->set_allow_code_gen_from_strings(
       allow ? isolate->heap()->true_value() : isolate->heap()->false_value());
 }
 
 
 bool Context::IsCodeGenerationFromStringsAllowed() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate,
-                  "v8::Context::IsCodeGenerationFromStringsAllowed()")) {
-    return false;
-  }
-  ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
   return !context->allow_code_gen_from_strings()->IsFalse();
 }
 
 
 void Context::SetErrorMessageForCodeGenerationFromStrings(
     Handle<String> error) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate,
-      "v8::Context::SetErrorMessageForCodeGenerationFromStrings()")) {
-    return;
-  }
-  ENTER_V8(isolate);
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Handle<i::String> error_handle = Utils::OpenHandle(*error);
   context->set_error_message_for_code_gen_from_strings(*error_handle);
 }
@@ -6212,7 +6165,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
   EXCEPTION_PREAMBLE(isolate);
   ENTER_V8(isolate);
-  i::Handle<i::JSObject> result = i::Copy(paragon_handle);
+  i::Handle<i::JSObject> result = i::JSObject::Copy(paragon_handle);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
@@ -6647,13 +6600,36 @@ CpuProfiler* Isolate::GetCpuProfiler() {
 }
 
 
+bool Isolate::InContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->context() != NULL;
+}
+
+
 v8::Local<v8::Context> Isolate::GetCurrentContext() {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Context* context = internal_isolate->context();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Context* context = isolate->context();
   if (context == NULL) return Local<Context>();
   i::Context* native_context = context->global_object()->native_context();
   if (native_context == NULL) return Local<Context>();
   return Utils::ToLocal(i::Handle<i::Context>(native_context));
+}
+
+
+v8::Local<v8::Context> Isolate::GetCallingContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Object> calling = isolate->GetCallingNativeContext();
+  if (calling.is_null()) return Local<Context>();
+  return Utils::ToLocal(i::Handle<i::Context>::cast(calling));
+}
+
+
+v8::Local<v8::Context> Isolate::GetEnteredContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Object> last =
+      isolate->handle_scope_implementer()->LastEnteredContext();
+  if (last.is_null()) return Local<Context>();
+  return Utils::ToLocal(i::Handle<i::Context>::cast(last));
 }
 
 
@@ -6685,45 +6661,65 @@ void Isolate::SetReference(const Persistent<Object>& parent,
 }
 
 
-void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCPrologueCallback()")) return;
-  isolate->heap()->SetGlobalGCPrologueCallback(callback);
+void Isolate::AddGCPrologueCallback(GCPrologueCallback callback,
+                                    GCType gc_type) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AddGCPrologueCallback(callback, gc_type);
 }
 
 
-void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCEpilogueCallback()")) return;
-  isolate->heap()->SetGlobalGCEpilogueCallback(callback);
+void Isolate::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RemoveGCPrologueCallback(callback);
+}
+
+
+void Isolate::AddGCEpilogueCallback(GCEpilogueCallback callback,
+                                    GCType gc_type) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AddGCEpilogueCallback(callback, gc_type);
+}
+
+
+void Isolate::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RemoveGCEpilogueCallback(callback);
 }
 
 
 void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddGCPrologueCallback()")) return;
-  isolate->heap()->AddGCPrologueCallback(callback, gc_type);
+  isolate->heap()->AddGCPrologueCallback(
+      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback),
+      gc_type,
+      false);
 }
 
 
 void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveGCPrologueCallback()")) return;
-  isolate->heap()->RemoveGCPrologueCallback(callback);
+  isolate->heap()->RemoveGCPrologueCallback(
+      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback));
 }
 
 
 void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddGCEpilogueCallback()")) return;
-  isolate->heap()->AddGCEpilogueCallback(callback, gc_type);
+  isolate->heap()->AddGCEpilogueCallback(
+      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback),
+      gc_type,
+      false);
 }
 
 
 void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveGCEpilogueCallback()")) return;
-  isolate->heap()->RemoveGCEpilogueCallback(callback);
+  isolate->heap()->RemoveGCEpilogueCallback(
+      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback));
 }
 
 
@@ -6747,7 +6743,6 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (callback == NULL) return;
-  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddLeaveScriptCallback()")) return;
   i::V8::AddCallCompletedCallback(callback);
@@ -6755,7 +6750,6 @@ void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
-  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveLeaveScriptCallback()")) return;
   i::V8::RemoveCallCompletedCallback(callback);
@@ -7059,6 +7053,16 @@ void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
   ENTER_V8(isolate);
   isolate->debugger()->SetMessageHandler(handler);
+}
+
+
+void Debug::SendCommand(Isolate* isolate,
+                        const uint16_t* command,
+                        int length,
+                        ClientData* client_data) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debugger()->ProcessCommand(
+      i::Vector<const uint16_t>(command, length), client_data);
 }
 
 

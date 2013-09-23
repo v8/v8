@@ -304,32 +304,28 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
-                                            Label* miss,
-                                            bool support_wrappers) {
+                                            Label* miss) {
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch register.
-  GenerateStringCheck(masm, receiver, scratch1, miss,
-                      support_wrappers ? &check_wrapper : miss);
+  GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
 
   // Load length directly from the string.
   __ movq(rax, FieldOperand(receiver, String::kLengthOffset));
   __ ret(0);
 
-  if (support_wrappers) {
-    // Check if the object is a JSValue wrapper.
-    __ bind(&check_wrapper);
-    __ cmpl(scratch1, Immediate(JS_VALUE_TYPE));
-    __ j(not_equal, miss);
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmpl(scratch1, Immediate(JS_VALUE_TYPE));
+  __ j(not_equal, miss);
 
-    // Check if the wrapped value is a string and load the length
-    // directly if it is.
-    __ movq(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
-    GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-    __ movq(rax, FieldOperand(scratch2, String::kLengthOffset));
-    __ ret(0);
-  }
+  // Check if the wrapped value is a string and load the length
+  // directly if it is.
+  __ movq(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
+  __ movq(rax, FieldOperand(scratch2, String::kLengthOffset));
+  __ ret(0);
 }
 
 
@@ -447,64 +443,60 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
 // Generates call to API function.
 static void GenerateFastApiCall(MacroAssembler* masm,
                                 const CallOptimization& optimization,
-                                int argc) {
+                                int argc,
+                                bool restore_context) {
   // ----------- S t a t e -------------
   //  -- rsp[0]              : return address
-  //  -- rsp[8]              : object passing the type check
+  //  -- rsp[8]              : context save
+  //  -- rsp[16]             : object passing the type check
   //                           (last fast api call extra argument,
   //                            set by CheckPrototypes)
-  //  -- rsp[16]             : api function
+  //  -- rsp[24]             : api function
   //                           (first fast api call extra argument)
-  //  -- rsp[24]             : api call data
-  //  -- rsp[32]             : isolate
-  //  -- rsp[40]             : ReturnValue default value
-  //  -- rsp[48]             : ReturnValue
+  //  -- rsp[32]             : api call data
+  //  -- rsp[40]             : isolate
+  //  -- rsp[48]             : ReturnValue default value
+  //  -- rsp[56]             : ReturnValue
   //
-  //  -- rsp[56]             : last argument
+  //  -- rsp[64]             : last argument
   //  -- ...
-  //  -- rsp[(argc + 6) * 8] : first argument
-  //  -- rsp[(argc + 7) * 8] : receiver
+  //  -- rsp[(argc + 7) * 8] : first argument
+  //  -- rsp[(argc + 8) * 8] : receiver
   // -----------------------------------
+  int api_call_argc = argc + kFastApiCallArguments;
+  StackArgumentsAccessor args(rsp, api_call_argc);
+
+  // Save calling context.
+  __ movq(args.GetArgumentOperand(api_call_argc), rsi);
+
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   __ LoadHeapObject(rdi, function);
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-
-  int api_call_argc = argc + kFastApiCallArguments;
-  StackArgumentsAccessor args(rsp, api_call_argc);
-
   // Pass the additional arguments.
-  __ movq(args.GetArgumentOperand(api_call_argc - 1), rdi);
+  __ movq(args.GetArgumentOperand(api_call_argc - 2), rdi);
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
     __ Move(rcx, api_call_info);
     __ movq(rbx, FieldOperand(rcx, CallHandlerInfo::kDataOffset));
-    __ movq(args.GetArgumentOperand(api_call_argc - 2), rbx);
+    __ movq(args.GetArgumentOperand(api_call_argc - 3), rbx);
   } else {
-    __ Move(args.GetArgumentOperand(api_call_argc - 2), call_data);
+    __ Move(args.GetArgumentOperand(api_call_argc - 3), call_data);
   }
   __ movq(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
-  __ movq(args.GetArgumentOperand(api_call_argc - 3), kScratchRegister);
-  __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
   __ movq(args.GetArgumentOperand(api_call_argc - 4), kScratchRegister);
+  __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
   __ movq(args.GetArgumentOperand(api_call_argc - 5), kScratchRegister);
+  __ movq(args.GetArgumentOperand(api_call_argc - 6), kScratchRegister);
 
   // Prepare arguments.
-  STATIC_ASSERT(kFastApiCallArguments == 6);
+  STATIC_ASSERT(kFastApiCallArguments == 7);
   __ lea(rbx, Operand(rsp, kFastApiCallArguments * kPointerSize));
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-
-#if defined(__MINGW64__) || defined(_WIN64)
-  Register arguments_arg = rcx;
-  Register callback_arg = rdx;
-#else
-  Register arguments_arg = rdi;
-  Register callback_arg = rsi;
-#endif
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -519,16 +511,29 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // v8::Arguments::is_construct_call_.
   __ Set(StackSpaceOperand(3), 0);
 
+#if defined(__MINGW64__) || defined(_WIN64)
+  Register arguments_arg = rcx;
+  Register callback_arg = rdx;
+#else
+  Register arguments_arg = rdi;
+  Register callback_arg = rsi;
+#endif
+
   // v8::InvocationCallback's argument.
   __ lea(arguments_arg, StackSpaceOperand(0));
 
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
+  Operand context_restore_operand(rbp, 2 * kPointerSize);
+  Operand return_value_operand(
+      rbp, (kFastApiCallArguments + 1) * kPointerSize);
   __ CallApiFunctionAndReturn(function_address,
                               thunk_address,
                               callback_arg,
                               api_call_argc + 1,
-                              kFastApiCallArguments + 1);
+                              return_value_operand,
+                              restore_context ?
+                                  &context_restore_operand : NULL);
 }
 
 
@@ -543,6 +548,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(!receiver.is(scratch));
 
   const int stack_space = kFastApiCallArguments + argc + 1;
+  const int kHolderIndex = kFastApiCallArguments +
+      FunctionCallbackArguments::kHolderIndex;
   // Copy return value.
   __ movq(scratch, Operand(rsp, 0));
   // Assign stack space for the call arguments.
@@ -550,7 +557,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // Move the return address on top of the stack.
   __ movq(Operand(rsp, 0), scratch);
   // Write holder to stack frame.
-  __ movq(Operand(rsp, 1 * kPointerSize), receiver);
+  __ movq(Operand(rsp, kHolderIndex * kPointerSize), receiver);
   // Write receiver to stack frame.
   int index = stack_space;
   __ movq(Operand(rsp, index-- * kPointerSize), receiver);
@@ -561,7 +568,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
     __ movq(Operand(rsp, index-- * kPointerSize), values[i]);
   }
 
-  GenerateFastApiCall(masm, optimization, argc);
+  GenerateFastApiCall(masm, optimization, argc, true);
 }
 
 
@@ -675,7 +682,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Invoke function.
     if (can_do_fast_api_call) {
-      GenerateFastApiCall(masm, optimization, arguments_.immediate());
+      GenerateFastApiCall(masm, optimization, arguments_.immediate(), false);
     } else {
       CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
           ? CALL_AS_FUNCTION
@@ -842,7 +849,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiToInteger32(scratch1, value_reg);
-    __ cvtlsi2sd(xmm0, scratch1);
+    __ Cvtlsi2sd(xmm0, scratch1);
     __ jmp(&do_store);
 
     __ bind(&heap_number);
@@ -996,7 +1003,7 @@ void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     Label do_store, heap_number;
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiToInteger32(scratch2, value_reg);
-    __ cvtlsi2sd(xmm0, scratch2);
+    __ Cvtlsi2sd(xmm0, scratch2);
     __ jmp(&do_store);
 
     __ bind(&heap_number);
@@ -1091,6 +1098,8 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
                                        int save_at_depth,
                                        Label* miss,
                                        PrototypeCheckType check) {
+  const int kHolderIndex = kFastApiCallArguments +
+      FunctionCallbackArguments::kHolderIndex;
   // Make sure that the type feedback oracle harvests the receiver map.
   // TODO(svenpanne) Remove this hack when all ICs are reworked.
   __ Move(scratch1, Handle<Map>(object->map()));
@@ -1108,7 +1117,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   int depth = 0;
 
   if (save_at_depth == depth) {
-    __ movq(Operand(rsp, kPCOnStackSize), object_reg);
+    __ movq(Operand(rsp, kHolderIndex * kPointerSize), object_reg);
   }
 
   // Check the maps in the prototype chain.
@@ -1168,7 +1177,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     }
 
     if (save_at_depth == depth) {
-      __ movq(Operand(rsp, kPCOnStackSize), reg);
+      __ movq(Operand(rsp, kHolderIndex * kPointerSize), reg);
     }
 
     // Go to the next object in the prototype chain.
@@ -1390,7 +1399,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
                               thunk_address,
                               getter_arg,
                               kStackSpace,
-                              6);
+                              Operand(rbp, 6 * kPointerSize),
+                              NULL);
 }
 
 
@@ -2508,7 +2518,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
           StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize));
   __ movq(StackOperandForReturnAddress(0), rax);
 
-  GenerateFastApiCall(masm(), optimization, argc);
+  GenerateFastApiCall(masm(), optimization, argc, false);
 
   __ bind(&miss);
   __ addq(rsp, Immediate(kFastApiCallArguments * kPointerSize));

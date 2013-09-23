@@ -58,7 +58,7 @@ class HarmonyIsolate {
 TEST(PerIsolateState) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context1;
+  LocalContext context1(isolate.GetIsolate());
   CompileRun(
       "var count = 0;"
       "var calls = 0;"
@@ -71,20 +71,20 @@ TEST(PerIsolateState) {
       "(function() { obj.foo = 'bar'; })");
   Handle<Value> notify_fun2;
   {
-    LocalContext context2;
+    LocalContext context2(isolate.GetIsolate());
     context2->Global()->Set(String::New("obj"), obj);
     notify_fun2 = CompileRun(
         "(function() { obj.foo = 'baz'; })");
   }
   Handle<Value> notify_fun3;
   {
-    LocalContext context3;
+    LocalContext context3(isolate.GetIsolate());
     context3->Global()->Set(String::New("obj"), obj);
     notify_fun3 = CompileRun(
         "(function() { obj.foo = 'bat'; })");
   }
   {
-    LocalContext context4;
+    LocalContext context4(isolate.GetIsolate());
     context4->Global()->Set(String::New("observer"), observer);
     context4->Global()->Set(String::New("fun1"), notify_fun1);
     context4->Global()->Set(String::New("fun2"), notify_fun2);
@@ -99,7 +99,7 @@ TEST(PerIsolateState) {
 TEST(EndOfMicrotaskDelivery) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "var count = 0;"
@@ -113,7 +113,7 @@ TEST(EndOfMicrotaskDelivery) {
 TEST(DeliveryOrdering) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj1 = {};"
       "var obj2 = {};"
@@ -145,7 +145,7 @@ TEST(DeliveryOrdering) {
 TEST(DeliveryOrderingReentrant) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "var reentered = false;"
@@ -177,7 +177,7 @@ TEST(DeliveryOrderingReentrant) {
 TEST(DeliveryOrderingDeliverChangeRecords) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "var ordering = [];"
@@ -203,14 +203,14 @@ TEST(ObjectHashTableGrowth) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
   // Initializing this context sets up initial hash tables.
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   Handle<Value> obj = CompileRun("obj = {};");
   Handle<Value> observer = CompileRun(
       "var ran = false;"
       "(function() { ran = true })");
   {
     // As does initializing this context.
-    LocalContext context2;
+    LocalContext context2(isolate.GetIsolate());
     context2->Global()->Set(String::New("obj"), obj);
     context2->Global()->Set(String::New("observer"), observer);
     CompileRun(
@@ -231,7 +231,7 @@ TEST(ObjectHashTableGrowth) {
 
 TEST(GlobalObjectObservation) {
   HarmonyIsolate isolate;
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   HandleScope scope(isolate.GetIsolate());
   Handle<Object> global_proxy = context->Global();
   Handle<Object> inner_global = global_proxy->GetPrototype().As<Object>();
@@ -263,7 +263,7 @@ TEST(GlobalObjectObservation) {
   // to the old context.
   context->DetachGlobal();
   {
-    LocalContext context2;
+    LocalContext context2(isolate.GetIsolate());
     context2->DetachGlobal();
     context2->ReattachGlobal(global_proxy);
     CompileRun(
@@ -278,7 +278,8 @@ TEST(GlobalObjectObservation) {
   // Attaching by passing to Context::New
   {
     // Delegates to Context::New
-    LocalContext context3(NULL, Handle<ObjectTemplate>(), global_proxy);
+    LocalContext context3(
+        isolate.GetIsolate(), NULL, Handle<ObjectTemplate>(), global_proxy);
     CompileRun(
         "var records3 = [];"
         "Object.observe(this, function(r) { [].push.apply(records3, r) });"
@@ -330,7 +331,7 @@ static void ExpectRecords(Handle<Value> records,
 TEST(APITestBasicMutation) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   Handle<Object> obj = Handle<Object>::Cast(CompileRun(
       "var records = [];"
       "var obj = {};"
@@ -374,7 +375,7 @@ TEST(APITestBasicMutation) {
 TEST(HiddenPrototypeObservation) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   Handle<FunctionTemplate> tmpl = FunctionTemplate::New();
   tmpl->SetHiddenPrototype(true);
   tmpl->InstanceTemplate()->Set(String::New("foo"), Number::New(75));
@@ -423,14 +424,15 @@ static int NumberOfElements(i::Handle<i::JSWeakMap> map) {
 TEST(ObservationWeakMap) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "Object.observe(obj, function(){});"
       "Object.getNotifier(obj);"
       "obj = null;");
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate.GetIsolate());
   i::Handle<i::JSObject> observation_state =
-      i::Isolate::Current()->factory()->observation_state();
+      i_isolate->factory()->observation_state();
   i::Handle<i::JSWeakMap> callbackInfoMap =
       i::Handle<i::JSWeakMap>::cast(
           i::GetProperty(observation_state, "callbackInfoMap"));
@@ -443,7 +445,7 @@ TEST(ObservationWeakMap) {
   CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
   CHECK_EQ(1, NumberOfElements(notifierObjectInfoMap));
-  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  i_isolate->heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfElements(callbackInfoMap));
   CHECK_EQ(0, NumberOfElements(objectInfoMap));
   CHECK_EQ(0, NumberOfElements(notifierObjectInfoMap));
@@ -470,7 +472,9 @@ static bool NamedAccessAllowUnlessBlocked(Local<Object> host,
                                              AccessType type,
                                              Local<Value>) {
   if (type != g_access_block_type) return true;
-  Handle<Object> global = Context::GetCurrent()->Global();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
+      Utils::OpenHandle(*host)->GetIsolate());
+  Handle<Object> global = isolate->GetCurrentContext()->Global();
   Handle<Value> blacklist = global->Get(String::New("blacklist"));
   if (!blacklist->IsObject()) return true;
   if (key->IsString()) return !blacklist.As<Object>()->Has(key);
@@ -483,7 +487,9 @@ static bool IndexedAccessAllowUnlessBlocked(Local<Object> host,
                                                AccessType type,
                                                Local<Value>) {
   if (type != ACCESS_GET) return true;
-  Handle<Object> global = Context::GetCurrent()->Global();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
+      Utils::OpenHandle(*host)->GetIsolate());
+  Handle<Object> global = isolate->GetCurrentContext()->Global();
   Handle<Value> blacklist = global->Get(String::New("blacklist"));
   if (!blacklist->IsObject()) return true;
   return !blacklist.As<Object>()->Has(index);
@@ -492,7 +498,9 @@ static bool IndexedAccessAllowUnlessBlocked(Local<Object> host,
 
 static bool BlockAccessKeys(Local<Object> host, Local<Value> key,
                             AccessType type, Local<Value>) {
-  Handle<Object> global = Context::GetCurrent()->Global();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
+      Utils::OpenHandle(*host)->GetIsolate());
+  Handle<Object> global = isolate->GetCurrentContext()->Global();
   Handle<Value> blacklist = global->Get(String::New("blacklist"));
   if (!blacklist->IsObject()) return true;
   return type != ACCESS_KEYS ||
@@ -516,7 +524,7 @@ TEST(NamedAccessCheck) {
   const AccessType types[] = { ACCESS_GET, ACCESS_HAS };
   for (size_t i = 0; i < ARRAY_SIZE(types); ++i) {
     HandleScope scope(isolate.GetIsolate());
-    LocalContext context;
+    LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
         NamedAccessAllowUnlessBlocked, IndexedAccessAlwaysAllowed);
@@ -528,7 +536,7 @@ TEST(NamedAccessCheck) {
                "Object.observe(objNoCheck, observer);");
     Handle<Value> obj_no_check = CompileRun("objNoCheck");
     {
-      LocalContext context2;
+      LocalContext context2(isolate.GetIsolate());
       context2->Global()->Set(String::New("obj"), instance);
       context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
       CompileRun("var records2 = null;"
@@ -563,7 +571,7 @@ TEST(IndexedAccessCheck) {
   const AccessType types[] = { ACCESS_GET, ACCESS_HAS };
   for (size_t i = 0; i < ARRAY_SIZE(types); ++i) {
     HandleScope scope(isolate.GetIsolate());
-    LocalContext context;
+    LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
         NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked);
@@ -575,7 +583,7 @@ TEST(IndexedAccessCheck) {
                "Object.observe(objNoCheck, observer);");
     Handle<Value> obj_no_check = CompileRun("objNoCheck");
     {
-      LocalContext context2;
+      LocalContext context2(isolate.GetIsolate());
       context2->Global()->Set(String::New("obj"), instance);
       context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
       CompileRun("var records2 = null;"
@@ -608,7 +616,7 @@ TEST(IndexedAccessCheck) {
 TEST(SpliceAccessCheck) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   g_access_block_type = ACCESS_GET;
   Handle<Object> instance = CreateAccessCheckedObject(
       NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked);
@@ -622,7 +630,7 @@ TEST(SpliceAccessCheck) {
              "Array.observe(objNoCheck, observer);");
   Handle<Value> obj_no_check = CompileRun("objNoCheck");
   {
-    LocalContext context2;
+    LocalContext context2(isolate.GetIsolate());
     context2->Global()->Set(String::New("obj"), instance);
     context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
     CompileRun("var records2 = null;"
@@ -653,7 +661,7 @@ TEST(SpliceAccessCheck) {
 TEST(DisallowAllForAccessKeys) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   Handle<Object> instance = CreateAccessCheckedObject(
       BlockAccessKeys, IndexedAccessAlwaysAllowed);
   CompileRun("var records = null;"
@@ -664,7 +672,7 @@ TEST(DisallowAllForAccessKeys) {
              "Object.observe(objNoCheck, observer);");
   Handle<Value> obj_no_check = CompileRun("objNoCheck");
   {
-    LocalContext context2;
+    LocalContext context2(isolate.GetIsolate());
     context2->Global()->Set(String::New("obj"), instance);
     context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
     CompileRun("var records2 = null;"
@@ -691,7 +699,7 @@ TEST(DisallowAllForAccessKeys) {
 TEST(AccessCheckDisallowApiModifications) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
-  LocalContext context;
+  LocalContext context(isolate.GetIsolate());
   Handle<Object> instance = CreateAccessCheckedObject(
       BlockAccessKeys, IndexedAccessAlwaysAllowed);
   CompileRun("var records = null;"
@@ -699,7 +707,7 @@ TEST(AccessCheckDisallowApiModifications) {
              "var blacklist = {__block_access_keys: true};"
              "Object.observe(obj, observer);");
   {
-    LocalContext context2;
+    LocalContext context2(isolate.GetIsolate());
     context2->Global()->Set(String::New("obj"), instance);
     CompileRun("var records2 = null;"
                "var observer2 = function(r) { records2 = r };"

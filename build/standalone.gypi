@@ -36,7 +36,7 @@
     'clang%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
-    'v8_enable_i18n_support%': 0,
+    'v8_enable_i18n_support%': 1,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'variables': {
@@ -76,6 +76,9 @@
     # things as the set of warnings to enable, and whether warnings are treated
     # as errors.
     'v8_code%': 0,
+
+    # Relative path to icu.gyp from this file.
+    'icu_gyp_path': '../third_party/icu/icu.gyp',
 
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \

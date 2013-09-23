@@ -469,8 +469,13 @@ class MacroAssembler: public Assembler {
   void VFPEnsureFPSCRState(Register scratch);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
-  void VFPCanonicalizeNaN(const DwVfpRegister value,
+  void VFPCanonicalizeNaN(const DwVfpRegister dst,
+                          const DwVfpRegister src,
                           const Condition cond = al);
+  void VFPCanonicalizeNaN(const DwVfpRegister value,
+                          const Condition cond = al) {
+    VFPCanonicalizeNaN(value, value, cond);
+  }
 
   // Compare double values and move the result to the normal condition flags.
   void VFPCompareAndSetFlags(const DwVfpRegister src1,
@@ -541,7 +546,9 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
   // remove in a register (or no_reg, if there is nothing to remove).
-  void LeaveExitFrame(bool save_doubles, Register argument_count);
+  void LeaveExitFrame(bool save_doubles,
+                      Register argument_count,
+                      bool restore_context);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1111,7 +1118,8 @@ class MacroAssembler: public Assembler {
                                 ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,
-                                int return_value_offset_from_fp);
+                                MemOperand return_value_operand,
+                                MemOperand* context_restore_operand);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);
@@ -1285,6 +1293,18 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // String utilities
+
+  // Generate code to do a lookup in the number string cache. If the number in
+  // the register object is found in the cache the generated code falls through
+  // with the result in the result register. The object and the result register
+  // can be the same. If the number is not found in the cache the code jumps to
+  // the label not_found with only the content of register object unchanged.
+  void LookupNumberStringCache(Register object,
+                               Register result,
+                               Register scratch1,
+                               Register scratch2,
+                               Register scratch3,
+                               Label* not_found);
 
   // Checks if both objects are sequential ASCII strings and jumps to label
   // if either is not. Assumes that neither object is a smi.

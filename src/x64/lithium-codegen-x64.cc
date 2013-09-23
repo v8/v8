@@ -1832,7 +1832,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ jmp(&return_right, Label::kNear);
 
     __ bind(&check_zero);
-    XMMRegister xmm_scratch = xmm0;
+    XMMRegister xmm_scratch = double_scratch0();
     __ xorps(xmm_scratch, xmm_scratch);
     __ ucomisd(left_reg, xmm_scratch);
     __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
@@ -1878,15 +1878,17 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       // when there is a mulsd depending on the result
       __ movaps(left, left);
       break;
-    case Token::MOD:
+    case Token::MOD: {
+      XMMRegister xmm_scratch = double_scratch0();
       __ PrepareCallCFunction(2);
-      __ movaps(xmm0, left);
+      __ movaps(xmm_scratch, left);
       ASSERT(right.is(xmm1));
       __ CallCFunction(
           ExternalReference::double_fp_operation(Token::MOD, isolate()), 2);
       __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-      __ movaps(result, xmm0);
+      __ movaps(result, xmm_scratch);
       break;
+    }
     default:
       UNREACHABLE();
       break;
@@ -1947,25 +1949,6 @@ void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
 }
 
 
-void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
-  Representation r = instr->hydrogen()->value()->representation();
-  if (r.IsSmiOrInteger32() || r.IsDouble()) {
-    EmitBranch(instr, no_condition);
-  } else {
-    ASSERT(r.IsTagged());
-    Register reg = ToRegister(instr->value());
-    HType type = instr->hydrogen()->value()->type();
-    if (type.IsTaggedNumber()) {
-      EmitBranch(instr, no_condition);
-    }
-    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
-    __ CompareRoot(FieldOperand(reg, HeapObject::kMapOffset),
-                   Heap::kHeapNumberMapRootIndex);
-    EmitBranch(instr, equal);
-  }
-}
-
-
 void LCodeGen::DoBranch(LBranch* instr) {
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32()) {
@@ -1981,8 +1964,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else if (r.IsDouble()) {
     ASSERT(!info()->IsStub());
     XMMRegister reg = ToDoubleRegister(instr->value());
-    __ xorps(xmm0, xmm0);
-    __ ucomisd(reg, xmm0);
+    XMMRegister xmm_scratch = double_scratch0();
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ ucomisd(reg, xmm_scratch);
     EmitBranch(instr, not_equal);
   } else {
     ASSERT(r.IsTagged());
@@ -2001,8 +1985,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitBranch(instr, no_condition);
     } else if (type.IsHeapNumber()) {
       ASSERT(!info()->IsStub());
-      __ xorps(xmm0, xmm0);
-      __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+      XMMRegister xmm_scratch = double_scratch0();
+      __ xorps(xmm_scratch, xmm_scratch);
+      __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
       EmitBranch(instr, not_equal);
     } else if (type.IsString()) {
       ASSERT(!info()->IsStub());
@@ -2083,8 +2068,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
         Label not_heap_number;
         __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
         __ j(not_equal, &not_heap_number, Label::kNear);
-        __ xorps(xmm0, xmm0);
-        __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+        XMMRegister xmm_scratch = double_scratch0();
+        __ xorps(xmm_scratch, xmm_scratch);
+        __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
         __ j(zero, instr->FalseLabel(chunk_));
         __ jmp(instr->TrueLabel(chunk_));
         __ bind(&not_heap_number);
@@ -2682,7 +2668,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
-  __ LoadGlobalCell(result, instr->hydrogen()->cell());
+  __ LoadGlobalCell(result, instr->hydrogen()->cell().handle());
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
@@ -2704,7 +2690,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
 void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register value = ToRegister(instr->value());
-  Handle<Cell> cell_handle = instr->hydrogen()->cell();
+  Handle<Cell> cell_handle = instr->hydrogen()->cell().handle();
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need
@@ -2799,6 +2785,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
+    ASSERT(!access.representation().IsInteger32());
     Register result = ToRegister(instr->result());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(result.is(rax));
@@ -2820,10 +2807,18 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   Register result = ToRegister(instr->result());
   if (access.IsInobject()) {
-    __ movq(result, FieldOperand(object, offset));
+    if (access.representation().IsInteger32()) {
+      __ movl(result, FieldOperand(object, offset));
+    } else {
+      __ movq(result, FieldOperand(object, offset));
+    }
   } else {
     __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
-    __ movq(result, FieldOperand(result, offset));
+    if (access.representation().IsInteger32()) {
+      __ movl(result, FieldOperand(result, offset));
+    } else {
+      __ movq(result, FieldOperand(result, offset));
+    }
   }
 }
 
@@ -2876,6 +2871,12 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
   // All done.
   __ bind(&done);
+}
+
+
+void LCodeGen::DoLoadRoot(LLoadRoot* instr) {
+  Register result = ToRegister(instr->result());
+  __ LoadRoot(result, instr->index());
 }
 
 
@@ -3451,7 +3452,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   Representation r = instr->hydrogen()->value()->representation();
 
   if (r.IsDouble()) {
-    XMMRegister scratch = xmm0;
+    XMMRegister scratch = double_scratch0();
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
@@ -3473,7 +3474,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
 
 
 void LCodeGen::DoMathFloor(LMathFloor* instr) {
-  XMMRegister xmm_scratch = xmm0;
+  XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
 
@@ -3520,7 +3521,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     __ bind(&negative_sign);
     // Truncate, then compare and compensate.
     __ cvttsd2si(output_reg, input_reg);
-    __ cvtlsi2sd(xmm_scratch, output_reg);
+    __ Cvtlsi2sd(xmm_scratch, output_reg);
     __ ucomisd(input_reg, xmm_scratch);
     __ j(equal, &done, Label::kNear);
     __ subl(output_reg, Immediate(1));
@@ -3532,7 +3533,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
 
 
 void LCodeGen::DoMathRound(LMathRound* instr) {
-  const XMMRegister xmm_scratch = xmm0;
+  const XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   static int64_t one_half = V8_INT64_C(0x3FE0000000000000);  // 0.5
@@ -3569,7 +3570,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ RecordComment("D2I conversion overflow");
   DeoptimizeIf(equal, instr->environment());
 
-  __ cvtlsi2sd(xmm_scratch, output_reg);
+  __ Cvtlsi2sd(xmm_scratch, output_reg);
   __ ucomisd(input_reg, xmm_scratch);
   __ j(equal, &restore, Label::kNear);
   __ subl(output_reg, Immediate(1));
@@ -3600,7 +3601,7 @@ void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
 
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
-  XMMRegister xmm_scratch = xmm0;
+  XMMRegister xmm_scratch = double_scratch0();
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
 
@@ -3717,8 +3718,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   XMMRegister result = ToDoubleRegister(instr->result());
-  // We use xmm0 as fixed scratch register here.
-  XMMRegister scratch4 = xmm0;
+  XMMRegister scratch4 = double_scratch0();
   __ movq(scratch3, V8_INT64_C(0x4130000000000000),
           RelocInfo::NONE64);  // 1.0 x 2^20 as double
   __ movq(scratch4, scratch3);
@@ -3731,10 +3731,11 @@ void LCodeGen::DoRandom(LRandom* instr) {
 void LCodeGen::DoMathExp(LMathExp* instr) {
   XMMRegister input = ToDoubleRegister(instr->value());
   XMMRegister result = ToDoubleRegister(instr->result());
+  XMMRegister temp0 = double_scratch0();
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
 
-  MathExpGenerator::EmitMathExp(masm(), input, result, xmm0, temp1, temp2);
+  MathExpGenerator::EmitMathExp(masm(), input, result, temp0, temp1, temp2);
 }
 
 
@@ -3936,6 +3937,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
+    ASSERT(!access.representation().IsInteger32());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
@@ -4013,15 +4015,24 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (operand_value->IsRegister()) {
-      __ movq(FieldOperand(write_register, offset),
-              ToRegister(operand_value));
+      if (access.representation().IsInteger32()) {
+        __ movl(FieldOperand(write_register, offset),
+                ToRegister(operand_value));
+      } else {
+        __ movq(FieldOperand(write_register, offset),
+                ToRegister(operand_value));
+      }
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
       __ Move(FieldOperand(write_register, offset), handle_value);
     }
   } else {
-    __ movq(FieldOperand(write_register, offset), ToRegister(instr->value()));
+    if (access.representation().IsInteger32()) {
+      __ movl(FieldOperand(write_register, offset), ToRegister(instr->value()));
+    } else {
+      __ movq(FieldOperand(write_register, offset), ToRegister(instr->value()));
+    }
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
@@ -4449,9 +4460,9 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   LOperand* output = instr->result();
   ASSERT(output->IsDoubleRegister());
   if (input->IsRegister()) {
-    __ cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
+    __ Cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
   } else {
-    __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
+    __ Cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
   }
 }
 
@@ -4525,7 +4536,8 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
   // Load value into xmm1 which will be preserved across potential call to
   // runtime (MacroAssembler::EnterExitFrameEpilogue preserves only allocatable
   // XMM registers on x64).
-  __ LoadUint32(xmm1, reg, xmm0);
+  XMMRegister xmm_scratch = double_scratch0();
+  __ LoadUint32(xmm1, reg, xmm_scratch);
 
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, &slow);
@@ -4623,7 +4635,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
-  Label load_smi, done;
+  Label convert, load_smi, done;
 
   if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
@@ -4632,27 +4644,19 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     // Heap number map check.
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    if (!can_convert_undefined_to_nan) {
-      DeoptimizeIf(not_equal, env);
-    } else {
-      Label heap_number, convert;
-      __ j(equal, &heap_number, Label::kNear);
 
-      // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
-      __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-      DeoptimizeIf(not_equal, env);
-
-      __ bind(&convert);
-      __ xorps(result_reg, result_reg);
-      __ divsd(result_reg, result_reg);
-      __ jmp(&done, Label::kNear);
-
-      __ bind(&heap_number);
-    }
-    // Heap number to XMM conversion.
+    // On x64 it is safe to load at heap number offset before evaluating the map
+    // check, since all heap objects are at least two words long.
     __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+
+    if (can_convert_undefined_to_nan) {
+      __ j(not_equal, &convert);
+    } else {
+      DeoptimizeIf(not_equal, env);
+    }
+
     if (deoptimize_on_minus_zero) {
-      XMMRegister xmm_scratch = xmm0;
+      XMMRegister xmm_scratch = double_scratch0();
       __ xorps(xmm_scratch, xmm_scratch);
       __ ucomisd(xmm_scratch, result_reg);
       __ j(not_equal, &done, Label::kNear);
@@ -4661,6 +4665,18 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(not_zero, env);
     }
     __ jmp(&done, Label::kNear);
+
+    if (can_convert_undefined_to_nan) {
+      __ bind(&convert);
+
+      // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
+      __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+      DeoptimizeIf(not_equal, env);
+
+      __ xorps(result_reg, result_reg);
+      __ divsd(result_reg, result_reg);
+      __ jmp(&done, Label::kNear);
+    }
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
@@ -4668,7 +4684,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // Smi to XMM conversion
   __ bind(&load_smi);
   __ SmiToInteger32(kScratchRegister, input_reg);
-  __ cvtlsi2sd(result_reg, kScratchRegister);
+  __ Cvtlsi2sd(result_reg, kScratchRegister);
   __ bind(&done);
 }
 
@@ -4721,12 +4737,16 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   ASSERT(input->Equals(instr->result()));
-
   Register input_reg = ToRegister(input);
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
-  __ JumpIfNotSmi(input_reg, deferred->entry());
-  __ SmiToInteger32(input_reg, input_reg);
-  __ bind(deferred->exit());
+
+  if (instr->hydrogen()->value()->representation().IsSmi()) {
+    __ SmiToInteger32(input_reg, input_reg);
+  } else {
+    DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+    __ JumpIfNotSmi(input_reg, deferred->entry());
+    __ SmiToInteger32(input_reg, input_reg);
+    __ bind(deferred->exit());
+  }
 }
 
 
@@ -4764,7 +4784,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     __ TruncateDoubleToI(result_reg, input_reg);
   } else {
     Label bailout, done;
-    __ DoubleToI(result_reg, input_reg, xmm0,
+    XMMRegister xmm_scratch = double_scratch0();
+    __ DoubleToI(result_reg, input_reg, xmm_scratch,
         instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
 
     __ jmp(&done, Label::kNear);
@@ -4785,7 +4806,8 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   Register result_reg = ToRegister(result);
 
   Label bailout, done;
-  __ DoubleToI(result_reg, input_reg, xmm0,
+  XMMRegister xmm_scratch = double_scratch0();
+  __ DoubleToI(result_reg, input_reg, xmm_scratch,
       instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
 
   __ jmp(&done, Label::kNear);
@@ -4862,7 +4884,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 void LCodeGen::DoCheckValue(LCheckValue* instr) {
   Register reg = ToRegister(instr->value());
-  Handle<HeapObject> object = instr->hydrogen()->object();
+  Handle<HeapObject> object = instr->hydrogen()->object().handle();
   __ CmpHeapObject(reg, object);
   DeoptimizeIf(not_equal, instr->environment());
 }
@@ -4903,22 +4925,21 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
 
-  SmallMapList* map_set = instr->hydrogen()->map_set();
-
   DeferredCheckMaps* deferred = NULL;
   if (instr->hydrogen()->has_migration_target()) {
     deferred = new(zone()) DeferredCheckMaps(this, instr, reg);
     __ bind(deferred->check_maps());
   }
 
+  UniqueSet<Map> map_set = instr->hydrogen()->map_set();
   Label success;
-  for (int i = 0; i < map_set->length() - 1; i++) {
-    Handle<Map> map = map_set->at(i);
+  for (int i = 0; i < map_set.size() - 1; i++) {
+    Handle<Map> map = map_set.at(i).handle();
     __ CompareMap(reg, map, &success);
     __ j(equal, &success);
   }
 
-  Handle<Map> map = map_set->last();
+  Handle<Map> map = map_set.at(map_set.size() - 1).handle();
   __ CompareMap(reg, map, &success);
   if (instr->hydrogen()->has_migration_target()) {
     __ j(not_equal, deferred->entry());
@@ -4932,8 +4953,9 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
   XMMRegister value_reg = ToDoubleRegister(instr->unclamped());
+  XMMRegister xmm_scratch = double_scratch0();
   Register result_reg = ToRegister(instr->result());
-  __ ClampDoubleToUint8(value_reg, xmm0, result_reg);
+  __ ClampDoubleToUint8(value_reg, xmm_scratch, result_reg);
 }
 
 
@@ -4948,6 +4970,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   ASSERT(instr->unclamped()->Equals(instr->result()));
   Register input_reg = ToRegister(instr->unclamped());
   XMMRegister temp_xmm_reg = ToDoubleRegister(instr->temp_xmm());
+  XMMRegister xmm_scratch = double_scratch0();
   Label is_smi, done, heap_number;
 
   __ JumpIfSmi(input_reg, &is_smi);
@@ -4966,8 +4989,8 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ ClampDoubleToUint8(xmm0, temp_xmm_reg, input_reg);
+  __ movsd(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ ClampDoubleToUint8(xmm_scratch, temp_xmm_reg, input_reg);
   __ jmp(&done, Label::kNear);
 
   // smi

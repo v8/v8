@@ -539,10 +539,12 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   __ mov(eax, Operand(esp, 8 * kPointerSize));
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(1, ebx);
+    __ PrepareCallCFunction(2, ebx);
+    __ mov(Operand(esp, 1 * kPointerSize),
+           Immediate(ExternalReference::isolate_address(masm->isolate())));
     __ mov(Operand(esp, 0), eax);
     __ CallCFunction(
-        ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+        ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   }
   __ popad();
   __ ret(0);
@@ -1063,13 +1065,11 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Lookup the argument in the number to string cache.
   Label not_cached, argument_is_string;
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      eax,  // Input.
-      ebx,  // Result.
-      ecx,  // Scratch 1.
-      edx,  // Scratch 2.
-      &not_cached);
+  __ LookupNumberStringCache(eax,  // Input.
+                             ebx,  // Result.
+                             ecx,  // Scratch 1.
+                             edx,  // Scratch 2.
+                             &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1);
   __ bind(&argument_is_string);
   // ----------- S t a t e -------------

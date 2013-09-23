@@ -1301,6 +1301,8 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                                                      AllocationSite* site) {
   SetInternalReference(site, entry, "transition_info", site->transition_info(),
                        AllocationSite::kTransitionInfoOffset);
+  SetInternalReference(site, entry, "dependent_code", site->dependent_code(),
+                       AllocationSite::kDependentCodeOffset);
 }
 
 
@@ -2472,7 +2474,7 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
 
 int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
   HashMap::Entry* cache_entry = strings_.Lookup(
-      const_cast<char*>(s), ObjectHash(s), true);
+      const_cast<char*>(s), StringHash(s), true);
   if (cache_entry->value == NULL) {
     cache_entry->value = reinterpret_cast<void*>(next_string_id_++);
   }
@@ -2693,37 +2695,21 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
 
 
 void HeapSnapshotJSONSerializer::SerializeStrings() {
-  List<HashMap::Entry*> sorted_strings;
-  SortHashMap(&strings_, &sorted_strings);
+  ScopedVector<const unsigned char*> sorted_strings(
+      strings_.occupancy() + 1);
+  for (HashMap::Entry* entry = strings_.Start();
+       entry != NULL;
+       entry = strings_.Next(entry)) {
+    int index = static_cast<int>(reinterpret_cast<uintptr_t>(entry->value));
+    sorted_strings[index] = reinterpret_cast<const unsigned char*>(entry->key);
+  }
   writer_->AddString("\"<dummy>\"");
-  for (int i = 0; i < sorted_strings.length(); ++i) {
+  for (int i = 1; i < sorted_strings.length(); ++i) {
     writer_->AddCharacter(',');
-    SerializeString(
-        reinterpret_cast<const unsigned char*>(sorted_strings[i]->key));
+    SerializeString(sorted_strings[i]);
     if (writer_->aborted()) return;
   }
 }
 
-
-template<typename T>
-inline static int SortUsingEntryValue(const T* x, const T* y) {
-  uintptr_t x_uint = reinterpret_cast<uintptr_t>((*x)->value);
-  uintptr_t y_uint = reinterpret_cast<uintptr_t>((*y)->value);
-  if (x_uint > y_uint) {
-    return 1;
-  } else if (x_uint == y_uint) {
-    return 0;
-  } else {
-    return -1;
-  }
-}
-
-
-void HeapSnapshotJSONSerializer::SortHashMap(
-    HashMap* map, List<HashMap::Entry*>* sorted_entries) {
-  for (HashMap::Entry* p = map->Start(); p != NULL; p = map->Next(p))
-    sorted_entries->Add(p);
-  sorted_entries->Sort(SortUsingEntryValue);
-}
 
 } }  // namespace v8::internal

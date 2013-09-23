@@ -116,7 +116,6 @@ class LCodeGen;
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
-  V(IsNumberAndBranch)                          \
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -130,6 +129,7 @@ class LCodeGen;
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
+  V(LoadRoot)                                   \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
   V(MathCos)                                    \
@@ -922,19 +922,6 @@ class LIsObjectAndBranch V8_FINAL : public LControlInstruction<1, 1> {
 };
 
 
-class LIsNumberAndBranch V8_FINAL : public LControlInstruction<1, 0> {
- public:
-  explicit LIsNumberAndBranch(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch, "is-number-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNumberAndBranch)
-};
-
-
 class LIsStringAndBranch V8_FINAL : public LControlInstruction<1, 1> {
  public:
   LIsStringAndBranch(LOperand* value, LOperand* temp) {
@@ -1309,7 +1296,7 @@ class LCmpMapAndBranch V8_FINAL : public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
-  Handle<Map> map() const { return hydrogen()->map(); }
+  Handle<Map> map() const { return hydrogen()->map().handle(); }
 };
 
 
@@ -1605,6 +1592,15 @@ class LLoadFunctionPrototype V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 };
 
 
+class LLoadRoot V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(LoadRoot, "load-root")
+  DECLARE_HYDROGEN_ACCESSOR(LoadRoot)
+
+  Heap::RootListIndex index() const { return hydrogen()->index(); }
+};
+
+
 class LLoadExternalArrayPointer V8_FINAL
     : public LTemplateInstruction<1, 1, 0> {
  public:
@@ -1632,11 +1628,6 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   }
   bool is_external() const {
     return hydrogen()->is_external();
-  }
-
-  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE {
-    return !CpuFeatures::IsSupported(SSE2) &&
-        !IsDoubleOrFloatElementsKind(hydrogen()->elements_kind());
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
@@ -2189,7 +2180,7 @@ class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };
@@ -2364,8 +2355,10 @@ class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 2, 2> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Map> original_map() { return hydrogen()->original_map(); }
-  Handle<Map> transitioned_map() { return hydrogen()->transitioned_map(); }
+  Handle<Map> original_map() { return hydrogen()->original_map().handle(); }
+  Handle<Map> transitioned_map() {
+    return hydrogen()->transitioned_map().handle();
+  }
   ElementsKind from_kind() { return hydrogen()->from_kind(); }
   ElementsKind to_kind() { return hydrogen()->to_kind(); }
 };
@@ -2907,7 +2900,7 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   LInstruction* DoArithmeticD(Token::Value op,
                               HArithmeticBinaryOperation* instr);
   LInstruction* DoArithmeticT(Token::Value op,
-                              HArithmeticBinaryOperation* instr);
+                              HBinaryOperation* instr);
 
   LOperand* GetStoreKeyedValueOperand(HStoreKeyed* instr);
 

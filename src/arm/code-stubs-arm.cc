@@ -77,7 +77,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 4;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry;
 }
 
 
@@ -972,99 +972,13 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
 }
 
 
-void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
-                                                         Register object,
-                                                         Register result,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         Register scratch3,
-                                                         Label* not_found) {
-  // Use of registers. Register result is used as a temporary.
-  Register number_string_cache = result;
-  Register mask = scratch3;
-
-  // Load the number string cache.
-  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
-
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  __ ldr(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
-  // Divide length by two (length is a smi).
-  __ mov(mask, Operand(mask, ASR, kSmiTagSize + 1));
-  __ sub(mask, mask, Operand(1));  // Make mask.
-
-  // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value, and the hash for
-  // doubles is the xor of the upper and lower words. See
-  // Heap::GetNumberStringCache.
-  Isolate* isolate = masm->isolate();
-  Label is_smi;
-  Label load_result_from_cache;
-  __ JumpIfSmi(object, &is_smi);
-  __ CheckMap(object,
-              scratch1,
-              Heap::kHeapNumberMapRootIndex,
-              not_found,
-              DONT_DO_SMI_CHECK);
-
-  STATIC_ASSERT(8 == kDoubleSize);
-  __ add(scratch1,
-          object,
-          Operand(HeapNumber::kValueOffset - kHeapObjectTag));
-  __ ldm(ia, scratch1, scratch1.bit() | scratch2.bit());
-  __ eor(scratch1, scratch1, Operand(scratch2));
-  __ and_(scratch1, scratch1, Operand(mask));
-
-  // Calculate address of entry in string cache: each entry consists
-  // of two pointer sized fields.
-  __ add(scratch1,
-          number_string_cache,
-          Operand(scratch1, LSL, kPointerSizeLog2 + 1));
-
-  Register probe = mask;
-  __ ldr(probe,
-          FieldMemOperand(scratch1, FixedArray::kHeaderSize));
-  __ JumpIfSmi(probe, not_found);
-  __ sub(scratch2, object, Operand(kHeapObjectTag));
-  __ vldr(d0, scratch2, HeapNumber::kValueOffset);
-  __ sub(probe, probe, Operand(kHeapObjectTag));
-  __ vldr(d1, probe, HeapNumber::kValueOffset);
-  __ VFPCompareAndSetFlags(d0, d1);
-  __ b(ne, not_found);  // The cache did not contain this value.
-  __ b(&load_result_from_cache);
-
-  __ bind(&is_smi);
-  Register scratch = scratch1;
-  __ and_(scratch, mask, Operand(object, ASR, 1));
-  // Calculate address of entry in string cache: each entry consists
-  // of two pointer sized fields.
-  __ add(scratch,
-         number_string_cache,
-         Operand(scratch, LSL, kPointerSizeLog2 + 1));
-
-  // Check if the entry is the smi we are looking for.
-  __ ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
-  __ cmp(object, probe);
-  __ b(ne, not_found);
-
-  // Get the result from the cache.
-  __ bind(&load_result_from_cache);
-  __ ldr(result,
-         FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
-  __ IncrementCounter(isolate->counters()->number_to_string_native(),
-                      1,
-                      scratch1,
-                      scratch2);
-}
-
-
 void NumberToStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
   __ ldr(r1, MemOperand(sp, 0));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, r1, r0, r2, r3, r4, &runtime);
+  __ LookupNumberStringCache(r1, r0, r2, r3, r4, &runtime);
   __ add(sp, sp, Operand(1 * kPointerSize));
   __ Ret();
 
@@ -2765,9 +2679,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Passing r0.
-    __ PrepareCallCFunction(1, 0, r1);
+    __ PrepareCallCFunction(2, 0, r1);
+    __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
     __ CallCFunction(ExternalReference::perform_gc_function(isolate),
-        1, 0);
+        2, 0);
   }
 
   ExternalReference scope_depth =
@@ -2841,7 +2756,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // sp: stack pointer
   // fp: frame pointer
   //  Callee-saved register r4 still holds argc.
-  __ LeaveExitFrame(save_doubles_, r4);
+  __ LeaveExitFrame(save_doubles_, r4, true);
   __ mov(pc, lr);
 
   // check if we should retry or throw exception
@@ -3375,8 +3290,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     receiver = r0;
   }
 
-  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss,
-                                         support_wrapper_);
+  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss);
 
   __ bind(&miss);
   StubCompiler::TailCallBuiltin(
@@ -4071,7 +3985,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   DirectCEntryStub stub;
   stub.GenerateCall(masm, r7);
 
-  __ LeaveExitFrame(false, no_reg);
+  __ LeaveExitFrame(false, no_reg, true);
 
   // r0: result
   // subject: subject string (callee saved)
@@ -4343,6 +4257,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
+  // r0 : number of arguments to the construct function
   // r1 : the function to call
   // r2 : cache cell for call target
   Label initialize, done, miss, megamorphic, not_array_function;
@@ -4364,9 +4279,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // If we didn't have a matching function, and we didn't find the megamorph
   // sentinel, then we have in the cell either some other function or an
   // AllocationSite. Do a map check on the object in ecx.
-  Handle<Map> allocation_site_map(
-      masm->isolate()->heap()->allocation_site_map(),
-      masm->isolate());
   __ ldr(r5, FieldMemOperand(r3, 0));
   __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
   __ b(ne, &miss);
@@ -4403,6 +4315,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Arguments register must be smi-tagged to call out.
     __ SmiTag(r0);
     __ push(r0);
     __ push(r1);
@@ -5792,13 +5705,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   // Check the number to string cache.
   __ bind(&not_string);
   // Puts the cached result into scratch1.
-  NumberToStringStub::GenerateLookupNumberStringCache(masm,
-                                                      arg,
-                                                      scratch1,
-                                                      scratch2,
-                                                      scratch3,
-                                                      scratch4,
-                                                      slow);
+  __ LookupNumberStringCache(arg, scratch1, scratch2, scratch3, scratch4, slow);
   __ mov(arg, scratch1);
   __ str(arg, MemOperand(sp, stack_offset));
   __ bind(&done);

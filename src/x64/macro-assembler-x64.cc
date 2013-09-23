@@ -691,13 +691,16 @@ void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
-                                              Address thunk_address,
-                                              Register thunk_last_arg,
-                                              int stack_space,
-                                              int return_value_offset) {
+void MacroAssembler::CallApiFunctionAndReturn(
+    Address function_address,
+    Address thunk_address,
+    Register thunk_last_arg,
+    int stack_space,
+    Operand return_value_operand,
+    Operand* context_restore_operand) {
   Label prologue;
   Label promote_scheduled_exception;
+  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label write_back;
@@ -768,7 +771,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   }
 
   // Load the value from ReturnValue
-  movq(rax, Operand(rbp, return_value_offset * kPointerSize));
+  movq(rax, return_value_operand);
   bind(&prologue);
 
   // No more valid handles (the result handle was the last one). Restore
@@ -783,6 +786,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   movq(rsi, scheduled_exception_address);
   Cmp(Operand(rsi, 0), factory->the_hole_value());
   j(not_equal, &promote_scheduled_exception);
+  bind(&exception_handled);
 
 #if ENABLE_EXTRA_CHECKS
   // Check if the function returned a valid JavaScript value.
@@ -819,11 +823,19 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   bind(&ok);
 #endif
 
-  LeaveApiExitFrame();
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    movq(rsi, *context_restore_operand);
+  }
+  LeaveApiExitFrame(!restore_context);
   ret(stack_space * kPointerSize);
 
   bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  {
+    FrameScope frame(this, StackFrame::INTERNAL);
+    CallRuntime(Runtime::kPromoteScheduledException, 0);
+  }
+  jmp(&exception_handled);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
@@ -933,6 +945,18 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
       pop(reg);
     }
   }
+}
+
+
+void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
+  xorps(dst, dst);
+  cvtlsi2sd(dst, src);
+}
+
+
+void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
+  xorps(dst, dst);
+  cvtlsi2sd(dst, src);
 }
 
 
@@ -2240,6 +2264,90 @@ void MacroAssembler::Test(const Operand& src, Smi* source) {
 // ----------------------------------------------------------------------------
 
 
+void MacroAssembler::LookupNumberStringCache(Register object,
+                                             Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* not_found) {
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch1;
+  Register scratch = scratch2;
+
+  // Load the number string cache.
+  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  SmiToInteger32(
+      mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  shrl(mask, Immediate(1));
+  subq(mask, Immediate(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  JumpIfSmi(object, &is_smi);
+  CheckMap(object,
+           isolate()->factory()->heap_number_map(),
+           not_found,
+           DONT_DO_SMI_CHECK);
+
+  STATIC_ASSERT(8 == kDoubleSize);
+  movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+  xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+  and_(scratch, mask);
+  // Each entry in string cache consists of two pointer sized fields,
+  // but times_twice_pointer_size (multiplication by 16) scale factor
+  // is not supported by addrmode on x64 platform.
+  // So we have to premultiply entry index before lookup.
+  shl(scratch, Immediate(kPointerSizeLog2 + 1));
+
+  Register index = scratch;
+  Register probe = mask;
+  movq(probe,
+       FieldOperand(number_string_cache,
+                    index,
+                    times_1,
+                    FixedArray::kHeaderSize));
+  JumpIfSmi(probe, not_found);
+  movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+  ucomisd(xmm0, FieldOperand(probe, HeapNumber::kValueOffset));
+  j(parity_even, not_found);  // Bail out if NaN is involved.
+  j(not_equal, not_found);  // The cache did not contain this value.
+  jmp(&load_result_from_cache);
+
+  bind(&is_smi);
+  SmiToInteger32(scratch, object);
+  and_(scratch, mask);
+  // Each entry in string cache consists of two pointer sized fields,
+  // but times_twice_pointer_size (multiplication by 16) scale factor
+  // is not supported by addrmode on x64 platform.
+  // So we have to premultiply entry index before lookup.
+  shl(scratch, Immediate(kPointerSizeLog2 + 1));
+
+  // Check if the entry is the smi we are looking for.
+  cmpq(object,
+       FieldOperand(number_string_cache,
+                    index,
+                    times_1,
+                    FixedArray::kHeaderSize));
+  j(not_equal, not_found);
+
+  // Get the result from the cache.
+  bind(&load_result_from_cache);
+  movq(result,
+       FieldOperand(number_string_cache,
+                    index,
+                    times_1,
+                    FixedArray::kHeaderSize + kPointerSize));
+  IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
+}
+
+
 void MacroAssembler::JumpIfNotString(Register object,
                                      Register object_map,
                                      Label* not_string,
@@ -2917,7 +3025,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   // Value is a smi. convert to a double and store.
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
-  cvtlsi2sd(xmm_scratch, kScratchRegister);
+  Cvtlsi2sd(xmm_scratch, kScratchRegister);
   movsd(FieldOperand(elements, index, times_8,
                      FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
@@ -3050,7 +3158,7 @@ void MacroAssembler::DoubleToI(Register result_reg,
                                Label* conversion_failed,
                                Label::Distance dst) {
   cvttsd2si(result_reg, input_reg);
-  cvtlsi2sd(xmm0, result_reg);
+  Cvtlsi2sd(xmm0, result_reg);
   ucomisd(xmm0, input_reg);
   j(not_equal, conversion_failed, dst);
   j(parity_even, conversion_failed, dst);  // NaN.
@@ -3087,7 +3195,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
 
   movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
   cvttsd2si(result_reg, xmm0);
-  cvtlsi2sd(temp, result_reg);
+  Cvtlsi2sd(temp, result_reg);
   ucomisd(xmm0, temp);
   RecordComment("Deferred TaggedToI: lost precision");
   j(not_equal, lost_precision, dst);
@@ -3683,23 +3791,25 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
   PushReturnAddressFrom(rcx);
 
-  LeaveExitFrameEpilogue();
+  LeaveExitFrameEpilogue(true);
 }
 
 
-void MacroAssembler::LeaveApiExitFrame() {
+void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
   movq(rsp, rbp);
   pop(rbp);
 
-  LeaveExitFrameEpilogue();
+  LeaveExitFrameEpilogue(restore_context);
 }
 
 
-void MacroAssembler::LeaveExitFrameEpilogue() {
+void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Isolate::kContextAddress, isolate());
   Operand context_operand = ExternalOperand(context_address);
-  movq(rsi, context_operand);
+  if (restore_context) {
+    movq(rsi, context_operand);
+  }
 #ifdef DEBUG
   movq(context_operand, Immediate(0));
 #endif

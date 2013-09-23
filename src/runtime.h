@@ -299,7 +299,6 @@ namespace internal {
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4, 1)\
   F(CreateObjectLiteral, 4, 1) \
-  F(CreateObjectLiteralShallow, 4, 1) \
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
   \
@@ -838,7 +837,7 @@ class Runtime : public AllStatic {
       JSArrayBuffer* phantom_array_buffer);
 
   // Helper functions used stubs.
-  static void PerformGC(Object* result);
+  static void PerformGC(Object* result, Isolate* isolate);
 
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   static Handle<Object> CreateArrayLiteralBoilerplate(

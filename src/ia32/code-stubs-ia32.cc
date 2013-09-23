@@ -82,7 +82,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 4;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry;
 }
 
 
@@ -984,7 +984,7 @@ static void BinaryOpStub_GenerateSmiCode(
           ASSERT_EQ(Token::SHL, op);
           if (CpuFeatures::IsSupported(SSE2)) {
             CpuFeatureScope use_sse2(masm, SSE2);
-            __ cvtsi2sd(xmm0, left);
+            __ Cvtsi2sd(xmm0, left);
             __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
           } else {
             __ mov(Operand(esp, 1 * kPointerSize), left);
@@ -1370,7 +1370,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatureScope use_sse2(masm, SSE2);
-          __ cvtsi2sd(xmm0, ebx);
+          __ Cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
           __ mov(Operand(esp, 1 * kPointerSize), ebx);
@@ -1594,7 +1594,7 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatureScope use_sse2(masm, SSE2);
-          __ cvtsi2sd(xmm0, ebx);
+          __ Cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
           __ mov(Operand(esp, 1 * kPointerSize), ebx);
@@ -1782,7 +1782,7 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatureScope use_sse2(masm, SSE2);
-          __ cvtsi2sd(xmm0, ebx);
+          __ Cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
           __ mov(Operand(esp, 1 * kPointerSize), ebx);
@@ -2329,12 +2329,12 @@ void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
   __ jmp(not_numbers);  // Argument in eax is not a number.
   __ bind(&load_smi_edx);
   __ SmiUntag(edx);  // Untag smi before converting to float.
-  __ cvtsi2sd(xmm0, edx);
+  __ Cvtsi2sd(xmm0, edx);
   __ SmiTag(edx);  // Retag smi for heap number overwriting test.
   __ jmp(&load_eax);
   __ bind(&load_smi_eax);
   __ SmiUntag(eax);  // Untag smi before converting to float.
-  __ cvtsi2sd(xmm1, eax);
+  __ Cvtsi2sd(xmm1, eax);
   __ SmiTag(eax);  // Retag smi for heap number overwriting test.
   __ jmp(&done, Label::kNear);
   __ bind(&load_float_eax);
@@ -2350,11 +2350,11 @@ void FloatingPointHelper::LoadSSE2Smis(MacroAssembler* masm,
   __ mov(scratch, left);
   ASSERT(!scratch.is(right));  // We're about to clobber scratch.
   __ SmiUntag(scratch);
-  __ cvtsi2sd(xmm0, scratch);
+  __ Cvtsi2sd(xmm0, scratch);
 
   __ mov(scratch, right);
   __ SmiUntag(scratch);
-  __ cvtsi2sd(xmm1, scratch);
+  __ Cvtsi2sd(xmm1, scratch);
 }
 
 
@@ -2365,7 +2365,7 @@ void FloatingPointHelper::CheckSSE2OperandIsInt32(MacroAssembler* masm,
                                                   Register scratch,
                                                   XMMRegister xmm_scratch) {
   __ cvttsd2si(int32_result, Operand(operand));
-  __ cvtsi2sd(xmm_scratch, int32_result);
+  __ Cvtsi2sd(xmm_scratch, int32_result);
   __ pcmpeqd(xmm_scratch, operand);
   __ movmskps(scratch, xmm_scratch);
   // Two least significant bits should be both set.
@@ -2470,7 +2470,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Save 1 in double_result - we need this several times later on.
   __ mov(scratch, Immediate(1));
-  __ cvtsi2sd(double_result, scratch);
+  __ Cvtsi2sd(double_result, scratch);
 
   if (exponent_type_ == ON_STACK) {
     Label base_is_smi, unpack_exponent;
@@ -2490,7 +2490,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
     __ bind(&base_is_smi);
     __ SmiUntag(base);
-    __ cvtsi2sd(double_base, base);
+    __ Cvtsi2sd(double_base, base);
 
     __ bind(&unpack_exponent);
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
@@ -2683,7 +2683,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // and may not have contained the exponent value in the first place when the
   // exponent is a smi.  We reset it with exponent value before bailing out.
   __ j(not_equal, &done);
-  __ cvtsi2sd(double_exponent, exponent);
+  __ Cvtsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
   Counters* counters = masm->isolate()->counters();
@@ -2756,8 +2756,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     __ j(not_equal, &miss);
   }
 
-  StubCompiler::GenerateLoadStringLength(masm, edx, eax, ebx, &miss,
-                                         support_wrapper_);
+  StubCompiler::GenerateLoadStringLength(masm, edx, eax, ebx, &miss);
   __ bind(&miss);
   StubCompiler::TailCallBuiltin(
       masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
@@ -3495,7 +3494,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ call(edx);
 
   // Drop arguments and come back to JS mode.
-  __ LeaveApiExitFrame();
+  __ LeaveApiExitFrame(true);
 
   // Check the result.
   Label success;
@@ -3768,98 +3767,13 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 }
 
 
-void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
-                                                         Register object,
-                                                         Register result,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         Label* not_found) {
-  // Use of registers. Register result is used as a temporary.
-  Register number_string_cache = result;
-  Register mask = scratch1;
-  Register scratch = scratch2;
-
-  // Load the number string cache.
-  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
-  __ shr(mask, kSmiTagSize + 1);  // Untag length and divide it by two.
-  __ sub(mask, Immediate(1));  // Make mask.
-
-  // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value, and the hash for
-  // doubles is the xor of the upper and lower words. See
-  // Heap::GetNumberStringCache.
-  Label smi_hash_calculated;
-  Label load_result_from_cache;
-  Label not_smi;
-  STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfNotSmi(object, &not_smi, Label::kNear);
-  __ mov(scratch, object);
-  __ SmiUntag(scratch);
-  __ jmp(&smi_hash_calculated, Label::kNear);
-  __ bind(&not_smi);
-  __ cmp(FieldOperand(object, HeapObject::kMapOffset),
-          masm->isolate()->factory()->heap_number_map());
-  __ j(not_equal, not_found);
-  STATIC_ASSERT(8 == kDoubleSize);
-  __ mov(scratch, FieldOperand(object, HeapNumber::kValueOffset));
-  __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
-  // Object is heap number and hash is now in scratch. Calculate cache index.
-  __ and_(scratch, mask);
-  Register index = scratch;
-  Register probe = mask;
-  __ mov(probe,
-          FieldOperand(number_string_cache,
-                      index,
-                      times_twice_pointer_size,
-                      FixedArray::kHeaderSize));
-  __ JumpIfSmi(probe, not_found);
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope fscope(masm, SSE2);
-    __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
-    __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
-    __ ucomisd(xmm0, xmm1);
-  } else {
-    __ fld_d(FieldOperand(object, HeapNumber::kValueOffset));
-    __ fld_d(FieldOperand(probe, HeapNumber::kValueOffset));
-    __ FCmp();
-  }
-  __ j(parity_even, not_found);  // Bail out if NaN is involved.
-  __ j(not_equal, not_found);  // The cache did not contain this value.
-  __ jmp(&load_result_from_cache, Label::kNear);
-
-  __ bind(&smi_hash_calculated);
-  // Object is smi and hash is now in scratch. Calculate cache index.
-  __ and_(scratch, mask);
-  // Check if the entry is the smi we are looking for.
-  __ cmp(object,
-         FieldOperand(number_string_cache,
-                      index,
-                      times_twice_pointer_size,
-                      FixedArray::kHeaderSize));
-  __ j(not_equal, not_found);
-
-  // Get the result from the cache.
-  __ bind(&load_result_from_cache);
-  __ mov(result,
-         FieldOperand(number_string_cache,
-                      index,
-                      times_twice_pointer_size,
-                      FixedArray::kHeaderSize + kPointerSize));
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->number_to_string_native(), 1);
-}
-
-
 void NumberToStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
   __ mov(ebx, Operand(esp, kPointerSize));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, ebx, eax, ecx, edx, &runtime);
+  __ LookupNumberStringCache(ebx, eax, ecx, edx, &runtime);
   __ ret(1 * kPointerSize);
 
   __ bind(&runtime);
@@ -4205,6 +4119,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
+  // eax : number of arguments to the construct function
   // ebx : cache cell for call target
   // edi : the function to call
   Isolate* isolate = masm->isolate();
@@ -4224,9 +4139,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // If we didn't have a matching function, and we didn't find the megamorph
   // sentinel, then we have in the cell either some other function or an
   // AllocationSite. Do a map check on the object in ecx.
-  Handle<Map> allocation_site_map(
-      masm->isolate()->heap()->allocation_site_map(),
-      masm->isolate());
+  Handle<Map> allocation_site_map =
+      masm->isolate()->factory()->allocation_site_map();
   __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
   __ j(not_equal, &miss);
 
@@ -4265,6 +4179,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Arguments register must be smi-tagged to call out.
     __ SmiTag(eax);
     __ push(eax);
     __ push(edi);
@@ -4508,6 +4423,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // stack alignment is known to be correct. This function takes one argument
     // which is passed on the stack, and we know that the stack has been
     // prepared to pass at least one argument.
+    __ mov(Operand(esp, 1 * kPointerSize),
+           Immediate(ExternalReference::isolate_address(masm->isolate())));
     __ mov(Operand(esp, 0 * kPointerSize), eax);  // Result.
     __ call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
   }
@@ -5517,12 +5434,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   // Check the number to string cache.
   __ bind(&not_string);
   // Puts the cached result into scratch1.
-  NumberToStringStub::GenerateLookupNumberStringCache(masm,
-                                                      arg,
-                                                      scratch1,
-                                                      scratch2,
-                                                      scratch3,
-                                                      slow);
+  __ LookupNumberStringCache(arg, scratch1, scratch2, scratch3, slow);
   __ mov(arg, scratch1);
   __ mov(Operand(esp, stack_offset), arg);
   __ bind(&done);
@@ -6258,7 +6170,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
     __ bind(&right_smi);
     __ mov(ecx, eax);  // Can't clobber eax because we can still jump away.
     __ SmiUntag(ecx);
-    __ cvtsi2sd(xmm1, ecx);
+    __ Cvtsi2sd(xmm1, ecx);
 
     __ bind(&left);
     __ JumpIfSmi(edx, &left_smi, Label::kNear);
@@ -6270,7 +6182,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
     __ bind(&left_smi);
     __ mov(ecx, edx);  // Can't clobber edx because we can still jump away.
     __ SmiUntag(ecx);
-    __ cvtsi2sd(xmm0, ecx);
+    __ Cvtsi2sd(xmm0, ecx);
 
     __ bind(&done);
     // Compare operands.
@@ -7300,9 +7212,8 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     __ inc(edx);
     __ mov(ecx, FieldOperand(ebx, Cell::kValueOffset));
     if (FLAG_debug_code) {
-      Handle<Map> allocation_site_map(
-          masm->isolate()->heap()->allocation_site_map(),
-          masm->isolate());
+      Handle<Map> allocation_site_map =
+          masm->isolate()->factory()->allocation_site_map();
       __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
       __ Assert(equal, kExpectedAllocationSiteInCell);
     }
@@ -7447,8 +7358,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ cmp(ebx, Immediate(undefined_sentinel));
   __ j(equal, &no_info);
   __ mov(edx, FieldOperand(ebx, Cell::kValueOffset));
-  __ cmp(FieldOperand(edx, 0), Immediate(Handle<Map>(
-      masm->isolate()->heap()->allocation_site_map())));
+  __ cmp(FieldOperand(edx, 0), Immediate(
+      masm->isolate()->factory()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
   __ mov(edx, FieldOperand(edx, AllocationSite::kTransitionInfoOffset));
