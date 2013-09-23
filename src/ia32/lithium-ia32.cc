@@ -682,16 +682,12 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   instr = AssignPointerMap(instr);
 
   if (hinstr->HasObservableSideEffects()) {
+    ASSERT(hinstr->next()->IsSimulate());
+    HSimulate* sim = HSimulate::cast(hinstr->next());
     ASSERT(instruction_pending_deoptimization_environment_ == NULL);
     ASSERT(pending_deoptimization_ast_id_.IsNone());
-    if (!hinstr->IsControlInstruction()) {
-      ASSERT(hinstr->next()->IsSimulate());
-      HSimulate* sim = HSimulate::cast(hinstr->next());
-      pending_deoptimization_ast_id_ = sim->ast_id();
-    } else {
-      pending_deoptimization_ast_id_ = BailoutId::PendingMarker();
-    }
     instruction_pending_deoptimization_environment_ = instr;
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -1704,15 +1700,14 @@ LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareGenericAndBranch(
-    HCompareGenericAndBranch* instr) {
+LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
   ASSERT(instr->left()->representation().IsSmiOrTagged());
   ASSERT(instr->right()->representation().IsSmiOrTagged());
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* left = UseFixed(instr->left(), edx);
   LOperand* right = UseFixed(instr->right(), eax);
-  return MarkAsCall(new(zone()) LCompareGenericAndBranch(context, left, right),
-                    instr);
+  LCmpT* result = new(zone()) LCmpT(context, left, right);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
@@ -2631,8 +2626,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
   if (!pending_deoptimization_ast_id_.IsNone()) {
-    ASSERT(pending_deoptimization_ast_id_ == instr->ast_id() ||
-           pending_deoptimization_ast_id_.IsPendingMarker());
+    ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
     LLazyBailout* lazy_bailout = new(zone()) LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
     // Store the lazy deopt environment with the instruction if needed. Right

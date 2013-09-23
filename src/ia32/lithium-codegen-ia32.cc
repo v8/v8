@@ -3044,15 +3044,21 @@ void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
 }
 
 
-void LCodeGen::DoCompareGenericAndBranch(LCompareGenericAndBranch* instr) {
+void LCodeGen::DoCmpT(LCmpT* instr) {
   Token::Value op = instr->op();
 
   Handle<Code> ic = CompareIC::GetUninitialized(isolate(), op);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   Condition condition = ComputeCompareCondition(op);
+  Label true_value, done;
   __ test(eax, Operand(eax));
-  EmitBranch(instr, condition);
+  __ j(condition, &true_value, Label::kNear);
+  __ mov(ToRegister(instr->result()), factory()->false_value());
+  __ jmp(&done, Label::kNear);
+  __ bind(&true_value);
+  __ mov(ToRegister(instr->result()), factory()->true_value());
+  __ bind(&done);
 }
 
 

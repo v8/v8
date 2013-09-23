@@ -794,7 +794,7 @@ void HInstruction::Verify() {
 
   // Verify that instructions that may have side-effects are followed
   // by a simulate instruction.
-  if (HasObservableSideEffects() && !IsOsrEntry() && !IsControlInstruction()) {
+  if (HasObservableSideEffects() && !IsOsrEntry()) {
     ASSERT(next()->IsSimulate());
   }
 
@@ -1009,21 +1009,6 @@ void HControlInstruction::PrintDataTo(StringStream* stream) {
   }
   stream->Add(")");
 }
-
-
-#ifdef DEBUG
-void HControlInstruction::Verify() {
-  HInstruction::Verify();
-  if (!HasObservableSideEffects()) return;
-  for (HSuccessorIterator it(this); !it.Done(); it.Advance()) {
-    // For ControlInstructions we need to verify that the successors all start
-    // with a Simulate.
-    HInstruction* first = it.Current()->first()->next();
-    ASSERT(first->IsSimulate() ||
-           (first->IsLeaveInlined() && first->next()->IsSimulate()));
-  }
-}
-#endif
 
 
 void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
@@ -2838,14 +2823,10 @@ Range* HLoadKeyed::InferRange(Zone* zone) {
 }
 
 
-void HCompareGenericAndBranch::PrintDataTo(StringStream* stream) {
+void HCompareGeneric::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
-  left()->PrintNameTo(stream);
-  stream->Add(" ");
-  right()->PrintNameTo(stream);
-  if (CheckFlag(kCanOverflow)) stream->Add(" !");
-  if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
+  HBinaryOperation::PrintDataTo(stream);
 }
 
 
