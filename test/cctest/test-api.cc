@@ -12680,17 +12680,6 @@ TEST(DontLeakGlobalObjects) {
   }
 }
 
-template<class T>
-struct CopyablePersistentTraits {
-  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
-  static const bool kResetInDestructor = true;
-  template<class S, class M>
-  static V8_INLINE void Copy(const Persistent<S, M>& source,
-                             CopyablePersistent* dest) {
-    // do nothing, just allow copy
-  }
-};
-
 
 TEST(CopyablePersistent) {
   LocalContext context;
@@ -12698,19 +12687,20 @@ TEST(CopyablePersistent) {
   i::GlobalHandles* globals =
       reinterpret_cast<i::Isolate*>(isolate)->global_handles();
   int initial_handles = globals->global_handles_count();
+  typedef v8::Persistent<v8::Object, v8::CopyablePersistentTraits<v8::Object> >
+      CopyableObject;
   {
-    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle1;
+    CopyableObject handle1;
     {
       v8::HandleScope scope(isolate);
       handle1.Reset(isolate, v8::Object::New());
     }
     CHECK_EQ(initial_handles + 1, globals->global_handles_count());
-    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle2;
+    CopyableObject  handle2;
     handle2 = handle1;
     CHECK(handle1 == handle2);
     CHECK_EQ(initial_handles + 2, globals->global_handles_count());
-    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> >
-    handle3(handle2);
+    CopyableObject handle3(handle2);
     CHECK(handle1 == handle3);
     CHECK_EQ(initial_handles + 3, globals->global_handles_count());
   }

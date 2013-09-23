@@ -480,6 +480,22 @@ class NonCopyablePersistentTraits {
 
 
 /**
+ * Helper class traits to allow copying and assignment of Persistent.
+ * This will clone the contents of storage cell, but not any of the flags, etc.
+ */
+template<class T>
+struct CopyablePersistentTraits {
+  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
+  static const bool kResetInDestructor = true;
+  template<class S, class M>
+  static V8_INLINE void Copy(const Persistent<S, M>& source,
+                             CopyablePersistent* dest) {
+    // do nothing, just allow copy
+  }
+};
+
+
+/**
  * An object reference that is independent of any handle scope.  Where
  * a Local handle only lives as long as the HandleScope in which it was
  * allocated, a Persistent handle remains valid until it is explicitly
