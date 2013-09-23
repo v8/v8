@@ -864,14 +864,9 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateByteArray(int length,
-                                                 PretenureFlag pretenure);
-
-  // Allocate a non-tenured byte array of the specified length
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateByteArray(int length);
+  MUST_USE_RESULT MaybeObject* AllocateByteArray(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates an external array of the specified length and type.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -2065,6 +2060,17 @@ class Heap {
                                 GCTracer* tracer);
 
   inline void UpdateOldSpaceLimits();
+
+  // Selects the proper allocation space depending on the given object
+  // size, pretenuring decision, and preferred old-space.
+  static AllocationSpace SelectSpace(int object_size,
+                                     AllocationSpace preferred_old_space,
+                                     PretenureFlag pretenure) {
+    ASSERT(preferred_old_space == OLD_POINTER_SPACE ||
+           preferred_old_space == OLD_DATA_SPACE);
+    if (object_size > Page::kMaxNonCodeHeapObjectSize) return LO_SPACE;
+    return (pretenure == TENURED) ? preferred_old_space : NEW_SPACE;
+  }
 
   // Allocate an uninitialized object in map space.  The behavior is identical
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't

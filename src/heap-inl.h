@@ -140,12 +140,11 @@ MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
   // Compute map and object size.
   Map* map = ascii_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = (size > Page::kMaxNonCodeHeapObjectSize)
-                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
-                   : old_data_space_->AllocateRaw(size);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -174,12 +173,11 @@ MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = (size > Page::kMaxNonCodeHeapObjectSize)
-                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
-                   : old_data_space_->AllocateRaw(size);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 

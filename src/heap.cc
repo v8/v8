@@ -2896,12 +2896,12 @@ bool Heap::CreateInitialMaps() {
 MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
+  int size = HeapNumber::kSize;
   STATIC_ASSERT(HeapNumber::kSize <= Page::kNonCodeObjectAreaSize);
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   Object* result;
-  { MaybeObject* maybe_result =
-        AllocateRaw(HeapNumber::kSize, space, OLD_DATA_SPACE);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -4065,31 +4065,8 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > ByteArray::kMaxLength) {
     return Failure::OutOfMemoryException(0x7);
   }
-  if (pretenure == NOT_TENURED) {
-    return AllocateByteArray(length);
-  }
   int size = ByteArray::SizeFor(length);
-  AllocationSpace space =
-      (size > Page::kMaxNonCodeHeapObjectSize) ? LO_SPACE : OLD_DATA_SPACE;
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, space);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  reinterpret_cast<ByteArray*>(result)->set_map_no_write_barrier(
-      byte_array_map());
-  reinterpret_cast<ByteArray*>(result)->set_length(length);
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateByteArray(int length) {
-  if (length < 0 || length > ByteArray::kMaxLength) {
-    return Failure::OutOfMemoryException(0x8);
-  }
-  int size = ByteArray::SizeFor(length);
-  AllocationSpace space =
-      (size > Page::kMaxNonCodeHeapObjectSize) ? LO_SPACE : NEW_SPACE;
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -4120,11 +4097,10 @@ MaybeObject* Heap::AllocateExternalArray(int length,
                                          ExternalArrayType array_type,
                                          void* external_pointer,
                                          PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  int size = ExternalArray::kAlignedSize;
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
   Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(ExternalArray::kAlignedSize,
-                                            space,
-                                            OLD_DATA_SPACE);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -4562,9 +4538,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(
   }
 
   // Allocate the JSObject.
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  if (map->instance_size() > Page::kMaxNonCodeHeapObjectSize) space = LO_SPACE;
+  int size = map->instance_size();
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, pretenure);
   Object* obj;
   MaybeObject* maybe_obj = Allocate(map, space);
   if (!maybe_obj->To(&obj)) return maybe_obj;
@@ -4597,8 +4572,8 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(
   }
 
   // Allocate the JSObject.
-  AllocationSpace space = NEW_SPACE;
-  if (map->instance_size() > Page::kMaxNonCodeHeapObjectSize) space = LO_SPACE;
+  int size = map->instance_size();
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, NOT_TENURED);
   Object* obj;
   MaybeObject* maybe_obj =
       AllocateWithAllocationSite(map, space, allocation_site);
@@ -5266,12 +5241,11 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
     map = internalized_string_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = (size > Page::kMaxNonCodeHeapObjectSize)
-                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
-                   : old_data_space_->AllocateRaw(size);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -5310,16 +5284,10 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
   }
   int size = SeqOneByteString::SizeFor(length);
   ASSERT(size <= SeqOneByteString::kMaxSize);
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  AllocationSpace retry_space = OLD_DATA_SPACE;
-
-  if (size > Page::kMaxNonCodeHeapObjectSize) {
-    // Allocate in large object space, retry space will be ignored.
-    space = LO_SPACE;
-  }
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -5340,16 +5308,10 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
   }
   int size = SeqTwoByteString::SizeFor(length);
   ASSERT(size <= SeqTwoByteString::kMaxSize);
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  AllocationSpace retry_space = OLD_DATA_SPACE;
-
-  if (size > Page::kMaxNonCodeHeapObjectSize) {
-    // Allocate in large object space, retry space will be ignored.
-    space = LO_SPACE;
-  }
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -5475,16 +5437,9 @@ MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
     return Failure::OutOfMemoryException(0xe);
   }
   int size = FixedArray::SizeFor(length);
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  AllocationSpace retry_space = OLD_POINTER_SPACE;
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, pretenure);
 
-  if (size > Page::kMaxNonCodeHeapObjectSize) {
-    // Allocate in large object space, retry space will be ignored.
-    space = LO_SPACE;
-  }
-
-  return AllocateRaw(size, space, retry_space);
+  return AllocateRaw(size, space, OLD_POINTER_SPACE);
 }
 
 
@@ -5602,20 +5557,13 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
     return Failure::OutOfMemoryException(0xf);
   }
   int size = FixedDoubleArray::SizeFor(length);
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  AllocationSpace retry_space = OLD_DATA_SPACE;
-
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
 #endif
-
-  if (size > Page::kMaxNonCodeHeapObjectSize) {
-    // Allocate in large object space, retry space will be ignored.
-    space = LO_SPACE;
-  }
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   HeapObject* object;
-  { MaybeObject* maybe_object = AllocateRaw(size, space, retry_space);
+  { MaybeObject* maybe_object = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
   }
 
@@ -5819,8 +5767,7 @@ STRUCT_LIST(MAKE_CASE)
       return Failure::InternalError();
   }
   int size = map->instance_size();
-  AllocationSpace space =
-      (size > Page::kMaxNonCodeHeapObjectSize) ? LO_SPACE : OLD_POINTER_SPACE;
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, TENURED);
   Object* result;
   { MaybeObject* maybe_result = Allocate(map, space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
