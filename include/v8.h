@@ -4540,9 +4540,6 @@ class V8_EXPORT V8 {
   /**
    * Allows the host application to provide a callback which can be used
    * as a source of entropy for random number generators.
-   *
-   * \note Setting an entropy source can only be done very early prior to
-   *   calling Initialize().
    */
   static void SetEntropySource(EntropySource source);
 
