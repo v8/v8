@@ -38,11 +38,6 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
-#if defined(__GLIBC__) && !defined(__UCLIBC__)
-#include <execinfo.h>
-#include <cxxabi.h>
-#endif
-
 // Ubuntu Dapper requires memory pages to be marked as
 // executable. Otherwise, OS raises an exception when executing code
 // in that page.
@@ -66,7 +61,6 @@
 
 #include "v8.h"
 
-#include "platform-posix.h"
 #include "platform.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
@@ -151,14 +145,6 @@ void* OS::Allocate(const size_t requested,
   }
   *allocated = msize;
   return mbase;
-}
-
-
-void OS::DumpBacktrace() {
-  // backtrace is a glibc extension.
-#if defined(__GLIBC__) && !defined(__UCLIBC__)
-  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
-#endif
 }
 
 

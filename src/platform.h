@@ -256,9 +256,6 @@ class OS {
   // Debug break.
   static void DebugBreak();
 
-  // Dump C++ current stack trace (only functional on Linux).
-  static void DumpBacktrace();
-
   // Walk the stack.
   static const int kStackWalkError = -1;
   static const int kStackWalkMaxNameLen = 256;

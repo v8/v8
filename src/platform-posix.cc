@@ -29,8 +29,6 @@
 // own but contains the parts which are the same across POSIX platforms Linux,
 // Mac OS, FreeBSD and OpenBSD.
 
-#include "platform-posix.h"
-
 #include <dlfcn.h>
 #include <pthread.h>
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
