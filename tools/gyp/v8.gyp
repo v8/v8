@@ -805,6 +805,9 @@
           ]},
         ],
         ['OS=="win"', {
+          'defines': [
+            '_CRT_RAND_S'  # for rand_s()
+          ],
           'variables': {
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
           },

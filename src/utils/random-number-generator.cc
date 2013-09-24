@@ -28,6 +28,7 @@
 #include "utils/random-number-generator.h"
 
 #include <cstdio>
+#include <cstdlib>
 
 #include "flags.h"
 #include "platform/mutex.h"
@@ -67,6 +68,16 @@ RandomNumberGenerator::RandomNumberGenerator() {
     }
   }
 
+#if V8_OS_CYGWIN || V8_OS_WIN
+  // Use rand_s() to gather entropy on Windows. See:
+  // https://code.google.com/p/v8/issues/detail?id=2905
+  unsigned first_half, second_half;
+  errno_t result = rand_s(&first_half);
+  ASSERT_EQ(0, result);
+  result = rand_s(&second_half);
+  ASSERT_EQ(0, result);
+  SetSeed((static_cast<int64_t>(first_half) << 32) + second_half);
+#else
   // Gather entropy from /dev/urandom if available.
   FILE* fp = fopen("/dev/urandom", "rb");
   if (fp != NULL) {
@@ -91,6 +102,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
   seed ^= TimeTicks::HighResNow().ToInternalValue() << 16;
   seed ^= TimeTicks::Now().ToInternalValue() << 8;
   SetSeed(seed);
+#endif  // V8_OS_CYGWIN || V8_OS_WIN
 }
 
 
