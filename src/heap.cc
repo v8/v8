@@ -608,6 +608,11 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   // Note: as weak callbacks can execute arbitrary code, we cannot
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
+  if (FLAG_concurrent_recompilation) {
+    // The optimizing compiler may be unnecessarily holding on to memory.
+    DisallowHeapAllocation no_recursive_gc;
+    isolate()->optimizing_compiler_thread()->Flush();
+  }
   mark_compact_collector()->SetFlags(kMakeHeapIterableMask |
                                      kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
