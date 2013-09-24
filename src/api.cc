@@ -7427,9 +7427,11 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
     v->VisitPointers(blocks()->last(), handle_scope_data_.next);
   }
 
-  if (!saved_contexts_.is_empty()) {
-    Object** start = reinterpret_cast<Object**>(&saved_contexts_.first());
-    v->VisitPointers(start, start + saved_contexts_.length());
+  List<Context*>* context_lists[2] = { &saved_contexts_, &entered_contexts_};
+  for (unsigned i = 0; i < ARRAY_SIZE(context_lists); i++) {
+    if (context_lists[i]->is_empty()) continue;
+    Object** start = reinterpret_cast<Object**>(&context_lists[i]->first());
+    v->VisitPointers(start, start + context_lists[i]->length());
   }
 }
 
