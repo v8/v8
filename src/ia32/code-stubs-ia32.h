@@ -217,18 +217,6 @@ class StringCompareStub: public PlatformCodeStub {
 };
 
 
-class NumberToStringStub: public PlatformCodeStub {
- public:
-  NumberToStringStub() { }
-
- private:
-  Major MajorKey() { return NumberToString; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
 class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };

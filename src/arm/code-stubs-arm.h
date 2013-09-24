@@ -256,18 +256,6 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
 };
 
 
-class NumberToStringStub: public PlatformCodeStub {
- public:
-  NumberToStringStub() { }
-
- private:
-  Major MajorKey() { return NumberToString; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
 class RecordWriteStub: public PlatformCodeStub {
  public:
   RecordWriteStub(Register object,
