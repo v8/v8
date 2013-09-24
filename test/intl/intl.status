@@ -35,5 +35,5 @@ general/v8Intl-exists: FAIL
 # TODO(jochen): The following test is flaky.
 overrides/caching: PASS || FAIL
 
-# BUG(2899): default locale for search fails on mac.
-collator/default-locale: FAIL if $system == macos
+# BUG(2899): default locale for search fails on mac and on android.
+collator/default-locale: FAIL if ($system == macos || $arch == android_arm || $arch == android_ia32)
