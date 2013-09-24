@@ -775,50 +775,65 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   ASSERT(!temp2.is(temp3));
   ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
 
-  Label done;
+  Label zero, infinity, done;
 
   __ mov(temp3, Operand(ExternalReference::math_exp_constants(0)));
 
   __ vldr(double_scratch1, ExpConstant(0, temp3));
-  __ vmov(result, kDoubleRegZero);
   __ VFPCompareAndSetFlags(double_scratch1, input);
-  __ b(ge, &done);
+  __ b(ge, &zero);
+
   __ vldr(double_scratch2, ExpConstant(1, temp3));
   __ VFPCompareAndSetFlags(input, double_scratch2);
-  __ vldr(result, ExpConstant(2, temp3));
-  __ b(ge, &done);
+  __ b(ge, &infinity);
+
   __ vldr(double_scratch1, ExpConstant(3, temp3));
   __ vldr(result, ExpConstant(4, temp3));
   __ vmul(double_scratch1, double_scratch1, input);
   __ vadd(double_scratch1, double_scratch1, result);
-  __ vmov(temp2, temp1, double_scratch1);
+  __ VmovLow(temp2, double_scratch1);
   __ vsub(double_scratch1, double_scratch1, result);
   __ vldr(result, ExpConstant(6, temp3));
   __ vldr(double_scratch2, ExpConstant(5, temp3));
   __ vmul(double_scratch1, double_scratch1, double_scratch2);
   __ vsub(double_scratch1, double_scratch1, input);
   __ vsub(result, result, double_scratch1);
-  __ vmul(input, double_scratch1, double_scratch1);
-  __ vmul(result, result, input);
-  __ mov(temp1, Operand(temp2, LSR, 11));
+  __ vmul(double_scratch2, double_scratch1, double_scratch1);
+  __ vmul(result, result, double_scratch2);
   __ vldr(double_scratch2, ExpConstant(7, temp3));
   __ vmul(result, result, double_scratch2);
   __ vsub(result, result, double_scratch1);
-  __ vldr(double_scratch2, ExpConstant(8, temp3));
+  // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
+  ASSERT(*reinterpret_cast<double*>
+         (ExternalReference::math_exp_constants(8).address()) == 1);
+  __ vmov(double_scratch2, 1);
   __ vadd(result, result, double_scratch2);
-  __ movw(ip, 0x7ff);
-  __ and_(temp2, temp2, Operand(ip));
+  __ mov(temp1, Operand(temp2, LSR, 11));
+  __ Ubfx(temp2, temp2, 0, 11);
   __ add(temp1, temp1, Operand(0x3ff));
-  __ mov(temp1, Operand(temp1, LSL, 20));
 
   // Must not call ExpConstant() after overwriting temp3!
   __ mov(temp3, Operand(ExternalReference::math_exp_log_table()));
-  __ ldr(ip, MemOperand(temp3, temp2, LSL, 3));
-  __ add(temp3, temp3, Operand(kPointerSize));
-  __ ldr(temp2, MemOperand(temp3, temp2, LSL, 3));
-  __ orr(temp1, temp1, temp2);
-  __ vmov(input, ip, temp1);
-  __ vmul(result, result, input);
+  __ add(temp3, temp3, Operand(temp2, LSL, 3));
+  __ ldm(ia, temp3, temp2.bit() | temp3.bit());
+  // The first word is loaded is the lower number register.
+  if (temp2.code() < temp3.code()) {
+    __ orr(temp1, temp3, Operand(temp1, LSL, 20));
+    __ vmov(double_scratch1, temp2, temp1);
+  } else {
+    __ orr(temp1, temp2, Operand(temp1, LSL, 20));
+    __ vmov(double_scratch1, temp3, temp1);
+  }
+  __ vmul(result, result, double_scratch1);
+  __ b(&done);
+
+  __ bind(&zero);
+  __ vmov(result, kDoubleRegZero);
+  __ b(&done);
+
+  __ bind(&infinity);
+  __ vldr(result, ExpConstant(2, temp3));
+
   __ bind(&done);
 }
 
