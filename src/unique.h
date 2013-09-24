@@ -54,7 +54,7 @@ class UniqueSet;
 template <typename T>
 class Unique V8_FINAL {
  public:
-  // TODO(titzer): make private and introduce a factory.
+  // TODO(titzer): make private and introduce a uniqueness scope.
   explicit Unique(Handle<T> handle) {
     if (handle.is_null()) {
       raw_address_ = NULL;
@@ -111,8 +111,11 @@ class Unique V8_FINAL {
     return raw_address_ == NULL;
   }
 
-  // Extract the handle from this Unique in order to dereference it.
-  // WARNING: Only do this if you have access to the heap.
+  inline bool IsKnownGlobal(void* global) const {
+    ASSERT(IsInitialized());
+    return raw_address_ == reinterpret_cast<Address>(global);
+  }
+
   inline Handle<T> handle() const {
     return handle_;
   }
@@ -123,7 +126,11 @@ class Unique V8_FINAL {
 
   // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
   static Unique<T> CreateUninitialized(Handle<T> handle) {
-    return Unique<T>(static_cast<Address>(NULL), handle);
+    return Unique<T>(reinterpret_cast<Address>(NULL), handle);
+  }
+
+  static Unique<T> CreateImmovable(Handle<T> handle) {
+    return Unique<T>(reinterpret_cast<Address>(*handle), handle);
   }
 
   friend class UniqueSet<T>;  // Uses internal details for speed.
@@ -171,9 +178,10 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return true;
   }
 
+  // Check whether this set contains the given element. O(|this|)
+  // TODO(titzer): use binary search for large sets to make this O(log|this|)
   template <typename U>
   bool Contains(Unique<U> elem) const {
-    // TODO(titzer): use binary search for larger sets.
     for (int i = 0; i < size_; i++) {
       if (this->array_[i] == elem) return true;
     }

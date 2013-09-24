@@ -649,8 +649,7 @@ HConstant* HGraph::GetConstantMinus1() {
 HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
     HConstant* constant = new(zone()) HConstant(                               \
-        isolate()->factory()->name##_value(),                                  \
-        UniqueValueId::name##_value(isolate()->heap()),                        \
+        Unique<Object>::CreateImmovable(isolate()->factory()->name##_value()), \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         false,                                                                 \
@@ -1039,7 +1038,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
-  graph()->FinalizeUniqueValueIds();
+  graph()->FinalizeUniqueness();
   return graph_;
 }
 
@@ -2293,12 +2292,12 @@ HBasicBlock* HGraph::CreateBasicBlock() {
 }
 
 
-void HGraph::FinalizeUniqueValueIds() {
+void HGraph::FinalizeUniqueness() {
   DisallowHeapAllocation no_gc;
   ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
   for (int i = 0; i < blocks()->length(); ++i) {
     for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      it.Current()->FinalizeUniqueValueId();
+      it.Current()->FinalizeUniqueness();
     }
   }
 }

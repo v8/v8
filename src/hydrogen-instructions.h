@@ -306,65 +306,6 @@ class Range V8_FINAL : public ZoneObject {
 };
 
 
-class UniqueValueId V8_FINAL {
- public:
-  UniqueValueId() : raw_address_(NULL) { }
-
-  explicit UniqueValueId(Handle<Object> handle) {
-    ASSERT(!AllowHeapAllocation::IsAllowed());
-    static const Address kEmptyHandleSentinel = reinterpret_cast<Address>(1);
-    if (handle.is_null()) {
-      raw_address_ = kEmptyHandleSentinel;
-    } else {
-      raw_address_ = reinterpret_cast<Address>(*handle);
-      ASSERT_NE(kEmptyHandleSentinel, raw_address_);
-    }
-    ASSERT(IsInitialized());
-  }
-
-  bool IsInitialized() const { return raw_address_ != NULL; }
-
-  bool operator==(const UniqueValueId& other) const {
-    ASSERT(IsInitialized() && other.IsInitialized());
-    return raw_address_ == other.raw_address_;
-  }
-
-  bool operator!=(const UniqueValueId& other) const {
-    ASSERT(IsInitialized() && other.IsInitialized());
-    return raw_address_ != other.raw_address_;
-  }
-
-  intptr_t Hashcode() const {
-    ASSERT(IsInitialized());
-    return reinterpret_cast<intptr_t>(raw_address_);
-  }
-
-#define IMMOVABLE_UNIQUE_VALUE_ID(name)   \
-  static UniqueValueId name(Heap* heap) { return UniqueValueId(heap->name()); }
-
-  IMMOVABLE_UNIQUE_VALUE_ID(free_space_map)
-  IMMOVABLE_UNIQUE_VALUE_ID(minus_zero_value)
-  IMMOVABLE_UNIQUE_VALUE_ID(nan_value)
-  IMMOVABLE_UNIQUE_VALUE_ID(undefined_value)
-  IMMOVABLE_UNIQUE_VALUE_ID(null_value)
-  IMMOVABLE_UNIQUE_VALUE_ID(true_value)
-  IMMOVABLE_UNIQUE_VALUE_ID(false_value)
-  IMMOVABLE_UNIQUE_VALUE_ID(the_hole_value)
-  IMMOVABLE_UNIQUE_VALUE_ID(empty_string)
-  IMMOVABLE_UNIQUE_VALUE_ID(empty_fixed_array)
-
-#undef IMMOVABLE_UNIQUE_VALUE_ID
-
- private:
-  Address raw_address_;
-
-  explicit UniqueValueId(Object* object) {
-    raw_address_ = reinterpret_cast<Address>(object);
-    ASSERT(IsInitialized());
-  }
-};
-
-
 class HType V8_FINAL {
  public:
   static HType None() { return HType(kNone); }
@@ -904,7 +845,7 @@ class HValue : public ZoneObject {
   virtual intptr_t Hashcode();
 
   // Compute unique ids upfront that is safe wrt GC and concurrent compilation.
-  virtual void FinalizeUniqueValueId() { }
+  virtual void FinalizeUniqueness() { }
 
   // Printing support.
   virtual void PrintTo(StringStream* stream) = 0;
@@ -2691,7 +2632,7 @@ class HCheckValue V8_FINAL : public HUnaryOperation {
     return new(zone) HCheckValue(value, target, object_in_new_space);
   }
 
-  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
+  virtual void FinalizeUniqueness() V8_OVERRIDE {
     object_ = Unique<HeapObject>(object_.handle());
   }
 
@@ -3297,7 +3238,6 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   DECLARE_INSTRUCTION_FACTORY_P2(HConstant, int32_t, Representation);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, double);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, Handle<Object>);
-  DECLARE_INSTRUCTION_FACTORY_P2(HConstant, Handle<Map>, UniqueValueId);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, ExternalReference);
 
   static HConstant* CreateAndInsertAfter(Zone* zone,
@@ -3323,15 +3263,15 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
 
   Handle<Object> handle(Isolate* isolate) {
-    if (handle_.is_null()) {
-      Factory* factory = isolate->factory();
+    if (object_.handle().is_null()) {
       // Default arguments to is_not_in_new_space depend on this heap number
-      // to be tenured so that it's guaranteed not be be located in new space.
-      handle_ = factory->NewNumber(double_value_, TENURED);
+      // to be tenured so that it's guaranteed not to be located in new space.
+      object_ = Unique<Object>::CreateUninitialized(
+          isolate->factory()->NewNumber(double_value_, TENURED));
     }
     AllowDeferredHandleDereference smi_check;
-    ASSERT(has_int32_value_ || !handle_->IsSmi());
-    return handle_;
+    ASSERT(has_int32_value_ || !object_.handle()->IsSmi());
+    return object_.handle();
   }
 
   bool HasMap(Handle<Map> map) {
@@ -3365,17 +3305,18 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
       return false;
     }
 
-    ASSERT(!handle_.is_null());
+    ASSERT(!object_.handle().is_null());
     Heap* heap = isolate()->heap();
-    ASSERT(unique_id_ != UniqueValueId::minus_zero_value(heap));
-    ASSERT(unique_id_ != UniqueValueId::nan_value(heap));
-    return unique_id_ == UniqueValueId::undefined_value(heap) ||
-           unique_id_ == UniqueValueId::null_value(heap) ||
-           unique_id_ == UniqueValueId::true_value(heap) ||
-           unique_id_ == UniqueValueId::false_value(heap) ||
-           unique_id_ == UniqueValueId::the_hole_value(heap) ||
-           unique_id_ == UniqueValueId::empty_string(heap) ||
-           unique_id_ == UniqueValueId::empty_fixed_array(heap);
+    ASSERT(!object_.IsKnownGlobal(heap->minus_zero_value()));
+    ASSERT(!object_.IsKnownGlobal(heap->nan_value()));
+    return
+        object_.IsKnownGlobal(heap->undefined_value()) ||
+        object_.IsKnownGlobal(heap->null_value()) ||
+        object_.IsKnownGlobal(heap->true_value()) ||
+        object_.IsKnownGlobal(heap->false_value()) ||
+        object_.IsKnownGlobal(heap->the_hole_value()) ||
+        object_.IsKnownGlobal(heap->empty_string()) ||
+        object_.IsKnownGlobal(heap->empty_fixed_array());
   }
 
   bool IsCell() const {
@@ -3414,11 +3355,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     if (HasDoubleValue() && FixedDoubleArray::is_the_hole_nan(double_value_)) {
       return true;
     }
-    Heap* heap = isolate()->heap();
-    if (!handle_.is_null() && *handle_ == heap->the_hole_value()) {
-      return true;
-    }
-    return false;
+    return object_.IsKnownGlobal(isolate()->heap()->the_hole_value());
   }
   bool HasNumberValue() const { return has_double_value_; }
   int32_t NumberValueAsInteger32() const {
@@ -3430,12 +3367,12 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
   bool HasStringValue() const {
     if (has_double_value_ || has_int32_value_) return false;
-    ASSERT(!handle_.is_null());
+    ASSERT(!object_.handle().is_null());
     return type_.IsString();
   }
   Handle<String> StringValue() const {
     ASSERT(HasStringValue());
-    return Handle<String>::cast(handle_);
+    return Handle<String>::cast(object_.handle());
   }
   bool HasInternalizedStringValue() const {
     return HasStringValue() && is_internalized_string_;
@@ -3459,27 +3396,20 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     } else if (has_external_reference_value_) {
       return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
-      ASSERT(!handle_.is_null());
-      return unique_id_.Hashcode();
+      ASSERT(!object_.handle().is_null());
+      return object_.Hashcode();
     }
   }
 
-  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
+  virtual void FinalizeUniqueness() V8_OVERRIDE {
     if (!has_double_value_ && !has_external_reference_value_) {
-      ASSERT(!handle_.is_null());
-      unique_id_ = UniqueValueId(handle_);
+      ASSERT(!object_.handle().is_null());
+      object_ = Unique<Object>(object_.handle());
     }
-  }
-
-  bool UniqueValueIdsMatch(UniqueValueId other) {
-    return !has_double_value_ && !has_external_reference_value_ &&
-        unique_id_ == other;
   }
 
   Unique<Object> GetUnique() const {
-    // TODO(titzer): store a Unique<HeapObject> inside the HConstant.
-    Address raw_address = reinterpret_cast<Address>(unique_id_.Hashcode());
-    return Unique<Object>(raw_address, handle_);
+    return object_;
   }
 
 #ifdef DEBUG
@@ -3505,9 +3435,8 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
           external_reference_value_ ==
           other_constant->external_reference_value_;
     } else {
-      ASSERT(!handle_.is_null());
-      return !other_constant->handle_.is_null() &&
-             unique_id_ == other_constant->unique_id_;
+      ASSERT(!object_.handle().is_null());
+      return other_constant->object_ == object_;
     }
   }
 
@@ -3517,33 +3446,30 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   HConstant(int32_t value,
             Representation r = Representation::None(),
             bool is_not_in_new_space = true,
-            Handle<Object> optional_handle = Handle<Object>::null());
+            Unique<Object> optional = Unique<Object>(Handle<Object>::null()));
   HConstant(double value,
             Representation r = Representation::None(),
             bool is_not_in_new_space = true,
-            Handle<Object> optional_handle = Handle<Object>::null());
-  HConstant(Handle<Object> handle,
-            UniqueValueId unique_id,
+            Unique<Object> optional = Unique<Object>(Handle<Object>::null()));
+  HConstant(Unique<Object> unique,
             Representation r,
             HType type,
             bool is_internalized_string,
             bool is_not_in_new_space,
             bool is_cell,
             bool boolean_value);
-  HConstant(Handle<Map> handle,
-            UniqueValueId unique_id);
+
   explicit HConstant(ExternalReference reference);
 
   void Initialize(Representation r);
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
-  // If this is a numerical constant, handle_ either points to to the
+  // If this is a numerical constant, object_ either points to the
   // HeapObject the constant originated from or is null.  If the
-  // constant is non-numeric, handle_ always points to a valid
+  // constant is non-numeric, object_ always points to a valid
   // constant HeapObject.
-  Handle<Object> handle_;
-  UniqueValueId unique_id_;
+  Unique<Object> object_;
 
   // We store the HConstant in the most specific form safely possible.
   // The two flags, has_int32_value_ and has_double_value_ tell us if
@@ -5137,7 +5063,7 @@ class HLoadGlobalCell V8_FINAL : public HTemplateInstruction<0> {
     return cell_.Hashcode();
   }
 
-  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
+  virtual void FinalizeUniqueness() V8_OVERRIDE {
     cell_ = Unique<Cell>(cell_.handle());
   }
 
@@ -5435,7 +5361,7 @@ class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
     return StoringValueNeedsWriteBarrier(value());
   }
 
-  virtual void FinalizeUniqueValueId() V8_OVERRIDE {
+  virtual void FinalizeUniqueness() V8_OVERRIDE {
     cell_ = Unique<PropertyCell>(cell_.handle());
   }
 
