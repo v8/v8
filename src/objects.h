@@ -7827,6 +7827,10 @@ class AllocationSite: public Struct {
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
   DECL_ACCESSORS(transition_info, Object)
+  // nested_site threads a list of sites that represent nested literals
+  // walked in a particular order. So [[1, 2], 1, 2] will have one
+  // nested_site, but [[1, 2], 3, [4]] will have a list of two.
+  DECL_ACCESSORS(nested_site, Object)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
@@ -7858,7 +7862,8 @@ class AllocationSite: public Struct {
   static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
-  static const int kDependentCodeOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kNestedSiteOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kDependentCodeOffset = kNestedSiteOffset + kPointerSize;
   static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 

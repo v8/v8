@@ -1301,6 +1301,8 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                                                      AllocationSite* site) {
   SetInternalReference(site, entry, "transition_info", site->transition_info(),
                        AllocationSite::kTransitionInfoOffset);
+  SetInternalReference(site, entry, "nested_site", site->nested_site(),
+                       AllocationSite::kNestedSiteOffset);
   SetInternalReference(site, entry, "dependent_code", site->dependent_code(),
                        AllocationSite::kDependentCodeOffset);
 }

@@ -1102,7 +1102,8 @@ void AllocationSite::AllocationSitePrint(FILE* out) {
   weak_next()->ShortPrint(out);
   PrintF(out, "\n - dependent code: ");
   dependent_code()->ShortPrint(out);
-
+  PrintF(out, "\n - nested site: ");
+  nested_site()->ShortPrint(out);
   PrintF(out, "\n - transition_info: ");
   if (transition_info()->IsCell()) {
     Cell* cell = Cell::cast(transition_info());

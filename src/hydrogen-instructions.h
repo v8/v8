@@ -5637,6 +5637,10 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
   }
 
+  static HObjectAccess ForAllocationSiteNestedSite() {
+    return HObjectAccess(kInobject, AllocationSite::kNestedSiteOffset);
+  }
+
   static HObjectAccess ForAllocationSiteDependentCode() {
     return HObjectAccess(kInobject, AllocationSite::kDependentCodeOffset);
   }

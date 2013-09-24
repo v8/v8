@@ -486,6 +486,11 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
                         HObjectAccess::ForAllocationSiteTransitionInfo(),
                         initial_elements_kind);
 
+  // Unlike literals, constructed arrays don't have nested sites
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteNestedSite(),
+                        graph()->GetConstant0());
+
   // Store an empty fixed array for the code dependency.
   HConstant* empty_fixed_array =
     Add<HConstant>(isolate()->factory()->empty_fixed_array());
