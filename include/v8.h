@@ -1479,6 +1479,7 @@ class V8_EXPORT Value : public Data {
   /** JS == */
   bool Equals(Handle<Value> that) const;
   bool StrictEquals(Handle<Value> that) const;
+  bool SameValue(Handle<Value> that) const;
 
   template <class T> V8_INLINE static Value* Cast(T* value);
 

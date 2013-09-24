@@ -1005,8 +1005,11 @@ bool Object::SameValue(Object* other) {
   if (IsNumber() && other->IsNumber()) {
     double this_value = Number();
     double other_value = other->Number();
-    return (this_value == other_value) ||
-        (std::isnan(this_value) && std::isnan(other_value));
+    bool equal = this_value == other_value;
+    // SameValue(NaN, NaN) is true.
+    if (!equal) return std::isnan(this_value) && std::isnan(other_value);
+    // SameValue(0.0, -0.0) is false.
+    return (this_value != 0) || ((1 / this_value) == (1 / other_value));
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));

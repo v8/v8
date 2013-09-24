@@ -3055,6 +3055,19 @@ bool Value::StrictEquals(Handle<Value> that) const {
 }
 
 
+bool Value::SameValue(Handle<Value> that) const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (EmptyCheck("v8::Value::SameValue()", this) ||
+      EmptyCheck("v8::Value::SameValue()", that)) {
+    return false;
+  }
+  LOG_API(isolate, "SameValue");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> other = Utils::OpenHandle(*that);
+  return obj->SameValue(*other);
+}
+
+
 uint32_t Value::Uint32Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
