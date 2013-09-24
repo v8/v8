@@ -209,7 +209,9 @@ MaybeObject* Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 MaybeObject* Heap::AllocateRaw(int size_in_bytes,
                                AllocationSpace space,
                                AllocationSpace retry_space) {
-  ASSERT(AllowHandleAllocation::IsAllowed() && gc_state_ == NOT_IN_GC);
+  ASSERT(AllowHandleAllocation::IsAllowed());
+  ASSERT(AllowHeapAllocation::IsAllowed());
+  ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(space != NEW_SPACE ||
          retry_space == OLD_POINTER_SPACE ||
          retry_space == OLD_DATA_SPACE ||

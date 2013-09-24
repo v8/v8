@@ -4382,10 +4382,6 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
     arguments_object_size = kArgumentsObjectSize;
   }
 
-  // This calls Copy directly rather than using Heap::AllocateRaw so we
-  // duplicate the check here.
-  ASSERT(AllowHeapAllocation::IsAllowed() && gc_state_ == NOT_IN_GC);
-
   // Check that the size of the boilerplate matches our
   // expectations. The ArgumentsAccessStub::GenerateNewObject relies
   // on the size being a known constant.
