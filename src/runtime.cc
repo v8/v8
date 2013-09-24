@@ -933,17 +933,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
             HandleVector<Object>(NULL, 0)));
   }
 
+  // NOTE: not initializing backing store.
   // We assume that the caller of this function will initialize holder
   // with the loop
   //      for(i = 0; i < length; i++) { holder[i] = source[i]; }
+  // We assume that the caller of this function is always a typed array
+  // constructor.
   // If source is a typed array, this loop will always run to completion,
   // so we are sure that the backing store will be initialized.
-  // Otherwise, we do not know (the indexing operation might throw).
-  // Hence we require zero initialization unless our source is a typed array.
-  bool should_zero_initialize = !source->IsJSTypedArray();
+  // Otherwise, the indexing operation might throw, so the loop will not
+  // run to completion and the typed array might remain partly initialized.
+  // However we further assume that the caller of this function is a typed array
+  // constructor, and the exception will propagate out of the constructor,
+  // therefore uninitialized memory will not be accessible by a user program.
+  //
+  // TODO(dslomov): revise this once we support subclassing.
 
   if (!Runtime::SetupArrayBufferAllocatingData(
-        isolate, buffer, byte_length, should_zero_initialize)) {
+        isolate, buffer, byte_length, false)) {
     return isolate->Throw(*isolate->factory()->
           NewRangeError("invalid_array_buffer_length",
             HandleVector<Object>(NULL, 0)));
