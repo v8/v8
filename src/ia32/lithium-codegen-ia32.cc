@@ -416,6 +416,13 @@ bool LCodeGen::GenerateBody() {
         x87_stack_.LeavingBlock(current_block_, LGoto::cast(instr));
       } else if (FLAG_debug_code && FLAG_enable_slow_asserts &&
                  !instr->IsGap() && !instr->IsReturn()) {
+        if (instr->ClobbersDoubleRegisters()) {
+          if (instr->HasDoubleRegisterResult()) {
+            ASSERT_EQ(1, x87_stack_.depth());
+          } else {
+            ASSERT_EQ(0, x87_stack_.depth());
+          }
+        }
         __ VerifyX87StackDepth(x87_stack_.depth());
       }
     }
@@ -557,6 +564,16 @@ XMMRegister LCodeGen::ToDoubleRegister(int index) const {
 void LCodeGen::X87LoadForUsage(X87Register reg) {
   ASSERT(x87_stack_.Contains(reg));
   x87_stack_.Fxch(reg);
+  x87_stack_.pop();
+}
+
+
+void LCodeGen::X87LoadForUsage(X87Register reg1, X87Register reg2) {
+  ASSERT(x87_stack_.Contains(reg1));
+  ASSERT(x87_stack_.Contains(reg2));
+  x87_stack_.Fxch(reg1, 1);
+  x87_stack_.Fxch(reg2);
+  x87_stack_.pop();
   x87_stack_.pop();
 }
 
@@ -2572,10 +2589,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         CpuFeatureScope scope(masm(), SSE2);
         __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
       } else {
-        X87Fxch(ToX87Register(right));
-        X87Fxch(ToX87Register(left), 1);
-        __ fld(0);
-        __ fld(2);
+        X87LoadForUsage(ToX87Register(right), ToX87Register(left));
         __ FCmp();
       }
       // Don't base result on EFLAGS when a NaN is involved. Instead
