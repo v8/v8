@@ -727,8 +727,9 @@ void Context::Enter() {
 
 
 void Context::Exit() {
-  i::Handle<i::Context> context = Utils::OpenHandle(this);
-  i::Isolate* isolate = context->GetIsolate();
+  // TODO(dcarney): fix this once chrome is fixed.
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::Context> context = i::Handle<i::Context>::null();
   ENTER_V8(isolate);
   if (!ApiCheck(isolate->handle_scope_implementer()->LeaveContext(context),
                 "v8::Context::Exit()",
