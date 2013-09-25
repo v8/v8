@@ -4581,6 +4581,8 @@ class HMul V8_FINAL : public HArithmeticBinaryOperation {
     HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
+  bool MulMinusOne();
+
   DECLARE_CONCRETE_INSTRUCTION(Mul)
 
  protected:
