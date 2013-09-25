@@ -53,14 +53,21 @@ class OptimizingCompilerThread : public Thread {
       isolate_(isolate),
       stop_semaphore_(0),
       input_queue_semaphore_(0),
-      osr_candidates_(2),
-      ready_for_osr_(2),
+      osr_cursor_(0),
       osr_hits_(0),
       osr_attempts_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
+    if (FLAG_concurrent_osr) {
+      osr_buffer_size_ = FLAG_concurrent_recompilation_queue_length + 4;
+      osr_buffer_ = NewArray<OptimizingCompiler*>(osr_buffer_size_);
+      for (int i = 0; i < osr_buffer_size_; i++) osr_buffer_[i] = NULL;
+    }
   }
-  ~OptimizingCompilerThread() {}
+
+  ~OptimizingCompilerThread() {
+    if (FLAG_concurrent_osr) DeleteArray(osr_buffer_);
+  }
 
   void Run();
   void Stop();
@@ -94,13 +101,17 @@ class OptimizingCompilerThread : public Thread {
  private:
   enum StopFlag { CONTINUE, STOP, FLUSH };
 
-  // Remove the oldest OSR candidates that are ready so that we
-  // only have |limit| left waiting.
-  void RemoveStaleOSRCandidates(int limit = kReadyForOSRLimit);
-
   void FlushInputQueue(bool restore_function_code);
   void FlushOutputQueue(bool restore_function_code);
+  void FlushOsrBuffer(bool restore_function_code);
   void CompileNext();
+
+  // Add a recompilation task for OSR to the cyclic buffer, awaiting OSR entry.
+  // Tasks evicted from the cyclic buffer are discarded.
+  void AddToOsrBuffer(OptimizingCompiler* compiler);
+  void AdvanceOsrCursor() {
+    osr_cursor_ = (osr_cursor_ + 1) % osr_buffer_size_;
+  }
 
 #ifdef DEBUG
   int thread_id_;
@@ -115,10 +126,13 @@ class OptimizingCompilerThread : public Thread {
   UnboundQueue<OptimizingCompiler*> input_queue_;
   // Queue of recompilation tasks ready to be installed (excluding OSR).
   UnboundQueue<OptimizingCompiler*> output_queue_;
-  // List of recompilation tasks for OSR in the input queue.
-  List<OptimizingCompiler*> osr_candidates_;
-  // List of recompilation tasks ready for OSR.
-  List<OptimizingCompiler*> ready_for_osr_;
+  // Cyclic buffer of recompilation tasks for OSR.
+  // TODO(yangguo): This may keep zombie tasks indefinitely, holding on to
+  //                a lot of memory.  Fix this.
+  OptimizingCompiler** osr_buffer_;
+  // Cursor for the cyclic buffer.
+  int osr_cursor_;
+  int osr_buffer_size_;
 
   volatile AtomicWord stop_thread_;
   volatile Atomic32 queue_length_;
@@ -127,11 +141,8 @@ class OptimizingCompilerThread : public Thread {
 
   // TODO(yangguo): remove this once the memory leak has been figured out.
   Mutex queue_mutex_;
-  Mutex osr_list_mutex_;
   int osr_hits_;
   int osr_attempts_;
-
-  static const int kReadyForOSRLimit = 4;
 };
 
 } }  // namespace v8::internal

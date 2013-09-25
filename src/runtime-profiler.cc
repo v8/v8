@@ -33,7 +33,6 @@
 #include "bootstrapper.h"
 #include "code-stubs.h"
 #include "compilation-cache.h"
-#include "deoptimizer.h"
 #include "execution.h"
 #include "full-codegen.h"
 #include "global-handles.h"

@@ -86,6 +86,7 @@ class CompilationInfo {
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
+  uint32_t osr_pc_offset() const { return osr_pc_offset_; }
   int opt_count() const { return opt_count_; }
   int num_parameters() const;
   int num_heap_slots() const;
@@ -532,6 +533,13 @@ class OptimizingCompiler: public ZoneObject {
     return SetLastStatus(BAILED_OUT);
   }
 
+  void WaitForInstall() {
+    ASSERT(!info_->osr_ast_id().IsNone());
+    awaiting_install_ = true;
+  }
+
+  bool IsWaitingForInstall() { return awaiting_install_; }
+
  private:
   CompilationInfo* info_;
   HOptimizedGraphBuilder* graph_builder_;
@@ -541,6 +549,7 @@ class OptimizingCompiler: public ZoneObject {
   TimeDelta time_taken_to_optimize_;
   TimeDelta time_taken_to_codegen_;
   Status last_status_;
+  bool awaiting_install_;
 
   MUST_USE_RESULT Status SetLastStatus(Status status) {
     last_status_ = status;

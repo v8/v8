@@ -8609,7 +8609,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   Handle<Code> result = Handle<Code>::null();
   BailoutId ast_id = BailoutId::None();
 
-  if (FLAG_concurrent_recompilation && FLAG_concurrent_osr) {
+  if (FLAG_concurrent_osr) {
     if (isolate->optimizing_compiler_thread()->
             IsQueuedForOSR(function, pc_offset)) {
       // Still waiting for the optimizing compiler thread to finish.  Carry on.
@@ -8631,7 +8631,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
             function->IsMarkedForConcurrentRecompilation()) {
           // Prevent regular recompilation if we queue this for OSR.
           // TODO(yangguo): remove this as soon as OSR becomes one-shot.
-          function->ReplaceCode(function->shared()->code());
+          function->ReplaceCode(*unoptimized);
         }
         return NULL;
       }
