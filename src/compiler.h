@@ -506,9 +506,9 @@ class LChunk;
 // fail, bail-out to the full code generator or succeed.  Apart from
 // their return value, the status of the phase last run can be checked
 // using last_status().
-class OptimizingCompiler: public ZoneObject {
+class RecompileJob: public ZoneObject {
  public:
-  explicit OptimizingCompiler(CompilationInfo* info)
+  explicit RecompileJob(CompilationInfo* info)
       : info_(info),
         graph_builder_(NULL),
         graph_(NULL),
@@ -558,9 +558,8 @@ class OptimizingCompiler: public ZoneObject {
   void RecordOptimizationStats();
 
   struct Timer {
-    Timer(OptimizingCompiler* compiler, TimeDelta* location)
-        : compiler_(compiler),
-          location_(location) {
+    Timer(RecompileJob* job, TimeDelta* location)
+        : job_(job), location_(location) {
       ASSERT(location_ != NULL);
       timer_.Start();
     }
@@ -569,7 +568,7 @@ class OptimizingCompiler: public ZoneObject {
       *location_ += timer_.Elapsed();
     }
 
-    OptimizingCompiler* compiler_;
+    RecompileJob* job_;
     ElapsedTimer timer_;
     TimeDelta* location_;
   };
@@ -634,7 +633,7 @@ class Compiler : public AllStatic {
                               bool is_toplevel,
                               Handle<Script> script);
 
-  static Handle<Code> InstallOptimizedCode(OptimizingCompiler* info);
+  static Handle<Code> InstallOptimizedCode(RecompileJob* job);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static bool MakeCodeForLiveEdit(CompilationInfo* info);

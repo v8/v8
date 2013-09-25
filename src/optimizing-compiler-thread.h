@@ -40,7 +40,7 @@ namespace v8 {
 namespace internal {
 
 class HOptimizedGraphBuilder;
-class OptimizingCompiler;
+class RecompileJob;
 class SharedFunctionInfo;
 
 class OptimizingCompilerThread : public Thread {
@@ -60,7 +60,7 @@ class OptimizingCompilerThread : public Thread {
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
     if (FLAG_concurrent_osr) {
       osr_buffer_size_ = FLAG_concurrent_recompilation_queue_length + 4;
-      osr_buffer_ = NewArray<OptimizingCompiler*>(osr_buffer_size_);
+      osr_buffer_ = NewArray<RecompileJob*>(osr_buffer_size_);
       for (int i = 0; i < osr_buffer_size_; i++) osr_buffer_[i] = NULL;
     }
   }
@@ -72,10 +72,10 @@ class OptimizingCompilerThread : public Thread {
   void Run();
   void Stop();
   void Flush();
-  void QueueForOptimization(OptimizingCompiler* optimizing_compiler);
+  void QueueForOptimization(RecompileJob* optimizing_compiler);
   void InstallOptimizedFunctions();
-  OptimizingCompiler* FindReadyOSRCandidate(Handle<JSFunction> function,
-                                            uint32_t osr_pc_offset);
+  RecompileJob* FindReadyOSRCandidate(Handle<JSFunction> function,
+                                      uint32_t osr_pc_offset);
   bool IsQueuedForOSR(Handle<JSFunction> function, uint32_t osr_pc_offset);
 
   bool IsQueuedForOSR(JSFunction* function);
@@ -108,7 +108,7 @@ class OptimizingCompilerThread : public Thread {
 
   // Add a recompilation task for OSR to the cyclic buffer, awaiting OSR entry.
   // Tasks evicted from the cyclic buffer are discarded.
-  void AddToOsrBuffer(OptimizingCompiler* compiler);
+  void AddToOsrBuffer(RecompileJob* compiler);
   void AdvanceOsrCursor() {
     osr_cursor_ = (osr_cursor_ + 1) % osr_buffer_size_;
   }
@@ -123,13 +123,13 @@ class OptimizingCompilerThread : public Thread {
   Semaphore input_queue_semaphore_;
 
   // Queue of incoming recompilation tasks (including OSR).
-  UnboundQueue<OptimizingCompiler*> input_queue_;
+  UnboundQueue<RecompileJob*> input_queue_;
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  UnboundQueue<OptimizingCompiler*> output_queue_;
+  UnboundQueue<RecompileJob*> output_queue_;
   // Cyclic buffer of recompilation tasks for OSR.
   // TODO(yangguo): This may keep zombie tasks indefinitely, holding on to
   //                a lot of memory.  Fix this.
-  OptimizingCompiler** osr_buffer_;
+  RecompileJob** osr_buffer_;
   // Cursor for the cyclic buffer.
   int osr_cursor_;
   int osr_buffer_size_;

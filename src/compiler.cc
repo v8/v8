@@ -260,7 +260,7 @@ static bool AlwaysFullCompiler(Isolate* isolate) {
 }
 
 
-void OptimizingCompiler::RecordOptimizationStats() {
+void RecompileJob::RecordOptimizationStats() {
   Handle<JSFunction> function = info()->closure();
   int opt_count = function->shared()->opt_count();
   function->shared()->set_opt_count(opt_count + 1);
@@ -297,23 +297,23 @@ void OptimizingCompiler::RecordOptimizationStats() {
 // A return value of true indicates the compilation pipeline is still
 // going, not necessarily that we optimized the code.
 static bool MakeCrankshaftCode(CompilationInfo* info) {
-  OptimizingCompiler compiler(info);
-  OptimizingCompiler::Status status = compiler.CreateGraph();
+  RecompileJob job(info);
+  RecompileJob::Status status = job.CreateGraph();
 
-  if (status != OptimizingCompiler::SUCCEEDED) {
-    return status != OptimizingCompiler::FAILED;
+  if (status != RecompileJob::SUCCEEDED) {
+    return status != RecompileJob::FAILED;
   }
-  status = compiler.OptimizeGraph();
-  if (status != OptimizingCompiler::SUCCEEDED) {
-    status = compiler.AbortOptimization();
-    return status != OptimizingCompiler::FAILED;
+  status = job.OptimizeGraph();
+  if (status != RecompileJob::SUCCEEDED) {
+    status = job.AbortOptimization();
+    return status != RecompileJob::FAILED;
   }
-  status = compiler.GenerateAndInstallCode();
-  return status != OptimizingCompiler::FAILED;
+  status = job.GenerateAndInstallCode();
+  return status != RecompileJob::FAILED;
 }
 
 
-OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
+RecompileJob::Status RecompileJob::CreateGraph() {
   ASSERT(isolate()->use_crankshaft());
   ASSERT(info()->IsOptimizing());
   ASSERT(!info()->IsCompilingForDebugging());
@@ -452,7 +452,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 }
 
 
-OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
+RecompileJob::Status RecompileJob::OptimizeGraph() {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
@@ -475,7 +475,7 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
 }
 
 
-OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
+RecompileJob::Status RecompileJob::GenerateAndInstallCode() {
   ASSERT(last_status() == SUCCEEDED);
   ASSERT(!info()->HasAbortedDueToDependencyChange());
   DisallowCodeDependencyChange no_dependency_change;
@@ -1032,16 +1032,15 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
       info->SaveHandles();
 
       if (Rewriter::Rewrite(*info) && Scope::Analyze(*info)) {
-        OptimizingCompiler* compiler =
-            new(info->zone()) OptimizingCompiler(*info);
-        OptimizingCompiler::Status status = compiler->CreateGraph();
-        if (status == OptimizingCompiler::SUCCEEDED) {
+        RecompileJob* job = new(info->zone()) RecompileJob(*info);
+        RecompileJob::Status status = job->CreateGraph();
+        if (status == RecompileJob::SUCCEEDED) {
           info.Detach();
           shared->code()->set_profiler_ticks(0);
-          isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
+          isolate->optimizing_compiler_thread()->QueueForOptimization(job);
           ASSERT(!isolate->has_pending_exception());
           return true;
-        } else if (status == OptimizingCompiler::BAILED_OUT) {
+        } else if (status == RecompileJob::BAILED_OUT) {
           isolate->clear_pending_exception();
           InstallFullCode(*info);
         }
@@ -1054,9 +1053,8 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
 }
 
 
-Handle<Code> Compiler::InstallOptimizedCode(
-    OptimizingCompiler* optimizing_compiler) {
-  SmartPointer<CompilationInfo> info(optimizing_compiler->info());
+Handle<Code> Compiler::InstallOptimizedCode(RecompileJob* job) {
+  SmartPointer<CompilationInfo> info(job->info());
   // The function may have already been optimized by OSR.  Simply continue.
   // Except when OSR already disabled optimization for some reason.
   if (info->shared_info()->optimization_disabled()) {
@@ -1077,24 +1075,24 @@ Handle<Code> Compiler::InstallOptimizedCode(
       isolate, Logger::TimerEventScope::v8_recompile_synchronous);
   // If crankshaft succeeded, install the optimized code else install
   // the unoptimized code.
-  OptimizingCompiler::Status status = optimizing_compiler->last_status();
+  RecompileJob::Status status = job->last_status();
   if (info->HasAbortedDueToDependencyChange()) {
     info->set_bailout_reason(kBailedOutDueToDependencyChange);
-    status = optimizing_compiler->AbortOptimization();
-  } else if (status != OptimizingCompiler::SUCCEEDED) {
+    status = job->AbortOptimization();
+  } else if (status != RecompileJob::SUCCEEDED) {
     info->set_bailout_reason(kFailedBailedOutLastTime);
-    status = optimizing_compiler->AbortOptimization();
+    status = job->AbortOptimization();
   } else if (isolate->DebuggerHasBreakPoints()) {
     info->set_bailout_reason(kDebuggerIsActive);
-    status = optimizing_compiler->AbortOptimization();
+    status = job->AbortOptimization();
   } else {
-    status = optimizing_compiler->GenerateAndInstallCode();
-    ASSERT(status == OptimizingCompiler::SUCCEEDED ||
-           status == OptimizingCompiler::BAILED_OUT);
+    status = job->GenerateAndInstallCode();
+    ASSERT(status == RecompileJob::SUCCEEDED ||
+           status == RecompileJob::BAILED_OUT);
   }
 
   InstallCodeCommon(*info);
-  if (status == OptimizingCompiler::SUCCEEDED) {
+  if (status == RecompileJob::SUCCEEDED) {
     Handle<Code> code = info->code();
     ASSERT(info->shared_info()->scope_info() != ScopeInfo::Empty(isolate));
     info->closure()->ReplaceCode(*code);
@@ -1115,8 +1113,8 @@ Handle<Code> Compiler::InstallOptimizedCode(
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
   ASSERT(!info->closure()->IsInRecompileQueue());
-  return (status == OptimizingCompiler::SUCCEEDED) ? info->code()
-                                                   : Handle<Code>::null();
+  return (status == RecompileJob::SUCCEEDED) ? info->code()
+                                             : Handle<Code>::null();
 }
 
 

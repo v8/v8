@@ -94,28 +94,29 @@ void OptimizingCompilerThread::Run() {
 
 
 void OptimizingCompilerThread::CompileNext() {
-  OptimizingCompiler* optimizing_compiler = NULL;
-  bool result = input_queue_.Dequeue(&optimizing_compiler);
+  RecompileJob* job = NULL;
+  bool result = input_queue_.Dequeue(&job);
   USE(result);
   ASSERT(result);
   Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));
 
   // The function may have already been optimized by OSR.  Simply continue.
-  OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
+  RecompileJob::Status status = job->OptimizeGraph();
   USE(status);   // Prevent an unused-variable error in release mode.
-  ASSERT(status != OptimizingCompiler::FAILED);
+  ASSERT(status != RecompileJob::FAILED);
 
   // The function may have already been optimized by OSR.  Simply continue.
   // Use a mutex to make sure that functions marked for install
   // are always also queued.
   LockGuard<Mutex> access_queue(&queue_mutex_);
-  output_queue_.Enqueue(optimizing_compiler);
+  output_queue_.Enqueue(job);
   isolate_->stack_guard()->RequestInstallCode();
 }
 
 
-static void DisposeOptimizingCompiler(OptimizingCompiler* compiler,
-                                      bool restore_function_code) {
+static void DisposeRecompileJob(RecompileJob* compiler,
+                                bool restore_function_code) {
+  // The recompile job is allocated in the CompilationInfo's zone.
   CompilationInfo* info = compiler->info();
   if (restore_function_code) {
     Handle<JSFunction> function = info->closure();
@@ -126,15 +127,14 @@ static void DisposeOptimizingCompiler(OptimizingCompiler* compiler,
 
 
 void OptimizingCompilerThread::FlushInputQueue(bool restore_function_code) {
-  OptimizingCompiler* optimizing_compiler;
-  // The optimizing compiler is allocated in the CompilationInfo's zone.
-  while (input_queue_.Dequeue(&optimizing_compiler)) {
+  RecompileJob* job;
+  while (input_queue_.Dequeue(&job)) {
     // This should not block, since we have one signal on the input queue
     // semaphore corresponding to each element in the input queue.
     input_queue_semaphore_.Wait();
-    if (optimizing_compiler->info()->osr_ast_id().IsNone()) {
+    if (job->info()->osr_ast_id().IsNone()) {
       // OSR jobs are dealt with separately.
-      DisposeOptimizingCompiler(optimizing_compiler, restore_function_code);
+      DisposeRecompileJob(job, restore_function_code);
     }
   }
   Release_Store(&queue_length_, static_cast<AtomicWord>(0));
@@ -142,27 +142,24 @@ void OptimizingCompilerThread::FlushInputQueue(bool restore_function_code) {
 
 
 void OptimizingCompilerThread::FlushOutputQueue(bool restore_function_code) {
-  OptimizingCompiler* optimizing_compiler;
-  // The optimizing compiler is allocated in the CompilationInfo's zone.
+  RecompileJob* job;
   while (true) {
     { LockGuard<Mutex> access_queue(&queue_mutex_);
-      if (!output_queue_.Dequeue(&optimizing_compiler)) break;
+      if (!output_queue_.Dequeue(&job)) break;
     }
-    if (optimizing_compiler->info()->osr_ast_id().IsNone()) {
+    if (job->info()->osr_ast_id().IsNone()) {
       // OSR jobs are dealt with separately.
-      DisposeOptimizingCompiler(optimizing_compiler, restore_function_code);
+      DisposeRecompileJob(job, restore_function_code);
     }
   }
 }
 
 
 void OptimizingCompilerThread::FlushOsrBuffer(bool restore_function_code) {
-  OptimizingCompiler* optimizing_compiler;
+  RecompileJob* job;
   for (int i = 0; i < osr_buffer_size_; i++) {
-    optimizing_compiler = osr_buffer_[i];
-    if (optimizing_compiler != NULL) {
-      DisposeOptimizingCompiler(optimizing_compiler, restore_function_code);
-    }
+    job = osr_buffer_[i];
+    if (job != NULL) DisposeRecompileJob(job, restore_function_code);
   }
   osr_cursor_ = 0;
 }
@@ -215,14 +212,14 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   ASSERT(!IsOptimizerThread());
   HandleScope handle_scope(isolate_);
 
-  OptimizingCompiler* compiler;
+  RecompileJob* job;
   while (true) {
     { LockGuard<Mutex> access_queue(&queue_mutex_);
-      if (!output_queue_.Dequeue(&compiler)) break;
+      if (!output_queue_.Dequeue(&job)) break;
     }
-    CompilationInfo* info = compiler->info();
+    CompilationInfo* info = job->info();
     if (info->osr_ast_id().IsNone()) {
-      Compiler::InstallOptimizedCode(compiler);
+      Compiler::InstallOptimizedCode(job);
     } else {
       if (FLAG_trace_osr) {
         PrintF("[COSR - ");
@@ -230,19 +227,18 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
         PrintF(" is ready for install and entry at AST id %d]\n",
                info->osr_ast_id().ToInt());
       }
-      compiler->WaitForInstall();
+      job->WaitForInstall();
       BackEdgeTable::RemoveStackCheck(info);
     }
   }
 }
 
 
-void OptimizingCompilerThread::QueueForOptimization(
-    OptimizingCompiler* optimizing_compiler) {
+void OptimizingCompilerThread::QueueForOptimization(RecompileJob* job) {
   ASSERT(IsQueueAvailable());
   ASSERT(!IsOptimizerThread());
   Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(1));
-  CompilationInfo* info = optimizing_compiler->info();
+  CompilationInfo* info = job->info();
   if (info->osr_ast_id().IsNone()) {
     info->closure()->MarkInRecompileQueue();
   } else {
@@ -251,19 +247,19 @@ void OptimizingCompilerThread::QueueForOptimization(
       info->closure()->PrintName();
       PrintF(" for concurrent on-stack replacement.\n");
     }
-    AddToOsrBuffer(optimizing_compiler);
+    AddToOsrBuffer(job);
     osr_attempts_++;
     BackEdgeTable::AddStackCheck(info);
   }
-  input_queue_.Enqueue(optimizing_compiler);
+  input_queue_.Enqueue(job);
   input_queue_semaphore_.Signal();
 }
 
 
-OptimizingCompiler* OptimizingCompilerThread::FindReadyOSRCandidate(
+RecompileJob* OptimizingCompilerThread::FindReadyOSRCandidate(
     Handle<JSFunction> function, uint32_t osr_pc_offset) {
   ASSERT(!IsOptimizerThread());
-  OptimizingCompiler* result = NULL;
+  RecompileJob* result = NULL;
   for (int i = 0; i < osr_buffer_size_; i++) {
     result = osr_buffer_[i];
     if (result == NULL) continue;
@@ -303,11 +299,11 @@ bool OptimizingCompilerThread::IsQueuedForOSR(JSFunction* function) {
 }
 
 
-void OptimizingCompilerThread::AddToOsrBuffer(OptimizingCompiler* compiler) {
+void OptimizingCompilerThread::AddToOsrBuffer(RecompileJob* job) {
   ASSERT(!IsOptimizerThread());
   // Store into next empty slot or replace next stale OSR job that's waiting
   // in vain.  Dispose in the latter case.
-  OptimizingCompiler* stale;
+  RecompileJob* stale;
   while (true) {
     stale = osr_buffer_[osr_cursor_];
     if (stale == NULL) break;
@@ -319,13 +315,13 @@ void OptimizingCompilerThread::AddToOsrBuffer(OptimizingCompiler* compiler) {
         PrintF(", AST id %d]\n", info->osr_ast_id().ToInt());
       }
       BackEdgeTable::RemoveStackCheck(info);
-      DisposeOptimizingCompiler(stale, false);
+      DisposeRecompileJob(stale, false);
       break;
     }
     AdvanceOsrCursor();
   }
 
-  osr_buffer_[osr_cursor_] = compiler;
+  osr_buffer_[osr_cursor_] = job;
   AdvanceOsrCursor();
 }
 

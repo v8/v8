@@ -8621,10 +8621,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
       return NULL;
     }
 
-    OptimizingCompiler* compiler = isolate->optimizing_compiler_thread()->
+    RecompileJob* job = isolate->optimizing_compiler_thread()->
         FindReadyOSRCandidate(function, pc_offset);
 
-    if (compiler == NULL) {
+    if (job == NULL) {
       if (IsSuitableForOnStackReplacement(isolate, function, unoptimized) &&
           Compiler::RecompileConcurrent(function, pc_offset)) {
         if (function->IsMarkedForLazyRecompilation() ||
@@ -8638,8 +8638,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
       // Fall through to the end in case of failure.
     } else {
       // TODO(titzer): don't install the OSR code into the function.
-      ast_id = compiler->info()->osr_ast_id();
-      result = Compiler::InstallOptimizedCode(compiler);
+      ast_id = job->info()->osr_ast_id();
+      result = Compiler::InstallOptimizedCode(job);
     }
   } else if (IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
     ast_id = unoptimized->TranslatePcOffsetToAstId(pc_offset);
