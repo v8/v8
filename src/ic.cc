@@ -403,7 +403,7 @@ void IC::Clear(Isolate* isolate, Address address) {
 
 
 void CallICBase::Clear(Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
+  if (IsCleared(target)) return;
   bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
   Code* code =
       target->GetIsolate()->stub_cache()->FindCallInitialize(
@@ -415,35 +415,35 @@ void CallICBase::Clear(Address address, Code* target) {
 
 
 void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
+  if (IsCleared(target)) return;
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  SetTargetAtAddress(address, *initialize_stub(isolate));
+  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate));
 }
 
 
 void LoadIC::Clear(Isolate* isolate, Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
-  SetTargetAtAddress(address, *initialize_stub(isolate));
+  if (IsCleared(target)) return;
+  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate));
 }
 
 
 void StoreIC::Clear(Isolate* isolate, Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
+  if (IsCleared(target)) return;
   SetTargetAtAddress(address,
       (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? *initialize_stub_strict(isolate)
-        : *initialize_stub(isolate));
+        ? *pre_monomorphic_stub_strict(isolate)
+        : *pre_monomorphic_stub(isolate));
 }
 
 
 void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
+  if (IsCleared(target)) return;
   SetTargetAtAddress(address,
       (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? *initialize_stub_strict(isolate)
-        : *initialize_stub(isolate));
+        ? *pre_monomorphic_stub_strict(isolate)
+        : *pre_monomorphic_stub(isolate));
 }
 
 

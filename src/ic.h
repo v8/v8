@@ -134,6 +134,11 @@ class IC {
                                              Object* object,
                                              InlineCacheHolderFlag holder);
 
+  static bool IsCleared(Code* code) {
+    InlineCacheState state = code->ic_state();
+    return state == UNINITIALIZED || state == PREMONOMORPHIC;
+  }
+
  protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
@@ -423,8 +428,11 @@ class LoadIC: public IC {
   static Handle<Code> initialize_stub(Isolate* isolate) {
     return isolate->builtins()->LoadIC_Initialize();
   }
+  static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
+    return isolate->builtins()->LoadIC_PreMonomorphic();
+  }
   virtual Handle<Code> pre_monomorphic_stub() {
-    return isolate()->builtins()->LoadIC_PreMonomorphic();
+    return pre_monomorphic_stub(isolate());
   }
 
   static void Clear(Isolate* isolate, Address address, Code* target);
@@ -502,8 +510,11 @@ class KeyedLoadIC: public LoadIC {
   static Handle<Code> initialize_stub(Isolate* isolate) {
     return isolate->builtins()->KeyedLoadIC_Initialize();
   }
+  static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
+    return isolate->builtins()->KeyedLoadIC_PreMonomorphic();
+  }
   virtual Handle<Code> pre_monomorphic_stub() {
-    return isolate()->builtins()->KeyedLoadIC_PreMonomorphic();
+    return pre_monomorphic_stub(isolate());
   }
   Handle<Code> indexed_interceptor_stub() {
     return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
@@ -564,11 +575,17 @@ class StoreIC: public IC {
   virtual Handle<Code> generic_stub_strict() const {
     return isolate()->builtins()->StoreIC_Generic_Strict();
   }
-  virtual Handle<Code> pre_monomorphic_stub() const {
-    return isolate()->builtins()->StoreIC_PreMonomorphic();
+  virtual Handle<Code> pre_monomorphic_stub() {
+    return pre_monomorphic_stub(isolate());
   }
-  virtual Handle<Code> pre_monomorphic_stub_strict() const {
-    return isolate()->builtins()->StoreIC_PreMonomorphic_Strict();
+  static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
+    return isolate->builtins()->StoreIC_PreMonomorphic();
+  }
+  virtual Handle<Code> pre_monomorphic_stub_strict() {
+    return pre_monomorphic_stub_strict(isolate());
+  }
+  static Handle<Code> pre_monomorphic_stub_strict(Isolate* isolate) {
+    return isolate->builtins()->StoreIC_PreMonomorphic_Strict();
   }
   virtual Handle<Code> global_proxy_stub() {
     return isolate()->builtins()->StoreIC_GlobalProxy();
@@ -675,11 +692,17 @@ class KeyedStoreIC: public StoreIC {
                                                Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
-  virtual Handle<Code> pre_monomorphic_stub() const {
-    return isolate()->builtins()->KeyedStoreIC_PreMonomorphic();
+  virtual Handle<Code> pre_monomorphic_stub() {
+    return pre_monomorphic_stub(isolate());
   }
-  virtual Handle<Code> pre_monomorphic_stub_strict() const {
-    return isolate()->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
+  static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
+    return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
+  }
+  virtual Handle<Code> pre_monomorphic_stub_strict() {
+    return pre_monomorphic_stub_strict(isolate());
+  }
+  static Handle<Code> pre_monomorphic_stub_strict(Isolate* isolate) {
+    return isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
   }
   virtual Handle<Code> megamorphic_stub() {
     return isolate()->builtins()->KeyedStoreIC_Generic();
