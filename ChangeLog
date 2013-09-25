@@ -1,3 +1,11 @@
+2013-09-25: Version 3.22.1
+
+        Sped up creating typed arrays from array-like objects.
+        (Chromium issue 270507)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-23: Version 3.22.0
 
         LiveEdit to mark more closure functions for re-instantiation when scope
