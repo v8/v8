@@ -60,6 +60,16 @@ void ToNumberStub::InitializeInterfaceDescriptor(
 }
 
 
+void NumberToStringStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -991,21 +1001,6 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ And(a0, a0, Operand(1 << Map::kIsUndetectable));
   __ Ret(USE_DELAY_SLOT);
   __ xori(v0, a0, 1 << Map::kIsUndetectable);
-}
-
-
-void NumberToStringStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  __ lw(a1, MemOperand(sp, 0));
-
-  // Generate code to lookup number in the number string cache.
-  __ LookupNumberStringCache(a1, v0, a2, a3, t0, &runtime);
-  __ DropAndRet(1);
-
-  __ bind(&runtime);
-  // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
 }
 
 
