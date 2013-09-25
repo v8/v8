@@ -29,7 +29,7 @@
 
 (function run() {
   var start_test = Date.now();
-  // Let the retry run for maximum 20ms to reduce flakiness.
+  // Let the retry run for maximum 100ms to reduce flakiness.
   for (var start = Date.now(); start - start_test < 100; start = Date.now()) {
     var end = Date.now();
     while (end - start == 0) {
