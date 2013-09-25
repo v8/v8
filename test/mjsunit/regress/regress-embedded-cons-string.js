@@ -27,7 +27,7 @@
 
 // Flags: --fold-constants --nodead-code-elimination
 // Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=300
+// Flags: --concurrent-recompilation --concurrent-recompilation-delay=600
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
