@@ -4766,7 +4766,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadMonomorphic() {
   if (!CanInlinePropertyAccess(*map_)) return IsStringLength();
-  if (IsArrayLength()) return true;
+  if (IsJSObjectFieldAccessor()) return true;
   if (!LookupDescriptor()) return false;
   if (lookup_.IsFound()) return true;
   return LookupInPrototypes();
@@ -4798,9 +4798,10 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
     return true;
   }
 
-  if (IsTypedArrayLength()) {
+  if (IsJSObjectFieldAccessor()) {
+    InstanceType instance_type = map_->instance_type();
     for (int i = 1; i < types->length(); ++i) {
-      if (types->at(i)->instance_type() != JS_TYPED_ARRAY_TYPE) return false;
+      if (types->at(i)->instance_type() != instance_type) return false;
     }
     return true;
   }
@@ -4821,20 +4822,10 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
     BailoutId ast_id,
     BailoutId return_id,
     bool can_inline_accessor) {
-  if (info->IsStringLength()) {
-    return New<HLoadNamedField>(
-        checked_object, HObjectAccess::ForStringLength());
-  }
 
-  if (info->IsArrayLength()) {
-    return New<HLoadNamedField>(
-        checked_object, HObjectAccess::ForArrayLength(
-            info->map()->elements_kind()));
-  }
-
-  if (info->IsTypedArrayLength()) {
-    return New<HLoadNamedField>(
-        checked_object, HObjectAccess::ForTypedArrayLength());
+  HObjectAccess access = HObjectAccess::ForMap();  // bogus default
+  if (info->GetJSObjectFieldAccess(&access)) {
+    return New<HLoadNamedField>(checked_object, access);
   }
 
   HValue* checked_holder = checked_object;
@@ -5536,16 +5527,6 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
   return new(zone()) HLoadNamedGeneric(context, object, name);
 }
 
-
-HInstruction* HOptimizedGraphBuilder::BuildCallGetter(
-    HValue* object,
-    Handle<Map> map,
-    Handle<JSFunction> getter,
-    Handle<JSObject> holder) {
-  AddCheckConstantFunction(holder, object, map);
-  Add<HPushArgument>(object);
-  return new(zone()) HCallConstantFunction(getter, 1);
-}
 
 
 HInstruction* HOptimizedGraphBuilder::BuildLoadKeyedGeneric(HValue* object,

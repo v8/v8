@@ -1348,20 +1348,19 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
       if (!holder.is_identical_to(receiver)) break;
       return isolate()->stub_cache()->ComputeLoadNormal(name, receiver);
     case CALLBACKS: {
-      Handle<Object> callback(lookup->GetCallbackObject(), isolate());
-      if (name->Equals(isolate()->heap()->length_string())) {
-        if (receiver->IsJSArray()) {
-          PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
-              JSArray::kLengthOffset / kPointerSize);
+      {
+        // Use simple field loads for some well-known callback properties.
+        int object_offset;
+        Handle<Map> map(receiver->map());
+        if (Accessors::IsJSObjectFieldAccessor(map, name, &object_offset)) {
+          PropertyIndex index =
+              PropertyIndex::NewHeaderIndex(object_offset / kPointerSize);
           return isolate()->stub_cache()->ComputeLoadField(
-              name, receiver, receiver, lengthIndex, Representation::Tagged());
-        } else if (receiver->IsJSTypedArray()) {
-          PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
-              JSTypedArray::kLengthOffset / kPointerSize);
-          return isolate()->stub_cache()->ComputeLoadField(
-              name, receiver, receiver, lengthIndex, Representation::Tagged());
+              name, receiver, receiver, index, Representation::Tagged());
         }
       }
+
+      Handle<Object> callback(lookup->GetCallbackObject(), isolate());
       if (callback->IsExecutableAccessorInfo()) {
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(callback);
