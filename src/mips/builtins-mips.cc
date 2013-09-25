@@ -966,6 +966,23 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  __ LoadRoot(at, Heap::kStackLimitRootIndex);
+  __ Branch(&ok, hs, sp, Operand(at));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
+          RelocInfo::CODE_TARGET);
+
+  __ bind(&ok);
+  __ Ret();
+}
+
+
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1. Make sure we have at least one argument.
   // a0: actual number of arguments
