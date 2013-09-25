@@ -285,14 +285,13 @@ bool Object::HasValidElements() {
 
 
 MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
-                                           Representation representation,
-                                           PretenureFlag tenure) {
+                                           Representation representation) {
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
   if (IsUninitialized()) {
-    return heap->AllocateHeapNumber(0, tenure);
+    return heap->AllocateHeapNumber(0);
   }
-  return heap->AllocateHeapNumber(Number(), tenure);
+  return heap->AllocateHeapNumber(Number());
 }
 
 
@@ -1325,6 +1324,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
 
 void AllocationSite::Initialize() {
   SetElementsKind(GetInitialFastElementsKind());
+  set_nested_site(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
                      SKIP_WRITE_BARRIER);
 }
@@ -1539,19 +1539,6 @@ MaybeObject* JSObject::ResetElements() {
   initialize_elements();
 
   return this;
-}
-
-
-MaybeObject* JSObject::TryMigrateInstance() {
-  Map* new_map = map()->CurrentMapForDeprecated();
-  if (new_map == NULL) return Smi::FromInt(0);
-  Map* original_map = map();
-  MaybeObject* maybe_result = MigrateToMap(new_map);
-  JSObject* result;
-  if (FLAG_trace_migration && maybe_result->To(&result)) {
-    PrintInstanceMigration(stdout, original_map, result->map());
-  }
-  return maybe_result;
 }
 
 
@@ -4456,6 +4443,7 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
+ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)

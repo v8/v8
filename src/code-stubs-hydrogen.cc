@@ -339,6 +339,19 @@ Handle<Code> ToNumberStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
+HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
+  info()->MarkAsSavesCallerDoubles();
+  HValue* number = GetParameter(NumberToStringStub::kNumber);
+  return BuildNumberToString(number);
+}
+
+
+Handle<Code> NumberToStringStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();
@@ -472,6 +485,11 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteTransitionInfo(),
                         initial_elements_kind);
+
+  // Unlike literals, constructed arrays don't have nested sites
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteNestedSite(),
+                        graph()->GetConstant0());
 
   // Store an empty fixed array for the code dependency.
   HConstant* empty_fixed_array =

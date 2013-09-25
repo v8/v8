@@ -106,7 +106,6 @@ class StringHelper : public AllStatic {
                                          Register scratch2,
                                          Register scratch3,
                                          Register scratch4,
-                                         Register scratch5,
                                          int flags);
 
 
@@ -252,18 +251,6 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
            | HeapNumberRegisterBits::encode(the_heap_number_.code())
            | ScratchRegisterBits::encode(scratch_.code());
   }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
-class NumberToStringStub: public PlatformCodeStub {
- public:
-  NumberToStringStub() { }
-
- private:
-  Major MajorKey() { return NumberToString; }
-  int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
 };

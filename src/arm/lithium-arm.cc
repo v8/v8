@@ -1240,7 +1240,7 @@ LInstruction* LChunkBuilder::DoMathTan(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->value()->representation().IsDouble());
-  LOperand* input = UseTempRegister(instr->value());
+  LOperand* input = UseRegister(instr->value());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
   LOperand* double_temp = FixedTemp(d3);  // Chosen by fair dice roll.

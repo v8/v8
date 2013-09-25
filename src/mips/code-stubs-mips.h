@@ -268,18 +268,6 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
 };
 
 
-class NumberToStringStub: public PlatformCodeStub {
- public:
-  NumberToStringStub() { }
-
- private:
-  Major MajorKey() { return NumberToString; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
 class RecordWriteStub: public PlatformCodeStub {
  public:
   RecordWriteStub(Register object,
@@ -466,22 +454,6 @@ class RecordWriteStub: public PlatformCodeStub {
   RegisterAllocation regs_;
 };
 
-
-// Enter C code from generated RegExp code in a way that allows
-// the C code to fix the return address in case of a GC.
-// Currently only needed on ARM and MIPS.
-class RegExpCEntryStub: public PlatformCodeStub {
- public:
-  RegExpCEntryStub() {}
-  virtual ~RegExpCEntryStub() {}
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return RegExpCEntry; }
-  int MinorKey() { return 0; }
-
-  bool NeedsImmovableCode() { return true; }
-};
 
 // Trampoline stub to call into native code. To call safely into native code
 // in the presence of compacting GC (which can move code objects) we need to

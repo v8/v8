@@ -542,12 +542,12 @@ class HandleScopeImplementer {
   inline void DecrementCallDepth() {call_depth_--;}
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
-  inline void EnterContext(Handle<Object> context);
-  inline bool LeaveContext(Handle<Object> context);
+  inline void EnterContext(Handle<Context> context);
+  inline bool LeaveContext(Handle<Context> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
-  inline Handle<Object> LastEnteredContext();
+  inline Handle<Context> LastEnteredContext();
 
   inline void SaveContext(Context* context);
   inline Context* RestoreContext();
@@ -592,7 +592,7 @@ class HandleScopeImplementer {
   Isolate* isolate_;
   List<internal::Object**> blocks_;
   // Used as a stack to keep track of entered contexts.
-  List<Handle<Object> > entered_contexts_;
+  List<Context*> entered_contexts_;
   // Used as a stack to keep track of saved contexts.
   List<Context*> saved_contexts_;
   Object** spare_;
@@ -630,23 +630,23 @@ bool HandleScopeImplementer::HasSavedContexts() {
 }
 
 
-void HandleScopeImplementer::EnterContext(Handle<Object> context) {
-  entered_contexts_.Add(context);
+void HandleScopeImplementer::EnterContext(Handle<Context> context) {
+  entered_contexts_.Add(*context);
 }
 
 
-bool HandleScopeImplementer::LeaveContext(Handle<Object> context) {
+bool HandleScopeImplementer::LeaveContext(Handle<Context> context) {
   if (entered_contexts_.is_empty()) return false;
   // TODO(dcarney): figure out what's wrong here
-  // if (*entered_contexts_.last() != *context) return false;
+  // if (entered_contexts_.last() != *context) return false;
   entered_contexts_.RemoveLast();
   return true;
 }
 
 
-Handle<Object> HandleScopeImplementer::LastEnteredContext() {
-  if (entered_contexts_.is_empty()) return Handle<Object>::null();
-  return entered_contexts_.last();
+Handle<Context> HandleScopeImplementer::LastEnteredContext() {
+  if (entered_contexts_.is_empty()) return Handle<Context>::null();
+  return Handle<Context>(entered_contexts_.last());
 }
 
 

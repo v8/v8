@@ -76,9 +76,11 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
 
   function ConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
-    var l =  ToPositiveInteger(length, "invalid_typed_array_length");
+    var l = ToPositiveInteger(length, "invalid_typed_array_length");
     if(!%TypedArrayInitializeFromArrayLike(obj, arrayId, arrayLike, l)) {
       for (var i = 0; i < l; i++) {
+        // It is crucial that we let any execptions from arrayLike[i]
+        // propagate outside the function.
         obj[i] = arrayLike[i];
       }
     }

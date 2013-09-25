@@ -4973,7 +4973,7 @@ THREADED_TEST(Equality) {
   CHECK(!v8_str("5")->StrictEquals(v8_num(5)));
   CHECK(v8_num(1)->StrictEquals(v8_num(1)));
   CHECK(!v8_num(1)->StrictEquals(v8_num(2)));
-  CHECK(v8_num(0)->StrictEquals(v8_num(-0)));
+  CHECK(v8_num(0.0)->StrictEquals(v8_num(-0.0)));
   Local<Value> not_a_number = v8_num(i::OS::nan_value());
   CHECK(!not_a_number->StrictEquals(not_a_number));
   CHECK(v8::False()->StrictEquals(v8::False()));
@@ -4983,6 +4983,16 @@ THREADED_TEST(Equality) {
   v8::Persistent<v8::Object> alias(isolate, obj);
   CHECK(v8::Local<v8::Object>::New(isolate, alias)->StrictEquals(obj));
   alias.Dispose();
+
+  CHECK(v8_str("a")->SameValue(v8_str("a")));
+  CHECK(!v8_str("a")->SameValue(v8_str("b")));
+  CHECK(!v8_str("5")->SameValue(v8_num(5)));
+  CHECK(v8_num(1)->SameValue(v8_num(1)));
+  CHECK(!v8_num(1)->SameValue(v8_num(2)));
+  CHECK(!v8_num(0.0)->SameValue(v8_num(-0.0)));
+  CHECK(not_a_number->SameValue(not_a_number));
+  CHECK(v8::False()->SameValue(v8::False()));
+  CHECK(!v8::False()->SameValue(v8::Undefined()));
 }
 
 

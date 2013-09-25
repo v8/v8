@@ -147,6 +147,7 @@
           'sources': [
             'test-assembler-mips.cc',
             'test-disasm-mips.cc',
+            'test-macro-assembler-mips.cc'
           ],
         }],
         [ 'OS=="linux"', {

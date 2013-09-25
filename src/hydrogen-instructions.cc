@@ -2363,8 +2363,7 @@ static bool IsInteger32(double value) {
 
 HConstant::HConstant(Handle<Object> handle, Representation r)
   : HTemplateInstruction<0>(HType::TypeFromValue(handle)),
-    handle_(handle),
-    unique_id_(),
+    object_(Unique<Object>::CreateUninitialized(handle)),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -2373,29 +2372,28 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     is_not_in_new_space_(true),
     is_cell_(false),
     boolean_value_(handle->BooleanValue()) {
-  if (handle_->IsHeapObject()) {
+  if (handle->IsHeapObject()) {
     Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
     is_not_in_new_space_ = !heap->InNewSpace(*handle);
   }
-  if (handle_->IsNumber()) {
-    double n = handle_->Number();
+  if (handle->IsNumber()) {
+    double n = handle->Number();
     has_int32_value_ = IsInteger32(n);
     int32_value_ = DoubleToInt32(n);
     has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
     double_value_ = n;
     has_double_value_ = true;
   } else {
-    is_internalized_string_ = handle_->IsInternalizedString();
+    is_internalized_string_ = handle->IsInternalizedString();
   }
 
-  is_cell_ = !handle_.is_null() &&
-      (handle_->IsCell() || handle_->IsPropertyCell());
+  is_cell_ = !handle.is_null() &&
+      (handle->IsCell() || handle->IsPropertyCell());
   Initialize(r);
 }
 
 
-HConstant::HConstant(Handle<Object> handle,
-                     UniqueValueId unique_id,
+HConstant::HConstant(Unique<Object> unique,
                      Representation r,
                      HType type,
                      bool is_internalize_string,
@@ -2403,8 +2401,7 @@ HConstant::HConstant(Handle<Object> handle,
                      bool is_cell,
                      bool boolean_value)
   : HTemplateInstruction<0>(type),
-    handle_(handle),
-    unique_id_(unique_id),
+    object_(unique),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -2413,36 +2410,17 @@ HConstant::HConstant(Handle<Object> handle,
     is_not_in_new_space_(is_not_in_new_space),
     is_cell_(is_cell),
     boolean_value_(boolean_value) {
-  ASSERT(!handle.is_null());
+  ASSERT(!unique.handle().is_null());
   ASSERT(!type.IsTaggedNumber());
   Initialize(r);
-}
-
-
-HConstant::HConstant(Handle<Map> handle,
-                     UniqueValueId unique_id)
-  : HTemplateInstruction<0>(HType::Tagged()),
-    handle_(handle),
-    unique_id_(unique_id),
-    has_smi_value_(false),
-    has_int32_value_(false),
-    has_double_value_(false),
-    has_external_reference_value_(false),
-    is_internalized_string_(false),
-    is_not_in_new_space_(true),
-    is_cell_(false),
-    boolean_value_(false) {
-  ASSERT(!handle.is_null());
-  Initialize(Representation::Tagged());
 }
 
 
 HConstant::HConstant(int32_t integer_value,
                      Representation r,
                      bool is_not_in_new_space,
-                     Handle<Object> optional_handle)
-  : handle_(optional_handle),
-    unique_id_(),
+                     Unique<Object> object)
+  : object_(object),
     has_smi_value_(Smi::IsValid(integer_value)),
     has_int32_value_(true),
     has_double_value_(true),
@@ -2461,9 +2439,8 @@ HConstant::HConstant(int32_t integer_value,
 HConstant::HConstant(double double_value,
                      Representation r,
                      bool is_not_in_new_space,
-                     Handle<Object> optional_handle)
-  : handle_(optional_handle),
-    unique_id_(),
+                     Unique<Object> object)
+  : object_(object),
     has_int32_value_(IsInteger32(double_value)),
     has_double_value_(true),
     has_external_reference_value_(false),
@@ -2481,6 +2458,7 @@ HConstant::HConstant(double double_value,
 
 HConstant::HConstant(ExternalReference reference)
   : HTemplateInstruction<0>(HType::None()),
+    object_(Unique<Object>(Handle<Object>::null())),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -2491,14 +2469,6 @@ HConstant::HConstant(ExternalReference reference)
     boolean_value_(true),
     external_reference_value_(reference) {
   Initialize(Representation::External());
-}
-
-
-static void PrepareConstant(Handle<Object> object) {
-  if (!object->IsJSObject()) return;
-  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-  if (!js_object->map()->is_deprecated()) return;
-  JSObject::TryMigrateInstance(js_object);
 }
 
 
@@ -2513,7 +2483,14 @@ void HConstant::Initialize(Representation r) {
     } else if (has_external_reference_value_) {
       r = Representation::External();
     } else {
-      PrepareConstant(handle_);
+      Handle<Object> object = object_.handle();
+      if (object->IsJSObject()) {
+        // Try to eagerly migrate JSObjects that have deprecated maps.
+        Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+        if (js_object->map()->is_deprecated()) {
+          JSObject::TryMigrateInstance(js_object);
+        }
+      }
       r = Representation::Tagged();
     }
   }
@@ -2541,17 +2518,16 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsDouble() && !has_double_value_) return NULL;
   if (r.IsExternal() && !has_external_reference_value_) return NULL;
   if (has_int32_value_) {
-    return new(zone) HConstant(int32_value_, r, is_not_in_new_space_, handle_);
+    return new(zone) HConstant(int32_value_, r, is_not_in_new_space_, object_);
   }
   if (has_double_value_) {
-    return new(zone) HConstant(double_value_, r, is_not_in_new_space_, handle_);
+    return new(zone) HConstant(double_value_, r, is_not_in_new_space_, object_);
   }
   if (has_external_reference_value_) {
     return new(zone) HConstant(external_reference_value_);
   }
-  ASSERT(!handle_.is_null());
-  return new(zone) HConstant(handle_,
-                             unique_id_,
+  ASSERT(!object_.handle().is_null());
+  return new(zone) HConstant(object_,
                              r,
                              type_,
                              is_internalized_string_,
@@ -2567,12 +2543,12 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
     res = new(zone) HConstant(int32_value_,
                               Representation::Integer32(),
                               is_not_in_new_space_,
-                              handle_);
+                              object_);
   } else if (has_double_value_) {
     res = new(zone) HConstant(DoubleToInt32(double_value_),
                               Representation::Integer32(),
                               is_not_in_new_space_,
-                              handle_);
+                              object_);
   }
   return Maybe<HConstant*>(res != NULL, res);
 }
@@ -3439,8 +3415,8 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   HConstant* filler_map = HConstant::New(
       zone,
       context(),
-      isolate()->factory()->free_space_map(),
-      UniqueValueId::free_space_map(isolate()->heap()));
+      isolate()->factory()->free_space_map());
+  filler_map->FinalizeUniqueness();  // TODO(titzer): should be init'd a'ready
   filler_map->InsertAfter(free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
       free_space_instr, HObjectAccess::ForMap(), filler_map);

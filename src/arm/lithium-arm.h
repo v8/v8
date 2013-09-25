@@ -1360,8 +1360,8 @@ class LDateField V8_FINAL : public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
   Smi* index() const { return index_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(ValueOf, "date-field")
-  DECLARE_HYDROGEN_ACCESSOR(ValueOf)
+  DECLARE_CONCRETE_INSTRUCTION(DateField, "date-field")
+  DECLARE_HYDROGEN_ACCESSOR(DateField)
 
  private:
   Smi* index_;

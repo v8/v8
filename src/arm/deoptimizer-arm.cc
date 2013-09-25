@@ -268,8 +268,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&inner_push_loop);
   __ sub(r3, r3, Operand(sizeof(uint32_t)));
   __ add(r6, r2, Operand(r3));
-  __ ldr(r7, MemOperand(r6, FrameDescription::frame_content_offset()));
-  __ push(r7);
+  __ ldr(r6, MemOperand(r6, FrameDescription::frame_content_offset()));
+  __ push(r6);
   __ bind(&inner_loop_header);
   __ cmp(r3, Operand::Zero());
   __ b(ne, &inner_push_loop);  // test for gt?
@@ -315,9 +315,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ InitializeRootRegister();
 
   __ pop(ip);  // remove pc
-  __ pop(r7);  // get continuation, leave pc on stack
+  __ pop(ip);  // get continuation, leave pc on stack
   __ pop(lr);
-  __ Jump(r7);
+  __ Jump(ip);
   __ stop("Unreachable.");
 }
 

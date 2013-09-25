@@ -1440,8 +1440,7 @@ class Object : public MaybeObject {
   }
 
   inline MaybeObject* AllocateNewStorageFor(Heap* heap,
-                                            Representation representation,
-                                            PretenureFlag tenure = NOT_TENURED);
+                                            Representation representation);
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -2173,10 +2172,13 @@ class JSObject: public JSReceiver {
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
 
+  // Migrates the given object to a map whose field representations are the
+  // lowest upper bound of all known representations for that field.
   static void MigrateInstance(Handle<JSObject> instance);
 
+  // Migrates the given object only if the target map is already available,
+  // or returns an empty handle if such a map is not yet available.
   static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
-  inline MUST_USE_RESULT MaybeObject* TryMigrateInstance();
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
@@ -2470,8 +2472,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
+  // TODO(mstarzinger): Both public because of ConvertAnsSetLocalProperty().
   static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
-  MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,
@@ -7825,6 +7827,10 @@ class AllocationSite: public Struct {
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
   DECL_ACCESSORS(transition_info, Object)
+  // nested_site threads a list of sites that represent nested literals
+  // walked in a particular order. So [[1, 2], 1, 2] will have one
+  // nested_site, but [[1, 2], 3, [4]] will have a list of two.
+  DECL_ACCESSORS(nested_site, Object)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
@@ -7856,7 +7862,8 @@ class AllocationSite: public Struct {
   static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
-  static const int kDependentCodeOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kNestedSiteOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kDependentCodeOffset = kNestedSiteOffset + kPointerSize;
   static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 

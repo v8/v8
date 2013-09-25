@@ -316,7 +316,7 @@ class HGraph V8_FINAL : public ZoneObject {
   HBasicBlock* entry_block() const { return entry_block_; }
   HEnvironment* start_environment() const { return start_environment_; }
 
-  void FinalizeUniqueValueIds();
+  void FinalizeUniqueness();
   bool ProcessArgumentsObject();
   void OrderBlocks();
   void AssignDominators();
@@ -1236,6 +1236,15 @@ class HGraphBuilder {
                                    ElementsKind from_kind,
                                    ElementsKind to_kind,
                                    bool is_jsarray);
+
+  // Do lookup in the number string cache. If the object is not found
+  // in the cache, the false branch of the continuation is taken;
+  // otherwise the true branch is taken and the returned value contains
+  // the cache value for the object. The returned value must NOT be used
+  // on the false branch.
+  HValue* BuildLookupNumberStringCache(HValue* object,
+                                       HIfContinuation* continuation);
+  HValue* BuildNumberToString(HValue* number);
 
   HInstruction* BuildUncheckedMonomorphicElementAccess(
       HValue* checked_object,
