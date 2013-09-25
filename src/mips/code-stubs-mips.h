@@ -455,22 +455,6 @@ class RecordWriteStub: public PlatformCodeStub {
 };
 
 
-// Enter C code from generated RegExp code in a way that allows
-// the C code to fix the return address in case of a GC.
-// Currently only needed on ARM and MIPS.
-class RegExpCEntryStub: public PlatformCodeStub {
- public:
-  RegExpCEntryStub() {}
-  virtual ~RegExpCEntryStub() {}
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return RegExpCEntry; }
-  int MinorKey() { return 0; }
-
-  bool NeedsImmovableCode() { return true; }
-};
-
 // Trampoline stub to call into native code. To call safely into native code
 // in the presence of compacting GC (which can move code objects) we need to
 // keep the code which called into native pinned in the memory. Currently the
