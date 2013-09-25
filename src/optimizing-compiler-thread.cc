@@ -172,6 +172,9 @@ void OptimizingCompilerThread::Flush() {
   stop_semaphore_.Wait();
   FlushOutputQueue(true);
   if (FLAG_concurrent_osr) FlushOsrBuffer(true);
+  if (FLAG_trace_concurrent_recompilation) {
+    PrintF("  ** Flushed concurrent recompilation queues.\n");
+  }
 }
 
 
