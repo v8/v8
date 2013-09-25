@@ -176,11 +176,6 @@ DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
 DEFINE_bool(harmony_observation, false,
             "enable harmony object observation (implies harmony collections")
-DEFINE_bool(harmony_typed_arrays, true,
-            "enable harmony typed arrays")
-DEFINE_bool(harmony_array_buffer, true,
-            "enable harmony array buffer")
-DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony_iteration, false, "enable harmony iteration (for-of)")
 DEFINE_bool(harmony_numeric_literals, false,
@@ -201,7 +196,6 @@ DEFINE_implication(harmony, harmony_strings)
 DEFINE_implication(harmony, harmony_arrays)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
-// TODO[dslomov] add harmony => harmony_typed_arrays
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
