@@ -27,9 +27,20 @@
 
 // Tests timer milliseconds granularity.
 
-var start = Date.now();
-var end = Date.now();
-while (end - start == 0) {
-  end = Date.now();
-}
-assertTrue(end - start <= 2);
+(function run() {
+  var start_test = Date.now();
+  // Let the retry run for maximum 20ms to reduce flakiness.
+  for (var start = Date.now(); start - start_test < 100; start = Date.now()) {
+    var end = Date.now();
+    while (end - start == 0) {
+      end = Date.now();
+    }
+    if (end - start == 1) {
+      // Found milliseconds granularity.
+      return;
+    } else {
+      print("Timer difference too big: " + (end - start) + "ms");
+    }
+  }
+  assertTrue(false);
+})()
