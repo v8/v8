@@ -285,15 +285,6 @@ Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
 }
 
 
-Handle<String> SubString(Handle<String> str,
-                         int start,
-                         int end,
-                         PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(str->GetIsolate(),
-                     str->SubString(start, end, pretenure), String);
-}
-
-
 // Wrappers for scripts are kept alive and cached in weak global
 // handles referred from foreign objects held by the scripts as long as
 // they are used. When they are not used anymore, the garbage

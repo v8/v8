@@ -9734,7 +9734,8 @@ bool SharedFunctionInfo::HasSourceCode() {
 Handle<Object> SharedFunctionInfo::GetSourceCode() {
   if (!HasSourceCode()) return GetIsolate()->factory()->undefined_value();
   Handle<String> source(String::cast(Script::cast(script())->source()));
-  return SubString(source, start_position(), end_position());
+  return GetIsolate()->factory()->NewSubString(
+      source, start_position(), end_position());
 }
 
 
