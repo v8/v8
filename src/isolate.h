@@ -1099,7 +1099,7 @@ class Isolate {
 #endif  // DEBUG
 
   OptimizingCompilerThread* optimizing_compiler_thread() {
-    return &optimizing_compiler_thread_;
+    return optimizing_compiler_thread_;
   }
 
   // PreInits and returns a default isolate. Needed when a new thread tries
@@ -1369,7 +1369,7 @@ class Isolate {
 #endif
 
   DeferredHandles* deferred_handles_head_;
-  OptimizingCompilerThread optimizing_compiler_thread_;
+  OptimizingCompilerThread* optimizing_compiler_thread_;
   MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
 

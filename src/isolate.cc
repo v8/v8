@@ -1803,7 +1803,7 @@ Isolate::Isolate()
       heap_profiler_(NULL),
       function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
-      optimizing_compiler_thread_(this),
+      optimizing_compiler_thread_(NULL),
       marking_thread_(NULL),
       sweeper_thread_(NULL),
       stress_deopt_count_(0) {
@@ -1898,7 +1898,10 @@ void Isolate::Deinit() {
     debugger()->UnloadDebugger();
 #endif
 
-    if (FLAG_concurrent_recompilation) optimizing_compiler_thread_.Stop();
+    if (FLAG_concurrent_recompilation) {
+      optimizing_compiler_thread_->Stop();
+      delete optimizing_compiler_thread_;
+    }
 
     if (FLAG_sweeper_threads > 0) {
       for (int i = 0; i < FLAG_sweeper_threads; i++) {
@@ -2240,6 +2243,11 @@ bool Isolate::Init(Deserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData(memory_allocator_);
 
+  if (FLAG_concurrent_recompilation) {
+    optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
+    optimizing_compiler_thread_->Start();
+  }
+
   const bool create_heap_objects = (des == NULL);
   if (create_heap_objects && !heap_.CreateHeapObjects()) {
     V8::FatalProcessOutOfMemory("heap object creation");
@@ -2345,8 +2353,6 @@ bool Isolate::Init(Deserializer* des) {
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
   }
-
-  if (FLAG_concurrent_recompilation) optimizing_compiler_thread_.Start();
 
   if (FLAG_marking_threads > 0) {
     marking_thread_ = new MarkingThread*[FLAG_marking_threads];
