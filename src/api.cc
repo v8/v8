@@ -701,6 +701,26 @@ i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
 }
 
 
+EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  escape_slot_ = CreateHandle(isolate, isolate->heap()->the_hole_value());
+  Initialize(v8_isolate);
+}
+
+
+i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
+  ApiCheck(*escape_slot_ == isolate_->heap()->the_hole_value(),
+           "EscapeableHandleScope::Escape",
+           "Escape value set twice");
+  if (escape_value == NULL) {
+    *escape_slot_ = isolate_->heap()->undefined_value();
+    return NULL;
+  }
+  *escape_slot_ = *escape_value;
+  return escape_slot_;
+}
+
+
 void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();

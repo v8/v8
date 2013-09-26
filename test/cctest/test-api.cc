@@ -20593,3 +20593,24 @@ THREADED_TEST(FunctionNew) {
   CHECK_EQ(v8::Integer::New(17, isolate), result2);
 }
 
+
+TEST(EscapeableHandleScope) {
+  HandleScope outer_scope(CcTest::isolate());
+  LocalContext context;
+  const int runs = 10;
+  Local<String> values[runs];
+  for (int i = 0; i < runs; i++) {
+    v8::EscapableHandleScope inner_scope(CcTest::isolate());
+    Local<String> value;
+    if (i != 0) value = v8_str("escape value");
+    values[i] = inner_scope.Escape(value);
+  }
+  for (int i = 0; i < runs; i++) {
+    Local<String> expected;
+    if (i != 0) {
+      CHECK_EQ(v8_str("escape value"), values[i]);
+    } else {
+      CHECK(values[i].IsEmpty());
+    }
+  }
+}

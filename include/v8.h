@@ -135,6 +135,7 @@ class DeclaredAccessorDescriptor;
 class ObjectOperationDescriptor;
 class RawOperationDescriptor;
 class CallHandlerHelper;
+class EscapableHandleScope;
 
 namespace internal {
 class Arguments;
@@ -401,6 +402,7 @@ template <class T> class Local : public Handle<T> {
   friend class Context;
   template<class F> friend class internal::CustomArguments;
   friend class HandleScope;
+  friend class EscapableHandleScope;
 
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
 };
@@ -773,10 +775,7 @@ class V8_EXPORT HandleScope {
 
   ~HandleScope();
 
-  /**
-   * Closes the handle scope and returns the value as a handle in the
-   * previous scope, which is the new current scope after the call.
-   */
+  // TODO(dcarney): deprecated - use EscapableHandleScope::Escape.
   template <class T> Local<T> Close(Handle<T> value);
 
   /**
@@ -794,6 +793,9 @@ class V8_EXPORT HandleScope {
   static internal::Object** CreateHandle(internal::HeapObject* value);
 
  private:
+  V8_INLINE HandleScope() {}
+  void Initialize(Isolate* isolate);
+
   // Make it hard to create heap-allocated or illegal handle scopes by
   // disallowing certain operations.
   HandleScope(const HandleScope&);
@@ -814,19 +816,47 @@ class V8_EXPORT HandleScope {
     }
   };
 
-  void Initialize(Isolate* isolate);
   void Leave();
 
   internal::Isolate* isolate_;
   internal::Object** prev_next_;
   internal::Object** prev_limit_;
 
+  // TODO(dcarney): remove this field
   // Allow for the active closing of HandleScopes which allows to pass a handle
   // from the HandleScope being closed to the next top most HandleScope.
   bool is_closed_;
   internal::Object** RawClose(internal::Object** value);
 
   friend class ImplementationUtilities;
+  friend class EscapableHandleScope;
+};
+
+
+/**
+ * A HandleScope which first allocates a handle in the current scope
+ * which will be later filled with the escape value.
+ */
+class V8_EXPORT EscapableHandleScope : public HandleScope {
+ public:
+  EscapableHandleScope(Isolate* isolate);
+  V8_INLINE ~EscapableHandleScope() {}
+
+  /**
+   * Pushes the value into the previous scope and returns a handle to it.
+   * Cannot be called twice.
+   */
+  template <class T>
+  V8_INLINE Local<T> Escape(Local<T> value) {
+    internal::Object** slot =
+        Escape(reinterpret_cast<internal::Object**>(*value));
+    return Local<T>(reinterpret_cast<T*>(slot));
+  }
+
+ private:
+  internal::Object** Escape(internal::Object** escape_value);
+
+  internal::Object** escape_slot_;
 };
 
 
