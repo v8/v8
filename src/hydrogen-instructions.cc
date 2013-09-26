@@ -2341,18 +2341,27 @@ void HSimulate::ReplayEnvironment(HEnvironment* env) {
 }
 
 
+static void ReplayEnvironmentNested(const ZoneList<HValue*>* values,
+                                    HCapturedObject* other) {
+  for (int i = 0; i < values->length(); ++i) {
+    HValue* value = values->at(i);
+    if (value->IsCapturedObject()) {
+      if (HCapturedObject::cast(value)->capture_id() == other->capture_id()) {
+        values->at(i) = other;
+      } else {
+        ReplayEnvironmentNested(HCapturedObject::cast(value)->values(), other);
+      }
+    }
+  }
+}
+
+
 // Replay captured objects by replacing all captured objects with the
 // same capture id in the current and all outer environments.
 void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
   ASSERT(env != NULL);
   while (env != NULL) {
-    for (int i = 0; i < env->length(); ++i) {
-      HValue* value = env->values()->at(i);
-      if (value->IsCapturedObject() &&
-          HCapturedObject::cast(value)->capture_id() == this->capture_id()) {
-        env->SetValueAt(i, this);
-      }
-    }
+    ReplayEnvironmentNested(env->values(), this);
     env = env->outer();
   }
 }
