@@ -40,7 +40,7 @@ bool ConfigureResourceConstraintsForCurrentPlatform(
   }
 
   uint64_t physical_memory = i::OS::TotalPhysicalMemory();
-  uintptr_t lump_of_memory = (i::kPointerSize / 4) * i::MB;
+  int lump_of_memory = (i::kPointerSize / 4) * i::MB;
 
   // The young_space_size should be a power of 2 and old_generation_size should
   // be a multiple of Page::kPageSize.
