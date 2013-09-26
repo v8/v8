@@ -302,6 +302,9 @@ class OS {
   // positions indicated by the members of the CpuFeature enum from globals.h
   static uint64_t CpuFeaturesImpliedByPlatform();
 
+  // The total amount of physical memory available on the current system.
+  static uint64_t TotalPhysicalMemory();
+
   // Maximum size of the virtual memory.  0 means there is no artificial
   // limit.
   static intptr_t MaxVirtualMemory();

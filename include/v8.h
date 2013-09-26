@@ -3771,6 +3771,9 @@ class V8_EXPORT ResourceConstraints {
 };
 
 
+/**
+ * Sets the given ResourceConstraints on the current isolate.
+ */
 bool V8_EXPORT SetResourceConstraints(ResourceConstraints* constraints);
 
 

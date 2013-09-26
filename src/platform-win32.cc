@@ -1271,6 +1271,18 @@ void OS::SignalCodeMovingGC() {
 }
 
 
+uint64_t OS::TotalPhysicalMemory() {
+  MEMORYSTATUSEX memory_info;
+  memory_info.dwLength = sizeof(memory_info);
+  if (!GlobalMemoryStatusEx(&memory_info)) {
+    UNREACHABLE();
+    return 0;
+  }
+
+  return static_cast<uint64_t>(memory_info.ullTotalPhys);
+}
+
+
 #else  // __MINGW32__
 void OS::LogSharedLibraryAddresses(Isolate* isolate) { }
 void OS::SignalCodeMovingGC() { }

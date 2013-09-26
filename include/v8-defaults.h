@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_TEST_H_
-#define V8_V8_TEST_H_
+#ifndef V8_V8_DEFAULTS_H_
+#define V8_V8_DEFAULTS_H_
 
 #include "v8.h"
 
 /**
- * Testing support for the V8 JavaScript engine.
+ * Default configuration support for the V8 JavaScript engine.
  */
 namespace v8 {
 
-class V8_EXPORT Testing {
- public:
-  enum StressType {
-    kStressTypeOpt,
-    kStressTypeDeopt
-  };
+/**
+ * Configures the constraints with reasonable default values based on the
+ * capabilities of the current device the VM is running on.
+ */
+bool V8_EXPORT ConfigureResourceConstraintsForCurrentPlatform(
+    ResourceConstraints* constraints);
 
-  /**
-   * Set the type of stressing to do. The default if not set is kStressTypeOpt.
-   */
-  static void SetStressRunType(StressType type);
 
-  /**
-   * Get the number of runs of a given test that is required to get the full
-   * stress coverage.
-   */
-  static int GetStressRuns();
-
-  /**
-   * Indicate the number of the run which is about to start. The value of run
-   * should be between 0 and one less than the result from GetStressRuns()
-   */
-  static void PrepareStressRun(int run);
-
-  /**
-   * Force deoptimization of all functions.
-   */
-  static void DeoptimizeAll();
-};
-
+/**
+ * Convience function which performs SetResourceConstraints with the settings
+ * returned by ConfigureResourceConstraintsForCurrentPlatform.
+ */
+bool V8_EXPORT SetDefaultResourceConstraintsForCurrentPlatform();
 
 }  // namespace v8
 
-#endif  // V8_V8_TEST_H_
+#endif  // V8_V8_DEFAULTS_H_
