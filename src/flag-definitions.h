@@ -216,6 +216,11 @@ DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
 
+// Flags for optimization types.
+DEFINE_bool(optimize_for_size, false,
+            "Enables optimizations which favor memory size over execution "
+            "speed.")
+
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(string_slices, true, "use string slices")
@@ -589,9 +594,6 @@ DEFINE_int(hash_seed,
            0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
-DEFINE_maybe_bool(force_memory_constrained,
-           "force (if true) or prevent (if false) the runtime from treating "
-           "the device as being memory constrained.")
 
 // v8.cc
 DEFINE_bool(preemption, false,

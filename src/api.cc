@@ -563,8 +563,7 @@ ResourceConstraints::ResourceConstraints()
   : max_young_space_size_(0),
     max_old_space_size_(0),
     max_executable_size_(0),
-    stack_limit_(NULL),
-    is_memory_constrained_() { }
+    stack_limit_(NULL) { }
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
@@ -584,11 +583,6 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
   if (constraints->stack_limit() != NULL) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
-  }
-  if (constraints->is_memory_constrained().has_value &&
-      !i::FLAG_force_memory_constrained.has_value) {
-    isolate->set_is_memory_constrained(
-        constraints->is_memory_constrained().value);
   }
   return true;
 }
