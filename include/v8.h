@@ -5420,7 +5420,7 @@ class Internals {
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
 
-  static void CheckInitializedImpl(v8::Isolate* isolate);
+  V8_EXPORT static void CheckInitializedImpl(v8::Isolate* isolate);
   V8_INLINE static void CheckInitialized(v8::Isolate* isolate) {
 #ifdef V8_ENABLE_CHECKS
     CheckInitializedImpl(isolate);
