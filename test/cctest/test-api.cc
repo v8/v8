@@ -2451,7 +2451,7 @@ static void ThrowingPropertyHandlerGet(
     Local<String> key,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  info.GetReturnValue().Set(v8::ThrowException(key));
+  info.GetReturnValue().Set(info.GetIsolate()->ThrowException(key));
 }
 
 
@@ -2459,7 +2459,7 @@ static void ThrowingPropertyHandlerSet(
     Local<String> key,
     Local<Value>,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::ThrowException(key);
+  info.GetIsolate()->ThrowException(key);
   info.GetReturnValue().SetUndefined();  // not the same as empty handle
 }
 
@@ -4375,7 +4375,7 @@ THREADED_TEST(ConversionException) {
 
 void ThrowFromC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
-  v8::ThrowException(v8_str("konto"));
+  args.GetIsolate()->ThrowException(v8_str("konto"));
 }
 
 
@@ -4658,7 +4658,7 @@ void CThrowCountDown(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int count = args[0]->Int32Value();
   int cInterval = args[2]->Int32Value();
   if (count == 0) {
-    v8::ThrowException(v8_str("FromC"));
+    args.GetIsolate()->ThrowException(v8_str("FromC"));
     return;
   } else {
     Local<v8::Object> global =
@@ -4798,7 +4798,7 @@ TEST(ExceptionOrder) {
 void ThrowValue(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
   CHECK_EQ(1, args.Length());
-  v8::ThrowException(args[0]);
+  args.GetIsolate()->ThrowException(args[0]);
 }
 
 
@@ -4896,7 +4896,7 @@ static void TryCatchNestedHelper(int depth) {
     CHECK(try_catch.HasCaught());
     try_catch.ReThrow();
   } else {
-    v8::ThrowException(v8_str("back"));
+    CcTest::isolate()->ThrowException(v8_str("back"));
   }
 }
 
@@ -11259,7 +11259,7 @@ THREADED_TEST(CallICFastApi_DirectCall_GCMoveStub) {
 
 void ThrowingDirectApiCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::ThrowException(v8_str("g"));
+  args.GetIsolate()->ThrowException(v8_str("g"));
 }
 
 
@@ -11327,7 +11327,7 @@ THREADED_PROFILED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
 void ThrowingDirectGetterCallback(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::ThrowException(v8_str("g"));
+  info.GetIsolate()->ThrowException(v8_str("g"));
 }
 
 
@@ -11938,7 +11938,7 @@ static void InterceptorICExceptionGetter(
     info.GetReturnValue().Set(call_ic_function3);
   }
   if (interceptor_ic_exception_get_count == 20) {
-    v8::ThrowException(v8_num(42));
+    info.GetIsolate()->ThrowException(v8_num(42));
     return;
   }
 }
@@ -11983,7 +11983,7 @@ static void InterceptorICExceptionSetter(
       const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   if (++interceptor_ic_exception_set_count > 20) {
-    v8::ThrowException(v8_num(42));
+    info.GetIsolate()->ThrowException(v8_num(42));
   }
 }
 
@@ -12055,7 +12055,7 @@ THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
 static void ThrowingGetter(Local<String> name,
                            const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  ThrowException(Handle<Value>());
+  info.GetIsolate()->ThrowException(Handle<Value>());
   info.GetReturnValue().SetUndefined();
 }
 
@@ -12140,7 +12140,7 @@ static void ThrowFromJS(Handle<Message> message, Handle<Value> data) {
 
 
 static void ThrowViaApi(Handle<Message> message, Handle<Value> data) {
-  if (--call_depth) ThrowException(v8_str("ThrowViaApi"));
+  if (--call_depth) CcTest::isolate()->ThrowException(v8_str("ThrowViaApi"));
 }
 
 
@@ -12499,12 +12499,12 @@ void ApiTestFuzzer::CallTest() {
 
 
 static void ThrowInJS(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(v8::Locker::IsLocked(CcTest::isolate()));
+  CHECK(v8::Locker::IsLocked(args.GetIsolate()));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker(CcTest::isolate());
+  v8::Unlocker unlocker(args.GetIsolate());
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker(CcTest::isolate());
+    v8::Locker nested_locker(args.GetIsolate());
     v8::HandleScope scope(args.GetIsolate());
     v8::Handle<Value> exception;
     { v8::TryCatch try_catch;
@@ -12516,7 +12516,7 @@ static void ThrowInJS(const v8::FunctionCallbackInfo<v8::Value>& args) {
       // when the TryCatch is destroyed.
       exception = Local<Value>::New(try_catch.Exception());
     }
-    v8::ThrowException(exception);
+    args.GetIsolate()->ThrowException(exception);
   }
 }
 
@@ -20341,7 +20341,8 @@ void FailedAccessCheckThrows(Local<v8::Object> target,
                              Local<v8::Value> data) {
   access_check_fail_thrown = true;
   i::PrintF("Access check failed. Error thrown.\n");
-  v8::ThrowException(v8::Exception::Error(v8_str("cross context")));
+  CcTest::isolate()->ThrowException(
+      v8::Exception::Error(v8_str("cross context")));
 }
 
 

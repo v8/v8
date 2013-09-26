@@ -3791,12 +3791,7 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> error);
 
 
-/**
- * Schedules an exception to be thrown when returning to JavaScript.  When an
- * exception has been scheduled it is illegal to invoke any JavaScript
- * operation; the caller must return immediately and only after the exception
- * has been handled does it become legal to invoke JavaScript operations.
- */
+// TODO(dcarney): remove. Use Isolate::ThrowException instead.
 Handle<Value> V8_EXPORT ThrowException(Handle<Value> exception);
 
 /**
@@ -4050,6 +4045,14 @@ class V8_EXPORT Isolate {
 
   /** Returns the last entered context. */
   Local<Context> GetEnteredContext();
+
+  /**
+   * Schedules an exception to be thrown when returning to JavaScript.  When an
+   * exception has been scheduled it is illegal to invoke any JavaScript
+   * operation; the caller must return immediately and only after the exception
+   * has been handled does it become legal to invoke JavaScript operations.
+   */
+  Local<Value> V8_EXPORT ThrowException(Local<Value> exception);
 
   /**
    * Allows the host application to group objects together. If one

@@ -417,7 +417,7 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // function is called. Reads a string from standard input and returns.
 void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() > 0) {
-    v8::ThrowException(v8::String::New("Unexpected arguments"));
+    args.GetIsolate()->ThrowException(v8::String::New("Unexpected arguments"));
     return;
   }
   args.GetReturnValue().Set(ReadLine());

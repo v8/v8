@@ -405,14 +405,14 @@ static void ThrowingGetAccessor(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  v8::ThrowException(v8_str("g"));
+  info.GetIsolate()->ThrowException(v8_str("g"));
 }
 
 
 static void ThrowingSetAccessor(Local<String> name,
                                 Local<Value> value,
                                 const v8::PropertyCallbackInfo<void>& info) {
-  v8::ThrowException(value);
+  info.GetIsolate()->ThrowException(value);
 }
 
 

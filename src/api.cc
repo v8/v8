@@ -473,16 +473,7 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
 
 
 v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  // If we're passed an empty handle, we throw an undefined exception
-  // to deal more gracefully with out of memory situations.
-  if (value.IsEmpty()) {
-    isolate->ScheduleThrow(isolate->heap()->undefined_value());
-  } else {
-    isolate->ScheduleThrow(*Utils::OpenHandle(*value));
-  }
-  return v8::Undefined();
+  return v8::Isolate::GetCurrent()->ThrowException(value);
 }
 
 
@@ -1926,7 +1917,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->RestorePendingMessageFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::ThrowException(exc);
+    reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     ASSERT(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
     isolate_->UnregisterTryCatchHandler(this);
@@ -6358,6 +6349,20 @@ v8::Local<v8::Context> Isolate::GetEnteredContext() {
       isolate->handle_scope_implementer()->LastEnteredContext();
   if (last.is_null()) return Local<Context>();
   return Utils::ToLocal(i::Handle<i::Context>::cast(last));
+}
+
+
+v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  ENTER_V8(isolate);
+  // If we're passed an empty handle, we throw an undefined exception
+  // to deal more gracefully with out of memory situations.
+  if (value.IsEmpty()) {
+    isolate->ScheduleThrow(isolate->heap()->undefined_value());
+  } else {
+    isolate->ScheduleThrow(*Utils::OpenHandle(*value));
+  }
+  return v8::Undefined();
 }
 
 
