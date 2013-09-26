@@ -5897,7 +5897,7 @@ FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Object** implicit_args,
 
 template<typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
-  if (i < 0 || length_ <= i) return Local<Value>(*Undefined());
+  if (i < 0 || length_ <= i) return Local<Value>(*Undefined(GetIsolate()));
   return Local<Value>(reinterpret_cast<Value*>(values_ - i));
 }
 
@@ -5979,7 +5979,8 @@ Handle<Boolean> ScriptOrigin::ResourceIsSharedCrossOrigin() const {
 
 
 Handle<Boolean> Boolean::New(bool value) {
-  return value ? True() : False();
+  Isolate* isolate = Isolate::GetCurrent();
+  return value ? True(isolate) : False(isolate);
 }
 
 

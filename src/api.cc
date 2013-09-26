@@ -1010,7 +1010,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   }
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
-    if (data.IsEmpty()) data = v8::Undefined();
+    if (data.IsEmpty()) {
+      data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+    }
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
   obj->set_length(length);
@@ -1234,7 +1236,9 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_call_code(*obj);
 }
@@ -1272,7 +1276,9 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       isolate->factory()->NewExecutableAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
 }
@@ -1500,7 +1506,9 @@ void ObjectTemplate::SetNamedPropertyHandler(
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
 
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   cons->set_named_property_handler(*obj);
 }
@@ -1536,7 +1544,9 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   SET_FIELD_WRAPPED(info, set_named_callback, named_callback);
   SET_FIELD_WRAPPED(info, set_indexed_callback, indexed_callback);
 
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   info->set_data(*Utils::OpenHandle(*data));
 
   i::FunctionTemplateInfo* constructor =
@@ -1572,7 +1582,9 @@ void ObjectTemplate::SetIndexedPropertyHandler(
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
 
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   cons->set_indexed_property_handler(*obj);
 }
@@ -1592,7 +1604,9 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   cons->set_instance_call_handler(*obj);
 }
@@ -1697,8 +1711,9 @@ Local<Script> Script::New(v8::Handle<String> source,
             static_cast<int>(origin->ResourceColumnOffset()->Value());
       }
       if (!origin->ResourceIsSharedCrossOrigin().IsEmpty()) {
+        v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
         is_shared_cross_origin =
-            origin->ResourceIsSharedCrossOrigin() == v8::True();
+            origin->ResourceIsSharedCrossOrigin() == v8::True(v8_isolate);
       }
     }
     EXCEPTION_PREAMBLE(isolate);
@@ -1943,7 +1958,7 @@ bool v8::TryCatch::HasTerminated() const {
 v8::Handle<v8::Value> v8::TryCatch::ReThrow() {
   if (!HasCaught()) return v8::Local<v8::Value>();
   rethrow_ = true;
-  return v8::Undefined();
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate_));
 }
 
 
@@ -4113,10 +4128,12 @@ int Function::GetScriptColumnNumber() const {
 
 Handle<Value> Function::GetScriptId() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
-  if (!func->shared()->script()->IsScript())
-    return v8::Undefined();
+  i::Isolate* isolate = func->GetIsolate();
+  if (!func->shared()->script()->IsScript()) {
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-  return Utils::ToLocal(i::Handle<i::Object>(script->id(), func->GetIsolate()));
+  return Utils::ToLocal(i::Handle<i::Object>(script->id(), isolate));
 }
 
 
@@ -6362,7 +6379,7 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   } else {
     isolate->ScheduleThrow(*Utils::OpenHandle(*value));
   }
-  return v8::Undefined();
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
 }
 
 
@@ -7113,7 +7130,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
           isolate->factory()->NewNumberFromInt(edge->index()));
     default: UNREACHABLE();
   }
-  return v8::Undefined();
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
 }
 
 

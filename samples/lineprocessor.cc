@@ -296,7 +296,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
     v8::HandleScope handle_scope(isolate);
 
     v8::Handle<v8::String> input_line = ReadLine();
-    if (input_line == v8::Undefined()) {
+    if (input_line == v8::Undefined(isolate)) {
       continue;
     }
 
@@ -436,7 +436,7 @@ v8::Handle<v8::String> ReadLine() {
     res = fgets(buffer, kBufferSize, stdin);
   }
   if (res == NULL) {
-    v8::Handle<v8::Primitive> t = v8::Undefined();
+    v8::Handle<v8::Primitive> t = v8::Undefined(v8::Isolate::GetCurrent());
     return v8::Handle<v8::String>::Cast(t);
   }
   // Remove newline char
