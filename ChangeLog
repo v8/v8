@@ -1,3 +1,8 @@
+2013-09-26: Version 3.22.2
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-25: Version 3.22.1
 
         Sped up creating typed arrays from array-like objects.
