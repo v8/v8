@@ -5340,25 +5340,10 @@ MaybeObject* Heap::AllocateEmptyExternalArray(ExternalArrayType array_type) {
 }
 
 
-MaybeObject* Heap::AllocateRawFixedArray(int length) {
-  if (length < 0 || length > FixedArray::kMaxLength) {
-    return Failure::OutOfMemoryException(0xd);
-  }
-  ASSERT(length > 0);
-  // Use the general function if we're forced to always allocate.
-  if (always_allocate()) return AllocateFixedArray(length, TENURED);
-  // Allocate the raw data for a fixed array.
-  int size = FixedArray::SizeFor(length);
-  return size <= Page::kMaxNonCodeHeapObjectSize
-      ? new_space_.AllocateRaw(size)
-      : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
-}
-
-
 MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   int len = src->length();
   Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedArray(len);
+  { MaybeObject* maybe_obj = AllocateRawFixedArray(len, NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   if (InNewSpace(obj)) {
@@ -5409,22 +5394,20 @@ MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
 }
 
 
-MUST_USE_RESULT static MaybeObject* AllocateFixedArrayWithFiller(
-    Heap* heap,
-    int length,
-    PretenureFlag pretenure,
-    Object* filler) {
+MaybeObject* Heap::AllocateFixedArrayWithFiller(int length,
+                                                PretenureFlag pretenure,
+                                                Object* filler) {
   ASSERT(length >= 0);
-  ASSERT(heap->empty_fixed_array()->IsFixedArray());
-  if (length == 0) return heap->empty_fixed_array();
+  ASSERT(empty_fixed_array()->IsFixedArray());
+  if (length == 0) return empty_fixed_array();
 
-  ASSERT(!heap->InNewSpace(filler));
+  ASSERT(!InNewSpace(filler));
   Object* result;
-  { MaybeObject* maybe_result = heap->AllocateRawFixedArray(length, pretenure);
+  { MaybeObject* maybe_result = AllocateRawFixedArray(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  HeapObject::cast(result)->set_map_no_write_barrier(heap->fixed_array_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
   MemsetPointer(array->data_start(), filler, length);
@@ -5433,19 +5416,13 @@ MUST_USE_RESULT static MaybeObject* AllocateFixedArrayWithFiller(
 
 
 MaybeObject* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(this,
-                                      length,
-                                      pretenure,
-                                      undefined_value());
+  return AllocateFixedArrayWithFiller(length, pretenure, undefined_value());
 }
 
 
 MaybeObject* Heap::AllocateFixedArrayWithHoles(int length,
                                                PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(this,
-                                      length,
-                                      pretenure,
-                                      the_hole_value());
+  return AllocateFixedArrayWithFiller(length, pretenure, the_hole_value());
 }
 
 
@@ -5453,7 +5430,7 @@ MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();
 
   Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedArray(length);
+  { MaybeObject* maybe_obj = AllocateRawFixedArray(length, NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 

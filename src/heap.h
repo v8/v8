@@ -951,10 +951,6 @@ class Heap {
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT MaybeObject* AllocateRawFixedDoubleArray(
-      int length,
-      PretenureFlag pretenure);
-
   // Allocates a fixed double array with uninitialized values. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
   // Please note this does not perform a garbage collection.
@@ -1504,11 +1500,6 @@ class Heap {
   // Returns the adjusted value.
   inline intptr_t AdjustAmountOfExternalAllocatedMemory(
       intptr_t change_in_bytes);
-
-  // Allocate uninitialized fixed array.
-  MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length);
-  MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length,
-                                                     PretenureFlag pretenure);
 
   // This is only needed for testing high promotion mode.
   void SetNewSpaceHighPromotionModeActive(bool mode) {
@@ -2082,6 +2073,18 @@ class Heap {
 
   // Allocate an uninitialized object in the global property cell space.
   MUST_USE_RESULT inline MaybeObject* AllocateRawPropertyCell();
+
+  // Allocate an uninitialized fixed array.
+  MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(
+      int length, PretenureFlag pretenure);
+
+  // Allocate an uninitialized fixed double array.
+  MUST_USE_RESULT MaybeObject* AllocateRawFixedDoubleArray(
+      int length, PretenureFlag pretenure);
+
+  // Allocate an initialized fixed array with the given filler value.
+  MUST_USE_RESULT MaybeObject* AllocateFixedArrayWithFiller(
+      int length, PretenureFlag pretenure, Object* filler);
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(JSObject* obj,
