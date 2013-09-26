@@ -2386,13 +2386,13 @@ class FunctionCallbackInfo {
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
-  static const int kReturnValueIndex = 0;
-  static const int kReturnValueDefaultValueIndex = -1;
-  static const int kIsolateIndex = -2;
-  static const int kDataIndex = -3;
-  static const int kCalleeIndex = -4;
-  static const int kHolderIndex = -5;
-  static const int kContextSaveIndex = -6;
+  static const int kContextSaveIndex = 0;
+  static const int kCalleeIndex = -1;
+  static const int kDataIndex = -2;
+  static const int kReturnValueIndex = -3;
+  static const int kReturnValueDefaultValueIndex = -4;
+  static const int kIsolateIndex = -5;
+  static const int kHolderIndex = -6;
 
   V8_INLINE FunctionCallbackInfo(internal::Object** implicit_args,
                    internal::Object** values,
