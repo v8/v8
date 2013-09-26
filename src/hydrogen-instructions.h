@@ -3287,6 +3287,17 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return new_constant;
   }
 
+  static HConstant* CreateAndInsertBefore(Zone* zone,
+                                          Unique<Object> unique,
+                                          bool is_not_in_new_space,
+                                          HInstruction* instruction) {
+    HConstant* new_constant = new(zone) HConstant(unique,
+        Representation::Tagged(), HType::Tagged(), false, is_not_in_new_space,
+        false, false);
+    new_constant->InsertBefore(instruction);
+    return new_constant;
+  }
+
   Handle<Object> handle(Isolate* isolate) {
     if (object_.handle().is_null()) {
       // Default arguments to is_not_in_new_space depend on this heap number

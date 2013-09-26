@@ -334,6 +334,8 @@
         '../../src/hydrogen-bch.h',
         '../../src/hydrogen-canonicalize.cc',
         '../../src/hydrogen-canonicalize.h',
+        '../../src/hydrogen-check-elimination.cc',
+        '../../src/hydrogen-check-elimination.h',
         '../../src/hydrogen-dce.cc',
         '../../src/hydrogen-dce.h',
         '../../src/hydrogen-dehoist.cc',

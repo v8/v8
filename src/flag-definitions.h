@@ -247,6 +247,7 @@ DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             true,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
+DEFINE_bool(trace_check_elimination, false, "trace check elimination phase")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
 DEFINE_string(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_bool(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
@@ -289,6 +290,7 @@ DEFINE_bool(array_index_dehoisting, true,
 DEFINE_bool(analyze_environment_liveness, true,
             "analyze liveness of environment slots and zap dead values")
 DEFINE_bool(load_elimination, false, "use load elimination")
+DEFINE_bool(check_elimination, false, "use check elimination")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
 DEFINE_bool(fold_constants, true, "use constant folding")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")

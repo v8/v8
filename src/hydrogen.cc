@@ -36,6 +36,7 @@
 #include "hydrogen-bce.h"
 #include "hydrogen-bch.h"
 #include "hydrogen-canonicalize.h"
+#include "hydrogen-check-elimination.h"
 #include "hydrogen-dce.h"
 #include "hydrogen-dehoist.h"
 #include "hydrogen-deoptimizing-mark.h"
@@ -3122,9 +3123,8 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
     return false;
   }
 
-  // Remove dead code and phis
+  if (FLAG_check_elimination) Run<HCheckEliminationPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
-
   if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
 
   if (FLAG_load_elimination) Run<HLoadEliminationPhase>();
@@ -3162,12 +3162,8 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   // Eliminate redundant stack checks on backwards branches.
   Run<HStackCheckEliminationPhase>();
 
-  if (FLAG_array_bounds_checks_elimination) {
-    Run<HBoundsCheckEliminationPhase>();
-  }
-  if (FLAG_array_bounds_checks_hoisting) {
-    Run<HBoundsCheckHoistingPhase>();
-  }
+  if (FLAG_array_bounds_checks_elimination) Run<HBoundsCheckEliminationPhase>();
+  if (FLAG_array_bounds_checks_hoisting) Run<HBoundsCheckHoistingPhase>();
   if (FLAG_array_index_dehoisting) Run<HDehoistIndexComputationsPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
