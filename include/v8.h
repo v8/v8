@@ -4052,7 +4052,7 @@ class V8_EXPORT Isolate {
    * operation; the caller must return immediately and only after the exception
    * has been handled does it become legal to invoke JavaScript operations.
    */
-  Local<Value> V8_EXPORT ThrowException(Local<Value> exception);
+  Local<Value> ThrowException(Local<Value> exception);
 
   /**
    * Allows the host application to group objects together. If one
