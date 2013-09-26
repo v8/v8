@@ -322,6 +322,7 @@ DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
 DEFINE_bool(concurrent_osr, false,
             "concurrent on-stack replacement")
+DEFINE_implication(concurrent_osr, concurrent_recompilation)
 
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "

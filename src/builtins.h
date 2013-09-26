@@ -214,6 +214,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(InterruptCheck,                 BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+  V(OsrAfterStackCheck,             BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   V(StackCheck,                     BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
@@ -397,7 +399,7 @@ class Builtins {
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);
-
+  static void Generate_OsrAfterStackCheck(MacroAssembler* masm);
   static void Generate_InterruptCheck(MacroAssembler* masm);
   static void Generate_StackCheck(MacroAssembler* masm);
 

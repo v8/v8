@@ -25,44 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --fold-constants --nodead-code-elimination
-// Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=600
+// Flags: --allow-natives-syntax
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
+function div(g) {
+  return (g/-1) ^ 1
 }
 
-function test(fun) {
-  fun();
-  fun();
-  // Mark for concurrent optimization.
-  %OptimizeFunctionOnNextCall(fun, "concurrent");
-  //Trigger optimization in the background.
-  fun();
-  //Tenure cons string.
-  gc();
-  // In the mean time, concurrent recompiling is not complete yet.
-  assertUnoptimized(fun, "no sync");
-  // Concurrent recompilation eventually finishes, embeds tenured cons string.
-  assertOptimized(fun, "sync");
-  // Visit embedded cons string during mark compact.
-  gc();
+var kMinInt = 1 << 31;
+var expected_MinInt = div(kMinInt);
+var expected_minus_zero = div(0);
+%OptimizeFunctionOnNextCall(div);
+assertEquals(expected_MinInt, div(kMinInt));
+assertOptimized(div);
+assertEquals(expected_minus_zero , div(0));
+assertOptimized(div);
+
+function mul(g) {
+  return (g * -1) ^ 1
 }
 
-function f() {
-  return "abcdefghijklmn" + "123456789";
-}
-
-function g() {
-  return "abcdefghijklmn\u2603" + "123456789";
-}
-
-function h() {
-  return "abcdefghijklmn\u2603" + "123456789\u2604";
-}
-
-test(f);
-test(g);
-test(h);
+expected_MinInt = mul(kMinInt);
+expected_minus_zero = mul(0);
+%OptimizeFunctionOnNextCall(mul);
+assertEquals(expected_MinInt, mul(kMinInt));
+assertOptimized(mul);
+assertEquals(expected_minus_zero , mul(0));
+assertOptimized(mul);

@@ -1618,8 +1618,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
 void BackEdgeTable::Patch(Isolate* isolate,
                           Code* unoptimized) {
   DisallowHeapAllocation no_gc;
-  Code* replacement_code =
-      isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+  Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
 
   // Iterate over the back edge table and patch every interrupt
   // call to an unconditional call to the replacement code.
@@ -1631,7 +1630,7 @@ void BackEdgeTable::Patch(Isolate* isolate,
       ASSERT_EQ(INTERRUPT, GetBackEdgeState(isolate,
                                             unoptimized,
                                             back_edges.pc(i)));
-      PatchAt(unoptimized, back_edges.pc(i), replacement_code);
+      PatchAt(unoptimized, back_edges.pc(i), ON_STACK_REPLACEMENT, patch);
     }
   }
 
@@ -1643,8 +1642,7 @@ void BackEdgeTable::Patch(Isolate* isolate,
 void BackEdgeTable::Revert(Isolate* isolate,
                            Code* unoptimized) {
   DisallowHeapAllocation no_gc;
-  Code* interrupt_code =
-      isolate->builtins()->builtin(Builtins::kInterruptCheck);
+  Code* patch = isolate->builtins()->builtin(Builtins::kInterruptCheck);
 
   // Iterate over the back edge table and revert the patched interrupt calls.
   ASSERT(unoptimized->back_edges_patched_for_osr());
@@ -1653,10 +1651,10 @@ void BackEdgeTable::Revert(Isolate* isolate,
   BackEdgeTable back_edges(unoptimized, &no_gc);
   for (uint32_t i = 0; i < back_edges.length(); i++) {
     if (static_cast<int>(back_edges.loop_depth(i)) <= loop_nesting_level) {
-      ASSERT_EQ(ON_STACK_REPLACEMENT, GetBackEdgeState(isolate,
-                                                       unoptimized,
-                                                       back_edges.pc(i)));
-      RevertAt(unoptimized, back_edges.pc(i), interrupt_code);
+      ASSERT_NE(INTERRUPT, GetBackEdgeState(isolate,
+                                            unoptimized,
+                                            back_edges.pc(i)));
+      PatchAt(unoptimized, back_edges.pc(i), INTERRUPT, patch);
     }
   }
 
@@ -1664,6 +1662,29 @@ void BackEdgeTable::Revert(Isolate* isolate,
   unoptimized->set_allow_osr_at_loop_nesting_level(0);
   // Assert that none of the back edges are patched anymore.
   ASSERT(Verify(isolate, unoptimized, -1));
+}
+
+
+void BackEdgeTable::AddStackCheck(CompilationInfo* info) {
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = info->isolate();
+  Code* code = info->shared_info()->code();
+  Address pc = code->instruction_start() + info->osr_pc_offset();
+  ASSERT_EQ(ON_STACK_REPLACEMENT, GetBackEdgeState(isolate, code, pc));
+  Code* patch = isolate->builtins()->builtin(Builtins::kOsrAfterStackCheck);
+  PatchAt(code, pc, OSR_AFTER_STACK_CHECK, patch);
+}
+
+
+void BackEdgeTable::RemoveStackCheck(CompilationInfo* info) {
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = info->isolate();
+  Code* code = info->shared_info()->code();
+  Address pc = code->instruction_start() + info->osr_pc_offset();
+  if (GetBackEdgeState(isolate, code, pc) == OSR_AFTER_STACK_CHECK) {
+    Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+    PatchAt(code, pc, ON_STACK_REPLACEMENT, patch);
+  }
 }
 
 

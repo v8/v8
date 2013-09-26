@@ -8609,7 +8609,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   Handle<Code> result = Handle<Code>::null();
   BailoutId ast_id = BailoutId::None();
 
-  if (FLAG_concurrent_recompilation && FLAG_concurrent_osr) {
+  if (FLAG_concurrent_osr) {
     if (isolate->optimizing_compiler_thread()->
             IsQueuedForOSR(function, pc_offset)) {
       // Still waiting for the optimizing compiler thread to finish.  Carry on.
@@ -8621,25 +8621,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
       return NULL;
     }
 
-    OptimizingCompiler* compiler = isolate->optimizing_compiler_thread()->
+    RecompileJob* job = isolate->optimizing_compiler_thread()->
         FindReadyOSRCandidate(function, pc_offset);
 
-    if (compiler == NULL) {
+    if (job == NULL) {
       if (IsSuitableForOnStackReplacement(isolate, function, unoptimized) &&
           Compiler::RecompileConcurrent(function, pc_offset)) {
         if (function->IsMarkedForLazyRecompilation() ||
             function->IsMarkedForConcurrentRecompilation()) {
           // Prevent regular recompilation if we queue this for OSR.
           // TODO(yangguo): remove this as soon as OSR becomes one-shot.
-          function->ReplaceCode(function->shared()->code());
+          function->ReplaceCode(*unoptimized);
         }
         return NULL;
       }
       // Fall through to the end in case of failure.
     } else {
       // TODO(titzer): don't install the OSR code into the function.
-      ast_id = compiler->info()->osr_ast_id();
-      result = Compiler::InstallOptimizedCode(compiler);
+      ast_id = job->info()->osr_ast_id();
+      result = Compiler::InstallOptimizedCode(job);
     }
   } else if (IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
     ast_id = unoptimized->TranslatePcOffsetToAstId(pc_offset);

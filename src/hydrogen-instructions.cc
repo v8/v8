@@ -1237,6 +1237,16 @@ HValue* HMul::Canonicalize() {
 }
 
 
+bool HMul::MulMinusOne() {
+  if (left()->EqualsInteger32Constant(-1) ||
+      right()->EqualsInteger32Constant(-1)) {
+    return true;
+  }
+
+  return false;
+}
+
+
 HValue* HMod::Canonicalize() {
   return this;
 }
@@ -1622,10 +1632,13 @@ Range* HMul::InferRange(Zone* zone) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
-    if (!res->MulAndCheckOverflow(r, b)) {
-      // Clearing the kCanOverflow flag when kAllUsesAreTruncatingToInt32
-      // would be wrong, because truncated integer multiplication is too
-      // precise and therefore not the same as converting to Double and back.
+    if (!res->MulAndCheckOverflow(r, b) ||
+        (((r.IsInteger32() && CheckFlag(kAllUsesTruncatingToInt32)) ||
+         (r.IsSmi() && CheckFlag(kAllUsesTruncatingToSmi))) &&
+         MulMinusOne())) {
+      // Truncated int multiplication is too precise and therefore not the
+      // same as converting to Double and back.
+      // Handle truncated integer multiplication by -1 special.
       ClearFlag(kCanOverflow);
     }
     res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToSmi) &&
@@ -1647,7 +1660,10 @@ Range* HDiv::InferRange(Zone* zone) {
     result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
                                   (a->CanBeMinusZero() ||
                                    (a->CanBeZero() && b->CanBeNegative())));
-    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
+    if (!a->Includes(kMinInt) ||
+        !b->Includes(-1) ||
+        CheckFlag(kAllUsesTruncatingToInt32)) {
+      // It is safe to clear kCanOverflow when kAllUsesTruncatingToInt32.
       ClearFlag(HValue::kCanOverflow);
     }
 
@@ -2596,17 +2612,18 @@ void HBinaryOperation::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
+
+  if (representation().IsSmi() && HasNonSmiUse()) {
+    UpdateRepresentation(
+        Representation::Integer32(), h_infer, "use requirements");
+  }
+
   if (observed_output_representation_.IsNone()) {
     new_rep = RepresentationFromUses();
     UpdateRepresentation(new_rep, h_infer, "uses");
   } else {
     new_rep = RepresentationFromOutput();
     UpdateRepresentation(new_rep, h_infer, "output");
-  }
-
-  if (representation().IsSmi() && HasNonSmiUse()) {
-    UpdateRepresentation(
-        Representation::Integer32(), h_infer, "use requirements");
   }
 }
 
@@ -2634,7 +2651,7 @@ bool HBinaryOperation::IgnoreObservedOutputRepresentation(
   return ((current_rep.IsInteger32() && CheckUsesForFlag(kTruncatingToInt32)) ||
           (current_rep.IsSmi() && CheckUsesForFlag(kTruncatingToSmi))) &&
          // Mul in Integer32 mode would be too precise.
-         !this->IsMul();
+         (!this->IsMul() || HMul::cast(this)->MulMinusOne());
 }
 
 

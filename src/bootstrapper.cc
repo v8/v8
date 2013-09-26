@@ -1043,7 +1043,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   }
 
   {  // -- J S O N
-    Handle<String> name = factory->NewStringFromAscii(CStrVector("JSON"));
+    Handle<String> name = factory->InternalizeUtf8String("JSON");
     Handle<JSFunction> cons = factory->NewFunction(name,
                                                    factory->the_hole_value());
     JSFunction::SetInstancePrototype(cons,

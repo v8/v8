@@ -912,7 +912,8 @@ class BackEdgeTable {
 
   enum BackEdgeState {
     INTERRUPT,
-    ON_STACK_REPLACEMENT
+    ON_STACK_REPLACEMENT,
+    OSR_AFTER_STACK_CHECK
   };
 
   // Patch all interrupts with allowed loop depth in the unoptimized code to
@@ -920,28 +921,29 @@ class BackEdgeTable {
   static void Patch(Isolate* isolate,
                     Code* unoptimized_code);
 
-  // Patch the interrupt at the instruction before pc_after in
-  // the unoptimized code to unconditionally call replacement_code.
+  // Patch the back edge to the target state, provided the correct callee.
   static void PatchAt(Code* unoptimized_code,
-                      Address pc_after,
+                      Address pc,
+                      BackEdgeState target_state,
                       Code* replacement_code);
 
-  // Change all patched interrupts patched in the unoptimized code
-  // back to normal interrupts.
+  // Change all patched back edges back to normal interrupts.
   static void Revert(Isolate* isolate,
                      Code* unoptimized_code);
 
-  // Change patched interrupt in the unoptimized code
-  // back to a normal interrupt.
-  static void RevertAt(Code* unoptimized_code,
-                       Address pc_after,
-                       Code* interrupt_code);
+  // Change a back edge patched for on-stack replacement to perform a
+  // stack check first.
+  static void AddStackCheck(CompilationInfo* info);
 
-#ifdef DEBUG
+  // Remove the stack check, if available, and replace by on-stack replacement.
+  static void RemoveStackCheck(CompilationInfo* info);
+
+  // Return the current patch state of the back edge.
   static BackEdgeState GetBackEdgeState(Isolate* isolate,
                                         Code* unoptimized_code,
                                         Address pc_after);
 
+#ifdef DEBUG
   // Verify that all back edges of a certain loop depth are patched.
   static bool Verify(Isolate* isolate,
                      Code* unoptimized_code,

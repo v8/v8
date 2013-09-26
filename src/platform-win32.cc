@@ -240,11 +240,15 @@ void MathSetup() {
 class Win32Time {
  public:
   // Constructors.
+  Win32Time();
   explicit Win32Time(double jstime);
   Win32Time(int year, int mon, int day, int hour, int min, int sec);
 
   // Convert timestamp to JavaScript representation.
   double ToJSTime();
+
+  // Set timestamp to current time.
+  void SetToCurrentTime();
 
   // Returns the local timezone offset in milliseconds east of UTC. This is
   // the number of milliseconds you must add to UTC to get local time, i.e.
@@ -314,6 +318,12 @@ char Win32Time::std_tz_name_[kTzNameSize];
 char Win32Time::dst_tz_name_[kTzNameSize];
 
 
+// Initialize timestamp to start of epoc.
+Win32Time::Win32Time() {
+  t() = 0;
+}
+
+
 // Initialize timestamp from a JavaScript timestamp.
 Win32Time::Win32Time(double jstime) {
   t() = static_cast<int64_t>(jstime) * kTimeScaler + kTimeEpoc;
@@ -337,6 +347,62 @@ Win32Time::Win32Time(int year, int mon, int day, int hour, int min, int sec) {
 // Convert timestamp to JavaScript timestamp.
 double Win32Time::ToJSTime() {
   return static_cast<double>((t() - kTimeEpoc) / kTimeScaler);
+}
+
+
+// Set timestamp to current time.
+void Win32Time::SetToCurrentTime() {
+  // The default GetSystemTimeAsFileTime has a ~15.5ms resolution.
+  // Because we're fast, we like fast timers which have at least a
+  // 1ms resolution.
+  //
+  // timeGetTime() provides 1ms granularity when combined with
+  // timeBeginPeriod().  If the host application for v8 wants fast
+  // timers, it can use timeBeginPeriod to increase the resolution.
+  //
+  // Using timeGetTime() has a drawback because it is a 32bit value
+  // and hence rolls-over every ~49days.
+  //
+  // To use the clock, we use GetSystemTimeAsFileTime as our base;
+  // and then use timeGetTime to extrapolate current time from the
+  // start time.  To deal with rollovers, we resync the clock
+  // any time when more than kMaxClockElapsedTime has passed or
+  // whenever timeGetTime creates a rollover.
+
+  static bool initialized = false;
+  static TimeStamp init_time;
+  static DWORD init_ticks;
+  static const int64_t kHundredNanosecondsPerSecond = 10000000;
+  static const int64_t kMaxClockElapsedTime =
+      60*kHundredNanosecondsPerSecond;  // 1 minute
+
+  // If we are uninitialized, we need to resync the clock.
+  bool needs_resync = !initialized;
+
+  // Get the current time.
+  TimeStamp time_now;
+  GetSystemTimeAsFileTime(&time_now.ft_);
+  DWORD ticks_now = timeGetTime();
+
+  // Check if we need to resync due to clock rollover.
+  needs_resync |= ticks_now < init_ticks;
+
+  // Check if we need to resync due to elapsed time.
+  needs_resync |= (time_now.t_ - init_time.t_) > kMaxClockElapsedTime;
+
+  // Check if we need to resync due to backwards time change.
+  needs_resync |= time_now.t_ < init_time.t_;
+
+  // Resync the clock if necessary.
+  if (needs_resync) {
+    GetSystemTimeAsFileTime(&init_time.ft_);
+    init_ticks = ticks_now = timeGetTime();
+    initialized = true;
+  }
+
+  // Finally, compute the actual time.  Why is this so hard.
+  DWORD elapsed = ticks_now - init_ticks;
+  this->time_.t_ = init_time.t_ + (static_cast<int64_t>(elapsed) * 10000);
 }
 
 
@@ -529,7 +595,9 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
 // Returns current time as the number of milliseconds since
 // 00:00:00 UTC, January 1, 1970.
 double OS::TimeCurrentMillis() {
-  return Time::Now().ToJsTime();
+  Win32Time t;
+  t.SetToCurrentTime();
+  return t.ToJSTime();
 }
 
 

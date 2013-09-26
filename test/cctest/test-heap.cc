@@ -2822,7 +2822,7 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CHECK(ic_after->ic_state() == UNINITIALIZED);
+  CHECK(IC::IsCleared(ic_after));
 }
 
 
@@ -2863,7 +2863,7 @@ TEST(IncrementalMarkingClearsPolymorhpicIC) {
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CHECK(ic_after->ic_state() == UNINITIALIZED);
+  CHECK(IC::IsCleared(ic_after));
 }
 
 

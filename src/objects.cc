@@ -672,12 +672,19 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      PropertyDetails details) {
   ASSERT(!object->HasFastProperties());
   Handle<NameDictionary> property_dictionary(object->property_dictionary());
+
+  if (!name->IsUniqueName()) {
+    name = object->GetIsolate()->factory()->InternalizedStringFromString(
+        Handle<String>::cast(name));
+  }
+
   int entry = property_dictionary->FindEntry(*name);
   if (entry == NameDictionary::kNotFound) {
     Handle<Object> store_value = value;
     if (object->IsGlobalObject()) {
       store_value = object->GetIsolate()->factory()->NewPropertyCell(value);
     }
+
     property_dictionary =
         NameDictionaryAdd(property_dictionary, name, store_value, details);
     object->set_properties(*property_dictionary);
@@ -2044,6 +2051,12 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
                                      TransitionFlag transition_flag) {
   ASSERT(!object->IsJSGlobalProxy());
   Isolate* isolate = object->GetIsolate();
+
+  if (!name->IsUniqueName()) {
+    name = isolate->factory()->InternalizedStringFromString(
+        Handle<String>::cast(name));
+  }
+
   if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
       !object->map()->is_extensible()) {
     if (strict_mode == kNonStrictMode) {
@@ -9734,7 +9747,8 @@ bool SharedFunctionInfo::HasSourceCode() {
 Handle<Object> SharedFunctionInfo::GetSourceCode() {
   if (!HasSourceCode()) return GetIsolate()->factory()->undefined_value();
   Handle<String> source(String::cast(Script::cast(script())->source()));
-  return SubString(source, start_position(), end_position());
+  return GetIsolate()->factory()->NewSubString(
+      source, start_position(), end_position());
 }
 
 

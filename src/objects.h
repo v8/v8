@@ -6207,9 +6207,6 @@ class Script: public Struct {
 //
 // Installation of ids for the selected builtin functions is handled
 // by the bootstrapper.
-//
-// NOTE: Order is important: math functions should be at the end of
-// the list and MathFloor should be the first math function.
 #define FUNCTIONS_WITH_ID_LIST(V)                   \
   V(Array.prototype, push, ArrayPush)               \
   V(Array.prototype, pop, ArrayPop)                 \
@@ -6244,8 +6241,7 @@ enum BuiltinFunctionId {
 #undef DECLARE_FUNCTION_ID
   // Fake id for a special case of Math.pow. Note, it continues the
   // list of math functions.
-  kMathPowHalf,
-  kFirstMathFunctionId = kMathFloor
+  kMathPowHalf
 };
 
 

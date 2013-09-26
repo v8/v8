@@ -540,52 +540,67 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   ASSERT(!temp2.is(temp3));
   ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
 
-  Label done;
+  Label zero, infinity, done;
 
   __ li(temp3, Operand(ExternalReference::math_exp_constants(0)));
 
   __ ldc1(double_scratch1, ExpConstant(0, temp3));
-  __ Move(result, kDoubleRegZero);
-  __ BranchF(&done, NULL, ge, double_scratch1, input);
+  __ BranchF(&zero, NULL, ge, double_scratch1, input);
+
   __ ldc1(double_scratch2, ExpConstant(1, temp3));
-  __ ldc1(result, ExpConstant(2, temp3));
-  __ BranchF(&done, NULL, ge, input, double_scratch2);
+  __ BranchF(&infinity, NULL, ge, input, double_scratch2);
+
   __ ldc1(double_scratch1, ExpConstant(3, temp3));
   __ ldc1(result, ExpConstant(4, temp3));
   __ mul_d(double_scratch1, double_scratch1, input);
   __ add_d(double_scratch1, double_scratch1, result);
-  __ Move(temp2, temp1, double_scratch1);
+  __ FmoveLow(temp2, double_scratch1);
   __ sub_d(double_scratch1, double_scratch1, result);
   __ ldc1(result, ExpConstant(6, temp3));
   __ ldc1(double_scratch2, ExpConstant(5, temp3));
   __ mul_d(double_scratch1, double_scratch1, double_scratch2);
   __ sub_d(double_scratch1, double_scratch1, input);
   __ sub_d(result, result, double_scratch1);
-  __ mul_d(input, double_scratch1, double_scratch1);
-  __ mul_d(result, result, input);
-  __ srl(temp1, temp2, 11);
+  __ mul_d(double_scratch2, double_scratch1, double_scratch1);
+  __ mul_d(result, result, double_scratch2);
   __ ldc1(double_scratch2, ExpConstant(7, temp3));
   __ mul_d(result, result, double_scratch2);
   __ sub_d(result, result, double_scratch1);
-  __ ldc1(double_scratch2, ExpConstant(8, temp3));
+  // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
+  ASSERT(*reinterpret_cast<double*>
+         (ExternalReference::math_exp_constants(8).address()) == 1);
+  __ Move(double_scratch2, 1);
   __ add_d(result, result, double_scratch2);
-  __ li(at, 0x7ff);
-  __ And(temp2, temp2, at);
+  __ srl(temp1, temp2, 11);
+  __ Ext(temp2, temp2, 0, 11);
   __ Addu(temp1, temp1, Operand(0x3ff));
-  __ sll(temp1, temp1, 20);
 
   // Must not call ExpConstant() after overwriting temp3!
   __ li(temp3, Operand(ExternalReference::math_exp_log_table()));
   __ sll(at, temp2, 3);
-  __ addu(at, at, temp3);
-  __ lw(at, MemOperand(at));
-  __ Addu(temp3, temp3, Operand(kPointerSize));
-  __ sll(temp2, temp2, 3);
-  __ addu(temp2, temp2, temp3);
-  __ lw(temp2, MemOperand(temp2));
-  __ Or(temp1, temp1, temp2);
-  __ Move(input, at, temp1);
-  __ mul_d(result, result, input);
+  __ Addu(temp3, temp3, Operand(at));
+  __ lw(temp2, MemOperand(temp3, 0));
+  __ lw(temp3, MemOperand(temp3, kPointerSize));
+  // The first word is loaded is the lower number register.
+  if (temp2.code() < temp3.code()) {
+    __ sll(at, temp1, 20);
+    __ Or(temp1, temp3, at);
+    __ Move(double_scratch1, temp2, temp1);
+  } else {
+    __ sll(at, temp1, 20);
+    __ Or(temp1, temp2, at);
+    __ Move(double_scratch1, temp3, temp1);
+  }
+  __ mul_d(result, result, double_scratch1);
+  __ Branch(&done);
+
+  __ bind(&zero);
+  __ Move(result, kDoubleRegZero);
+  __ Branch(&done);
+
+  __ bind(&infinity);
+  __ ldc1(result, ExpConstant(2, temp3));
+
   __ bind(&done);
 }
 

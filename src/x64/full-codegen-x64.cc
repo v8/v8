@@ -4884,79 +4884,70 @@ static const byte kCallInstruction = 0xe8;
 static const byte kNopByteOne = 0x66;
 static const byte kNopByteTwo = 0x90;
 
-// The back edge bookkeeping code matches the pattern:
-//
-//     add <profiling_counter>, <-delta>
-//     jns ok
-//     call <stack guard>
-//   ok:
-//
-// We will patch away the branch so the code is:
-//
-//     add <profiling_counter>, <-delta>  ;; Not changed
-//     nop
-//     nop
-//     call <on-stack replacment>
-//   ok:
 
 void BackEdgeTable::PatchAt(Code* unoptimized_code,
-                            Address pc_after,
+                            Address pc,
+                            BackEdgeState target_state,
                             Code* replacement_code) {
-  // Turn the jump into nops.
-  Address call_target_address = pc_after - kIntSize;
-  *(call_target_address - 3) = kNopByteOne;
-  *(call_target_address - 2) = kNopByteTwo;
-  // Replace the call address.
+  Address call_target_address = pc - kIntSize;
+  Address jns_instr_address = call_target_address - 3;
+  Address jns_offset_address = call_target_address - 2;
+
+  switch (target_state) {
+    case INTERRUPT:
+      //     sub <profiling_counter>, <delta>  ;; Not changed
+      //     jns ok
+      //     call <interrupt stub>
+      //   ok:
+      *jns_instr_address = kJnsInstruction;
+      *jns_offset_address = kJnsOffset;
+      break;
+    case ON_STACK_REPLACEMENT:
+    case OSR_AFTER_STACK_CHECK:
+      //     sub <profiling_counter>, <delta>  ;; Not changed
+      //     nop
+      //     nop
+      //     call <on-stack replacment>
+      //   ok:
+      *jns_instr_address = kNopByteOne;
+      *jns_offset_address = kNopByteTwo;
+      break;
+  }
+
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
-
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
       unoptimized_code, call_target_address, replacement_code);
 }
 
 
-void BackEdgeTable::RevertAt(Code* unoptimized_code,
-                             Address pc_after,
-                             Code* interrupt_code) {
-  // Restore the original jump.
-  Address call_target_address = pc_after - kIntSize;
-  *(call_target_address - 3) = kJnsInstruction;
-  *(call_target_address - 2) = kJnsOffset;
-  // Restore the original call address.
-  Assembler::set_target_address_at(call_target_address,
-                                   interrupt_code->entry());
-
-  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, call_target_address, interrupt_code);
-}
-
-
-#ifdef DEBUG
 BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Isolate* isolate,
     Code* unoptimized_code,
-    Address pc_after) {
-  Address call_target_address = pc_after - kIntSize;
+    Address pc) {
+  Address call_target_address = pc - kIntSize;
+  Address jns_instr_address = call_target_address - 3;
   ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
-  if (*(call_target_address - 3) == kNopByteOne) {
-    ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
-    Code* osr_builtin =
-        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
-    ASSERT_EQ(osr_builtin->entry(),
+
+  if (*jns_instr_address == kJnsInstruction) {
+    ASSERT_EQ(kJnsOffset, *(call_target_address - 2));
+    ASSERT_EQ(isolate->builtins()->InterruptCheck()->entry(),
               Assembler::target_address_at(call_target_address));
-    return ON_STACK_REPLACEMENT;
-  } else {
-    // Get the interrupt stub code object to match against from cache.
-    Code* interrupt_builtin =
-        isolate->builtins()->builtin(Builtins::kInterruptCheck);
-    ASSERT_EQ(interrupt_builtin->entry(),
-              Assembler::target_address_at(call_target_address));
-    ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
-    ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));
     return INTERRUPT;
   }
+
+  ASSERT_EQ(kNopByteOne, *jns_instr_address);
+  ASSERT_EQ(kNopByteTwo, *(call_target_address - 2));
+
+  if (Assembler::target_address_at(call_target_address) ==
+      isolate->builtins()->OnStackReplacement()->entry()) {
+    return ON_STACK_REPLACEMENT;
+  }
+
+  ASSERT_EQ(isolate->builtins()->OsrAfterStackCheck()->entry(),
+            Assembler::target_address_at(call_target_address));
+  return OSR_AFTER_STACK_CHECK;
 }
-#endif  // DEBUG
 
 
 } }  // namespace v8::internal

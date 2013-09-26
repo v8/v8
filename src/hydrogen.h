@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "accessors.h"
 #include "allocation.h"
 #include "ast.h"
 #include "compiler.h"
@@ -2046,19 +2047,26 @@ class HOptimizedGraphBuilder V8_FINAL
     // PropertyAccessInfo is built for types->first().
     bool CanLoadAsMonomorphic(SmallMapList* types);
 
-    bool IsStringLength() {
-      return map_->instance_type() < FIRST_NONSTRING_TYPE &&
-          name_->Equals(isolate()->heap()->length_string());
+    bool IsJSObjectFieldAccessor() {
+      int offset;  // unused
+      return Accessors::IsJSObjectFieldAccessor(map_, name_, &offset);
     }
 
-    bool IsArrayLength() {
-      return map_->instance_type() == JS_ARRAY_TYPE &&
-          name_->Equals(isolate()->heap()->length_string());
-    }
-
-    bool IsTypedArrayLength() {
-      return map_->instance_type() == JS_TYPED_ARRAY_TYPE &&
-          name_->Equals(isolate()->heap()->length_string());
+    bool GetJSObjectFieldAccess(HObjectAccess* access) {
+      if (IsStringLength()) {
+        *access = HObjectAccess::ForStringLength();
+        return true;
+      } else if (IsArrayLength()) {
+        *access = HObjectAccess::ForArrayLength(map_->elements_kind());
+        return true;
+      } else {
+        int offset;
+        if (Accessors::IsJSObjectFieldAccessor(map_, name_, &offset)) {
+          *access = HObjectAccess::ForJSObjectOffset(offset);
+          return true;
+        }
+        return false;
+      }
     }
 
     bool has_holder() { return !holder_.is_null(); }
@@ -2072,6 +2080,16 @@ class HOptimizedGraphBuilder V8_FINAL
 
    private:
     Isolate* isolate() { return lookup_.isolate(); }
+
+    bool IsStringLength() {
+      return map_->instance_type() < FIRST_NONSTRING_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
+
+    bool IsArrayLength() {
+      return map_->instance_type() == JS_ARRAY_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
 
     bool LoadResult(Handle<Map> map);
     bool LookupDescriptor();
@@ -2173,10 +2191,6 @@ class HOptimizedGraphBuilder V8_FINAL
   HInstruction* BuildLoadNamedGeneric(HValue* object,
                                       Handle<String> name,
                                       Property* expr);
-  HInstruction* BuildCallGetter(HValue* object,
-                                Handle<Map> map,
-                                Handle<JSFunction> getter,
-                                Handle<JSObject> holder);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 

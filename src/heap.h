@@ -292,7 +292,10 @@ namespace internal {
   V(throw_string, "throw")                                               \
   V(done_string, "done")                                                 \
   V(value_string, "value")                                               \
-  V(next_string, "next")
+  V(next_string, "next")                                                 \
+  V(byte_length_string, "byteLength")                                    \
+  V(byte_offset_string, "byteOffset")                                    \
+  V(buffer_string, "buffer")
 
 // Forward declarations.
 class GCTracer;
