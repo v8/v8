@@ -228,6 +228,7 @@ v8::Handle<Integer> DeclarationContext::Query(Local<String> key) {
 // about and doesn't handle.
 TEST(Unknown) {
   HandleScope scope(CcTest::isolate());
+  v8::V8::Initialize();
 
   { DeclarationContext context;
     context.Check("var x; x",
@@ -338,6 +339,7 @@ class AbsentPropertyContext: public DeclarationContext {
 
 TEST(Absent) {
   v8::Isolate* isolate = CcTest::isolate();
+  v8::V8::Initialize();
   HandleScope scope(isolate);
 
   { AbsentPropertyContext context;
@@ -428,6 +430,7 @@ class AppearingPropertyContext: public DeclarationContext {
 
 
 TEST(Appearing) {
+  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { AppearingPropertyContext context;
@@ -520,6 +523,7 @@ class ReappearingPropertyContext: public DeclarationContext {
 
 
 TEST(Reappearing) {
+  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { ReappearingPropertyContext context;
@@ -612,6 +616,7 @@ class AbsentInPrototypeContext: public DeclarationContext {
 
 TEST(AbsentInPrototype) {
   i::FLAG_es52_globals = true;
+  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { AbsentInPrototypeContext context;
