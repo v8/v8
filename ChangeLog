@@ -1,3 +1,17 @@
+2013-09-27: Version 3.22.3
+
+        Added methods to enable configuration of ResourceConstraints based on
+        limits derived at runtime.
+        (Chromium issue 292928)
+
+        Added -optimize-for-size flag to optimize for memory size (will be used
+        by pre-aging CL), and removed the is_memory_constrained
+        ResourceConstraint.
+        (Chromium issue 292928)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-26: Version 3.22.2
 
         Performance and stability improvements on all platforms.
