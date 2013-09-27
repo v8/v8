@@ -688,17 +688,15 @@ class LMathFloorOfDiv V8_FINAL : public LTemplateInstruction<1, 2, 1> {
 };
 
 
-class LMulI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LMulI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LMulI(LOperand* left, LOperand* right, LOperand* temp) {
+  LMulI(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
-    temps_[0] = temp;
   }
 
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MulI, "mul-i")
   DECLARE_HYDROGEN_ACCESSOR(Mul)

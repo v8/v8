@@ -1469,20 +1469,39 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-    LOperand* left;
-    LOperand* right = UseOrConstant(instr->BetterRightOperand());
-    LOperand* temp = NULL;
-    if (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-        (instr->CheckFlag(HValue::kCanOverflow) ||
-        !right->IsConstantOperand())) {
-      left = UseRegister(instr->BetterLeftOperand());
-      temp = TempRegister();
+    HValue* left = instr->BetterLeftOperand();
+    HValue* right = instr->BetterRightOperand();
+    LOperand* left_op;
+    LOperand* right_op;
+    bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
+    bool bailout_on_minus_zero = instr->CheckFlag(HValue::kBailoutOnMinusZero);
+
+    if (right->IsConstant()) {
+      HConstant* constant = HConstant::cast(right);
+      int32_t constant_value = constant->Integer32Value();
+      // Constants -1, 0 and 1 can be optimized if the result can overflow.
+      // For other constants, it can be optimized only without overflow.
+      if (!can_overflow || ((constant_value >= -1) && (constant_value <= 1))) {
+        left_op = UseRegisterAtStart(left);
+        right_op = UseConstant(right);
+      } else {
+        if (bailout_on_minus_zero) {
+          left_op = UseRegister(left);
+        } else {
+          left_op = UseRegisterAtStart(left);
+        }
+        right_op = UseRegister(right);
+      }
     } else {
-      left = UseRegisterAtStart(instr->BetterLeftOperand());
+      if (bailout_on_minus_zero) {
+        left_op = UseRegister(left);
+      } else {
+        left_op = UseRegisterAtStart(left);
+      }
+      right_op = UseRegister(right);
     }
-    LMulI* mul = new(zone()) LMulI(left, right, temp);
-    if (instr->CheckFlag(HValue::kCanOverflow) ||
-        instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    LMulI* mul = new(zone()) LMulI(left_op, right_op);
+    if (can_overflow || bailout_on_minus_zero) {
       AssignEnvironment(mul);
     }
     return DefineAsRegister(mul);
