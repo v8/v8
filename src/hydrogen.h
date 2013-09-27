@@ -1781,6 +1781,8 @@ class HOptimizedGraphBuilder V8_FINAL
 
   HValue* context() { return environment()->context(); }
 
+  HOsrBuilder* osr() const { return osr_; }
+
   void Bailout(BailoutReason reason);
 
   HBasicBlock* CreateJoin(HBasicBlock* first,
@@ -1885,6 +1887,12 @@ class HOptimizedGraphBuilder V8_FINAL
                           HBasicBlock* body_exit,
                           HBasicBlock* loop_successor,
                           HBasicBlock* break_block);
+
+  // Build a loop entry
+  HBasicBlock* BuildLoopEntry();
+
+  // Builds a loop entry respectful of OSR requirements
+  HBasicBlock* BuildLoopEntry(IterationStatement* statement);
 
   HBasicBlock* JoinContinue(IterationStatement* statement,
                             HBasicBlock* exit_block,

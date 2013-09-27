@@ -37,19 +37,8 @@ bool HOsrBuilder::HasOsrEntryAt(IterationStatement* statement) {
 }
 
 
-// Build a new loop header block and set it as the current block.
-HBasicBlock *HOsrBuilder::BuildLoopEntry() {
-  HBasicBlock* loop_entry = builder_->CreateLoopHeaderBlock();
-  builder_->current_block()->Goto(loop_entry);
-  builder_->set_current_block(loop_entry);
-  return loop_entry;
-}
-
-
-HBasicBlock* HOsrBuilder::BuildPossibleOsrLoopEntry(
-    IterationStatement* statement) {
-  // Check if there is an OSR here first.
-  if (!HasOsrEntryAt(statement)) return BuildLoopEntry();
+HBasicBlock* HOsrBuilder::BuildOsrLoopEntry(IterationStatement* statement) {
+  ASSERT(HasOsrEntryAt(statement));
 
   Zone* zone = builder_->zone();
   HGraph* graph = builder_->graph();
@@ -113,7 +102,7 @@ HBasicBlock* HOsrBuilder::BuildPossibleOsrLoopEntry(
   builder_->set_current_block(loop_predecessor);
 
   // Create the final loop entry
-  osr_loop_entry_ = BuildLoopEntry();
+  osr_loop_entry_ = builder_->BuildLoopEntry();
   return osr_loop_entry_;
 }
 

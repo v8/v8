@@ -2246,6 +2246,24 @@ HBasicBlock* HOptimizedGraphBuilder::CreateLoop(IterationStatement* statement,
 }
 
 
+// Build a new loop header block and set it as the current block.
+HBasicBlock* HOptimizedGraphBuilder::BuildLoopEntry() {
+  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
+  current_block()->Goto(loop_entry);
+  set_current_block(loop_entry);
+  return loop_entry;
+}
+
+
+HBasicBlock* HOptimizedGraphBuilder::BuildLoopEntry(
+    IterationStatement* statement) {
+  HBasicBlock* loop_entry = osr()->HasOsrEntryAt(statement)
+      ? osr()->BuildOsrLoopEntry(statement)
+      : BuildLoopEntry();
+  return loop_entry;
+}
+
+
 void HBasicBlock::FinishExit(HControlInstruction* instruction) {
   Finish(instruction);
   ClearEnvironment();
@@ -3087,7 +3105,7 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   type_info->set_inlined_type_change_checksum(composite_checksum);
 
   // Perform any necessary OSR-specific cleanups or changes to the graph.
-  osr_->FinishGraph();
+  osr()->FinishGraph();
 
   return true;
 }
@@ -3670,7 +3688,7 @@ void HOptimizedGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
+  HBasicBlock* loop_entry = BuildLoopEntry(stmt);
 
   BreakAndContinueInfo break_info(stmt);
   CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
@@ -3709,7 +3727,7 @@ void HOptimizedGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
+  HBasicBlock* loop_entry = BuildLoopEntry(stmt);
 
   // If the condition is constant true, do not generate a branch.
   HBasicBlock* loop_successor = NULL;
@@ -3751,7 +3769,7 @@ void HOptimizedGraphBuilder::VisitForStatement(ForStatement* stmt) {
     CHECK_ALIVE(Visit(stmt->init()));
   }
   ASSERT(current_block() != NULL);
-  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
+  HBasicBlock* loop_entry = BuildLoopEntry(stmt);
 
   HBasicBlock* loop_successor = NULL;
   if (stmt->cond() != NULL) {
@@ -3834,7 +3852,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HForInCacheArray::cast(array)->set_index_cache(
       HForInCacheArray::cast(index_cache));
 
-  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
+  HBasicBlock* loop_entry = BuildLoopEntry(stmt);
 
   HValue* index = environment()->ExpressionStackAt(0);
   HValue* limit = environment()->ExpressionStackAt(1);
