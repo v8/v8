@@ -1699,6 +1699,29 @@ void MacroAssembler::SmiAdd(Register dst,
 }
 
 
+template<class T>
+static void SmiSubHelper(MacroAssembler* masm,
+                         Register dst,
+                         Register src1,
+                         T src2,
+                         Label* on_not_smi_result,
+                         Label::Distance near_jump) {
+  if (dst.is(src1)) {
+    Label done;
+    masm->subq(dst, src2);
+    masm->j(no_overflow, &done, Label::kNear);
+    // Restore src1.
+    masm->addq(dst, src2);
+    masm->jmp(on_not_smi_result, near_jump);
+    masm->bind(&done);
+  } else {
+    masm->movq(dst, src1);
+    masm->subq(dst, src2);
+    masm->j(overflow, on_not_smi_result, near_jump);
+  }
+}
+
+
 void MacroAssembler::SmiSub(Register dst,
                             Register src1,
                             Register src2,
@@ -1706,27 +1729,7 @@ void MacroAssembler::SmiSub(Register dst,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
-    cmpq(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-    subq(dst, src2);
-  } else {
-    movq(dst, src1);
-    subq(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-  }
-}
-
-
-void MacroAssembler::SmiSub(Register dst, Register src1, Register src2) {
-  // No overflow checking. Use only when it's known that
-  // overflowing is impossible (e.g., subtracting two positive smis).
-  ASSERT(!dst.is(src2));
-  if (!dst.is(src1)) {
-    movq(dst, src1);
-  }
-  subq(dst, src2);
-  Assert(no_overflow, kSmiSubtractionOverflow);
+  SmiSubHelper<Register>(this, dst, src1, src2, on_not_smi_result, near_jump);
 }
 
 
@@ -1736,29 +1739,36 @@ void MacroAssembler::SmiSub(Register dst,
                             Label* on_not_smi_result,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
-  if (dst.is(src1)) {
-    movq(kScratchRegister, src2);
-    cmpq(src1, kScratchRegister);
-    j(overflow, on_not_smi_result, near_jump);
-    subq(src1, kScratchRegister);
-  } else {
-    movq(dst, src1);
-    subq(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
+  ASSERT(!src2.AddressUsesRegister(dst));
+  SmiSubHelper<Operand>(this, dst, src1, src2, on_not_smi_result, near_jump);
+}
+
+
+template<class T>
+static void SmiSubNoOverflowHelper(MacroAssembler* masm,
+                                   Register dst,
+                                   Register src1,
+                                   T src2) {
+  // No overflow checking. Use only when it's known that
+  // overflowing is impossible (e.g., subtracting two positive smis).
+  if (!dst.is(src1)) {
+    masm->movq(dst, src1);
   }
+  masm->subq(dst, src2);
+  masm->Assert(no_overflow, kSmiSubtractionOverflow);
+}
+
+
+void MacroAssembler::SmiSub(Register dst, Register src1, Register src2) {
+  ASSERT(!dst.is(src2));
+  SmiSubNoOverflowHelper<Register>(this, dst, src1, src2);
 }
 
 
 void MacroAssembler::SmiSub(Register dst,
                             Register src1,
                             const Operand& src2) {
-  // No overflow checking. Use only when it's known that
-  // overflowing is impossible (e.g., subtracting two positive smis).
-  if (!dst.is(src1)) {
-    movq(dst, src1);
-  }
-  subq(dst, src2);
-  Assert(no_overflow, kSmiSubtractionOverflow);
+  SmiSubNoOverflowHelper<Operand>(this, dst, src1, src2);
 }
 
 
