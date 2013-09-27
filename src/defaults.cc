@@ -45,15 +45,15 @@ bool ConfigureResourceConstraintsForCurrentPlatform(
   // The young_space_size should be a power of 2 and old_generation_size should
   // be a multiple of Page::kPageSize.
   if (physical_memory > 2ul * i::GB) {
-    constraints->set_max_young_space_size(8 * lump_of_memory);
+    constraints->set_max_young_space_size(16 * lump_of_memory);
     constraints->set_max_old_space_size(700 * lump_of_memory);
     constraints->set_max_executable_size(256 * lump_of_memory);
   } else if (physical_memory > 512ul * i::MB) {
-    constraints->set_max_young_space_size(4 * lump_of_memory);
+    constraints->set_max_young_space_size(8 * lump_of_memory);
     constraints->set_max_old_space_size(192 * lump_of_memory);
     constraints->set_max_executable_size(192 * lump_of_memory);
   } else /* (physical_memory <= 512GB) */ {
-    constraints->set_max_young_space_size(1 * lump_of_memory);
+    constraints->set_max_young_space_size(2 * lump_of_memory);
     constraints->set_max_old_space_size(96 * lump_of_memory);
     constraints->set_max_executable_size(96 * lump_of_memory);
   }
