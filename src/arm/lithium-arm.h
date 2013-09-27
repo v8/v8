@@ -483,8 +483,14 @@ class LParameter V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCallStub V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+class LCallStub V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallStub(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
   DECLARE_HYDROGEN_ACCESSOR(CallStub)
 
@@ -785,12 +791,14 @@ class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LMathAbs V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LMathAbs V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LMathAbs(LOperand* value) {
+  LMathAbs(LOperand* context, LOperand* value) {
+    inputs_[1] = context;
     inputs_[0] = value;
   }
 
+  LOperand* context() { return inputs_[1]; }
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathAbs, "math-abs")
@@ -989,15 +997,17 @@ class LIsUndetectableAndBranch V8_FINAL : public LControlInstruction<1, 1> {
 };
 
 
-class LStringCompareAndBranch V8_FINAL : public LControlInstruction<2, 0> {
+class LStringCompareAndBranch V8_FINAL : public LControlInstruction<3, 0> {
  public:
-  LStringCompareAndBranch(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LStringCompareAndBranch(LOperand* context, LOperand* left, LOperand* right) {
+    inputs_[0] = context;
+    inputs_[1] = left;
+    inputs_[2] = right;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* left() { return inputs_[1]; }
+  LOperand* right() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCompareAndBranch,
                                "string-compare-and-branch")
@@ -1073,15 +1083,17 @@ class LClassOfTestAndBranch V8_FINAL : public LControlInstruction<1, 1> {
 };
 
 
-class LCmpT V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LCmpT V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LCmpT(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LCmpT(LOperand* context, LOperand* left, LOperand* right) {
+    inputs_[0] = context;
+    inputs_[1] = left;
+    inputs_[2] = right;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* left() { return inputs_[1]; }
+  LOperand* right() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpT, "cmp-t")
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
@@ -1090,28 +1102,32 @@ class LCmpT V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LInstanceOf V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LInstanceOf V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LInstanceOf(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LInstanceOf(LOperand* context, LOperand* left, LOperand* right) {
+    inputs_[0] = context;
+    inputs_[1] = left;
+    inputs_[2] = right;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* left() { return inputs_[1]; }
+  LOperand* right() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
 };
 
 
-class LInstanceOfKnownGlobal V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+class LInstanceOfKnownGlobal V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  LInstanceOfKnownGlobal(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
+  LInstanceOfKnownGlobal(LOperand* context, LOperand* value, LOperand* temp) {
+    inputs_[0] = context;
+    inputs_[1] = value;
     temps_[0] = temp;
   }
 
-  LOperand* value() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* value() { return inputs_[1]; }
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
@@ -1392,13 +1408,15 @@ class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 3, 0> {
 };
 
 
-class LThrow V8_FINAL : public LTemplateInstruction<0, 1, 0> {
+class LThrow V8_FINAL : public LTemplateInstruction<0, 2, 0> {
  public:
-  explicit LThrow(LOperand* value) {
-    inputs_[0] = value;
+  LThrow(LOperand* context, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = value;
   }
 
-  LOperand* value() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* value() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
@@ -1494,16 +1512,21 @@ class LArithmeticD V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LArithmeticT V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LArithmeticT V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LArithmeticT(Token::Value op, LOperand* left, LOperand* right)
+  LArithmeticT(Token::Value op,
+               LOperand* context,
+               LOperand* left,
+               LOperand* right)
       : op_(op) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+    inputs_[0] = context;
+    inputs_[1] = left;
+    inputs_[2] = right;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* left() { return inputs_[1]; }
+  LOperand* right() { return inputs_[2]; }
   Token::Value op() const { return op_; }
 
   virtual Opcode opcode() const V8_OVERRIDE {
@@ -1517,11 +1540,12 @@ class LArithmeticT V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LReturn V8_FINAL : public LTemplateInstruction<0, 2, 0> {
+class LReturn V8_FINAL : public LTemplateInstruction<0, 3, 0> {
  public:
-  explicit LReturn(LOperand* value, LOperand* parameter_count) {
+  LReturn(LOperand* value, LOperand* context, LOperand* parameter_count) {
     inputs_[0] = value;
-    inputs_[1] = parameter_count;
+    inputs_[1] = context;
+    inputs_[2] = parameter_count;
   }
 
   LOperand* value() { return inputs_[0]; }
@@ -1533,7 +1557,7 @@ class LReturn V8_FINAL : public LTemplateInstruction<0, 2, 0> {
     ASSERT(has_constant_parameter_count());
     return LConstantOperand::cast(parameter_count());
   }
-  LOperand* parameter_count() { return inputs_[1]; }
+  LOperand* parameter_count() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")
 };
@@ -1552,13 +1576,15 @@ class LLoadNamedField V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadNamedGeneric V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LLoadNamedGeneric V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LLoadNamedGeneric(LOperand* object) {
-    inputs_[0] = object;
+  LLoadNamedGeneric(LOperand* context, LOperand* object) {
+    inputs_[0] = context;
+    inputs_[1] = object;
   }
 
-  LOperand* object() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric, "load-named-generic")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedGeneric)
@@ -1627,15 +1653,17 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LLoadKeyedGeneric V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LLoadKeyedGeneric V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LLoadKeyedGeneric(LOperand* object, LOperand* key) {
-    inputs_[0] = object;
-    inputs_[1] = key;
+  LLoadKeyedGeneric(LOperand* context, LOperand* object, LOperand* key) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+    inputs_[2] = key;
   }
 
-  LOperand* object() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* key() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load-keyed-generic")
 };
@@ -1648,13 +1676,15 @@ class LLoadGlobalCell V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LLoadGlobalGeneric V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LLoadGlobalGeneric V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LLoadGlobalGeneric(LOperand* global_object) {
-    inputs_[0] = global_object;
+  LLoadGlobalGeneric(LOperand* context, LOperand* global_object) {
+    inputs_[0] = context;
+    inputs_[1] = global_object;
   }
 
-  LOperand* global_object() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* global_object() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load-global-generic")
   DECLARE_HYDROGEN_ACCESSOR(LoadGlobalGeneric)
@@ -1679,16 +1709,19 @@ class LStoreGlobalCell V8_FINAL : public LTemplateInstruction<0, 1, 1> {
 };
 
 
-class LStoreGlobalGeneric V8_FINAL : public LTemplateInstruction<0, 2, 0> {
+class LStoreGlobalGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
  public:
-  explicit LStoreGlobalGeneric(LOperand* global_object,
-                               LOperand* value) {
-    inputs_[0] = global_object;
-    inputs_[1] = value;
+  LStoreGlobalGeneric(LOperand* context,
+                      LOperand* global_object,
+                      LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = global_object;
+    inputs_[2] = value;
   }
 
-  LOperand* global_object() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* global_object() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric, "store-global-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalGeneric)
@@ -1818,8 +1851,14 @@ class LOuterContext V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 0, 0> {
+class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
+  explicit LDeclareGlobals(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals, "declare-globals")
   DECLARE_HYDROGEN_ACCESSOR(DeclareGlobals)
 };
@@ -1861,13 +1900,15 @@ class LCallConstantFunction V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LInvokeFunction V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LInvokeFunction V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LInvokeFunction(LOperand* function) {
-    inputs_[0] = function;
+  LInvokeFunction(LOperand* context, LOperand* function) {
+    inputs_[0] = context;
+    inputs_[1] = function;
   }
 
-  LOperand* function() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* function() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction, "invoke-function")
   DECLARE_HYDROGEN_ACCESSOR(InvokeFunction)
@@ -1878,13 +1919,15 @@ class LInvokeFunction V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCallKeyed V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LCallKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LCallKeyed(LOperand* key) {
-    inputs_[0] = key;
+  LCallKeyed(LOperand* context, LOperand* key) {
+    inputs_[0] = context;
+    inputs_[1] = key;
   }
 
-  LOperand* key() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallKeyed, "call-keyed")
   DECLARE_HYDROGEN_ACCESSOR(CallKeyed)
@@ -1896,8 +1939,14 @@ class LCallKeyed V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
 
 
-class LCallNamed V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+class LCallNamed V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallNamed(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(CallNamed, "call-named")
   DECLARE_HYDROGEN_ACCESSOR(CallNamed)
 
@@ -1908,13 +1957,15 @@ class LCallNamed V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCallFunction V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LCallFunction V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LCallFunction(LOperand* function) {
-    inputs_[0] = function;
+  LCallFunction(LOperand* context, LOperand* function) {
+    inputs_[0] = context;
+    inputs_[1] = function;
   }
 
-  LOperand* function() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* function() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call-function")
   DECLARE_HYDROGEN_ACCESSOR(CallFunction)
@@ -1923,8 +1974,14 @@ class LCallFunction V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCallGlobal V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+class LCallGlobal V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallGlobal(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(CallGlobal, "call-global")
   DECLARE_HYDROGEN_ACCESSOR(CallGlobal)
 
@@ -1946,13 +2003,15 @@ class LCallKnownGlobal V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCallNew V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LCallNew V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LCallNew(LOperand* constructor) {
-    inputs_[0] = constructor;
+  LCallNew(LOperand* context, LOperand* constructor) {
+    inputs_[0] = context;
+    inputs_[1] = constructor;
   }
 
-  LOperand* constructor() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* constructor() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNew, "call-new")
   DECLARE_HYDROGEN_ACCESSOR(CallNew)
@@ -1963,13 +2022,15 @@ class LCallNew V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCallNewArray V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LCallNewArray V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LCallNewArray(LOperand* constructor) {
-    inputs_[0] = constructor;
+  LCallNewArray(LOperand* context, LOperand* constructor) {
+    inputs_[0] = context;
+    inputs_[1] = constructor;
   }
 
-  LOperand* constructor() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* constructor() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNewArray, "call-new-array")
   DECLARE_HYDROGEN_ACCESSOR(CallNewArray)
@@ -1980,8 +2041,14 @@ class LCallNewArray V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCallRuntime V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+class LCallRuntime V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallRuntime(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
@@ -2187,15 +2254,17 @@ class LStoreNamedField V8_FINAL : public LTemplateInstruction<0, 2, 1> {
 };
 
 
-class LStoreNamedGeneric V8_FINAL : public LTemplateInstruction<0, 2, 0> {
+class LStoreNamedGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
  public:
-  LStoreNamedGeneric(LOperand* object, LOperand* value) {
-    inputs_[0] = object;
-    inputs_[1] = value;
+  LStoreNamedGeneric(LOperand* context, LOperand* object, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+    inputs_[2] = value;
   }
 
-  LOperand* object() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
@@ -2238,17 +2307,22 @@ class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
+class LStoreKeyedGeneric V8_FINAL : public LTemplateInstruction<0, 4, 0> {
  public:
-  LStoreKeyedGeneric(LOperand* obj, LOperand* key, LOperand* value) {
-    inputs_[0] = obj;
-    inputs_[1] = key;
-    inputs_[2] = value;
+  LStoreKeyedGeneric(LOperand* context,
+                     LOperand* obj,
+                     LOperand* key,
+                     LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = obj;
+    inputs_[2] = key;
+    inputs_[3] = value;
   }
 
-  LOperand* object() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* key() { return inputs_[2]; }
+  LOperand* value() { return inputs_[3]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreKeyedGeneric)
@@ -2259,14 +2333,17 @@ class LStoreKeyedGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 1, 1> {
+class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 2, 1> {
  public:
   LTransitionElementsKind(LOperand* object,
+                          LOperand* context,
                           LOperand* new_map_temp) {
     inputs_[0] = object;
+    inputs_[1] = context;
     temps_[0] = new_map_temp;
   }
 
+  LOperand* context() { return inputs_[1]; }
   LOperand* object() { return inputs_[0]; }
   LOperand* new_map_temp() { return temps_[0]; }
 
@@ -2301,15 +2378,17 @@ class LTrapAllocationMemento V8_FINAL : public LTemplateInstruction<0, 1, 1> {
 };
 
 
-class LStringAdd V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LStringAdd V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LStringAdd(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LStringAdd(LOperand* context, LOperand* left, LOperand* right) {
+    inputs_[0] = context;
+    inputs_[1] = left;
+    inputs_[2] = right;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* left() { return inputs_[1]; }
+  LOperand* right() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StringAdd, "string-add")
   DECLARE_HYDROGEN_ACCESSOR(StringAdd)
@@ -2317,28 +2396,32 @@ class LStringAdd V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 
 
 
-class LStringCharCodeAt V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LStringCharCodeAt V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LStringCharCodeAt(LOperand* string, LOperand* index) {
-    inputs_[0] = string;
-    inputs_[1] = index;
+  LStringCharCodeAt(LOperand* context, LOperand* string, LOperand* index) {
+    inputs_[0] = context;
+    inputs_[1] = string;
+    inputs_[2] = index;
   }
 
-  LOperand* string() { return inputs_[0]; }
-  LOperand* index() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* string() { return inputs_[1]; }
+  LOperand* index() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt, "string-char-code-at")
   DECLARE_HYDROGEN_ACCESSOR(StringCharCodeAt)
 };
 
 
-class LStringCharFromCode V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LStringCharFromCode V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LStringCharFromCode(LOperand* char_code) {
-    inputs_[0] = char_code;
+  explicit LStringCharFromCode(LOperand* context, LOperand* char_code) {
+    inputs_[0] = context;
+    inputs_[1] = char_code;
   }
 
-  LOperand* char_code() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* char_code() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode, "string-char-from-code")
   DECLARE_HYDROGEN_ACCESSOR(StringCharFromCode)
@@ -2449,12 +2532,17 @@ class LClampTToUint8 V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 
 class LAllocate V8_FINAL : public LTemplateInstruction<1, 2, 2> {
  public:
-  LAllocate(LOperand* size, LOperand* temp1, LOperand* temp2) {
+  LAllocate(LOperand* context,
+            LOperand* size,
+            LOperand* temp1,
+            LOperand* temp2) {
+    inputs_[0] = context;
     inputs_[1] = size;
     temps_[0] = temp1;
     temps_[1] = temp2;
   }
 
+  LOperand* context() { return inputs_[0]; }
   LOperand* size() { return inputs_[1]; }
   LOperand* temp1() { return temps_[0]; }
   LOperand* temp2() { return temps_[1]; }
@@ -2464,15 +2552,27 @@ class LAllocate V8_FINAL : public LTemplateInstruction<1, 2, 2> {
 };
 
 
-class LRegExpLiteral V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+class LRegExpLiteral V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LRegExpLiteral(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral, "regexp-literal")
   DECLARE_HYDROGEN_ACCESSOR(RegExpLiteral)
 };
 
 
-class LFunctionLiteral V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+class LFunctionLiteral V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LFunctionLiteral(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral, "function-literal")
   DECLARE_HYDROGEN_ACCESSOR(FunctionLiteral)
 };
@@ -2491,13 +2591,15 @@ class LToFastProperties V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LTypeof V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LTypeof V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LTypeof(LOperand* value) {
-    inputs_[0] = value;
+  LTypeof(LOperand* context, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = value;
   }
 
-  LOperand* value() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* value() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Typeof, "typeof")
 };
@@ -2544,8 +2646,14 @@ class LOsrEntry V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 };
 
 
-class LStackCheck V8_FINAL : public LTemplateInstruction<0, 0, 0> {
+class LStackCheck V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
+  explicit LStackCheck(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
   DECLARE_CONCRETE_INSTRUCTION(StackCheck, "stack-check")
   DECLARE_HYDROGEN_ACCESSOR(StackCheck)
 
@@ -2556,13 +2664,15 @@ class LStackCheck V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 };
 
 
-class LForInPrepareMap V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LForInPrepareMap V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LForInPrepareMap(LOperand* object) {
-    inputs_[0] = object;
+  LForInPrepareMap(LOperand* context, LOperand* object) {
+    inputs_[0] = context;
+    inputs_[1] = object;
   }
 
-  LOperand* object() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ForInPrepareMap, "for-in-prepare-map")
 };
