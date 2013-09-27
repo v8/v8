@@ -3738,7 +3738,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 #endif
   // Optionally save all XMM registers.
   if (save_doubles) {
-    int space = XMMRegister::kMaxNumRegisters * kDoubleSize +
+    int space = XMMRegister::kMaxNumAllocatableRegisters * kDoubleSize +
         arg_stack_space * kPointerSize;
     subq(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
