@@ -135,6 +135,7 @@ class DeclaredAccessorDescriptor;
 class ObjectOperationDescriptor;
 class RawOperationDescriptor;
 class CallHandlerHelper;
+class EscapableHandleScope;
 
 namespace internal {
 class Arguments;
@@ -377,7 +378,6 @@ template <class T> class Local : public Handle<T> {
    * The referee is kept alive by the local handle even when
    * the original handle is destroyed/disposed.
    */
-  V8_INLINE static Local<T> New(Handle<T> that);
   V8_INLINE static Local<T> New(Isolate* isolate, Handle<T> that);
   template<class M>
   V8_INLINE static Local<T> New(Isolate* isolate,
@@ -401,6 +401,7 @@ template <class T> class Local : public Handle<T> {
   friend class Context;
   template<class F> friend class internal::CustomArguments;
   friend class HandleScope;
+  friend class EscapableHandleScope;
 
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
 };
@@ -773,10 +774,7 @@ class V8_EXPORT HandleScope {
 
   ~HandleScope();
 
-  /**
-   * Closes the handle scope and returns the value as a handle in the
-   * previous scope, which is the new current scope after the call.
-   */
+  // TODO(dcarney): deprecated - use EscapableHandleScope::Escape.
   template <class T> Local<T> Close(Handle<T> value);
 
   /**
@@ -784,16 +782,19 @@ class V8_EXPORT HandleScope {
    */
   static int NumberOfHandles();
 
+ private:
   /**
    * Creates a new handle with the given value.
    */
-  static internal::Object** CreateHandle(internal::Object* value);
   static internal::Object** CreateHandle(internal::Isolate* isolate,
                                          internal::Object* value);
-  // Faster version, uses HeapObject to obtain the current Isolate.
-  static internal::Object** CreateHandle(internal::HeapObject* value);
+  // Uses HeapObject to obtain the current Isolate.
+  static internal::Object** CreateHandle(internal::HeapObject* heap_object,
+                                         internal::Object* value);
 
- private:
+  V8_INLINE HandleScope() {}
+  void Initialize(Isolate* isolate);
+
   // Make it hard to create heap-allocated or illegal handle scopes by
   // disallowing certain operations.
   HandleScope(const HandleScope&);
@@ -814,19 +815,51 @@ class V8_EXPORT HandleScope {
     }
   };
 
-  void Initialize(Isolate* isolate);
   void Leave();
 
   internal::Isolate* isolate_;
   internal::Object** prev_next_;
   internal::Object** prev_limit_;
 
+  // TODO(dcarney): remove this field
   // Allow for the active closing of HandleScopes which allows to pass a handle
   // from the HandleScope being closed to the next top most HandleScope.
   bool is_closed_;
   internal::Object** RawClose(internal::Object** value);
 
   friend class ImplementationUtilities;
+  friend class EscapableHandleScope;
+  template<class F> friend class Handle;
+  template<class F> friend class Local;
+  friend class Object;
+  friend class Context;
+};
+
+
+/**
+ * A HandleScope which first allocates a handle in the current scope
+ * which will be later filled with the escape value.
+ */
+class V8_EXPORT EscapableHandleScope : public HandleScope {
+ public:
+  EscapableHandleScope(Isolate* isolate);
+  V8_INLINE ~EscapableHandleScope() {}
+
+  /**
+   * Pushes the value into the previous scope and returns a handle to it.
+   * Cannot be called twice.
+   */
+  template <class T>
+  V8_INLINE Local<T> Escape(Local<T> value) {
+    internal::Object** slot =
+        Escape(reinterpret_cast<internal::Object**>(*value));
+    return Local<T>(reinterpret_cast<T*>(slot));
+  }
+
+ private:
+  internal::Object** Escape(internal::Object** escape_value);
+
+  internal::Object** escape_slot_;
 };
 
 
@@ -2386,13 +2419,13 @@ class FunctionCallbackInfo {
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
-  static const int kReturnValueIndex = 0;
-  static const int kReturnValueDefaultValueIndex = -1;
-  static const int kIsolateIndex = -2;
-  static const int kDataIndex = -3;
-  static const int kCalleeIndex = -4;
-  static const int kHolderIndex = -5;
-  static const int kContextSaveIndex = -6;
+  static const int kContextSaveIndex = 0;
+  static const int kCalleeIndex = -1;
+  static const int kDataIndex = -2;
+  static const int kReturnValueIndex = -3;
+  static const int kReturnValueDefaultValueIndex = -4;
+  static const int kIsolateIndex = -5;
+  static const int kHolderIndex = -6;
 
   V8_INLINE FunctionCallbackInfo(internal::Object** implicit_args,
                    internal::Object** values,
@@ -3762,23 +3795,18 @@ class V8_EXPORT ResourceConstraints {
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
-  Maybe<bool> is_memory_constrained() const { return is_memory_constrained_; }
-  // If set to true, V8 will limit it's memory usage, at the potential cost of
-  // lower performance.  Note, this option is a tentative addition to the API
-  // and may be removed or modified without warning.
-  void set_memory_constrained(bool value) {
-    is_memory_constrained_ = Maybe<bool>(value);
-  }
 
  private:
   int max_young_space_size_;
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
-  Maybe<bool> is_memory_constrained_;
 };
 
 
+/**
+ * Sets the given ResourceConstraints on the current isolate.
+ */
 bool V8_EXPORT SetResourceConstraints(ResourceConstraints* constraints);
 
 
@@ -3791,12 +3819,7 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> error);
 
 
-/**
- * Schedules an exception to be thrown when returning to JavaScript.  When an
- * exception has been scheduled it is illegal to invoke any JavaScript
- * operation; the caller must return immediately and only after the exception
- * has been handled does it become legal to invoke JavaScript operations.
- */
+// TODO(dcarney): remove. Use Isolate::ThrowException instead.
 Handle<Value> V8_EXPORT ThrowException(Handle<Value> exception);
 
 /**
@@ -4050,6 +4073,14 @@ class V8_EXPORT Isolate {
 
   /** Returns the last entered context. */
   Local<Context> GetEnteredContext();
+
+  /**
+   * Schedules an exception to be thrown when returning to JavaScript.  When an
+   * exception has been scheduled it is illegal to invoke any JavaScript
+   * operation; the caller must return immediately and only after the exception
+   * has been handled does it become legal to invoke JavaScript operations.
+   */
+  Local<Value> ThrowException(Local<Value> exception);
 
   /**
    * Allows the host application to group objects together. If one
@@ -5425,7 +5456,7 @@ class Internals {
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
 
-  static void CheckInitializedImpl(v8::Isolate* isolate);
+  V8_EXPORT static void CheckInitializedImpl(v8::Isolate* isolate);
   V8_INLINE static void CheckInitialized(v8::Isolate* isolate) {
 #ifdef V8_ENABLE_CHECKS
     CheckInitializedImpl(isolate);
@@ -5538,19 +5569,6 @@ class Internals {
 
 template <class T>
 Local<T>::Local() : Handle<T>() { }
-
-
-template <class T>
-Local<T> Local<T>::New(Handle<T> that) {
-  if (that.IsEmpty()) return Local<T>();
-  T* that_ptr = *that;
-  internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
-  if (internal::Internals::CanCastToHeapObject(that_ptr)) {
-    return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
-        reinterpret_cast<internal::HeapObject*>(*p))));
-  }
-  return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(*p)));
-}
 
 
 template <class T>
@@ -5894,7 +5912,7 @@ FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Object** implicit_args,
 
 template<typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
-  if (i < 0 || length_ <= i) return Local<Value>(*Undefined());
+  if (i < 0 || length_ <= i) return Local<Value>(*Undefined(GetIsolate()));
   return Local<Value>(reinterpret_cast<Value*>(values_ - i));
 }
 
@@ -5976,7 +5994,8 @@ Handle<Boolean> ScriptOrigin::ResourceIsSharedCrossOrigin() const {
 
 
 Handle<Boolean> Boolean::New(bool value) {
-  return value ? True() : False();
+  Isolate* isolate = Isolate::GetCurrent();
+  return value ? True(isolate) : False(isolate);
 }
 
 
@@ -5988,6 +6007,7 @@ void Template::Set(const char* name, v8::Handle<Data> value) {
 Local<Value> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
+  typedef internal::HeapObject HO;
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
@@ -5995,7 +6015,7 @@ Local<Value> Object::GetInternalField(int index) {
   if (I::GetInstanceType(obj) == I::kJSObjectType) {
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
-    O** result = HandleScope::CreateHandle(value);
+    O** result = HandleScope::CreateHandle(reinterpret_cast<HO*>(obj), value);
     return Local<Value>(reinterpret_cast<Value*>(result));
   }
 #endif
@@ -6447,8 +6467,11 @@ void* Isolate::GetData() {
 Local<Value> Context::GetEmbedderData(int index) {
 #ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
+  typedef internal::HeapObject HO;
   typedef internal::Internals I;
-  O** result = HandleScope::CreateHandle(I::ReadEmbedderData<O*>(this, index));
+  HO* context = *reinterpret_cast<HO**>(this);
+  O** result =
+      HandleScope::CreateHandle(context, I::ReadEmbedderData<O*>(this, index));
   return Local<Value>(reinterpret_cast<Value*>(result));
 #else
   return SlowGetEmbedderData(index);

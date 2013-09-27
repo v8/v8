@@ -354,7 +354,8 @@ static void EmptyGetter(Local<String> name,
 
 THREADED_TEST(EmptyResult) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8::String::New("data"));
   v8::Handle<v8::Object> inst = obj->NewInstance();
@@ -362,7 +363,7 @@ THREADED_TEST(EmptyResult) {
   Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
   for (int i = 0; i < 10; i++) {
     Local<Value> result = scr->Run();
-    CHECK(result == v8::Undefined());
+    CHECK(result == v8::Undefined(isolate));
   }
 }
 
@@ -370,7 +371,8 @@ THREADED_TEST(EmptyResult) {
 THREADED_TEST(NoReuseRegress) {
   // Check that the IC generated for the one test doesn't get reused
   // for the other.
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
   {
     v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
     obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8::String::New("data"));
@@ -380,7 +382,7 @@ THREADED_TEST(NoReuseRegress) {
     Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
     for (int i = 0; i < 2; i++) {
       Local<Value> result = scr->Run();
-      CHECK(result == v8::Undefined());
+      CHECK(result == v8::Undefined(isolate));
     }
   }
   {
@@ -405,14 +407,14 @@ static void ThrowingGetAccessor(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  v8::ThrowException(v8_str("g"));
+  info.GetIsolate()->ThrowException(v8_str("g"));
 }
 
 
 static void ThrowingSetAccessor(Local<String> name,
                                 Local<Value> value,
                                 const v8::PropertyCallbackInfo<void>& info) {
-  v8::ThrowException(value);
+  info.GetIsolate()->ThrowException(value);
 }
 
 
@@ -505,7 +507,7 @@ THREADED_TEST(StackIteration) {
 static void AllocateHandles(Local<String> name,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {
   for (int i = 0; i < i::kHandleBlockSize + 1; i++) {
-    v8::Local<v8::Value>::New(name);
+    v8::Local<v8::Value>::New(info.GetIsolate(), name);
   }
   info.GetReturnValue().Set(v8::Integer::New(100));
 }

@@ -1132,13 +1132,6 @@ class Isolate {
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
 
-  bool is_memory_constrained() const {
-    return is_memory_constrained_;
-  }
-  void set_is_memory_constrained(bool value) {
-    is_memory_constrained_ = value;
-  }
-
  private:
   Isolate();
 
@@ -1311,7 +1304,6 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
   RandomNumberGenerator* random_number_generator_;
-  bool is_memory_constrained_;
 
   // True if fatal error has been signaled for this isolate.
   bool has_fatal_error_;

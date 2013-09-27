@@ -473,16 +473,7 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
 
 
 v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  // If we're passed an empty handle, we throw an undefined exception
-  // to deal more gracefully with out of memory situations.
-  if (value.IsEmpty()) {
-    isolate->ScheduleThrow(isolate->heap()->undefined_value());
-  } else {
-    isolate->ScheduleThrow(*Utils::OpenHandle(*value));
-  }
-  return v8::Undefined();
+  return v8::Isolate::GetCurrent()->ThrowException(value);
 }
 
 
@@ -572,8 +563,7 @@ ResourceConstraints::ResourceConstraints()
   : max_young_space_size_(0),
     max_old_space_size_(0),
     max_executable_size_(0),
-    stack_limit_(NULL),
-    is_memory_constrained_() { }
+    stack_limit_(NULL) { }
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
@@ -593,11 +583,6 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
   if (constraints->stack_limit() != NULL) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
-  }
-  if (constraints->is_memory_constrained().has_value &&
-      !i::FLAG_force_memory_constrained.has_value) {
-    isolate->set_is_memory_constrained(
-        constraints->is_memory_constrained().value);
   }
   return true;
 }
@@ -698,21 +683,35 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-i::Object** HandleScope::CreateHandle(i::Object* value) {
-  return i::HandleScope::CreateHandle(i::Isolate::Current(), value);
-}
-
-
 i::Object** HandleScope::CreateHandle(i::Isolate* isolate, i::Object* value) {
-  ASSERT(isolate == i::Isolate::Current());
   return i::HandleScope::CreateHandle(isolate, value);
 }
 
 
-i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
-  ASSERT(value->IsHeapObject());
-  return reinterpret_cast<i::Object**>(
-      i::HandleScope::CreateHandle(value->GetIsolate(), value));
+i::Object** HandleScope::CreateHandle(i::HeapObject* heap_object,
+                                      i::Object* value) {
+  ASSERT(heap_object->IsHeapObject());
+  return i::HandleScope::CreateHandle(heap_object->GetIsolate(), value);
+}
+
+
+EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  escape_slot_ = CreateHandle(isolate, isolate->heap()->the_hole_value());
+  Initialize(v8_isolate);
+}
+
+
+i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
+  ApiCheck(*escape_slot_ == isolate_->heap()->the_hole_value(),
+           "EscapeableHandleScope::Escape",
+           "Escape value set twice");
+  if (escape_value == NULL) {
+    *escape_slot_ = isolate_->heap()->undefined_value();
+    return NULL;
+  }
+  *escape_slot_ = *escape_value;
+  return escape_slot_;
 }
 
 
@@ -1019,7 +1018,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   }
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
-    if (data.IsEmpty()) data = v8::Undefined();
+    if (data.IsEmpty()) {
+      data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+    }
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
   obj->set_length(length);
@@ -1243,7 +1244,9 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_call_code(*obj);
 }
@@ -1281,7 +1284,9 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       isolate->factory()->NewExecutableAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
 }
@@ -1509,7 +1514,9 @@ void ObjectTemplate::SetNamedPropertyHandler(
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
 
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   cons->set_named_property_handler(*obj);
 }
@@ -1545,7 +1552,9 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   SET_FIELD_WRAPPED(info, set_named_callback, named_callback);
   SET_FIELD_WRAPPED(info, set_indexed_callback, indexed_callback);
 
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   info->set_data(*Utils::OpenHandle(*data));
 
   i::FunctionTemplateInfo* constructor =
@@ -1581,7 +1590,9 @@ void ObjectTemplate::SetIndexedPropertyHandler(
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
 
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   cons->set_indexed_property_handler(*obj);
 }
@@ -1601,7 +1612,9 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
-  if (data.IsEmpty()) data = v8::Undefined();
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   obj->set_data(*Utils::OpenHandle(*data));
   cons->set_instance_call_handler(*obj);
 }
@@ -1706,8 +1719,9 @@ Local<Script> Script::New(v8::Handle<String> source,
             static_cast<int>(origin->ResourceColumnOffset()->Value());
       }
       if (!origin->ResourceIsSharedCrossOrigin().IsEmpty()) {
+        v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
         is_shared_cross_origin =
-            origin->ResourceIsSharedCrossOrigin() == v8::True();
+            origin->ResourceIsSharedCrossOrigin() == v8::True(v8_isolate);
       }
     }
     EXCEPTION_PREAMBLE(isolate);
@@ -1915,8 +1929,9 @@ v8::TryCatch::TryCatch()
 v8::TryCatch::~TryCatch() {
   ASSERT(isolate_ == i::Isolate::Current());
   if (rethrow_) {
-    v8::HandleScope scope(reinterpret_cast<Isolate*>(isolate_));
-    v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
+    v8::Isolate* isolate = reinterpret_cast<Isolate*>(isolate_);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(isolate, Exception());
     if (HasCaught() && capture_message_) {
       // If an exception was caught and rethrow_ is indicated, the saved
       // message, script, and location need to be restored to Isolate TLS
@@ -1926,7 +1941,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->RestorePendingMessageFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::ThrowException(exc);
+    reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     ASSERT(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
     isolate_->UnregisterTryCatchHandler(this);
@@ -1952,7 +1967,7 @@ bool v8::TryCatch::HasTerminated() const {
 v8::Handle<v8::Value> v8::TryCatch::ReThrow() {
   if (!HasCaught()) return v8::Local<v8::Value>();
   rethrow_ = true;
-  return v8::Undefined();
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate_));
 }
 
 
@@ -4122,10 +4137,12 @@ int Function::GetScriptColumnNumber() const {
 
 Handle<Value> Function::GetScriptId() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
-  if (!func->shared()->script()->IsScript())
-    return v8::Undefined();
+  i::Isolate* isolate = func->GetIsolate();
+  if (!func->shared()->script()->IsScript()) {
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
   i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-  return Utils::ToLocal(i::Handle<i::Object>(script->id(), func->GetIsolate()));
+  return Utils::ToLocal(i::Handle<i::Object>(script->id(), isolate));
 }
 
 
@@ -6361,6 +6378,20 @@ v8::Local<v8::Context> Isolate::GetEnteredContext() {
 }
 
 
+v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  ENTER_V8(isolate);
+  // If we're passed an empty handle, we throw an undefined exception
+  // to deal more gracefully with out of memory situations.
+  if (value.IsEmpty()) {
+    isolate->ScheduleThrow(isolate->heap()->undefined_value());
+  } else {
+    isolate->ScheduleThrow(*Utils::OpenHandle(*value));
+  }
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+}
+
+
 void Isolate::SetObjectGroupId(const Persistent<Value>& object,
                                UniqueId id) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
@@ -7108,7 +7139,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
           isolate->factory()->NewNumberFromInt(edge->index()));
     default: UNREACHABLE();
   }
-  return v8::Undefined();
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
 }
 
 

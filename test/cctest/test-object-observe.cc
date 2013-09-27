@@ -394,7 +394,7 @@ TEST(HiddenPrototypeObservation) {
     { obj, "updated", "foo", Number::New(75) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records);
-  obj->SetPrototype(Null());
+  obj->SetPrototype(Null(isolate.GetIsolate()));
   CompileRun("obj.foo = 43");
   const RecordExpectation expected_records2[] = {
     { obj, "new", "foo", Handle<Value>() }
