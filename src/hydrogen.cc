@@ -5491,6 +5491,14 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
   HThrow* instr = Add<HThrow>(value);
   instr->set_position(expr->position());
   Add<HSimulate>(expr->id());
+
+  // If the throw definitely exits the function, we can finish with a dummy
+  // control flow at this point.  This is not the case if the throw is inside
+  // an inlined function which may be replaced.
+  if (call_context() == NULL) {
+    current_block()->FinishExit(new(zone()) HAbnormalExit);
+    set_current_block(NULL);
+  }
 }
 
 
