@@ -859,6 +859,13 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  private:
   internal::Object** Escape(internal::Object** escape_value);
 
+  // Make it hard to create heap-allocated or illegal handle scopes by
+  // disallowing certain operations.
+  EscapableHandleScope(const EscapableHandleScope&);
+  void operator=(const EscapableHandleScope&);
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
+
   internal::Object** escape_slot_;
 };
 
