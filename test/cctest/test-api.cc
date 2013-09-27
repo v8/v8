@@ -3257,7 +3257,7 @@ THREADED_TEST(ClearAndLeakGlobal) {
 THREADED_TEST(GlobalHandleUpcast) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
+  v8::Local<String> local = v8::Local<String>::New(isolate, v8_str("str"));
   v8::Persistent<String> global_string(isolate, local);
   v8::Persistent<Value>& global_value =
       v8::Persistent<Value>::Cast(global_string);
@@ -3307,10 +3307,8 @@ THREADED_TEST(HandleEquality) {
 
 THREADED_TEST(LocalHandle) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
-  CHECK_EQ(local->Length(), 3);
-
-  local = v8::Local<String>::New(CcTest::isolate(), v8_str("str"));
+  v8::Local<String> local =
+      v8::Local<String>::New(CcTest::isolate(), v8_str("str"));
   CHECK_EQ(local->Length(), 3);
 }
 
@@ -12509,13 +12507,14 @@ void ApiTestFuzzer::CallTest() {
 
 
 static void ThrowInJS(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(v8::Locker::IsLocked(args.GetIsolate()));
+  v8::Isolate* isolate = args.GetIsolate();
+  CHECK(v8::Locker::IsLocked(isolate));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker(args.GetIsolate());
+  v8::Unlocker unlocker(isolate);
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker(args.GetIsolate());
-    v8::HandleScope scope(args.GetIsolate());
+    v8::Locker nested_locker(isolate);
+    v8::HandleScope scope(isolate);
     v8::Handle<Value> exception;
     { v8::TryCatch try_catch;
       v8::Handle<Value> value = CompileRun(code);
@@ -12524,7 +12523,7 @@ static void ThrowInJS(const v8::FunctionCallbackInfo<v8::Value>& args) {
       // Make sure to wrap the exception in a new handle because
       // the handle returned from the TryCatch is destroyed
       // when the TryCatch is destroyed.
-      exception = Local<Value>::New(try_catch.Exception());
+      exception = Local<Value>::New(isolate, try_catch.Exception());
     }
     args.GetIsolate()->ThrowException(exception);
   }

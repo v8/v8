@@ -378,7 +378,6 @@ template <class T> class Local : public Handle<T> {
    * The referee is kept alive by the local handle even when
    * the original handle is destroyed/disposed.
    */
-  V8_INLINE static Local<T> New(Handle<T> that);
   V8_INLINE static Local<T> New(Isolate* isolate, Handle<T> that);
   template<class M>
   V8_INLINE static Local<T> New(Isolate* isolate,
@@ -783,16 +782,16 @@ class V8_EXPORT HandleScope {
    */
   static int NumberOfHandles();
 
+ private:
   /**
    * Creates a new handle with the given value.
    */
-  static internal::Object** CreateHandle(internal::Object* value);
   static internal::Object** CreateHandle(internal::Isolate* isolate,
                                          internal::Object* value);
-  // Faster version, uses HeapObject to obtain the current Isolate.
-  static internal::Object** CreateHandle(internal::HeapObject* value);
+  // Uses HeapObject to obtain the current Isolate.
+  static internal::Object** CreateHandle(internal::HeapObject* heap_object,
+                                         internal::Object* value);
 
- private:
   V8_INLINE HandleScope() {}
   void Initialize(Isolate* isolate);
 
@@ -830,6 +829,10 @@ class V8_EXPORT HandleScope {
 
   friend class ImplementationUtilities;
   friend class EscapableHandleScope;
+  template<class F> friend class Handle;
+  template<class F> friend class Local;
+  friend class Object;
+  friend class Context;
 };
 
 
@@ -5569,19 +5572,6 @@ Local<T>::Local() : Handle<T>() { }
 
 
 template <class T>
-Local<T> Local<T>::New(Handle<T> that) {
-  if (that.IsEmpty()) return Local<T>();
-  T* that_ptr = *that;
-  internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
-  if (internal::Internals::CanCastToHeapObject(that_ptr)) {
-    return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
-        reinterpret_cast<internal::HeapObject*>(*p))));
-  }
-  return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(*p)));
-}
-
-
-template <class T>
 Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
   return New(isolate, that.val_);
 }
@@ -6017,6 +6007,7 @@ void Template::Set(const char* name, v8::Handle<Data> value) {
 Local<Value> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
+  typedef internal::HeapObject HO;
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
@@ -6024,7 +6015,7 @@ Local<Value> Object::GetInternalField(int index) {
   if (I::GetInstanceType(obj) == I::kJSObjectType) {
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
-    O** result = HandleScope::CreateHandle(value);
+    O** result = HandleScope::CreateHandle(reinterpret_cast<HO*>(obj), value);
     return Local<Value>(reinterpret_cast<Value*>(result));
   }
 #endif
@@ -6476,8 +6467,11 @@ void* Isolate::GetData() {
 Local<Value> Context::GetEmbedderData(int index) {
 #ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
+  typedef internal::HeapObject HO;
   typedef internal::Internals I;
-  O** result = HandleScope::CreateHandle(I::ReadEmbedderData<O*>(this, index));
+  HO* context = *reinterpret_cast<HO**>(this);
+  O** result =
+      HandleScope::CreateHandle(context, I::ReadEmbedderData<O*>(this, index));
   return Local<Value>(reinterpret_cast<Value*>(result));
 #else
   return SlowGetEmbedderData(index);

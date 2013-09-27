@@ -507,7 +507,7 @@ THREADED_TEST(StackIteration) {
 static void AllocateHandles(Local<String> name,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {
   for (int i = 0; i < i::kHandleBlockSize + 1; i++) {
-    v8::Local<v8::Value>::New(name);
+    v8::Local<v8::Value>::New(info.GetIsolate(), name);
   }
   info.GetReturnValue().Set(v8::Integer::New(100));
 }

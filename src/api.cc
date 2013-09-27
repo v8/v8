@@ -683,21 +683,15 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-i::Object** HandleScope::CreateHandle(i::Object* value) {
-  return i::HandleScope::CreateHandle(i::Isolate::Current(), value);
-}
-
-
 i::Object** HandleScope::CreateHandle(i::Isolate* isolate, i::Object* value) {
-  ASSERT(isolate == i::Isolate::Current());
   return i::HandleScope::CreateHandle(isolate, value);
 }
 
 
-i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
-  ASSERT(value->IsHeapObject());
-  return reinterpret_cast<i::Object**>(
-      i::HandleScope::CreateHandle(value->GetIsolate(), value));
+i::Object** HandleScope::CreateHandle(i::HeapObject* heap_object,
+                                      i::Object* value) {
+  ASSERT(heap_object->IsHeapObject());
+  return i::HandleScope::CreateHandle(heap_object->GetIsolate(), value);
 }
 
 
@@ -1935,8 +1929,9 @@ v8::TryCatch::TryCatch()
 v8::TryCatch::~TryCatch() {
   ASSERT(isolate_ == i::Isolate::Current());
   if (rethrow_) {
-    v8::HandleScope scope(reinterpret_cast<Isolate*>(isolate_));
-    v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
+    v8::Isolate* isolate = reinterpret_cast<Isolate*>(isolate_);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(isolate, Exception());
     if (HasCaught() && capture_message_) {
       // If an exception was caught and rethrow_ is indicated, the saved
       // message, script, and location need to be restored to Isolate TLS
