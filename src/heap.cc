@@ -67,29 +67,14 @@ namespace internal {
 
 Heap::Heap()
     : isolate_(NULL),
+      code_range_size_(kIs64BitArch ? 512 * MB : 0),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-#if V8_TARGET_ARCH_X64
-#define LUMP_OF_MEMORY (2 * MB)
-      code_range_size_(512*MB),
-#else
-#define LUMP_OF_MEMORY MB
-      code_range_size_(0),
-#endif
-#if defined(ANDROID) || V8_TARGET_ARCH_MIPS
-      reserved_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
-      max_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
+      max_semispace_size_(8 * (kPointerSize / 4)  * MB),
       initial_semispace_size_(Page::kPageSize),
-      max_old_generation_size_(192*MB),
-      max_executable_size_(max_old_generation_size_),
-#else
-      reserved_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
-      max_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
-      initial_semispace_size_(Page::kPageSize),
-      max_old_generation_size_(700ul * LUMP_OF_MEMORY),
-      max_executable_size_(256l * LUMP_OF_MEMORY),
-#endif
-
+      max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
+      max_executable_size_(256ul * (kPointerSize / 4) * MB),
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
 // Will be 4 * reserved_semispace_size_ to ensure that young
@@ -169,6 +154,9 @@ Heap::Heap()
 #if defined(V8_MAX_SEMISPACE_SIZE)
   max_semispace_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
 #endif
+
+  // Ensure old_generation_size_ is a multiple of kPageSize.
+  ASSERT(MB >= Page::kPageSize);
 
   intptr_t max_virtual = OS::MaxVirtualMemory();
 

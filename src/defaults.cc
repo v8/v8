@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_TEST_H_
-#define V8_V8_TEST_H_
+#include "../include/v8-defaults.h"
 
+#include "platform.h"
+#include "globals.h"
 #include "v8.h"
 
-/**
- * Testing support for the V8 JavaScript engine.
- */
 namespace v8 {
 
-class V8_EXPORT Testing {
- public:
-  enum StressType {
-    kStressTypeOpt,
-    kStressTypeDeopt
-  };
+bool ConfigureResourceConstraintsForCurrentPlatform(
+    ResourceConstraints* constraints) {
+  if (constraints == NULL) {
+    return false;
+  }
 
-  /**
-   * Set the type of stressing to do. The default if not set is kStressTypeOpt.
-   */
-  static void SetStressRunType(StressType type);
+  uint64_t physical_memory = i::OS::TotalPhysicalMemory();
+  int lump_of_memory = (i::kPointerSize / 4) * i::MB;
 
-  /**
-   * Get the number of runs of a given test that is required to get the full
-   * stress coverage.
-   */
-  static int GetStressRuns();
-
-  /**
-   * Indicate the number of the run which is about to start. The value of run
-   * should be between 0 and one less than the result from GetStressRuns()
-   */
-  static void PrepareStressRun(int run);
-
-  /**
-   * Force deoptimization of all functions.
-   */
-  static void DeoptimizeAll();
-};
+  // The young_space_size should be a power of 2 and old_generation_size should
+  // be a multiple of Page::kPageSize.
+  if (physical_memory > 2ul * i::GB) {
+    constraints->set_max_young_space_size(16 * lump_of_memory);
+    constraints->set_max_old_space_size(700 * lump_of_memory);
+    constraints->set_max_executable_size(256 * lump_of_memory);
+  } else if (physical_memory > 512ul * i::MB) {
+    constraints->set_max_young_space_size(8 * lump_of_memory);
+    constraints->set_max_old_space_size(192 * lump_of_memory);
+    constraints->set_max_executable_size(192 * lump_of_memory);
+  } else /* (physical_memory <= 512GB) */ {
+    constraints->set_max_young_space_size(2 * lump_of_memory);
+    constraints->set_max_old_space_size(96 * lump_of_memory);
+    constraints->set_max_executable_size(96 * lump_of_memory);
+  }
+  return true;
+}
 
 
-}  // namespace v8
+bool SetDefaultResourceConstraintsForCurrentPlatform() {
+  ResourceConstraints constraints;
+  if (!ConfigureResourceConstraintsForCurrentPlatform(&constraints))
+    return false;
+  return SetResourceConstraints(&constraints);
+}
 
-#endif  // V8_V8_TEST_H_
+}  // namespace v8::internal
