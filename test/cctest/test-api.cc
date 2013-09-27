@@ -14218,14 +14218,15 @@ class RegExpInterruptTest {
     gc_success_ = false;
     GCThread gc_thread(this);
     gc_thread.Start();
-    v8::Locker::StartPreemption(1);
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Locker::StartPreemption(isolate, 1);
 
     LongRunningRegExp();
     {
-      v8::Unlocker unlock(CcTest::isolate());
+      v8::Unlocker unlock(isolate);
       gc_thread.Join();
     }
-    v8::Locker::StopPreemption();
+    v8::Locker::StopPreemption(isolate);
     CHECK(regexp_success_);
     CHECK(gc_success_);
   }
@@ -14340,14 +14341,15 @@ class ApplyInterruptTest {
     gc_success_ = false;
     GCThread gc_thread(this);
     gc_thread.Start();
-    v8::Locker::StartPreemption(1);
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Locker::StartPreemption(isolate, 1);
 
     LongRunningApply();
     {
-      v8::Unlocker unlock(CcTest::isolate());
+      v8::Unlocker unlock(isolate);
       gc_thread.Join();
     }
-    v8::Locker::StopPreemption();
+    v8::Locker::StopPreemption(isolate);
     CHECK(apply_success_);
     CHECK(gc_success_);
   }
@@ -14627,6 +14629,7 @@ class RegExpStringModificationTest {
         uc16_resource_(i::Vector<const uint16_t>(two_byte_content_, 15)) {}
   ~RegExpStringModificationTest() {}
   void RunTest() {
+    v8::Isolate* isolate = CcTest::isolate();
     i::Factory* factory = CcTest::i_isolate()->factory();
 
     regexp_success_ = false;
@@ -14655,13 +14658,13 @@ class RegExpStringModificationTest {
 
     MorphThread morph_thread(this);
     morph_thread.Start();
-    v8::Locker::StartPreemption(1);
+    v8::Locker::StartPreemption(isolate, 1);
     LongRunningRegExp();
     {
-      v8::Unlocker unlock(CcTest::isolate());
+      v8::Unlocker unlock(isolate);
       morph_thread.Join();
     }
-    v8::Locker::StopPreemption();
+    v8::Locker::StopPreemption(isolate);
     CHECK(regexp_success_);
     CHECK(morph_success_);
   }

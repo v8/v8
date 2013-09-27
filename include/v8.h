@@ -5203,9 +5203,6 @@ class V8_EXPORT Unlocker {
    */
   V8_INLINE explicit Unlocker(Isolate* isolate) { Initialize(isolate); }
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(Unlocker());
-
   ~Unlocker();
  private:
   void Initialize(Isolate* isolate);
@@ -5221,9 +5218,6 @@ class V8_EXPORT Locker {
    */
   V8_INLINE explicit Locker(Isolate* isolate) { Initialize(isolate); }
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(Locker());
-
   ~Locker();
 
   /**
@@ -5233,12 +5227,12 @@ class V8_EXPORT Locker {
    * that will switch between multiple threads that are in contention
    * for the V8 lock.
    */
-  static void StartPreemption(int every_n_ms);
+  static void StartPreemption(Isolate* isolate, int every_n_ms);
 
   /**
    * Stop preemption.
    */
-  static void StopPreemption();
+  static void StopPreemption(Isolate* isolate);
 
   /**
    * Returns whether or not the locker for a given isolate, is locked by the
