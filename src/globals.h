@@ -248,12 +248,10 @@ const int kRandomStateSize = 2 * kIntSize;
 const int kPointerSizeLog2 = 3;
 const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
 const uintptr_t kUintptrAllBitsSet = V8_UINT64_C(0xFFFFFFFFFFFFFFFF);
-const bool kIs64BitArch = true;
 #else
 const int kPointerSizeLog2 = 2;
 const intptr_t kIntptrSignBit = 0x80000000;
 const uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
-const bool kIs64BitArch = false;
 #endif
 
 const int kBitsPerByte = 8;
