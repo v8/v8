@@ -353,19 +353,20 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 }
 
 
-int LPlatformChunk::GetNextSpillIndex(bool is_double) {
+int LPlatformChunk::GetNextSpillIndex(RegisterKind kind) {
   return spill_slot_count_++;
 }
 
 
-LOperand* LPlatformChunk::GetNextSpillSlot(bool is_double) {
+LOperand* LPlatformChunk::GetNextSpillSlot(RegisterKind kind) {
   // All stack slots are Double stack slots on x64.
   // Alternatively, at some point, start using half-size
   // stack slots for int32 values.
-  int index = GetNextSpillIndex(is_double);
-  if (is_double) {
+  int index = GetNextSpillIndex(kind);
+  if (kind == DOUBLE_REGISTERS) {
     return LDoubleStackSlot::Create(index, zone());
   } else {
+    ASSERT(kind == GENERAL_REGISTERS);
     return LStackSlot::Create(index, zone());
   }
 }
@@ -445,7 +446,7 @@ LPlatformChunk* LChunkBuilder::Build() {
   // which will be subsumed into this frame.
   if (graph()->has_osr()) {
     for (int i = graph()->osr()->UnoptimizedFrameSlots(); i > 0; i--) {
-      chunk_->GetNextSpillIndex(false);
+      chunk_->GetNextSpillIndex(GENERAL_REGISTERS);
     }
   }
 

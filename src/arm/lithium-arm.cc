@@ -412,18 +412,19 @@ void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
 }
 
 
-int LPlatformChunk::GetNextSpillIndex(bool is_double) {
+int LPlatformChunk::GetNextSpillIndex(RegisterKind kind) {
   // Skip a slot if for a double-width slot.
-  if (is_double) spill_slot_count_++;
+  if (kind == DOUBLE_REGISTERS) spill_slot_count_++;
   return spill_slot_count_++;
 }
 
 
-LOperand* LPlatformChunk::GetNextSpillSlot(bool is_double)  {
-  int index = GetNextSpillIndex(is_double);
-  if (is_double) {
+LOperand* LPlatformChunk::GetNextSpillSlot(RegisterKind kind)  {
+  int index = GetNextSpillIndex(kind);
+  if (kind == DOUBLE_REGISTERS) {
     return LDoubleStackSlot::Create(index, zone());
   } else {
+    ASSERT(kind == GENERAL_REGISTERS);
     return LStackSlot::Create(index, zone());
   }
 }
@@ -439,7 +440,7 @@ LPlatformChunk* LChunkBuilder::Build() {
   // which will be subsumed into this frame.
   if (graph()->has_osr()) {
     for (int i = graph()->osr()->UnoptimizedFrameSlots(); i > 0; i--) {
-      chunk_->GetNextSpillIndex(false);
+      chunk_->GetNextSpillIndex(GENERAL_REGISTERS);
     }
   }
 

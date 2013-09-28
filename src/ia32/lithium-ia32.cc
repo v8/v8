@@ -386,9 +386,9 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 }
 
 
-int LPlatformChunk::GetNextSpillIndex(bool is_double) {
+int LPlatformChunk::GetNextSpillIndex(RegisterKind kind) {
   // Skip a slot if for a double-width slot.
-  if (is_double) {
+  if (kind == DOUBLE_REGISTERS) {
     spill_slot_count_++;
     spill_slot_count_ |= 1;
     num_double_slots_++;
@@ -397,11 +397,12 @@ int LPlatformChunk::GetNextSpillIndex(bool is_double) {
 }
 
 
-LOperand* LPlatformChunk::GetNextSpillSlot(bool is_double) {
-  int index = GetNextSpillIndex(is_double);
-  if (is_double) {
+LOperand* LPlatformChunk::GetNextSpillSlot(RegisterKind kind) {
+  int index = GetNextSpillIndex(kind);
+  if (kind == DOUBLE_REGISTERS) {
     return LDoubleStackSlot::Create(index, zone());
   } else {
+    ASSERT(kind == GENERAL_REGISTERS);
     return LStackSlot::Create(index, zone());
   }
 }
@@ -479,7 +480,7 @@ LPlatformChunk* LChunkBuilder::Build() {
 
   // Reserve the first spill slot for the state of dynamic alignment.
   if (info()->IsOptimizing()) {
-    int alignment_state_index = chunk_->GetNextSpillIndex(false);
+    int alignment_state_index = chunk_->GetNextSpillIndex(GENERAL_REGISTERS);
     ASSERT_EQ(alignment_state_index, 0);
     USE(alignment_state_index);
   }
@@ -488,7 +489,7 @@ LPlatformChunk* LChunkBuilder::Build() {
   // which will be subsumed into this frame.
   if (graph()->has_osr()) {
     for (int i = graph()->osr()->UnoptimizedFrameSlots(); i > 0; i--) {
-      chunk_->GetNextSpillIndex(false);
+      chunk_->GetNextSpillIndex(GENERAL_REGISTERS);
     }
   }
 

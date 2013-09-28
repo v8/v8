@@ -2592,8 +2592,8 @@ class LPlatformChunk V8_FINAL : public LChunk {
   LPlatformChunk(CompilationInfo* info, HGraph* graph)
       : LChunk(info, graph) { }
 
-  int GetNextSpillIndex(bool is_double);
-  LOperand* GetNextSpillSlot(bool is_double);
+  int GetNextSpillIndex(RegisterKind kind);
+  LOperand* GetNextSpillSlot(RegisterKind kind);
 };
 
 

@@ -2736,8 +2736,8 @@ class LPlatformChunk V8_FINAL : public LChunk {
       : LChunk(info, graph),
         num_double_slots_(0) { }
 
-  int GetNextSpillIndex(bool is_double);
-  LOperand* GetNextSpillSlot(bool is_double);
+  int GetNextSpillIndex(RegisterKind kind);
+  LOperand* GetNextSpillSlot(RegisterKind kind);
 
   int num_double_slots() const { return num_double_slots_; }
 
