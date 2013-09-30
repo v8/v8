@@ -1206,6 +1206,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kModuleStatement, "Module statement")                                     \
   V(kModuleVariable, "Module variable")                                       \
   V(kModuleUrl, "Module url")                                                 \
+  V(kNativeFunctionLiteral, "Native function literal")                        \
   V(kNoCasesLeft, "no cases left")                                            \
   V(kNoEmptyArraysHereInEmitFastAsciiArrayJoin,                               \
     "No empty arrays here in EmitFastAsciiArrayJoin")                         \
@@ -1249,7 +1250,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "register was clobbered")                          \
   V(kScopedBlock, "ScopedBlock")                                              \
-  V(kSharedFunctionInfoLiteral, "Shared function info literal")               \
   V(kSmiAdditionOverflow, "Smi addition overflow")                            \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                      \
   V(kStackFrameTypesMustMatch, "stack frame types must match")                \
