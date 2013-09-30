@@ -6022,15 +6022,6 @@ size_t v8::ArrayBufferView::ByteLength() {
 }
 
 
-void* v8::ArrayBufferView::BaseAddress() {
-  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
-  void* buffer_data = buffer->backing_store();
-  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
-  return static_cast<uint8_t*>(buffer_data) + byte_offset;
-}
-
-
 size_t v8::TypedArray::Length() {
   i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->length()->Number());

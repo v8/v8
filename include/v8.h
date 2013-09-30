@@ -2685,10 +2685,6 @@ class V8_EXPORT ArrayBufferView : public Object {
    * Size of a view in bytes.
    */
   size_t ByteLength();
-  /**
-   * Base address of a view.
-   */
-  void* BaseAddress();
 
   V8_INLINE static ArrayBufferView* Cast(Value* obj);
 
