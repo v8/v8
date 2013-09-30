@@ -766,6 +766,10 @@ void LCodeGen::LoadContextFromDeferred(LOperand* context) {
     __ Move(cp, ToRegister(context));
   } else if (context->IsStackSlot()) {
     __ ldr(cp, ToMemOperand(context));
+  } else if (context->IsConstantOperand()) {
+    HConstant* constant =
+        chunk_->LookupConstant(LConstantOperand::cast(context));
+    __ LoadObject(cp, Handle<Object>::cast(constant->handle(isolate())));
   } else {
     UNREACHABLE();
   }
