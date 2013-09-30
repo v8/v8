@@ -414,8 +414,6 @@
         '../../src/macro-assembler.h',
         '../../src/mark-compact.cc',
         '../../src/mark-compact.h',
-        '../../src/marking-thread.h',
-        '../../src/marking-thread.cc',
         '../../src/messages.cc',
         '../../src/messages.h',
         '../../src/natives.h',
