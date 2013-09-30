@@ -472,9 +472,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // -----------------------------------
 
   typedef FunctionCallbackArguments FCA;
-  const int kArgs = kFastApiCallArguments;
   // Save calling context.
-  __ mov(Operand(esp, (kArgs + FCA::kContextSaveIndex) * kPointerSize), esi);
+  __ mov(Operand(esp, (1 + FCA::kContextSaveIndex) * kPointerSize), esi);
 
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -482,29 +481,27 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Construct the FunctionCallbackInfo.
-  __ mov(Operand(esp, (kArgs + FCA::kCalleeIndex) * kPointerSize), edi);
+  __ mov(Operand(esp, (1 + FCA::kCalleeIndex) * kPointerSize), edi);
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
     __ mov(ecx, api_call_info);
     __ mov(ebx, FieldOperand(ecx, CallHandlerInfo::kDataOffset));
-    __ mov(Operand(esp, (kArgs + FCA::kDataIndex) * kPointerSize), ebx);
+    __ mov(Operand(esp, (1 + FCA::kDataIndex) * kPointerSize), ebx);
   } else {
-    __ mov(Operand(esp, (kArgs + FCA::kDataIndex) * kPointerSize),
+    __ mov(Operand(esp, (1 + FCA::kDataIndex) * kPointerSize),
            Immediate(call_data));
   }
-  __ mov(Operand(esp, (kArgs + FCA::kIsolateIndex) * kPointerSize),
+  __ mov(Operand(esp, (1 + FCA::kIsolateIndex) * kPointerSize),
          Immediate(reinterpret_cast<int>(masm->isolate())));
-  __ mov(Operand(esp, (kArgs + FCA::kReturnValueOffset) * kPointerSize),
+  __ mov(Operand(esp, (1 + FCA::kReturnValueOffset) * kPointerSize),
          masm->isolate()->factory()->undefined_value());
-  __ mov(
-      Operand(esp, (kArgs + FCA::kReturnValueDefaultValueIndex) * kPointerSize),
-      masm->isolate()->factory()->undefined_value());
+  __ mov(Operand(esp, (1 + FCA::kReturnValueDefaultValueIndex) * kPointerSize),
+         masm->isolate()->factory()->undefined_value());
 
   // Prepare arguments.
-  STATIC_ASSERT(kArgs == 7);
-  __ lea(eax, Operand(esp, kArgs * kPointerSize));
-
+  STATIC_ASSERT(kFastApiCallArguments == 7);
+  __ lea(eax, Operand(esp, 1 * kPointerSize));
 
   // API function gets reference to the v8::Arguments. If CPU profiler
   // is enabled wrapper function will be called and we need to pass
@@ -520,14 +517,14 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   __ PrepareCallApiFunction(kApiArgc + kApiStackSpace);
 
-  // v8::Arguments::implicit_args_.
+  // FunctionCallbackInfo::implicit_args_.
   __ mov(ApiParameterOperand(2), eax);
-  __ add(eax, Immediate(argc * kPointerSize));
-  // v8::Arguments::values_.
+  __ add(eax, Immediate((argc + kFastApiCallArguments - 1) * kPointerSize));
+  // FunctionCallbackInfo::values_.
   __ mov(ApiParameterOperand(3), eax);
-  // v8::Arguments::length_.
+  // FunctionCallbackInfo::length_.
   __ Set(ApiParameterOperand(4), Immediate(argc));
-  // v8::Arguments::is_construct_call_.
+  // FunctionCallbackInfo::is_construct_call_.
   __ Set(ApiParameterOperand(5), Immediate(0));
 
   // v8::InvocationCallback's argument.
@@ -536,14 +533,14 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
-  Operand context_restore_operand(
-      ebp, (kArgs + 1 + FCA::kContextSaveIndex) * kPointerSize);
-  Operand return_value_operand(
-      ebp, (kArgs + 1 + FCA::kReturnValueOffset) * kPointerSize);
+  Operand context_restore_operand(ebp,
+                                  (2 + FCA::kContextSaveIndex) * kPointerSize);
+  Operand return_value_operand(ebp,
+                               (2 + FCA::kReturnValueOffset) * kPointerSize);
   __ CallApiFunctionAndReturn(function_address,
                               thunk_address,
                               ApiParameterOperand(1),
-                              argc + kArgs + 1,
+                              argc + kFastApiCallArguments + 1,
                               return_value_operand,
                               restore_context ?
                                   &context_restore_operand : NULL);
@@ -561,8 +558,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(!receiver.is(scratch));
 
   const int stack_space = kFastApiCallArguments + argc + 1;
-  const int kHolderIndex = kFastApiCallArguments +
-      FunctionCallbackArguments::kHolderIndex;
+  const int kHolderIndex = FunctionCallbackArguments::kHolderIndex + 1;
   // Copy return value.
   __ mov(scratch, Operand(esp, 0));
   // Assign stack space for the call arguments.
@@ -1167,8 +1163,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
                                        int save_at_depth,
                                        Label* miss,
                                        PrototypeCheckType check) {
-  const int kHolderIndex = kFastApiCallArguments +
-      FunctionCallbackArguments::kHolderIndex;
+  const int kHolderIndex = FunctionCallbackArguments::kHolderIndex + 1;
   // Make sure that the type feedback oracle harvests the receiver map.
   // TODO(svenpanne) Remove this hack when all ICs are reworked.
   __ mov(scratch1, Handle<Map>(object->map()));
@@ -1413,20 +1408,18 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   ASSERT(!scratch3().is(reg));
   __ pop(scratch3());  // Get return address to place it below.
 
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == -1);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == -2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == -3);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == -4);
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == -5);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
   __ push(receiver());  // receiver
-  __ mov(scratch2(), esp);
-  ASSERT(!scratch2().is(reg));
   // Push data from ExecutableAccessorInfo.
   if (isolate()->heap()->InNewSpace(callback->data())) {
-    Register scratch = reg.is(scratch1()) ? receiver() : scratch1();
-    __ mov(scratch, Immediate(callback));
-    __ push(FieldOperand(scratch, ExecutableAccessorInfo::kDataOffset));
+    ASSERT(!scratch2().is(reg));
+    __ mov(scratch2(), Immediate(callback));
+    __ push(FieldOperand(scratch2(), ExecutableAccessorInfo::kDataOffset));
   } else {
     __ push(Immediate(Handle<Object>(callback->data(), isolate())));
   }
@@ -1436,9 +1429,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ push(Immediate(reinterpret_cast<int>(isolate())));
   __ push(reg);  // holder
 
-  // Save a pointer to where we pushed the arguments pointer.  This will be
-  // passed as the const ExecutableAccessorInfo& to the C++ callback.
-  __ push(scratch2());
+  // Save a pointer to where we pushed the arguments. This will be
+  // passed as the const PropertyAccessorInfo& to the C++ callback.
+  __ push(esp);
 
   __ push(name());  // name
   __ mov(ebx, esp);  // esp points to reference to name (handler).
