@@ -115,8 +115,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(KeyedLoadIC_MissForceGeneric,   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_Slow,               HANDLER, MONOMORPHIC,               \
-                                    Code::kNoExtraICState)              \
   V(StoreIC_Miss,                   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Slow,                   BUILTIN, UNINITIALIZED,             \
@@ -131,13 +129,9 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LoadIC_PreMonomorphic,          LOAD_IC, PREMONOMORPHIC,            \
                                     Code::kNoExtraICState)              \
-  V(LoadIC_Normal,                  LOAD_IC, MONOMORPHIC,               \
-                                    Code::kNoExtraICState)              \
   V(LoadIC_Megamorphic,             LOAD_IC, MEGAMORPHIC,               \
                                     Code::kNoExtraICState)              \
   V(LoadIC_Getter_ForDeopt,         LOAD_IC, MONOMORPHIC,               \
-                                    Code::kNoExtraICState)              \
-  V(LoadIC_Slow,                    HANDLER, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(KeyedLoadIC_Initialize,         KEYED_LOAD_IC, UNINITIALIZED,       \
@@ -157,8 +151,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_PreMonomorphic,         STORE_IC, PREMONOMORPHIC,           \
                                     Code::kNoExtraICState)              \
-  V(StoreIC_Normal,                 STORE_IC, MONOMORPHIC,              \
-                                    Code::kNoExtraICState)              \
   V(StoreIC_Megamorphic,            STORE_IC, MEGAMORPHIC,              \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Generic,                STORE_IC, GENERIC,                  \
@@ -170,8 +162,6 @@ enum BuiltinExtraArguments {
   V(StoreIC_Initialize_Strict,      STORE_IC, UNINITIALIZED,            \
                                     kStrictMode)                        \
   V(StoreIC_PreMonomorphic_Strict,  STORE_IC, PREMONOMORPHIC,           \
-                                    kStrictMode)                        \
-  V(StoreIC_Normal_Strict,          STORE_IC, MONOMORPHIC,              \
                                     kStrictMode)                        \
   V(StoreIC_Megamorphic_Strict,     STORE_IC, MEGAMORPHIC,              \
                                     kStrictMode)                        \
@@ -219,6 +209,14 @@ enum BuiltinExtraArguments {
   V(StackCheck,                     BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
+
+// Define list of builtin handlers implemented in assembly.
+#define BUILTIN_LIST_H(V)                                                 \
+  V(LoadIC_Slow,                    LOAD_IC, Code::kNoExtraICState)       \
+  V(KeyedLoadIC_Slow,               KEYED_LOAD_IC, Code::kNoExtraICState) \
+  V(LoadIC_Normal,                  LOAD_IC, Code::kNoExtraICState)       \
+  V(StoreIC_Normal,                 STORE_IC, Code::kNoExtraICState)      \
+  V(StoreIC_Normal_Strict,          STORE_IC, kStrictMode)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 // Define list of builtins used by the debugger implemented in assembly.
@@ -307,8 +305,10 @@ class Builtins {
   enum Name {
 #define DEF_ENUM_C(name, ignore) k##name,
 #define DEF_ENUM_A(name, kind, state, extra) k##name,
+#define DEF_ENUM_H(name, kind, extra) k##name,
     BUILTIN_LIST_C(DEF_ENUM_C)
     BUILTIN_LIST_A(DEF_ENUM_A)
+    BUILTIN_LIST_H(DEF_ENUM_H)
     BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
 #undef DEF_ENUM_C
 #undef DEF_ENUM_A
@@ -332,8 +332,10 @@ class Builtins {
 #define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_A(name, kind, state, extra) \
   Handle<Code> name();
+#define DECLARE_BUILTIN_ACCESSOR_H(name, kind, extra) Handle<Code> name();
   BUILTIN_LIST_C(DECLARE_BUILTIN_ACCESSOR_C)
   BUILTIN_LIST_A(DECLARE_BUILTIN_ACCESSOR_A)
+  BUILTIN_LIST_H(DECLARE_BUILTIN_ACCESSOR_H)
   BUILTIN_LIST_DEBUG_A(DECLARE_BUILTIN_ACCESSOR_A)
 #undef DECLARE_BUILTIN_ACCESSOR_C
 #undef DECLARE_BUILTIN_ACCESSOR_A

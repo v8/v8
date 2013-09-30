@@ -10363,31 +10363,35 @@ void Code::ReplaceFirstMap(Map* replace_with) {
 }
 
 
-Code* Code::FindFirstCode() {
+Code* Code::FindFirstHandler() {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    return Code::GetCodeFromTargetAddress(info->target_address());
+    Code* code = Code::GetCodeFromTargetAddress(info->target_address());
+    if (code->kind() == Code::HANDLER) return code;
   }
   return NULL;
 }
 
 
-void Code::FindAllCode(CodeHandleList* code_list, int length) {
+bool Code::FindHandlers(CodeHandleList* code_list, int length) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   int i = 0;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    if (i++ == length) return;
+    if (i == length) return true;
     RelocInfo* info = it.rinfo();
     Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-    ASSERT(code->kind() == Code::HANDLER);
+    // IC stubs with handlers never contain non-handler code objects before
+    // handler targets.
+    if (code->kind() != Code::HANDLER) break;
     code_list->Add(Handle<Code>(code));
+    i++;
   }
-  UNREACHABLE();
+  return i == length;
 }
 
 

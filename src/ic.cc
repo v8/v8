@@ -217,12 +217,9 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
   int index = map->IndexInCodeCache(name, target);
   if (index >= 0) {
     map->RemoveFromCodeCache(String::cast(name), target, index);
-    // For loads and stores, handlers are stored in addition to the ICs on the
-    // map. Remove those, too.
-    if ((target->is_load_stub() || target->is_keyed_load_stub() ||
-         target->is_store_stub() || target->is_keyed_store_stub()) &&
-        target->type() != Code::NORMAL) {
-      Code* handler = target->FindFirstCode();
+    // Handlers are stored in addition to the ICs on the map. Remove those, too.
+    Code* handler = target->FindFirstHandler();
+    if (handler != NULL) {
       index = map->IndexInCodeCache(name, handler);
       if (index >= 0) {
         map->RemoveFromCodeCache(String::cast(name), handler, index);
@@ -1000,10 +997,6 @@ bool IC::UpdatePolymorphicIC(State state,
                              Handle<Code> code,
                              StrictModeFlag strict_mode) {
   if (code->kind() != Code::HANDLER) return false;
-  if (target()->ic_state() == MONOMORPHIC &&
-      target()->type() == Code::NORMAL) {
-    return false;
-  }
 
   MapHandleList receiver_maps;
   CodeHandleList handlers;
@@ -1038,7 +1031,10 @@ bool IC::UpdatePolymorphicIC(State state,
     if (number_of_maps == 0 && target()->ic_state() != UNINITIALIZED) {
       return false;
     }
-    target()->FindAllCode(&handlers, receiver_maps.length());
+
+    if (!target()->FindHandlers(&handlers, receiver_maps.length())) {
+      return false;
+    }
   }
 
   number_of_valid_maps++;
@@ -1126,7 +1122,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
   {
     DisallowHeapAllocation no_gc;
     target()->FindAllMaps(&receiver_maps);
-    target()->FindAllCode(&handlers, receiver_maps.length());
+    if (!target()->FindHandlers(&handlers, receiver_maps.length())) return;
   }
   for (int i = 0; i < receiver_maps.length(); i++) {
     UpdateMegamorphicCache(*receiver_maps.at(i), *name, *handlers.at(i));
@@ -1170,7 +1166,7 @@ void IC::PatchCache(State state,
           bool is_same_handler = false;
           {
             DisallowHeapAllocation no_allocation;
-            Code* old_handler = target()->FindFirstCode();
+            Code* old_handler = target()->FindFirstHandler();
             is_same_handler = old_handler == *code;
           }
           if (is_same_handler
@@ -1182,9 +1178,7 @@ void IC::PatchCache(State state,
             break;
           }
 
-          if (target()->type() != Code::NORMAL) {
-            CopyICToMegamorphicCache(name);
-          }
+          CopyICToMegamorphicCache(name);
         }
 
         UpdateMegamorphicCache(receiver->map(), *name, *code);

@@ -4998,9 +4998,12 @@ class Code: public HeapObject {
   void FindAllMaps(MapHandleList* maps);
   void ReplaceFirstMap(Map* replace);
 
-  // Find the first code in an IC stub.
-  Code* FindFirstCode();
-  void FindAllCode(CodeHandleList* code_list, int length);
+  // Find the first handler in an IC stub.
+  Code* FindFirstHandler();
+
+  // Find |length| handlers and put them into |code_list|. Returns false if not
+  // enough handlers can be found.
+  MUST_USE_RESULT bool FindHandlers(CodeHandleList* code_list, int length);
 
   // Find the first name in an IC stub.
   Name* FindFirstName();
