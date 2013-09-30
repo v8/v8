@@ -140,7 +140,7 @@ Handle<Code> StubCache::FindLoadHandler(Handle<Name> name,
       ? OWN_MAP : PROTOTYPE_MAP;
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STUB, Code::kNoExtraICState, type, kind, holder_flag);
+      Code::HANDLER, Code::kNoExtraICState, type, kind, holder_flag);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -157,7 +157,7 @@ Handle<Code> StubCache::FindStoreHandler(Handle<Name> name,
       STANDARD_STORE, strict_mode);
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STUB, extra_ic_state, type, kind);
+      Code::HANDLER, extra_ic_state, type, kind);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -1987,7 +1987,7 @@ Handle<Code> BaseLoadStubCompiler::GetCode(Code::Kind kind,
                                            Handle<Name> name) {
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeFlags(
-      Code::STUB, MONOMORPHIC, Code::kNoExtraICState, type, kind);
+      Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState, type, kind);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);
@@ -2000,7 +2000,7 @@ Handle<Code> BaseStoreStubCompiler::GetCode(Code::Kind kind,
                                             Handle<Name> name) {
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeFlags(
-      Code::STUB, MONOMORPHIC, extra_state(), type, kind);
+      Code::HANDLER, MONOMORPHIC, extra_state(), type, kind);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);

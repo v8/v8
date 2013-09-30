@@ -4763,6 +4763,7 @@ class Code: public HeapObject {
   V(FUNCTION)               \
   V(OPTIMIZED_FUNCTION)     \
   V(STUB)                   \
+  V(HANDLER)                \
   V(BUILTIN)                \
   V(REGEXP)
 

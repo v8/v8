@@ -10384,7 +10384,7 @@ void Code::FindAllCode(CodeHandleList* code_list, int length) {
     if (i++ == length) return;
     RelocInfo* info = it.rinfo();
     Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-    ASSERT(code->kind() == Code::STUB);
+    ASSERT(code->kind() == Code::HANDLER);
     code_list->Add(Handle<Code>(code));
   }
   UNREACHABLE();

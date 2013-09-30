@@ -999,7 +999,7 @@ bool IC::UpdatePolymorphicIC(State state,
                              Handle<String> name,
                              Handle<Code> code,
                              StrictModeFlag strict_mode) {
-  if (code->type() == Code::NORMAL) return false;
+  if (code->kind() != Code::HANDLER) return false;
   if (target()->ic_state() == MONOMORPHIC &&
       target()->type() == Code::NORMAL) {
     return false;
