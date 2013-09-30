@@ -1447,28 +1447,6 @@ void MacroAssembler::JumpUnlessBothNonNegativeSmi(Register src1,
 }
 
 
-void MacroAssembler::SmiTryAddConstant(Register dst,
-                                       Register src,
-                                       Smi* constant,
-                                       Label* on_not_smi_result,
-                                       Label::Distance near_jump) {
-  // Does not assume that src is a smi.
-  ASSERT_EQ(static_cast<int>(1), static_cast<int>(kSmiTagMask));
-  STATIC_ASSERT(kSmiTag == 0);
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src.is(kScratchRegister));
-
-  JumpIfNotSmi(src, on_not_smi_result, near_jump);
-  Register tmp = (dst.is(src) ? kScratchRegister : dst);
-  LoadSmiConstant(tmp, constant);
-  addq(tmp, src);
-  j(overflow, on_not_smi_result, near_jump);
-  if (dst.is(src)) {
-    movq(dst, tmp);
-  }
-}
-
-
 void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
   if (constant->value() == 0) {
     if (!dst.is(src)) {
