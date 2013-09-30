@@ -101,7 +101,7 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 }
 
 
-#ifdef ENABLE_EXTRA_CHECKS
+#ifdef ENABLE_HANDLE_ZAPPING
 void HandleScope::ZapRange(Object** start, Object** end) {
   ASSERT(end - start <= kHandleBlockSize);
   for (Object** p = start; p != end; p++) {

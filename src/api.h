@@ -667,7 +667,7 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 #ifdef DEBUG
     // SealHandleScope may make the prev_limit to point inside the block.
     if (block_start <= prev_limit && prev_limit <= block_limit) {
-#ifdef ENABLE_EXTRA_CHECKS
+#ifdef ENABLE_HANDLE_ZAPPING
       internal::HandleScope::ZapRange(prev_limit, block_limit);
 #endif
       break;
@@ -677,7 +677,7 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 #endif
 
     blocks_.RemoveLast();
-#ifdef ENABLE_EXTRA_CHECKS
+#ifdef ENABLE_HANDLE_ZAPPING
     internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
     if (spare_ != NULL) {

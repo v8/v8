@@ -89,20 +89,28 @@
       'Debug': {
         'variables': {
           'v8_enable_extra_checks%': 1,
+          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
+          }],
+          ['v8_enable_handle_zapping==1', {
+            'defines': ['ENABLE_HANDLE_ZAPPING',],
           }],
         ],
       },  # Debug
       'Release': {
         'variables': {
           'v8_enable_extra_checks%': 0,
+          'v8_enable_handle_zapping%': 0,
         },
         'conditions': [
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
+          }],
+          ['v8_enable_handle_zapping==1', {
+            'defines': ['ENABLE_HANDLE_ZAPPING',],
           }],
         ],  # conditions
       },  # Release
