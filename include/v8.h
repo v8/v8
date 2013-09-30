@@ -586,7 +586,6 @@ template <class T, class M> class Persistent {
   V8_INLINE void Reset(Isolate* isolate, const Persistent<S, M2>& other);
   // TODO(dcarney): deprecate
   V8_INLINE void Dispose() { Reset(); }
-  V8_DEPRECATED(V8_INLINE void Dispose(Isolate* isolate)) { Reset(); }
 
   V8_INLINE bool IsEmpty() const { return val_ == 0; }
 
@@ -656,8 +655,6 @@ template <class T, class M> class Persistent {
 
   V8_INLINE void ClearWeak();
 
-  V8_DEPRECATED(V8_INLINE void ClearWeak(Isolate* isolate)) { ClearWeak(); }
-
   /**
    * Marks the reference to this object independent. Garbage collector is free
    * to ignore any object groups containing this object. Weak callback for an
@@ -665,10 +662,6 @@ template <class T, class M> class Persistent {
    * GC prologue callback or followed by a global GC epilogue callback.
    */
   V8_INLINE void MarkIndependent();
-
-  V8_DEPRECATED(V8_INLINE void MarkIndependent(Isolate* isolate)) {
-    MarkIndependent();
-  }
 
   /**
    * Marks the reference to this object partially dependent. Partially dependent
@@ -680,29 +673,13 @@ template <class T, class M> class Persistent {
    */
   V8_INLINE void MarkPartiallyDependent();
 
-  V8_DEPRECATED(V8_INLINE void MarkPartiallyDependent(Isolate* isolate)) {
-    MarkPartiallyDependent();
-  }
-
   V8_INLINE bool IsIndependent() const;
-
-  V8_DEPRECATED(V8_INLINE bool IsIndependent(Isolate* isolate) const) {
-    return IsIndependent();
-  }
 
   /** Checks if the handle holds the only reference to an object. */
   V8_INLINE bool IsNearDeath() const;
 
-  V8_DEPRECATED(V8_INLINE bool IsNearDeath(Isolate* isolate) const) {
-    return IsNearDeath();
-  }
-
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE bool IsWeak() const;
-
-  V8_DEPRECATED(V8_INLINE bool IsWeak(Isolate* isolate) const) {
-    return IsWeak();
-  }
 
   /**
    * Assigns a wrapper class ID to the handle. See RetainedObjectInfo interface
@@ -710,20 +687,11 @@ template <class T, class M> class Persistent {
    */
   V8_INLINE void SetWrapperClassId(uint16_t class_id);
 
-  V8_DEPRECATED(
-      V8_INLINE void SetWrapperClassId(Isolate * isolate, uint16_t class_id)) {
-    SetWrapperClassId(class_id);
-  }
-
   /**
    * Returns the class ID previously assigned to this handle or 0 if no class ID
    * was previously assigned.
    */
   V8_INLINE uint16_t WrapperClassId() const;
-
-  V8_DEPRECATED(V8_INLINE uint16_t WrapperClassId(Isolate* isolate) const) {
-    return WrapperClassId();
-  }
 
   // TODO(dcarney): remove
   V8_INLINE T* ClearAndLeak();
@@ -1573,11 +1541,6 @@ class V8_EXPORT String : public Primitive {
   int Utf8Length() const;
 
   /**
-   * This function is no longer useful.
-   */
-  V8_DEPRECATED(V8_INLINE bool MayContainNonAscii() const) { return true; }
-
-  /**
    * Returns whether this string is known to contain only one byte data.
    * Does not read the string.
    * False negatives are possible.
@@ -1627,11 +1590,6 @@ class V8_EXPORT String : public Primitive {
             int start = 0,
             int length = -1,
             int options = NO_OPTIONS) const;
-  // ASCII characters.
-  V8_DEPRECATED(int WriteAscii(char* buffer,
-                               int start = 0,
-                               int length = -1,
-                               int options = NO_OPTIONS) const);
   // One byte characters.
   int WriteOneByte(uint8_t* buffer,
                    int start = 0,
@@ -1762,24 +1720,29 @@ class V8_EXPORT String : public Primitive {
 
   V8_INLINE static String* Cast(v8::Value* obj);
 
-  // TODO(dcarney): deprecate
   /**
    * Allocates a new string from either UTF-8 encoded or ASCII data.
    * The second parameter 'length' gives the buffer length. If omitted,
    * the function calls 'strlen' to determine the buffer length.
    */
-  V8_INLINE static Local<String> New(const char* data, int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromOneByte instead",
+      V8_INLINE static Local<String> New(const char* data, int length = -1));
 
-  // TODO(dcarney): deprecate
   /** Allocates a new string from 16-bit character codes.*/
-  V8_INLINE static Local<String> New(const uint16_t* data, int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromTwoByte instead",
+      V8_INLINE static Local<String> New(
+          const uint16_t* data, int length = -1));
 
-  // TODO(dcarney): deprecate
   /**
    * Creates an internalized string (historically called a "symbol",
    * not to be confused with ES6 symbols). Returns one if it exists already.
    */
-  V8_INLINE static Local<String> NewSymbol(const char* data, int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromUtf8 instead",
+      V8_INLINE static Local<String> NewSymbol(
+          const char* data, int length = -1));
 
   enum NewStringType {
     kNormalString, kInternalizedString, kUndetectableString
@@ -4586,11 +4549,6 @@ class V8_EXPORT V8 {
       ReturnAddressLocationResolver return_address_resolver);
 
   /**
-   * Deprecated, use the variant with the Isolate parameter below instead.
-   */
-  V8_DEPRECATED(static bool SetFunctionEntryHook(FunctionEntryHook entry_hook));
-
-  /**
    * Allows the host application to provide the address of a function that's
    * invoked on entry to every V8-generated function.
    * Note that \p entry_hook is invoked at the very start of each
@@ -4686,9 +4644,6 @@ class V8_EXPORT V8 {
    * to use if the process needs the resources taken up by v8.
    */
   static bool Dispose();
-
-  /** Deprecated. Use Isolate::GetHeapStatistics instead. */
-  V8_DEPRECATED(static void GetHeapStatistics(HeapStatistics* heap_statistics));
 
   /**
    * Iterates through all external resources referenced from current isolate
@@ -4987,17 +4942,14 @@ class V8_EXPORT Context {
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
       Handle<Value> global_object = Handle<Value>());
 
-  // TODO(dcarney):  Remove this function.
-  /** Deprecated. Use Isolate::GetEnteredContext */
-  static Local<Context> GetEntered();
+  V8_DEPRECATED("Use Isolate::GetEnteredContext instead",
+                static Local<Context> GetEntered());
 
-  // TODO(dcarney) Remove this function.
-  /** Deprecated. Use Isolate::GetCurrentContext instead. */
-  static Local<Context> GetCurrent();
+  V8_DEPRECATED("Use Isolate::GetCurrentContext instead",
+                static Local<Context> GetCurrent());
 
-  // TODO(dcarney) Remove this function.
-  /** Deprecated. Use Isolate::GetCallingContext instead. */
-  static Local<Context> GetCalling();
+  V8_DEPRECATED("Use Isolate::GetCallingContext instead",
+                static Local<Context> GetCalling());
 
   /**
    * Sets the security token for the context.  To access an object in

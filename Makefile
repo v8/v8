@@ -129,6 +129,10 @@ ifeq ($(i18nsupport), off)
   GYPFLAGS += -Dv8_enable_i18n_support=0
   TESTFLAGS += --noi18n
 endif
+# deprecation_warnings=on
+ifeq ($(deprecationwarnings), on)
+  GYPFLAGS += -Dv8_deprecation_warnings=1
+endif 
 # arm specific flags.
 # armv7=false/true
 ifeq ($(armv7), false)

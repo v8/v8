@@ -4709,39 +4709,6 @@ int String::WriteUtf8(char* buffer,
 }
 
 
-int String::WriteAscii(char* buffer,
-                       int start,
-                       int length,
-                       int options) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  LOG_API(isolate, "String::WriteAscii");
-  ENTER_V8(isolate);
-  ASSERT(start >= 0 && length >= -1);
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  isolate->string_tracker()->RecordWrite(str);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
-    FlattenString(str);  // Flatten the string for efficiency.
-  }
-
-  int end = length;
-  if ((length == -1) || (length > str->length() - start)) {
-    end = str->length() - start;
-  }
-  if (end < 0) return 0;
-  i::StringCharacterStream write_stream(*str, isolate->write_iterator(), start);
-  int i;
-  for (i = 0; i < end; i++) {
-    char c = static_cast<char>(write_stream.GetNext());
-    if (c == '\0' && !(options & PRESERVE_ASCII_NULL)) c = ' ';
-    buffer[i] = c;
-  }
-  if (!(options & NO_NULL_TERMINATION) && (length == -1 || i < length)) {
-    buffer[i] = '\0';
-  }
-  return i;
-}
-
-
 template<typename CharType>
 static inline int WriteHelper(const String* string,
                               CharType* buffer,
@@ -4983,11 +4950,6 @@ void v8::V8::SetReturnAddressLocationResolver(
 }
 
 
-bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  return SetFunctionEntryHook(Isolate::GetCurrent(), entry_hook);
-}
-
-
 bool v8::V8::SetFunctionEntryHook(Isolate* ext_isolate,
                                   FunctionEntryHook entry_hook) {
   ASSERT(ext_isolate != NULL);
@@ -5046,22 +5008,6 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   total_physical_size_(0),
                                   used_heap_size_(0),
                                   heap_size_limit_(0) { }
-
-
-void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (isolate == NULL || !isolate->IsInitialized()) {
-    // Isolate is unitialized thus heap is not configured yet.
-    heap_statistics->total_heap_size_ = 0;
-    heap_statistics->total_heap_size_executable_ = 0;
-    heap_statistics->total_physical_size_ = 0;
-    heap_statistics->used_heap_size_ = 0;
-    heap_statistics->heap_size_limit_ = 0;
-    return;
-  }
-  Isolate* ext_isolate = reinterpret_cast<Isolate*>(isolate);
-  return ext_isolate->GetHeapStatistics(heap_statistics);
-}
 
 
 void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
@@ -6964,11 +6910,6 @@ int CpuProfileNode::GetLineNumber() const {
 const char* CpuProfileNode::GetBailoutReason() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return node->entry()->bailout_reason();
-}
-
-
-double CpuProfileNode::GetSelfSamplesCount() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
 }
 
 
