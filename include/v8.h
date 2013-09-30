@@ -2322,7 +2322,7 @@ class V8_EXPORT Object : public Value {
    * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
-  Local<Value> CallAsFunction(Handle<Object> recv,
+  Local<Value> CallAsFunction(Handle<Value> recv,
                               int argc,
                               Handle<Value> argv[]);
 
@@ -2495,7 +2495,7 @@ class V8_EXPORT Function : public Object {
 
   Local<Object> NewInstance() const;
   Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
-  Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
+  Local<Value> Call(Handle<Value> recv, int argc, Handle<Value> argv[]);
   void SetName(Handle<String> name);
   Handle<Value> GetName() const;
 

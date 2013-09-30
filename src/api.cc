@@ -3936,7 +3936,7 @@ bool v8::Object::IsCallable() {
 }
 
 
-Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Value> recv,
                                         int argc,
                                         v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -3964,7 +3964,7 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
   }
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> returned = i::Execution::Call(
-      isolate, fun, recv_obj, argc, args, &has_pending_exception);
+      isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
   EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
   return Utils::ToLocal(scope.CloseAndEscape(returned));
 }
@@ -4048,7 +4048,7 @@ Local<v8::Object> Function::NewInstance(int argc,
 }
 
 
-Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
+Local<v8::Value> Function::Call(v8::Handle<v8::Value> recv, int argc,
                                 v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Function::Call()", return Local<v8::Value>());
@@ -4065,7 +4065,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
     i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned = i::Execution::Call(
-        isolate, fun, recv_obj, argc, args, &has_pending_exception);
+        isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
     raw_result = *returned;
   }
