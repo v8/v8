@@ -97,7 +97,7 @@ namespace internal {
 
 #define EXPRESSION_NODE_LIST(V)                 \
   V(FunctionLiteral)                            \
-  V(NativeFunctionLiteral)                      \
+  V(SharedFunctionInfoLiteral)                  \
   V(Conditional)                                \
   V(VariableProxy)                              \
   V(Literal)                                    \
@@ -2380,18 +2380,23 @@ class FunctionLiteral V8_FINAL : public Expression {
 };
 
 
-class NativeFunctionLiteral V8_FINAL : public Expression {
+class SharedFunctionInfoLiteral V8_FINAL : public Expression {
  public:
-  DECLARE_NODE_TYPE(NativeFunctionLiteral)
+  DECLARE_NODE_TYPE(SharedFunctionInfoLiteral)
 
-  Handle<String> name() const { return name_; }
+  Handle<SharedFunctionInfo> shared_function_info() const {
+    return shared_function_info_;
+  }
 
  protected:
-  NativeFunctionLiteral(Isolate* isolate, Handle<String> name)
-      : Expression(isolate), name_(name) { }
+  SharedFunctionInfoLiteral(
+      Isolate* isolate,
+      Handle<SharedFunctionInfo> shared_function_info)
+      : Expression(isolate),
+        shared_function_info_(shared_function_info) { }
 
  private:
-  Handle<String> name_;
+  Handle<SharedFunctionInfo> shared_function_info_;
 };
 
 
@@ -3232,10 +3237,11 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     return lit;
   }
 
-  NativeFunctionLiteral* NewNativeFunctionLiteral(Handle<String> name) {
-    NativeFunctionLiteral* lit =
-        new(zone_) NativeFunctionLiteral(isolate_, name);
-    VISIT_AND_RETURN(NativeFunctionLiteral, lit)
+  SharedFunctionInfoLiteral* NewSharedFunctionInfoLiteral(
+      Handle<SharedFunctionInfo> shared_function_info) {
+    SharedFunctionInfoLiteral* lit =
+        new(zone_) SharedFunctionInfoLiteral(isolate_, shared_function_info);
+    VISIT_AND_RETURN(SharedFunctionInfoLiteral, lit)
   }
 
   ThisFunction* NewThisFunction() {

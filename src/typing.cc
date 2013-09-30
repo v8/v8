@@ -305,7 +305,7 @@ void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AstTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
+void AstTyper::VisitSharedFunctionInfoLiteral(SharedFunctionInfoLiteral* expr) {
 }
 
 

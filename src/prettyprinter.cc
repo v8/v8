@@ -297,9 +297,10 @@ void PrettyPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void PrettyPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
+void PrettyPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   Print("(");
-  PrintLiteral(node->name(), false);
+  PrintLiteral(node->shared_function_info(), true);
   Print(")");
 }
 
@@ -981,9 +982,10 @@ void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void AstPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
-  IndentedScope indent(this, "NATIVE FUNC LITERAL");
-  PrintLiteralIndented("NAME", node->name(), false);
+void AstPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
+  IndentedScope indent(this, "FUNC LITERAL");
+  PrintLiteralIndented("SHARED INFO", node->shared_function_info(), true);
 }
 
 
