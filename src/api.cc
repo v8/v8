@@ -3936,7 +3936,7 @@ bool v8::Object::IsCallable() {
 }
 
 
-Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Value> recv,
                                         int argc,
                                         v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -3964,7 +3964,7 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
   }
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> returned = i::Execution::Call(
-      isolate, fun, recv_obj, argc, args, &has_pending_exception);
+      isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
   EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
   return Utils::ToLocal(scope.CloseAndEscape(returned));
 }
@@ -4048,7 +4048,7 @@ Local<v8::Object> Function::NewInstance(int argc,
 }
 
 
-Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
+Local<v8::Value> Function::Call(v8::Handle<v8::Value> recv, int argc,
                                 v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Function::Call()", return Local<v8::Value>());
@@ -4065,7 +4065,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
     i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned = i::Execution::Call(
-        isolate, fun, recv_obj, argc, args, &has_pending_exception);
+        isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
     raw_result = *returned;
   }
@@ -4709,39 +4709,6 @@ int String::WriteUtf8(char* buffer,
 }
 
 
-int String::WriteAscii(char* buffer,
-                       int start,
-                       int length,
-                       int options) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  LOG_API(isolate, "String::WriteAscii");
-  ENTER_V8(isolate);
-  ASSERT(start >= 0 && length >= -1);
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  isolate->string_tracker()->RecordWrite(str);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
-    FlattenString(str);  // Flatten the string for efficiency.
-  }
-
-  int end = length;
-  if ((length == -1) || (length > str->length() - start)) {
-    end = str->length() - start;
-  }
-  if (end < 0) return 0;
-  i::StringCharacterStream write_stream(*str, isolate->write_iterator(), start);
-  int i;
-  for (i = 0; i < end; i++) {
-    char c = static_cast<char>(write_stream.GetNext());
-    if (c == '\0' && !(options & PRESERVE_ASCII_NULL)) c = ' ';
-    buffer[i] = c;
-  }
-  if (!(options & NO_NULL_TERMINATION) && (length == -1 || i < length)) {
-    buffer[i] = '\0';
-  }
-  return i;
-}
-
-
 template<typename CharType>
 static inline int WriteHelper(const String* string,
                               CharType* buffer,
@@ -4983,11 +4950,6 @@ void v8::V8::SetReturnAddressLocationResolver(
 }
 
 
-bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  return SetFunctionEntryHook(Isolate::GetCurrent(), entry_hook);
-}
-
-
 bool v8::V8::SetFunctionEntryHook(Isolate* ext_isolate,
                                   FunctionEntryHook entry_hook) {
   ASSERT(ext_isolate != NULL);
@@ -5046,22 +5008,6 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   total_physical_size_(0),
                                   used_heap_size_(0),
                                   heap_size_limit_(0) { }
-
-
-void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (isolate == NULL || !isolate->IsInitialized()) {
-    // Isolate is unitialized thus heap is not configured yet.
-    heap_statistics->total_heap_size_ = 0;
-    heap_statistics->total_heap_size_executable_ = 0;
-    heap_statistics->total_physical_size_ = 0;
-    heap_statistics->used_heap_size_ = 0;
-    heap_statistics->heap_size_limit_ = 0;
-    return;
-  }
-  Isolate* ext_isolate = reinterpret_cast<Isolate*>(isolate);
-  return ext_isolate->GetHeapStatistics(heap_statistics);
-}
 
 
 void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
@@ -6022,15 +5968,6 @@ size_t v8::ArrayBufferView::ByteLength() {
 }
 
 
-void* v8::ArrayBufferView::BaseAddress() {
-  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
-  void* buffer_data = buffer->backing_store();
-  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
-  return static_cast<uint8_t*>(buffer_data) + byte_offset;
-}
-
-
 size_t v8::TypedArray::Length() {
   i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->length()->Number());
@@ -6976,11 +6913,6 @@ const char* CpuProfileNode::GetBailoutReason() const {
 }
 
 
-double CpuProfileNode::GetSelfSamplesCount() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
-}
-
-
 unsigned CpuProfileNode::GetHitCount() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
 }
@@ -7534,7 +7466,7 @@ DeferredHandles::~DeferredHandles() {
   isolate_->UnlinkDeferredHandles(this);
 
   for (int i = 0; i < blocks_.length(); i++) {
-#ifdef ENABLE_EXTRA_CHECKS
+#ifdef ENABLE_HANDLE_ZAPPING
     HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
 #endif
     isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);

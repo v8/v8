@@ -1929,7 +1929,7 @@ void Isolate::Deinit() {
     deoptimizer_data_ = NULL;
     if (FLAG_preemption) {
       v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-      v8::Locker::StopPreemption();
+      v8::Locker::StopPreemption(reinterpret_cast<v8::Isolate*>(this));
     }
     builtins_.TearDown();
     bootstrapper_->TearDown();
@@ -2271,7 +2271,7 @@ bool Isolate::Init(Deserializer* des) {
 
   if (FLAG_preemption) {
     v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-    v8::Locker::StartPreemption(100);
+    v8::Locker::StartPreemption(reinterpret_cast<v8::Isolate*>(this), 100);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

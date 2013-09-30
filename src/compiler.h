@@ -534,7 +534,7 @@ class RecompileJob: public ZoneObject {
   }
 
   void WaitForInstall() {
-    ASSERT(!info_->osr_ast_id().IsNone());
+    ASSERT(info_->is_osr());
     awaiting_install_ = true;
   }
 

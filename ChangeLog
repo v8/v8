@@ -1,3 +1,15 @@
+2013-09-30: Version 3.22.4
+
+        Function::Call and Object::CallAsFunction APIs should allow v8::Value as
+        a receiver (issue 2915).
+
+        Removed unnecessary mutex (Chromium issue 291236).
+
+        Removed ArrayBufferView::BaseAddress method.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-27: Version 3.22.3
 
         Added methods to enable configuration of ResourceConstraints based on

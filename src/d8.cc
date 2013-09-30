@@ -1528,7 +1528,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
     // Start preemption if threads have been created and preemption is enabled.
     if (threads.length() > 0
         && options.use_preemption) {
-      Locker::StartPreemption(options.preemption_interval);
+      Locker::StartPreemption(isolate, options.preemption_interval);
     }
 #endif  // V8_SHARED
   }
@@ -1546,7 +1546,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 
   if (threads.length() > 0 && options.use_preemption) {
     Locker lock(isolate);
-    Locker::StopPreemption();
+    Locker::StopPreemption(isolate);
   }
 #endif  // V8_SHARED
   return 0;

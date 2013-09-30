@@ -115,22 +115,47 @@ class CpuFeatures : public AllStatic {
 // mode. This way we get the compile-time error checking in debug mode
 // and best performance in optimized code.
 
+// These constants are used in several locations, including static initializers
+const int kRegister_no_reg_Code = -1;
+const int kRegister_r0_Code = 0;
+const int kRegister_r1_Code = 1;
+const int kRegister_r2_Code = 2;
+const int kRegister_r3_Code = 3;
+const int kRegister_r4_Code = 4;
+const int kRegister_r5_Code = 5;
+const int kRegister_r6_Code = 6;
+const int kRegister_r7_Code = 7;
+const int kRegister_r8_Code = 8;
+const int kRegister_r9_Code = 9;
+const int kRegister_r10_Code = 10;
+const int kRegister_fp_Code = 11;
+const int kRegister_ip_Code = 12;
+const int kRegister_sp_Code = 13;
+const int kRegister_lr_Code = 14;
+const int kRegister_pc_Code = 15;
+
 // Core register
 struct Register {
   static const int kNumRegisters = 16;
   static const int kMaxNumAllocatableRegisters =
-      FLAG_enable_ool_constant_pool ? 7 : 8;
+      FLAG_enable_ool_constant_pool ? 8 : 9;
   static const int kSizeInBytes = 4;
 
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
+    if (FLAG_enable_ool_constant_pool && (reg.code() >= kRegister_r8_Code)) {
+      return reg.code() - 1;
+    }
     ASSERT(reg.code() < kMaxNumAllocatableRegisters);
     return reg.code();
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    if (FLAG_enable_ool_constant_pool && (index >= 7)) {
+      return from_code(index + 1);
+    }
     return from_code(index);
   }
 
@@ -145,7 +170,11 @@ struct Register {
       "r5",
       "r6",
       "r7",
+      "r8",
     };
+    if (FLAG_enable_ool_constant_pool && (index >= 7)) {
+      return names[index + 1];
+    }
     return names[index];
   }
 
@@ -174,25 +203,6 @@ struct Register {
   int code_;
 };
 
-// These constants are used in several locations, including static initializers
-const int kRegister_no_reg_Code = -1;
-const int kRegister_r0_Code = 0;
-const int kRegister_r1_Code = 1;
-const int kRegister_r2_Code = 2;
-const int kRegister_r3_Code = 3;
-const int kRegister_r4_Code = 4;
-const int kRegister_r5_Code = 5;
-const int kRegister_r6_Code = 6;
-const int kRegister_r7_Code = 7;
-const int kRegister_r8_Code = 8;
-const int kRegister_r9_Code = 9;
-const int kRegister_r10_Code = 10;
-const int kRegister_fp_Code = 11;
-const int kRegister_ip_Code = 12;
-const int kRegister_sp_Code = 13;
-const int kRegister_lr_Code = 14;
-const int kRegister_pc_Code = 15;
-
 const Register no_reg = { kRegister_no_reg_Code };
 
 const Register r0  = { kRegister_r0_Code };
@@ -202,7 +212,7 @@ const Register r3  = { kRegister_r3_Code };
 const Register r4  = { kRegister_r4_Code };
 const Register r5  = { kRegister_r5_Code };
 const Register r6  = { kRegister_r6_Code };
-// Used as constant pool pointer register if FLAGS_enable_ool_constant_pool.
+// Used as constant pool pointer register if FLAG_enable_ool_constant_pool.
 const Register r7  = { kRegister_r7_Code };
 // Used as context register.
 const Register r8  = { kRegister_r8_Code };

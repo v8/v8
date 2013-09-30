@@ -5741,6 +5741,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   ASSERT(instr->unclamped()->Equals(instr->result()));
   Register input_reg = ToRegister(instr->unclamped());
+  XMMRegister temp_xmm_reg = ToDoubleRegister(instr->temp_xmm());
   XMMRegister xmm_scratch = double_scratch0();
   Label is_smi, done, heap_number;
 
@@ -5761,7 +5762,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   // Heap number
   __ bind(&heap_number);
   __ movdbl(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ ClampDoubleToUint8(xmm_scratch, xmm1, input_reg);
+  __ ClampDoubleToUint8(xmm_scratch, temp_xmm_reg, input_reg);
   __ jmp(&done, Label::kNear);
 
   // smi

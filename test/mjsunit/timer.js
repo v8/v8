@@ -25,7 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Tests timer milliseconds granularity.
+
+// Don't run this test in gc stress mode. Time differences may be long
+// due to garbage collections.
+%SetFlags("--gc-interval=-1");
+%SetFlags("--nostress-compaction");
 
 (function run() {
   var start_test = Date.now();
