@@ -5583,7 +5583,53 @@ Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
 }
 
 
-Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
+class JSObjectWalkVisitor {
+ public:
+  explicit JSObjectWalkVisitor() {}
+  virtual ~JSObjectWalkVisitor() {}
+
+  Handle<JSObject> Visit(Handle<JSObject> object) {
+    return StructureWalk(object);
+  }
+
+  // Returns true if the visitor is a copying visitor.
+  virtual bool is_copying() = 0;
+
+ protected:
+  Handle<JSObject> StructureWalk(Handle<JSObject> object);
+
+  // The returned handle should point to a new object if the visitor is a
+  // copying visitor, otherwise it should be the same as the input object.
+  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) = 0;
+
+  // The returned handle should point to a new value if the visitor is a
+  // copying visitor, otherwise it should be the same as the input value.
+  virtual Handle<JSObject> VisitElementOrProperty(Handle<JSObject> object,
+                                                  Handle<JSObject> value) = 0;
+};
+
+
+class JSObjectCopyVisitor: public JSObjectWalkVisitor {
+ public:
+  explicit JSObjectCopyVisitor() {}
+
+  virtual bool is_copying() V8_OVERRIDE { return true; }
+
+ protected:
+  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) V8_OVERRIDE {
+    return JSObject::Copy(object);
+  }
+
+  virtual Handle<JSObject> VisitElementOrProperty(
+      Handle<JSObject> object,
+      Handle<JSObject> value) V8_OVERRIDE {
+    return StructureWalk(value);
+  }
+};
+
+
+Handle<JSObject> JSObjectWalkVisitor::StructureWalk(Handle<JSObject> object) {
+  bool copying = is_copying();
   Isolate* isolate = object->GetIsolate();
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) {
@@ -5592,10 +5638,11 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
   }
 
   if (object->map()->is_deprecated()) {
-    MigrateInstance(object);
+    JSObject::MigrateInstance(object);
   }
 
-  Handle<JSObject> copy = Copy(object);
+  Handle<JSObject> copy = VisitObject(object);
+  ASSERT(copying || copy.is_identical_to(object));
 
   HandleScope scope(isolate);
 
@@ -5609,13 +5656,15 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
       int index = descriptors->GetFieldIndex(i);
       Handle<Object> value(object->RawFastPropertyAt(index), isolate);
       if (value->IsJSObject()) {
-        value = DeepCopy(Handle<JSObject>::cast(value));
+        value = VisitElementOrProperty(copy, Handle<JSObject>::cast(value));
         RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
       } else {
         Representation representation = details.representation();
         value = NewStorageFor(isolate, value, representation);
       }
-      copy->FastPropertyAtPut(index, *value);
+      if (copying) {
+        copy->FastPropertyAtPut(index, *value);
+      }
     }
   } else {
     Handle<FixedArray> names =
@@ -5634,11 +5683,14 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
           copy->GetProperty(*key_string, &attributes)->ToObjectUnchecked(),
           isolate);
       if (value->IsJSObject()) {
-        Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+        Handle<JSObject> result = VisitElementOrProperty(
+            copy, Handle<JSObject>::cast(value));
         RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-        // Creating object copy for literals. No strict mode needed.
-        CHECK_NOT_EMPTY_HANDLE(isolate, SetProperty(
-            copy, key_string, result, NONE, kNonStrictMode));
+        if (copying) {
+          // Creating object copy for literals. No strict mode needed.
+          CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetProperty(
+              copy, key_string, result, NONE, kNonStrictMode));
+        }
       }
     }
   }
@@ -5666,9 +5718,12 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
                  value->IsTheHole() ||
                  (IsFastObjectElementsKind(copy->GetElementsKind())));
           if (value->IsJSObject()) {
-            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+            Handle<JSObject> result = VisitElementOrProperty(
+                copy, Handle<JSObject>::cast(value));
             RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            elements->set(i, *result);
+            if (copying) {
+              elements->set(i, *result);
+            }
           }
         }
       }
@@ -5683,9 +5738,12 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
         if (element_dictionary->IsKey(k)) {
           Handle<Object> value(element_dictionary->ValueAt(i), isolate);
           if (value->IsJSObject()) {
-            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+            Handle<JSObject> result = VisitElementOrProperty(
+                copy, Handle<JSObject>::cast(value));
             RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            element_dictionary->ValueAtPut(i, *result);
+            if (copying) {
+              element_dictionary->ValueAtPut(i, *result);
+            }
           }
         }
       }
@@ -5708,6 +5766,14 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
       // No contained objects, nothing to do.
       break;
   }
+  return copy;
+}
+
+
+Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
+  JSObjectCopyVisitor v;
+  Handle<JSObject> copy = v.Visit(object);
+  ASSERT(v.is_copying() && !copy.is_identical_to(object));
   return copy;
 }
 
