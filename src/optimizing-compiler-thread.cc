@@ -108,7 +108,6 @@ void OptimizingCompilerThread::CompileNext() {
   // The function may have already been optimized by OSR.  Simply continue.
   // Use a mutex to make sure that functions marked for install
   // are always also queued.
-  LockGuard<Mutex> access_queue(&queue_mutex_);
   output_queue_.Enqueue(job);
   isolate_->stack_guard()->RequestInstallCode();
 }
@@ -147,10 +146,7 @@ void OptimizingCompilerThread::FlushInputQueue(bool restore_function_code) {
 
 void OptimizingCompilerThread::FlushOutputQueue(bool restore_function_code) {
   RecompileJob* job;
-  while (true) {
-    { LockGuard<Mutex> access_queue(&queue_mutex_);
-      if (!output_queue_.Dequeue(&job)) break;
-    }
+  while (output_queue_.Dequeue(&job)) {
     // OSR jobs are dealt with separately.
     if (!job->info()->is_osr()) {
       DisposeRecompileJob(job, restore_function_code);
@@ -220,10 +216,7 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   HandleScope handle_scope(isolate_);
 
   RecompileJob* job;
-  while (true) {
-    { LockGuard<Mutex> access_queue(&queue_mutex_);
-      if (!output_queue_.Dequeue(&job)) break;
-    }
+  while (output_queue_.Dequeue(&job)) {
     CompilationInfo* info = job->info();
     if (info->is_osr()) {
       if (FLAG_trace_osr) {

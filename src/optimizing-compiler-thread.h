@@ -139,8 +139,6 @@ class OptimizingCompilerThread : public Thread {
   TimeDelta time_spent_compiling_;
   TimeDelta time_spent_total_;
 
-  // TODO(yangguo): remove this once the memory leak has been figured out.
-  Mutex queue_mutex_;
   int osr_hits_;
   int osr_attempts_;
 };
