@@ -584,8 +584,9 @@ template <class T, class M> class Persistent {
    */
   template <class S, class M2>
   V8_INLINE void Reset(Isolate* isolate, const Persistent<S, M2>& other);
-  // TODO(dcarney): deprecate
-  V8_INLINE void Dispose() { Reset(); }
+
+  V8_DEPRECATED("Use Reset instead",
+                V8_INLINE void Dispose()) { Reset(); }
 
   V8_INLINE bool IsEmpty() const { return val_ == 0; }
 
@@ -641,17 +642,19 @@ template <class T, class M> class Persistent {
       P* parameter,
       typename WeakCallbackData<S, P>::Callback callback);
 
-  // TODO(dcarney): deprecate
   template<typename S, typename P>
-  V8_INLINE void MakeWeak(
-      P* parameter,
-      typename WeakReferenceCallbacks<S, P>::Revivable callback);
+  V8_DEPRECATED(
+      "Use SetWeak instead",
+      V8_INLINE void MakeWeak(
+          P* parameter,
+          typename WeakReferenceCallbacks<S, P>::Revivable callback));
 
-  // TODO(dcarney): deprecate
   template<typename P>
-  V8_INLINE void MakeWeak(
-      P* parameter,
-      typename WeakReferenceCallbacks<T, P>::Revivable callback);
+  V8_DEPRECATED(
+      "Use SetWeak instead",
+      V8_INLINE void MakeWeak(
+          P* parameter,
+          typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
   V8_INLINE void ClearWeak();
 
@@ -693,11 +696,11 @@ template <class T, class M> class Persistent {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
-  // TODO(dcarney): remove
-  V8_INLINE T* ClearAndLeak();
+  V8_DEPRECATED("This will be removed",
+                V8_INLINE T* ClearAndLeak());
 
-  // TODO(dcarney): remove
-  V8_INLINE void Clear() { val_ = 0; }
+  V8_DEPRECATED("This will be removed",
+                V8_INLINE void Clear()) { val_ = 0; }
 
   // TODO(dcarney): remove
 #ifndef V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
@@ -742,8 +745,9 @@ class V8_EXPORT HandleScope {
 
   ~HandleScope();
 
-  // TODO(dcarney): deprecated - use EscapableHandleScope::Escape.
-  template <class T> Local<T> Close(Handle<T> value);
+  template <class T>
+  V8_DEPRECATED("Use EscapableHandleScope::Escape instead",
+                Local<T> Close(Handle<T> value));
 
   /**
    * Counts the number of allocated handles.
@@ -1033,9 +1037,8 @@ class V8_EXPORT Script {
 
   /**
    * Returns the script id value.
-   * DEPRECATED: Please use GetId().
    */
-  Local<Value> Id();
+  V8_DEPRECATED("Use GetId instead", Local<Value> Id());
 
   /**
    * Returns the script id.
@@ -1821,15 +1824,17 @@ class V8_EXPORT String : public Primitive {
    */
   bool CanMakeExternal();
 
-  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
-  V8_INLINE static Local<String> NewUndetectable(const char* data,
-                                                 int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromUtf8 instead",
+      V8_INLINE static Local<String> NewUndetectable(const char* data,
+                                                     int length = -1));
 
-  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied 16-bit character codes.*/
-  V8_INLINE static Local<String> NewUndetectable(const uint16_t* data,
-                                                 int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromTwoByte instead",
+      V8_INLINE static Local<String> NewUndetectable(const uint16_t* data,
+                                                     int length = -1));
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -1863,8 +1868,8 @@ class V8_EXPORT String : public Primitive {
    */
   class V8_EXPORT AsciiValue {
    public:
-    // TODO(dcarney): deprecate
-    explicit AsciiValue(Handle<v8::Value> obj);
+    V8_DEPRECATED("Use Utf8Value instead",
+                  explicit AsciiValue(Handle<v8::Value> obj));
     ~AsciiValue();
     char* operator*() { return str_; }
     const char* operator*() const { return str_; }
@@ -2483,9 +2488,8 @@ class V8_EXPORT Function : public Object {
 
   /**
    * Returns scriptId object.
-   * DEPRECATED: use ScriptId() instead.
    */
-  Handle<Value> GetScriptId() const;
+  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId()) const;
 
   /**
    * Returns scriptId.
@@ -2847,9 +2851,9 @@ class V8_EXPORT Date : public Object {
  public:
   static Local<Value> New(double time);
 
-  // Deprecated, use Date::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  double NumberValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      double NumberValue()) const { return ValueOf(); }
 
   /**
    * A specialization of Value::NumberValue that is more efficient
@@ -2885,9 +2889,9 @@ class V8_EXPORT NumberObject : public Object {
  public:
   static Local<Value> New(double value);
 
-  // Deprecated, use NumberObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  double NumberValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      double NumberValue()) const { return ValueOf(); }
 
   /**
    * Returns the Number held by the object.
@@ -2908,9 +2912,9 @@ class V8_EXPORT BooleanObject : public Object {
  public:
   static Local<Value> New(bool value);
 
-  // Deprecated, use BooleanObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  bool BooleanValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      bool BooleanValue()) const { return ValueOf(); }
 
   /**
    * Returns the Boolean held by the object.
@@ -2931,9 +2935,9 @@ class V8_EXPORT StringObject : public Object {
  public:
   static Local<Value> New(Handle<String> value);
 
-  // Deprecated, use StringObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  Local<String> StringValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      Local<String> StringValue()) const { return ValueOf(); }
 
   /**
    * Returns the String held by the object.
@@ -2956,9 +2960,9 @@ class V8_EXPORT SymbolObject : public Object {
  public:
   static Local<Value> New(Isolate* isolate, Handle<Symbol> value);
 
-  // Deprecated, use SymbolObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  Local<Symbol> SymbolValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      Local<Symbol> SymbolValue()) const { return ValueOf(); }
 
   /**
    * Returns the Symbol held by the object.
@@ -3785,8 +3789,9 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> error);
 
 
-// TODO(dcarney): remove. Use Isolate::ThrowException instead.
-Handle<Value> V8_EXPORT ThrowException(Handle<Value> exception);
+V8_DEPRECATED(
+    "Use Isolate::ThrowException instead",
+    Handle<Value> V8_EXPORT ThrowException(Handle<Value> exception));
 
 /**
  * Create new error objects by calling the corresponding error object
@@ -4587,10 +4592,10 @@ class V8_EXPORT V8 {
   static void SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler);
 
-  // TODO(svenpanne) Really deprecate me when Chrome is fixed.
-  /** Deprecated. Use Isolate::AdjustAmountOfExternalAllocatedMemory instead. */
-  static intptr_t AdjustAmountOfExternalAllocatedMemory(
-      intptr_t change_in_bytes);
+  V8_DEPRECATED(
+      "Use Isolate::AdjustAmountOfExternalAllocatedMemory instead",
+      static intptr_t AdjustAmountOfExternalAllocatedMemory(
+          intptr_t change_in_bytes));
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
@@ -4980,9 +4985,8 @@ class V8_EXPORT Context {
   /** Returns true if the context has experienced an out of memory situation. */
   bool HasOutOfMemoryException();
 
-  // TODO(dcarney) Remove this function.
-  /** Deprecated. Use Isolate::InContext instead. */
-  static bool InContext();
+  V8_DEPRECATED("Use Isolate::InContext instead",
+                static bool InContext());
 
   /** Returns an isolate associated with a current context. */
   v8::Isolate* GetIsolate();
@@ -5053,8 +5057,9 @@ class V8_EXPORT Context {
     explicit V8_INLINE Scope(Handle<Context> context) : context_(context) {
       context_->Enter();
     }
-    // TODO(dcarney): deprecate
-    V8_INLINE Scope(Isolate* isolate, Persistent<Context>& context) // NOLINT
+    V8_DEPRECATED(
+        "Use Handle version instead",
+        V8_INLINE Scope(Isolate* isolate, Persistent<Context>& context)) // NOLINT
     : context_(Handle<Context>::New(isolate, context)) {
       context_->Enter();
     }

@@ -904,7 +904,7 @@ class HICStub: public HydrogenCodeStub {
 
 class HandlerStub: public HICStub {
  public:
-  virtual Code::Kind GetCodeKind() const { return Code::STUB; }
+  virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
   virtual int GetStubFlags() { return kind(); }
 
  protected:

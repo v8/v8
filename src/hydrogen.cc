@@ -6383,7 +6383,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
 
-#if !V8_TARGET_ARCH_IA32
+#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
   // Target must be able to use caller's context.
   CompilationInfo* outer_info = current_info();
   if (target->context() != outer_info->closure()->context() ||
@@ -6532,8 +6532,8 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
                                      undefined,
                                      function_state()->inlining_kind(),
                                      undefined_receiver);
-#if V8_TARGET_ARCH_IA32
-  // IA32 only, overwrite the caller's context in the deoptimization
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+  // IA32 and ARM only, overwrite the caller's context in the deoptimization
   // environment with the correct one.
   //
   // TODO(kmillikin): implement the same inlining on other platforms so we

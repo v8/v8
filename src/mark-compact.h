@@ -735,11 +735,6 @@ class MarkCompactCollector {
     return sequential_sweeping_;
   }
 
-  // Parallel marking support.
-  void MarkInParallel();
-
-  void WaitUntilMarkingCompleted();
-
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();

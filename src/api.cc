@@ -5610,6 +5610,12 @@ bool v8::String::CanMakeExternal() {
   if (!internal::FLAG_clever_optimizations) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
+
+  // TODO(yangguo): Externalizing sliced/cons strings allocates.
+  // This rule can be removed when all code that can
+  // trigger an access check is handlified and therefore GC safe.
+  if (isolate->heap()->old_pointer_space()->Contains(*obj)) return false;
+
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) return false;
   int size = obj->Size();  // Byte size of the original string.
   if (size < i::ExternalString::kShortSize) return false;

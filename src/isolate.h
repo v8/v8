@@ -75,7 +75,6 @@ class HTracer;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
-class MarkingThread;
 class PreallocatedMemoryThread;
 class RandomNumberGenerator;
 class RegExpStack;
@@ -308,7 +307,6 @@ class SystemThreadManager {
   enum ParallelSystemComponent {
     PARALLEL_SWEEPING,
     CONCURRENT_SWEEPING,
-    PARALLEL_MARKING,
     PARALLEL_RECOMPILATION
   };
 
@@ -1107,10 +1105,6 @@ class Isolate {
   // TODO(svenpanne) This method is on death row...
   static v8::Isolate* GetDefaultIsolateForLocking();
 
-  MarkingThread** marking_threads() {
-    return marking_thread_;
-  }
-
   SweeperThread** sweeper_threads() {
     return sweeper_thread_;
   }
@@ -1362,7 +1356,6 @@ class Isolate {
 
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread* optimizing_compiler_thread_;
-  MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
@@ -1371,7 +1364,6 @@ class Isolate {
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class IsolateInitializer;
-  friend class MarkingThread;
   friend class OptimizingCompilerThread;
   friend class SweeperThread;
   friend class ThreadManager;

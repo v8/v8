@@ -42,7 +42,6 @@
 #include "isolate-inl.h"
 #include "lithium-allocator.h"
 #include "log.h"
-#include "marking-thread.h"
 #include "messages.h"
 #include "platform.h"
 #include "regexp-stack.h"
@@ -147,8 +146,6 @@ int SystemThreadManager::NumberOfParallelSystemThreads(
     return number_of_threads;
   } else if (type == CONCURRENT_SWEEPING) {
     return number_of_threads - 1;
-  } else if (type == PARALLEL_MARKING) {
-    return number_of_threads;
   }
   return 1;
 }
@@ -1800,7 +1797,6 @@ Isolate::Isolate()
       function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(NULL),
-      marking_thread_(NULL),
       sweeper_thread_(NULL),
       stress_deopt_count_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
@@ -1905,14 +1901,6 @@ void Isolate::Deinit() {
         delete sweeper_thread_[i];
       }
       delete[] sweeper_thread_;
-    }
-
-    if (FLAG_marking_threads > 0) {
-      for (int i = 0; i < FLAG_marking_threads; i++) {
-        marking_thread_[i]->Stop();
-        delete marking_thread_[i];
-      }
-      delete[] marking_thread_;
     }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
@@ -2346,14 +2334,6 @@ bool Isolate::Init(Deserializer* des) {
     ArrayConstructorStubBase::InstallDescriptors(this);
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
-  }
-
-  if (FLAG_marking_threads > 0) {
-    marking_thread_ = new MarkingThread*[FLAG_marking_threads];
-    for (int i = 0; i < FLAG_marking_threads; i++) {
-      marking_thread_[i] = new MarkingThread(this);
-      marking_thread_[i]->Start();
-    }
   }
 
   if (FLAG_sweeper_threads > 0) {
