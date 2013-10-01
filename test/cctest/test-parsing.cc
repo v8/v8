@@ -107,6 +107,7 @@ TEST(ScanKeywords) {
 
 TEST(ScanHTMLEndComments) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
 
   // Regression test. See:
   //    http://code.google.com/p/chromium/issues/detail?id=53548
@@ -144,14 +145,14 @@ TEST(ScanHTMLEndComments) {
 
   for (int i = 0; tests[i]; i++) {
     v8::ScriptData* data =
-        v8::ScriptData::PreCompile(tests[i], i::StrLength(tests[i]));
+        v8::ScriptData::PreCompile(isolate, tests[i], i::StrLength(tests[i]));
     CHECK(data != NULL && !data->HasError());
     delete data;
   }
 
   for (int i = 0; fail_tests[i]; i++) {
-    v8::ScriptData* data =
-        v8::ScriptData::PreCompile(fail_tests[i], i::StrLength(fail_tests[i]));
+    v8::ScriptData* data = v8::ScriptData::PreCompile(
+        isolate, fail_tests[i], i::StrLength(fail_tests[i]));
     CHECK(data == NULL || data->HasError());
     delete data;
   }
@@ -199,7 +200,7 @@ TEST(Preparsing) {
   int error_source_length = i::StrLength(error_source);
 
   v8::ScriptData* preparse =
-      v8::ScriptData::PreCompile(source, source_length);
+      v8::ScriptData::PreCompile(isolate, source, source_length);
   CHECK(!preparse->HasError());
   bool lazy_flag = i::FLAG_lazy;
   {
@@ -221,7 +222,7 @@ TEST(Preparsing) {
 
   // Syntax error.
   v8::ScriptData* error_preparse =
-      v8::ScriptData::PreCompile(error_source, error_source_length);
+      v8::ScriptData::PreCompile(isolate, error_source, error_source_length);
   CHECK(error_preparse->HasError());
   i::ScriptDataImpl *pre_impl =
       reinterpret_cast<i::ScriptDataImpl*>(error_preparse);
