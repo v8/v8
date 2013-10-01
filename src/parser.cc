@@ -1667,27 +1667,6 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // because of lazy compilation.
   DeclarationScope(VAR)->ForceEagerCompilation();
 
-  // Compute the function template for the native function.
-  v8::Handle<v8::FunctionTemplate> fun_template =
-      extension_->GetNativeFunction(v8::Utils::ToLocal(name));
-  ASSERT(!fun_template.IsEmpty());
-
-  // Instantiate the function and create a shared function info from it.
-  Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
-  const int literals = fun->NumberOfLiterals();
-  Handle<Code> code = Handle<Code>(fun->shared()->code());
-  Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
-  bool is_generator = false;
-  Handle<SharedFunctionInfo> shared =
-      isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
-          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
-  shared->set_construct_stub(*construct_stub);
-
-  // Copy the function data to the shared function info.
-  shared->set_function_data(fun->shared()->function_data());
-  int parameters = fun->shared()->formal_parameter_count();
-  shared->set_formal_parameter_count(parameters);
-
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are set up when entering the surrounding scope.
@@ -1695,8 +1674,8 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, VAR, top_scope_);
   Declare(declaration, true, CHECK_OK);
-  SharedFunctionInfoLiteral* lit =
-      factory()->NewSharedFunctionInfoLiteral(shared);
+  NativeFunctionLiteral* lit =
+      factory()->NewNativeFunctionLiteral(name, extension_);
   return factory()->NewExpressionStatement(
       factory()->NewAssignment(
           Token::INIT_VAR, proxy, lit, RelocInfo::kNoPosition));

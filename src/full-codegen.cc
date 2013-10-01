@@ -197,8 +197,8 @@ void BreakableStatementChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void BreakableStatementChecker::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
+void BreakableStatementChecker::VisitNativeFunctionLiteral(
+    NativeFunctionLiteral* expr) {
 }
 
 
@@ -1567,10 +1567,33 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
-  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  EmitNewClosure(expr->shared_function_info(), false);
+void FullCodeGenerator::VisitNativeFunctionLiteral(
+    NativeFunctionLiteral* expr) {
+  Comment cmnt(masm_, "[ NativeFunctionLiteral");
+
+  // Compute the function template for the native function.
+  Handle<String> name = expr->name();
+  v8::Handle<v8::FunctionTemplate> fun_template =
+      expr->extension()->GetNativeFunction(v8::Utils::ToLocal(name));
+  ASSERT(!fun_template.IsEmpty());
+
+  // Instantiate the function and create a shared function info from it.
+  Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
+  const int literals = fun->NumberOfLiterals();
+  Handle<Code> code = Handle<Code>(fun->shared()->code());
+  Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
+  bool is_generator = false;
+  Handle<SharedFunctionInfo> shared =
+      isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
+          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
+  shared->set_construct_stub(*construct_stub);
+
+  // Copy the function data to the shared function info.
+  shared->set_function_data(fun->shared()->function_data());
+  int parameters = fun->shared()->formal_parameter_count();
+  shared->set_formal_parameter_count(parameters);
+
+  EmitNewClosure(shared, false);
 }
 
 

@@ -3983,12 +3983,12 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void HOptimizedGraphBuilder::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
+void HOptimizedGraphBuilder::VisitNativeFunctionLiteral(
+    NativeFunctionLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout(kSharedFunctionInfoLiteral);
+  return Bailout(kNativeFunctionLiteral);
 }
 
 
