@@ -2226,7 +2226,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   if (!instr->is_external()) {
     LOperand* obj = NULL;
     if (instr->representation().IsDouble()) {
-      obj = UseTempRegister(instr->elements());
+      obj = UseRegister(instr->elements());
     } else {
       ASSERT(instr->representation().IsSmiOrTagged());
       obj = UseRegisterAtStart(instr->elements());
