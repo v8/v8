@@ -134,8 +134,6 @@ class IC {
   // These methods should not be called with undefined or null.
   static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object,
                                                             JSObject* holder);
-  static inline InlineCacheHolderFlag GetCodeCacheForObject(JSObject* object,
-                                                            JSObject* holder);
   static inline JSObject* GetCodeCacheHolder(Isolate* isolate,
                                              Object* object,
                                              InlineCacheHolderFlag holder);
@@ -244,17 +242,14 @@ class CallICBase: public IC {
   class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
 
   // Returns a JSFunction or a Failure.
-  MUST_USE_RESULT MaybeObject* LoadFunction(Code::ExtraICState extra_ic_state,
-                                            Handle<Object> object,
+  MUST_USE_RESULT MaybeObject* LoadFunction(Handle<Object> object,
                                             Handle<String> name);
 
  protected:
   CallICBase(Code::Kind kind, Isolate* isolate)
       : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
 
-  bool TryUpdateExtraICState(LookupResult* lookup,
-                             Handle<Object> object,
-                             Code::ExtraICState* extra_ic_state);
+  virtual Code::ExtraICState extra_ic_state() { return Code::kNoExtraICState; }
 
   // Compute a monomorphic stub if possible, otherwise return a null handle.
   Handle<Code> ComputeMonomorphicStub(LookupResult* lookup,
@@ -265,7 +260,6 @@ class CallICBase: public IC {
   // Update the inline cache and the global stub cache based on the lookup
   // result.
   void UpdateCaches(LookupResult* lookup,
-                    Code::ExtraICState extra_ic_state,
                     Handle<Object> object,
                     Handle<String> name);
 
@@ -300,7 +294,9 @@ class CallICBase: public IC {
 
 class CallIC: public CallICBase {
  public:
-  explicit CallIC(Isolate* isolate) : CallICBase(Code::CALL_IC, isolate) {
+  explicit CallIC(Isolate* isolate)
+      : CallICBase(Code::CALL_IC, isolate),
+        extra_ic_state_(target()->extra_ic_state()) {
     ASSERT(target()->is_call_stub());
   }
 
@@ -325,6 +321,13 @@ class CallIC: public CallICBase {
     CallICBase::GenerateNormal(masm, argc);
     GenerateMiss(masm, argc, Code::kNoExtraICState);
   }
+  bool TryUpdateExtraICState(LookupResult* lookup, Handle<Object> object);
+
+ protected:
+  virtual Code::ExtraICState extra_ic_state() { return extra_ic_state_; }
+
+ private:
+  Code::ExtraICState extra_ic_state_;
 };
 
 
@@ -578,10 +581,10 @@ class StoreIC: public IC {
   // Compute the code stub for this store; used for rewriting to
   // monomorphic state and making sure that the code stub is in the
   // stub cache.
-  virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
-                                               Handle<JSObject> receiver,
-                                               Handle<String> name,
-                                               Handle<Object> value);
+  virtual Handle<Code> ComputeStoreHandler(LookupResult* lookup,
+                                           Handle<JSObject> receiver,
+                                           Handle<String> name,
+                                           Handle<Object> value);
 
  private:
   void set_target(Code* code) {
@@ -649,10 +652,10 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
-                                               Handle<JSObject> receiver,
-                                               Handle<String> name,
-                                               Handle<Object> value);
+  virtual Handle<Code> ComputeStoreHandler(LookupResult* lookup,
+                                           Handle<JSObject> receiver,
+                                           Handle<String> name,
+                                           Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
   virtual Handle<Code> pre_monomorphic_stub() {

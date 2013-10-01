@@ -192,15 +192,18 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Object* receiver,
   InlineCacheHolderFlag cache_holder =
       Code::ExtractCacheHolderFromFlags(target()->flags());
 
-  if (cache_holder == OWN_MAP && !receiver->IsJSObject()) {
-    // The stub was generated for JSObject but called for non-JSObject.
-    // IC::GetCodeCacheHolder is not applicable.
-    return false;
-  } else if (cache_holder == PROTOTYPE_MAP &&
-             receiver->GetPrototype(isolate())->IsNull()) {
-    // IC::GetCodeCacheHolder is not applicable.
-    return false;
+  switch (cache_holder) {
+    case OWN_MAP:
+      // The stub was generated for JSObject but called for non-JSObject.
+      // IC::GetCodeCacheHolder is not applicable.
+      if (!receiver->IsJSObject()) return false;
+      break;
+    case PROTOTYPE_MAP:
+      // IC::GetCodeCacheHolder is not applicable.
+      if (receiver->GetPrototype(isolate())->IsNull()) return false;
+      break;
   }
+
   Map* map = IC::GetCodeCacheHolder(isolate(), receiver, cache_holder)->map();
 
   // Decide whether the inline cache failed because of changes to the
@@ -451,6 +454,11 @@ static bool HasInterceptorGetter(JSObject* object) {
 }
 
 
+static bool HasInterceptorSetter(JSObject* object) {
+  return !object->GetNamedInterceptor()->setter()->IsUndefined();
+}
+
+
 static void LookupForRead(Handle<Object> object,
                           Handle<String> name,
                           LookupResult* lookup) {
@@ -531,8 +539,7 @@ void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
 }
 
 
-MaybeObject* CallICBase::LoadFunction(Code::ExtraICState extra_ic_state,
-                                      Handle<Object> object,
+MaybeObject* CallICBase::LoadFunction(Handle<Object> object,
                                       Handle<String> name) {
   bool use_ic = FLAG_use_ic;
   if (object->IsJSObject()) {
@@ -577,7 +584,7 @@ MaybeObject* CallICBase::LoadFunction(Code::ExtraICState extra_ic_state,
   }
 
   // Lookup is valid: Update inline cache and stub cache.
-  if (use_ic) UpdateCaches(&lookup, extra_ic_state, object, name);
+  if (use_ic) UpdateCaches(&lookup, object, name);
 
   // Get the property.
   PropertyAttributes attr;
@@ -622,10 +629,8 @@ MaybeObject* CallICBase::LoadFunction(Code::ExtraICState extra_ic_state,
 }
 
 
-bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
-                                       Handle<Object> object,
-                                       Code::ExtraICState* extra_ic_state) {
-  ASSERT(kind_ == Code::CALL_IC);
+bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
+                                   Handle<Object> object) {
   if (!lookup->IsConstantFunction()) return false;
   JSFunction* function = lookup->GetConstantFunction();
   if (!function->shared()->HasBuiltinFunctionId()) return false;
@@ -647,12 +652,12 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
         ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
         // If we're in the default (fastest) state and the index is
         // out of bounds, update the state to record this fact.
-        if (StringStubState::decode(*extra_ic_state) == DEFAULT_STRING_STUB &&
+        if (StringStubState::decode(extra_ic_state()) == DEFAULT_STRING_STUB &&
             argc >= 1 && args[1]->IsNumber()) {
           double index = DoubleToInteger(args.number_at(1));
           if (index < 0 || index >= string->length()) {
-            *extra_ic_state =
-                StringStubState::update(*extra_ic_state,
+            extra_ic_state_ =
+                StringStubState::update(extra_ic_state(),
                                         STRING_INDEX_OUT_OF_BOUNDS);
             return true;
           }
@@ -722,7 +727,6 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
 
 
 void CallICBase::UpdateCaches(LookupResult* lookup,
-                              Code::ExtraICState extra_ic_state,
                               Handle<Object> object,
                               Handle<String> name) {
   // Bail out if we didn't find a result.
@@ -736,20 +740,20 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
     code = isolate()->stub_cache()->ComputeCallPreMonomorphic(
-        argc, kind_, extra_ic_state);
+        argc, kind_, extra_ic_state());
   } else if (state() == MONOMORPHIC) {
     if (kind_ == Code::CALL_IC &&
-        TryUpdateExtraICState(lookup, object, &extra_ic_state)) {
-      code = ComputeMonomorphicStub(lookup, extra_ic_state, object, name);
+        static_cast<CallIC*>(this)->TryUpdateExtraICState(lookup, object)) {
+      code = ComputeMonomorphicStub(lookup, extra_ic_state(), object, name);
     } else if (TryRemoveInvalidPrototypeDependentStub(*object, *name)) {
       MarkMonomorphicPrototypeFailure();
-      code = ComputeMonomorphicStub(lookup, extra_ic_state, object, name);
+      code = ComputeMonomorphicStub(lookup, extra_ic_state(), object, name);
     } else {
       code = isolate()->stub_cache()->ComputeCallMegamorphic(
-          argc, kind_, extra_ic_state);
+          argc, kind_, extra_ic_state());
     }
   } else {
-    code = ComputeMonomorphicStub(lookup, extra_ic_state, object, name);
+    code = ComputeMonomorphicStub(lookup, extra_ic_state(), object, name);
   }
 
   // If there's no appropriate stub we simply avoid updating the caches.
@@ -789,9 +793,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
 MaybeObject* KeyedCallIC::LoadFunction(Handle<Object> object,
                                        Handle<Object> key) {
   if (key->IsInternalizedString()) {
-    return CallICBase::LoadFunction(Code::kNoExtraICState,
-                                    object,
-                                    Handle<String>::cast(key));
+    return CallICBase::LoadFunction(object, Handle<String>::cast(key));
   }
 
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
@@ -1469,8 +1471,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     if (lookup->IsReadOnly() || !lookup->IsCacheable()) return false;
 
     if (lookup->holder() == *receiver) {
-      if (lookup->IsInterceptor() &&
-          receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
+      if (lookup->IsInterceptor() && !HasInterceptorSetter(*receiver)) {
         receiver->LocalLookupRealNamedProperty(*name, lookup);
         return lookup->IsFound() &&
             !lookup->IsReadOnly() &&
@@ -1651,7 +1652,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   // These are not cacheable, so we never see such LookupResults here.
   ASSERT(!lookup->IsHandler());
 
-  Handle<Code> code = ComputeStoreMonomorphic(lookup, receiver, name, value);
+  Handle<Code> code = ComputeStoreHandler(lookup, receiver, name, value);
   if (code.is_null()) {
     set_target(*generic_stub());
     return;
@@ -1662,10 +1663,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
-                                              Handle<JSObject> receiver,
-                                              Handle<String> name,
-                                              Handle<Object> value) {
+Handle<Code> StoreIC::ComputeStoreHandler(LookupResult* lookup,
+                                          Handle<JSObject> receiver,
+                                          Handle<String> name,
+                                          Handle<Object> value) {
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD:
@@ -1718,7 +1719,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       break;
     }
     case INTERCEPTOR:
-      ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
+      ASSERT(HasInterceptorSetter(*receiver));
       return isolate()->stub_cache()->ComputeStoreInterceptor(
           name, receiver, strict_mode());
     case CONSTANT:
@@ -2051,10 +2052,10 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
 }
 
 
-Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
-                                                   Handle<JSObject> receiver,
-                                                   Handle<String> name,
-                                                   Handle<Object> value) {
+Handle<Code> KeyedStoreIC::ComputeStoreHandler(LookupResult* lookup,
+                                               Handle<JSObject> receiver,
+                                               Handle<String> name,
+                                               Handle<Object> value) {
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
   // current state.
@@ -2107,9 +2108,7 @@ RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
   ASSERT(args.length() == 2);
   CallIC ic(isolate);
   ic.UpdateState(args[0], args[1]);
-  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
-  MaybeObject* maybe_result = ic.LoadFunction(extra_ic_state,
-                                              args.at<Object>(0),
+  MaybeObject* maybe_result = ic.LoadFunction(args.at<Object>(0),
                                               args.at<String>(1));
   JSFunction* raw_function;
   if (!maybe_result->To(&raw_function)) return maybe_result;
@@ -2313,11 +2312,10 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
-  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  StrictModeFlag strict_mode = Code::GetStrictMode(extra_ic_state);
+  StrictModeFlag strict_mode = ic.strict_mode();
   return Runtime::SetObjectProperty(isolate,
                                     object,
                                     key,
@@ -2331,11 +2329,10 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
-  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  StrictModeFlag strict_mode = Code::GetStrictMode(extra_ic_state);
+  StrictModeFlag strict_mode = ic.strict_mode();
   return Runtime::SetObjectProperty(isolate,
                                     object,
                                     key,
@@ -2361,11 +2358,10 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
-  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   Handle<Object> value = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(2);
   Handle<Object> object = args.at<Object>(3);
-  StrictModeFlag strict_mode = Code::GetStrictMode(extra_ic_state);
+  StrictModeFlag strict_mode = ic.strict_mode();
   return Runtime::SetObjectProperty(isolate,
                                     object,
                                     key,

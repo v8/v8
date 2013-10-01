@@ -94,7 +94,6 @@ class StubCache {
 
   Handle<Code> FindLoadHandler(Handle<Name> name,
                                Handle<JSObject> receiver,
-                               Handle<JSObject> stub_holder,
                                Code::Kind kind,
                                Code::StubType type);
 
@@ -1047,7 +1046,7 @@ class CallStubCompiler: public StubCompiler {
                    int argc,
                    Code::Kind kind,
                    Code::ExtraICState extra_state,
-                   InlineCacheHolderFlag cache_holder);
+                   InlineCacheHolderFlag cache_holder = OWN_MAP);
 
   Handle<Code> CompileCallField(Handle<JSObject> object,
                                 Handle<JSObject> holder,
