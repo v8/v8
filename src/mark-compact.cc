@@ -2712,9 +2712,8 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          int size,
                                          AllocationSpace dest) {
   HEAP_PROFILE(heap(), ObjectMoveEvent(src, dst));
-  // TODO(hpayer): Replace these checks with asserts.
-  CHECK(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));
-  CHECK(dest != LO_SPACE && size <= Page::kMaxNonCodeHeapObjectSize);
+  ASSERT(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));
+  ASSERT(dest != LO_SPACE && size <= Page::kMaxNonCodeHeapObjectSize);
   if (dest == OLD_POINTER_SPACE) {
     Address src_slot = src;
     Address dst_slot = dst;

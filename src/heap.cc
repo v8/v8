@@ -2140,12 +2140,10 @@ class ScavengingVisitor : public StaticVisitorBase {
       MaybeObject* maybe_result;
 
       if (object_contents == DATA_OBJECT) {
-        // TODO(mstarzinger): Turn this check into a regular assert soon!
-        CHECK(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
         maybe_result = heap->old_data_space()->AllocateRaw(allocation_size);
       } else {
-        // TODO(mstarzinger): Turn this check into a regular assert soon!
-        CHECK(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
         maybe_result = heap->old_pointer_space()->AllocateRaw(allocation_size);
       }
 
@@ -2176,8 +2174,7 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
     }
-    // TODO(mstarzinger): Turn this check into a regular assert soon!
-    CHECK(heap->AllowedToBeMigrated(object, NEW_SPACE));
+    ASSERT(heap->AllowedToBeMigrated(object, NEW_SPACE));
     MaybeObject* allocation = heap->new_space()->AllocateRaw(allocation_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
     Object* result = allocation->ToObjectUnchecked();
