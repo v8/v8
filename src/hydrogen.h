@@ -2244,9 +2244,7 @@ class HOptimizedGraphBuilder V8_FINAL
 
   HInstruction* BuildThisFunction();
 
-  HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object,
-                                 Handle<Object> allocation_site,
-                                 AllocationSiteMode mode);
+  HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object);
 
   void BuildEmitObjectHeader(Handle<JSObject> boilerplate_object,
                              HInstruction* object);
