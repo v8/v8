@@ -137,7 +137,7 @@ class CustomArgumentsBase : public Relocatable {
     v->VisitPointers(values_, values_ + kArrayLength);
   }
  protected:
-  inline Object** end() { return values_ + kArrayLength - 1; }
+  inline Object** begin() { return values_; }
   explicit inline CustomArgumentsBase(Isolate* isolate)
       : Relocatable(isolate) {}
   Object* values_[kArrayLength];
@@ -151,7 +151,7 @@ class CustomArguments : public CustomArgumentsBase<T::kArgsLength> {
 
   typedef CustomArgumentsBase<T::kArgsLength> Super;
   ~CustomArguments() {
-    this->end()[kReturnValueOffset] =
+    this->begin()[kReturnValueOffset] =
         reinterpret_cast<Object*>(kHandleZapValue);
   }
 
@@ -162,7 +162,7 @@ class CustomArguments : public CustomArgumentsBase<T::kArgsLength> {
   v8::Handle<V> GetReturnValue(Isolate* isolate);
 
   inline Isolate* isolate() {
-    return reinterpret_cast<Isolate*>(this->end()[T::kIsolateIndex]);
+    return reinterpret_cast<Isolate*>(this->begin()[T::kIsolateIndex]);
   }
 };
 
@@ -185,7 +185,7 @@ class PropertyCallbackArguments
                             Object* self,
                             JSObject* holder)
       : Super(isolate) {
-    Object** values = this->end();
+    Object** values = this->begin();
     values[T::kThisIndex] = self;
     values[T::kHolderIndex] = holder;
     values[T::kDataIndex] = data;
@@ -256,7 +256,7 @@ class FunctionCallbackArguments
           argv_(argv),
           argc_(argc),
           is_construct_call_(is_construct_call) {
-    Object** values = end();
+    Object** values = begin();
     values[T::kDataIndex] = data;
     values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
