@@ -4449,16 +4449,6 @@ void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
                                     Handle<Name> name,
                                     Handle<Code> code) {
   Handle<Map> map(object->map());
-  if (map->is_shared()) {
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-    // Fast case maps are never marked as shared.
-    ASSERT(!receiver->HasFastProperties());
-    // Replace the map with an identical copy that can be safely modified.
-    map = Map::CopyNormalized(map, KEEP_INOBJECT_PROPERTIES,
-                              UNIQUE_NORMALIZED_MAP);
-    receiver->GetIsolate()->counters()->normalized_maps()->Increment();
-    receiver->set_map(*map);
-  }
   Map::UpdateCodeCache(map, name, code);
 }
 
@@ -7023,8 +7013,6 @@ void Map::UpdateCodeCache(Handle<Map> map,
 
 
 MaybeObject* Map::UpdateCodeCache(Name* name, Code* code) {
-  ASSERT(!is_shared() || code->allowed_in_shared_map_code_cache());
-
   // Allocate the code cache if not present.
   if (code_cache()->IsFixedArray()) {
     Object* result;
@@ -10463,13 +10451,6 @@ BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
     if (back_edges.pc_offset(i) == pc_offset) return back_edges.ast_id(i);
   }
   return BailoutId::None();
-}
-
-
-bool Code::allowed_in_shared_map_code_cache() {
-  return is_keyed_load_stub() || is_keyed_store_stub() ||
-      (is_compare_ic_stub() &&
-       ICCompareStub::CompareState(stub_info()) == CompareIC::KNOWN_OBJECT);
 }
 
 
