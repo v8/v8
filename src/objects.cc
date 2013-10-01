@@ -9057,7 +9057,6 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
   // involves carefully checking the object immediately after the JSArray
   // (if there is one) to see if it's an AllocationMemento.
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
-    ASSERT(object->GetHeap()->InToSpace(object));
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
     if ((ptr_end + AllocationMemento::kSize) <=

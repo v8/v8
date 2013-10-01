@@ -525,6 +525,14 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
+  if (FLAG_trace_track_allocation_sites &&
+      AllocationSite::CanTrack(object->map()->instance_type()) &&
+      object->IsJSObject()) {
+    if (AllocationMemento::FindForJSObject(JSObject::cast(object)) != NULL) {
+      object->GetIsolate()->heap()->allocation_mementos_found_on_scavenge_++;
+    }
+  }
+
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
