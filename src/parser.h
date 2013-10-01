@@ -461,9 +461,6 @@ class Parser BASE_EMBEDDED {
   static bool Parse(CompilationInfo* info) { return Parser(info).Parse(); }
   bool Parse();
 
-  // Returns NULL if parsing failed.
-  FunctionLiteral* ParseProgram();
-
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
                        Vector<const char*> args);
@@ -567,6 +564,9 @@ class Parser BASE_EMBEDDED {
     Parser* parser_;
     Mode old_mode_;
   };
+
+  // Returns NULL if parsing failed.
+  FunctionLiteral* ParseProgram();
 
   FunctionLiteral* ParseLazy();
   FunctionLiteral* ParseLazy(Utf16CharacterStream* source);

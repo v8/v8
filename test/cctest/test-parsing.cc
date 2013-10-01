@@ -1027,11 +1027,11 @@ TEST(ScopePositions) {
     parser.set_allow_harmony_scoping(true);
     info.MarkAsGlobal();
     info.SetLanguageMode(source_data[i].language_mode);
-    i::FunctionLiteral* function = parser.ParseProgram();
-    CHECK(function != NULL);
+    parser.Parse();
+    CHECK(info.function() != NULL);
 
     // Check scope types and positions.
-    i::Scope* scope = function->scope();
+    i::Scope* scope = info.function()->scope();
     CHECK(scope->is_global_scope());
     CHECK_EQ(scope->start_position(), 0);
     CHECK_EQ(scope->end_position(), kProgramSize);
@@ -1137,7 +1137,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source, unsigned flags) {
     i::Parser parser(&info);
     SET_PARSER_FLAGS(parser, flags);
     info.MarkAsGlobal();
-    function = parser.ParseProgram();
+    parser.Parse();
+    function = info.function();
   }
 
   // Check that preparsing fails iff parsing fails.
