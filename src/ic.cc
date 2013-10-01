@@ -76,12 +76,11 @@ void IC::TraceIC(const char* type,
   if (FLAG_trace_ic) {
     State new_state = new_target->ic_state();
     PrintF("[%s in ", type);
-    Isolate* isolate = new_target->GetIsolate();
-    StackFrameIterator it(isolate);
+    StackFrameIterator it(isolate());
     while (it.frame()->fp() != this->fp()) it.Advance();
     StackFrame* raw_frame = it.frame();
     if (raw_frame->is_internal()) {
-      Code* apply_builtin = isolate->builtins()->builtin(
+      Code* apply_builtin = isolate()->builtins()->builtin(
           Builtins::kFunctionApply);
       if (raw_frame->unchecked_code() == apply_builtin) {
         PrintF("apply from ");
@@ -89,7 +88,7 @@ void IC::TraceIC(const char* type,
         raw_frame = it.frame();
       }
     }
-    JavaScriptFrame::PrintTop(isolate, stdout, false, true);
+    JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
     Code::ExtraICState extra_state = new_target->extra_ic_state();
     const char* modifier =
         GetTransitionMarkModifier(Code::GetKeyedAccessStoreMode(extra_state));
@@ -179,30 +178,30 @@ Address IC::OriginalCodeAddress() const {
 #endif
 
 
-static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
-                                                   Object* receiver,
-                                                   Object* name) {
-  if (target->is_keyed_stub()) {
+bool IC::TryRemoveInvalidPrototypeDependentStub(Object* receiver,
+                                                Object* name) {
+  DisallowHeapAllocation no_gc;
+
+  if (target()->is_keyed_stub()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
-    Name* stub_name = target->FindFirstName();
+    Name* stub_name = target()->FindFirstName();
     if (Name::cast(name) != stub_name) return false;
   }
 
   InlineCacheHolderFlag cache_holder =
-      Code::ExtractCacheHolderFromFlags(target->flags());
+      Code::ExtractCacheHolderFromFlags(target()->flags());
 
-  Isolate* isolate = target->GetIsolate();
   if (cache_holder == OWN_MAP && !receiver->IsJSObject()) {
     // The stub was generated for JSObject but called for non-JSObject.
     // IC::GetCodeCacheHolder is not applicable.
     return false;
   } else if (cache_holder == PROTOTYPE_MAP &&
-             receiver->GetPrototype(isolate)->IsNull()) {
+             receiver->GetPrototype(isolate())->IsNull()) {
     // IC::GetCodeCacheHolder is not applicable.
     return false;
   }
-  Map* map = IC::GetCodeCacheHolder(isolate, receiver, cache_holder)->map();
+  Map* map = IC::GetCodeCacheHolder(isolate(), receiver, cache_holder)->map();
 
   // Decide whether the inline cache failed because of changes to the
   // receiver itself or changes to one of its prototypes.
@@ -212,11 +211,11 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  int index = map->IndexInCodeCache(name, target);
+  int index = map->IndexInCodeCache(name, *target());
   if (index >= 0) {
-    map->RemoveFromCodeCache(String::cast(name), target, index);
+    map->RemoveFromCodeCache(String::cast(name), *target(), index);
     // Handlers are stored in addition to the ICs on the map. Remove those, too.
-    Code* handler = target->FindFirstHandler();
+    Code* handler = target()->FindFirstHandler();
     if (handler != NULL) {
       index = map->IndexInCodeCache(name, handler);
       if (index >= 0) {
@@ -235,7 +234,7 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
   // If the IC is shared between multiple receivers (slow dictionary mode), then
   // the map cannot be deprecated and the stub invalidated.
   if (cache_holder == OWN_MAP) {
-    Map* old_map = target->FindFirstMap();
+    Map* old_map = target()->FindFirstMap();
     if (old_map == map) return true;
     if (old_map != NULL) {
       if (old_map->is_deprecated()) return true;
@@ -248,8 +247,7 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
 
   if (receiver->IsGlobalObject()) {
     if (!name->IsName()) return false;
-    Isolate* isolate = target->GetIsolate();
-    LookupResult lookup(isolate);
+    LookupResult lookup(isolate());
     GlobalObject* global = GlobalObject::cast(receiver);
     global->LocalLookupRealNamedProperty(Name::cast(name), &lookup);
     if (!lookup.IsFound()) return false;
@@ -272,7 +270,7 @@ void IC::UpdateState(Object* receiver, Object* name) {
   // Call stubs handle this later to allow extra IC state
   // transitions.
   if (kind != Code::CALL_IC && kind != Code::KEYED_CALL_IC &&
-      TryRemoveInvalidPrototypeDependentStub(*target_, receiver, name)) {
+      TryRemoveInvalidPrototypeDependentStub(receiver, name)) {
     MarkMonomorphicPrototypeFailure();
     return;
   }
@@ -743,9 +741,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     if (kind_ == Code::CALL_IC &&
         TryUpdateExtraICState(lookup, object, &extra_ic_state)) {
       code = ComputeMonomorphicStub(lookup, extra_ic_state, object, name);
-    } else if (TryRemoveInvalidPrototypeDependentStub(*target(),
-                                                      *object,
-                                                      *name)) {
+    } else if (TryRemoveInvalidPrototypeDependentStub(*object, *name)) {
       MarkMonomorphicPrototypeFailure();
       code = ComputeMonomorphicStub(lookup, extra_ic_state, object, name);
     } else {

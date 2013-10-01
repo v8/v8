@@ -200,6 +200,7 @@ class IC {
     return Handle<Code>::null();
   }
   virtual StrictModeFlag strict_mode() const { return kNonStrictMode; }
+  bool TryRemoveInvalidPrototypeDependentStub(Object* receiver, Object* name);
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.
