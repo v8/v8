@@ -422,7 +422,6 @@ Handle<Type> TypeFeedbackOracle::ClauseType(TypeFeedbackId id) {
 Handle<Type> TypeFeedbackOracle::IncrementType(CountOperation* expr) {
   Handle<Object> object = GetInfo(expr->CountBinOpFeedbackId());
   Handle<Type> unknown(Type::None(), isolate_);
-  ASSERT(object->IsCode());
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_binary_op_stub()) return unknown;
