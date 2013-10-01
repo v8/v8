@@ -513,7 +513,8 @@ class RecompileJob: public ZoneObject {
         graph_builder_(NULL),
         graph_(NULL),
         chunk_(NULL),
-        last_status_(FAILED) { }
+        last_status_(FAILED),
+        awaiting_install_(false) { }
 
   enum Status {
     FAILED, BAILED_OUT, SUCCEEDED
