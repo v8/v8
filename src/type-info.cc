@@ -381,20 +381,29 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
                                     Handle<Type>* left,
                                     Handle<Type>* right,
                                     Handle<Type>* result,
-                                    Maybe<int>* fixed_right_arg) {
+                                    Maybe<int>* fixed_right_arg,
+                                    Token::Value operation) {
   Handle<Object> object = GetInfo(id);
   if (!object->IsCode()) {
-    // For some binary ops we don't have ICs, e.g. Token::COMMA.
+    // For some binary ops we don't have ICs, e.g. Token::COMMA, but for the
+    // operations covered by the BinaryOpStub we should always have them.
+    ASSERT(!(operation >= BinaryOpStub::FIRST_TOKEN &&
+             operation <= BinaryOpStub::LAST_TOKEN));
     *left = *right = *result = handle(Type::None(), isolate_);
     return;
   }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT(code->is_binary_op_stub());
 
-  int minor_key = code->stub_info();
-  BinaryOpIC::StubInfoToType(minor_key, left, right, result, isolate());
-  *fixed_right_arg =
-      BinaryOpStub::decode_fixed_right_arg_from_minor_key(minor_key);
+  BinaryOpStub stub(code->extended_extra_ic_state());
+
+  // Sanity check.
+  ASSERT(stub.operation() == operation);
+
+  *left = stub.GetLeftType(isolate());
+  *right = stub.GetRightType(isolate());
+  *result = stub.GetResultType(isolate());
+  *fixed_right_arg = stub.fixed_right_arg();
 }
 
 
@@ -410,36 +419,16 @@ Handle<Type> TypeFeedbackOracle::ClauseType(TypeFeedbackId id) {
 }
 
 
-TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
+Handle<Type> TypeFeedbackOracle::IncrementType(CountOperation* expr) {
   Handle<Object> object = GetInfo(expr->CountBinOpFeedbackId());
-  TypeInfo unknown = TypeInfo::Unknown();
+  Handle<Type> unknown(Type::None(), isolate_);
+  ASSERT(object->IsCode());
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_binary_op_stub()) return unknown;
 
-  BinaryOpIC::TypeInfo left_type, right_type, unused_result_type;
-  BinaryOpStub::decode_types_from_minor_key(code->stub_info(), &left_type,
-                                            &right_type, &unused_result_type);
-  // CountOperations should always have +1 or -1 as their right input.
-  ASSERT(right_type == BinaryOpIC::SMI ||
-         right_type == BinaryOpIC::UNINITIALIZED);
-
-  switch (left_type) {
-    case BinaryOpIC::UNINITIALIZED:
-    case BinaryOpIC::SMI:
-      return TypeInfo::Smi();
-    case BinaryOpIC::INT32:
-      return TypeInfo::Integer32();
-    case BinaryOpIC::NUMBER:
-      return TypeInfo::Double();
-    case BinaryOpIC::STRING:
-    case BinaryOpIC::GENERIC:
-      return unknown;
-    default:
-      return unknown;
-  }
-  UNREACHABLE();
-  return unknown;
+  BinaryOpStub stub(code->extended_extra_ic_state());
+  return stub.GetLeftType(isolate());
 }
 
 

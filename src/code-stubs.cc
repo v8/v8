@@ -137,6 +137,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
       ? FindCodeInSpecialCache(&code, isolate)
       : FindCodeInCache(&code, isolate)) {
     ASSERT(IsPregenerated(isolate) == code->is_pregenerated());
+    ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
 
@@ -203,119 +204,307 @@ void CodeStub::PrintName(StringStream* stream) {
 }
 
 
-void BinaryOpStub::Generate(MacroAssembler* masm) {
-  // Explicitly allow generation of nested stubs. It is safe here because
-  // generation code does not use any raw pointers.
-  AllowStubCallsScope allow_stub_calls(masm, true);
-
-  BinaryOpIC::TypeInfo operands_type = Max(left_type_, right_type_);
-  if (left_type_ == BinaryOpIC::ODDBALL && right_type_ == BinaryOpIC::ODDBALL) {
-    // The OddballStub handles a number and an oddball, not two oddballs.
-    operands_type = BinaryOpIC::GENERIC;
-  }
-  switch (operands_type) {
-    case BinaryOpIC::UNINITIALIZED:
-      GenerateTypeTransition(masm);
-      break;
-    case BinaryOpIC::SMI:
-      GenerateSmiStub(masm);
-      break;
-    case BinaryOpIC::INT32:
-      GenerateInt32Stub(masm);
-      break;
-    case BinaryOpIC::NUMBER:
-      GenerateNumberStub(masm);
-      break;
-    case BinaryOpIC::ODDBALL:
-      GenerateOddballStub(masm);
-      break;
-    case BinaryOpIC::STRING:
-      GenerateStringStub(masm);
-      break;
-    case BinaryOpIC::GENERIC:
-      GenerateGeneric(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-#define __ ACCESS_MASM(masm)
-
-
-void BinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::ADD:
-      __ InvokeBuiltin(Builtins::ADD, CALL_FUNCTION);
-      break;
-    case Token::SUB:
-      __ InvokeBuiltin(Builtins::SUB, CALL_FUNCTION);
-      break;
-    case Token::MUL:
-      __ InvokeBuiltin(Builtins::MUL, CALL_FUNCTION);
-      break;
-    case Token::DIV:
-      __ InvokeBuiltin(Builtins::DIV, CALL_FUNCTION);
-      break;
-    case Token::MOD:
-      __ InvokeBuiltin(Builtins::MOD, CALL_FUNCTION);
-      break;
-    case Token::BIT_OR:
-      __ InvokeBuiltin(Builtins::BIT_OR, CALL_FUNCTION);
-      break;
-    case Token::BIT_AND:
-      __ InvokeBuiltin(Builtins::BIT_AND, CALL_FUNCTION);
-      break;
-    case Token::BIT_XOR:
-      __ InvokeBuiltin(Builtins::BIT_XOR, CALL_FUNCTION);
-      break;
-    case Token::SAR:
-      __ InvokeBuiltin(Builtins::SAR, CALL_FUNCTION);
-      break;
-    case Token::SHR:
-      __ InvokeBuiltin(Builtins::SHR, CALL_FUNCTION);
-      break;
-    case Token::SHL:
-      __ InvokeBuiltin(Builtins::SHL, CALL_FUNCTION);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-#undef __
-
-
-void BinaryOpStub::PrintName(StringStream* stream) {
+void BinaryOpStub::PrintBaseName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
-  const char* overwrite_name;
-  switch (mode_) {
-    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
-    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
-    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
-    default: overwrite_name = "UnknownOverwrite"; break;
-  }
-  stream->Add("BinaryOpStub_%s_%s_%s+%s",
-              op_name,
-              overwrite_name,
-              BinaryOpIC::GetName(left_type_),
-              BinaryOpIC::GetName(right_type_));
+  const char* ovr = "";
+  if (mode_ == OVERWRITE_LEFT) ovr = "_ReuseLeft";
+  if (mode_ == OVERWRITE_RIGHT) ovr = "_ReuseRight";
+  stream->Add("BinaryOpStub_%s%s", op_name, ovr);
 }
 
 
-void BinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
-  ASSERT(left_type_ == BinaryOpIC::STRING || right_type_ == BinaryOpIC::STRING);
-  ASSERT(op_ == Token::ADD);
-  if (left_type_ == BinaryOpIC::STRING && right_type_ == BinaryOpIC::STRING) {
-    GenerateBothStringStub(masm);
+void BinaryOpStub::PrintState(StringStream* stream) {
+  stream->Add("(");
+  stream->Add(StateToName(left_state_));
+  if (left_bool_) {
+    stream->Add(",Boolean");
+  }
+  stream->Add("*");
+  if (fixed_right_arg_.has_value) {
+    stream->Add("%d", fixed_right_arg_.value);
+  } else {
+    stream->Add(StateToName(right_state_));
+    if (right_bool_) {
+      stream->Add(",Boolean");
+    }
+  }
+  stream->Add("->");
+  stream->Add(StateToName(result_state_));
+  stream->Add(")");
+}
+
+
+Maybe<Handle<Object> > BinaryOpStub::Result(Handle<Object> left,
+                                            Handle<Object> right,
+                                            Isolate* isolate) {
+  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
+  Builtins::JavaScript func = BinaryOpIC::TokenToJSBuiltin(op_);
+  Object* builtin = builtins->javascript_builtin(func);
+  Handle<JSFunction> builtin_function =
+      Handle<JSFunction>(JSFunction::cast(builtin), isolate);
+  bool caught_exception;
+  Handle<Object> result = Execution::Call(isolate, builtin_function, left,
+      1, &right, &caught_exception);
+  return Maybe<Handle<Object> >(!caught_exception, result);
+}
+
+
+void BinaryOpStub::Initialize() {
+  fixed_right_arg_.has_value = false;
+  left_state_ = right_state_ = result_state_ = NONE;
+  left_bool_ = right_bool_ = false;
+}
+
+
+void BinaryOpStub::Generate(Token::Value op,
+                            State left,
+                            State right,
+                            State result,
+                            Isolate* isolate) {
+  BinaryOpStub stub(INITIALIZED);
+  stub.op_ = op;
+  stub.left_state_ = left;
+  stub.right_state_ = right;
+  stub.result_state_ = result;
+  stub.mode_ = NO_OVERWRITE;
+  stub.GetCode(isolate);
+  stub.mode_ = OVERWRITE_LEFT;
+  stub.GetCode(isolate);
+}
+
+
+void BinaryOpStub::GenerateAheadOfTime(Isolate* isolate) {
+  Token::Value binop[] = {Token::SUB, Token::MOD, Token::DIV, Token::MUL,
+                          Token::ADD, Token::SAR, Token::BIT_OR, Token::BIT_AND,
+                          Token::BIT_XOR, Token::SHL, Token::SHR};
+  // TODO(olivf) NumberTagU is not snapshot safe yet so we have to skip SHR
+  // since that produces a unsigned int32.
+  Token::Value bitop[] = {Token::BIT_OR, Token::BIT_AND, Token::BIT_XOR,
+                          Token::SAR, Token::SHL /* Token::SHR */};
+  Token::Value arithop[] = {Token::ADD, Token::SUB, Token::MOD,
+                            Token::DIV, Token::MUL};
+  for (unsigned i = 0; i < ARRAY_SIZE(binop); i++) {
+    BinaryOpStub stub(UNINITIALIZED);
+    stub.op_ = binop[i];
+    stub.GetCode(isolate);
+  }
+  for (unsigned i = 0; i < ARRAY_SIZE(arithop); i++) {
+    Generate(arithop[i], SMI,     SMI,     SMI,     isolate);
+    Generate(arithop[i], SMI,     SMI,     INT32,   isolate);
+    Generate(arithop[i], SMI,     SMI,     NUMBER,  isolate);
+    Generate(arithop[i], INT32,   INT32,   INT32,   isolate);
+    Generate(arithop[i], NUMBER,  SMI,     SMI,     isolate);
+    Generate(arithop[i], NUMBER,  SMI,     NUMBER,  isolate);
+    Generate(arithop[i], NUMBER,  INT32,   NUMBER,  isolate);
+    Generate(arithop[i], NUMBER,  NUMBER,  NUMBER,  isolate);
+  }
+  Generate(Token::SHR, SMI,    SMI,    SMI,    isolate);
+  for (unsigned i = 0; i < ARRAY_SIZE(bitop); i++) {
+    Generate(bitop[i], SMI,    SMI,    SMI,    isolate);
+    Generate(bitop[i], SMI,    INT32,  INT32,  isolate);
+    Generate(bitop[i], INT32,  INT32,  INT32,  isolate);
+    Generate(bitop[i], NUMBER, INT32,  INT32,  isolate);
+    Generate(bitop[i], NUMBER, NUMBER, INT32,  isolate);
+  }
+  Generate(Token::ADD, STRING,  STRING,  STRING,  isolate);
+
+  BinaryOpStub stub(INITIALIZED);
+  stub.op_ = Token::MOD;
+  stub.left_state_ = SMI;
+  stub.right_state_ = SMI;
+  stub.result_state_ = SMI;
+  stub.fixed_right_arg_.has_value = true;
+  stub.fixed_right_arg_.value = 4;
+  stub.mode_ = NO_OVERWRITE;
+  stub.GetCode(isolate);
+  stub.fixed_right_arg_.value = 8;
+  stub.GetCode(isolate);
+}
+
+
+bool BinaryOpStub::can_encode_arg_value(int32_t value) const {
+  return op_ == Token::MOD && value > 0 && IsPowerOf2(value) &&
+         FixedRightArgValueBits::is_valid(WhichPowerOf2(value));
+}
+
+
+int BinaryOpStub::encode_arg_value(int32_t value) const {
+  ASSERT(can_encode_arg_value(value));
+  return WhichPowerOf2(value);
+}
+
+
+int32_t BinaryOpStub::decode_arg_value(int value)  const {
+  return 1 << value;
+}
+
+
+int BinaryOpStub::encode_token(Token::Value op) const {
+  ASSERT(op >= FIRST_TOKEN && op <= LAST_TOKEN);
+  return op - FIRST_TOKEN;
+}
+
+
+Token::Value BinaryOpStub::decode_token(int op) const {
+  int res = op + FIRST_TOKEN;
+  ASSERT(res >= FIRST_TOKEN && res <= LAST_TOKEN);
+  return static_cast<Token::Value>(res);
+}
+
+
+const char* BinaryOpStub::StateToName(State state) {
+  switch (state) {
+    case NONE:
+      return "None";
+    case SMI:
+      return "Smi";
+    case INT32:
+      return "Int32";
+    case NUMBER:
+      return "Number";
+    case STRING:
+      return "String";
+    case GENERIC:
+      return "Generic";
+  }
+  return "";
+}
+
+
+void BinaryOpStub::UpdateStatus(Handle<Object> left,
+                                Handle<Object> right,
+                                Maybe<Handle<Object> > result) {
+  int old_state = GetExtraICState();
+
+  UpdateStatus(left, &left_state_, &left_bool_);
+  UpdateStatus(right, &right_state_, &right_bool_);
+
+  int32_t value;
+  bool new_has_fixed_right_arg =
+      right->ToInt32(&value) && can_encode_arg_value(value) &&
+      (left_state_ == SMI || left_state_ == INT32) &&
+      (result_state_ == NONE || !fixed_right_arg_.has_value);
+
+  fixed_right_arg_ = Maybe<int32_t>(new_has_fixed_right_arg, value);
+
+  if (result.has_value) UpdateStatus(result.value, &result_state_, NULL);
+
+  State max_result = has_int_result() ? INT32 : NUMBER;
+  State max_input = Max(left_state_, right_state_);
+
+  // Avoid unnecessary Representation changes.
+  if (left_state_ == STRING && right_state_ < STRING) {
+    right_state_ = GENERIC;
+  } else if (right_state_ == STRING && left_state_ < STRING) {
+    left_state_ = GENERIC;
+  } else if ((right_state_ == GENERIC && left_state_ != STRING) ||
+             (left_state_ == GENERIC && right_state_ != STRING)) {
+    left_state_ = right_state_ = GENERIC;
+  } else if (max_input <= NUMBER && max_input > result_state_) {
+    result_state_ = Min(max_result, max_input);
+  }
+
+  ASSERT(result_state_ <= max_result || op_ == Token::ADD);
+
+  if (old_state == GetExtraICState()) {
+    // Since the fpu is to precise, we might bail out on numbers which
+    // actually would truncate with 64 bit precision.
+    ASSERT(!CpuFeatures::IsSupported(SSE2) &&
+           result_state_ <= INT32);
+    result_state_ = NUMBER;
+  }
+}
+
+
+void BinaryOpStub::UpdateStatus(Handle<Object> object,
+                                State* state,
+                                bool* bool_state) {
+  if (object->IsBoolean() && bool_state != NULL) {
+    *bool_state = true;
     return;
   }
-  // Try to add arguments as strings, otherwise, transition to the generic
-  // BinaryOpIC type.
-  GenerateAddStrings(masm);
-  GenerateTypeTransition(masm);
+  v8::internal::TypeInfo type = v8::internal::TypeInfo::FromValue(object);
+  if (object->IsUndefined()) {
+    // Undefined will be automatically truncated for us by HChange.
+    type = (op_ == Token::BIT_AND || op_ == Token::BIT_OR ||
+            op_ == Token::BIT_XOR || op_ == Token::SAR ||
+            op_ == Token::SHL || op_ == Token::SHR)
+      ? TypeInfo::Integer32()
+      : TypeInfo::Double();
+  }
+  State int_state = SmiValuesAre32Bits() ? NUMBER : INT32;
+  State new_state = NONE;
+  if (type.IsSmi()) {
+    new_state = SMI;
+  } else if (type.IsInteger32()) {
+    new_state = int_state;
+  } else if (type.IsNumber()) {
+    new_state = NUMBER;
+  } else if (object->IsString() && operation() == Token::ADD) {
+    new_state = STRING;
+  } else {
+    new_state = GENERIC;
+  }
+  if ((new_state <= NUMBER && *state >  NUMBER) ||
+      (new_state >  NUMBER && *state <= NUMBER && *state != NONE)) {
+    new_state = GENERIC;
+  }
+  *state = Max(*state, new_state);
+}
+
+
+Handle<Type> BinaryOpStub::StateToType(State state,
+                                       bool seen_bool,
+                                       Isolate* isolate) {
+  Handle<Type> t = handle(Type::None(), isolate);
+  switch (state) {
+    case NUMBER:
+      t = handle(Type::Union(t, handle(Type::Double(), isolate)), isolate);
+      // Fall through.
+    case INT32:
+      t = handle(Type::Union(t, handle(Type::Signed32(), isolate)), isolate);
+      // Fall through.
+    case SMI:
+      t = handle(Type::Union(t, handle(Type::Smi(), isolate)), isolate);
+      break;
+
+    case STRING:
+      t = handle(Type::Union(t, handle(Type::String(), isolate)), isolate);
+      break;
+    case GENERIC:
+      return handle(Type::Any(), isolate);
+      break;
+    case NONE:
+      break;
+  }
+  if (seen_bool) {
+      t = handle(Type::Union(t, handle(Type::Boolean(), isolate)), isolate);
+  }
+  return t;
+}
+
+
+Handle<Type> BinaryOpStub::GetLeftType(Isolate* isolate) const {
+  return StateToType(left_state_, left_bool_, isolate);
+}
+
+
+Handle<Type> BinaryOpStub::GetRightType(Isolate* isolate) const {
+  return StateToType(right_state_, right_bool_, isolate);
+}
+
+
+Handle<Type> BinaryOpStub::GetResultType(Isolate* isolate) const {
+  if (HasSideEffects(isolate)) return StateToType(NONE, false, isolate);
+  if (result_state_ == GENERIC && op_ == Token::ADD) {
+    return handle(Type::Union(handle(Type::Number(), isolate),
+                              handle(Type::String(), isolate)), isolate);
+  }
+  ASSERT(result_state_ != GENERIC);
+  if (result_state_ == NUMBER && op_ == Token::SHR) {
+    return handle(Type::Unsigned32(), isolate);
+  }
+  return StateToType(result_state_, false, isolate);
 }
 
 
