@@ -333,7 +333,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // NOTE: Everything following JS_VALUE_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
-#define INSTANCE_TYPE_LIST_ALL(V)                                              \
+#define INSTANCE_TYPE_LIST(V)                                                  \
   V(STRING_TYPE)                                                               \
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
@@ -431,18 +431,8 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
                                                                                \
   V(JS_FUNCTION_TYPE)                                                          \
   V(JS_FUNCTION_PROXY_TYPE)                                                    \
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-#define INSTANCE_TYPE_LIST_DEBUGGER(V)                                         \
   V(DEBUG_INFO_TYPE)                                                           \
   V(BREAK_POINT_INFO_TYPE)
-#else
-#define INSTANCE_TYPE_LIST_DEBUGGER(V)
-#endif
-
-#define INSTANCE_TYPE_LIST(V)                                                  \
-  INSTANCE_TYPE_LIST_ALL(V)                                                    \
-  INSTANCE_TYPE_LIST_DEBUGGER(V)
 
 
 // Since string types are not consecutive, this macro is used to
