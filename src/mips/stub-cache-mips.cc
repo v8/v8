@@ -840,15 +840,13 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[(argc + 7) * 4] : receiver
   // -----------------------------------
   typedef FunctionCallbackArguments FCA;
-  const int kArgs = kFastApiCallArguments;
   // Save calling context.
-  __ sw(cp,
-        MemOperand(sp, (kArgs - 1 + FCA::kContextSaveIndex) * kPointerSize));
+  __ sw(cp, MemOperand(sp, FCA::kContextSaveIndex * kPointerSize));
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   __ LoadHeapObject(t1, function);
   __ lw(cp, FieldMemOperand(t1, JSFunction::kContextOffset));
-  __ sw(t1, MemOperand(sp, (kArgs - 1 + FCA::kCalleeIndex) * kPointerSize));
+  __ sw(t1, MemOperand(sp, FCA::kCalleeIndex * kPointerSize));
 
   // Construct the FunctionCallbackInfo.
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
@@ -860,20 +858,17 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ li(t2, call_data);
   }
   // Store call data.
-  __ sw(t2, MemOperand(sp, (kArgs - 1 + FCA::kDataIndex) * kPointerSize));
+  __ sw(t2, MemOperand(sp, FCA::kDataIndex * kPointerSize));
   // Store isolate.
   __ li(t3, Operand(ExternalReference::isolate_address(masm->isolate())));
-  __ sw(t3, MemOperand(sp, (kArgs - 1 + FCA::kIsolateIndex) * kPointerSize));
+  __ sw(t3, MemOperand(sp, FCA::kIsolateIndex * kPointerSize));
   // Store ReturnValue default and ReturnValue.
   __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
-  __ sw(t1,
-        MemOperand(sp, (kArgs - 1 + FCA::kReturnValueOffset) * kPointerSize));
-  __ sw(t1,
-        MemOperand(sp,
-            (kArgs - 1 + FCA::kReturnValueDefaultValueIndex) * kPointerSize));
+  __ sw(t1, MemOperand(sp, FCA::kReturnValueOffset * kPointerSize));
+  __ sw(t1, MemOperand(sp, FCA::kReturnValueDefaultValueIndex * kPointerSize));
 
   // Prepare arguments.
-  __ Addu(a2, sp, Operand((kArgs - 1) * kPointerSize));
+  __ Move(a2, sp);
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -882,22 +877,21 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
-  // a0 = v8::Arguments&
+  // a0 = FunctionCallbackInfo&
   // Arguments is built at sp + 1 (sp is a reserved spot for ra).
   __ Addu(a0, sp, kPointerSize);
-
-  // v8::Arguments::implicit_args_
+  // FunctionCallbackInfo::implicit_args_
   __ sw(a2, MemOperand(a0, 0 * kPointerSize));
-  // v8::Arguments::values_
-  __ Addu(t0, a2, Operand(argc * kPointerSize));
+  // FunctionCallbackInfo::values_
+  __ Addu(t0, a2, Operand((kFastApiCallArguments - 1 + argc) * kPointerSize));
   __ sw(t0, MemOperand(a0, 1 * kPointerSize));
-  // v8::Arguments::length_ = argc
+  // FunctionCallbackInfo::length_ = argc
   __ li(t0, Operand(argc));
   __ sw(t0, MemOperand(a0, 2 * kPointerSize));
-  // v8::Arguments::is_construct_call = 0
+  // FunctionCallbackInfo::is_construct_call = 0
   __ sw(zero_reg, MemOperand(a0, 3 * kPointerSize));
 
-  const int kStackUnwindSpace = argc + kArgs + 1;
+  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   ApiFunction fun(function_address);
   ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
@@ -913,9 +907,10 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
-      fp, (kArgs + 1 + FCA::kContextSaveIndex) * kPointerSize);
+      fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
   MemOperand return_value_operand(
-      fp, (kArgs + 1 + FCA::kReturnValueOffset) * kPointerSize);
+      fp, (2 + FCA::kReturnValueOffset) * kPointerSize);
+
   __ CallApiFunctionAndReturn(ref,
                               function_address,
                               thunk_ref,
@@ -937,13 +932,12 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(optimization.is_simple_api_call());
   ASSERT(!receiver.is(scratch));
 
+  typedef FunctionCallbackArguments FCA;
   const int stack_space = kFastApiCallArguments + argc + 1;
-  const int kHolderIndex = kFastApiCallArguments +
-      FunctionCallbackArguments::kHolderIndex - 1;
   // Assign stack space for the call arguments.
   __ Subu(sp, sp, Operand(stack_space * kPointerSize));
   // Write holder to stack frame.
-  __ sw(receiver, MemOperand(sp, kHolderIndex * kPointerSize));
+  __ sw(receiver, MemOperand(sp, FCA::kHolderIndex * kPointerSize));
   // Write receiver to stack frame.
   int index = stack_space - 1;
   __ sw(receiver, MemOperand(sp, index * kPointerSize));
@@ -1196,8 +1190,6 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
                                        int save_at_depth,
                                        Label* miss,
                                        PrototypeCheckType check) {
-  const int kHolderIndex = kFastApiCallArguments +
-      FunctionCallbackArguments::kHolderIndex - 1;
   // Make sure that the type feedback oracle harvests the receiver map.
   // TODO(svenpanne) Remove this hack when all ICs are reworked.
   __ li(scratch1, Operand(Handle<Map>(object->map())));
@@ -1212,8 +1204,9 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   Register reg = object_reg;
   int depth = 0;
 
+  typedef FunctionCallbackArguments FCA;
   if (save_at_depth == depth) {
-    __ sw(reg, MemOperand(sp, kHolderIndex * kPointerSize));
+    __ sw(reg, MemOperand(sp, FCA::kHolderIndex * kPointerSize));
   }
 
   // Check the maps in the prototype chain.
@@ -1271,7 +1264,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     }
 
     if (save_at_depth == depth) {
-      __ sw(reg, MemOperand(sp, kHolderIndex * kPointerSize));
+      __ sw(reg, MemOperand(sp, FCA::kHolderIndex * kPointerSize));
     }
 
     // Go to the next object in the prototype chain.
@@ -1429,17 +1422,17 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     Handle<ExecutableAccessorInfo> callback) {
   // Build AccessorInfo::args_ list on the stack and push property name below
   // the exit frame to make GC aware of them and store pointers to them.
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == -1);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == -2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == -3);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == -4);
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == -5);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
   ASSERT(!scratch2().is(reg));
   ASSERT(!scratch3().is(reg));
   ASSERT(!scratch4().is(reg));
   __ push(receiver());
-  __ mov(scratch2(), sp);  // scratch2 = AccessorInfo::args_
   if (heap()->InNewSpace(callback->data())) {
     __ li(scratch3(), callback);
     __ lw(scratch3(), FieldMemOperand(scratch3(),
@@ -1457,6 +1450,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ sw(scratch4(), MemOperand(sp, 2 * kPointerSize));
   __ sw(reg, MemOperand(sp, 1 * kPointerSize));
   __ sw(name(), MemOperand(sp, 0 * kPointerSize));
+  __ Addu(scratch2(), sp, 1 * kPointerSize);
 
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
   __ mov(a0, sp);  // (first argument - a0) = Handle<Name>
@@ -1465,7 +1459,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
-  // Create AccessorInfo instance on the stack above the exit frame with
+  // Create PropertyAccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object** args_) as the data.
   __ sw(a2, MemOperand(sp, kPointerSize));
   // (second argument - a1) = AccessorInfo&
