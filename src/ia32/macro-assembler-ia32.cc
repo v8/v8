@@ -253,8 +253,8 @@ void MacroAssembler::X87TOSToI(Register result_reg,
                                Label::Distance dst) {
   Label done;
   sub(esp, Immediate(kPointerSize));
-  fld(0);
   fist_s(MemOperand(esp, 0));
+  fld(0);
   fild_s(MemOperand(esp, 0));
   pop(result_reg);
   FCmp();
@@ -453,7 +453,6 @@ static double kUint32Bias =
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src,
                                 XMMRegister scratch) {
-  ASSERT(!Serializer::enabled());
   Label done;
   cmp(src, Immediate(0));
   movdbl(scratch,

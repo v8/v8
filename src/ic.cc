@@ -2371,6 +2371,11 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
 }
 
 
+void BinaryOpIC::patch(Code* code) {
+  set_target(code);
+}
+
+
 const char* BinaryOpIC::GetName(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED: return "Uninitialized";
@@ -2385,64 +2390,256 @@ const char* BinaryOpIC::GetName(TypeInfo type_info) {
 }
 
 
-MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
-  Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
-  BinaryOpStub stub(extra_ic_state);
-
-  bool smi_was_enabled = stub.GetLeftType(isolate())->Maybe(Type::Smi()) &&
-                         stub.GetRightType(isolate())->Maybe(Type::Smi());
-
-  Maybe<Handle<Object> > result = stub.Result(left, right, isolate());
-
-#ifdef DEBUG
-  if (FLAG_trace_ic) {
-    char buffer[100];
-    NoAllocationStringAllocator allocator(buffer,
-                                        static_cast<unsigned>(sizeof(buffer)));
-    StringStream stream(&allocator);
-    stream.Add("[");
-    stub.PrintName(&stream);
-
-    stub.UpdateStatus(left, right, result);
-
-    stream.Add(" => ");
-    stub.PrintState(&stream);
-    stream.Add(" ");
-    stream.OutputToStdOut();
-    PrintF(" @ %p <- ", static_cast<void*>(*stub.GetCode(isolate())));
-    JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
-    PrintF("]\n");
-  } else {
-    stub.UpdateStatus(left, right, result);
+BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
+  switch (type_info) {
+    case UNINITIALIZED:
+      return ::v8::internal::UNINITIALIZED;
+    case SMI:
+    case INT32:
+    case NUMBER:
+    case ODDBALL:
+    case STRING:
+      return MONOMORPHIC;
+    case GENERIC:
+      return ::v8::internal::GENERIC;
   }
-#else
-  stub.UpdateStatus(left, right, result);
-#endif
-
-  Handle<Code> code = stub.GetCode(isolate());
-  set_target(*code);
-
-  bool enable_smi = stub.GetLeftType(isolate())->Maybe(Type::Smi()) &&
-                    stub.GetRightType(isolate())->Maybe(Type::Smi());
-
-  if (!smi_was_enabled && enable_smi) {
-    PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
-  } else if (smi_was_enabled && !enable_smi) {
-    PatchInlinedSmiCode(address(), DISABLE_INLINED_SMI_CHECK);
-  }
-
-  return result.has_value
-      ? static_cast<MaybeObject*>(*result.value)
-      : Failure::Exception();
+  UNREACHABLE();
+  return ::v8::internal::UNINITIALIZED;
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss) {
+Handle<Type> BinaryOpIC::TypeInfoToType(BinaryOpIC::TypeInfo binary_type,
+                                        Isolate* isolate) {
+  switch (binary_type) {
+    case UNINITIALIZED:
+      return handle(Type::None(), isolate);
+    case SMI:
+      return handle(Type::Smi(), isolate);
+    case INT32:
+      return handle(Type::Signed32(), isolate);
+    case NUMBER:
+      return handle(Type::Number(), isolate);
+    case ODDBALL:
+      return handle(Type::Optional(
+          handle(Type::Union(
+              handle(Type::Number(), isolate),
+              handle(Type::String(), isolate)), isolate)), isolate);
+    case STRING:
+      return handle(Type::String(), isolate);
+    case GENERIC:
+      return handle(Type::Any(), isolate);
+  }
+  UNREACHABLE();
+  return handle(Type::Any(), isolate);
+}
+
+
+void BinaryOpIC::StubInfoToType(int minor_key,
+                                Handle<Type>* left,
+                                Handle<Type>* right,
+                                Handle<Type>* result,
+                                Isolate* isolate) {
+  TypeInfo left_typeinfo, right_typeinfo, result_typeinfo;
+  BinaryOpStub::decode_types_from_minor_key(
+      minor_key, &left_typeinfo, &right_typeinfo, &result_typeinfo);
+  *left = TypeInfoToType(left_typeinfo, isolate);
+  *right = TypeInfoToType(right_typeinfo, isolate);
+  *result = TypeInfoToType(result_typeinfo, isolate);
+}
+
+
+static BinaryOpIC::TypeInfo TypeInfoFromValue(Handle<Object> value,
+                                              Token::Value op) {
+  v8::internal::TypeInfo type = v8::internal::TypeInfo::FromValue(value);
+  if (type.IsSmi()) return BinaryOpIC::SMI;
+  if (type.IsInteger32()) {
+    if (SmiValuesAre32Bits()) return BinaryOpIC::SMI;
+    return BinaryOpIC::INT32;
+  }
+  if (type.IsNumber()) return BinaryOpIC::NUMBER;
+  if (type.IsString()) return BinaryOpIC::STRING;
+  if (value->IsUndefined()) {
+    if (op == Token::BIT_AND ||
+        op == Token::BIT_OR ||
+        op == Token::BIT_XOR ||
+        op == Token::SAR ||
+        op == Token::SHL ||
+        op == Token::SHR) {
+      if (SmiValuesAre32Bits()) return BinaryOpIC::SMI;
+      return BinaryOpIC::INT32;
+    }
+    return BinaryOpIC::ODDBALL;
+  }
+  return BinaryOpIC::GENERIC;
+}
+
+
+static BinaryOpIC::TypeInfo InputState(BinaryOpIC::TypeInfo old_type,
+                                       Handle<Object> value,
+                                       Token::Value op) {
+  BinaryOpIC::TypeInfo new_type = TypeInfoFromValue(value, op);
+  if (old_type == BinaryOpIC::STRING) {
+    if (new_type == BinaryOpIC::STRING) return new_type;
+    return BinaryOpIC::GENERIC;
+  }
+  return Max(old_type, new_type);
+}
+
+
+#ifdef DEBUG
+static void TraceBinaryOp(BinaryOpIC::TypeInfo left,
+                          BinaryOpIC::TypeInfo right,
+                          Maybe<int32_t> fixed_right_arg,
+                          BinaryOpIC::TypeInfo result) {
+  PrintF("%s*%s", BinaryOpIC::GetName(left), BinaryOpIC::GetName(right));
+  if (fixed_right_arg.has_value) PrintF("{%d}", fixed_right_arg.value);
+  PrintF("->%s", BinaryOpIC::GetName(result));
+}
+#endif
+
+
+RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
+  ASSERT(args.length() == 3);
+
   HandleScope scope(isolate);
   Handle<Object> left = args.at<Object>(0);
   Handle<Object> right = args.at<Object>(1);
-  BinaryOpIC ic(isolate);
-  return ic.Transition(left, right);
+  int key = args.smi_at(2);
+  Token::Value op = BinaryOpStub::decode_op_from_minor_key(key);
+
+  BinaryOpIC::TypeInfo previous_left, previous_right, previous_result;
+  BinaryOpStub::decode_types_from_minor_key(
+      key, &previous_left, &previous_right, &previous_result);
+
+  BinaryOpIC::TypeInfo new_left = InputState(previous_left, left, op);
+  BinaryOpIC::TypeInfo new_right = InputState(previous_right, right, op);
+  BinaryOpIC::TypeInfo result_type = BinaryOpIC::UNINITIALIZED;
+
+  // STRING is only used for ADD operations.
+  if ((new_left == BinaryOpIC::STRING || new_right == BinaryOpIC::STRING) &&
+      op != Token::ADD) {
+    new_left = new_right = BinaryOpIC::GENERIC;
+  }
+
+  BinaryOpIC::TypeInfo new_overall = Max(new_left, new_right);
+  BinaryOpIC::TypeInfo previous_overall = Max(previous_left, previous_right);
+
+  Maybe<int> previous_fixed_right_arg =
+      BinaryOpStub::decode_fixed_right_arg_from_minor_key(key);
+
+  int32_t value;
+  bool new_has_fixed_right_arg =
+      op == Token::MOD &&
+      right->ToInt32(&value) &&
+      BinaryOpStub::can_encode_arg_value(value) &&
+      (previous_overall == BinaryOpIC::UNINITIALIZED ||
+       (previous_fixed_right_arg.has_value &&
+        previous_fixed_right_arg.value == value));
+  Maybe<int32_t> new_fixed_right_arg(
+      new_has_fixed_right_arg, new_has_fixed_right_arg ? value : 1);
+
+  if (previous_fixed_right_arg.has_value == new_fixed_right_arg.has_value) {
+    if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
+      if (op == Token::DIV ||
+          op == Token::MUL ||
+          op == Token::SHR ||
+          SmiValuesAre32Bits()) {
+        // Arithmetic on two Smi inputs has yielded a heap number.
+        // That is the only way to get here from the Smi stub.
+        // With 32-bit Smis, all overflows give heap numbers, but with
+        // 31-bit Smis, most operations overflow to int32 results.
+        result_type = BinaryOpIC::NUMBER;
+      } else {
+        // Other operations on SMIs that overflow yield int32s.
+        result_type = BinaryOpIC::INT32;
+      }
+    }
+    if (new_overall == BinaryOpIC::INT32 &&
+        previous_overall == BinaryOpIC::INT32) {
+      if (new_left == previous_left && new_right == previous_right) {
+        result_type = BinaryOpIC::NUMBER;
+      }
+    }
+  }
+
+  BinaryOpStub stub(key, new_left, new_right, result_type, new_fixed_right_arg);
+  Handle<Code> code = stub.GetCode(isolate);
+  if (!code.is_null()) {
+#ifdef DEBUG
+    if (FLAG_trace_ic) {
+      PrintF("[BinaryOpIC in ");
+      JavaScriptFrame::PrintTop(isolate, stdout, false, true);
+      PrintF(" ");
+      TraceBinaryOp(previous_left, previous_right, previous_fixed_right_arg,
+                    previous_result);
+      PrintF(" => ");
+      TraceBinaryOp(new_left, new_right, new_fixed_right_arg, result_type);
+      PrintF(" #%s @ %p]\n", Token::Name(op), static_cast<void*>(*code));
+    }
+#endif
+    BinaryOpIC ic(isolate);
+    ic.patch(*code);
+
+    // Activate inlined smi code.
+    if (previous_overall == BinaryOpIC::UNINITIALIZED) {
+      PatchInlinedSmiCode(ic.address(), ENABLE_INLINED_SMI_CHECK);
+    }
+  }
+
+  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
+  Object* builtin = NULL;  // Initialization calms down the compiler.
+  switch (op) {
+    case Token::ADD:
+      builtin = builtins->javascript_builtin(Builtins::ADD);
+      break;
+    case Token::SUB:
+      builtin = builtins->javascript_builtin(Builtins::SUB);
+      break;
+    case Token::MUL:
+      builtin = builtins->javascript_builtin(Builtins::MUL);
+      break;
+    case Token::DIV:
+      builtin = builtins->javascript_builtin(Builtins::DIV);
+      break;
+    case Token::MOD:
+      builtin = builtins->javascript_builtin(Builtins::MOD);
+      break;
+    case Token::BIT_AND:
+      builtin = builtins->javascript_builtin(Builtins::BIT_AND);
+      break;
+    case Token::BIT_OR:
+      builtin = builtins->javascript_builtin(Builtins::BIT_OR);
+      break;
+    case Token::BIT_XOR:
+      builtin = builtins->javascript_builtin(Builtins::BIT_XOR);
+      break;
+    case Token::SHR:
+      builtin = builtins->javascript_builtin(Builtins::SHR);
+      break;
+    case Token::SAR:
+      builtin = builtins->javascript_builtin(Builtins::SAR);
+      break;
+    case Token::SHL:
+      builtin = builtins->javascript_builtin(Builtins::SHL);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Handle<JSFunction> builtin_function(JSFunction::cast(builtin), isolate);
+
+  bool caught_exception;
+  Handle<Object> builtin_args[] = { right };
+  Handle<Object> result = Execution::Call(isolate,
+                                          builtin_function,
+                                          left,
+                                          ARRAY_SIZE(builtin_args),
+                                          builtin_args,
+                                          &caught_exception);
+  if (caught_exception) {
+    return Failure::Exception();
+  }
+  return *result;
 }
 
 
@@ -2740,47 +2937,6 @@ RUNTIME_FUNCTION(MaybeObject*, Unreachable) {
   UNREACHABLE();
   CHECK(false);
   return isolate->heap()->undefined_value();
-}
-
-
-Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op) {
-  switch (op) {
-    default:
-      UNREACHABLE();
-    case Token::ADD:
-      return Builtins::ADD;
-      break;
-    case Token::SUB:
-      return Builtins::SUB;
-      break;
-    case Token::MUL:
-      return Builtins::MUL;
-      break;
-    case Token::DIV:
-      return Builtins::DIV;
-      break;
-    case Token::MOD:
-      return Builtins::MOD;
-      break;
-    case Token::BIT_OR:
-      return Builtins::BIT_OR;
-      break;
-    case Token::BIT_AND:
-      return Builtins::BIT_AND;
-      break;
-    case Token::BIT_XOR:
-      return Builtins::BIT_XOR;
-      break;
-    case Token::SAR:
-      return Builtins::SAR;
-      break;
-    case Token::SHR:
-      return Builtins::SHR;
-      break;
-    case Token::SHL:
-      return Builtins::SHL;
-      break;
-  }
 }
 
 

@@ -4883,8 +4883,7 @@ class Code: public HeapObject {
     // TODO(danno): This is a bit of a hack right now since there are still
     // clients of this API that pass "extra" values in for argc. These clients
     // should be retrofitted to used ExtendedExtraICState.
-    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC ||
-           kind == BINARY_OP_IC;
+    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC;
   }
 
   inline StubType type();  // Only valid for monomorphic IC stubs.
