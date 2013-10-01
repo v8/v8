@@ -248,10 +248,6 @@ void MacroAssembler::RecordWrite(Register object,
                                  SmiCheck smi_check) {
   ASSERT(!AreAliased(object, address, value, t8));
   ASSERT(!AreAliased(object, address, value, t9));
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are cp.
-  ASSERT(!address.is(cp) && !value.is(cp));
 
   if (emit_debug_code()) {
     lw(at, MemOperand(address));

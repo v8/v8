@@ -72,18 +72,25 @@ namespace internal {
 // Core register.
 struct Register {
   static const int kNumRegisters = v8::internal::kNumRegisters;
-  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t7.
+  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t6 and cp.
   static const int kSizeInBytes = 4;
+  static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    return reg.code() - 2;  // zero_reg and 'at' are skipped.
+    ASSERT((reg.code() - 2) < (kMaxNumAllocatableRegisters - 1) ||
+           reg.is(from_code(kCpRegister)));
+    return reg.is(from_code(kCpRegister)) ?
+           kMaxNumAllocatableRegisters - 1 :  // Return last index for 'cp'.
+           reg.code() - 2;  // zero_reg and 'at' are skipped.
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
-    return from_code(index + 2);  // zero_reg and 'at' are skipped.
+    return index == kMaxNumAllocatableRegisters - 1 ?
+           from_code(kCpRegister) :  // Last index is always the 'cp' register.
+           from_code(index + 2);  // zero_reg and 'at' are skipped.
   }
 
   static const char* AllocationIndexToString(int index) {
@@ -102,7 +109,7 @@ struct Register {
       "t4",
       "t5",
       "t6",
-      "t7",
+      "s7",
     };
     return names[index];
   }
