@@ -118,7 +118,7 @@ void IC::TraceIC(const char* type,
 #endif  // DEBUG
 
 #define TRACE_IC(type, name, old_state, new_target)             \
-  ASSERT((TraceIC(type, name, old_state, new_target), true))
+  ASSERT((TraceIC(type, name, old_state, *new_target), true))
 
 IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
   // To improve the performance of the (much used) IC code, we unfold a few
@@ -145,6 +145,7 @@ IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
 #endif
   fp_ = fp;
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
+  target_ = handle(raw_target(), isolate);
 }
 
 
@@ -752,7 +753,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
         TryUpdateExtraICState(lookup, object, &extra_ic_state)) {
       code = ComputeMonomorphicStub(lookup, state, extra_ic_state,
                                     object, name);
-    } else if (TryRemoveInvalidPrototypeDependentStub(target(),
+    } else if (TryRemoveInvalidPrototypeDependentStub(*target(),
                                                       *object,
                                                       *name)) {
       state = MONOMORPHIC_PROTOTYPE_FAILURE;
@@ -1087,8 +1088,6 @@ bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
 }
 
 
-// Since GC may have been invoked, by the time PatchCache is called, |state| is
-// not necessarily equal to target()->state().
 void IC::PatchCache(State state,
                     Handle<HeapObject> receiver,
                     Handle<String> name,
@@ -1100,7 +1099,7 @@ void IC::PatchCache(State state,
       UpdateMonomorphicIC(receiver, code, name);
       break;
     case MONOMORPHIC:
-      ASSERT(target() != *code);
+      ASSERT(!target().is_identical_to(code));
       if (!target()->is_keyed_stub()) {
         bool is_same_handler = false;
         {
@@ -1365,11 +1364,10 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
   }
 
-  if (target() == *string_stub()) {
+  if (target().is_identical_to(string_stub())) {
     target_receiver_maps.Add(isolate()->factory()->string_map());
   } else {
-    GetReceiverMapsForStub(Handle<Code>(target(), isolate()),
-                           &target_receiver_maps);
+    GetReceiverMapsForStub(target(), &target_receiver_maps);
     if (target_receiver_maps.length() == 0) {
       return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
     }
@@ -1447,7 +1445,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
         } else if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
         } else if (!key->ToSmi()->IsFailure() &&
-                   (target() != *non_strict_arguments_stub())) {
+                   (!target().is_identical_to(non_strict_arguments_stub()))) {
           stub = LoadElementStub(receiver);
         }
       }
@@ -1658,7 +1656,7 @@ MaybeObject* StoreIC::Store(State state,
     Handle<Code> stub =
         StoreArrayLengthStub(kind(), strict_mode()).GetCode(isolate());
     set_target(*stub);
-    TRACE_IC("StoreIC", name, state, *stub);
+    TRACE_IC("StoreIC", name, state, stub);
     Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode(), store_mode);
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
@@ -1671,7 +1669,7 @@ MaybeObject* StoreIC::Store(State state,
       // proxy as receiver.
       Handle<Code> stub = global_proxy_stub();
       set_target(*stub);
-      TRACE_IC("StoreIC", name, state, *stub);
+      TRACE_IC("StoreIC", name, state, stub);
     }
     Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode(), store_mode);
@@ -1692,7 +1690,7 @@ MaybeObject* StoreIC::Store(State state,
     if (state == UNINITIALIZED) {
       Handle<Code> stub = pre_monomorphic_stub();
       set_target(*stub);
-      TRACE_IC("StoreIC", name, state, *stub);
+      TRACE_IC("StoreIC", name, state, stub);
     } else if (can_store) {
       UpdateCaches(&lookup, state, receiver, name, value);
     } else if (!name->IsCacheable(isolate()) ||
@@ -2103,7 +2101,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
             isolate()->heap()->non_strict_arguments_elements_map()) {
           stub = non_strict_arguments_stub();
         } else if (key_is_smi_like &&
-                   (target() != *non_strict_arguments_stub())) {
+                   (!target().is_identical_to(non_strict_arguments_stub()))) {
           KeyedAccessStoreMode store_mode = GetStoreMode(receiver, key, value);
           stub = StoreElementStub(receiver, store_mode);
         } else {
@@ -2180,7 +2178,7 @@ RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CallIC ic(isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   MaybeObject* maybe_result = ic.LoadFunction(state,
                                               extra_ic_state,
@@ -2207,7 +2205,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   KeyedCallIC ic(isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   MaybeObject* maybe_result =
       ic.LoadFunction(state, args.at<Object>(0), args.at<Object>(1));
   // Result could be a function or a failure.
@@ -2227,7 +2225,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<String>(1));
 }
 
@@ -2237,7 +2235,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<Object>(1), MISS);
 }
 
@@ -2246,7 +2244,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<Object>(1), MISS);
 }
 
@@ -2255,7 +2253,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Load(state,
                  args.at<Object>(0),
                  args.at<Object>(1),
@@ -2268,7 +2266,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Store(state,
                   args.at<Object>(0),
                   args.at<String>(1),
@@ -2280,7 +2278,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Store(state,
                   args.at<Object>(0),
                   args.at<String>(1),
@@ -2367,7 +2365,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Store(state,
                   args.at<Object>(0),
                   args.at<Object>(1),
@@ -2380,7 +2378,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Store(state,
                   args.at<Object>(0),
                   args.at<Object>(1),
@@ -2390,7 +2388,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2408,7 +2406,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2429,7 +2427,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
-  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  IC::State state = IC::StateFrom(*ic.target(), args[0], args[1]);
   return ic.Store(state,
                   args.at<Object>(0),
                   args.at<Object>(1),
@@ -2439,7 +2437,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
-  SealHandleScope scope(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2951,11 +2949,11 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 // Used from ICCompareStub::GenerateMiss in code-stubs-<arch>.cc.
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
-  return ic.target();
+  return ic.raw_target();
 }
 
 

@@ -1257,12 +1257,12 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here, so we
   // can't use either LoadIC or KeyedLoadIC constructors.
+  HandleScope scope(isolate);
   IC ic(IC::NO_EXTRA_FRAME, isolate);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
   if (!ic.SlowIsUndeclaredGlobal()) return isolate->heap()->undefined_value();
 
   // Throw a reference error.
-  HandleScope scope(isolate);
   Handle<Name> name_handle(name);
   Handle<Object> error =
       isolate->factory()->NewReferenceError("not_defined",

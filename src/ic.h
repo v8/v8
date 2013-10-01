@@ -95,7 +95,9 @@ class IC {
   virtual ~IC() {}
 
   // Get the call-site target; used for determining the state.
-  Code* target() const { return GetTargetAtAddress(address()); }
+  Handle<Code> target() const { return target_; }
+  Code* raw_target() const { return GetTargetAtAddress(address()); }
+
   inline Address address() const;
 
   // Compute the current IC state based on the target stub, receiver and name.
@@ -209,6 +211,9 @@ class IC {
   Address* pc_address_;
 
   Isolate* isolate_;
+
+  // The original code target that missed.
+  Handle<Code> target_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
