@@ -182,9 +182,7 @@ Address IC::OriginalCodeAddress() const {
 static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
                                                    Object* receiver,
                                                    Object* name) {
-  if (target->is_keyed_load_stub() ||
-      target->is_keyed_call_stub() ||
-      target->is_keyed_store_stub()) {
+  if (target->is_keyed_stub()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
     Name* stub_name = target->FindFirstName();
@@ -1102,46 +1100,44 @@ void IC::PatchCache(State state,
       UpdateMonomorphicIC(receiver, code, name);
       break;
     case MONOMORPHIC:
-      // Only move to megamorphic if the target changes.
-      if (target() != *code) {
-        if (target()->is_load_stub() || target()->is_store_stub()) {
-          bool is_same_handler = false;
-          {
-            DisallowHeapAllocation no_allocation;
-            Code* old_handler = target()->FindFirstHandler();
-            is_same_handler = old_handler == *code;
-          }
-          if (is_same_handler
-              && IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
-            UpdateMonomorphicIC(receiver, code, name);
-            break;
-          }
-          if (UpdatePolymorphicIC(state, receiver, name, code)) {
-            break;
-          }
-
-          CopyICToMegamorphicCache(name);
+      ASSERT(target() != *code);
+      if (!target()->is_keyed_stub()) {
+        bool is_same_handler = false;
+        {
+          DisallowHeapAllocation no_allocation;
+          Code* old_handler = target()->FindFirstHandler();
+          is_same_handler = old_handler == *code;
+        }
+        if (is_same_handler
+            && IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
+          UpdateMonomorphicIC(receiver, code, name);
+          break;
+        }
+        if (UpdatePolymorphicIC(state, receiver, name, code)) {
+          break;
         }
 
-        UpdateMegamorphicCache(receiver->map(), *name, *code);
-        set_target(*megamorphic_stub());
+        CopyICToMegamorphicCache(name);
       }
+
+      UpdateMegamorphicCache(receiver->map(), *name, *code);
+      set_target(*megamorphic_stub());
       break;
     case MEGAMORPHIC:
       UpdateMegamorphicCache(receiver->map(), *name, *code);
       break;
     case POLYMORPHIC:
-      if (target()->is_load_stub() || target()->is_store_stub()) {
+      if (target()->is_keyed_stub()) {
+        // When trying to patch a polymorphic keyed stub with anything other
+        // than another polymorphic stub, go generic.
+        set_target(*generic_stub());
+      } else {
         if (UpdatePolymorphicIC(state, receiver, name, code)) {
           break;
         }
         CopyICToMegamorphicCache(name);
         UpdateMegamorphicCache(receiver->map(), *name, *code);
         set_target(*megamorphic_stub());
-      } else {
-        // When trying to patch a polymorphic keyed load/store element stub
-        // with anything other than another polymorphic stub, go generic.
-        set_target(*generic_stub());
       }
       break;
     case DEBUG_STUB:

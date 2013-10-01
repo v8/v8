@@ -4028,6 +4028,11 @@ bool Code::is_inline_cache_stub() {
 }
 
 
+bool Code::is_keyed_stub() {
+  return is_keyed_load_stub() || is_keyed_store_stub() || is_keyed_call_stub();
+}
+
+
 bool Code::is_debug_stub() {
   return ic_state() == DEBUG_STUB;
 }

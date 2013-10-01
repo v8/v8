@@ -4895,6 +4895,7 @@ class Code: public HeapObject {
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
   inline bool is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
   inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
+  inline bool is_keyed_stub();
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
