@@ -3126,28 +3126,31 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   Register scratch = scratch0();
 
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
-      ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  int constant_key = 0;
+
+  int base_offset =
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+      (instr->additional_index() << element_size_shift);
   if (key_is_constant) {
-    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    int constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
       Abort(kArrayIndexConstantValueTooBig);
     }
-  } else {
+    base_offset += constant_key << element_size_shift;
+  }
+  __ Addu(scratch, elements, Operand(base_offset));
+
+  if (!key_is_constant) {
     key = ToRegister(instr->key());
+    int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
+        ? (element_size_shift - kSmiTagSize) : element_size_shift;
+    __ sll(at, key, shift_size);
+    __ Addu(scratch, scratch, at);
   }
 
-  int base_offset = (FixedDoubleArray::kHeaderSize - kHeapObjectTag) +
-      ((constant_key + instr->additional_index()) << element_size_shift);
-  if (!key_is_constant) {
-    __ sll(scratch, key, shift_size);
-    __ Addu(elements, elements, scratch);
-  }
-  __ Addu(elements, elements, Operand(base_offset));
-  __ ldc1(result, MemOperand(elements));
+  __ ldc1(result, MemOperand(scratch));
+
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ lw(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
+    __ lw(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
     DeoptimizeIf(eq, instr->environment(), scratch, Operand(kHoleNanUpper32));
   }
 }
@@ -3166,7 +3169,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
                                            instr->additional_index());
     store_base = elements;
   } else {
-    Register key = EmitLoadRegister(instr->key(), scratch0());
+    Register key = ToRegister(instr->key());
     // Even though the HLoadKeyed instruction forces the input
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds
