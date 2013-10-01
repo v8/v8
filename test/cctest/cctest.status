@@ -82,9 +82,6 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # BUG(2874): Threading problems.
-  'test-api/*': [PASS, FLAKY],
 }],  # 'arch == arm'
 ##############################################################################
 ['arch == mipsel', {
