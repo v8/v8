@@ -491,14 +491,17 @@ class Isolate {
 
   static void GlobalTearDown();
 
-  bool IsDefaultIsolate() const { return this == default_isolate_; }
+  bool IsDefaultIsolate() const { return is_default_isolate_; }
 
   static void SetCrashIfDefaultIsolateInitialized();
   // Ensures that process-wide resources and the default isolate have been
   // allocated. It is only necessary to call this method in rare cases, for
   // example if you are using V8 from within the body of a static initializer.
   // Safe to call multiple times.
-  static void EnsureDefaultIsolate();
+  static Isolate* EnsureDefaultIsolate();
+
+  // Initialize all thread local variables
+  static void InitializeThreadLocalStorage();
 
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.
@@ -1124,8 +1127,12 @@ class Isolate {
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
 
+  static Atomic32 GetLivingIsolates() {
+    return Acquire_Load(&living_isolates_);
+  }
+
  private:
-  Isolate();
+  explicit Isolate(bool is_default_isolate = false);
 
   friend struct GlobalState;
   friend struct InitializeGlobalState;
@@ -1190,11 +1197,11 @@ class Isolate {
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
   static Thread::LocalStorageKey thread_id_key_;
-  static Isolate* default_isolate_;
   static ThreadDataTable* thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.
   static Atomic32 isolate_counter_;
+  static Atomic32 living_isolates_;
 
   void Deinit();
 
@@ -1305,6 +1312,9 @@ class Isolate {
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;
+
+  // True only for the default isolate.
+  bool is_default_isolate_;
 
   // Time stamp at initialization.
   double time_millis_at_init_;

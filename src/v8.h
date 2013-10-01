@@ -81,7 +81,7 @@ class V8 : public AllStatic {
   // initial state is created by reading the deserialized data into an
   // empty heap.
   static bool Initialize(Deserializer* des);
-  static void TearDown();
+  static bool TearDown();
 
   // Report process out of memory. Implementation found in api.cc.
   static void FatalProcessOutOfMemory(const char* location,
