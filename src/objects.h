@@ -2218,6 +2218,15 @@ class JSObject: public JSReceiver {
                                                      uint32_t index,
                                                      bool continue_search);
 
+  // Retrieves an AccessorPair property from the given object. Might return
+  // undefined if the property doesn't exist or is of a different kind.
+  static Handle<Object> GetAccessor(Handle<JSObject> object,
+                                    Handle<Name> name,
+                                    AccessorComponent component);
+
+  // Defines an AccessorPair property on the given object.
+  // TODO(mstarzinger): Rename to SetAccessor() and return empty handle on
+  // exception instead of letting callers check for scheduled exception.
   static void DefineAccessor(Handle<JSObject> object,
                              Handle<Name> name,
                              Handle<Object> getter,
@@ -2225,8 +2234,7 @@ class JSObject: public JSReceiver {
                              PropertyAttributes attributes,
                              v8::AccessControl access_control = v8::DEFAULT);
 
-  MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
-
+  // Defines an AccessorInfo property on the given object.
   static Handle<Object> SetAccessor(Handle<JSObject> object,
                                     Handle<AccessorInfo> info);
 

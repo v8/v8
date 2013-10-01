@@ -6167,7 +6167,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
+  AssertNoContextChange ncc;
 
   // Try to flatten before operating on the string.
   if (name->IsString()) String::cast(*name)->TryFlatten();
@@ -6412,58 +6412,62 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
-  Heap* heap = GetHeap();
+Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
+                                     Handle<Name> name,
+                                     AccessorComponent component) {
+  Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
+  AssertNoContextChange ncc;
 
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-    heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-    RETURN_IF_SCHEDULED_EXCEPTION(heap->isolate());
-    return heap->undefined_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_HAS)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return isolate->factory()->undefined_value();
   }
 
   // Make the lookup and include prototypes.
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    for (Object* obj = this;
-         obj != heap->null_value();
-         obj = JSReceiver::cast(obj)->GetPrototype()) {
-      if (obj->IsJSObject() && JSObject::cast(obj)->HasDictionaryElements()) {
-        JSObject* js_object = JSObject::cast(obj);
+    for (Handle<Object> obj = object;
+         *obj != isolate->heap()->null_value();
+         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      if (obj->IsJSObject() && JSObject::cast(*obj)->HasDictionaryElements()) {
+        JSObject* js_object = JSObject::cast(*obj);
         SeededNumberDictionary* dictionary = js_object->element_dictionary();
         int entry = dictionary->FindEntry(index);
         if (entry != SeededNumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
           if (dictionary->DetailsAt(entry).type() == CALLBACKS &&
               element->IsAccessorPair()) {
-            return AccessorPair::cast(element)->GetComponent(component);
+            return handle(AccessorPair::cast(element)->GetComponent(component),
+                          isolate);
           }
         }
       }
     }
   } else {
-    for (Object* obj = this;
-         obj != heap->null_value();
-         obj = JSReceiver::cast(obj)->GetPrototype()) {
-      LookupResult result(heap->isolate());
-      JSReceiver::cast(obj)->LocalLookup(name, &result);
+    for (Handle<Object> obj = object;
+         *obj != isolate->heap()->null_value();
+         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      LookupResult result(isolate);
+      JSReceiver::cast(*obj)->LocalLookup(*name, &result);
       if (result.IsFound()) {
-        if (result.IsReadOnly()) return heap->undefined_value();
+        if (result.IsReadOnly()) return isolate->factory()->undefined_value();
         if (result.IsPropertyCallbacks()) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            return AccessorPair::cast(obj)->GetComponent(component);
+            return handle(AccessorPair::cast(obj)->GetComponent(component),
+                          isolate);
           }
         }
       }
     }
   }
-  return heap->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
 

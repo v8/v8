@@ -10582,14 +10582,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_SMI_ARG_CHECKED(flag, 2);
   AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
   if (!receiver->IsJSObject()) return isolate->heap()->undefined_value();
-  return JSObject::cast(receiver)->LookupAccessor(name, component);
+  Handle<Object> result =
+      JSObject::GetAccessor(Handle<JSObject>::cast(receiver), name, component);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
