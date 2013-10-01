@@ -213,7 +213,8 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
 
   void CallRuntime(const Runtime::Function* function,
                    int num_arguments,
-                   LInstruction* instr);
+                   LInstruction* instr,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   void CallRuntime(Runtime::FunctionId id,
                    int num_arguments,

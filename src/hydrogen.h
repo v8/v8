@@ -1708,6 +1708,23 @@ inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HConstant* value) {
 
 
 template<>
+inline HInstruction* HGraphBuilder::AddUncasted<HCallRuntime>(
+    Handle<String> name,
+    const Runtime::Function* c_function,
+    int argument_count) {
+  HCallRuntime* instr = New<HCallRuntime>(name, c_function, argument_count);
+  if (graph()->info()->IsStub()) {
+    // When compiling code stubs, we don't want to save all double registers
+    // upon entry to the stub, but instead have the call runtime instruction
+    // save the double registers only on-demand (in the fallback case).
+    instr->set_save_doubles(kSaveFPRegs);
+  }
+  AddInstruction(instr);
+  return instr;
+}
+
+
+template<>
 inline HInstruction* HGraphBuilder::NewUncasted<HContext>() {
   return HContext::New(zone());
 }

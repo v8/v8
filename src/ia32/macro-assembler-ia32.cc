@@ -2149,23 +2149,9 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
-void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
-  CallRuntime(Runtime::FunctionForId(id), num_arguments);
-}
-
-
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  const Runtime::Function* function = Runtime::FunctionForId(id);
-  Set(eax, Immediate(function->nargs));
-  mov(ebx, Immediate(ExternalReference(function, isolate())));
-  CEntryStub ces(1, CpuFeatures::IsSupported(SSE2) ? kSaveFPRegs
-                                                   : kDontSaveFPRegs);
-  CallStub(&ces);
-}
-
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+                                 int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
@@ -2180,7 +2166,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Set(eax, Immediate(num_arguments));
   mov(ebx, Immediate(ExternalReference(f, isolate())));
-  CEntryStub ces(1);
+  CEntryStub ces(1, CpuFeatures::IsSupported(SSE2) ? save_doubles
+                                                   : kDontSaveFPRegs);
   CallStub(&ces);
 }
 
