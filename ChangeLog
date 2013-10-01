@@ -1,3 +1,13 @@
+2013-10-01: Version 3.22.5
+
+        Disabled externalization of sliced/cons strings in old pointer space
+        (Chromium issue 276357).
+
+        Turned on handle zapping for release builds
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-30: Version 3.22.4
 
         Function::Call and Object::CallAsFunction APIs should allow v8::Value as
