@@ -98,10 +98,14 @@ class IC {
   Handle<Code> target() const { return target_; }
   Code* raw_target() const { return GetTargetAtAddress(address()); }
 
+  State state() const { return state_; }
   inline Address address() const;
 
   // Compute the current IC state based on the target stub, receiver and name.
-  static State StateFrom(Code* target, Object* receiver, Object* name);
+  void UpdateState(Object* receiver, Object* name);
+  void MarkMonomorphicPrototypeFailure() {
+    state_ = MONOMORPHIC_PROTOTYPE_FAILURE;
+  }
 
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address);
@@ -160,7 +164,6 @@ class IC {
 
   void TraceIC(const char* type,
                Handle<Object> name,
-               State old_state,
                Code* new_target);
 #endif
 
@@ -178,15 +181,13 @@ class IC {
                            Handle<Code> handler,
                            Handle<String> name);
 
-  bool UpdatePolymorphicIC(State state,
-                           Handle<HeapObject> receiver,
+  bool UpdatePolymorphicIC(Handle<HeapObject> receiver,
                            Handle<String> name,
                            Handle<Code> code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
   bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
-  void PatchCache(State state,
-                  Handle<HeapObject> receiver,
+  void PatchCache(Handle<HeapObject> receiver,
                   Handle<String> name,
                   Handle<Code> code);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
@@ -214,6 +215,7 @@ class IC {
 
   // The original code target that missed.
   Handle<Code> target_;
+  State state_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
@@ -241,8 +243,7 @@ class CallICBase: public IC {
   class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
 
   // Returns a JSFunction or a Failure.
-  MUST_USE_RESULT MaybeObject* LoadFunction(State state,
-                                            Code::ExtraICState extra_ic_state,
+  MUST_USE_RESULT MaybeObject* LoadFunction(Code::ExtraICState extra_ic_state,
                                             Handle<Object> object,
                                             Handle<String> name);
 
@@ -256,7 +257,6 @@ class CallICBase: public IC {
 
   // Compute a monomorphic stub if possible, otherwise return a null handle.
   Handle<Code> ComputeMonomorphicStub(LookupResult* lookup,
-                                      State state,
                                       Code::ExtraICState extra_state,
                                       Handle<Object> object,
                                       Handle<String> name);
@@ -264,7 +264,6 @@ class CallICBase: public IC {
   // Update the inline cache and the global stub cache based on the lookup
   // result.
   void UpdateCaches(LookupResult* lookup,
-                    State state,
                     Code::ExtraICState extra_ic_state,
                     Handle<Object> object,
                     Handle<String> name);
@@ -335,8 +334,7 @@ class KeyedCallIC: public CallICBase {
     ASSERT(target()->is_keyed_call_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* LoadFunction(State state,
-                                            Handle<Object> object,
+  MUST_USE_RESULT MaybeObject* LoadFunction(Handle<Object> object,
                                             Handle<Object> key);
 
   // Code generator routines.
@@ -371,8 +369,7 @@ class LoadIC: public IC {
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
-  MUST_USE_RESULT MaybeObject* Load(State state,
-                                    Handle<Object> object,
+  MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
                                     Handle<String> name);
 
  protected:
@@ -389,7 +386,6 @@ class LoadIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
-                    State state,
                     Handle<Object> object,
                     Handle<String> name);
 
@@ -430,8 +426,7 @@ class KeyedLoadIC: public LoadIC {
     ASSERT(target()->is_keyed_load_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* Load(State state,
-                                    Handle<Object> object,
+  MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
                                     Handle<Object> key,
                                     ICMissMode force_generic);
 
@@ -528,7 +523,6 @@ class StoreIC: public IC {
                                          StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* Store(
-      State state,
       Handle<Object> object,
       Handle<String> name,
       Handle<Object> value,
@@ -577,7 +571,6 @@ class StoreIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
-                    State state,
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
@@ -633,8 +626,7 @@ class KeyedStoreIC: public StoreIC {
     ASSERT(target()->is_keyed_store_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* Store(State state,
-                                     Handle<Object> object,
+  MUST_USE_RESULT MaybeObject* Store(Handle<Object> object,
                                      Handle<Object> name,
                                      Handle<Object> value,
                                      ICMissMode force_generic);
