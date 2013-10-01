@@ -996,7 +996,7 @@ bool IC::UpdatePolymorphicIC(State state,
                              Handle<String> name,
                              Handle<Code> code,
                              StrictModeFlag strict_mode) {
-  if (code->kind() != Code::HANDLER) return false;
+  if (!code->is_handler()) return false;
 
   MapHandleList receiver_maps;
   CodeHandleList handlers;
@@ -1045,72 +1045,19 @@ bool IC::UpdatePolymorphicIC(State state,
     handlers.Add(code);
   }
 
-  Handle<Code> ic = ComputePolymorphicIC(
+  Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
       &receiver_maps, &handlers, number_of_valid_maps, name, strict_mode);
   set_target(*ic);
   return true;
 }
 
 
-Handle<Code> LoadIC::ComputePolymorphicIC(MapHandleList* receiver_maps,
-                                          CodeHandleList* handlers,
-                                          int number_of_valid_maps,
-                                          Handle<Name> name,
-                                          StrictModeFlag strict_mode) {
-  return isolate()->stub_cache()->ComputePolymorphicLoadIC(
-      receiver_maps, handlers, number_of_valid_maps, name);
-}
-
-
-Handle<Code> StoreIC::ComputePolymorphicIC(MapHandleList* receiver_maps,
-                                           CodeHandleList* handlers,
-                                           int number_of_valid_maps,
-                                           Handle<Name> name,
-                                           StrictModeFlag strict_mode) {
-  return isolate()->stub_cache()->ComputePolymorphicStoreIC(
-      receiver_maps, handlers, number_of_valid_maps, name, strict_mode);
-}
-
-
-void LoadIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                 Handle<Code> handler,
-                                 Handle<String> name,
-                                 StrictModeFlag strict_mode) {
-  if (handler->is_load_stub()) return set_target(*handler);
-  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicLoadIC(
-      receiver, handler, name);
-  set_target(*ic);
-}
-
-
-void KeyedLoadIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                      Handle<Code> handler,
-                                      Handle<String> name,
-                                      StrictModeFlag strict_mode) {
-  if (handler->is_keyed_load_stub()) return set_target(*handler);
-  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicKeyedLoadIC(
-      receiver, handler, name);
-  set_target(*ic);
-}
-
-
-void StoreIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                  Handle<Code> handler,
-                                  Handle<String> name,
-                                  StrictModeFlag strict_mode) {
-  if (handler->is_store_stub()) return set_target(*handler);
-  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicStoreIC(
-      receiver, handler, name, strict_mode);
-  set_target(*ic);
-}
-
-
-void KeyedStoreIC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                       Handle<Code> handler,
-                                       Handle<String> name,
-                                       StrictModeFlag strict_mode) {
-  if (handler->is_keyed_store_stub()) return set_target(*handler);
-  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicKeyedStoreIC(
+void IC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
+                             Handle<Code> handler,
+                             Handle<String> name,
+                             StrictModeFlag strict_mode) {
+  if (!handler->is_handler()) return set_target(*handler);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
       receiver, handler, name, strict_mode);
   set_target(*ic);
 }
@@ -1188,7 +1135,6 @@ void IC::PatchCache(State state,
       }
       break;
     case MEGAMORPHIC:
-      // Update the stub cache.
       UpdateMegamorphicCache(receiver->map(), *name, *code);
       break;
     case POLYMORPHIC:

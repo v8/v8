@@ -3756,7 +3756,8 @@ Code::StubType Code::type() {
 
 
 int Code::arguments_count() {
-  ASSERT(is_call_stub() || is_keyed_call_stub() || kind() == STUB);
+  ASSERT(is_call_stub() || is_keyed_call_stub() ||
+         kind() == STUB || is_handler());
   return ExtractArgumentsCountFromFlags(flags());
 }
 

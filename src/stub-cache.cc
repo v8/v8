@@ -165,66 +165,29 @@ Handle<Code> StubCache::FindStoreHandler(Handle<Name> name,
 }
 
 
-Handle<Code> StubCache::ComputeMonomorphicLoadIC(Handle<HeapObject> receiver,
-                                                 Handle<Code> handler,
-                                                 Handle<Name> name) {
+Handle<Code> StubCache::ComputeMonomorphicIC(Handle<HeapObject> receiver,
+                                             Handle<Code> handler,
+                                             Handle<Name> name,
+                                             StrictModeFlag strict_mode) {
+  Code::Kind kind = handler->handler_kind();
   Handle<Map> map(receiver->map());
-  Handle<Code> ic = FindIC(name, map, Code::LOAD_IC, handler->type());
+  Handle<Code> ic = FindIC(name, map, kind, handler->type(), strict_mode);
   if (!ic.is_null()) return ic;
 
-  LoadStubCompiler ic_compiler(isolate());
-  ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
-
-  HeapObject::UpdateMapCodeCache(receiver, name, ic);
-  return ic;
-}
-
-
-Handle<Code> StubCache::ComputeMonomorphicKeyedLoadIC(
-    Handle<HeapObject> receiver,
-    Handle<Code> handler,
-    Handle<Name> name) {
-  Handle<Map> map(receiver->map());
-  Handle<Code> ic = FindIC(name, map, Code::KEYED_LOAD_IC, handler->type());
-  if (!ic.is_null()) return ic;
-
-  KeyedLoadStubCompiler ic_compiler(isolate());
-  ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
-
-  HeapObject::UpdateMapCodeCache(receiver, name, ic);
-  return ic;
-}
-
-
-Handle<Code> StubCache::ComputeMonomorphicStoreIC(Handle<HeapObject> receiver,
-                                                  Handle<Code> handler,
-                                                  Handle<Name> name,
-                                                  StrictModeFlag strict_mode) {
-  Handle<Map> map(receiver->map());
-  Handle<Code> ic = FindIC(
-      name, map, Code::STORE_IC, handler->type(), strict_mode);
-  if (!ic.is_null()) return ic;
-
-  StoreStubCompiler ic_compiler(isolate(), strict_mode);
-  ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
-
-  HeapObject::UpdateMapCodeCache(receiver, name, ic);
-  return ic;
-}
-
-
-Handle<Code> StubCache::ComputeMonomorphicKeyedStoreIC(
-    Handle<HeapObject> receiver,
-    Handle<Code> handler,
-    Handle<Name> name,
-    StrictModeFlag strict_mode) {
-  Handle<Map> map(receiver->map());
-  Handle<Code> ic = FindIC(
-      name, map, Code::KEYED_STORE_IC, handler->type(), strict_mode);
-  if (!ic.is_null()) return ic;
-
-  KeyedStoreStubCompiler ic_compiler(isolate(), strict_mode, STANDARD_STORE);
-  ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+  if (kind == Code::LOAD_IC) {
+    LoadStubCompiler ic_compiler(isolate());
+    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+  } else if (kind == Code::KEYED_LOAD_IC) {
+    KeyedLoadStubCompiler ic_compiler(isolate());
+    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+  } else if (kind == Code::STORE_IC) {
+    StoreStubCompiler ic_compiler(isolate(), strict_mode);
+    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+  } else {
+    ASSERT(kind == Code::KEYED_STORE_IC);
+    KeyedStoreStubCompiler ic_compiler(isolate(), strict_mode, STANDARD_STORE);
+    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+  }
 
   HeapObject::UpdateMapCodeCache(receiver, name, ic);
   return ic;
@@ -1072,30 +1035,25 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 }
 
 
-Handle<Code> StubCache::ComputePolymorphicLoadIC(MapHandleList* receiver_maps,
-                                                 CodeHandleList* handlers,
-                                                 int number_of_valid_maps,
-                                                 Handle<Name> name) {
-  LoadStubCompiler ic_compiler(isolate_);
-  Code::StubType type = number_of_valid_maps == 1 ? handlers->at(0)->type()
+Handle<Code> StubCache::ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                             CodeHandleList* handlers,
+                                             int number_of_valid_maps,
+                                             Handle<Name> name,
+                                             StrictModeFlag strict_mode) {
+  Handle<Code> handler = handlers->at(0);
+  Code::Kind kind = handler->handler_kind();
+  Code::StubType type = number_of_valid_maps == 1 ? handler->type()
                                                   : Code::NORMAL;
-  Handle<Code> ic = ic_compiler.CompilePolymorphicIC(
-      receiver_maps, handlers, name, type, PROPERTY);
-  return ic;
-}
-
-
-Handle<Code> StubCache::ComputePolymorphicStoreIC(MapHandleList* receiver_maps,
-                                                  CodeHandleList* handlers,
-                                                  int number_of_valid_maps,
-                                                  Handle<Name> name,
-                                                  StrictModeFlag strict_mode) {
-  StoreStubCompiler ic_compiler(isolate_, strict_mode);
-  Code::StubType type = number_of_valid_maps == 1 ? handlers->at(0)->type()
-                                                  : Code::NORMAL;
-  Handle<Code> ic = ic_compiler.CompilePolymorphicIC(
-      receiver_maps, handlers, name, type, PROPERTY);
-  return ic;
+  if (kind == Code::LOAD_IC) {
+    LoadStubCompiler ic_compiler(isolate_);
+    return ic_compiler.CompilePolymorphicIC(
+        receiver_maps, handlers, name, type, PROPERTY);
+  } else {
+    ASSERT(kind == Code::STORE_IC);
+    StoreStubCompiler ic_compiler(isolate_, strict_mode);
+    return ic_compiler.CompilePolymorphicIC(
+        receiver_maps, handlers, name, type, PROPERTY);
+  }
 }
 
 
@@ -1973,8 +1931,7 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
                                                   Code::StubType type,
                                                   Handle<Name> name,
                                                   InlineCacheState state) {
-  Code::Flags flags = Code::ComputeFlags(
-      kind, state, extra_state(), type);
+  Code::Flags flags = Code::ComputeFlags(kind, state, extra_state(), type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);
@@ -1982,22 +1939,9 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
 }
 
 
-Handle<Code> BaseLoadStubCompiler::GetCode(Code::Kind kind,
-                                           Code::StubType type,
-                                           Handle<Name> name) {
-  ASSERT(type != Code::NORMAL);
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState, type, kind);
-  Handle<Code> code = GetCodeWithFlags(flags, name);
-  PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
-  JitEvent(name, code);
-  return code;
-}
-
-
-Handle<Code> BaseStoreStubCompiler::GetCode(Code::Kind kind,
-                                            Code::StubType type,
-                                            Handle<Name> name) {
+Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
+                                                Code::StubType type,
+                                                Handle<Name> name) {
   ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeFlags(
       Code::HANDLER, MONOMORPHIC, extra_state(), type, kind);

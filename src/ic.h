@@ -172,26 +172,16 @@ class IC {
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                   Handle<Code> handler,
-                                   Handle<String> name,
-                                   StrictModeFlag strict_mode) {
-    set_target(*handler);
-  }
+  void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+                           Handle<Code> handler,
+                           Handle<String> name,
+                           StrictModeFlag strict_mode);
+
   bool UpdatePolymorphicIC(State state,
                            Handle<HeapObject> receiver,
                            Handle<String> name,
                            Handle<Code> code,
                            StrictModeFlag strict_mode);
-
-  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
-                                            CodeHandleList* handlers,
-                                            int number_of_valid_maps,
-                                            Handle<Name> name,
-                                            StrictModeFlag strict_mode) {
-    UNREACHABLE();
-    return Handle<Code>::null();
-  };
 
   void CopyICToMegamorphicCache(Handle<String> name);
   bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
@@ -408,17 +398,6 @@ class LoadIC: public IC {
                     Handle<Object> object,
                     Handle<String> name);
 
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                   Handle<Code> handler,
-                                   Handle<String> name,
-                                   StrictModeFlag strict_mode);
-
-  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
-                                            CodeHandleList* handlers,
-                                            int number_of_valid_maps,
-                                            Handle<Name> name,
-                                            StrictModeFlag strict_mode);
-
   virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
@@ -496,10 +475,6 @@ class KeyedLoadIC: public LoadIC {
   }
 
   // Update the inline cache.
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                   Handle<Code> handler,
-                                   Handle<String> name,
-                                   StrictModeFlag strict_mode);
   virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
@@ -593,17 +568,6 @@ class StoreIC: public IC {
   virtual Handle<Code> global_proxy_stub_strict() {
     return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
   }
-
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                   Handle<Code> handler,
-                                   Handle<String> name,
-                                   StrictModeFlag strict_mode);
-
-  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
-                                            CodeHandleList* handlers,
-                                            int number_of_valid_maps,
-                                            Handle<Name> name,
-                                            StrictModeFlag strict_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -714,11 +678,6 @@ class KeyedStoreIC: public StoreIC {
   Handle<Code> StoreElementStub(Handle<JSObject> receiver,
                                 KeyedAccessStoreMode store_mode,
                                 StrictModeFlag strict_mode);
-
-  virtual void UpdateMonomorphicIC(Handle<HeapObject> receiver,
-                                   Handle<Code> handler,
-                                   Handle<String> name,
-                                   StrictModeFlag strict_mode);
 
  private:
   void set_target(Code* code) {
