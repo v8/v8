@@ -5934,7 +5934,9 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
     SetOperandAt(0, object);
 
     Representation representation = access.representation();
-    if (representation.IsSmi()) {
+    if (representation.IsByte()) {
+      set_representation(Representation::Integer32());
+    } else if (representation.IsSmi()) {
       set_type(HType::Smi());
       set_representation(representation);
     } else if (representation.IsDouble() ||
@@ -6232,11 +6234,14 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     if (index == 0 && access().IsExternalMemory()) {
       // object must be external in case of external memory access
       return Representation::External();
-    } else if (index == 1 &&
-        (field_representation().IsDouble() ||
-         field_representation().IsSmi() ||
-         field_representation().IsInteger32())) {
-      return field_representation();
+    } else if (index == 1) {
+      if (field_representation().IsByte() ||
+          field_representation().IsInteger32()) {
+        return Representation::Integer32();
+      } else if (field_representation().IsDouble() ||
+                 field_representation().IsSmi()) {
+        return field_representation();
+      }
     }
     return Representation::Tagged();
   }
