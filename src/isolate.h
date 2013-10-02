@@ -753,6 +753,19 @@ class Isolate {
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.
+
+  // TODO(yangguo): temporary wrappers
+  bool MayNamedAccessWrapper(Handle<JSObject> receiver,
+                             Handle<Object> key,
+                             v8::AccessType type) {
+    return MayNamedAccess(*receiver, *key, type);
+  }
+  bool MayIndexedAccessWrapper(Handle<JSObject> receiver,
+                               uint32_t index,
+                               v8::AccessType type) {
+    return MayIndexedAccess(*receiver, index, type);
+  }
+
   bool MayNamedAccess(JSObject* receiver,
                       Object* key,
                       v8::AccessType type);

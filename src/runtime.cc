@@ -1564,24 +1564,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   // We don't expect access checks to be needed on JSProxy objects.
   ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   do {
     if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(JSObject::cast(obj),
-                                 isolate->heap()->proto_string(),
-                                 v8::ACCESS_GET)) {
-      isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
+        !isolate->MayNamedAccessWrapper(obj,
+                                        isolate->factory()->proto_string(),
+                                        v8::ACCESS_GET)) {
+      isolate->ReportFailedAccessCheck(JSObject::cast(*obj), v8::ACCESS_GET);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
-    obj = obj->GetPrototype(isolate);
+    obj = handle(obj->GetPrototype(isolate), isolate);
   } while (obj->IsJSObject() &&
-           JSObject::cast(obj)->map()->is_hidden_prototype());
-  return obj;
+           JSObject::cast(*obj)->map()->is_hidden_prototype());
+  return *obj;
 }
 
 
@@ -1640,6 +1640,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
 
 static bool CheckAccessException(Object* callback,
                                  v8::AccessType access_type) {
+  DisallowHeapAllocation no_gc;
   if (callback->IsAccessorInfo()) {
     AccessorInfo* info = AccessorInfo::cast(callback);
     return
@@ -1662,20 +1663,20 @@ static bool CheckAccessException(Object* callback,
 
 template<class Key>
 static bool CheckGenericAccess(
-    JSObject* receiver,
-    JSObject* holder,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
     Key key,
     v8::AccessType access_type,
-    bool (Isolate::*mayAccess)(JSObject*, Key, v8::AccessType)) {
+    bool (Isolate::*mayAccess)(Handle<JSObject>, Key, v8::AccessType)) {
   Isolate* isolate = receiver->GetIsolate();
-  for (JSObject* current = receiver;
+  for (Handle<JSObject> current = receiver;
        true;
-       current = JSObject::cast(current->GetPrototype())) {
+       current = handle(JSObject::cast(current->GetPrototype()), isolate)) {
     if (current->IsAccessCheckNeeded() &&
         !(isolate->*mayAccess)(current, key, access_type)) {
       return false;
     }
-    if (current == holder) break;
+    if (current.is_identical_to(holder)) break;
   }
   return true;
 }
@@ -1688,28 +1689,29 @@ enum AccessCheckResult {
 };
 
 
-static AccessCheckResult CheckPropertyAccess(
-    JSObject* obj,
-    Name* name,
-    v8::AccessType access_type) {
+static AccessCheckResult CheckPropertyAccess(Handle<JSObject> obj,
+                                             Handle<Name> name,
+                                             v8::AccessType access_type) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     // TODO(1095): we should traverse hidden prototype hierachy as well.
     if (CheckGenericAccess(
-            obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
+            obj, obj, index, access_type, &Isolate::MayIndexedAccessWrapper)) {
       return ACCESS_ALLOWED;
     }
 
-    obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
+    obj->GetIsolate()->ReportFailedAccessCheck(*obj, access_type);
     return ACCESS_FORBIDDEN;
   }
 
-  LookupResult lookup(obj->GetIsolate());
-  obj->LocalLookup(name, &lookup, true);
+  Isolate* isolate = obj->GetIsolate();
+  LookupResult lookup(isolate);
+  obj->LocalLookup(*name, &lookup, true);
 
   if (!lookup.IsProperty()) return ACCESS_ABSENT;
-  if (CheckGenericAccess<Object*>(
-          obj, lookup.holder(), name, access_type, &Isolate::MayNamedAccess)) {
+  Handle<JSObject> holder(lookup.holder(), isolate);
+  if (CheckGenericAccess<Handle<Object> >(
+          obj, holder, name, access_type, &Isolate::MayNamedAccessWrapper)) {
     return ACCESS_ALLOWED;
   }
 
@@ -1726,7 +1728,7 @@ static AccessCheckResult CheckPropertyAccess(
     case INTERCEPTOR:
       // If the object has an interceptor, try real named properties.
       // Overwrite the result to fetch the correct property later.
-      lookup.holder()->LookupRealNamedProperty(name, &lookup);
+      holder->LookupRealNamedProperty(*name, &lookup);
       if (lookup.IsProperty() && lookup.IsPropertyCallbacks()) {
         if (CheckAccessException(lookup.GetCallbackObject(), access_type)) {
           return ACCESS_ALLOWED;
@@ -1737,7 +1739,7 @@ static AccessCheckResult CheckPropertyAccess(
       break;
   }
 
-  obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
+  isolate->ReportFailedAccessCheck(*obj, access_type);
   return ACCESS_FORBIDDEN;
 }
 
@@ -1755,30 +1757,30 @@ enum PropertyDescriptorIndices {
 };
 
 
-static MaybeObject* GetOwnProperty(Isolate* isolate,
-                                   Handle<JSObject> obj,
-                                   Handle<Name> name) {
+static Handle<Object> GetOwnProperty(Isolate* isolate,
+                                     Handle<JSObject> obj,
+                                     Handle<Name> name) {
   Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
   // Due to some WebKit tests, we want to make sure that we do not log
   // more than one access failure here.
   AccessCheckResult access_check_result =
-      CheckPropertyAccess(*obj, *name, v8::ACCESS_HAS);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      CheckPropertyAccess(obj, name, v8::ACCESS_HAS);
+  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   switch (access_check_result) {
-    case ACCESS_FORBIDDEN: return heap->false_value();
+    case ACCESS_FORBIDDEN: return factory->false_value();
     case ACCESS_ALLOWED: break;
-    case ACCESS_ABSENT: return heap->undefined_value();
+    case ACCESS_ABSENT: return factory->undefined_value();
   }
 
   PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
   if (attrs == ABSENT) {
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return heap->undefined_value();
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return factory->undefined_value();
   }
   ASSERT(!isolate->has_scheduled_exception());
   AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
   Handle<AccessorPair> accessors(raw_accessors, isolate);
-
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
@@ -1788,28 +1790,30 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // GetProperty does access check.
     Handle<Object> value = GetProperty(isolate, obj, name);
-    RETURN_IF_EMPTY_HANDLE(isolate, value);
+    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<Object>::null());
     elms->set(VALUE_INDEX, *value);
   } else {
     // Access checks are performed for both accessors separately.
     // When they fail, the respective field is not set in the descriptor.
-    Object* getter = accessors->GetComponent(ACCESSOR_GETTER);
-    Object* setter = accessors->GetComponent(ACCESSOR_SETTER);
-    if (!getter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_GET)) {
+    Handle<Object> getter(accessors->GetComponent(ACCESSOR_GETTER), isolate);
+    Handle<Object> setter(accessors->GetComponent(ACCESSOR_SETTER), isolate);
+
+    if (!getter->IsMap() && CheckPropertyAccess(obj, name, v8::ACCESS_GET)) {
       ASSERT(!isolate->has_scheduled_exception());
-      elms->set(GETTER_INDEX, getter);
+      elms->set(GETTER_INDEX, *getter);
     } else {
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     }
-    if (!setter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_SET)) {
+
+    if (!setter->IsMap() && CheckPropertyAccess(obj, name, v8::ACCESS_SET)) {
       ASSERT(!isolate->has_scheduled_exception());
-      elms->set(SETTER_INDEX, setter);
+      elms->set(SETTER_INDEX, *setter);
     } else {
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     }
   }
 
-  return *isolate->factory()->NewJSArrayWithElements(elms);
+  return isolate->factory()->NewJSArrayWithElements(elms);
 }
 
 
@@ -1825,7 +1829,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
-  return GetOwnProperty(isolate, obj, name);
+  Handle<Object> result = GetOwnProperty(isolate, obj, name);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
