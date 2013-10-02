@@ -1577,13 +1577,6 @@ Handle<Map> JSObject::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
 }
 
 
-int JSObject::LastAddedFieldIndex() {
-  Map* map = this->map();
-  int last_added = map->LastAdded();
-  return map->instance_descriptors()->GetFieldIndex(last_added);
-}
-
-
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
@@ -3756,7 +3749,8 @@ Code::StubType Code::type() {
 
 
 int Code::arguments_count() {
-  ASSERT(is_call_stub() || is_keyed_call_stub() || kind() == STUB);
+  ASSERT(is_call_stub() || is_keyed_call_stub() ||
+         kind() == STUB || is_handler());
   return ExtractArgumentsCountFromFlags(flags());
 }
 
@@ -4024,6 +4018,11 @@ bool Code::is_inline_cache_stub() {
 #undef CASE
     default: return false;
   }
+}
+
+
+bool Code::is_keyed_stub() {
+  return is_keyed_load_stub() || is_keyed_store_stub() || is_keyed_call_stub();
 }
 
 

@@ -807,12 +807,18 @@ MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
                                  Name* name,
                                  PropertyAttributes* attributes) {
-  // Make sure that the top context does not change when doing
-  // callbacks or interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
-
   Isolate* isolate = name->GetIsolate();
   Heap* heap = isolate->heap();
+
+#ifdef DEBUG
+  // TODO(mstarzinger): Only because of the AssertNoContextChange, drop as soon
+  // as this method has been fully handlified.
+  HandleScope scope(isolate);
+#endif
+
+  // Make sure that the top context does not change when doing
+  // callbacks or interceptor calls.
+  AssertNoContextChange ncc(isolate);
 
   // Traverse the prototype chain from the current object (this) to
   // the holder and check for access rights. This avoids traversing the
@@ -3910,7 +3916,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Optimization for 2-byte strings often used as keys in a decompression
   // dictionary.  We internalize these short keys to avoid constantly
@@ -4068,7 +4074,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   LookupResult lookup(isolate);
   object->LocalLookup(*name, &lookup, true);
@@ -4202,7 +4208,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
@@ -4337,7 +4343,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSReceiver> hreceiver(receiver);
@@ -4449,16 +4455,6 @@ void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
                                     Handle<Name> name,
                                     Handle<Code> code) {
   Handle<Map> map(object->map());
-  if (map->is_shared()) {
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-    // Fast case maps are never marked as shared.
-    ASSERT(!receiver->HasFastProperties());
-    // Replace the map with an identical copy that can be safely modified.
-    map = Map::CopyNormalized(map, KEEP_INOBJECT_PROPERTIES,
-                              UNIQUE_NORMALIZED_MAP);
-    receiver->GetIsolate()->counters()->normalized_maps()->Increment();
-    receiver->set_map(*map);
-  }
   Map::UpdateCodeCache(map, name, code);
 }
 
@@ -5047,7 +5043,7 @@ Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
   if (interceptor->deleter()->IsUndefined()) return factory->false_value();
@@ -6177,7 +6173,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
   if (name->IsString()) String::cast(*name)->TryFlatten();
@@ -6363,7 +6359,7 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
   if (name->IsString()) FlattenString(Handle<String>::cast(name));
@@ -6422,58 +6418,62 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
-  Heap* heap = GetHeap();
+Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
+                                     Handle<Name> name,
+                                     AccessorComponent component) {
+  Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-    heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-    RETURN_IF_SCHEDULED_EXCEPTION(heap->isolate());
-    return heap->undefined_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_HAS)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return isolate->factory()->undefined_value();
   }
 
   // Make the lookup and include prototypes.
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    for (Object* obj = this;
-         obj != heap->null_value();
-         obj = JSReceiver::cast(obj)->GetPrototype()) {
-      if (obj->IsJSObject() && JSObject::cast(obj)->HasDictionaryElements()) {
-        JSObject* js_object = JSObject::cast(obj);
+    for (Handle<Object> obj = object;
+         *obj != isolate->heap()->null_value();
+         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      if (obj->IsJSObject() && JSObject::cast(*obj)->HasDictionaryElements()) {
+        JSObject* js_object = JSObject::cast(*obj);
         SeededNumberDictionary* dictionary = js_object->element_dictionary();
         int entry = dictionary->FindEntry(index);
         if (entry != SeededNumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
           if (dictionary->DetailsAt(entry).type() == CALLBACKS &&
               element->IsAccessorPair()) {
-            return AccessorPair::cast(element)->GetComponent(component);
+            return handle(AccessorPair::cast(element)->GetComponent(component),
+                          isolate);
           }
         }
       }
     }
   } else {
-    for (Object* obj = this;
-         obj != heap->null_value();
-         obj = JSReceiver::cast(obj)->GetPrototype()) {
-      LookupResult result(heap->isolate());
-      JSReceiver::cast(obj)->LocalLookup(name, &result);
+    for (Handle<Object> obj = object;
+         *obj != isolate->heap()->null_value();
+         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      LookupResult result(isolate);
+      JSReceiver::cast(*obj)->LocalLookup(*name, &result);
       if (result.IsFound()) {
-        if (result.IsReadOnly()) return heap->undefined_value();
+        if (result.IsReadOnly()) return isolate->factory()->undefined_value();
         if (result.IsPropertyCallbacks()) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            return AccessorPair::cast(obj)->GetComponent(component);
+            return handle(AccessorPair::cast(obj)->GetComponent(component),
+                          isolate);
           }
         }
       }
     }
   }
-  return heap->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -7023,8 +7023,6 @@ void Map::UpdateCodeCache(Handle<Map> map,
 
 
 MaybeObject* Map::UpdateCodeCache(Name* name, Code* code) {
-  ASSERT(!is_shared() || code->allowed_in_shared_map_code_cache());
-
   // Allocate the code cache if not present.
   if (code_cache()->IsFixedArray()) {
     Object* result;
@@ -9057,7 +9055,6 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
   // involves carefully checking the object immediately after the JSArray
   // (if there is one) to see if it's an AllocationMemento.
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
-    ASSERT(object->GetHeap()->InToSpace(object));
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
     if ((ptr_end + AllocationMemento::kSize) <=
@@ -10467,13 +10464,6 @@ BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
 }
 
 
-bool Code::allowed_in_shared_map_code_cache() {
-  return is_keyed_load_stub() || is_keyed_store_stub() ||
-      (is_compare_ic_stub() &&
-       ICCompareStub::CompareState(stub_info()) == CompareIC::KNOWN_OBJECT);
-}
-
-
 void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
   PatchPlatformCodeAge(isolate, sequence, kNoAge, NO_MARKING_PARITY);
 }
@@ -11623,22 +11613,6 @@ MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
 }
 
 
-PropertyType JSObject::GetLocalPropertyType(Name* name) {
-  uint32_t index = 0;
-  if (name->AsArrayIndex(&index)) {
-    return GetLocalElementType(index);
-  }
-  LookupResult lookup(GetIsolate());
-  LocalLookup(name, &lookup, true);
-  return lookup.type();
-}
-
-
-PropertyType JSObject::GetLocalElementType(uint32_t index) {
-  return GetElementsAccessor()->GetType(this, this, index);
-}
-
-
 AccessorPair* JSObject::GetLocalPropertyAccessorPair(Name* name) {
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
@@ -11682,7 +11656,7 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSObject> this_handle(this);
@@ -12694,7 +12668,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
   Handle<Object> this_handle(receiver, isolate);

@@ -3983,12 +3983,12 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void HOptimizedGraphBuilder::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
+void HOptimizedGraphBuilder::VisitNativeFunctionLiteral(
+    NativeFunctionLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout(kSharedFunctionInfoLiteral);
+  return Bailout(kNativeFunctionLiteral);
 }
 
 
@@ -4321,9 +4321,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                     &max_properties)) {
     Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
 
-    literal = BuildFastLiteral(boilerplate_object,
-                               Handle<Object>::null(),
-                               DONT_TRACK_ALLOCATION_SITE);
+    literal = BuildFastLiteral(boilerplate_object);
   } else {
     NoObservableSideEffectsScope no_effects(this);
     Handle<FixedArray> closure_literals(closure->literals(), isolate());
@@ -4467,22 +4465,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   if (IsFastLiteral(boilerplate_object,
                     kMaxFastLiteralDepth,
                     &max_properties)) {
-    // TODO(mvstanton): This heuristic is only a temporary solution.  In the
-    // end, we want to quit creating allocation site info after a certain number
-    // of GCs for a call site.
-    AllocationSiteMode mode = AllocationSite::GetMode(
-        boilerplate_elements_kind);
-
-    // it doesn't make sense to create allocation mementos if we are going to
-    // create in old space.
-    if (mode == TRACK_ALLOCATION_SITE &&
-        isolate()->heap()->GetPretenureMode() == TENURED) {
-      mode = DONT_TRACK_ALLOCATION_SITE;
-    }
-
-    literal = BuildFastLiteral(boilerplate_object,
-                               site,
-                               mode);
+    literal = BuildFastLiteral(boilerplate_object);
   } else {
     NoObservableSideEffectsScope no_effects(this);
     // Boilerplate already exists and constant elements are never accessed,
@@ -8379,44 +8362,21 @@ HInstruction* HOptimizedGraphBuilder::BuildThisFunction() {
 
 
 HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
-    Handle<JSObject> boilerplate_object,
-    Handle<Object> allocation_site_object,
-    AllocationSiteMode mode) {
+    Handle<JSObject> boilerplate_object) {
   NoObservableSideEffectsScope no_effects(this);
-
-  Handle<FixedArrayBase> elements(boilerplate_object->elements());
-  int object_size = boilerplate_object->map()->instance_size();
-  int object_offset = object_size;
-
   InstanceType instance_type = boilerplate_object->map()->instance_type();
-  bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE;
-
-  // If using allocation sites, then
-  // 1) the payload on the site should already be filled in as a valid
-  //    (boilerplate) array, and
-  // 2) we shouldn't be pretenuring the allocations.
-  ASSERT(!create_allocation_site_info ||
-         (AllocationSite::cast(*allocation_site_object)->IsLiteralSite() &&
-          isolate()->heap()->GetPretenureMode() == NOT_TENURED));
-
-  if (create_allocation_site_info) {
-    object_size += AllocationMemento::kSize;
-  }
-
   ASSERT(instance_type == JS_ARRAY_TYPE || instance_type == JS_OBJECT_TYPE);
+
   HType type = instance_type == JS_ARRAY_TYPE
       ? HType::JSArray() : HType::JSObject();
-  HValue* object_size_constant = Add<HConstant>(object_size);
+  HValue* object_size_constant = Add<HConstant>(
+      boilerplate_object->map()->instance_size());
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
       isolate()->heap()->GetPretenureMode(), instance_type);
 
   BuildEmitObjectHeader(boilerplate_object, object);
 
-  if (create_allocation_site_info) {
-    HInstruction* allocation_site = Add<HConstant>(allocation_site_object);
-    BuildCreateAllocationMemento(object, object_offset, allocation_site);
-  }
-
+  Handle<FixedArrayBase> elements(boilerplate_object->elements());
   int elements_size = (elements->length() > 0 &&
       elements->map() != isolate()->heap()->fixed_cow_array_map()) ?
           elements->Size() : 0;
@@ -8518,9 +8478,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
 
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      HInstruction* result =
-          BuildFastLiteral(value_object,
-              Handle<Object>::null(), DONT_TRACK_ALLOCATION_SITE);
+      HInstruction* result = BuildFastLiteral(value_object);
       Add<HStoreNamedField>(object, access, result);
     } else {
       Representation representation = details.representation();
@@ -8606,9 +8564,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
     HValue* key_constant = Add<HConstant>(i);
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      HInstruction* result =
-          BuildFastLiteral(value_object,
-              Handle<Object>::null(), DONT_TRACK_ALLOCATION_SITE);
+      HInstruction* result = BuildFastLiteral(value_object);
       Add<HStoreKeyed>(object_elements, key_constant, result, kind);
     } else {
       HInstruction* value_instruction =

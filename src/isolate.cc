@@ -120,11 +120,7 @@ void ThreadLocalTop::InitializeInternal() {
 void ThreadLocalTop::Initialize() {
   InitializeInternal();
 #ifdef USE_SIMULATOR
-#if V8_TARGET_ARCH_ARM
   simulator_ = Simulator::current(isolate_);
-#elif V8_TARGET_ARCH_MIPS
-  simulator_ = Simulator::current(isolate_);
-#endif
 #endif
   thread_id_ = ThreadId::Current();
 }
@@ -1670,11 +1666,7 @@ char* Isolate::RestoreThread(char* from) {
   // This might be just paranoia, but it seems to be needed in case a
   // thread_local_top_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
-#if V8_TARGET_ARCH_ARM
   thread_local_top()->simulator_ = Simulator::current(this);
-#elif V8_TARGET_ARCH_MIPS
-  thread_local_top()->simulator_ = Simulator::current(this);
-#endif
 #endif
   ASSERT(context() == NULL || context()->IsContext());
   return from + sizeof(ThreadLocalTop);

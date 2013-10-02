@@ -77,19 +77,12 @@ using ::v8::V8;
 using ::v8::Value;
 
 
-// TODO(bmeurer): Don't run profiled tests when using the simulator.
-// This is a temporary work-around, until the profiler is fixed.
-#if USE_SIMULATOR
-#define THREADED_PROFILED_TEST(Name)                                 \
-  THREADED_TEST(Name)
-#else
 #define THREADED_PROFILED_TEST(Name)                                 \
   static void Test##Name();                                          \
   TEST(Name##WithProfiler) {                                         \
     RunWithProfiler(&Test##Name);                                    \
   }                                                                  \
   THREADED_TEST(Name)
-#endif
 
 
 void RunWithProfiler(void (*test)()) {
@@ -14120,9 +14113,10 @@ TEST(PreCompile) {
   // TODO(155): This test would break without the initialization of V8. This is
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
   CHECK(!sd->HasError());
@@ -14132,9 +14126,10 @@ TEST(PreCompile) {
 
 TEST(PreCompileWithError) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = "function foo(a) { return 1 * * 2; }";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK(sd->HasError());
   delete sd;
 }
@@ -14142,9 +14137,10 @@ TEST(PreCompileWithError) {
 
 TEST(Regress31661) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = " The Definintive Guide";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK(sd->HasError());
   delete sd;
 }
@@ -14153,9 +14149,10 @@ TEST(Regress31661) {
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
 
   // Serialize.
   int serialized_data_length = sd->Length();
@@ -14192,13 +14189,14 @@ TEST(PreCompileDeserializationError) {
 // Attempts to deserialize bad data.
 TEST(PreCompileInvalidPreparseDataError) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
   const char* script = "function foo(){ return 5;}\n"
       "function bar(){ return 6 + 7;}  foo();";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK(!sd->HasError());
   // ScriptDataImpl private implementation details
   const int kHeaderSize = i::PreparseDataConstants::kHeaderSize;
@@ -14224,7 +14222,7 @@ TEST(PreCompileInvalidPreparseDataError) {
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position and we should fall
   // back on eager compilation.
-  sd = v8::ScriptData::PreCompile(script, i::StrLength(script));
+  sd = v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
@@ -14239,12 +14237,13 @@ TEST(PreCompileInvalidPreparseDataError) {
 // the same results (at least for one trivial case).
 TEST(PreCompileAPIVariationsAreSame) {
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
 
   const char* cstring = "function foo(a) { return a+1; }";
 
   v8::ScriptData* sd_from_cstring =
-      v8::ScriptData::PreCompile(cstring, i::StrLength(cstring));
+      v8::ScriptData::PreCompile(isolate, cstring, i::StrLength(cstring));
 
   TestAsciiResource* resource = new TestAsciiResource(cstring);
   v8::ScriptData* sd_from_external_string = v8::ScriptData::PreCompile(

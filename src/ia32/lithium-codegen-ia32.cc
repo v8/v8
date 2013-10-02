@@ -1000,13 +1000,14 @@ void LCodeGen::CallCode(Handle<Code> code,
 
 void LCodeGen::CallRuntime(const Runtime::Function* fun,
                            int argc,
-                           LInstruction* instr) {
+                           LInstruction* instr,
+                           SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
   ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
 
-  __ CallRuntime(fun, argc);
+  __ CallRuntime(fun, argc, save_doubles);
 
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 
@@ -4445,7 +4446,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
-  CallRuntime(instr->function(), instr->arity(), instr);
+  CallRuntime(instr->function(), instr->arity(), instr, instr->save_doubles());
 }
 
 

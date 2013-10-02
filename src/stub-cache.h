@@ -94,7 +94,6 @@ class StubCache {
 
   Handle<Code> FindLoadHandler(Handle<Name> name,
                                Handle<JSObject> receiver,
-                               Handle<JSObject> stub_holder,
                                Code::Kind kind,
                                Code::StubType type);
 
@@ -104,23 +103,10 @@ class StubCache {
                                 Code::StubType type,
                                 StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeMonomorphicLoadIC(Handle<HeapObject> receiver,
-                                        Handle<Code> handler,
-                                        Handle<Name> name);
-
-  Handle<Code> ComputeMonomorphicKeyedLoadIC(Handle<HeapObject> receiver,
-                                             Handle<Code> handler,
-                                             Handle<Name> name);
-
-  Handle<Code> ComputeMonomorphicStoreIC(Handle<HeapObject> receiver,
-                                         Handle<Code> handler,
-                                         Handle<Name> name,
-                                         StrictModeFlag strict_mode);
-
-  Handle<Code> ComputeMonomorphicKeyedStoreIC(Handle<HeapObject> receiver,
-                                              Handle<Code> handler,
-                                              Handle<Name> name,
-                                              StrictModeFlag strict_mode);
+  Handle<Code> ComputeMonomorphicIC(Handle<HeapObject> receiver,
+                                    Handle<Code> handler,
+                                    Handle<Name> name,
+                                    StrictModeFlag strict_mode);
 
   // Computes the right stub matching. Inserts the result in the
   // cache before returning.  This might compile a stub if needed.
@@ -326,16 +312,11 @@ class StubCache {
                                               KeyedAccessStoreMode store_mode,
                                               StrictModeFlag strict_mode);
 
-  Handle<Code> ComputePolymorphicLoadIC(MapHandleList* receiver_maps,
-                                        CodeHandleList* handlers,
-                                        int number_of_valid_maps,
-                                        Handle<Name> name);
-
-  Handle<Code> ComputePolymorphicStoreIC(MapHandleList* receiver_maps,
-                                         CodeHandleList* handlers,
-                                         int number_of_valid_maps,
-                                         Handle<Name> name,
-                                         StrictModeFlag strict_mode);
+  Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                    CodeHandleList* handlers,
+                                    int number_of_valid_maps,
+                                    Handle<Name> name,
+                                    StrictModeFlag strict_mode);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
   Code* FindCallInitialize(int argc, RelocInfo::Mode mode, Code::Kind kind);
@@ -697,6 +678,10 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
                            Handle<Name> name,
                            Label* success);
 
+  Handle<Code> GetCode(Code::Kind kind,
+                       Code::StubType type,
+                       Handle<Name> name);
+
   Handle<Code> GetICCode(Code::Kind kind,
                          Code::StubType type,
                          Handle<Name> name,
@@ -787,10 +772,6 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
                                    Handle<JSObject> interceptor_holder,
                                    Handle<Name> name,
                                    LookupResult* lookup);
-
-  Handle<Code> GetCode(Code::Kind kind,
-                       Code::StubType type,
-                       Handle<Name> name);
 
   virtual Register receiver() { return registers_[0]; }
   virtual Register name()     { return registers_[1]; }
@@ -942,10 +923,6 @@ class BaseStoreStubCompiler: public BaseLoadStoreStubCompiler {
   virtual void HandlerFrontendFooter(Handle<Name> name,
                                      Label* success,
                                      Label* miss);
-  Handle<Code> GetCode(Code::Kind kind,
-                       Code::StubType type,
-                       Handle<Name> name);
-
   void GenerateRestoreName(MacroAssembler* masm,
                            Label* label,
                            Handle<Name> name);
@@ -1069,7 +1046,7 @@ class CallStubCompiler: public StubCompiler {
                    int argc,
                    Code::Kind kind,
                    Code::ExtraICState extra_state,
-                   InlineCacheHolderFlag cache_holder);
+                   InlineCacheHolderFlag cache_holder = OWN_MAP);
 
   Handle<Code> CompileCallField(Handle<JSObject> object,
                                 Handle<JSObject> holder,

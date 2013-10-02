@@ -863,6 +863,10 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
   LInstruction* instr = current->CompileToLithium(this);
 
   if (instr != NULL) {
+    // Associate the hydrogen instruction first, since we may need it for
+    // the ClobbersRegisters() or ClobbersDoubleRegisters() calls below.
+    instr->set_hydrogen_value(current);
+
 #if DEBUG
     // Make sure that the lithium instruction has either no fixed register
     // constraints in temps or the result OR no uses that are only used at
@@ -899,7 +903,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (FLAG_stress_environments && !instr->HasEnvironment()) {
       instr = AssignEnvironment(instr);
     }
-    instr->set_hydrogen_value(current);
     chunk_->AddInstruction(instr, current_block_);
   }
   current_instruction_ = old_current;

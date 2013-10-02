@@ -245,7 +245,8 @@ class LCodeGen V8_FINAL  BASE_EMBEDDED {
 
   void CallRuntime(const Runtime::Function* function,
                    int num_arguments,
-                   LInstruction* instr);
+                   LInstruction* instr,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   void CallRuntime(Runtime::FunctionId id,
                    int num_arguments,
@@ -254,9 +255,11 @@ class LCodeGen V8_FINAL  BASE_EMBEDDED {
     CallRuntime(function, num_arguments, instr);
   }
 
+  void LoadContextFromDeferred(LOperand* context);
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
-                               LInstruction* instr);
+                               LInstruction* instr,
+                               LOperand* context);
 
   enum A1State {
     A1_UNINITIALIZED,

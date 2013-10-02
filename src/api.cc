@@ -1646,10 +1646,13 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 // --- S c r i p t D a t a ---
 
 
-ScriptData* ScriptData::PreCompile(const char* input, int length) {
+ScriptData* ScriptData::PreCompile(v8::Isolate* isolate,
+                                   const char* input,
+                                   int length) {
   i::Utf8ToUtf16CharacterStream stream(
       reinterpret_cast<const unsigned char*>(input), length);
-  return i::PreParserApi::PreParse(i::Isolate::Current(), &stream);
+  return i::PreParserApi::PreParse(
+      reinterpret_cast<i::Isolate*>(isolate), &stream);
 }
 
 
@@ -1696,13 +1699,13 @@ Local<Script> Script::New(v8::Handle<String> source,
                           v8::ScriptOrigin* origin,
                           v8::ScriptData* pre_data,
                           v8::Handle<String> script_data) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> str = Utils::OpenHandle(*source);
+  i::Isolate* isolate = str->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::New()", return Local<Script>());
   LOG_API(isolate, "Script::New");
   ENTER_V8(isolate);
   i::SharedFunctionInfo* raw_result = NULL;
   { i::HandleScope scope(isolate);
-    i::Handle<i::String> str = Utils::OpenHandle(*source);
     i::Handle<i::Object> name_obj;
     int line_offset = 0;
     int column_offset = 0;
@@ -1765,7 +1768,8 @@ Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
                               v8::ScriptData* pre_data,
                               v8::Handle<String> script_data) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> str = Utils::OpenHandle(*source);
+  i::Isolate* isolate = str->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Compile()", return Local<Script>());
   LOG_API(isolate, "Script::Compile");
   ENTER_V8(isolate);
@@ -1792,7 +1796,11 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 
 Local<Value> Script::Run() {
-  i::Isolate* isolate = i::Isolate::Current();
+  // If execution is terminating, Compile(script)->Run() requires this check.
+  if (this == NULL) return Local<Value>();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Run()", return Local<Value>());
   LOG_API(isolate, "Script::Run");
   ENTER_V8(isolate);
@@ -1801,7 +1809,6 @@ Local<Value> Script::Run() {
   i::Object* raw_result = NULL;
   {
     i::HandleScope scope(isolate);
-    i::Handle<i::Object> obj = Utils::OpenHandle(this);
     i::Handle<i::JSFunction> fun;
     if (obj->IsSharedFunctionInfo()) {
       i::Handle<i::SharedFunctionInfo>
@@ -1839,7 +1846,9 @@ static i::Handle<i::SharedFunctionInfo> OpenScript(Script* script) {
 
 
 Local<Value> Script::Id() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Id()", return Local<Value>());
   LOG_API(isolate, "Script::Id");
   i::Object* raw_id = NULL;
@@ -1856,7 +1865,9 @@ Local<Value> Script::Id() {
 
 
 int Script::GetId() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Id()", return -1);
   LOG_API(isolate, "Script::Id");
   {
@@ -1869,10 +1880,11 @@ int Script::GetId() {
 
 
 int Script::GetLineNumber(int code_pos) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::GetLineNumber()", return -1);
   LOG_API(isolate, "Script::GetLineNumber");
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsScript()) {
     i::Handle<i::Script> script = i::Handle<i::Script>(i::Script::cast(*obj));
     return i::GetScriptLineNumber(script, code_pos);
@@ -1883,10 +1895,11 @@ int Script::GetLineNumber(int code_pos) {
 
 
 Handle<Value> Script::GetScriptName() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::GetName()", return Handle<String>());
   LOG_API(isolate, "Script::GetName");
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsScript()) {
     i::Object* name = i::Script::cast(*obj)->name();
     return Utils::ToLocal(i::Handle<i::Object>(name, isolate));
@@ -1897,7 +1910,9 @@ Handle<Value> Script::GetScriptName() {
 
 
 void Script::SetData(v8::Handle<String> data) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::SetData()", return);
   LOG_API(isolate, "Script::SetData");
   {

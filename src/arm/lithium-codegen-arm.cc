@@ -750,13 +750,15 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
 
 void LCodeGen::CallRuntime(const Runtime::Function* function,
                            int num_arguments,
-                           LInstruction* instr) {
+                           LInstruction* instr,
+                           SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
   LPointerMap* pointers = instr->pointer_map();
   ASSERT(pointers != NULL);
   RecordPosition(pointers->position());
 
-  __ CallRuntime(function, num_arguments);
+  __ CallRuntime(function, num_arguments, save_doubles);
+
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 }
 
@@ -3295,27 +3297,30 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   Register scratch = scratch0();
 
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
-      ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  int constant_key = 0;
+
+  int base_offset =
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+      (instr->additional_index() << element_size_shift);
   if (key_is_constant) {
-    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    int constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
       Abort(kArrayIndexConstantValueTooBig);
     }
-  } else {
+    base_offset += constant_key << element_size_shift;
+  }
+  __ add(scratch, elements, Operand(base_offset));
+
+  if (!key_is_constant) {
     key = ToRegister(instr->key());
+    int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
+        ? (element_size_shift - kSmiTagSize) : element_size_shift;
+    __ add(scratch, scratch, Operand(key, LSL, shift_size));
   }
 
-  int base_offset = (FixedDoubleArray::kHeaderSize - kHeapObjectTag) +
-      ((constant_key + instr->additional_index()) << element_size_shift);
-  if (!key_is_constant) {
-    __ add(elements, elements, Operand(key, LSL, shift_size));
-  }
-  __ add(elements, elements, Operand(base_offset));
-  __ vldr(result, elements, 0);
+  __ vldr(result, scratch, 0);
+
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
+    __ ldr(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
     __ cmp(scratch, Operand(kHoleNanUpper32));
     DeoptimizeIf(eq, instr->environment());
   }
@@ -3335,7 +3340,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
                                            instr->additional_index());
     store_base = elements;
   } else {
-    Register key = EmitLoadRegister(instr->key(), scratch0());
+    Register key = ToRegister(instr->key());
     // Even though the HLoadKeyed instruction forces the input
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds

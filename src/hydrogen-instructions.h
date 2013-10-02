@@ -2345,6 +2345,10 @@ class HCallRuntime V8_FINAL : public HCall<1> {
   HValue* context() { return OperandAt(0); }
   const Runtime::Function* function() const { return c_function_; }
   Handle<String> name() const { return name_; }
+  SaveFPRegsMode save_doubles() const { return save_doubles_; }
+  void set_save_doubles(SaveFPRegsMode save_doubles) {
+    save_doubles_ = save_doubles;
+  }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -2357,12 +2361,14 @@ class HCallRuntime V8_FINAL : public HCall<1> {
                Handle<String> name,
                const Runtime::Function* c_function,
                int argument_count)
-      : HCall<1>(argument_count), c_function_(c_function), name_(name) {
+      : HCall<1>(argument_count), c_function_(c_function), name_(name),
+        save_doubles_(kDontSaveFPRegs) {
     SetOperandAt(0, context);
   }
 
   const Runtime::Function* c_function_;
   Handle<String> name_;
+  SaveFPRegsMode save_doubles_;
 };
 
 

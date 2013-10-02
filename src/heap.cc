@@ -86,6 +86,7 @@ Heap::Heap()
       contexts_disposed_(0),
       global_ic_age_(0),
       flush_monomorphic_ics_(false),
+      allocation_mementos_found_on_scavenge_(0),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -1328,6 +1329,8 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 void Heap::Scavenge() {
   RelocationLock relocation_lock(this);
 
+  allocation_mementos_found_on_scavenge_ = 0;
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
 #endif
@@ -1475,6 +1478,12 @@ void Heap::Scavenge() {
   gc_state_ = NOT_IN_GC;
 
   scavenges_since_last_idle_round_++;
+
+  if (FLAG_trace_track_allocation_sites &&
+      allocation_mementos_found_on_scavenge_ > 0) {
+    PrintF("AllocationMementos found during scavenge = %d\n",
+           allocation_mementos_found_on_scavenge_);
+  }
 }
 
 
@@ -2131,12 +2140,10 @@ class ScavengingVisitor : public StaticVisitorBase {
       MaybeObject* maybe_result;
 
       if (object_contents == DATA_OBJECT) {
-        // TODO(mstarzinger): Turn this check into a regular assert soon!
-        CHECK(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
         maybe_result = heap->old_data_space()->AllocateRaw(allocation_size);
       } else {
-        // TODO(mstarzinger): Turn this check into a regular assert soon!
-        CHECK(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
         maybe_result = heap->old_pointer_space()->AllocateRaw(allocation_size);
       }
 
@@ -2167,8 +2174,7 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
     }
-    // TODO(mstarzinger): Turn this check into a regular assert soon!
-    CHECK(heap->AllowedToBeMigrated(object, NEW_SPACE));
+    ASSERT(heap->AllowedToBeMigrated(object, NEW_SPACE));
     MaybeObject* allocation = heap->new_space()->AllocateRaw(allocation_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
     Object* result = allocation->ToObjectUnchecked();

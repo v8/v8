@@ -2736,46 +2736,11 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 const char* Translation::StringFor(Opcode opcode) {
+#define TRANSLATION_OPCODE_CASE(item)   case item: return #item;
   switch (opcode) {
-    case BEGIN:
-      return "BEGIN";
-    case JS_FRAME:
-      return "JS_FRAME";
-    case ARGUMENTS_ADAPTOR_FRAME:
-      return "ARGUMENTS_ADAPTOR_FRAME";
-    case CONSTRUCT_STUB_FRAME:
-      return "CONSTRUCT_STUB_FRAME";
-    case GETTER_STUB_FRAME:
-      return "GETTER_STUB_FRAME";
-    case SETTER_STUB_FRAME:
-      return "SETTER_STUB_FRAME";
-    case COMPILED_STUB_FRAME:
-      return "COMPILED_STUB_FRAME";
-    case REGISTER:
-      return "REGISTER";
-    case INT32_REGISTER:
-      return "INT32_REGISTER";
-    case UINT32_REGISTER:
-      return "UINT32_REGISTER";
-    case DOUBLE_REGISTER:
-      return "DOUBLE_REGISTER";
-    case STACK_SLOT:
-      return "STACK_SLOT";
-    case INT32_STACK_SLOT:
-      return "INT32_STACK_SLOT";
-    case UINT32_STACK_SLOT:
-      return "UINT32_STACK_SLOT";
-    case DOUBLE_STACK_SLOT:
-      return "DOUBLE_STACK_SLOT";
-    case LITERAL:
-      return "LITERAL";
-    case DUPLICATED_OBJECT:
-      return "DUPLICATED_OBJECT";
-    case ARGUMENTS_OBJECT:
-      return "ARGUMENTS_OBJECT";
-    case CAPTURED_OBJECT:
-      return "CAPTURED_OBJECT";
+    TRANSLATION_OPCODE_LIST(TRANSLATION_OPCODE_CASE)
   }
+#undef TRANSLATION_OPCODE_CASE
   UNREACHABLE();
   return "";
 }

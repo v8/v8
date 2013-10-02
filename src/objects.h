@@ -1196,6 +1196,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kModuleStatement, "Module statement")                                     \
   V(kModuleVariable, "Module variable")                                       \
   V(kModuleUrl, "Module url")                                                 \
+  V(kNativeFunctionLiteral, "Native function literal")                        \
   V(kNoCasesLeft, "no cases left")                                            \
   V(kNoEmptyArraysHereInEmitFastAsciiArrayJoin,                               \
     "No empty arrays here in EmitFastAsciiArrayJoin")                         \
@@ -1239,7 +1240,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "register was clobbered")                          \
   V(kScopedBlock, "ScopedBlock")                                              \
-  V(kSharedFunctionInfoLiteral, "Shared function info literal")               \
   V(kSmiAdditionOverflow, "Smi addition overflow")                            \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                      \
   V(kStackFrameTypesMustMatch, "stack frame types must match")                \
@@ -2156,8 +2156,6 @@ class JSObject: public JSReceiver {
   static inline Handle<Map> FindTransitionToField(Handle<Map> map,
                                                   Handle<Name> key);
 
-  inline int LastAddedFieldIndex();
-
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
@@ -2218,6 +2216,15 @@ class JSObject: public JSReceiver {
                                                      uint32_t index,
                                                      bool continue_search);
 
+  // Retrieves an AccessorPair property from the given object. Might return
+  // undefined if the property doesn't exist or is of a different kind.
+  static Handle<Object> GetAccessor(Handle<JSObject> object,
+                                    Handle<Name> name,
+                                    AccessorComponent component);
+
+  // Defines an AccessorPair property on the given object.
+  // TODO(mstarzinger): Rename to SetAccessor() and return empty handle on
+  // exception instead of letting callers check for scheduled exception.
   static void DefineAccessor(Handle<JSObject> object,
                              Handle<Name> name,
                              Handle<Object> getter,
@@ -2225,8 +2232,7 @@ class JSObject: public JSReceiver {
                              PropertyAttributes attributes,
                              v8::AccessControl access_control = v8::DEFAULT);
 
-  MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
-
+  // Defines an AccessorInfo property on the given object.
   static Handle<Object> SetAccessor(Handle<JSObject> object,
                                     Handle<AccessorInfo> info);
 
@@ -2325,9 +2331,6 @@ class JSObject: public JSReceiver {
     // (old_capacity + 50%) + 16
     return old_capacity + (old_capacity >> 1) + 16;
   }
-
-  PropertyType GetLocalPropertyType(Name* name);
-  PropertyType GetLocalElementType(uint32_t index);
 
   // These methods do not perform access checks!
   AccessorPair* GetLocalPropertyAccessorPair(Name* name);
@@ -4863,6 +4866,9 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind();
+  inline Kind handler_kind() {
+    return static_cast<Kind>(arguments_count());
+  }
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
 
@@ -4881,6 +4887,7 @@ class Code: public HeapObject {
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
   inline bool is_debug_stub();
+  inline bool is_handler() { return kind() == HANDLER; }
   inline bool is_load_stub() { return kind() == LOAD_IC; }
   inline bool is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
   inline bool is_store_stub() { return kind() == STORE_IC; }
@@ -4891,6 +4898,7 @@ class Code: public HeapObject {
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
   inline bool is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
   inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
+  inline bool is_keyed_stub();
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -4973,8 +4981,6 @@ class Code: public HeapObject {
   // the code is going to be deoptimized because of dead embedded maps.
   inline bool marked_for_deoptimization();
   inline void set_marked_for_deoptimization(bool flag);
-
-  bool allowed_in_shared_map_code_cache();
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);

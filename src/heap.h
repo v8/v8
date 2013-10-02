@@ -1886,6 +1886,9 @@ class Heap {
 
   bool flush_monomorphic_ics_;
 
+  // AllocationMementos found on scavenge.
+  int allocation_mementos_found_on_scavenge_;
+
   int scan_on_scavenge_pages_;
 
   NewSpace new_space_;

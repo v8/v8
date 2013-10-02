@@ -973,6 +973,9 @@ void HCallNewArray::PrintDataTo(StringStream* stream) {
 
 void HCallRuntime::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
+  if (save_doubles() == kSaveFPRegs) {
+    stream->Add("[save doubles] ");
+  }
   stream->Add("#%d", argument_count());
 }
 

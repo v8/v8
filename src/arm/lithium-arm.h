@@ -277,7 +277,7 @@ class LInstruction : public ZoneObject {
   // Interface to the register allocator and iterators.
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersRegisters() const { return IsCall(); }
-  bool ClobbersDoubleRegisters() const { return IsCall(); }
+  virtual bool ClobbersDoubleRegisters() const { return IsCall(); }
 
   // Interface to the register allocator and iterators.
   bool IsMarkedAsCall() const { return IsCall(); }
@@ -2052,8 +2052,13 @@ class LCallRuntime V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
+  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE {
+    return save_doubles() == kDontSaveFPRegs;
+  }
+
   const Runtime::Function* function() const { return hydrogen()->function(); }
   int arity() const { return hydrogen()->argument_count(); }
+  SaveFPRegsMode save_doubles() const { return hydrogen()->save_doubles(); }
 };
 
 

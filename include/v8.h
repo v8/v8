@@ -885,7 +885,9 @@ class V8_EXPORT ScriptData {  // NOLINT
    * \param input Pointer to UTF-8 script source code.
    * \param length Length of UTF-8 script source code.
    */
-  static ScriptData* PreCompile(const char* input, int length);
+  static ScriptData* PreCompile(Isolate* isolate,
+                                const char* input,
+                                int length);
 
   /**
    * Pre-compiles the specified script (context-independent).
@@ -2394,13 +2396,13 @@ class FunctionCallbackInfo {
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
-  static const int kContextSaveIndex = 0;
-  static const int kCalleeIndex = -1;
-  static const int kDataIndex = -2;
-  static const int kReturnValueIndex = -3;
-  static const int kReturnValueDefaultValueIndex = -4;
-  static const int kIsolateIndex = -5;
-  static const int kHolderIndex = -6;
+  static const int kHolderIndex = 0;
+  static const int kIsolateIndex = 1;
+  static const int kReturnValueDefaultValueIndex = 2;
+  static const int kReturnValueIndex = 3;
+  static const int kDataIndex = 4;
+  static const int kCalleeIndex = 5;
+  static const int kContextSaveIndex = 6;
 
   V8_INLINE FunctionCallbackInfo(internal::Object** implicit_args,
                    internal::Object** values,
@@ -2432,12 +2434,12 @@ class PropertyCallbackInfo {
   friend class MacroAssembler;
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
-  static const int kThisIndex = 0;
-  static const int kDataIndex = -1;
-  static const int kReturnValueIndex = -2;
-  static const int kReturnValueDefaultValueIndex = -3;
-  static const int kIsolateIndex = -4;
-  static const int kHolderIndex = -5;
+  static const int kHolderIndex = 0;
+  static const int kIsolateIndex = 1;
+  static const int kReturnValueDefaultValueIndex = 2;
+  static const int kReturnValueIndex = 3;
+  static const int kDataIndex = 4;
+  static const int kThisIndex = 5;
 
   V8_INLINE PropertyCallbackInfo(internal::Object** args) : args_(args) {}
   internal::Object** args_;
