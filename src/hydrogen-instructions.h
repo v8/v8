@@ -1932,17 +1932,23 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
 
 class HLeaveInlined V8_FINAL : public HTemplateInstruction<0> {
  public:
-  explicit HLeaveInlined(int drop_count) : drop_count_(drop_count) { }
+  HLeaveInlined(HEnterInlined* entry,
+                int drop_count)
+      : entry_(entry),
+        drop_count_(drop_count) { }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
 
-  virtual int argument_delta() const V8_OVERRIDE { return -drop_count_; }
+  virtual int argument_delta() const V8_OVERRIDE {
+    return entry_->arguments_pushed() ? -drop_count_ : 0;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(LeaveInlined)
 
  private:
+  HEnterInlined* entry_;
   int drop_count_;
 };
 
