@@ -25,32 +25,53 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_DEOPTIMIZING_MARK_H_
-#define V8_HYDROGEN_DEOPTIMIZING_MARK_H_
-
-#include "hydrogen.h"
+#include "hydrogen-mark-unreachable.h"
 
 namespace v8 {
 namespace internal {
 
 
-// Mark all blocks that are dominated by an unconditional soft deoptimize to
-// prevent code motion across those blocks.
-class HPropagateDeoptimizingMarkPhase : public HPhase {
- public:
-  explicit HPropagateDeoptimizingMarkPhase(HGraph* graph)
-      : HPhase("H_Propagate deoptimizing mark", graph) { }
+void HMarkUnreachableBlocksPhase::MarkUnreachableBlocks() {
+  // If there is unreachable code in the graph, propagate the unreachable marks
+  // using a fixed-point iteration.
+  bool changed = true;
+  const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
+  while (changed) {
+    changed = false;
+    for (int i = 0; i < blocks->length(); i++) {
+      HBasicBlock* block = blocks->at(i);
+      if (!block->IsReachable()) continue;
+      bool is_reachable = blocks->at(0) == block;
+      for (HPredecessorIterator it(block); !it.Done(); it.Advance()) {
+        HBasicBlock* predecessor = it.Current();
+        // A block is reachable if one of its predecessors is reachable,
+        // doesn't deoptimize and either is known to transfer control to the
+        // block or has a control flow instruction for which the next block
+        // cannot be determined.
+        if (predecessor->IsReachable() && !predecessor->IsDeoptimizing()) {
+          HBasicBlock* pred_succ;
+          bool known_pred_succ =
+              predecessor->end()->KnownSuccessorBlock(&pred_succ);
+          if (!known_pred_succ || pred_succ == block) {
+            is_reachable = true;
+            break;
+          }
+        }
+        if (block->is_osr_entry()) {
+          is_reachable = true;
+        }
+      }
+      if (!is_reachable) {
+        block->MarkUnreachable();
+        changed = true;
+      }
+    }
+  }
+}
 
-  void Run();
 
- private:
-  void MarkAsDeoptimizing();
-  void NullifyUnreachableInstructions();
-
-  DISALLOW_COPY_AND_ASSIGN(HPropagateDeoptimizingMarkPhase);
-};
-
+void HMarkUnreachableBlocksPhase::Run() {
+  MarkUnreachableBlocks();
+}
 
 } }  // namespace v8::internal
-
-#endif  // V8_HYDROGEN_DEOPTIMIZING_MARK_H_

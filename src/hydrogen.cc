@@ -39,7 +39,6 @@
 #include "hydrogen-check-elimination.h"
 #include "hydrogen-dce.h"
 #include "hydrogen-dehoist.h"
-#include "hydrogen-deoptimizing-mark.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
@@ -47,6 +46,7 @@
 #include "hydrogen-load-elimination.h"
 #include "hydrogen-gvn.h"
 #include "hydrogen-mark-deoptimize.h"
+#include "hydrogen-mark-unreachable.h"
 #include "hydrogen-minus-zero.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
@@ -96,13 +96,18 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       parent_loop_header_(NULL),
       inlined_entry_block_(NULL),
       is_inline_return_target_(false),
-      is_deoptimizing_(false),
+      is_reachable_(true),
       dominates_loop_successors_(false),
       is_osr_entry_(false) { }
 
 
 Isolate* HBasicBlock::isolate() const {
   return graph_->isolate();
+}
+
+
+void HBasicBlock::MarkUnreachable() {
+  is_reachable_ = false;
 }
 
 
@@ -2283,7 +2288,6 @@ HGraph::HGraph(CompilationInfo* info)
       zone_(info->zone()),
       is_recursive_(false),
       use_optimistic_licm_(false),
-      has_soft_deoptimize_(false),
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
       maximum_environment_size_(0),
@@ -3130,7 +3134,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
     Run<HEnvironmentLivenessAnalysisPhase>();
   }
 
-  Run<HPropagateDeoptimizingMarkPhase>();
   if (!CheckConstPhiUses()) {
     *bailout_reason = kUnsupportedPhiUseOfConstVariable;
     return false;
@@ -3140,6 +3143,10 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
     *bailout_reason = kUnsupportedPhiUseOfArguments;
     return false;
   }
+
+  // Find and mark unreachable code to simplify optimizations, especially gvn,
+  // where unreachable code could unnecessarily defeat LICM.
+  Run<HMarkUnreachableBlocksPhase>();
 
   if (FLAG_check_elimination) Run<HCheckEliminationPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
@@ -3186,6 +3193,10 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   RestoreActualValues();
+
+  // Find unreachable code a second time, GVN and other optimizations may have
+  // made blocks unreachable that were previously reachable.
+  Run<HMarkUnreachableBlocksPhase>();
 
   return true;
 }
@@ -3621,6 +3632,13 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
           last_block = NULL;  // Cleared to indicate we've handled it.
         }
       } else {
+        // If the current test block is deoptimizing due to an unhandled clause
+        // of the switch, the test instruction is in the next block since the
+        // deopt must end the current block.
+        if (curr_test_block->IsDeoptimizing()) {
+          ASSERT(curr_test_block->end()->SecondSuccessor() == NULL);
+          curr_test_block = curr_test_block->end()->FirstSuccessor();
+        }
         normal_block = curr_test_block->end()->FirstSuccessor();
         curr_test_block = curr_test_block->end()->SecondSuccessor();
       }

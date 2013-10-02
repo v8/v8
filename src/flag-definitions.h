@@ -294,8 +294,7 @@ DEFINE_bool(check_elimination, false, "use check elimination")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
 DEFINE_bool(fold_constants, true, "use constant folding")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")
-DEFINE_bool(unreachable_code_elimination, false,
-            "eliminate unreachable code (hidden behind soft deopts)")
+DEFINE_bool(unreachable_code_elimination, true, "eliminate unreachable code")
 DEFINE_bool(track_allocation_sites, true,
             "Use allocation site info to reduce transitions")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
