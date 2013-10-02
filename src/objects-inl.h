@@ -1577,13 +1577,6 @@ Handle<Map> JSObject::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
 }
 
 
-int JSObject::LastAddedFieldIndex() {
-  Map* map = this->map();
-  int last_added = map->LastAdded();
-  return map->instance_descriptors()->GetFieldIndex(last_added);
-}
-
-
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 

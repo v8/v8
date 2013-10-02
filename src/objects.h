@@ -2156,8 +2156,6 @@ class JSObject: public JSReceiver {
   static inline Handle<Map> FindTransitionToField(Handle<Map> map,
                                                   Handle<Name> key);
 
-  inline int LastAddedFieldIndex();
-
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
@@ -2333,9 +2331,6 @@ class JSObject: public JSReceiver {
     // (old_capacity + 50%) + 16
     return old_capacity + (old_capacity >> 1) + 16;
   }
-
-  PropertyType GetLocalPropertyType(Name* name);
-  PropertyType GetLocalElementType(uint32_t index);
 
   // These methods do not perform access checks!
   AccessorPair* GetLocalPropertyAccessorPair(Name* name);

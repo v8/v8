@@ -11613,22 +11613,6 @@ MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
 }
 
 
-PropertyType JSObject::GetLocalPropertyType(Name* name) {
-  uint32_t index = 0;
-  if (name->AsArrayIndex(&index)) {
-    return GetLocalElementType(index);
-  }
-  LookupResult lookup(GetIsolate());
-  LocalLookup(name, &lookup, true);
-  return lookup.type();
-}
-
-
-PropertyType JSObject::GetLocalElementType(uint32_t index) {
-  return GetElementsAccessor()->GetType(this, this, index);
-}
-
-
 AccessorPair* JSObject::GetLocalPropertyAccessorPair(Name* name) {
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
