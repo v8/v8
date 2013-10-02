@@ -7349,11 +7349,10 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(Name* name, Code* code) {
 
 
 Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
-  if (Code::ExtractTypeFromFlags(flags) == Code::NORMAL) {
-    return LookupNormalTypeCache(name, flags);
-  } else {
-    return LookupDefaultCache(name, flags);
-  }
+  flags = Code::RemoveTypeFromFlags(flags);
+  Object* result = LookupDefaultCache(name, flags);
+  if (result->IsCode()) return result;
+  return LookupNormalTypeCache(name, flags);
 }
 
 
@@ -7367,7 +7366,7 @@ Object* CodeCache::LookupDefaultCache(Name* name, Code::Flags flags) {
     if (key->IsUndefined()) return key;
     if (name->Equals(Name::cast(key))) {
       Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
-      if (code->flags() == flags) {
+      if (Code::RemoveTypeFromFlags(code->flags()) == flags) {
         return code;
       }
     }
@@ -7431,9 +7430,7 @@ class CodeCacheHashTableKey : public HashTableKey {
       : name_(name), flags_(flags), code_(NULL) { }
 
   CodeCacheHashTableKey(Name* name, Code* code)
-      : name_(name),
-        flags_(code->flags()),
-        code_(code) { }
+      : name_(name), flags_(code->flags()), code_(code) { }
 
 
   bool IsMatch(Object* other) {
