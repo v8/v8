@@ -8324,6 +8324,33 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         New<HCompareObjectEqAndBranch>(left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnControl(result, expr->id());
+  } else if (combined_type->Is(Type::String())) {
+    BuildCheckHeapObject(left);
+    AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
+    BuildCheckHeapObject(right);
+    AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
+    HStringCompareAndBranch* result =
+        New<HStringCompareAndBranch>(left, right, op);
+    result->set_position(expr->position());
+    return ast_context()->ReturnControl(result, expr->id());
+  } else if (combined_type->NumClasses() == 1 && Token::IsEqualityOp(op)) {
+    BuildCheckHeapObject(left);
+    BuildCheckMap(left, combined_type->Classes().Current());
+    BuildCheckHeapObject(right);
+    BuildCheckMap(right, combined_type->Classes().Current());
+    HCompareObjectEqAndBranch* result =
+        New<HCompareObjectEqAndBranch>(left, right);
+    result->set_position(expr->position());
+    return ast_context()->ReturnInstruction(result, expr->id());
+  } else if (combined_type->Is(Type::Receiver()) && Token::IsEqualityOp(op)) {
+    BuildCheckHeapObject(left);
+    AddInstruction(HCheckInstanceType::NewIsSpecObject(left, zone()));
+    BuildCheckHeapObject(right);
+    AddInstruction(HCheckInstanceType::NewIsSpecObject(right, zone()));
+    HCompareObjectEqAndBranch* result =
+        New<HCompareObjectEqAndBranch>(left, right);
+    result->set_position(expr->position());
+    return ast_context()->ReturnInstruction(result, expr->id());
   } else {
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
       HCompareGeneric* result =
