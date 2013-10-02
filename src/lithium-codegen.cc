@@ -39,7 +39,7 @@
 #include "arm/lithium-arm.h"
 #include "arm/lithium-codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/lithium-codegeng.h"
+#include "mips/lithium-mips.h"
 #include "mips/lithium-codegen-mips.h"
 #else
 #error Unsupported target architecture.

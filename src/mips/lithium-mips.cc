@@ -865,7 +865,22 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
   HInstruction* old_current = current_instruction_;
   current_instruction_ = current;
   if (current->has_position()) position_ = current->position();
-  LInstruction* instr = current->CompileToLithium(this);
+
+  LInstruction* instr = NULL;
+  if (current->CanReplaceWithDummyUses()) {
+    HValue* first_operand = current->OperandCount() == 0
+        ? graph()->GetConstant1()
+        : current->OperandAt(0);
+    instr = DefineAsRegister(new(zone()) LDummyUse(UseAny(first_operand)));
+    for (int i = 1; i < current->OperandCount(); ++i) {
+      LInstruction* dummy =
+          new(zone()) LDummyUse(UseAny(current->OperandAt(i)));
+      dummy->set_hydrogen_value(current);
+      chunk_->AddInstruction(dummy, current_block_);
+    }
+  } else {
+    instr = current->CompileToLithium(this);
+  }
 
   if (instr != NULL) {
     // Associate the hydrogen instruction first, since we may need it for
@@ -999,19 +1014,15 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
 
 
 LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
-  return new(zone()) LGoto(instr->FirstSuccessor()->block_id());
+  return new(zone()) LGoto(instr->FirstSuccessor());
 }
 
 
 LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
-  HValue* value = instr->value();
-  if (value->EmitAtUses()) {
-    HBasicBlock* successor = HConstant::cast(value)->BooleanValue()
-        ? instr->FirstSuccessor()
-        : instr->SecondSuccessor();
-    return new(zone()) LGoto(successor->block_id());
-  }
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
 
+  HValue* value = instr->value();
   LBranch* result = new(zone()) LBranch(UseRegister(value));
   // Tagged values that are not known smis or booleans require a
   // deoptimization environment. If the instruction is generic no
@@ -1690,6 +1701,8 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
 
 LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
     HCompareObjectEqAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseRegisterAtStart(instr->right());
   return new(zone()) LCmpObjectEqAndBranch(left, right);
