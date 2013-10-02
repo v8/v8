@@ -1185,7 +1185,7 @@ class HControlInstruction : public HInstruction {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) {
     *block = NULL;
     return false;
   }
@@ -1323,7 +1323,7 @@ class HDeoptimize V8_FINAL : public HTemplateControlInstruction<1, 0> {
     return new(zone) HDeoptimize(reason, type, unreachable_continuation);
   }
 
-  virtual bool KnownSuccessorBlock(HBasicBlock** block) {
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
     *block = NULL;
     return true;
   }
