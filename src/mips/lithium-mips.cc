@@ -882,6 +882,9 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     instr = current->CompileToLithium(this);
   }
 
+  argument_count_ += current->argument_delta();
+  ASSERT(argument_count_ >= 0);
+
   if (instr != NULL) {
     // Associate the hydrogen instruction first, since we may need it for
     // the ClobbersRegisters() or ClobbersDoubleRegisters() calls below.
@@ -1107,7 +1110,6 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
-  ++argument_count_;
   LOperand* argument = Use(instr->argument());
   return new(zone()) LPushArgument(argument);
 }
@@ -1174,7 +1176,6 @@ LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
 
 LInstruction* LChunkBuilder::DoCallConstantFunction(
     HCallConstantFunction* instr) {
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new(zone()) LCallConstantFunction, v0), instr);
 }
 
@@ -1182,7 +1183,6 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* function = UseFixed(instr->function(), a1);
-  argument_count_ -= instr->argument_count();
   LInvokeFunction* result = new(zone()) LInvokeFunction(context, function);
   return MarkAsCall(DefineFixed(result, v0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
@@ -1293,7 +1293,6 @@ LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
   ASSERT(instr->key()->representation().IsTagged());
   LOperand* context = UseFixed(instr->context(), cp);
-  argument_count_ -= instr->argument_count();
   LOperand* key = UseFixed(instr->key(), a2);
   return MarkAsCall(
         DefineFixed(new(zone()) LCallKeyed(context, key), v0), instr);
@@ -1302,20 +1301,17 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
 
 LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new(zone()) LCallNamed(context), v0), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new(zone()) LCallGlobal(context), v0), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new(zone()) LCallKnownGlobal, v0), instr);
 }
 
@@ -1323,7 +1319,6 @@ LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
 LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* constructor = UseFixed(instr->constructor(), a1);
-  argument_count_ -= instr->argument_count();
   LCallNew* result = new(zone()) LCallNew(context, constructor);
   return MarkAsCall(DefineFixed(result, v0), instr);
 }
@@ -1332,7 +1327,6 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* constructor = UseFixed(instr->constructor(), a1);
-  argument_count_ -= instr->argument_count();
   LCallNewArray* result = new(zone()) LCallNewArray(context, constructor);
   return MarkAsCall(DefineFixed(result, v0), instr);
 }
@@ -1341,14 +1335,12 @@ LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* function = UseFixed(instr->function(), a1);
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(
       DefineFixed(new(zone()) LCallFunction(context, function), v0), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallRuntime(HCallRuntime* instr) {
-  argument_count_ -= instr->argument_count();
   LOperand* context = UseFixed(instr->context(), cp);
   return MarkAsCall(DefineFixed(new(zone()) LCallRuntime(context), v0), instr);
 }
@@ -2439,7 +2431,6 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
 
 LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new(zone()) LCallStub(context), v0), instr);
 }
 
@@ -2564,7 +2555,7 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
   if (env->entry()->arguments_pushed()) {
     int argument_count = env->arguments_environment()->parameter_count();
     pop = new(zone()) LDrop(argument_count);
-    argument_count_ -= argument_count;
+    ASSERT(instr->argument_delta() == -argument_count);
   }
 
   HEnvironment* outer = current_block_->last_environment()->
