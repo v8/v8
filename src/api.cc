@@ -5007,13 +5007,14 @@ void v8::V8::SetArrayBufferAllocator(
 
 
 bool v8::V8::Dispose() {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (!ApiCheck(isolate == NULL || isolate->IsDefaultIsolate(),
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
                 "v8::V8::Dispose()",
                 "Use v8::Isolate::Dispose() for a non-default isolate.")) {
     return false;
   }
-  return i::V8::TearDown();
+  i::V8::TearDown();
+  return true;
 }
 
 
@@ -6487,10 +6488,6 @@ void V8::CancelTerminateExecution(Isolate* isolate) {
 
 Isolate* Isolate::GetCurrent() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (isolate == NULL) {
-    isolate = i::Isolate::EnsureDefaultIsolate(true);
-    ASSERT(isolate == i::Isolate::UncheckedCurrent());
-  }
   return reinterpret_cast<Isolate*>(isolate);
 }
 

@@ -330,6 +330,7 @@ void Isolate::PreallocatedStorageDelete(void* p) {
   storage->LinkTo(&free_list_);
 }
 
+Isolate* Isolate::default_isolate_ = NULL;
 Thread::LocalStorageKey Isolate::isolate_key_;
 Thread::LocalStorageKey Isolate::thread_id_key_;
 Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
@@ -347,7 +348,6 @@ static DefaultIsolateStatus default_isolate_status_
     = kDefaultIsolateUninitialized;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Atomic32 Isolate::isolate_counter_ = 0;
-Atomic32 Isolate::living_isolates_ = 0;
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
@@ -390,75 +390,61 @@ void Isolate::SetCrashIfDefaultIsolateInitialized() {
 }
 
 
-Isolate* Isolate::EnsureDefaultIsolate(bool must_be_null) {
-  static Isolate* default_isolate_ = NULL;
+void Isolate::EnsureDefaultIsolate() {
   LockGuard<Mutex> lock_guard(&process_wide_mutex_);
   CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
-  if (must_be_null) {
-    CHECK(default_isolate_ == NULL);
-  }
   if (default_isolate_ == NULL) {
-    default_isolate_ = new Isolate(true);
+    isolate_key_ = Thread::CreateThreadLocalKey();
+    thread_id_key_ = Thread::CreateThreadLocalKey();
+    per_isolate_thread_data_key_ = Thread::CreateThreadLocalKey();
+#ifdef DEBUG
+    PerThreadAssertScopeBase::thread_local_key = Thread::CreateThreadLocalKey();
+#endif  // DEBUG
+    thread_data_table_ = new Isolate::ThreadDataTable();
+    default_isolate_ = new Isolate();
   }
   // Can't use SetIsolateThreadLocals(default_isolate_, NULL) here
   // because a non-null thread data may be already set.
   if (Thread::GetThreadLocal(isolate_key_) == NULL) {
     Thread::SetThreadLocal(isolate_key_, default_isolate_);
   }
-
-  return default_isolate_;
 }
 
-
-void Isolate::InitializeThreadLocalStorage() {
-  // Double checked locking on existence of thread_data_table_.
-  if (thread_data_table_ != NULL) return;
-  LockGuard<Mutex> lock_guard(&process_wide_mutex_);
-  if (thread_data_table_ != NULL) return;
-  isolate_key_ = Thread::CreateThreadLocalKey();
-  thread_id_key_ = Thread::CreateThreadLocalKey();
-  per_isolate_thread_data_key_ = Thread::CreateThreadLocalKey();
-#ifdef DEBUG
-  PerThreadAssertScopeBase::thread_local_key = Thread::CreateThreadLocalKey();
-#endif  // DEBUG
-  thread_data_table_ = new Isolate::ThreadDataTable();
-  CHECK(thread_data_table_ != NULL);
-}
-
-
-// TODO(dcarney): Remove this with default_isolate_ and Isolate::Current.
 struct StaticInitializer {
   StaticInitializer() {
-    Isolate::InitializeThreadLocalStorage();
+    Isolate::EnsureDefaultIsolate();
   }
 } static_initializer;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Debugger* Isolate::GetDefaultIsolateDebugger() {
-  return EnsureDefaultIsolate()->debugger();
+  EnsureDefaultIsolate();
+  return default_isolate_->debugger();
 }
 #endif
 
 
 StackGuard* Isolate::GetDefaultIsolateStackGuard() {
-  return EnsureDefaultIsolate()->stack_guard();
+  EnsureDefaultIsolate();
+  return default_isolate_->stack_guard();
 }
 
 
 void Isolate::EnterDefaultIsolate() {
-  Isolate* default_isolate = EnsureDefaultIsolate();
-  ASSERT(default_isolate != NULL);
+  EnsureDefaultIsolate();
+  ASSERT(default_isolate_ != NULL);
 
   PerIsolateThreadData* data = CurrentPerIsolateThreadData();
   // If not yet in default isolate - enter it.
-  if (data == NULL || data->isolate() != default_isolate) {
-    default_isolate->Enter();
+  if (data == NULL || data->isolate() != default_isolate_) {
+    default_isolate_->Enter();
   }
 }
 
 
 v8::Isolate* Isolate::GetDefaultIsolateForLocking() {
-  return reinterpret_cast<v8::Isolate*>(EnsureDefaultIsolate());
+  EnsureDefaultIsolate();
+  return reinterpret_cast<v8::Isolate*>(default_isolate_);
 }
 
 
@@ -1748,7 +1734,7 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #endif
 
 
-Isolate::Isolate(bool is_default_isolate)
+Isolate::Isolate()
     : state_(UNINITIALIZED),
       embedder_data_(NULL),
       entry_stack_(NULL),
@@ -1798,7 +1784,6 @@ Isolate::Isolate(bool is_default_isolate)
       has_fatal_error_(false),
       use_crankshaft_(true),
       initialized_from_snapshot_(false),
-      is_default_isolate_(is_default_isolate),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
       function_entry_hook_(NULL),
@@ -1806,10 +1791,7 @@ Isolate::Isolate(bool is_default_isolate)
       optimizing_compiler_thread_(NULL),
       sweeper_thread_(NULL),
       stress_deopt_count_(0) {
-  InitializeThreadLocalStorage();
-
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
-  NoBarrier_AtomicIncrement(&living_isolates_, 1);
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
@@ -1992,7 +1974,7 @@ Isolate::~Isolate() {
   // The entry stack must be empty when we get here,
   // except for the default isolate, where it can
   // still contain up to one entry stack item
-  ASSERT(entry_stack_ == NULL || is_default_isolate_);
+  ASSERT(entry_stack_ == NULL || this == default_isolate_);
   ASSERT(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
 
   delete entry_stack_;
@@ -2077,8 +2059,6 @@ Isolate::~Isolate() {
   delete debug_;
   debug_ = NULL;
 #endif
-
-  NoBarrier_AtomicIncrement(&living_isolates_, -1);
 }
 
 

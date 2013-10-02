@@ -79,24 +79,16 @@ bool V8::Initialize(Deserializer* des) {
 }
 
 
-bool V8::TearDown() {
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  if (isolate != NULL) {
-    ASSERT(isolate->IsDefaultIsolate());
-    if (isolate->IsInitialized()) isolate->TearDown();
-    delete isolate;
-  }
+void V8::TearDown() {
+  Isolate* isolate = Isolate::Current();
+  ASSERT(isolate->IsDefaultIsolate());
+  if (!isolate->IsInitialized()) return;
 
-  // V8 was never initialized, nothing to do.
-  if (Acquire_Load(&init_once) == ONCE_STATE_UNINITIALIZED) return true;
-
-  // TODO(dcarney): Everything below this should be in some sort of mutex...
-  Atomic32 living_isolates = Isolate::GetLivingIsolates();
-
-  // All isolates have to be torn down before clearing the LOperand
+  // The isolate has to be torn down before clearing the LOperand
   // caches so that the optimizing compiler thread (if running)
   // doesn't see an inconsistent view of the lithium instructions.
-  if (living_isolates != 0) return false;
+  isolate->TearDown();
+  delete isolate;
 
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
@@ -108,7 +100,6 @@ bool V8::TearDown() {
   call_completed_callbacks_ = NULL;
 
   Sampler::TearDown();
-  return true;
 }
 
 
