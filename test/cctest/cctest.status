@@ -34,11 +34,6 @@
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
-  # BUG(2907): Allocation while in DisallowHeapAllocation scope.
-  'test-object-observe/NamedAccessCheck': [SKIP],
-  'test-object-observe/DisallowAllForAccessKeys': [SKIP],
-  'test-object-observe/AccessCheckDisallowApiModifications': [SKIP],
-
   # TODO(mstarzinger): Fail gracefully on multiple V8::Dispose calls.
   'test-api/InitializeAndDisposeOnce': [SKIP],
   'test-api/InitializeAndDisposeMultiple': [SKIP],
