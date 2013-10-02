@@ -621,6 +621,11 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
                   " the snapshot (mksnapshot only)")
 
+// code-stubs-hydrogen.cc
+DEFINE_bool(profile_hydrogen_code_stub_compilation,
+            false,
+            "Print the time it takes to lazily compile hydrogen code stubs.")
+
 //
 // Dev shell flags
 //
@@ -800,6 +805,7 @@ DEFINE_bool(test_secondary_stub_cache,
 DEFINE_bool(test_primary_stub_cache,
             false,
             "test primary stub cache by disabling the secondary one")
+
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(print_code, false, "print generated code")

@@ -301,9 +301,18 @@ static Handle<Code> DoGenerateCode(Isolate* isolate, Stub* stub) {
     ASSERT(descriptor->stack_parameter_count_ == NULL);
     return stub->GenerateLightweightMissCode(isolate);
   }
+  ElapsedTimer timer;
+  if (FLAG_profile_hydrogen_code_stub_compilation) {
+    timer.Start();
+  }
   CodeStubGraphBuilder<Stub> builder(isolate, stub);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen();
+  Handle<Code> code = chunk->Codegen();
+  if (FLAG_profile_hydrogen_code_stub_compilation) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    PrintF("[Lazy compilation of %s took %0.3f ms]\n", *stub->GetName(), ms);
+  }
+  return code;
 }
 
 
