@@ -539,16 +539,18 @@ void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
 }
 
 
+static bool MigrateDeprecated(Handle<Object> object) {
+  if (!object->IsJSObject()) return false;
+  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+  if (!receiver->map()->is_deprecated()) return false;
+  JSObject::MigrateInstance(Handle<JSObject>::cast(object));
+  return true;
+}
+
+
 MaybeObject* CallICBase::LoadFunction(Handle<Object> object,
                                       Handle<String> name) {
-  bool use_ic = FLAG_use_ic;
-  if (object->IsJSObject()) {
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-    if (receiver->map()->is_deprecated()) {
-      use_ic = false;
-      JSObject::MigrateInstance(receiver);
-    }
-  }
+  bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
 
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
@@ -796,22 +798,15 @@ MaybeObject* KeyedCallIC::LoadFunction(Handle<Object> object,
     return CallICBase::LoadFunction(object, Handle<String>::cast(key));
   }
 
-  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
-  if (object->IsJSObject()) {
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-    if (receiver->map()->is_deprecated()) {
-      use_ic = false;
-      JSObject::MigrateInstance(receiver);
-    }
-  }
-
   if (object->IsUndefined() || object->IsNull()) {
     return TypeError("non_object_property_call", object, key);
   }
 
-  ASSERT(!(use_ic && object->IsJSGlobalProxy()));
+  bool use_ic = MigrateDeprecated(object)
+      ? false : FLAG_use_ic && !object->IsAccessCheckNeeded();
 
   if (use_ic && state() != MEGAMORPHIC) {
+    ASSERT(!object->IsJSGlobalProxy());
     int argc = target()->arguments_count();
     Handle<Code> stub = isolate()->stub_cache()->ComputeCallMegamorphic(
         argc, Code::KEYED_CALL_IC, Code::kNoExtraICState);
@@ -851,9 +846,7 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
     return TypeError("non_object_property_load", object, name);
   }
 
-  bool use_ic = FLAG_use_ic;
-
-  if (use_ic) {
+  if (FLAG_use_ic) {
     // Use specialized code for getting the length of strings and
     // string wrapper objects.  The length property of string wrapper
     // objects is read-only and therefore always returns the length of
@@ -910,17 +903,11 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
   uint32_t index;
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
-    if (use_ic) set_target(*generic_stub());
+    if (FLAG_use_ic) set_target(*generic_stub());
     return Runtime::GetElementOrCharAtOrFail(isolate(), object, index);
   }
 
-  if (object->IsJSObject()) {
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-    if (receiver->map()->is_deprecated()) {
-      use_ic = false;
-      JSObject::MigrateInstance(receiver);
-    }
-  }
+  bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
 
   // Named lookup in the object.
   LookupResult lookup(isolate());
@@ -938,21 +925,17 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
   if (use_ic) UpdateCaches(&lookup, object, name);
 
   PropertyAttributes attr;
-  if (lookup.IsInterceptor() || lookup.IsHandler()) {
-    // Get the property.
-    Handle<Object> result =
-        Object::GetProperty(object, object, &lookup, name, &attr);
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
-    // If the property is not present, check if we need to throw an
-    // exception.
-    if (attr == ABSENT && IsUndeclaredGlobal(object)) {
-      return ReferenceError("not_defined", name);
-    }
-    return *result;
-  }
-
   // Get the property.
-  return Object::GetPropertyOrFail(object, object, &lookup, name, &attr);
+  Handle<Object> result =
+      Object::GetProperty(object, object, &lookup, name, &attr);
+  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  // If the property is not present, check if we need to throw an
+  // exception.
+  if ((lookup.IsInterceptor() || lookup.IsHandler()) &&
+      attr == ABSENT && IsUndeclaredGlobal(object)) {
+    return ReferenceError("not_defined", name);
+  }
+  return *result;
 }
 
 
@@ -1349,6 +1332,10 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
 MaybeObject* KeyedLoadIC::Load(Handle<Object> object,
                                Handle<Object> key,
                                ICMissMode miss_mode) {
+  if (MigrateDeprecated(object)) {
+    return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
+  }
+
   // Check for values that can be converted into an internalized string directly
   // or is representable as a smi.
   key = TryConvertKey(key, isolate());
@@ -1357,41 +1344,29 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object,
     return LoadIC::Load(object, Handle<String>::cast(key));
   }
 
-  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
-  ASSERT(!(use_ic && object->IsJSGlobalProxy()));
-
-  if (use_ic) {
+  if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
+    ASSERT(!object->IsJSGlobalProxy());
     Handle<Code> stub = generic_stub();
-    if (miss_mode != MISS_FORCE_GENERIC) {
-      if (object->IsString() && key->IsNumber()) {
-        if (state() == UNINITIALIZED) {
-          stub = string_stub();
-        }
-      } else if (object->IsJSObject()) {
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (receiver->map()->is_deprecated()) {
-          use_ic = false;
-          JSObject::MigrateInstance(receiver);
-        }
-
-        if (receiver->elements()->map() ==
-            isolate()->heap()->non_strict_arguments_elements_map()) {
-          stub = non_strict_arguments_stub();
-        } else if (receiver->HasIndexedInterceptor()) {
-          stub = indexed_interceptor_stub();
-        } else if (!key->ToSmi()->IsFailure() &&
-                   (!target().is_identical_to(non_strict_arguments_stub()))) {
-          stub = LoadElementStub(receiver);
-        }
-      }
-    } else {
+    if (miss_mode == MISS_FORCE_GENERIC) {
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "force generic");
+    } else if (object->IsString() && key->IsNumber()) {
+      if (state() == UNINITIALIZED) stub = string_stub();
+    } else if (object->IsJSObject()) {
+      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+      if (receiver->elements()->map() ==
+          isolate()->heap()->non_strict_arguments_elements_map()) {
+        stub = non_strict_arguments_stub();
+      } else if (receiver->HasIndexedInterceptor()) {
+        stub = indexed_interceptor_stub();
+      } else if (!key->ToSmi()->IsFailure() &&
+                 (!target().is_identical_to(non_strict_arguments_stub()))) {
+        stub = LoadElementStub(receiver);
+      }
     }
-    if (use_ic) {
-      ASSERT(!stub.is_null());
-      set_target(*stub);
-      TRACE_IC("KeyedLoadIC", key, target());
-    }
+
+    ASSERT(!stub.is_null());
+    set_target(*stub);
+    TRACE_IC("KeyedLoadIC", key, target());
   }
 
 
@@ -1527,8 +1502,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
                             Handle<String> name,
                             Handle<Object> value,
                             JSReceiver::StoreFromKeyed store_mode) {
-  // Handle proxies.
-  if (object->IsJSProxy()) {
+  if (MigrateDeprecated(object) || object->IsJSProxy()) {
     Handle<Object> result = JSReceiver::SetProperty(
         Handle<JSReceiver>::cast(object), name, value, NONE, strict_mode());
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
@@ -1553,12 +1527,6 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
-  bool use_ic = FLAG_use_ic;
-  if (receiver->map()->is_deprecated()) {
-    use_ic = false;
-    JSObject::MigrateInstance(receiver);
-  }
-
   // Check if the given name is an array index.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
@@ -1580,7 +1548,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   // properties. Slow properties might indicate redefinition of the length
   // property. Note that when redefined using Object.freeze, it's possible
   // to have fast properties but a read-only length.
-  if (use_ic &&
+  if (FLAG_use_ic &&
       receiver->IsJSArray() &&
       name->Equals(isolate()->heap()->length_string()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
@@ -1597,7 +1565,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   }
 
   if (receiver->IsJSGlobalProxy()) {
-    if (use_ic && kind() != Code::KEYED_STORE_IC) {
+    if (FLAG_use_ic && kind() != Code::KEYED_STORE_IC) {
       // Generate a generic stub that goes to the runtime when we see a global
       // proxy as receiver.
       Handle<Code> stub = global_proxy_stub();
@@ -1619,7 +1587,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   }
-  if (use_ic) {
+  if (FLAG_use_ic) {
     if (state() == UNINITIALIZED) {
       Handle<Code> stub = pre_monomorphic_stub();
       set_target(*stub);
@@ -1994,6 +1962,11 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                  Handle<Object> key,
                                  Handle<Object> value,
                                  ICMissMode miss_mode) {
+  if (MigrateDeprecated(object)) {
+    return Runtime::SetObjectPropertyOrFail(
+        isolate(), object , key, value, NONE, strict_mode());
+  }
+
   // Check for values that can be converted into an internalized string directly
   // or is representable as a smi.
   key = TryConvertKey(key, isolate());
@@ -2015,16 +1988,14 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
     Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
     if (heap_object->map()->IsMapInArrayPrototypeChain()) use_ic = false;
   }
-  ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {
+    ASSERT(!object->IsJSGlobalProxy());
+
     Handle<Code> stub = generic_stub();
     if (miss_mode != MISS_FORCE_GENERIC) {
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (receiver->map()->is_deprecated()) {
-          JSObject::MigrateInstance(receiver);
-        }
         bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
         if (receiver->elements()->map() ==
             isolate()->heap()->non_strict_arguments_elements_map()) {
