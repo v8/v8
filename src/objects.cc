@@ -9049,7 +9049,8 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
+AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object,
+                                                      bool in_GC) {
   // Currently, AllocationMemento objects are only allocated immediately
   // after JSArrays in NewSpace, and detecting whether a JSArray has one
   // involves carefully checking the object immediately after the JSArray
@@ -9057,8 +9058,13 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
-    if ((ptr_end + AllocationMemento::kSize) <=
-        object->GetHeap()->NewSpaceTop()) {
+    Address top;
+    if (in_GC) {
+      top = object->GetHeap()->new_space()->FromSpacePageHigh();
+    } else {
+      top = object->GetHeap()->NewSpaceTop();
+    }
+    if ((ptr_end + AllocationMemento::kSize) <= top) {
       // There is room in newspace for allocation info. Do we have some?
       Map** possible_allocation_memento_map =
           reinterpret_cast<Map**>(ptr_end);

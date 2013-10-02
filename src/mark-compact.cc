@@ -407,6 +407,8 @@ void MarkCompactCollector::CollectGarbage() {
   ASSERT(state_ == PREPARE_GC);
   ASSERT(encountered_weak_collections_ == Smi::FromInt(0));
 
+  heap()->allocation_mementos_found_ = 0;
+
   MarkLiveObjects();
   ASSERT(heap_->incremental_marking()->IsStopped());
 
@@ -449,6 +451,11 @@ void MarkCompactCollector::CollectGarbage() {
     marking_parity_ = EVEN_MARKING_PARITY;
   }
 
+  if (FLAG_trace_track_allocation_sites &&
+      heap()->allocation_mementos_found_ > 0) {
+    PrintF("AllocationMementos found during mark-sweep = %d\n",
+           heap()->allocation_mementos_found_);
+  }
   tracer_ = NULL;
 }
 
@@ -2001,6 +2008,13 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
 
       int size = object->Size();
       survivors_size += size;
+
+      if (FLAG_trace_track_allocation_sites && object->IsJSObject()) {
+        if (AllocationMemento::FindForJSObject(JSObject::cast(object), true)
+            != NULL) {
+          heap()->allocation_mementos_found_++;
+        }
+      }
 
       offset++;
       current_cell >>= 1;

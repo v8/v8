@@ -525,11 +525,10 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  if (FLAG_trace_track_allocation_sites &&
-      AllocationSite::CanTrack(object->map()->instance_type()) &&
-      object->IsJSObject()) {
-    if (AllocationMemento::FindForJSObject(JSObject::cast(object)) != NULL) {
-      object->GetIsolate()->heap()->allocation_mementos_found_on_scavenge_++;
+  if (FLAG_trace_track_allocation_sites && object->IsJSObject()) {
+    if (AllocationMemento::FindForJSObject(JSObject::cast(object), true) !=
+        NULL) {
+      object->GetIsolate()->heap()->allocation_mementos_found_++;
     }
   }
 
