@@ -4707,9 +4707,13 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatibleForLoad(
   if (!LookupDescriptor()) return false;
 
   if (!lookup_.IsFound()) {
-    return (!info->lookup_.IsFound() || !info->holder_.is_null()) &&
+    return (!info->lookup_.IsFound() || info->has_holder()) &&
         map_->prototype() == info->map_->prototype();
   }
+
+  // Mismatch if the other access info found the property in the prototype
+  // chain.
+  if (info->has_holder()) return false;
 
   if (lookup_.IsPropertyCallbacks()) {
     return accessor_.is_identical_to(info->accessor_);
