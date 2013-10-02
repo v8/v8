@@ -595,6 +595,11 @@ DEFINE_int(hash_seed,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
 
+// snapshot-common.cc
+DEFINE_bool(profile_deserialization,
+            false,
+            "Print the time it takes to deserialize the snapshot.")
+
 // v8.cc
 DEFINE_bool(preemption, false,
             "activate a 100ms timer that switches between V8 threads")
