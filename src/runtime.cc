@@ -1571,7 +1571,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   do {
     if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccessWrapper(obj,
+        !isolate->MayNamedAccessWrapper(Handle<JSObject>::cast(obj),
                                         isolate->factory()->proto_string(),
                                         v8::ACCESS_GET)) {
       isolate->ReportFailedAccessCheck(JSObject::cast(*obj), v8::ACCESS_GET);
