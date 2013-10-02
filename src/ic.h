@@ -102,7 +102,7 @@ class IC {
   inline Address address() const;
 
   // Compute the current IC state based on the target stub, receiver and name.
-  void UpdateState(Object* receiver, Object* name);
+  void UpdateState(Handle<Object> receiver, Handle<Object> name);
   void MarkMonomorphicPrototypeFailure() {
     state_ = MONOMORPHIC_PROTOTYPE_FAILURE;
   }
@@ -160,9 +160,7 @@ class IC {
 #ifdef DEBUG
   char TransitionMarkFromState(IC::State state);
 
-  void TraceIC(const char* type,
-               Handle<Object> name,
-               Code* new_target);
+  void TraceIC(const char* type, Handle<Object> name);
 #endif
 
   Failure* TypeError(const char* type,
@@ -198,7 +196,8 @@ class IC {
     return Handle<Code>::null();
   }
   virtual StrictModeFlag strict_mode() const { return kNonStrictMode; }
-  bool TryRemoveInvalidPrototypeDependentStub(Object* receiver, Object* name);
+  bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
+                                              Handle<String> name);
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.
@@ -253,7 +252,6 @@ class CallICBase: public IC {
 
   // Compute a monomorphic stub if possible, otherwise return a null handle.
   Handle<Code> ComputeMonomorphicStub(LookupResult* lookup,
-                                      Code::ExtraICState extra_state,
                                       Handle<Object> object,
                                       Handle<String> name);
 
@@ -285,6 +283,9 @@ class CallICBase: public IC {
                                             int argc,
                                             Code::Kind kind,
                                             Code::ExtraICState extra_state);
+
+  virtual Handle<Code> megamorphic_stub();
+  virtual Handle<Code> pre_monomorphic_stub();
 
   Code::Kind kind_;
 
