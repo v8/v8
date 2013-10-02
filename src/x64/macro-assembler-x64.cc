@@ -1502,10 +1502,14 @@ void MacroAssembler::SmiAddConstant(Register dst,
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
 
+    Label done;
     LoadSmiConstant(kScratchRegister, constant);
-    addq(kScratchRegister, src);
-    j(overflow, on_not_smi_result, near_jump);
-    movq(dst, kScratchRegister);
+    addq(dst, kScratchRegister);
+    j(no_overflow, &done, Label::kNear);
+    // Restore src.
+    subq(dst, kScratchRegister);
+    jmp(on_not_smi_result, near_jump);
+    bind(&done);
   } else {
     LoadSmiConstant(dst, constant);
     addq(dst, src);
@@ -1605,6 +1609,29 @@ void MacroAssembler::SmiNeg(Register dst,
 }
 
 
+template<class T>
+static void SmiAddHelper(MacroAssembler* masm,
+                         Register dst,
+                         Register src1,
+                         T src2,
+                         Label* on_not_smi_result,
+                         Label::Distance near_jump) {
+  if (dst.is(src1)) {
+    Label done;
+    masm->addq(dst, src2);
+    masm->j(no_overflow, &done, Label::kNear);
+    // Restore src1.
+    masm->subq(dst, src2);
+    masm->jmp(on_not_smi_result, near_jump);
+    masm->bind(&done);
+  } else {
+    masm->movq(dst, src1);
+    masm->addq(dst, src2);
+    masm->j(overflow, on_not_smi_result, near_jump);
+  }
+}
+
+
 void MacroAssembler::SmiAdd(Register dst,
                             Register src1,
                             Register src2,
@@ -1612,16 +1639,7 @@ void MacroAssembler::SmiAdd(Register dst,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
-    movq(kScratchRegister, src1);
-    addq(kScratchRegister, src2);
-    j(overflow, on_not_smi_result, near_jump);
-    movq(dst, kScratchRegister);
-  } else {
-    movq(dst, src1);
-    addq(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-  }
+  SmiAddHelper<Register>(this, dst, src1, src2, on_not_smi_result, near_jump);
 }
 
 
@@ -1631,17 +1649,8 @@ void MacroAssembler::SmiAdd(Register dst,
                             Label* on_not_smi_result,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
-  if (dst.is(src1)) {
-    movq(kScratchRegister, src1);
-    addq(kScratchRegister, src2);
-    j(overflow, on_not_smi_result, near_jump);
-    movq(dst, kScratchRegister);
-  } else {
-    ASSERT(!src2.AddressUsesRegister(dst));
-    movq(dst, src1);
-    addq(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-  }
+  ASSERT(!src2.AddressUsesRegister(dst));
+  SmiAddHelper<Operand>(this, dst, src1, src2, on_not_smi_result, near_jump);
 }
 
 

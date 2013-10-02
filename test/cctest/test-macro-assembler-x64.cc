@@ -751,8 +751,6 @@ TEST(SmiNeg) {
 }
 
 
-
-
 static void SmiAddTest(MacroAssembler* masm,
                        Label* exit,
                        int id,
@@ -802,13 +800,120 @@ static void SmiAddTest(MacroAssembler* masm,
 }
 
 
+static void SmiAddOverflowTest(MacroAssembler* masm,
+                               Label* exit,
+                               int id,
+                               int x) {
+  // Adds a Smi to x so that the addition overflows.
+  ASSERT(x != 0);  // Can't overflow by adding a Smi.
+  int y_max = (x > 0) ? (Smi::kMaxValue + 0) : (Smi::kMinValue - x - 1);
+  int y_min = (x > 0) ? (Smi::kMaxValue - x + 1) : (Smi::kMinValue + 0);
+
+  __ movl(rax, Immediate(id));
+  __ Move(rcx, Smi::FromInt(x));
+  __ movq(r11, rcx);  // Store original Smi value of x in r11.
+  __ Move(rdx, Smi::FromInt(y_min));
+  {
+    Label overflow_ok;
+    __ SmiAdd(r9, rcx, rdx, &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+
+  {
+    Label overflow_ok;
+    __ incq(rax);
+    __ SmiAdd(rcx, rcx, rdx, &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+
+  __ movq(rcx, r11);
+  {
+    Label overflow_ok;
+    __ incq(rax);
+    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_min), &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+
+  {
+    Label overflow_ok;
+    __ incq(rax);
+    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_min), &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+
+  __ Move(rdx, Smi::FromInt(y_max));
+
+  {
+    Label overflow_ok;
+    __ incq(rax);
+    __ SmiAdd(r9, rcx, rdx, &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+
+  {
+    Label overflow_ok;
+    __ incq(rax);
+    __ SmiAdd(rcx, rcx, rdx, &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+
+  __ movq(rcx, r11);
+  {
+    Label overflow_ok;
+    __ incq(rax);
+    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_max), &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+
+  {
+    Label overflow_ok;
+    __ incq(rax);
+    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_max), &overflow_ok);
+    __ jmp(exit);
+    __ bind(&overflow_ok);
+    __ incq(rax);
+    __ cmpq(rcx, r11);
+    __ j(not_equal, exit);
+  }
+}
+
+
 TEST(SmiAdd) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
@@ -828,6 +933,14 @@ TEST(SmiAdd) {
   SmiAddTest(masm, &exit, 0x60, Smi::kMinValue, 5);
   SmiAddTest(masm, &exit, 0x70, Smi::kMaxValue, -5);
   SmiAddTest(masm, &exit, 0x80, Smi::kMaxValue, Smi::kMinValue);
+
+  SmiAddOverflowTest(masm, &exit, 0x90, -1);
+  SmiAddOverflowTest(masm, &exit, 0xA0, 1);
+  SmiAddOverflowTest(masm, &exit, 0xB0, 1024);
+  SmiAddOverflowTest(masm, &exit, 0xC0, Smi::kMaxValue);
+  SmiAddOverflowTest(masm, &exit, 0xD0, -2);
+  SmiAddOverflowTest(masm, &exit, 0xE0, -42000);
+  SmiAddOverflowTest(masm, &exit, 0xF0, Smi::kMinValue);
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
@@ -885,6 +998,7 @@ static void SmiSubTest(MacroAssembler* masm,
   __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 }
+
 
 static void SmiSubOverflowTest(MacroAssembler* masm,
                                Label* exit,
