@@ -43,10 +43,6 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
-  # This test fails on Windows XP and Windows Vista.
-  # Issue 288924
-  'timer' : [['system == windows', FAIL]],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
