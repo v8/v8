@@ -4103,9 +4103,9 @@ class ScopeInfo : public FixedArray {
 
 
   // Copies all the context locals into an object used to materialize a scope.
-  bool CopyContextLocalsToScopeObject(Isolate* isolate,
-                                      Handle<Context> context,
-                                      Handle<JSObject> scope_object);
+  static bool CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
+                                             Handle<Context> context,
+                                             Handle<JSObject> scope_object);
 
 
   static Handle<ScopeInfo> Create(Scope* scope, Zone* zone);

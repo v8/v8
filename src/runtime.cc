@@ -11395,8 +11395,8 @@ static Handle<JSObject> MaterializeLocalContext(Isolate* isolate,
   // Third fill all context locals.
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->declaration_context());
-  if (!scope_info->CopyContextLocalsToScopeObject(
-          isolate, function_context, target)) {
+  if (!ScopeInfo::CopyContextLocalsToScopeObject(
+          scope_info, function_context, target)) {
     return Handle<JSObject>();
   }
 
@@ -11553,8 +11553,8 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Fill all context locals to the context extension.
-  if (!scope_info->CopyContextLocalsToScopeObject(
-          isolate, context, closure_scope)) {
+  if (!ScopeInfo::CopyContextLocalsToScopeObject(
+          scope_info, context, closure_scope)) {
     return Handle<JSObject>();
   }
 
@@ -11674,8 +11674,8 @@ static Handle<JSObject> MaterializeBlockScope(
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Fill all context locals.
-  if (!scope_info->CopyContextLocalsToScopeObject(
-          isolate, context, block_scope)) {
+  if (!ScopeInfo::CopyContextLocalsToScopeObject(
+          scope_info, context, block_scope)) {
     return Handle<JSObject>();
   }
 
@@ -11697,8 +11697,8 @@ static Handle<JSObject> MaterializeModuleScope(
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Fill all context locals.
-  if (!scope_info->CopyContextLocalsToScopeObject(
-          isolate, context, module_scope)) {
+  if (!ScopeInfo::CopyContextLocalsToScopeObject(
+          scope_info, context, module_scope)) {
     return Handle<JSObject>();
   }
 
