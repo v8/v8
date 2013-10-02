@@ -6487,6 +6487,10 @@ void V8::CancelTerminateExecution(Isolate* isolate) {
 
 Isolate* Isolate::GetCurrent() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate == NULL) {
+    isolate = i::Isolate::EnsureDefaultIsolate(true);
+    ASSERT(isolate == i::Isolate::UncheckedCurrent());
+  }
   return reinterpret_cast<Isolate*>(isolate);
 }
 

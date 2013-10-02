@@ -498,7 +498,7 @@ class Isolate {
   // allocated. It is only necessary to call this method in rare cases, for
   // example if you are using V8 from within the body of a static initializer.
   // Safe to call multiple times.
-  static Isolate* EnsureDefaultIsolate();
+  static Isolate* EnsureDefaultIsolate(bool must_be_null = false);
 
   // Initialize all thread local variables
   static void InitializeThreadLocalStorage();

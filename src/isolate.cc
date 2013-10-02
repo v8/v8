@@ -390,10 +390,13 @@ void Isolate::SetCrashIfDefaultIsolateInitialized() {
 }
 
 
-Isolate* Isolate::EnsureDefaultIsolate() {
+Isolate* Isolate::EnsureDefaultIsolate(bool must_be_null) {
   static Isolate* default_isolate_ = NULL;
   LockGuard<Mutex> lock_guard(&process_wide_mutex_);
   CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
+  if (must_be_null) {
+    CHECK(default_isolate_ == NULL);
+  }
   if (default_isolate_ == NULL) {
     default_isolate_ = new Isolate(true);
   }
