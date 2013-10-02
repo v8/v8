@@ -2896,7 +2896,12 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   if (access.IsExternalMemory()) {
     Register result = ToRegister(instr->result());
-    __ lw(result, MemOperand(object, offset));
+    MemOperand operand = MemOperand(object, offset);
+    if (access.representation().IsByte()) {
+      __ lb(result, operand);
+    } else {
+      __ lw(result, operand);
+    }
     return;
   }
 
@@ -2907,11 +2912,15 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register result = ToRegister(instr->result());
-  if (access.IsInobject()) {
-    __ lw(result, FieldMemOperand(object, offset));
-  } else {
+  if (!access.IsInobject()) {
     __ lw(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
-    __ lw(result, FieldMemOperand(result, offset));
+    object = result;
+  }
+  MemOperand operand = FieldMemOperand(object, offset);
+  if (access.representation().IsByte()) {
+    __ lb(result, operand);
+  } else {
+    __ lw(result, operand);
   }
 }
 
@@ -4075,7 +4084,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (access.IsExternalMemory()) {
     Register value = ToRegister(instr->value());
-    __ sw(value, MemOperand(object, offset));
+    MemOperand operand = MemOperand(object, offset);
+    if (representation.IsByte()) {
+      __ sb(value, operand);
+    } else {
+      __ sw(value, operand);
+    }
     return;
   }
 
@@ -4120,7 +4134,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       instr->hydrogen()->value()->IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (access.IsInobject()) {
-    __ sw(value, FieldMemOperand(object, offset));
+    MemOperand operand = FieldMemOperand(object, offset);
+    if (representation.IsByte()) {
+      __ sb(value, operand);
+    } else {
+      __ sw(value, operand);
+    }
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the object for in-object properties.
       __ RecordWriteField(object,
@@ -4134,7 +4153,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     }
   } else {
     __ lw(scratch, FieldMemOperand(object, JSObject::kPropertiesOffset));
-    __ sw(value, FieldMemOperand(scratch, offset));
+    MemOperand operand = FieldMemOperand(scratch, offset);
+    if (representation.IsByte()) {
+      __ sb(value, operand);
+    } else {
+      __ sw(value, operand);
+    }
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.
