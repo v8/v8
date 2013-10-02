@@ -127,7 +127,7 @@ void LCodeGenBase::Comment(const char* format, ...) {
   // Copy the string before recording it in the assembler to avoid
   // issues when the stack allocated buffer goes out of scope.
   size_t length = builder.position();
-  Vector<char> copy = Vector<char>::New(length + 1);
+  Vector<char> copy = Vector<char>::New(static_cast<int>(length) + 1);
   OS::MemCopy(copy.start(), builder.Finalize(), copy.length());
   masm()->RecordComment(copy.start());
 }

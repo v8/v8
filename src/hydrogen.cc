@@ -216,7 +216,10 @@ void HBasicBlock::Goto(HBasicBlock* block,
       state->inlining_kind() == DROP_EXTRA_ON_RETURN;
 
   if (block->IsInlineReturnTarget()) {
-    AddInstruction(new(zone()) HLeaveInlined());
+    HEnvironment* env = last_environment();
+    int argument_count = state->entry()->arguments_pushed()
+        ? env->arguments_environment()->parameter_count() : 0;
+    AddInstruction(new(zone()) HLeaveInlined(argument_count));
     UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   }
 
@@ -233,7 +236,10 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
 
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
-  AddInstruction(new(zone()) HLeaveInlined());
+  HEnvironment* env = last_environment();
+  int argument_count = state->entry()->arguments_pushed()
+      ? env->arguments_environment()->parameter_count() : 0;
+  AddInstruction(new(zone()) HLeaveInlined(argument_count));
   UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   last_environment()->Push(return_value);
   AddNewSimulate(BailoutId::None());
