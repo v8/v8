@@ -4557,31 +4557,6 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-// Sets the lookup result and returns true if the load/store can be inlined.
-static bool ComputeLoadStoreField(Handle<Map> type,
-                                  Handle<String> name,
-                                  LookupResult* lookup,
-                                  bool is_store) {
-  ASSERT(!is_store || !type->is_observed());
-  if (!CanInlinePropertyAccess(*type)) {
-    lookup->NotFound();
-    return false;
-  }
-  // If we directly find a field, the access can be inlined.
-  type->LookupDescriptor(NULL, *name, lookup);
-  if (lookup->IsField()) return true;
-
-  // For a load, we are out of luck if there is no such field.
-  if (!is_store) return false;
-
-  // 2nd chance: A store into a non-existent field can still be inlined if we
-  // have a matching transition and some room left in the object.
-  type->LookupTransition(NULL, *name, lookup);
-  return lookup->IsTransitionToField(*type) &&
-      (type->unused_property_fields() > 0);
-}
-
-
 HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
                                                 Handle<Map> map) {
   BuildCheckHeapObject(object);
@@ -4687,6 +4662,28 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
 }
 
 
+// Sets the lookup result and returns true if the load/store can be inlined.
+static bool ComputeStoreField(Handle<Map> type,
+                              Handle<String> name,
+                              LookupResult* lookup,
+                              bool lookup_transition = true) {
+  ASSERT(!type->is_observed());
+  if (!CanInlinePropertyAccess(*type)) {
+    lookup->NotFound();
+    return false;
+  }
+  // If we directly find a field, the access can be inlined.
+  type->LookupDescriptor(NULL, *name, lookup);
+  if (lookup->IsField()) return true;
+
+  if (!lookup_transition) return false;
+
+  type->LookupTransition(NULL, *name, lookup);
+  return lookup->IsTransitionToField(*type) &&
+      (type->unused_property_fields() > 0);
+}
+
+
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
     HValue* object,
     Handle<String> name,
@@ -4694,7 +4691,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
     Handle<Map> map) {
   // Handle a store to a known field.
   LookupResult lookup(isolate());
-  if (ComputeLoadStoreField(map, name, &lookup, true)) {
+  if (ComputeStoreField(map, name, &lookup)) {
     HCheckMaps* checked_object = AddCheckMap(object, map);
     return BuildStoreNamedField(checked_object, name, value, map, &lookup);
   }
@@ -4964,7 +4961,7 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
   for (count = 0; count < types->length(); ++count) {
     Handle<Map> map = types->at(count);
     // Pass false to ignore transitions.
-    if (!ComputeLoadStoreField(map, name, &lookup, false)) break;
+    if (!ComputeStoreField(map, name, &lookup, false)) break;
     ASSERT(!map->is_observed());
 
     HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
@@ -5026,7 +5023,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
   for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
     Handle<Map> map = types->at(i);
     LookupResult lookup(isolate());
-    if (ComputeLoadStoreField(map, name, &lookup, true)) {
+    if (ComputeStoreField(map, name, &lookup)) {
       if (count == 0) {
         BuildCheckHeapObject(object);
         join = graph()->CreateBasicBlock();
