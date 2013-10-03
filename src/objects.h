@@ -4103,9 +4103,9 @@ class ScopeInfo : public FixedArray {
 
 
   // Copies all the context locals into an object used to materialize a scope.
-  bool CopyContextLocalsToScopeObject(Isolate* isolate,
-                                      Handle<Context> context,
-                                      Handle<JSObject> scope_object);
+  static bool CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
+                                             Handle<Context> context,
+                                             Handle<JSObject> scope_object);
 
 
   static Handle<ScopeInfo> Create(Scope* scope, Zone* zone);
@@ -7889,7 +7889,8 @@ class AllocationMemento: public Struct {
   DECLARE_VERIFIER(AllocationMemento)
 
   // Returns NULL if no AllocationMemento is available for object.
-  static AllocationMemento* FindForJSObject(JSObject* object);
+  static AllocationMemento* FindForJSObject(JSObject* object,
+                                            bool in_GC = false);
   static inline AllocationMemento* cast(Object* obj);
 
  private:

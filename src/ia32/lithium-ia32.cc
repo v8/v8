@@ -909,7 +909,25 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
   HInstruction* old_current = current_instruction_;
   current_instruction_ = current;
   if (current->has_position()) position_ = current->position();
-  LInstruction* instr = current->CompileToLithium(this);
+
+  LInstruction* instr = NULL;
+  if (current->CanReplaceWithDummyUses()) {
+    HValue* first_operand = current->OperandCount() == 0
+        ? graph()->GetConstant1()
+        : current->OperandAt(0);
+    instr = DefineAsRegister(new(zone()) LDummyUse(UseAny(first_operand)));
+    for (int i = 1; i < current->OperandCount(); ++i) {
+      LInstruction* dummy =
+          new(zone()) LDummyUse(UseAny(current->OperandAt(i)));
+      dummy->set_hydrogen_value(current);
+      chunk_->AddInstruction(dummy, current_block_);
+    }
+  } else {
+    instr = current->CompileToLithium(this);
+  }
+
+  argument_count_ += current->argument_delta();
+  ASSERT(argument_count_ >= 0);
 
   if (instr != NULL) {
     // Associate the hydrogen instruction first, since we may need it for
@@ -1058,21 +1076,15 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 
 LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
-  HValue* value = instr->value();
-  if (value->EmitAtUses()) {
-    ASSERT(value->IsConstant());
-    ASSERT(!value->representation().IsDouble());
-    HBasicBlock* successor = HConstant::cast(value)->BooleanValue()
-        ? instr->FirstSuccessor()
-        : instr->SecondSuccessor();
-    return new(zone()) LGoto(successor);
-  }
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
 
   ToBooleanStub::Types expected = instr->expected_input_types();
 
   // Tagged values that are not known smis or booleans require a
   // deoptimization environment. If the instruction is generic no
   // environment is needed since all cases are handled.
+  HValue* value = instr->value();
   Representation rep = value->representation();
   HType type = value->type();
   if (!rep.IsTagged() || type.IsSmi() || type.IsBoolean()) {
@@ -1168,7 +1180,6 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
-  ++argument_count_;
   LOperand* argument = UseAny(instr->argument());
   return new(zone()) LPushArgument(argument);
 }
@@ -1235,7 +1246,6 @@ LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
 
 LInstruction* LChunkBuilder::DoCallConstantFunction(
     HCallConstantFunction* instr) {
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new(zone()) LCallConstantFunction, eax), instr);
 }
 
@@ -1243,7 +1253,6 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* function = UseFixed(instr->function(), edi);
-  argument_count_ -= instr->argument_count();
   LInvokeFunction* result = new(zone()) LInvokeFunction(context, function);
   return MarkAsCall(DefineFixed(result, eax), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
@@ -1353,7 +1362,6 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
   ASSERT(instr->key()->representation().IsTagged());
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* key = UseFixed(instr->key(), ecx);
-  argument_count_ -= instr->argument_count();
   LCallKeyed* result = new(zone()) LCallKeyed(context, key);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -1361,7 +1369,6 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
 
 LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  argument_count_ -= instr->argument_count();
   LCallNamed* result = new(zone()) LCallNamed(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -1369,14 +1376,12 @@ LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
 
 LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  argument_count_ -= instr->argument_count();
   LCallGlobal* result = new(zone()) LCallGlobal(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
-  argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new(zone()) LCallKnownGlobal, eax), instr);
 }
 
@@ -1384,7 +1389,6 @@ LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
 LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* constructor = UseFixed(instr->constructor(), edi);
-  argument_count_ -= instr->argument_count();
   LCallNew* result = new(zone()) LCallNew(context, constructor);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -1393,7 +1397,6 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* constructor = UseFixed(instr->constructor(), edi);
-  argument_count_ -= instr->argument_count();
   LCallNewArray* result = new(zone()) LCallNewArray(context, constructor);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -1402,14 +1405,12 @@ LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* function = UseFixed(instr->function(), edi);
-  argument_count_ -= instr->argument_count();
   LCallFunction* result = new(zone()) LCallFunction(context, function);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallRuntime(HCallRuntime* instr) {
-  argument_count_ -= instr->argument_count();
   LOperand* context = UseFixed(instr->context(), esi);
   return MarkAsCall(DefineFixed(new(zone()) LCallRuntime(context), eax), instr);
 }
@@ -1744,6 +1745,8 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
 
 LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
     HCompareObjectEqAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseOrConstantAtStart(instr->right());
   return new(zone()) LCmpObjectEqAndBranch(left, right);
@@ -2566,7 +2569,6 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
 
 LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  argument_count_ -= instr->argument_count();
   LCallStub* result = new(zone()) LCallStub(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -2695,7 +2697,7 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
   if (env->entry()->arguments_pushed()) {
     int argument_count = env->arguments_environment()->parameter_count();
     pop = new(zone()) LDrop(argument_count);
-    argument_count_ -= argument_count;
+    ASSERT(instr->argument_delta() == -argument_count);
   }
 
   HEnvironment* outer = current_block_->last_environment()->

@@ -39,7 +39,6 @@
 #include "hydrogen-check-elimination.h"
 #include "hydrogen-dce.h"
 #include "hydrogen-dehoist.h"
-#include "hydrogen-deoptimizing-mark.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
@@ -47,6 +46,7 @@
 #include "hydrogen-load-elimination.h"
 #include "hydrogen-gvn.h"
 #include "hydrogen-mark-deoptimize.h"
+#include "hydrogen-mark-unreachable.h"
 #include "hydrogen-minus-zero.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
@@ -96,13 +96,18 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       parent_loop_header_(NULL),
       inlined_entry_block_(NULL),
       is_inline_return_target_(false),
-      is_deoptimizing_(false),
+      is_reachable_(true),
       dominates_loop_successors_(false),
       is_osr_entry_(false) { }
 
 
 Isolate* HBasicBlock::isolate() const {
   return graph_->isolate();
+}
+
+
+void HBasicBlock::MarkUnreachable() {
+  is_reachable_ = false;
 }
 
 
@@ -211,7 +216,9 @@ void HBasicBlock::Goto(HBasicBlock* block,
       state->inlining_kind() == DROP_EXTRA_ON_RETURN;
 
   if (block->IsInlineReturnTarget()) {
-    AddInstruction(new(zone()) HLeaveInlined());
+    HEnvironment* env = last_environment();
+    int argument_count = env->arguments_environment()->parameter_count();
+    AddInstruction(new(zone()) HLeaveInlined(state->entry(), argument_count));
     UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   }
 
@@ -228,7 +235,9 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
 
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
-  AddInstruction(new(zone()) HLeaveInlined());
+  HEnvironment* env = last_environment();
+  int argument_count = env->arguments_environment()->parameter_count();
+  AddInstruction(new(zone()) HLeaveInlined(state->entry(), argument_count));
   UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   last_environment()->Push(return_value);
   AddNewSimulate(BailoutId::None());
@@ -2283,7 +2292,6 @@ HGraph::HGraph(CompilationInfo* info)
       zone_(info->zone()),
       is_recursive_(false),
       use_optimistic_licm_(false),
-      has_soft_deoptimize_(false),
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
       maximum_environment_size_(0),
@@ -3130,7 +3138,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
     Run<HEnvironmentLivenessAnalysisPhase>();
   }
 
-  Run<HPropagateDeoptimizingMarkPhase>();
   if (!CheckConstPhiUses()) {
     *bailout_reason = kUnsupportedPhiUseOfConstVariable;
     return false;
@@ -3140,6 +3147,10 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
     *bailout_reason = kUnsupportedPhiUseOfArguments;
     return false;
   }
+
+  // Find and mark unreachable code to simplify optimizations, especially gvn,
+  // where unreachable code could unnecessarily defeat LICM.
+  Run<HMarkUnreachableBlocksPhase>();
 
   if (FLAG_check_elimination) Run<HCheckEliminationPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
@@ -3186,6 +3197,10 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   RestoreActualValues();
+
+  // Find unreachable code a second time, GVN and other optimizations may have
+  // made blocks unreachable that were previously reachable.
+  Run<HMarkUnreachableBlocksPhase>();
 
   return true;
 }
@@ -3621,6 +3636,13 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
           last_block = NULL;  // Cleared to indicate we've handled it.
         }
       } else {
+        // If the current test block is deoptimizing due to an unhandled clause
+        // of the switch, the test instruction is in the next block since the
+        // deopt must end the current block.
+        if (curr_test_block->IsDeoptimizing()) {
+          ASSERT(curr_test_block->end()->SecondSuccessor() == NULL);
+          curr_test_block = curr_test_block->end()->FirstSuccessor();
+        }
         normal_block = curr_test_block->end()->FirstSuccessor();
         curr_test_block = curr_test_block->end()->SecondSuccessor();
       }
@@ -4535,31 +4557,6 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-// Sets the lookup result and returns true if the load/store can be inlined.
-static bool ComputeLoadStoreField(Handle<Map> type,
-                                  Handle<String> name,
-                                  LookupResult* lookup,
-                                  bool is_store) {
-  ASSERT(!is_store || !type->is_observed());
-  if (!CanInlinePropertyAccess(*type)) {
-    lookup->NotFound();
-    return false;
-  }
-  // If we directly find a field, the access can be inlined.
-  type->LookupDescriptor(NULL, *name, lookup);
-  if (lookup->IsField()) return true;
-
-  // For a load, we are out of luck if there is no such field.
-  if (!is_store) return false;
-
-  // 2nd chance: A store into a non-existent field can still be inlined if we
-  // have a matching transition and some room left in the object.
-  type->LookupTransition(NULL, *name, lookup);
-  return lookup->IsTransitionToField(*type) &&
-      (type->unused_property_fields() > 0);
-}
-
-
 HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
                                                 Handle<Map> map) {
   BuildCheckHeapObject(object);
@@ -4665,6 +4662,28 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
 }
 
 
+// Sets the lookup result and returns true if the load/store can be inlined.
+static bool ComputeStoreField(Handle<Map> type,
+                              Handle<String> name,
+                              LookupResult* lookup,
+                              bool lookup_transition = true) {
+  ASSERT(!type->is_observed());
+  if (!CanInlinePropertyAccess(*type)) {
+    lookup->NotFound();
+    return false;
+  }
+  // If we directly find a field, the access can be inlined.
+  type->LookupDescriptor(NULL, *name, lookup);
+  if (lookup->IsField()) return true;
+
+  if (!lookup_transition) return false;
+
+  type->LookupTransition(NULL, *name, lookup);
+  return lookup->IsTransitionToField(*type) &&
+      (type->unused_property_fields() > 0);
+}
+
+
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
     HValue* object,
     Handle<String> name,
@@ -4672,7 +4691,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
     Handle<Map> map) {
   // Handle a store to a known field.
   LookupResult lookup(isolate());
-  if (ComputeLoadStoreField(map, name, &lookup, true)) {
+  if (ComputeStoreField(map, name, &lookup)) {
     HCheckMaps* checked_object = AddCheckMap(object, map);
     return BuildStoreNamedField(checked_object, name, value, map, &lookup);
   }
@@ -4689,9 +4708,13 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatibleForLoad(
   if (!LookupDescriptor()) return false;
 
   if (!lookup_.IsFound()) {
-    return (!info->lookup_.IsFound() || !info->holder_.is_null()) &&
+    return (!info->lookup_.IsFound() || info->has_holder()) &&
         map_->prototype() == info->map_->prototype();
   }
+
+  // Mismatch if the other access info found the property in the prototype
+  // chain.
+  if (info->has_holder()) return false;
 
   if (lookup_.IsPropertyCallbacks()) {
     return accessor_.is_identical_to(info->accessor_);
@@ -4938,7 +4961,7 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
   for (count = 0; count < types->length(); ++count) {
     Handle<Map> map = types->at(count);
     // Pass false to ignore transitions.
-    if (!ComputeLoadStoreField(map, name, &lookup, false)) break;
+    if (!ComputeStoreField(map, name, &lookup, false)) break;
     ASSERT(!map->is_observed());
 
     HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
@@ -5000,7 +5023,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
   for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
     Handle<Map> map = types->at(i);
     LookupResult lookup(isolate());
-    if (ComputeLoadStoreField(map, name, &lookup, true)) {
+    if (ComputeStoreField(map, name, &lookup)) {
       if (count == 0) {
         BuildCheckHeapObject(object);
         join = graph()->CreateBasicBlock();
@@ -6366,7 +6389,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
 
-#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
+#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
   // Target must be able to use caller's context.
   CompilationInfo* outer_info = current_info();
   if (target->context() != outer_info->closure()->context() ||
@@ -6515,9 +6538,9 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
                                      undefined,
                                      function_state()->inlining_kind(),
                                      undefined_receiver);
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
-  // IA32 and ARM only, overwrite the caller's context in the deoptimization
-  // environment with the correct one.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+  // IA32, ARM and MIPS only, overwrite the caller's context in the
+  // deoptimization environment with the correct one.
   //
   // TODO(kmillikin): implement the same inlining on other platforms so we
   // can remove the unsightly ifdefs in this function.
@@ -8301,6 +8324,33 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         New<HCompareObjectEqAndBranch>(left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnControl(result, expr->id());
+  } else if (combined_type->Is(Type::String())) {
+    BuildCheckHeapObject(left);
+    AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
+    BuildCheckHeapObject(right);
+    AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
+    HStringCompareAndBranch* result =
+        New<HStringCompareAndBranch>(left, right, op);
+    result->set_position(expr->position());
+    return ast_context()->ReturnControl(result, expr->id());
+  } else if (combined_type->NumClasses() == 1 && Token::IsEqualityOp(op)) {
+    BuildCheckHeapObject(left);
+    BuildCheckMap(left, combined_type->Classes().Current());
+    BuildCheckHeapObject(right);
+    BuildCheckMap(right, combined_type->Classes().Current());
+    HCompareObjectEqAndBranch* result =
+        New<HCompareObjectEqAndBranch>(left, right);
+    result->set_position(expr->position());
+    return ast_context()->ReturnInstruction(result, expr->id());
+  } else if (combined_type->Is(Type::Receiver()) && Token::IsEqualityOp(op)) {
+    BuildCheckHeapObject(left);
+    AddInstruction(HCheckInstanceType::NewIsSpecObject(left, zone()));
+    BuildCheckHeapObject(right);
+    AddInstruction(HCheckInstanceType::NewIsSpecObject(right, zone()));
+    HCompareObjectEqAndBranch* result =
+        New<HCompareObjectEqAndBranch>(left, right);
+    result->set_position(expr->position());
+    return ast_context()->ReturnInstruction(result, expr->id());
   } else {
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
       HCompareGeneric* result =

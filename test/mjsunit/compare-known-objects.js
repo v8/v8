@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_DEOPTIMIZING_MARK_H_
-#define V8_HYDROGEN_DEOPTIMIZING_MARK_H_
+// Flags: --allow-natives-syntax
 
-#include "hydrogen.h"
+// Test CompareIC stubs for normal and strict equality comparison of known
+// objects in slow mode. These objects share the same map even though they
+// might have completely different properties.
 
-namespace v8 {
-namespace internal {
+function eq(a, b) {
+  return a == b;
+}
 
+function eq_strict(a, b) {
+  return a === b;
+}
 
-// Mark all blocks that are dominated by an unconditional soft deoptimize to
-// prevent code motion across those blocks.
-class HPropagateDeoptimizingMarkPhase : public HPhase {
- public:
-  explicit HPropagateDeoptimizingMarkPhase(HGraph* graph)
-      : HPhase("H_Propagate deoptimizing mark", graph) { }
+function test(a, b) {
+  // Check CompareIC for equality of known objects.
+  assertTrue(eq(a, a));
+  assertTrue(eq(b, b));
+  assertFalse(eq(a, b));
+  // Check CompareIC for strict equality of known objects.
+  assertTrue(eq_strict(a, a));
+  assertTrue(eq_strict(b, b));
+  assertFalse(eq_strict(a, b));
+}
 
-  void Run();
+function O(){};
+O.prototype.t = function() {}
 
- private:
-  void MarkAsDeoptimizing();
-  void NullifyUnreachableInstructions();
+var obj1 = new O;
+var obj2 = new O;
 
-  DISALLOW_COPY_AND_ASSIGN(HPropagateDeoptimizingMarkPhase);
-};
+// Test original objects.
+assertTrue(%HaveSameMap(obj1, obj2));
+test(obj1, obj2);
 
-
-} }  // namespace v8::internal
-
-#endif  // V8_HYDROGEN_DEOPTIMIZING_MARK_H_
+// Test after adding property to first object.
+obj1.x = 1;
+test(obj1, obj2);

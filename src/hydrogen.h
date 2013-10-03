@@ -170,8 +170,13 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   }
   HBasicBlock* inlined_entry_block() { return inlined_entry_block_; }
 
-  bool IsDeoptimizing() const { return is_deoptimizing_; }
-  void MarkAsDeoptimizing() { is_deoptimizing_ = true; }
+  bool IsDeoptimizing() const {
+    return end() != NULL && end()->IsDeoptimize();
+  }
+
+  void MarkUnreachable();
+  bool IsUnreachable() const { return !is_reachable_; }
+  bool IsReachable() const { return is_reachable_; }
 
   bool IsLoopSuccessorDominator() const {
     return dominates_loop_successors_;
@@ -215,7 +220,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   // For blocks marked as inline return target: the block with HEnterInlined.
   HBasicBlock* inlined_entry_block_;
   bool is_inline_return_target_ : 1;
-  bool is_deoptimizing_ : 1;
+  bool is_reachable_ : 1;
   bool dominates_loop_successors_ : 1;
   bool is_osr_entry_ : 1;
 };
@@ -406,14 +411,6 @@ class HGraph V8_FINAL : public ZoneObject {
     use_optimistic_licm_ = value;
   }
 
-  bool has_soft_deoptimize() {
-    return has_soft_deoptimize_;
-  }
-
-  void set_has_soft_deoptimize(bool value) {
-    has_soft_deoptimize_ = value;
-  }
-
   void MarkRecursive() {
     is_recursive_ = true;
   }
@@ -496,7 +493,6 @@ class HGraph V8_FINAL : public ZoneObject {
 
   bool is_recursive_;
   bool use_optimistic_licm_;
-  bool has_soft_deoptimize_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
   int maximum_environment_size_;
@@ -1657,13 +1653,14 @@ inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
     if (FLAG_always_opt) return NULL;
   }
   if (current_block()->IsDeoptimizing()) return NULL;
-  HDeoptimize* instr = New<HDeoptimize>(reason, type);
-  AddInstruction(instr);
+  HBasicBlock* after_deopt_block = CreateBasicBlock(
+      current_block()->last_environment());
+  HDeoptimize* instr = New<HDeoptimize>(reason, type, after_deopt_block);
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_inserted()->Increment();
-    graph()->set_has_soft_deoptimize(true);
   }
-  current_block()->MarkAsDeoptimizing();
+  current_block()->Finish(instr);
+  set_current_block(after_deopt_block);
   return instr;
 }
 

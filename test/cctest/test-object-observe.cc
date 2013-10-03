@@ -465,34 +465,32 @@ static bool IndexedAccessAlwaysAllowed(Local<Object>, uint32_t, AccessType,
 
 
 static AccessType g_access_block_type = ACCESS_GET;
+static const uint32_t kBlockedContextIndex = 1337;
 
 
 static bool NamedAccessAllowUnlessBlocked(Local<Object> host,
-                                             Local<Value> key,
-                                             AccessType type,
-                                             Local<Value>) {
+                                          Local<Value> key,
+                                          AccessType type,
+                                          Local<Value> data) {
   if (type != g_access_block_type) return true;
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
       Utils::OpenHandle(*host)->GetIsolate());
   Handle<Object> global = isolate->GetCurrentContext()->Global();
-  Handle<Value> blacklist = global->Get(String::New("blacklist"));
-  if (!blacklist->IsObject()) return true;
-  if (key->IsString()) return !blacklist.As<Object>()->Has(key);
-  return true;
+  if (!global->Has(kBlockedContextIndex)) return true;
+  return !key->IsString() || !key->Equals(data);
 }
 
 
 static bool IndexedAccessAllowUnlessBlocked(Local<Object> host,
-                                               uint32_t index,
-                                               AccessType type,
-                                               Local<Value>) {
-  if (type != ACCESS_GET) return true;
+                                            uint32_t index,
+                                            AccessType type,
+                                            Local<Value> data) {
+  if (type != g_access_block_type) return true;
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
       Utils::OpenHandle(*host)->GetIsolate());
   Handle<Object> global = isolate->GetCurrentContext()->Global();
-  Handle<Value> blacklist = global->Get(String::New("blacklist"));
-  if (!blacklist->IsObject()) return true;
-  return !blacklist.As<Object>()->Has(index);
+  if (!global->Has(kBlockedContextIndex)) return true;
+  return index != data->Uint32Value();
 }
 
 
@@ -501,20 +499,20 @@ static bool BlockAccessKeys(Local<Object> host, Local<Value> key,
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
       Utils::OpenHandle(*host)->GetIsolate());
   Handle<Object> global = isolate->GetCurrentContext()->Global();
-  Handle<Value> blacklist = global->Get(String::New("blacklist"));
-  if (!blacklist->IsObject()) return true;
-  return type != ACCESS_KEYS ||
-      !blacklist.As<Object>()->Has(String::New("__block_access_keys"));
+  return type != ACCESS_KEYS || !global->Has(kBlockedContextIndex);
 }
 
 
 static Handle<Object> CreateAccessCheckedObject(
     NamedSecurityCallback namedCallback,
-    IndexedSecurityCallback indexedCallback) {
+    IndexedSecurityCallback indexedCallback,
+    Handle<Value> data = Handle<Value>()) {
   Handle<ObjectTemplate> tmpl = ObjectTemplate::New();
-  tmpl->SetAccessCheckCallbacks(namedCallback, indexedCallback);
+  tmpl->SetAccessCheckCallbacks(namedCallback, indexedCallback, data);
   Handle<Object> instance = tmpl->NewInstance();
-  instance->CreationContext()->Global()->Set(String::New("obj"), instance);
+  Handle<Object> global = instance->CreationContext()->Global();
+  global->Set(String::New("obj"), instance);
+  global->Set(kBlockedContextIndex, v8::True());
   return instance;
 }
 
@@ -527,10 +525,11 @@ TEST(NamedAccessCheck) {
     LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
-        NamedAccessAllowUnlessBlocked, IndexedAccessAlwaysAllowed);
+        NamedAccessAllowUnlessBlocked,
+        IndexedAccessAlwaysAllowed,
+        String::New("foo"));
     CompileRun("var records = null;"
                "var objNoCheck = {};"
-               "var blacklist = {foo: true};"
                "var observer = function(r) { records = r };"
                "Object.observe(obj, observer);"
                "Object.observe(objNoCheck, observer);");
@@ -574,10 +573,10 @@ TEST(IndexedAccessCheck) {
     LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
-        NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked);
+        NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked,
+        Number::New(7));
     CompileRun("var records = null;"
                "var objNoCheck = {};"
-               "var blacklist = {7: true};"
                "var observer = function(r) { records = r };"
                "Object.observe(obj, observer);"
                "Object.observe(objNoCheck, observer);");
@@ -619,12 +618,12 @@ TEST(SpliceAccessCheck) {
   LocalContext context(isolate.GetIsolate());
   g_access_block_type = ACCESS_GET;
   Handle<Object> instance = CreateAccessCheckedObject(
-      NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked);
+      NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked,
+      Number::New(1));
   CompileRun("var records = null;"
              "obj[1] = 'foo';"
              "obj.length = 2;"
              "var objNoCheck = {1: 'bar', length: 2};"
-             "var blacklist = {1: true};"
              "observer = function(r) { records = r };"
              "Array.observe(obj, observer);"
              "Array.observe(objNoCheck, observer);");
@@ -667,7 +666,6 @@ TEST(DisallowAllForAccessKeys) {
   CompileRun("var records = null;"
              "var objNoCheck = {};"
              "var observer = function(r) { records = r };"
-             "var blacklist = {__block_access_keys: true};"
              "Object.observe(obj, observer);"
              "Object.observe(objNoCheck, observer);");
   Handle<Value> obj_no_check = CompileRun("objNoCheck");
@@ -704,7 +702,6 @@ TEST(AccessCheckDisallowApiModifications) {
       BlockAccessKeys, IndexedAccessAlwaysAllowed);
   CompileRun("var records = null;"
              "var observer = function(r) { records = r };"
-             "var blacklist = {__block_access_keys: true};"
              "Object.observe(obj, observer);");
   {
     LocalContext context2(isolate.GetIsolate());

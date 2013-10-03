@@ -200,6 +200,9 @@ class CodeStub BASE_EMBEDDED {
 
   virtual void PrintName(StringStream* stream);
 
+  // Returns a name for logging/debugging purposes.
+  SmartArrayPointer<const char> GetName();
+
  protected:
   static bool CanUseFPRegisters();
 
@@ -211,8 +214,6 @@ class CodeStub BASE_EMBEDDED {
   // a fixed (non-moveable) code object.
   virtual bool NeedsImmovableCode() { return false; }
 
-  // Returns a name for logging/debugging purposes.
-  SmartArrayPointer<const char> GetName();
   virtual void PrintBaseName(StringStream* stream);
   virtual void PrintState(StringStream* stream) { }
 

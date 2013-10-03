@@ -509,6 +509,17 @@ const char* HValue::Mnemonic() const {
 }
 
 
+bool HValue::CanReplaceWithDummyUses() {
+  return FLAG_unreachable_code_elimination &&
+      !(block()->IsReachable() ||
+        IsBlockEntry() ||
+        IsControlInstruction() ||
+        IsSimulate() ||
+        IsEnterInlined() ||
+        IsLeaveInlined());
+}
+
+
 bool HValue::IsInteger32Constant() {
   return IsConstant() && HConstant::cast(this)->HasInteger32Value();
 }
@@ -1050,6 +1061,21 @@ Representation HBranch::observed_input_representation(int index) {
     return Representation::Smi();
   }
   return Representation::None();
+}
+
+
+bool HBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  HValue* value = this->value();
+  if (value->EmitAtUses()) {
+    ASSERT(value->IsConstant());
+    ASSERT(!value->representation().IsDouble());
+    *block = HConstant::cast(value)->BooleanValue()
+        ? FirstSuccessor()
+        : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
 }
 
 
@@ -2803,6 +2829,9 @@ Range* HShl::InferRange(Zone* zone) {
 
 
 Range* HLoadNamedField::InferRange(Zone* zone) {
+  if (access().representation().IsByte()) {
+    return new(zone) Range(0, 255);
+  }
   if (access().IsStringLength()) {
     return new(zone) Range(0, String::kMaxLength);
   }
@@ -2857,6 +2886,20 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(" ");
   right()->PrintNameTo(stream);
   HControlInstruction::PrintDataTo(stream);
+}
+
+
+bool HCompareObjectEqAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (left()->IsConstant() && right()->IsConstant()) {
+    bool comparison_result =
+        HConstant::cast(left())->Equals(HConstant::cast(right()));
+    *block = comparison_result
+        ? FirstSuccessor()
+        : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
 }
 
 

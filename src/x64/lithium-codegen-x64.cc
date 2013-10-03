@@ -103,24 +103,6 @@ void LChunkBuilder::Abort(BailoutReason reason) {
 }
 
 
-void LCodeGen::Comment(const char* format, ...) {
-  if (!FLAG_code_comments) return;
-  char buffer[4 * KB];
-  StringBuilder builder(buffer, ARRAY_SIZE(buffer));
-  va_list arguments;
-  va_start(arguments, format);
-  builder.AddFormattedList(format, arguments);
-  va_end(arguments);
-
-  // Copy the string before recording it in the assembler to avoid
-  // issues when the stack allocated buffer goes out of scope.
-  int length = builder.position();
-  Vector<char> copy = Vector<char>::New(length + 1);
-  OS::MemCopy(copy.start(), builder.Finalize(), copy.length());
-  masm()->RecordComment(copy.start());
-}
-
-
 #ifdef _MSC_VER
 void LCodeGen::MakeSureStackPagesMapped(int offset) {
   const int kPageSize = 4 * KB;
@@ -152,10 +134,9 @@ bool LCodeGen::GeneratePrologue() {
       Label ok;
       __ testq(rcx, rcx);
       __ j(zero, &ok, Label::kNear);
-      // +1 for return address.
-      int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
+      StackArgumentsAccessor args(rsp, scope()->num_parameters());
       __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-      __ movq(Operand(rsp, receiver_offset), kScratchRegister);
+      __ movq(args.GetReceiverOperand(), kScratchRegister);
       __ bind(&ok);
     }
   }
@@ -270,36 +251,6 @@ void LCodeGen::GenerateOsrPrologue() {
   int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
   ASSERT(slots >= 0);
   __ subq(rsp, Immediate(slots * kPointerSize));
-}
-
-
-bool LCodeGen::GenerateBody() {
-  ASSERT(is_generating());
-  bool emit_instructions = true;
-  for (current_instruction_ = 0;
-       !is_aborted() && current_instruction_ < instructions_->length();
-       current_instruction_++) {
-    LInstruction* instr = instructions_->at(current_instruction_);
-
-    // Don't emit code for basic blocks with a replacement.
-    if (instr->IsLabel()) {
-      emit_instructions = !LLabel::cast(instr)->HasReplacement();
-    }
-    if (!emit_instructions) continue;
-
-    if (FLAG_code_comments && instr->HasInterestingComment(this)) {
-      Comment(";;; <@%d,#%d> %s",
-              current_instruction_,
-              instr->hydrogen_value()->id(),
-              instr->Mnemonic());
-    }
-
-    RecordAndUpdatePosition(instr->position());
-
-    instr->CompileToNative(this);
-  }
-  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-  return !is_aborted();
 }
 
 
@@ -1904,14 +1855,6 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 }
 
 
-int LCodeGen::GetNextEmittedBlock() const {
-  for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
-    if (!chunk_->GetLabel(i)->HasReplacement()) return i;
-  }
-  return -1;
-}
-
-
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
   int left_block = instr->TrueDestination(chunk_);
@@ -2782,14 +2725,13 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!access.representation().IsInteger32());
     Register result = ToRegister(instr->result());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(result.is(rax));
       __ load_rax(ToExternalReference(LConstantOperand::cast(instr->object())));
     } else {
       Register object = ToRegister(instr->object());
-      __ movq(result, MemOperand(object, offset));
+      __ Load(result, MemOperand(object, offset), access.representation());
     }
     return;
   }
@@ -2803,20 +2745,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register result = ToRegister(instr->result());
-  if (access.IsInobject()) {
-    if (access.representation().IsInteger32()) {
-      __ movl(result, FieldOperand(object, offset));
-    } else {
-      __ movq(result, FieldOperand(object, offset));
-    }
-  } else {
+  if (!access.IsInobject()) {
     __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
-    if (access.representation().IsInteger32()) {
-      __ movl(result, FieldOperand(result, offset));
-    } else {
-      __ movq(result, FieldOperand(result, offset));
-    }
+    object = result;
   }
+  __ Load(result, FieldOperand(object, offset), access.representation());
 }
 
 
@@ -2894,8 +2827,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
       instr->index()->IsConstantOperand()) {
     int32_t const_index = ToInteger32(LConstantOperand::cast(instr->index()));
     int32_t const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    int index = (const_length - const_index) + 1;
-    __ movq(result, Operand(arguments, index * kPointerSize));
+    StackArgumentsAccessor args(arguments, const_length,
+                                ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movq(result, args.GetArgumentOperand(const_index));
   } else {
     Register length = ToRegister(instr->length());
     // There are two words between the frame pointer and the last argument.
@@ -2905,8 +2839,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     } else {
       __ subl(length, ToOperand(instr->index()));
     }
-    __ movq(result,
-            Operand(arguments, length, times_pointer_size, kPointerSize));
+    StackArgumentsAccessor args(arguments, length,
+                                ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movq(result, args.GetArgumentOperand(0));
   }
 }
 
@@ -3110,7 +3045,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
   if (instr->hydrogen()->from_inlined()) {
-    __ lea(result, Operand(rsp, -2 * kPointerSize));
+    __ lea(result, Operand(rsp, -kFPOnStackSize + -kPCOnStackSize));
   } else {
     // Check for arguments adapter frame.
     Label done, adapted;
@@ -3232,7 +3167,9 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ testl(length, length);
   __ j(zero, &invoke, Label::kNear);
   __ bind(&loop);
-  __ push(Operand(elements, length, times_pointer_size, 1 * kPointerSize));
+  StackArgumentsAccessor args(elements, length,
+                              ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ push(args.GetArgumentOperand(0));
   __ decl(length);
   __ j(not_zero, &loop);
 
@@ -3934,16 +3871,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!access.representation().IsInteger32());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(value.is(rax));
+      ASSERT(!access.representation().IsSpecialization());
       LConstantOperand* object = LConstantOperand::cast(instr->object());
       __ store_rax(ToExternalReference(object));
     } else {
       Register object = ToRegister(instr->object());
-      __ movq(MemOperand(object, offset), value);
+      __ Store(MemOperand(object, offset), value, representation);
     }
     return;
   }
@@ -4012,24 +3949,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (operand_value->IsRegister()) {
-      if (access.representation().IsInteger32()) {
-        __ movl(FieldOperand(write_register, offset),
-                ToRegister(operand_value));
-      } else {
-        __ movq(FieldOperand(write_register, offset),
-                ToRegister(operand_value));
-      }
+      Register value = ToRegister(operand_value);
+      __ Store(FieldOperand(write_register, offset), value, representation);
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
       __ Move(FieldOperand(write_register, offset), handle_value);
     }
   } else {
-    if (access.representation().IsInteger32()) {
-      __ movl(FieldOperand(write_register, offset), ToRegister(instr->value()));
-    } else {
-      __ movq(FieldOperand(write_register, offset), ToRegister(instr->value()));
-    }
+    Register value = ToRegister(instr->value());
+    __ Store(FieldOperand(write_register, offset), value, representation);
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {

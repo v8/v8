@@ -86,7 +86,7 @@ Heap::Heap()
       contexts_disposed_(0),
       global_ic_age_(0),
       flush_monomorphic_ics_(false),
-      allocation_mementos_found_on_scavenge_(0),
+      allocation_mementos_found_(0),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -1329,7 +1329,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 void Heap::Scavenge() {
   RelocationLock relocation_lock(this);
 
-  allocation_mementos_found_on_scavenge_ = 0;
+  allocation_mementos_found_ = 0;
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
@@ -1479,10 +1479,9 @@ void Heap::Scavenge() {
 
   scavenges_since_last_idle_round_++;
 
-  if (FLAG_trace_track_allocation_sites &&
-      allocation_mementos_found_on_scavenge_ > 0) {
+  if (FLAG_trace_track_allocation_sites && allocation_mementos_found_ > 0) {
     PrintF("AllocationMementos found during scavenge = %d\n",
-           allocation_mementos_found_on_scavenge_);
+           allocation_mementos_found_);
   }
 }
 

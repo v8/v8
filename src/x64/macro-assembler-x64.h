@@ -569,8 +569,8 @@ class MacroAssembler: public Assembler {
               Label::Distance near_jump = Label::kFar);
 
   // Adds smi values and return the result as a smi.
-  // If dst is src1, then src1 will be destroyed, even if
-  // the operation is unsuccessful.
+  // If dst is src1, then src1 will be destroyed if the operation is
+  // successful, otherwise kept intact.
   void SmiAdd(Register dst,
               Register src1,
               Register src2,
@@ -780,6 +780,10 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // Macro instructions.
+
+  // Load/store with specific representation.
+  void Load(Register dst, const Operand& src, Representation r);
+  void Store(const Operand& dst, Register src, Representation r);
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);

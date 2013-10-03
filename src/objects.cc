@@ -7349,11 +7349,10 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(Name* name, Code* code) {
 
 
 Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
-  if (Code::ExtractTypeFromFlags(flags) == Code::NORMAL) {
-    return LookupNormalTypeCache(name, flags);
-  } else {
-    return LookupDefaultCache(name, flags);
-  }
+  flags = Code::RemoveTypeFromFlags(flags);
+  Object* result = LookupDefaultCache(name, flags);
+  if (result->IsCode()) return result;
+  return LookupNormalTypeCache(name, flags);
 }
 
 
@@ -7367,7 +7366,7 @@ Object* CodeCache::LookupDefaultCache(Name* name, Code::Flags flags) {
     if (key->IsUndefined()) return key;
     if (name->Equals(Name::cast(key))) {
       Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
-      if (code->flags() == flags) {
+      if (Code::RemoveTypeFromFlags(code->flags()) == flags) {
         return code;
       }
     }
@@ -7431,9 +7430,7 @@ class CodeCacheHashTableKey : public HashTableKey {
       : name_(name), flags_(flags), code_(NULL) { }
 
   CodeCacheHashTableKey(Name* name, Code* code)
-      : name_(name),
-        flags_(code->flags()),
-        code_(code) { }
+      : name_(name), flags_(code->flags()), code_(code) { }
 
 
   bool IsMatch(Object* other) {
@@ -9049,7 +9046,8 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
+AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object,
+                                                      bool in_GC) {
   // Currently, AllocationMemento objects are only allocated immediately
   // after JSArrays in NewSpace, and detecting whether a JSArray has one
   // involves carefully checking the object immediately after the JSArray
@@ -9057,8 +9055,13 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
-    if ((ptr_end + AllocationMemento::kSize) <=
-        object->GetHeap()->NewSpaceTop()) {
+    Address top;
+    if (in_GC) {
+      top = object->GetHeap()->new_space()->FromSpacePageHigh();
+    } else {
+      top = object->GetHeap()->NewSpaceTop();
+    }
+    if ((ptr_end + AllocationMemento::kSize) <= top) {
       // There is room in newspace for allocation info. Do we have some?
       Map** possible_allocation_memento_map =
           reinterpret_cast<Map**>(ptr_end);

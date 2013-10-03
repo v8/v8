@@ -83,24 +83,20 @@ class StubCache {
   Handle<Code> FindIC(Handle<Name> name,
                       Handle<Map> stub_holder_map,
                       Code::Kind kind,
-                      Code::StubType type,
                       Code::ExtraICState extra_state = Code::kNoExtraICState);
 
   Handle<Code> FindIC(Handle<Name> name,
                       Handle<JSObject> stub_holder,
                       Code::Kind kind,
-                      Code::StubType type,
                       Code::ExtraICState extra_state = Code::kNoExtraICState);
 
   Handle<Code> FindLoadHandler(Handle<Name> name,
                                Handle<JSObject> receiver,
-                               Code::Kind kind,
-                               Code::StubType type);
+                               Code::Kind kind);
 
   Handle<Code> FindStoreHandler(Handle<Name> name,
                                 Handle<JSObject> receiver,
                                 Code::Kind kind,
-                                Code::StubType type,
                                 StrictModeFlag strict_mode);
 
   Handle<Code> ComputeMonomorphicIC(Handle<HeapObject> receiver,

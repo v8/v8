@@ -595,9 +595,7 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
 // Returns current time as the number of milliseconds since
 // 00:00:00 UTC, January 1, 1970.
 double OS::TimeCurrentMillis() {
-  Win32Time t;
-  t.SetToCurrentTime();
-  return t.ToJSTime();
+  return Time::Now().ToJsTime();
 }
 
 

@@ -404,17 +404,17 @@ class LInstructionGap V8_FINAL : public LGap {
 
 class LGoto V8_FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
-  explicit LGoto(int block_id) : block_id_(block_id) { }
+  explicit LGoto(HBasicBlock* block) : block_(block) { }
 
   virtual bool HasInterestingComment(LCodeGen* gen) const V8_OVERRIDE;
   DECLARE_CONCRETE_INSTRUCTION(Goto, "goto")
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
   virtual bool IsControl() const V8_OVERRIDE { return true; }
 
-  int block_id() const { return block_id_; }
+  int block_id() const { return block_->block_id(); }
 
  private:
-  int block_id_;
+  HBasicBlock* block_;
 };
 
 
@@ -2757,6 +2757,8 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
+
+  LInstruction* CheckElideControlInstruction(HControlInstruction* instr);
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
