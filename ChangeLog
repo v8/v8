@@ -1,3 +1,14 @@
+2013-10-03: Version 3.22.7
+
+        Debug: Allow stepping into on a given call frame
+        (Chromium issue 296963).
+
+        Always use timeGetTime() for TimeTicks::Now() on Windows
+        (Chromium issue 288924).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-02: Version 3.22.6
 
         Performance and stability improvements on all platforms.
