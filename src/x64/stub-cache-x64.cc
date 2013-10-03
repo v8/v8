@@ -2198,7 +2198,7 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
   GenerateNameCheck(name, &miss);
 
   if (cell.is_null()) {
-    __ movq(rdx, args.GetArgumentOperand(argc - 1));
+    __ movq(rdx, args.GetReceiverOperand());
     __ JumpIfSmi(rdx, &miss);
     CheckPrototypes(Handle<JSObject>::cast(object), rdx, holder, rbx, rax, rdi,
                     name, &miss);
@@ -2211,7 +2211,7 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
 
   // Load the char code argument.
   Register code = rbx;
-  __ movq(code, args.GetArgumentOperand(argc));
+  __ movq(code, args.GetArgumentOperand(1));
 
   // Check the code is a smi.
   Label slow;
@@ -2261,6 +2261,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   //  -- rsp[(argc + 1) * 4] : receiver
   // -----------------------------------
   const int argc = arguments().immediate();
+  StackArgumentsAccessor args(rsp, argc);
 
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
@@ -2272,7 +2273,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   GenerateNameCheck(name, &miss);
 
   if (cell.is_null()) {
-    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+    __ movq(rdx, args.GetReceiverOperand());
 
     STATIC_ASSERT(kSmiTag == 0);
     __ JumpIfSmi(rdx, &miss);
@@ -2287,7 +2288,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   }
 
   // Load the (only) argument into rax.
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+  __ movq(rax, args.GetArgumentOperand(1));
 
   // Check if the argument is a smi.
   Label smi;
@@ -2354,7 +2355,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   // Return the argument (when it's an already round heap number).
   __ bind(&already_round);
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+  __ movq(rax, args.GetArgumentOperand(1));
   __ ret(2 * kPointerSize);
 
   // Tail call the full function. We do not have to patch the receiver
@@ -2398,7 +2399,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   GenerateNameCheck(name, &miss);
 
   if (cell.is_null()) {
-    __ movq(rdx, args.GetArgumentOperand(argc - 1));
+    __ movq(rdx, args.GetReceiverOperand());
     __ JumpIfSmi(rdx, &miss);
     CheckPrototypes(Handle<JSObject>::cast(object), rdx, holder, rbx, rax, rdi,
                     name, &miss);
@@ -2409,7 +2410,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
     GenerateLoadFunctionFromCell(cell, function, &miss);
   }
   // Load the (only) argument into rax.
-  __ movq(rax, args.GetArgumentOperand(argc));
+  __ movq(rax, args.GetArgumentOperand(1));
 
   // Check if the argument is a smi.
   Label not_smi;

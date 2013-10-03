@@ -1986,11 +1986,6 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in rdx and the parameter count is in rax.
 
-  // The displacement is used for skipping the frame pointer on the
-  // stack. It is the offset of the last parameter (if any) relative
-  // to the frame pointer.
-  static const int kDisplacement = 1 * kPointerSize;
-
   // Check that the key is a smi.
   Label slow;
   __ JumpIfNotSmi(rdx, &slow);
@@ -2012,10 +2007,10 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
-  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
-  __ lea(rbx, Operand(rbp, index.reg, index.scale, 0));
-  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
-  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
+  __ SmiSub(rax, rax, rdx);
+  __ SmiToInteger32(rax, rax);
+  StackArgumentsAccessor args(rbp, rax, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rax, args.GetArgumentOperand(0));
   __ Ret();
 
   // Arguments adaptor case: Check index against actual arguments
@@ -2027,10 +2022,11 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
-  index = masm->SmiToIndex(rax, rcx, kPointerSizeLog2);
-  __ lea(rbx, Operand(rbx, index.reg, index.scale, 0));
-  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
-  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
+  __ SmiSub(rcx, rcx, rdx);
+  __ SmiToInteger32(rcx, rcx);
+  StackArgumentsAccessor adaptor_args(rbx, rcx,
+                                      ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rax, adaptor_args.GetArgumentOperand(0));
   __ Ret();
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
@@ -2404,11 +2400,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   //  rsp[24] : subject string
   //  rsp[32] : JSRegExp object
 
-  static const int kLastMatchInfoOffset = 1 * kPointerSize;
-  static const int kPreviousIndexOffset = 2 * kPointerSize;
-  static const int kSubjectOffset = 3 * kPointerSize;
-  static const int kJSRegExpOffset = 4 * kPointerSize;
+  enum RegExpExecStubArgumentIndices {
+    JS_REG_EXP_OBJECT_ARGUMENT_INDEX,
+    SUBJECT_STRING_ARGUMENT_INDEX,
+    PREVIOUS_INDEX_ARGUMENT_INDEX,
+    LAST_MATCH_INFO_ARGUMENT_INDEX,
+    REG_EXP_EXEC_ARGUMENT_COUNT
+  };
 
+  StackArgumentsAccessor args(rsp, REG_EXP_EXEC_ARGUMENT_COUNT,
+                              ARGUMENTS_DONT_CONTAIN_RECEIVER);
   Label runtime;
   // Ensure that a RegExp stack is allocated.
   Isolate* isolate = masm->isolate();
@@ -2421,7 +2422,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(zero, &runtime);
 
   // Check that the first argument is a JSRegExp object.
-  __ movq(rax, Operand(rsp, kJSRegExpOffset));
+  __ movq(rax, args.GetArgumentOperand(JS_REG_EXP_OBJECT_ARGUMENT_INDEX));
   __ JumpIfSmi(rax, &runtime);
   __ CmpObjectType(rax, JS_REGEXP_TYPE, kScratchRegister);
   __ j(not_equal, &runtime);
@@ -2454,7 +2455,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Reset offset for possibly sliced string.
   __ Set(r14, 0);
-  __ movq(rdi, Operand(rsp, kSubjectOffset));
+  __ movq(rdi, args.GetArgumentOperand(SUBJECT_STRING_ARGUMENT_INDEX));
   __ JumpIfSmi(rdi, &runtime);
   __ movq(r15, rdi);  // Make a copy of the original subject string.
   __ movq(rbx, FieldOperand(rdi, HeapObject::kMapOffset));
@@ -2556,7 +2557,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // We have to use r15 instead of rdi to load the length because rdi might
   // have been only made to look like a sequential string when it actually
   // is an external string.
-  __ movq(rbx, Operand(rsp, kPreviousIndexOffset));
+  __ movq(rbx, args.GetArgumentOperand(PREVIOUS_INDEX_ARGUMENT_INDEX));
   __ JumpIfNotSmi(rbx, &runtime);
   __ SmiCompare(rbx, FieldOperand(r15, String::kLengthOffset));
   __ j(above_equal, &runtime);
@@ -2676,11 +2677,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // For failure return null.
   __ LoadRoot(rax, Heap::kNullValueRootIndex);
-  __ ret(4 * kPointerSize);
+  __ ret(REG_EXP_EXEC_ARGUMENT_COUNT * kPointerSize);
 
   // Load RegExp data.
   __ bind(&success);
-  __ movq(rax, Operand(rsp, kJSRegExpOffset));
+  __ movq(rax, args.GetArgumentOperand(JS_REG_EXP_OBJECT_ARGUMENT_INDEX));
   __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
   __ SmiToInteger32(rax,
                     FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
@@ -2689,7 +2690,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // rdx: Number of capture registers
   // Check that the fourth object is a JSArray object.
-  __ movq(r15, Operand(rsp, kLastMatchInfoOffset));
+  __ movq(r15, args.GetArgumentOperand(LAST_MATCH_INFO_ARGUMENT_INDEX));
   __ JumpIfSmi(r15, &runtime);
   __ CmpObjectType(r15, JS_ARRAY_TYPE, kScratchRegister);
   __ j(not_equal, &runtime);
@@ -2713,7 +2714,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(FieldOperand(rbx, RegExpImpl::kLastCaptureCountOffset),
           kScratchRegister);
   // Store last subject and last input.
-  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ movq(rax, args.GetArgumentOperand(SUBJECT_STRING_ARGUMENT_INDEX));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
   __ movq(rcx, rax);
   __ RecordWriteField(rbx,
@@ -2756,7 +2757,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Return last match info.
   __ movq(rax, r15);
-  __ ret(4 * kPointerSize);
+  __ ret(REG_EXP_EXEC_ARGUMENT_COUNT * kPointerSize);
 
   __ bind(&exception);
   // Result must now be exception. If there is no pending exception already a
@@ -4835,13 +4836,18 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   //  rsp[16] : from
   //  rsp[24] : string
 
-  const int kToOffset = 1 * kPointerSize;
-  const int kFromOffset = kToOffset + kPointerSize;
-  const int kStringOffset = kFromOffset + kPointerSize;
-  const int kArgumentsSize = (kStringOffset + kPointerSize) - kToOffset;
+  enum SubStringStubArgumentIndices {
+    STRING_ARGUMENT_INDEX,
+    FROM_ARGUMENT_INDEX,
+    TO_ARGUMENT_INDEX,
+    SUB_STRING_ARGUMENT_COUNT
+  };
+
+  StackArgumentsAccessor args(rsp, SUB_STRING_ARGUMENT_COUNT,
+                              ARGUMENTS_DONT_CONTAIN_RECEIVER);
 
   // Make sure first argument is a string.
-  __ movq(rax, Operand(rsp, kStringOffset));
+  __ movq(rax, args.GetArgumentOperand(STRING_ARGUMENT_INDEX));
   STATIC_ASSERT(kSmiTag == 0);
   __ testl(rax, Immediate(kSmiTagMask));
   __ j(zero, &runtime);
@@ -4851,8 +4857,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rax: string
   // rbx: instance type
   // Calculate length of sub string using the smi values.
-  __ movq(rcx, Operand(rsp, kToOffset));
-  __ movq(rdx, Operand(rsp, kFromOffset));
+  __ movq(rcx, args.GetArgumentOperand(TO_ARGUMENT_INDEX));
+  __ movq(rdx, args.GetArgumentOperand(FROM_ARGUMENT_INDEX));
   __ JumpUnlessBothNonNegativeSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx);  // Overflow doesn't happen.
@@ -4865,7 +4871,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Return original string.
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1);
-  __ ret(kArgumentsSize);
+  __ ret(SUB_STRING_ARGUMENT_COUNT * kPointerSize);
   __ bind(&not_original_string);
 
   Label single_char;
@@ -4948,7 +4954,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ movq(FieldOperand(rax, SlicedString::kParentOffset), rdi);
     __ movq(FieldOperand(rax, SlicedString::kOffsetOffset), rdx);
     __ IncrementCounter(counters->sub_string_native(), 1);
-    __ ret(kArgumentsSize);
+    __ ret(3 * kPointerSize);
 
     __ bind(&copy_routine);
   }
@@ -5002,7 +5008,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, true);
   __ movq(rsi, r14);  // Restore rsi.
   __ IncrementCounter(counters->sub_string_native(), 1);
-  __ ret(kArgumentsSize);
+  __ ret(SUB_STRING_ARGUMENT_COUNT * kPointerSize);
 
   __ bind(&two_byte_sequential);
   // Allocate the result.
@@ -5027,7 +5033,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, false);
   __ movq(rsi, r14);  // Restore esi.
   __ IncrementCounter(counters->sub_string_native(), 1);
-  __ ret(kArgumentsSize);
+  __ ret(SUB_STRING_ARGUMENT_COUNT * kPointerSize);
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
@@ -5041,7 +5047,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   StringCharAtGenerator generator(
       rax, rdx, rcx, rax, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
   generator.GenerateFast(masm);
-  __ ret(kArgumentsSize);
+  __ ret(SUB_STRING_ARGUMENT_COUNT * kPointerSize);
   generator.SkipSlow(masm, &runtime);
 }
 

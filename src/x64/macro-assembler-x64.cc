@@ -2765,7 +2765,8 @@ Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                kFPOnStackSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -2824,7 +2825,8 @@ void MacroAssembler::JumpToHandlerEntry() {
 
 void MacroAssembler::Throw(Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                kFPOnStackSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -2864,7 +2866,8 @@ void MacroAssembler::Throw(Register value) {
 
 void MacroAssembler::ThrowUncatchable(Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                kFPOnStackSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -3704,9 +3707,10 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   // Set up the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
-  ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
-  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
-  ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerSPDisplacement ==
+         kFPOnStackSize + kPCOnStackSize);
+  ASSERT(ExitFrameConstants::kCallerPCOffset == kFPOnStackSize);
+  ASSERT(ExitFrameConstants::kCallerFPOffset == 0 * kPointerSize);
   push(rbp);
   movq(rbp, rsp);
 

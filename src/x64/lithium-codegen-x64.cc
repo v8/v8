@@ -134,10 +134,9 @@ bool LCodeGen::GeneratePrologue() {
       Label ok;
       __ testq(rcx, rcx);
       __ j(zero, &ok, Label::kNear);
-      // +1 for return address.
-      int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
+      StackArgumentsAccessor args(rsp, scope()->num_parameters());
       __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-      __ movq(Operand(rsp, receiver_offset), kScratchRegister);
+      __ movq(args.GetReceiverOperand(), kScratchRegister);
       __ bind(&ok);
     }
   }
@@ -2828,8 +2827,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
       instr->index()->IsConstantOperand()) {
     int32_t const_index = ToInteger32(LConstantOperand::cast(instr->index()));
     int32_t const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    int index = (const_length - const_index) + 1;
-    __ movq(result, Operand(arguments, index * kPointerSize));
+    StackArgumentsAccessor args(arguments, const_length,
+                                ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movq(result, args.GetArgumentOperand(const_index));
   } else {
     Register length = ToRegister(instr->length());
     // There are two words between the frame pointer and the last argument.
@@ -2839,8 +2839,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     } else {
       __ subl(length, ToOperand(instr->index()));
     }
-    __ movq(result,
-            Operand(arguments, length, times_pointer_size, kPointerSize));
+    StackArgumentsAccessor args(arguments, length,
+                                ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movq(result, args.GetArgumentOperand(0));
   }
 }
 
@@ -3044,7 +3045,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
   if (instr->hydrogen()->from_inlined()) {
-    __ lea(result, Operand(rsp, -2 * kPointerSize));
+    __ lea(result, Operand(rsp, -kFPOnStackSize + -kPCOnStackSize));
   } else {
     // Check for arguments adapter frame.
     Label done, adapted;
@@ -3166,7 +3167,9 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ testl(length, length);
   __ j(zero, &invoke, Label::kNear);
   __ bind(&loop);
-  __ push(Operand(elements, length, times_pointer_size, 1 * kPointerSize));
+  StackArgumentsAccessor args(elements, length,
+                              ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ push(args.GetArgumentOperand(0));
   __ decl(length);
   __ j(not_zero, &loop);
 
