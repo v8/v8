@@ -58,13 +58,10 @@
         ['component=="shared_library"', {
           'type': '<(component)',
           'sources': [
+            '../../src/defaults.cc',
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
-            '../../src/defaults.cc',
-          ],
-          'include_dirs': [
-            '../../include',
           ],
           'defines': [
             'V8_SHARED',
@@ -274,7 +271,6 @@
         '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
-        '../../src/defaults.cc',
         '../../src/deoptimizer.cc',
         '../../src/deoptimizer.h',
         '../../src/disasm.h',
@@ -857,6 +853,10 @@
           'defines': [
             'BUILDING_V8_SHARED',
             'V8_SHARED',
+          ],
+        }, {
+          'sources': [
+            '../../src/defaults.cc',
           ],
         }],
         ['v8_postmortem_support=="true"', {
