@@ -767,6 +767,9 @@ class HValue : public ZoneObject {
   void SetFlag(Flag f) { flags_ |= (1 << f); }
   void ClearFlag(Flag f) { flags_ &= ~(1 << f); }
   bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
+  void CopyFlag(Flag f, HValue* other) {
+    if (other->CheckFlag(f)) SetFlag(f);
+  }
 
   // Returns true if the flag specified is set for all uses, false otherwise.
   bool CheckUsesForFlag(Flag f) const;

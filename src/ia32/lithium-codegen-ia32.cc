@@ -2276,6 +2276,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
         __ PrepareCallCFunction(4, eax);
         X87Mov(Operand(esp, 1 * kDoubleSize), right);
         X87Mov(Operand(esp, 0), left);
+        X87Free(right);
+        ASSERT(left.is(result));
         X87PrepareToWrite(result);
         __ CallCFunction(
             ExternalReference::double_fp_operation(Token::MOD, isolate()),
@@ -5016,14 +5018,21 @@ void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
 
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
-  CpuFeatureScope scope(masm(), SSE2);
   LOperand* input = instr->value();
   LOperand* output = instr->result();
-  LOperand* temp = instr->temp();
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatureScope scope(masm(), SSE2);
+    LOperand* temp = instr->temp();
 
-  __ LoadUint32(ToDoubleRegister(output),
-                ToRegister(input),
-                ToDoubleRegister(temp));
+    __ LoadUint32(ToDoubleRegister(output),
+                  ToRegister(input),
+                  ToDoubleRegister(temp));
+  } else {
+    X87Register res = ToX87Register(output);
+    X87PrepareToWrite(res);
+    __ LoadUint32NoSSE2(ToRegister(input));
+    X87CommitWrite(res);
+  }
 }
 
 

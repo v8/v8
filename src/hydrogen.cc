@@ -7524,7 +7524,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     bool returns_original_input,
     CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
-  TypeInfo info = expr->type();
+  Handle<Type> info = expr->type();
   Representation rep = Representation::FromType(info);
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
@@ -7828,41 +7828,6 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
     return value;
   }
 
-  if (expected_obj->Is(Type::Null())) {
-    *expected = handle(Type::Union(
-          expected_number, handle(Type::Smi(), isolate())), isolate());
-    IfBuilder if_null(this);
-    if_null.If<HCompareObjectEqAndBranch>(value,
-                                          graph()->GetConstantNull());
-    if_null.Then();
-    Push(graph()->GetConstant0());
-    if_null.Else();
-    Push(value);
-    if_null.End();
-    return Pop();
-  }
-
-  if (expected_obj->Is(Type::Boolean())) {
-    *expected = handle(Type::Union(
-          expected_number, handle(Type::Smi(), isolate())), isolate());
-    IfBuilder if_true(this);
-    if_true.If<HCompareObjectEqAndBranch>(value,
-                                          graph()->GetConstantTrue());
-    if_true.Then();
-    Push(graph()->GetConstant1());
-    if_true.Else();
-    IfBuilder if_false(this);
-    if_false.If<HCompareObjectEqAndBranch>(value,
-                                           graph()->GetConstantFalse());
-    if_false.Then();
-    Push(graph()->GetConstant0());
-    if_false.Else();
-    Push(value);
-    if_false.End();
-    if_true.End();
-    return Pop();
-  }
-
   return value;
 }
 
@@ -7888,7 +7853,8 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     Handle<Type> left_type,
     Handle<Type> right_type,
     Handle<Type> result_type,
-    Maybe<int> fixed_right_arg) {
+    Maybe<int> fixed_right_arg,
+    bool binop_stub) {
 
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
@@ -7917,75 +7883,92 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     right_rep = Representation::FromType(right_type);
   }
 
+  if (binop_stub) {
+    left = EnforceNumberType(left, left_type);
+    right = EnforceNumberType(right, right_type);
+  }
+
   Representation result_rep = Representation::FromType(result_type);
 
-  bool is_string_add = op == Token::ADD &&
-                       (left_type->Is(Type::String()) ||
-                        right_type->Is(Type::String()));
+  bool is_non_primitive = (left_rep.IsTagged() && !left_rep.IsSmi()) ||
+                          (right_rep.IsTagged() && !right_rep.IsSmi());
+  bool is_string_add    = op == Token::ADD &&
+                          (left_type->Is(Type::String()) ||
+                           right_type->Is(Type::String()));
 
   HInstruction* instr = NULL;
-  switch (op) {
-    case Token::ADD:
-      if (is_string_add) {
-        StringAddFlags flags = STRING_ADD_CHECK_BOTH;
-        if (left_type->Is(Type::String())) {
-          BuildCheckHeapObject(left);
-          AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
-          flags = STRING_ADD_CHECK_RIGHT;
+  // Only the stub is allowed to call into the runtime, since otherwise we would
+  // inline several instructions (including the two pushes) for every tagged
+  // operation in optimized code, which is more expensive, than a stub call.
+  if (binop_stub && is_non_primitive && !is_string_add) {
+    HValue* function = AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op));
+    Add<HPushArgument>(left);
+    Add<HPushArgument>(right);
+    instr = NewUncasted<HInvokeFunction>(function, 2);
+  } else {
+    switch (op) {
+      case Token::ADD:
+        if (is_string_add) {
+          StringAddFlags flags = STRING_ADD_CHECK_BOTH;
+          if (left_type->Is(Type::String())) {
+            BuildCheckHeapObject(left);
+            AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
+            flags = STRING_ADD_CHECK_RIGHT;
+          }
+          if (right_type->Is(Type::String())) {
+            BuildCheckHeapObject(right);
+            AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
+            flags = (flags == STRING_ADD_CHECK_BOTH)
+                ? STRING_ADD_CHECK_LEFT : STRING_ADD_CHECK_NONE;
+          }
+          instr = NewUncasted<HStringAdd>(left, right, flags);
+        } else {
+          instr = NewUncasted<HAdd>(left, right);
         }
-        if (right_type->Is(Type::String())) {
-          BuildCheckHeapObject(right);
-          AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
-          flags = (flags == STRING_ADD_CHECK_BOTH)
-              ? STRING_ADD_CHECK_LEFT : STRING_ADD_CHECK_NONE;
-        }
-        instr = NewUncasted<HStringAdd>(left, right, flags);
-      } else {
-        instr = NewUncasted<HAdd>(left, right);
-      }
-      break;
-    case Token::SUB:
-      instr = NewUncasted<HSub>(left, right);
-      break;
-    case Token::MUL:
-      instr = NewUncasted<HMul>(left, right);
-      break;
-    case Token::MOD:
-      instr = NewUncasted<HMod>(left, right, fixed_right_arg);
-      break;
-    case Token::DIV:
-      instr = NewUncasted<HDiv>(left, right);
-      break;
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-      instr = NewUncasted<HBitwise>(op, left, right);
-      break;
-    case Token::BIT_OR: {
-      HValue* operand, *shift_amount;
-      if (left_type->Is(Type::Signed32()) &&
-          right_type->Is(Type::Signed32()) &&
-          MatchRotateRight(left, right, &operand, &shift_amount)) {
-        instr = NewUncasted<HRor>(operand, shift_amount);
-      } else {
+        break;
+      case Token::SUB:
+        instr = NewUncasted<HSub>(left, right);
+        break;
+      case Token::MUL:
+        instr = NewUncasted<HMul>(left, right);
+        break;
+      case Token::MOD:
+        instr = NewUncasted<HMod>(left, right, fixed_right_arg);
+        break;
+      case Token::DIV:
+        instr = NewUncasted<HDiv>(left, right);
+        break;
+      case Token::BIT_XOR:
+      case Token::BIT_AND:
         instr = NewUncasted<HBitwise>(op, left, right);
+        break;
+      case Token::BIT_OR: {
+        HValue* operand, *shift_amount;
+        if (left_type->Is(Type::Signed32()) &&
+            right_type->Is(Type::Signed32()) &&
+            MatchRotateRight(left, right, &operand, &shift_amount)) {
+          instr = NewUncasted<HRor>(operand, shift_amount);
+        } else {
+          instr = NewUncasted<HBitwise>(op, left, right);
+        }
+        break;
       }
-      break;
+      case Token::SAR:
+        instr = NewUncasted<HSar>(left, right);
+        break;
+      case Token::SHR:
+        instr = NewUncasted<HShr>(left, right);
+        if (FLAG_opt_safe_uint32_operations && instr->IsShr() &&
+            CanBeZero(right)) {
+          graph()->RecordUint32Instruction(instr);
+        }
+        break;
+      case Token::SHL:
+        instr = NewUncasted<HShl>(left, right);
+        break;
+      default:
+        UNREACHABLE();
     }
-    case Token::SAR:
-      instr = NewUncasted<HSar>(left, right);
-      break;
-    case Token::SHR:
-      instr = NewUncasted<HShr>(left, right);
-      if (FLAG_opt_safe_uint32_operations && instr->IsShr() &&
-          CanBeZero(right)) {
-        graph()->RecordUint32Instruction(instr);
-      }
-      break;
-    case Token::SHL:
-      instr = NewUncasted<HShl>(left, right);
-      break;
-    default:
-      UNREACHABLE();
   }
 
   if (instr->IsBinaryOperation()) {
@@ -7993,6 +7976,19 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     binop->set_observed_input_representation(1, left_rep);
     binop->set_observed_input_representation(2, right_rep);
     binop->initialize_output_representation(result_rep);
+    if (binop_stub) {
+      // Stub should not call into stub.
+      instr->SetFlag(HValue::kCannotBeTagged);
+      // And should truncate on HForceRepresentation already.
+      if (left->IsForceRepresentation()) {
+        left->CopyFlag(HValue::kTruncatingToSmi, instr);
+        left->CopyFlag(HValue::kTruncatingToInt32, instr);
+      }
+      if (right->IsForceRepresentation()) {
+        right->CopyFlag(HValue::kTruncatingToSmi, instr);
+        right->CopyFlag(HValue::kTruncatingToInt32, instr);
+      }
+    }
   }
   return instr;
 }
