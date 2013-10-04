@@ -846,15 +846,15 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 
 
 #ifdef VERIFY_HEAP
-NoWeakEmbeddedMapsVerificationScope::NoWeakEmbeddedMapsVerificationScope() {
+NoWeakObjectVerificationScope::NoWeakObjectVerificationScope() {
   Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_++;
+  isolate->heap()->no_weak_object_verification_scope_depth_++;
 }
 
 
-NoWeakEmbeddedMapsVerificationScope::~NoWeakEmbeddedMapsVerificationScope() {
+NoWeakObjectVerificationScope::~NoWeakObjectVerificationScope() {
   Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_--;
+  isolate->heap()->no_weak_object_verification_scope_depth_--;
 }
 #endif
 

@@ -1308,6 +1308,8 @@ class Heap {
   Object* allocation_sites_list() { return allocation_sites_list_; }
   Object** allocation_sites_list_address() { return &allocation_sites_list_; }
 
+  Object* weak_object_to_code_table() { return weak_object_to_code_table_; }
+
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
 
@@ -1399,8 +1401,8 @@ class Heap {
   void Verify();
 
 
-  bool weak_embedded_maps_verification_enabled() {
-    return no_weak_embedded_maps_verification_scope_depth_ == 0;
+  bool weak_embedded_objects_verification_enabled() {
+    return no_weak_object_verification_scope_depth_ == 0;
   }
 #endif
 
@@ -1853,6 +1855,16 @@ class Heap {
     Heap* heap_;
   };
 
+  MaybeObject* AddWeakObjectToCodeDependency(Object* obj, DependentCode* dep);
+
+  DependentCode* LookupWeakObjectToCodeDependency(Object* obj);
+
+  void InitializeWeakObjectToCodeTable() {
+    set_weak_object_to_code_table(undefined_value());
+  }
+
+  void EnsureWeakObjectToCodeTable();
+
  private:
   Heap();
 
@@ -1967,9 +1979,15 @@ class Heap {
   bool old_gen_exhausted_;
 
   // Weak list heads, threaded through the objects.
+  // List heads are initilized lazily and contain the undefined_value at start.
   Object* native_contexts_list_;
   Object* array_buffers_list_;
   Object* allocation_sites_list_;
+
+  // WeakHashTable that maps objects embedded in optimized code to dependent
+  // code list. It is initilized lazily and contains the undefined_value at
+  // start.
+  Object* weak_object_to_code_table_;
 
   StoreBufferRebuilder store_buffer_rebuilder_;
 
@@ -2279,6 +2297,15 @@ class Heap {
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
+  void set_weak_object_to_code_table(Object* value) {
+    ASSERT(!InNewSpace(value));
+    weak_object_to_code_table_ = value;
+  }
+
+  Object** weak_object_to_code_table_address() {
+    return &weak_object_to_code_table_;
+  }
+
   static const int kInitialStringTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
   static const int kInitialNumberStringCacheSize = 256;
@@ -2334,7 +2361,7 @@ class Heap {
   int gcs_since_last_deopt_;
 
 #ifdef VERIFY_HEAP
-  int no_weak_embedded_maps_verification_scope_depth_;
+  int no_weak_object_verification_scope_depth_;
 #endif
 
   static const int kMaxMarkSweepsInIdleRound = 7;
@@ -2368,7 +2395,7 @@ class Heap {
   friend class MarkCompactMarkingVisitor;
   friend class MapCompact;
 #ifdef VERIFY_HEAP
-  friend class NoWeakEmbeddedMapsVerificationScope;
+  friend class NoWeakObjectVerificationScope;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
@@ -2433,10 +2460,10 @@ class AlwaysAllocateScope {
 };
 
 #ifdef VERIFY_HEAP
-class NoWeakEmbeddedMapsVerificationScope {
+class NoWeakObjectVerificationScope {
  public:
-  inline NoWeakEmbeddedMapsVerificationScope();
-  inline ~NoWeakEmbeddedMapsVerificationScope();
+  inline NoWeakObjectVerificationScope();
+  inline ~NoWeakObjectVerificationScope();
 };
 #endif
 

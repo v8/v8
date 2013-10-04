@@ -5955,6 +5955,34 @@ MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Heap* heap,
 }
 
 
+template <int entrysize>
+bool WeakHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
+  return key->SameValue(other);
+}
+
+
+template <int entrysize>
+uint32_t WeakHashTableShape<entrysize>::Hash(Object* key) {
+  intptr_t hash = reinterpret_cast<intptr_t>(key);
+  return (uint32_t)(hash & 0xFFFFFFFF);
+}
+
+
+template <int entrysize>
+uint32_t WeakHashTableShape<entrysize>::HashForObject(Object* key,
+                                                      Object* other) {
+  intptr_t hash = reinterpret_cast<intptr_t>(other);
+  return (uint32_t)(hash & 0xFFFFFFFF);
+}
+
+
+template <int entrysize>
+MaybeObject* WeakHashTableShape<entrysize>::AsObject(Heap* heap,
+                                                    Object* key) {
+  return key;
+}
+
+
 void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:

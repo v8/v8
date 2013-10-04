@@ -261,10 +261,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   ASSERT(!rinfo->target_object()->IsConsString());
   HeapObject* object = HeapObject::cast(rinfo->target_object());
-  if (!FLAG_weak_embedded_maps_in_optimized_code || !FLAG_collect_maps ||
-      rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
-      !object->IsMap() || !Map::cast(object)->CanTransition()) {
-    heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), object)) {
     StaticVisitor::MarkObject(heap, object);
   }
 }

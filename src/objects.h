@@ -1044,7 +1044,8 @@ class MaybeObject BASE_EMBEDDED {
   V(AccessCheckNeeded)                         \
   V(Cell)                                      \
   V(PropertyCell)                              \
-  V(ObjectHashTable)
+  V(ObjectHashTable)                           \
+  V(WeakHashTable)
 
 
 #define ERROR_MESSAGES_LIST(V) \
@@ -2891,7 +2892,8 @@ class FixedArray: public FixedArrayBase {
 
   // Copy operations.
   MUST_USE_RESULT inline MaybeObject* Copy();
-  MUST_USE_RESULT MaybeObject* CopySize(int new_length);
+  MUST_USE_RESULT MaybeObject* CopySize(int new_length,
+                                        PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
   MUST_USE_RESULT MaybeObject* AddKeysFromJSArray(JSArray* array);
@@ -3526,7 +3528,10 @@ class HashTable: public FixedArray {
   MUST_USE_RESULT MaybeObject* Shrink(Key key);
 
   // Ensure enough space for n additional elements.
-  MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
+  MUST_USE_RESULT MaybeObject* EnsureCapacity(
+      int n,
+      Key key,
+      PretenureFlag pretenure = NOT_TENURED);
 };
 
 
@@ -3957,6 +3962,49 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
 
   void AddEntry(int entry, Object* key, Object* value);
   void RemoveEntry(int entry);
+
+  // Returns the index to the value of an entry.
+  static inline int EntryToValueIndex(int entry) {
+    return EntryToIndex(entry) + 1;
+  }
+};
+
+
+template <int entrysize>
+class WeakHashTableShape : public BaseShape<Object*> {
+ public:
+  static inline bool IsMatch(Object* key, Object* other);
+  static inline uint32_t Hash(Object* key);
+  static inline uint32_t HashForObject(Object* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
+                                                      Object* key);
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = entrysize;
+};
+
+
+// WeakHashTable maps keys that are arbitrary objects to object values.
+// It is used for the global weak hash table that maps objects
+// embedded in optimized code to dependent code lists.
+class WeakHashTable: public HashTable<WeakHashTableShape<2>, Object*> {
+ public:
+  static inline WeakHashTable* cast(Object* obj) {
+    ASSERT(obj->IsHashTable());
+    return reinterpret_cast<WeakHashTable*>(obj);
+  }
+
+  // Looks up the value associated with the given key. The hole value is
+  // returned in case the key is not present.
+  Object* Lookup(Object* key);
+
+  // Adds (or overwrites) the value associated with the given key. Mapping a
+  // key to the hole value causes removal of the whole entry.
+  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+
+ private:
+  friend class MarkCompactCollector;
+
+  void AddEntry(int entry, Object* key, Object* value);
 
   // Returns the index to the value of an entry.
   static inline int EntryToValueIndex(int entry) {
@@ -5144,8 +5192,10 @@ class Code: public HeapObject {
   bool CanDeoptAt(Address pc);
 
 #ifdef VERIFY_HEAP
-  void VerifyEmbeddedMapsDependency();
+  void VerifyEmbeddedObjectsDependency();
 #endif
+
+  static bool IsWeakEmbeddedObject(Kind kind, Object* object);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
