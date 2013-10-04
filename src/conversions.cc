@@ -31,6 +31,7 @@
 
 #include "conversions-inl.h"
 #include "dtoa.h"
+#include "list-inl.h"
 #include "strtod.h"
 #include "utils.h"
 
