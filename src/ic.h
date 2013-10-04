@@ -57,8 +57,8 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(BinaryOp_Patch)                                 \
   ICU(CompareIC_Miss)                                 \
+  ICU(BinaryOpIC_Miss)                                \
   ICU(CompareNilIC_Miss)                              \
   ICU(Unreachable)                                    \
   ICU(ToBooleanIC_Miss)
@@ -736,22 +736,14 @@ class BinaryOpIC: public IC {
     GENERIC
   };
 
-  static void StubInfoToType(int minor_key,
-                             Handle<Type>* left,
-                             Handle<Type>* right,
-                             Handle<Type>* result,
-                             Isolate* isolate);
+  explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
-  explicit BinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
-
-  void patch(Code* code);
+  static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
 
   static const char* GetName(TypeInfo type_info);
 
-  static State ToState(TypeInfo type_info);
-
- private:
-  static Handle<Type> TypeInfoToType(TypeInfo binary_type, Isolate* isolate);
+  MUST_USE_RESULT MaybeObject* Transition(Handle<Object> left,
+                                          Handle<Object> right);
 };
 
 
@@ -858,6 +850,7 @@ DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss);
 

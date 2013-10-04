@@ -141,8 +141,8 @@ TEST(Smi) {
 
 static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi* value) {
   __ movl(rax, Immediate(id));
-  __ Move(rcx, Smi::FromInt(0));
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(0)));
+  __ Move(rcx, value);
+  __ Set(rdx, reinterpret_cast<intptr_t>(value));
   __ cmpq(rcx, rdx);
   __ j(not_equal, exit);
 }

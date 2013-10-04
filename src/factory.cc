@@ -126,6 +126,18 @@ Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
 }
 
 
+Handle<WeakHashTable> Factory::NewWeakHashTable(int at_least_space_for) {
+  ASSERT(0 <= at_least_space_for);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      WeakHashTable::Allocate(isolate()->heap(),
+                              at_least_space_for,
+                              WeakHashTable::USE_DEFAULT_MINIMUM_CAPACITY,
+                              TENURED),
+      WeakHashTable);
+}
+
+
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
                                                     int slack) {
   ASSERT(0 <= number_of_descriptors);
@@ -598,8 +610,11 @@ Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
 
 
 Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
-                                               int new_length) {
-  CALL_HEAP_FUNCTION(isolate(), array->CopySize(new_length), FixedArray);
+                                               int new_length,
+                                               PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     array->CopySize(new_length, pretenure),
+                     FixedArray);
 }
 
 

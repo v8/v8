@@ -121,6 +121,10 @@ class LCodeGen: public LCodeGenBase {
   void X87Fxch(X87Register reg, int other_slot = 0) {
     x87_stack_.Fxch(reg, other_slot);
   }
+  void X87Free(X87Register reg) {
+    x87_stack_.Free(reg);
+  }
+
 
   bool X87StackEmpty() {
     return x87_stack_.depth() == 0;

@@ -7732,11 +7732,11 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
 }
 
 
-MaybeObject* FixedArray::CopySize(int new_length) {
+MaybeObject* FixedArray::CopySize(int new_length, PretenureFlag pretenure) {
   Heap* heap = GetHeap();
   if (new_length == 0) return heap->empty_fixed_array();
   Object* obj;
-  { MaybeObject* maybe_obj = heap->AllocateFixedArray(new_length);
+  { MaybeObject* maybe_obj = heap->AllocateFixedArray(new_length, pretenure);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   FixedArray* result = FixedArray::cast(obj);
@@ -11022,6 +11022,22 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
 }
 
 
+bool Code::IsWeakEmbeddedObject(Kind kind, Object* object) {
+  if (kind != Code::OPTIMIZED_FUNCTION) return false;
+
+  if (object->IsMap()) {
+    return Map::cast(object)->CanTransition() &&
+           FLAG_collect_maps &&
+           FLAG_weak_embedded_maps_in_optimized_code;
+  }
+
+  if (object->IsJSObject()) {
+    return FLAG_weak_embedded_objects_in_optimized_code;
+  }
+
+  return false;
+}
+
 MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
     int capacity,
     int length) {
@@ -11382,7 +11398,7 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     int capacity = kCodesStartIndex + number_of_entries + 1;
     if (capacity > 5) capacity = capacity * 5 / 4;
     Handle<DependentCode> new_entries = Handle<DependentCode>::cast(
-        factory->CopySizeFixedArray(entries, capacity));
+        factory->CopySizeFixedArray(entries, capacity, TENURED));
     // The number of codes can change after GC.
     starts.Recompute(*entries);
     start = starts.at(group);
@@ -13887,7 +13903,9 @@ void HashTable<Shape, Key>::Rehash(Key key) {
 
 
 template<typename Shape, typename Key>
-MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
+MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n,
+                                                   Key key,
+                                                   PretenureFlag pretenure) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
   int nod = NumberOfDeletedElements();
@@ -13900,14 +13918,14 @@ MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   }
 
   const int kMinCapacityForPretenure = 256;
-  bool pretenure =
-      (capacity > kMinCapacityForPretenure) && !GetHeap()->InNewSpace(this);
+  bool should_pretenure = pretenure == TENURED ||
+      ((capacity > kMinCapacityForPretenure) && !GetHeap()->InNewSpace(this));
   Object* obj;
   { MaybeObject* maybe_obj =
         Allocate(GetHeap(),
                  nof * 2,
                  USE_DEFAULT_MINIMUM_CAPACITY,
-                 pretenure ? TENURED : NOT_TENURED);
+                 should_pretenure ? TENURED : NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
@@ -13974,6 +13992,8 @@ template class HashTable<MapCacheShape, HashTableKey*>;
 template class HashTable<ObjectHashTableShape<1>, Object*>;
 
 template class HashTable<ObjectHashTableShape<2>, Object*>;
+
+template class HashTable<WeakHashTableShape<2>, Object*>;
 
 template class Dictionary<NameDictionaryShape, Name*>;
 
@@ -15614,6 +15634,41 @@ void ObjectHashTable::RemoveEntry(int entry) {
   set_the_hole(EntryToIndex(entry));
   set_the_hole(EntryToIndex(entry) + 1);
   ElementRemoved();
+}
+
+
+Object* WeakHashTable::Lookup(Object* key) {
+  ASSERT(IsKey(key));
+  int entry = FindEntry(key);
+  if (entry == kNotFound) return GetHeap()->the_hole_value();
+  return get(EntryToValueIndex(entry));
+}
+
+
+MaybeObject* WeakHashTable::Put(Object* key, Object* value) {
+  ASSERT(IsKey(key));
+  int entry = FindEntry(key);
+  // Key is already in table, just overwrite value.
+  if (entry != kNotFound) {
+    set(EntryToValueIndex(entry), value);
+    return this;
+  }
+
+  // Check whether the hash table should be extended.
+  Object* obj;
+  { MaybeObject* maybe_obj = EnsureCapacity(1, key, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  WeakHashTable* table = WeakHashTable::cast(obj);
+  table->AddEntry(table->FindInsertionEntry(Hash(key)), key, value);
+  return table;
+}
+
+
+void WeakHashTable::AddEntry(int entry, Object* key, Object* value) {
+  set(EntryToIndex(entry), key);
+  set(EntryToValueIndex(entry), value);
+  ElementAdded();
 }
 
 

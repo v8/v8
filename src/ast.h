@@ -1968,7 +1968,7 @@ class CountOperation V8_FINAL : public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() V8_OVERRIDE {
     return store_mode_;
   }
-  TypeInfo type() const { return type_; }
+  Handle<Type> type() const { return type_; }
 
   BailoutId AssignmentId() const { return assignment_id_; }
 
@@ -1997,7 +1997,7 @@ class CountOperation V8_FINAL : public Expression {
   bool is_monomorphic_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
-  TypeInfo type_;
+  Handle<Type> type_;
 
   Expression* expression_;
   int pos_;

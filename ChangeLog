@@ -1,3 +1,8 @@
+2013-10-04: Version 3.22.8
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-03: Version 3.22.7
 
         Debug: Allow stepping into on a given call frame

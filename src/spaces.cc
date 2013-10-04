@@ -1056,7 +1056,7 @@ intptr_t PagedSpace::SizeOfFirstPage() {
   int size = 0;
   switch (identity()) {
     case OLD_POINTER_SPACE:
-      size = 64 * kPointerSize * KB;
+      size = 72 * kPointerSize * KB;
       break;
     case OLD_DATA_SPACE:
       size = 192 * KB;
@@ -1077,7 +1077,14 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-        size = 384 * KB;
+#if V8_TARGET_ARCH_MIPS
+        // On MIPS, code stubs seem to be quite a bit larger.
+        // TODO(olivf/MIPS folks): Can we do anything about this? Does it
+        // indicate the presence of a bug?
+        size = 464 * KB;
+#else
+        size = 416 * KB;
+#endif
       }
       break;
     default:
@@ -2685,6 +2692,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   // Try to expand the space and allocate in the new next page.
   if (Expand()) {
+    ASSERT(CountTotalPages() > 1 || size_in_bytes <= free_list_.available());
     return free_list_.Allocate(size_in_bytes);
   }
 

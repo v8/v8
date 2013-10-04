@@ -31,7 +31,7 @@
 #include <ctime>
 #include <limits>
 
-#include "allocation.h"
+#include "../allocation.h"
 
 // Forward declarations.
 extern "C" {

@@ -143,7 +143,7 @@ Heap::Heap()
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
       gcs_since_last_deopt_(0),
 #ifdef VERIFY_HEAP
-      no_weak_embedded_maps_verification_scope_depth_(0),
+      no_weak_object_verification_scope_depth_(0),
 #endif
       promotion_queue_(this),
       configured_(false),
@@ -6730,6 +6730,7 @@ bool Heap::CreateHeapObjects() {
   native_contexts_list_ = undefined_value();
   array_buffers_list_ = undefined_value();
   allocation_sites_list_ = undefined_value();
+  weak_object_to_code_table_ = undefined_value();
   return true;
 }
 
@@ -6874,6 +6875,34 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
     }
   }
   UNREACHABLE();
+}
+
+
+MaybeObject* Heap::AddWeakObjectToCodeDependency(Object* obj,
+                                                 DependentCode* dep) {
+  ASSERT(!InNewSpace(obj));
+  ASSERT(!InNewSpace(dep));
+  MaybeObject* maybe_obj =
+      WeakHashTable::cast(weak_object_to_code_table_)->Put(obj, dep);
+  WeakHashTable* table;
+  if (!maybe_obj->To(&table)) return maybe_obj;
+  set_weak_object_to_code_table(table);
+  ASSERT_EQ(dep, WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj));
+  return weak_object_to_code_table_;
+}
+
+
+DependentCode* Heap::LookupWeakObjectToCodeDependency(Object* obj) {
+  Object* dep = WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj);
+  if (dep->IsDependentCode()) return DependentCode::cast(dep);
+  return DependentCode::cast(empty_fixed_array());
+}
+
+
+void Heap::EnsureWeakObjectToCodeTable() {
+  if (!weak_object_to_code_table()->IsHashTable()) {
+    set_weak_object_to_code_table(*isolate()->factory()->NewWeakHashTable(16));
+  }
 }
 
 

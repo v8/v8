@@ -301,7 +301,8 @@ class TypeFeedbackOracle: public ZoneObject {
                   Handle<Type>* left,
                   Handle<Type>* right,
                   Handle<Type>* result,
-                  Maybe<int>* fixed_right_arg);
+                  Maybe<int>* fixed_right_arg,
+                  Token::Value operation);
 
   void CompareType(TypeFeedbackId id,
                    Handle<Type>* left,
@@ -310,7 +311,7 @@ class TypeFeedbackOracle: public ZoneObject {
 
   Handle<Type> ClauseType(TypeFeedbackId id);
 
-  TypeInfo IncrementType(CountOperation* expr);
+  Handle<Type> IncrementType(CountOperation* expr);
 
   Zone* zone() const { return zone_; }
   Isolate* isolate() const { return isolate_; }

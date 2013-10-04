@@ -2422,7 +2422,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
       !(FLAG_track_double_fields && instr->field_representation().IsDouble());
 
   LOperand* val;
-  if (needs_write_barrier) {
+  if (instr->field_representation().IsByte()) {
+    // mov_b requires a byte register (i.e. any of eax, ebx, ecx, edx).
+    // Just force the value to be in eax and we're safe here.
+    val = UseFixed(instr->value(), eax);
+  } else if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());

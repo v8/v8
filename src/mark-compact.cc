@@ -91,10 +91,8 @@ class VerifyMarkingVisitor: public ObjectVisitor {
 
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    if (!FLAG_weak_embedded_maps_in_optimized_code || !FLAG_collect_maps ||
-        rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
-        !rinfo->target_object()->IsMap() ||
-        !Map::cast(rinfo->target_object())->CanTransition()) {
+    if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(),
+                                    rinfo->target_object())) {
       VisitPointer(rinfo->target_object_address());
     }
   }
@@ -433,9 +431,8 @@ void MarkCompactCollector::CollectGarbage() {
 #endif
 
 #ifdef VERIFY_HEAP
-  if (FLAG_collect_maps && FLAG_weak_embedded_maps_in_optimized_code &&
-      heap()->weak_embedded_maps_verification_enabled()) {
-    VerifyWeakEmbeddedMapsInOptimizedCode();
+  if (heap()->weak_embedded_objects_verification_enabled()) {
+    VerifyWeakEmbeddedObjectsInOptimizedCode();
   }
   if (FLAG_collect_maps && FLAG_omit_map_checks_for_leaf_maps) {
     VerifyOmittedMapChecks();
@@ -501,7 +498,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 }
 
 
-void MarkCompactCollector::VerifyWeakEmbeddedMapsInOptimizedCode() {
+void MarkCompactCollector::VerifyWeakEmbeddedObjectsInOptimizedCode() {
   HeapObjectIterator code_iterator(heap()->code_space());
   for (HeapObject* obj = code_iterator.Next();
        obj != NULL;
@@ -509,7 +506,7 @@ void MarkCompactCollector::VerifyWeakEmbeddedMapsInOptimizedCode() {
     Code* code = Code::cast(obj);
     if (code->kind() != Code::OPTIMIZED_FUNCTION) continue;
     if (WillBeDeoptimized(code)) continue;
-    code->VerifyEmbeddedMapsDependency();
+    code->VerifyEmbeddedObjectsDependency();
   }
 }
 
@@ -1473,7 +1470,7 @@ class MarkCompactMarkingVisitor
     // Mark the backing hash table without pushing it on the marking stack.
     Object* table_object = weak_collection->table();
     if (!table_object->IsHashTable()) return;
-    ObjectHashTable* table = ObjectHashTable::cast(table_object);
+    WeakHashTable* table = WeakHashTable::cast(table_object);
     Object** table_slot =
         HeapObject::RawField(weak_collection, JSWeakCollection::kTableOffset);
     MarkBit table_mark = Marking::MarkBitFrom(table);
@@ -2115,6 +2112,8 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   // Handle the string table specially.
   MarkStringTable(visitor);
 
+  MarkWeakObjectToCodeTable();
+
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_deque_.overflowed()) {
     RefillMarkingDeque();
@@ -2152,6 +2151,16 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
     delete entry;
   }
   ref_groups->Rewind(last);
+}
+
+
+void MarkCompactCollector::MarkWeakObjectToCodeTable() {
+  HeapObject* weak_object_to_code_table =
+      HeapObject::cast(heap()->weak_object_to_code_table());
+  if (!IsMarked(weak_object_to_code_table)) {
+    MarkBit mark = Marking::MarkBitFrom(weak_object_to_code_table);
+    SetMark(weak_object_to_code_table, mark);
+  }
 }
 
 
@@ -2522,7 +2531,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     if (map_mark.Get()) {
       ClearNonLiveDependentCode(map->dependent_code());
     } else {
-      ClearAndDeoptimizeDependentCode(map);
+      ClearAndDeoptimizeDependentCode(map->dependent_code());
+      map->set_dependent_code(DependentCode::cast(heap()->empty_fixed_array()));
     }
   }
 
@@ -2534,6 +2544,31 @@ void MarkCompactCollector::ClearNonLiveReferences() {
        cell = cell_iterator.Next()) {
     if (IsMarked(cell)) {
       ClearNonLiveDependentCode(PropertyCell::cast(cell)->dependent_code());
+    }
+  }
+
+  if (heap_->weak_object_to_code_table()->IsHashTable()) {
+    WeakHashTable* table =
+        WeakHashTable::cast(heap_->weak_object_to_code_table());
+    uint32_t capacity = table->Capacity();
+    for (uint32_t i = 0; i < capacity; i++) {
+      uint32_t key_index = table->EntryToIndex(i);
+      Object* key = table->get(key_index);
+      if (!table->IsKey(key)) continue;
+      uint32_t value_index = table->EntryToValueIndex(i);
+      Object* value = table->get(value_index);
+      if (IsMarked(key)) {
+        if (!IsMarked(value)) {
+          HeapObject* obj = HeapObject::cast(value);
+          MarkBit mark = Marking::MarkBitFrom(obj);
+          SetMark(obj, mark);
+        }
+        ClearNonLiveDependentCode(DependentCode::cast(value));
+      } else {
+        ClearAndDeoptimizeDependentCode(DependentCode::cast(value));
+        table->set(key_index, heap_->the_hole_value());
+        table->set(value_index, heap_->the_hole_value());
+      }
     }
   }
 }
@@ -2601,9 +2636,9 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
 }
 
 
-void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
+void MarkCompactCollector::ClearAndDeoptimizeDependentCode(
+    DependentCode* entries) {
   DisallowHeapAllocation no_allocation;
-  DependentCode* entries = map->dependent_code();
   DependentCode::GroupStartIndexes starts(entries);
   int number_of_entries = starts.number_of_entries();
   if (number_of_entries == 0) return;
@@ -2619,7 +2654,6 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
     }
     entries->clear_at(i);
   }
-  map->set_dependent_code(DependentCode::cast(heap()->empty_fixed_array()));
 }
 
 
@@ -3457,6 +3491,13 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   updating_visitor.VisitPointer(heap_->native_contexts_list_address());
 
   heap_->string_table()->Iterate(&updating_visitor);
+  updating_visitor.VisitPointer(heap_->weak_object_to_code_table_address());
+  if (heap_->weak_object_to_code_table()->IsHashTable()) {
+    WeakHashTable* table =
+        WeakHashTable::cast(heap_->weak_object_to_code_table());
+    table->Iterate(&updating_visitor);
+    table->Rehash(heap_->undefined_value());
+  }
 
   // Update pointers from external string table.
   heap_->UpdateReferencesInExternalStringTable(

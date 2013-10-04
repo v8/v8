@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// The GYP based build ends up defining USING_V8_SHARED when compiling this
+// file.
+#undef USING_V8_SHARED
 #include "../include/v8-defaults.h"
 
 #include "platform.h"
