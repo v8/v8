@@ -232,6 +232,7 @@ class ShellOptions {
      interactive_shell(false),
      test_shell(false),
      dump_heap_constants(false),
+     expected_to_throw(false),
      num_isolates(1),
      isolate_sources(NULL) { }
 
@@ -256,6 +257,7 @@ class ShellOptions {
   bool interactive_shell;
   bool test_shell;
   bool dump_heap_constants;
+  bool expected_to_throw;
   int num_isolates;
   SourceGroup* isolate_sources;
 };
