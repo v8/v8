@@ -781,10 +781,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Macro instructions.
 
-  // Load/store with specific representation.
-  void Load(Register dst, const Operand& src, Representation r);
-  void Store(const Operand& dst, Register src, Representation r);
-
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, int64_t x);
