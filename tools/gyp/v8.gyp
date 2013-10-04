@@ -61,6 +61,10 @@
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
+            '../../src/defaults.cc',
+          ],
+          'include_dirs': [
+            '../../include',
           ],
           'defines': [
             'V8_SHARED',
