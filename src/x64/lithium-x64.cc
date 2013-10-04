@@ -2060,7 +2060,14 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  if (instr->access().IsExternalMemory() && instr->access().offset() == 0) {
+  // Use the special mov rax, moffs64 encoding for external
+  // memory accesses with 64-bit word-sized values.
+  if (instr->access().IsExternalMemory() &&
+      instr->access().offset() == 0 &&
+      (instr->access().representation().IsSmi() ||
+       instr->access().representation().IsTagged() ||
+       instr->access().representation().IsHeapObject() ||
+       instr->access().representation().IsExternal())) {
     LOperand* obj = UseRegisterOrConstantAtStart(instr->object());
     return DefineFixed(new(zone()) LLoadNamedField(obj), rax);
   }

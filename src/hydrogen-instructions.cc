@@ -2829,6 +2829,9 @@ Range* HShl::InferRange(Zone* zone) {
 
 
 Range* HLoadNamedField::InferRange(Zone* zone) {
+  if (access().representation().IsByte()) {
+    return new(zone) Range(0, 255);
+  }
   if (access().IsStringLength()) {
     return new(zone) Range(0, String::kMaxLength);
   }

@@ -947,6 +947,28 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
+  if (r.IsByte()) {
+    movzxbl(dst, src);
+  } else if (r.IsInteger32()) {
+    movl(dst, src);
+  } else {
+    movq(dst, src);
+  }
+}
+
+
+void MacroAssembler::Store(const Operand& dst, Register src, Representation r) {
+  if (r.IsByte()) {
+    movb(dst, src);
+  } else if (r.IsInteger32()) {
+    movl(dst, src);
+  } else {
+    movq(dst, src);
+  }
+}
+
+
 void MacroAssembler::Set(Register dst, int64_t x) {
   if (x == 0) {
     xorl(dst, dst);

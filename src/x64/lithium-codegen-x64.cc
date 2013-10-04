@@ -2725,14 +2725,13 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!access.representation().IsInteger32());
     Register result = ToRegister(instr->result());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(result.is(rax));
       __ load_rax(ToExternalReference(LConstantOperand::cast(instr->object())));
     } else {
       Register object = ToRegister(instr->object());
-      __ movq(result, MemOperand(object, offset));
+      __ Load(result, MemOperand(object, offset), access.representation());
     }
     return;
   }
@@ -2746,20 +2745,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register result = ToRegister(instr->result());
-  if (access.IsInobject()) {
-    if (access.representation().IsInteger32()) {
-      __ movl(result, FieldOperand(object, offset));
-    } else {
-      __ movq(result, FieldOperand(object, offset));
-    }
-  } else {
+  if (!access.IsInobject()) {
     __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
-    if (access.representation().IsInteger32()) {
-      __ movl(result, FieldOperand(result, offset));
-    } else {
-      __ movq(result, FieldOperand(result, offset));
-    }
+    object = result;
   }
+  __ Load(result, FieldOperand(object, offset), access.representation());
 }
 
 
@@ -3881,16 +3871,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!access.representation().IsInteger32());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(value.is(rax));
+      ASSERT(!access.representation().IsSpecialization());
       LConstantOperand* object = LConstantOperand::cast(instr->object());
       __ store_rax(ToExternalReference(object));
     } else {
       Register object = ToRegister(instr->object());
-      __ movq(MemOperand(object, offset), value);
+      __ Store(MemOperand(object, offset), value, representation);
     }
     return;
   }
@@ -3959,24 +3949,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (operand_value->IsRegister()) {
-      if (access.representation().IsInteger32()) {
-        __ movl(FieldOperand(write_register, offset),
-                ToRegister(operand_value));
-      } else {
-        __ movq(FieldOperand(write_register, offset),
-                ToRegister(operand_value));
-      }
+      Register value = ToRegister(operand_value);
+      __ Store(FieldOperand(write_register, offset), value, representation);
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
       __ Move(FieldOperand(write_register, offset), handle_value);
     }
   } else {
-    if (access.representation().IsInteger32()) {
-      __ movl(FieldOperand(write_register, offset), ToRegister(instr->value()));
-    } else {
-      __ movq(FieldOperand(write_register, offset), ToRegister(instr->value()));
-    }
+    Register value = ToRegister(instr->value());
+    __ Store(FieldOperand(write_register, offset), value, representation);
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
