@@ -126,7 +126,6 @@ class LChunkBuilder;
   V(InnerAllocatedObject)                      \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
-  V(InstanceSize)                              \
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
   V(IsObjectAndBranch)                         \
@@ -4473,26 +4472,6 @@ class HInstanceOfKnownGlobal V8_FINAL : public HTemplateInstruction<2> {
 };
 
 
-// TODO(mstarzinger): This instruction should be modeled as a load of the map
-// field followed by a load of the instance size field once HLoadNamedField is
-// flexible enough to accommodate byte-field loads.
-class HInstanceSize V8_FINAL : public HTemplateInstruction<1> {
- public:
-  explicit HInstanceSize(HValue* object) {
-    SetOperandAt(0, object);
-    set_representation(Representation::Integer32());
-  }
-
-  HValue* object() { return OperandAt(0); }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceSize)
-};
-
-
 class HPower V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HInstruction* New(Zone* zone,
@@ -5826,6 +5805,12 @@ class HObjectAccess V8_FINAL {
 
   static HObjectAccess ForMap() {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
+  }
+
+  static HObjectAccess ForMapInstanceSize() {
+    return HObjectAccess(kInobject,
+                         Map::kInstanceSizeOffset,
+                         Representation::Byte());
   }
 
   static HObjectAccess ForPropertyCellValue() {
