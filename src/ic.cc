@@ -2347,8 +2347,10 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
   BinaryOpStub stub(extra_ic_state);
 
-  bool smi_was_enabled = stub.GetLeftType(isolate())->Maybe(Type::Smi()) &&
-                         stub.GetRightType(isolate())->Maybe(Type::Smi());
+  Handle<Type> left_type = stub.GetLeftType(isolate());
+  Handle<Type> right_type = stub.GetRightType(isolate());
+  bool smi_was_enabled = left_type->Maybe(Type::Smi()) &&
+                         right_type->Maybe(Type::Smi());
 
   Maybe<Handle<Object> > result = stub.Result(left, right, isolate());
 
@@ -2380,8 +2382,10 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   Handle<Code> code = stub.GetCode(isolate());
   set_target(*code);
 
-  bool enable_smi = stub.GetLeftType(isolate())->Maybe(Type::Smi()) &&
-                    stub.GetRightType(isolate())->Maybe(Type::Smi());
+  left_type = stub.GetLeftType(isolate());
+  right_type = stub.GetRightType(isolate());
+  bool enable_smi = left_type->Maybe(Type::Smi()) &&
+                    right_type->Maybe(Type::Smi());
 
   if (!smi_was_enabled && enable_smi) {
     PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
