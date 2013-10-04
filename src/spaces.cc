@@ -1077,7 +1077,7 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-        size = 384 * KB;
+        size = 416 * KB;
       }
       break;
     default:
@@ -2685,6 +2685,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   // Try to expand the space and allocate in the new next page.
   if (Expand()) {
+    ASSERT(CountTotalPages() > 1 || size_in_bytes <= free_list_.available());
     return free_list_.Allocate(size_in_bytes);
   }
 
