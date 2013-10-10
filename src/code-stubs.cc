@@ -569,14 +569,12 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
 
   State max_input = Max(left_state_, right_state_);
 
-  // Avoid unnecessary Representation changes.
+  // TODO(olivf) Instead of doing this normalization we should have a Hydrogen
+  // version of the LookupNumberStringCache to avoid a converting StringAddStub.
   if (left_state_ == STRING && right_state_ < STRING) {
     right_state_ = GENERIC;
   } else if (right_state_ == STRING && left_state_ < STRING) {
     left_state_ = GENERIC;
-  } else if ((right_state_ == GENERIC && left_state_ != STRING) ||
-             (left_state_ == GENERIC && right_state_ != STRING)) {
-    left_state_ = right_state_ = GENERIC;
   } else if (!has_int_result() && op_ != Token::SHR &&
              max_input <= NUMBER && max_input > result_state_) {
     result_state_ = max_input;
