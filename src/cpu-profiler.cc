@@ -261,7 +261,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   Code* code,
                                   SharedFunctionInfo* shared,
                                   CompilationInfo* info,
-                                  Name* source, int line) {
+                                  Name* source, int line, int column) {
   if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -271,7 +271,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       profiles_->GetFunctionName(shared->DebugName()),
       CodeEntry::kEmptyNamePrefix,
       profiles_->GetName(source),
-      line);
+      line,
+      column);
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
   }

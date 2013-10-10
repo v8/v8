@@ -1389,3 +1389,56 @@ TEST(IdleTime) {
 
   cpu_profiler->DeleteAllCpuProfiles();
 }
+
+
+static void CheckFunctionDetails(const v8::CpuProfileNode* node,
+    const char* name, const char* script_name, int script_id,
+    int line, int column) {
+  CHECK_EQ(v8::String::New(name), node->GetFunctionName());
+  CHECK_EQ(v8::String::New(script_name), node->GetScriptResourceName());
+  CHECK_EQ(script_id, node->GetScriptId());
+  CHECK_EQ(line, node->GetLineNumber());
+  CHECK_EQ(column, node->GetColumnNumber());
+}
+
+
+TEST(FunctionDetails) {
+  const char* extensions[] = { "v8/profiler" };
+  v8::ExtensionConfiguration config(1, extensions);
+  LocalContext env(&config);
+  v8::HandleScope handleScope(env->GetIsolate());
+
+  v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
+  CHECK_EQ(0, profiler->GetProfileCount());
+  v8::Handle<v8::Script> script_a = v8::Script::Compile(v8::String::New(
+      "    function foo\n() { try { bar(); } catch(e) {} }\n"
+      " function bar() { startProfiling(); }\n"), v8::String::New("script_a"));
+  script_a->Run();
+  v8::Handle<v8::Script> script_b = v8::Script::Compile(v8::String::New(
+      "\n\n   function baz() { try { foo(); } catch(e) {} }\n"
+      "\n\nbaz();\n"
+      "stopProfiling();\n"), v8::String::New("script_b"));
+  script_b->Run();
+  CHECK_EQ(1, profiler->GetProfileCount());
+  const v8::CpuProfile* profile = profiler->GetCpuProfile(0);
+  const v8::CpuProfileNode* current = profile->GetTopDownRoot();
+  reinterpret_cast<ProfileNode*>(
+      const_cast<v8::CpuProfileNode*>(current))->Print(0);
+  // The tree should look like this:
+  //  0   (root) 0 #1
+  //  0    (anonymous function) 19 #2 no reason script_b:1
+  //  0      baz 19 #3 TryCatchStatement script_b:3
+  //  0        foo 18 #4 TryCatchStatement script_a:2
+  //  1          bar 18 #5 no reason script_a:3
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* script = GetChild(root,
+      ProfileGenerator::kAnonymousFunctionName);
+  CheckFunctionDetails(script, ProfileGenerator::kAnonymousFunctionName,
+      "script_b", script_b->GetId(), 1, 1);
+  const v8::CpuProfileNode* baz = GetChild(script, "baz");
+  CheckFunctionDetails(baz, "baz", "script_b", script_b->GetId(), 3, 16);
+  const v8::CpuProfileNode* foo = GetChild(baz, "foo");
+  CheckFunctionDetails(foo, "foo", "script_a", script_a->GetId(), 2, 1);
+  const v8::CpuProfileNode* bar = GetChild(foo, "bar");
+  CheckFunctionDetails(bar, "bar", "script_a", script_a->GetId(), 3, 14);
+}

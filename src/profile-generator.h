@@ -77,7 +77,9 @@ class CodeEntry {
                    const char* name,
                    const char* name_prefix = CodeEntry::kEmptyNamePrefix,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
-                   int line_number = v8::CpuProfileNode::kNoLineNumberInfo));
+                   int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
+                   int column_number =
+                       v8::CpuProfileNode::kNoColumnNumberInfo));
   ~CodeEntry();
 
   INLINE(bool is_js_function() const) { return is_js_function_tag(tag_); }
@@ -86,6 +88,7 @@ class CodeEntry {
   INLINE(const char* name() const) { return name_; }
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
+  int column_number() const { return column_number_; }
   INLINE(void set_shared_id(int shared_id)) { shared_id_ = shared_id; }
   INLINE(int script_id() const) { return script_id_; }
   INLINE(void set_script_id(int script_id)) { script_id_ = script_id; }
@@ -119,6 +122,7 @@ class CodeEntry {
   const char* name_;
   const char* resource_name_;
   int line_number_;
+  int column_number_;
   int shared_id_;
   int script_id_;
   List<OffsetRange>* no_frame_ranges_;
@@ -304,7 +308,8 @@ class CpuProfilesCollection {
       const char* name,
       const char* name_prefix = CodeEntry::kEmptyNamePrefix,
       const char* resource_name = CodeEntry::kEmptyResourceName,
-      int line_number = v8::CpuProfileNode::kNoLineNumberInfo);
+      int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
+      int column_number = v8::CpuProfileNode::kNoColumnNumberInfo);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
