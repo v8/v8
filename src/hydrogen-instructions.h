@@ -3947,11 +3947,12 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) {
+    if (to.IsTagged()) SetGVNFlag(kChangesNewSpacePromotion);
+    if (to.IsTagged() &&
+        (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved())) {
       SetAllSideEffects();
       ClearFlag(kUseGVN);
     } else {
-      ASSERT(to.IsSmiOrInteger32());
       ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
@@ -4023,7 +4024,9 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) {
+    if (to.IsTagged()) SetGVNFlag(kChangesNewSpacePromotion);
+    if (to.IsTagged() &&
+        (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved())) {
       SetAllSideEffects();
       ClearFlag(kUseGVN);
     } else {
@@ -4562,8 +4565,19 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) ClearFlag(kAllowUndefinedAsNaN);
-    HArithmeticBinaryOperation::RepresentationChanged(to);
+    if (to.IsTagged()) {
+      SetGVNFlag(kChangesNewSpacePromotion);
+      ClearFlag(kAllowUndefinedAsNaN);
+    }
+    if (to.IsTagged() &&
+        (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved() ||
+         left()->ToStringCanBeObserved() || right()->ToStringCanBeObserved())) {
+      SetAllSideEffects();
+      ClearFlag(kUseGVN);
+    } else {
+      ClearAllSideEffects();
+      SetFlag(kUseGVN);
+    }
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
@@ -6632,20 +6646,25 @@ class HStringAdd V8_FINAL : public HBinaryOperation {
   HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
       : HBinaryOperation(context, left, right, HType::String()), flags_(flags) {
     set_representation(Representation::Tagged());
-    if (flags_ == STRING_ADD_CHECK_NONE) {
+    if (MightHaveSideEffects()) {
+      SetAllSideEffects();
+    } else {
       SetFlag(kUseGVN);
       SetGVNFlag(kDependsOnMaps);
       SetGVNFlag(kChangesNewSpacePromotion);
-    } else {
-      SetAllSideEffects();
     }
+  }
+
+  bool MightHaveSideEffects() const {
+    return flags_ != STRING_ADD_CHECK_NONE &&
+      (left()->ToStringCanBeObserved() || right()->ToStringCanBeObserved());
   }
 
   // No side-effects except possible allocation:
   // NOTE: this instruction does not call ToString() on its inputs, when flags_
   // is set to STRING_ADD_CHECK_NONE.
   virtual bool IsDeletable() const V8_OVERRIDE {
-    return flags_ == STRING_ADD_CHECK_NONE;
+    return !MightHaveSideEffects();
   }
 
   const StringAddFlags flags_;
