@@ -25,29 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests time zone names.
+// Utility methods for date testing.
 
-// Winter date (PST).
-var winter = new Date(2013, 1, 12, 14, 42, 53, 0);
-
-// Summer date (PDT).
-var summer = new Date(2013, 7, 12, 14, 42, 53, 0);
-
-// Common flags for both formatters.
-var flags = {
-  year: 'numeric', month: 'long', day: 'numeric',
-  hour : '2-digit', minute : '2-digit', second : '2-digit',
-  timeZone: 'America/Los_Angeles'
-};
-
-flags.timeZoneName = "short";
-var dfs = new Intl.DateTimeFormat('en-US', flags);
-
-assertTrue(dfs.format(winter).indexOf('PST') !== -1);
-assertTrue(dfs.format(summer).indexOf('PDT') !== -1);
-
-flags.timeZoneName = "long";
-var dfl = new Intl.DateTimeFormat('en-US', flags);
-
-assertTrue(dfl.format(winter).indexOf('Pacific Standard Time') !== -1);
-assertTrue(dfl.format(summer).indexOf('Pacific Daylight Time') !== -1);
+/**
+ * Returns date with timezone info forced into PDT.
+ */
+function usePDT(dateString) {
+  var removedTZ = dateString.replace(/(\+|-)\d{4}/, '-0007');
+  return removedTZ.replace(/\(.*?\)/, '(PDT)');
+}
