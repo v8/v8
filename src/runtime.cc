@@ -10888,7 +10888,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugNamedInterceptorPropertyValue) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   PropertyAttributes attributes;
-  return obj->GetPropertyWithInterceptor(*obj, *name, &attributes);
+  Handle<Object> result =
+      JSObject::GetPropertyWithInterceptor(obj, obj, name, &attributes);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 

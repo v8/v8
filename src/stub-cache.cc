@@ -1223,8 +1223,8 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
 }
 
 
-static MaybeObject* LoadWithInterceptor(Arguments* args,
-                                        PropertyAttributes* attrs) {
+static Handle<Object> LoadWithInterceptor(Arguments* args,
+                                          PropertyAttributes* attrs) {
   ASSERT(args->length() == StubCache::kInterceptorArgsLength);
   Handle<Name> name_handle =
       args->at<Name>(StubCache::kInterceptorArgsNameIndex);
@@ -1238,9 +1238,10 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   Isolate* isolate = receiver_handle->GetIsolate();
 
   // TODO(rossberg): Support symbols in the API.
-  if (name_handle->IsSymbol())
-    return holder_handle->GetPropertyPostInterceptor(
-        *receiver_handle, *name_handle, attrs);
+  if (name_handle->IsSymbol()) {
+    return JSObject::GetPropertyPostInterceptor(
+        holder_handle, receiver_handle, name_handle, attrs);
+  }
   Handle<String> name = Handle<String>::cast(name_handle);
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
@@ -1253,24 +1254,21 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
                                           *receiver_handle,
                                           *holder_handle);
   {
-    // Use the interceptor getter.
     HandleScope scope(isolate);
+    // Use the interceptor getter.
     v8::Handle<v8::Value> r =
         callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!r.IsEmpty()) {
       *attrs = NONE;
       Handle<Object> result = v8::Utils::OpenHandle(*r);
       result->VerifyApiCallResultType();
-      return *result;
+      return scope.CloseAndEscape(result);
     }
   }
 
-  MaybeObject* result = holder_handle->GetPropertyPostInterceptor(
-      *receiver_handle,
-      *name_handle,
-      attrs);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  Handle<Object> result = JSObject::GetPropertyPostInterceptor(
+      holder_handle, receiver_handle, name_handle, attrs);
   return result;
 }
 
@@ -1281,25 +1279,25 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
  */
 RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
   PropertyAttributes attr = NONE;
-  Object* result;
-  { MaybeObject* maybe_result = LoadWithInterceptor(&args, &attr);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  HandleScope scope(isolate);
+  Handle<Object> result = LoadWithInterceptor(&args, &attr);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
 
   // If the property is present, return it.
-  if (attr != ABSENT) return result;
+  if (attr != ABSENT) return *result;
   return ThrowReferenceError(isolate, Name::cast(args[0]));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
   PropertyAttributes attr;
-  MaybeObject* result = LoadWithInterceptor(&args, &attr);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  HandleScope scope(isolate);
+  Handle<Object> result = LoadWithInterceptor(&args, &attr);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   // This is call IC. In this case, we simply return the undefined result which
   // will lead to an exception when trying to invoke the result as a
   // function.
-  return result;
+  return *result;
 }
 
 

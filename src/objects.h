@@ -1457,6 +1457,12 @@ class Object : public MaybeObject {
   MUST_USE_RESULT inline MaybeObject* GetProperty(
       Name* key,
       PropertyAttributes* attributes);
+
+  // TODO(yangguo): this should eventually replace the non-handlified version.
+  static Handle<Object> GetPropertyWithReceiver(Handle<Object> object,
+                                                Handle<Object> receiver,
+                                                Handle<Name> name,
+                                                PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithReceiver(
       Object* receiver,
       Name* key,
@@ -2243,13 +2249,15 @@ class JSObject: public JSReceiver {
       LookupResult* result,
       Name* name,
       PropertyAttributes* attributes);
-  MUST_USE_RESULT MaybeObject* GetPropertyWithInterceptor(
-      Object* receiver,
-      Name* name,
+  static Handle<Object> GetPropertyWithInterceptor(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      Handle<Name> name,
       PropertyAttributes* attributes);
-  MUST_USE_RESULT MaybeObject* GetPropertyPostInterceptor(
-      Object* receiver,
-      Name* name,
+  static Handle<Object> GetPropertyPostInterceptor(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      Handle<Name> name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
       Object* receiver,
