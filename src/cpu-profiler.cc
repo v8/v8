@@ -64,14 +64,15 @@ void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
 
 void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
   TickSampleEventRecord record(last_code_event_id_);
-  TickSample* sample = &record.sample;
-  sample->state = isolate->current_vm_state();
-  sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
-  for (StackTraceFrameIterator it(isolate);
-       !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
-       it.Advance()) {
-    sample->stack[sample->frames_count++] = it.frame()->pc();
+  RegisterState regs;
+  StackFrameIterator it(isolate);
+  if (!it.done()) {
+    StackFrame* frame = it.frame();
+    regs.sp = frame->sp();
+    regs.fp = frame->fp();
+    regs.pc = frame->pc();
   }
+  record.sample.Init(isolate, regs);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
