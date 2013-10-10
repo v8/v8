@@ -27,12 +27,6 @@
 
 [
 [ALWAYS, {
-  # TODO(mstarzinger): Uhm, this is kind of embarrassing, but our parser
-  # does not catch some syntax errors with duplicate properties in object
-  # literals that our preparser actually caught. I will fix this glitch in a
-  # follow-up change.
-  'duplicate-property/*': [SKIP],
-
   # TODO(mstarzinger): This script parses but throws a TypeError when run.
   'non-alphanum': [FAIL],
 
