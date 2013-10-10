@@ -463,7 +463,7 @@ class Parser BASE_EMBEDDED {
 
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
-                       Vector<const char*> args = Vector<const char*>::empty());
+                       Vector<const char*> args);
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
                        Vector<Handle<String> > args);
@@ -879,7 +879,6 @@ class Parser BASE_EMBEDDED {
   CompilationInfo* info_;
   friend class BlockState;
   friend class FunctionState;
-  friend class ObjectLiteralChecker<Parser>;
 };
 
 

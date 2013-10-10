@@ -35,97 +35,8 @@
 namespace v8 {
 
 namespace internal {
-
-// Used to detect duplicates in object literals. Each of the values
-// kGetterProperty, kSetterProperty and kValueProperty represents
-// a type of object literal property. When parsing a property, its
-// type value is stored in the DuplicateFinder for the property name.
-// Values are chosen so that having intersection bits means the there is
-// an incompatibility.
-// I.e., you can add a getter to a property that already has a setter, since
-// kGetterProperty and kSetterProperty doesn't intersect, but not if it
-// already has a getter or a value. Adding the getter to an existing
-// setter will store the value (kGetterProperty | kSetterProperty), which
-// is incompatible with adding any further properties.
-enum PropertyKind {
-  kNone = 0,
-  // Bit patterns representing different object literal property types.
-  kGetterProperty = 1,
-  kSetterProperty = 2,
-  kValueProperty = 7,
-  // Helper constants.
-  kValueFlag = 4
-};
-
-
-// Validation per 11.1.5 Object Initialiser
-template<typename P>
-class ObjectLiteralChecker {
- public:
-  ObjectLiteralChecker(P* parser, Scanner* scanner, LanguageMode mode)
-      : parser_(parser),
-        scanner_(scanner),
-        finder_(scanner->unicode_cache()),
-        language_mode_(mode) { }
-
-  void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
-
- private:
-  // Checks the type of conflict based on values coming from PropertyType.
-  bool HasConflict(PropertyKind type1, PropertyKind type2) {
-    return (type1 & type2) != 0;
-  }
-  bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
-    return ((type1 & type2) & kValueFlag) != 0;
-  }
-  bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
-    return ((type1 ^ type2) & kValueFlag) != 0;
-  }
-  bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
-    return ((type1 | type2) & kValueFlag) == 0;
-  }
-
-  P* parser_;
-  Scanner* scanner_;
-  DuplicateFinder finder_;
-  LanguageMode language_mode_;
-};
-
-
-template<typename P>
-void ObjectLiteralChecker<P>::CheckProperty(Token::Value property,
-                                            PropertyKind type,
-                                            bool* ok) {
-  int old;
-  if (property == Token::NUMBER) {
-    old = finder_.AddNumber(scanner_->literal_ascii_string(), type);
-  } else if (scanner_->is_literal_ascii()) {
-    old = finder_.AddAsciiSymbol(scanner_->literal_ascii_string(), type);
-  } else {
-    old = finder_.AddUtf16Symbol(scanner_->literal_utf16_string(), type);
-  }
-  PropertyKind old_type = static_cast<PropertyKind>(old);
-  if (HasConflict(old_type, type)) {
-    if (IsDataDataConflict(old_type, type)) {
-      // Both are data properties.
-      if (language_mode_ == CLASSIC_MODE) return;
-      parser_->ReportMessageAt(scanner_->location(),
-                               "strict_duplicate_property");
-    } else if (IsDataAccessorConflict(old_type, type)) {
-      // Both a data and an accessor property with the same name.
-      parser_->ReportMessageAt(scanner_->location(),
-                               "accessor_data_property");
-    } else {
-      ASSERT(IsAccessorAccessorConflict(old_type, type));
-      // Both accessors of the same type.
-      parser_->ReportMessageAt(scanner_->location(),
-                               "accessor_get_set");
-    }
-    *ok = false;
-  }
+class UnicodeCache;
 }
-
-}  // v8::internal
 
 namespace preparser {
 
@@ -145,6 +56,53 @@ typedef uint8_t byte;
 // it is used) are generally omitted.
 
 namespace i = v8::internal;
+
+class DuplicateFinder {
+ public:
+  explicit DuplicateFinder(i::UnicodeCache* constants)
+      : unicode_constants_(constants),
+        backing_store_(16),
+        map_(&Match) { }
+
+  int AddAsciiSymbol(i::Vector<const char> key, int value);
+  int AddUtf16Symbol(i::Vector<const uint16_t> key, int value);
+  // Add a a number literal by converting it (if necessary)
+  // to the string that ToString(ToNumber(literal)) would generate.
+  // and then adding that string with AddAsciiSymbol.
+  // This string is the actual value used as key in an object literal,
+  // and the one that must be different from the other keys.
+  int AddNumber(i::Vector<const char> key, int value);
+
+ private:
+  int AddSymbol(i::Vector<const byte> key, bool is_ascii, int value);
+  // Backs up the key and its length in the backing store.
+  // The backup is stored with a base 127 encoding of the
+  // length (plus a bit saying whether the string is ASCII),
+  // followed by the bytes of the key.
+  byte* BackupKey(i::Vector<const byte> key, bool is_ascii);
+
+  // Compare two encoded keys (both pointing into the backing store)
+  // for having the same base-127 encoded lengths and ASCII-ness,
+  // and then having the same 'length' bytes following.
+  static bool Match(void* first, void* second);
+  // Creates a hash from a sequence of bytes.
+  static uint32_t Hash(i::Vector<const byte> key, bool is_ascii);
+  // Checks whether a string containing a JS number is its canonical
+  // form.
+  static bool IsNumberCanonical(i::Vector<const char> key);
+
+  // Size of buffer. Sufficient for using it to call DoubleToCString in
+  // from conversions.h.
+  static const int kBufferSize = 100;
+
+  i::UnicodeCache* unicode_constants_;
+  // Backing store used to store strings used as hashmap keys.
+  i::SequenceCollector<unsigned char> backing_store_;
+  i::HashMap map_;
+  // Buffer used for string->number->canonical string conversions.
+  char number_buffer_[kBufferSize];
+};
+
 
 class PreParser {
  public:
@@ -225,6 +183,45 @@ class PreParser {
                                       i::ParserRecorder* log);
 
  private:
+  // Used to detect duplicates in object literals. Each of the values
+  // kGetterProperty, kSetterProperty and kValueProperty represents
+  // a type of object literal property. When parsing a property, its
+  // type value is stored in the DuplicateFinder for the property name.
+  // Values are chosen so that having intersection bits means the there is
+  // an incompatibility.
+  // I.e., you can add a getter to a property that already has a setter, since
+  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
+  // already has a getter or a value. Adding the getter to an existing
+  // setter will store the value (kGetterProperty | kSetterProperty), which
+  // is incompatible with adding any further properties.
+  enum PropertyType {
+    kNone = 0,
+    // Bit patterns representing different object literal property types.
+    kGetterProperty = 1,
+    kSetterProperty = 2,
+    kValueProperty = 7,
+    // Helper constants.
+    kValueFlag = 4
+  };
+
+  // Checks the type of conflict based on values coming from PropertyType.
+  bool HasConflict(int type1, int type2) { return (type1 & type2) != 0; }
+  bool IsDataDataConflict(int type1, int type2) {
+    return ((type1 & type2) & kValueFlag) != 0;
+  }
+  bool IsDataAccessorConflict(int type1, int type2) {
+    return ((type1 ^ type2) & kValueFlag) != 0;
+  }
+  bool IsAccessorAccessorConflict(int type1, int type2) {
+    return ((type1 | type2) & kValueFlag) == 0;
+  }
+
+
+  void CheckDuplicate(DuplicateFinder* finder,
+                      i::Token::Value property,
+                      int type,
+                      bool* ok);
+
   // These types form an algebra over syntactic categories that is just
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
@@ -534,7 +531,7 @@ class PreParser {
   void ReportUnexpectedToken(i::Token::Value token);
   void ReportMessageAt(i::Scanner::Location location,
                        const char* type,
-                       const char* name_opt = NULL) {
+                       const char* name_opt) {
     log_->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
   }
   void ReportMessageAt(int start_pos,
@@ -689,10 +686,7 @@ class PreParser {
   bool allow_generators_;
   bool allow_for_of_;
   bool parenthesized_function_;
-
-  friend class i::ObjectLiteralChecker<PreParser>;
 };
-
 } }  // v8::preparser
 
 #endif  // V8_PREPARSER_H
