@@ -211,6 +211,9 @@ CpuFeatureScope::~CpuFeatureScope() {
 
 PlatformFeatureScope::PlatformFeatureScope(CpuFeature f)
     : old_cross_compile_(CpuFeatures::cross_compile_) {
+  // CpuFeatures is a global singleton, therefore this is only safe in
+  // single threaded code.
+  ASSERT(Serializer::enabled());
   uint64_t mask = static_cast<uint64_t>(1) << f;
   CpuFeatures::cross_compile_ |= mask;
 }
