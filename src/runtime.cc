@@ -801,6 +801,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, object, 0);
+  return object->IsJSArrayBufferView()
+    ? isolate->heap()->true_value()
+    : isolate->heap()->false_value();
+}
+
+
 enum TypedArrayId {
   // arrayIds below should be synchromized with typedarray.js natives.
   ARRAY_ID_UINT8 = 1,
@@ -12610,11 +12620,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
-  if (frame_id != StackFrame::NO_ID &&
-      step_action != StepIn &&
-      step_action != StepNext &&
-      step_action != StepOut &&
-      step_action != StepMin) {
+  if (frame_id != StackFrame::NO_ID && step_action != StepNext &&
+      step_action != StepMin && step_action != StepOut) {
     return isolate->ThrowIllegalOperation();
   }
 

@@ -434,7 +434,6 @@ Handle<Code> FastCloneShallowArrayStub::GenerateCode(Isolate* isolate) {
 
 template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
-  Zone* zone = this->zone();
   HValue* undefined = graph()->GetConstantUndefined();
 
   HInstruction* boilerplate = Add<HLoadKeyed>(GetParameter(0),
@@ -448,8 +447,10 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   checker.And();
 
   int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
-  HValue* boilerplate_size =
-      AddInstruction(new(zone) HInstanceSize(boilerplate));
+  HValue* boilerplate_map = Add<HLoadNamedField>(
+      boilerplate, HObjectAccess::ForMap());
+  HValue* boilerplate_size = Add<HLoadNamedField>(
+      boilerplate_map, HObjectAccess::ForMapInstanceSize());
   HValue* size_in_words = Add<HConstant>(size >> kPointerSizeLog2);
   checker.If<HCompareNumericAndBranch>(boilerplate_size,
                                        size_in_words, Token::EQ);

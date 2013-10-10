@@ -471,26 +471,45 @@ class CpuFeatures : public AllStatic {
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
+    if (Check(f, cross_compile_)) return true;
     ASSERT(initialized_);
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
     if (f == SAHF && !FLAG_enable_sahf) return false;
-    return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return Check(f, supported_);
   }
 
   static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
     ASSERT(initialized_);
-    return (found_by_runtime_probing_only_ &
-            (static_cast<uint64_t>(1) << f)) != 0;
+    return Check(f, found_by_runtime_probing_only_);
   }
 
   static bool IsSafeForSnapshot(CpuFeature f) {
-    return (IsSupported(f) &&
+    return Check(f, cross_compile_) ||
+           (IsSupported(f) &&
             (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
   }
 
+  static bool VerifyCrossCompiling() {
+    return cross_compile_ == 0;
+  }
+
+  static bool VerifyCrossCompiling(CpuFeature f) {
+    uint64_t mask = flag2set(f);
+    return cross_compile_ == 0 ||
+           (cross_compile_ & mask) == mask;
+  }
+
  private:
+  static bool Check(CpuFeature f, uint64_t set) {
+    return (set & flag2set(f)) != 0;
+  }
+
+  static uint64_t flag2set(CpuFeature f) {
+    return static_cast<uint64_t>(1) << f;
+  }
+
   // Safe defaults include CMOV for X64. It is always available, if
   // anyone checks, but they shouldn't need to check.
   // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
@@ -502,6 +521,8 @@ class CpuFeatures : public AllStatic {
 #endif
   static uint64_t supported_;
   static uint64_t found_by_runtime_probing_only_;
+
+  static uint64_t cross_compile_;
 
   friend class ExternalReference;
   friend class PlatformFeatureScope;

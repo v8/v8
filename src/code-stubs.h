@@ -209,6 +209,7 @@ class CodeStub BASE_EMBEDDED {
   // Generates the assembler code for the stub.
   virtual Handle<Code> GenerateCode(Isolate* isolate) = 0;
 
+  virtual void VerifyPlatformFeatures(Isolate* isolate);
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
@@ -1043,6 +1044,10 @@ class BinaryOpStub: public HydrogenCodeStub {
     return MONOMORPHIC;
   }
 
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  }
+
   virtual Code::ExtraICState GetExtraICState() {
     bool sse_field = Max(result_state_, Max(left_state_, right_state_)) > SMI &&
                      CpuFeatures::IsSafeForSnapshot(SSE2);
@@ -1347,6 +1352,11 @@ class CEntryStub : public PlatformCodeStub {
   // can generate both variants ahead of time.
   virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
   static void GenerateAheadOfTime(Isolate* isolate);
+
+ protected:
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  };
 
  private:
   void GenerateCore(MacroAssembler* masm,
@@ -1765,6 +1775,11 @@ class DoubleToIStub : public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
   virtual bool SometimesSetsUpAFrame() { return false; }
+
+ protected:
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  }
 
  private:
   static const int kBitsPerRegisterNumber = 6;

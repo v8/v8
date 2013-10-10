@@ -2694,14 +2694,6 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
 }
 
 
-void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
-  Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
-  __ lw(result, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ lbu(result, FieldMemOperand(result, Map::kInstanceSizeOffset));
-}
-
-
 void LCodeGen::DoCmpT(LCmpT* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
   Token::Value op = instr->op();
