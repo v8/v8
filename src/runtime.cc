@@ -12620,11 +12620,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
-  if (frame_id != StackFrame::NO_ID &&
-      step_action != StepIn &&
-      step_action != StepNext &&
-      step_action != StepOut &&
-      step_action != StepMin) {
+  if (frame_id != StackFrame::NO_ID && step_action != StepNext &&
+      step_action != StepMin && step_action != StepOut) {
     return isolate->ThrowIllegalOperation();
   }
 
