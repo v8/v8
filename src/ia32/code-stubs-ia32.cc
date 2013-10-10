@@ -2918,8 +2918,12 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  PlatformFeatureScope sse2(SSE2);
-  BinaryOpStub::GenerateAheadOfTime(isolate);
+  if (Serializer::enabled()) {
+    PlatformFeatureScope sse2(SSE2);
+    BinaryOpStub::GenerateAheadOfTime(isolate);
+  } else {
+    BinaryOpStub::GenerateAheadOfTime(isolate);
+  }
 }
 
 
