@@ -156,7 +156,7 @@ class Type : public Object {
   static Type* Intersect(Handle<Type> type1, Handle<Type> type2);
   static Type* Optional(Handle<Type> type);  // type \/ Undefined
 
-  bool Is(Type* that) { return (this == that) ? true : IsSlowCase(that); }
+  bool Is(Type* that) { return (this == that) ? true : SlowIs(that); }
   bool Is(Handle<Type> that) { return this->Is(*that); }
   bool Maybe(Type* that);
   bool Maybe(Handle<Type> that) { return this->Maybe(*that); }
@@ -231,7 +231,7 @@ class Type : public Object {
   bool is_constant() { return this->IsBox(); }
   bool is_union() { return this->IsFixedArray(); }
 
-  bool IsSlowCase(Type* that);
+  bool SlowIs(Type* that);
 
   int as_bitset() { return Smi::cast(this)->value(); }
   Handle<Map> as_class() { return Handle<Map>::cast(handle()); }
