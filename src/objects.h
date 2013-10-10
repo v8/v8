@@ -2118,6 +2118,11 @@ class JSObject: public JSReceiver {
   // a dictionary, and it will stay a dictionary.
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
+  static Handle<Object> GetPropertyWithCallback(Handle<JSObject> object,
+                                                Handle<Object> receiver,
+                                                Handle<Object> structure,
+                                                Handle<Name> name);
+
   MUST_USE_RESULT MaybeObject* GetPropertyWithCallback(Object* receiver,
                                                        Object* structure,
                                                        Name* name);
@@ -2243,12 +2248,6 @@ class JSObject: public JSReceiver {
   static Handle<Object> SetAccessor(Handle<JSObject> object,
                                     Handle<AccessorInfo> info);
 
-  // Used from Object::GetProperty().
-  MUST_USE_RESULT MaybeObject* GetPropertyWithFailedAccessCheck(
-      Object* receiver,
-      LookupResult* result,
-      Name* name,
-      PropertyAttributes* attributes);
   static Handle<Object> GetPropertyWithInterceptor(
       Handle<JSObject> object,
       Handle<Object> receiver,
@@ -2648,6 +2647,15 @@ class JSObject: public JSReceiver {
  private:
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
+  friend class Object;
+
+  // Used from Object::GetProperty().
+  static Handle<Object> GetPropertyWithFailedAccessCheck(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      LookupResult* result,
+      Handle<Name> name,
+      PropertyAttributes* attributes);
 
   MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
                                                       Object* structure,
