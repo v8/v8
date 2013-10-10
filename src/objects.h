@@ -4001,6 +4001,15 @@ class WeakHashTable: public HashTable<WeakHashTableShape<2>, Object*> {
   // key to the hole value causes removal of the whole entry.
   MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
 
+  // This function is called when heap verification is turned on.
+  void Zap(Object* value) {
+    int capacity = Capacity();
+    for (int i = 0; i < capacity; i++) {
+      set(EntryToIndex(i), value);
+      set(EntryToValueIndex(i), value);
+    }
+  }
+
  private:
   friend class MarkCompactCollector;
 

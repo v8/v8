@@ -6886,6 +6886,9 @@ MaybeObject* Heap::AddWeakObjectToCodeDependency(Object* obj,
       WeakHashTable::cast(weak_object_to_code_table_)->Put(obj, dep);
   WeakHashTable* table;
   if (!maybe_obj->To(&table)) return maybe_obj;
+  if (ShouldZapGarbage() && weak_object_to_code_table_ != table) {
+    WeakHashTable::cast(weak_object_to_code_table_)->Zap(the_hole_value());
+  }
   set_weak_object_to_code_table(table);
   ASSERT_EQ(dep, WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj));
   return weak_object_to_code_table_;

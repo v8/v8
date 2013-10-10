@@ -511,7 +511,7 @@ DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
-DEFINE_bool(weak_embedded_objects_in_optimized_code, false,
+DEFINE_bool(weak_embedded_objects_in_optimized_code, true,
             "make objects embedded in optimized code weak")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")
