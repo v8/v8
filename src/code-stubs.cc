@@ -129,6 +129,11 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
 }
 
 
+void CodeStub::VerifyPlatformFeatures(Isolate* isolate) {
+  ASSERT(CpuFeatures::VerifyCrossCompiling());
+}
+
+
 Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
@@ -140,6 +145,10 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
     ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
+
+#ifdef DEBUG
+  VerifyPlatformFeatures(isolate);
+#endif
 
   {
     HandleScope scope(isolate);
@@ -297,8 +306,6 @@ void BinaryOpStub::GenerateAheadOfTime(Isolate* isolate) {
   // expensive at runtime. When solved we should be able to add most binops to
   // the snapshot instead of hand-picking them.
   // Generated list of commonly used stubs
-  Generate(Token::ADD, GENERIC, STRING, STRING, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, GENERIC, STRING, STRING, OVERWRITE_RIGHT, isolate);
   Generate(Token::ADD, INT32, INT32, INT32, NO_OVERWRITE, isolate);
   Generate(Token::ADD, INT32, INT32, INT32, OVERWRITE_LEFT, isolate);
   Generate(Token::ADD, INT32, INT32, NUMBER, NO_OVERWRITE, isolate);
@@ -326,12 +333,6 @@ void BinaryOpStub::GenerateAheadOfTime(Isolate* isolate) {
   Generate(Token::ADD, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
   Generate(Token::ADD, SMI, SMI, INT32, OVERWRITE_LEFT, isolate);
   Generate(Token::ADD, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, STRING, GENERIC, STRING, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, STRING, GENERIC, STRING, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, STRING, GENERIC, STRING, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, STRING, STRING, STRING, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, STRING, STRING, STRING, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, STRING, STRING, STRING, OVERWRITE_RIGHT, isolate);
   Generate(Token::BIT_AND, INT32, INT32, INT32, NO_OVERWRITE, isolate);
   Generate(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_LEFT, isolate);
   Generate(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_RIGHT, isolate);

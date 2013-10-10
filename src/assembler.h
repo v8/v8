@@ -142,8 +142,7 @@ class PlatformFeatureScope BASE_EMBEDDED {
   ~PlatformFeatureScope();
 
  private:
-  uint64_t old_supported_;
-  uint64_t old_found_by_runtime_probing_only_;
+  uint64_t old_cross_compile_;
 };
 
 
