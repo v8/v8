@@ -4327,12 +4327,10 @@ class HIsConstructCallAndBranch : public HTemplateControlInstruction<2, 0> {
 
 class HHasInstanceTypeAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
-  HHasInstanceTypeAndBranch(HValue* value, InstanceType type)
-      : HUnaryControlInstruction(value, NULL, NULL), from_(type), to_(type) { }
-  HHasInstanceTypeAndBranch(HValue* value, InstanceType from, InstanceType to)
-      : HUnaryControlInstruction(value, NULL, NULL), from_(from), to_(to) {
-    ASSERT(to == LAST_TYPE);  // Others not implemented yet in backend.
-  }
+  DECLARE_INSTRUCTION_FACTORY_P2(
+      HHasInstanceTypeAndBranch, HValue*, InstanceType);
+  DECLARE_INSTRUCTION_FACTORY_P3(
+      HHasInstanceTypeAndBranch, HValue*, InstanceType, InstanceType);
 
   InstanceType from() { return from_; }
   InstanceType to() { return to_; }
@@ -4346,6 +4344,13 @@ class HHasInstanceTypeAndBranch V8_FINAL : public HUnaryControlInstruction {
   DECLARE_CONCRETE_INSTRUCTION(HasInstanceTypeAndBranch)
 
  private:
+  HHasInstanceTypeAndBranch(HValue* value, InstanceType type)
+      : HUnaryControlInstruction(value, NULL, NULL), from_(type), to_(type) { }
+  HHasInstanceTypeAndBranch(HValue* value, InstanceType from, InstanceType to)
+      : HUnaryControlInstruction(value, NULL, NULL), from_(from), to_(to) {
+    ASSERT(to == LAST_TYPE);  // Others not implemented yet in backend.
+  }
+
   InstanceType from_;
   InstanceType to_;  // Inclusive range, not all combinations work.
 };

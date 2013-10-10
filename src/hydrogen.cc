@@ -3475,9 +3475,9 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       HValue* return_value = Pop();
       HValue* receiver = environment()->arguments_environment()->Lookup(0);
       HHasInstanceTypeAndBranch* typecheck =
-          new(zone()) HHasInstanceTypeAndBranch(return_value,
-                                                FIRST_SPEC_OBJECT_TYPE,
-                                                LAST_SPEC_OBJECT_TYPE);
+          New<HHasInstanceTypeAndBranch>(return_value,
+                                         FIRST_SPEC_OBJECT_TYPE,
+                                         LAST_SPEC_OBJECT_TYPE);
       HBasicBlock* if_spec_object = graph()->CreateBasicBlock();
       HBasicBlock* not_spec_object = graph()->CreateBasicBlock();
       typecheck->SetSuccessorAt(0, if_spec_object);
@@ -8783,9 +8783,9 @@ void HOptimizedGraphBuilder::GenerateIsSpecObject(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
   HHasInstanceTypeAndBranch* result =
-      new(zone()) HHasInstanceTypeAndBranch(value,
-                                            FIRST_SPEC_OBJECT_TYPE,
-                                            LAST_SPEC_OBJECT_TYPE);
+      New<HHasInstanceTypeAndBranch>(value,
+                                     FIRST_SPEC_OBJECT_TYPE,
+                                     LAST_SPEC_OBJECT_TYPE);
   return ast_context()->ReturnControl(result, call->id());
 }
 
@@ -8795,7 +8795,7 @@ void HOptimizedGraphBuilder::GenerateIsFunction(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
   HHasInstanceTypeAndBranch* result =
-      new(zone()) HHasInstanceTypeAndBranch(value, JS_FUNCTION_TYPE);
+      New<HHasInstanceTypeAndBranch>(value, JS_FUNCTION_TYPE);
   return ast_context()->ReturnControl(result, call->id());
 }
 
@@ -8815,7 +8815,7 @@ void HOptimizedGraphBuilder::GenerateIsArray(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
   HHasInstanceTypeAndBranch* result =
-      new(zone()) HHasInstanceTypeAndBranch(value, JS_ARRAY_TYPE);
+      New<HHasInstanceTypeAndBranch>(value, JS_ARRAY_TYPE);
   return ast_context()->ReturnControl(result, call->id());
 }
 
@@ -8825,7 +8825,7 @@ void HOptimizedGraphBuilder::GenerateIsRegExp(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
   HHasInstanceTypeAndBranch* result =
-      new(zone()) HHasInstanceTypeAndBranch(value, JS_REGEXP_TYPE);
+      New<HHasInstanceTypeAndBranch>(value, JS_REGEXP_TYPE);
   return ast_context()->ReturnControl(result, call->id());
 }
 
@@ -8979,7 +8979,7 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
   // Check if object is a JSValue.
   set_current_block(if_heap_object);
   HHasInstanceTypeAndBranch* typecheck =
-      new(zone()) HHasInstanceTypeAndBranch(object, JS_VALUE_TYPE);
+      New<HHasInstanceTypeAndBranch>(object, JS_VALUE_TYPE);
   HBasicBlock* if_js_value = graph()->CreateBasicBlock();
   HBasicBlock* not_js_value = graph()->CreateBasicBlock();
   typecheck->SetSuccessorAt(0, if_js_value);
@@ -9144,7 +9144,7 @@ void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
 
   // Branch for function proxies, or other non-functions.
   HHasInstanceTypeAndBranch* typecheck =
-      new(zone()) HHasInstanceTypeAndBranch(function, JS_FUNCTION_TYPE);
+      New<HHasInstanceTypeAndBranch>(function, JS_FUNCTION_TYPE);
   HBasicBlock* if_jsfunction = graph()->CreateBasicBlock();
   HBasicBlock* if_nonfunction = graph()->CreateBasicBlock();
   HBasicBlock* join = graph()->CreateBasicBlock();
