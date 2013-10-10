@@ -1,3 +1,13 @@
+2013-10-10: Version 3.22.9
+
+        Ensure only whitelisted stubs have sse2 versions in the snapshot.
+        (fix for chromium 304565)
+
+        Implement ArrayBuffer.isView.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-04: Version 3.22.8
 
         Performance and stability improvements on all platforms.
