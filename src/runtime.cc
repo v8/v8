@@ -801,6 +801,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, object, 0);
+  return object->IsJSArrayBufferView()
+    ? isolate->heap()->true_value()
+    : isolate->heap()->false_value();
+}
+
+
 enum TypedArrayId {
   // arrayIds below should be synchromized with typedarray.js natives.
   ARRAY_ID_UINT8 = 1,
