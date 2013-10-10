@@ -1367,7 +1367,7 @@ function toLDMLString(options) {
   ldmlString += appendToLDMLString(option, {'2-digit': 'ss', 'numeric': 's'});
 
   option = getOption('timeZoneName', 'string', ['short', 'long']);
-  ldmlString += appendToLDMLString(option, {short: 'v', long: 'vv'});
+  ldmlString += appendToLDMLString(option, {short: 'z', long: 'zzzz'});
 
   return ldmlString;
 }
@@ -1440,9 +1440,9 @@ function fromLDMLString(ldmlString) {
   options = appendToDateTimeObject(
       options, 'second', match, {s: 'numeric', ss: '2-digit'});
 
-  match = ldmlString.match(/v{1,2}/g);
+  match = ldmlString.match(/z|zzzz/g);
   options = appendToDateTimeObject(
-      options, 'timeZoneName', match, {v: 'short', vv: 'long'});
+      options, 'timeZoneName', match, {z: 'short', zzzz: 'long'});
 
   return options;
 }
