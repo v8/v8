@@ -847,7 +847,7 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  * value.
  */
 template<class T>
-struct V8_EXPORT Maybe {
+struct Maybe {
   Maybe() : has_value(false) {}
   explicit Maybe(T t) : has_value(true), value(t) {}
   Maybe(bool has, T t) : has_value(has), value(t) {}
