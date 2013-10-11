@@ -173,6 +173,18 @@ class IC {
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
+  // Compute the handler either by compiling or by retrieving a cached version.
+  Handle<Code> ComputeHandler(LookupResult* lookup,
+                              Handle<JSObject> receiver,
+                              Handle<String> name,
+                              Handle<Object> value = Handle<Code>::null());
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> value) {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
   void UpdateMonomorphicIC(Handle<HeapObject> receiver,
                            Handle<Code> handler,
                            Handle<String> name);
@@ -187,6 +199,14 @@ class IC {
                   Handle<String> name,
                   Handle<Code> code);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
+  virtual Code::Kind kind() const {
+    UNREACHABLE();
+    return Code::STUB;
+  }
+  virtual Handle<Code> slow_stub() const {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
   virtual Handle<Code> megamorphic_stub() {
     UNREACHABLE();
     return Handle<Code>::null();
@@ -395,12 +415,10 @@ class LoadIC: public IC {
                     Handle<Object> object,
                     Handle<String> name);
 
-  Handle<Code> ComputeLoadHandler(LookupResult* lookup,
-                                  Handle<JSObject> receiver,
-                                  Handle<String> name);
-  virtual Handle<Code> CompileLoadHandler(LookupResult* lookup,
-                                          Handle<JSObject> receiver,
-                                          Handle<String> name);
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> unused);
 
  private:
   // Stub accessors.
@@ -475,9 +493,10 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  virtual Handle<Code> CompileLoadHandler(LookupResult* lookup,
-                                          Handle<JSObject> receiver,
-                                          Handle<String> name);
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> unused);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
  private:
@@ -590,17 +609,10 @@ class StoreIC: public IC {
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
-  // Compute the code stub for this store; used for rewriting to
-  // monomorphic state and making sure that the code stub is in the
-  // stub cache.
-  Handle<Code> ComputeStoreHandler(LookupResult* lookup,
-                                   Handle<JSObject> receiver,
-                                   Handle<String> name,
-                                   Handle<Object> value);
-  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
-                                           Handle<JSObject> receiver,
-                                           Handle<String> name,
-                                           Handle<Object> value);
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> value);
 
  private:
   void set_target(Code* code) {
@@ -668,10 +680,10 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
-                                           Handle<JSObject> receiver,
-                                           Handle<String> name,
-                                           Handle<Object> value);
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
   virtual Handle<Code> pre_monomorphic_stub() {

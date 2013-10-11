@@ -1137,8 +1137,13 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     // TODO(jkummerow): It would be nice to support non-JSObjects in
     // ComputeLoadHandler, then we wouldn't need to go generic here.
     code = slow_stub();
+  } else if (!lookup->IsProperty()) {
+    code = kind() == Code::LOAD_IC
+        ? isolate()->stub_cache()->ComputeLoadNonexistent(
+              name, Handle<JSObject>::cast(receiver))
+        : slow_stub();
   } else {
-    code = ComputeLoadHandler(lookup, Handle<JSObject>::cast(receiver), name);
+    code = ComputeHandler(lookup, Handle<JSObject>::cast(receiver), name);
   }
 
   PatchCache(receiver, name, code);
@@ -1153,20 +1158,15 @@ void IC::UpdateMegamorphicCache(Map* map, Name* name, Code* code) {
 }
 
 
-Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
-                                        Handle<JSObject> receiver,
-                                        Handle<String> name) {
-  if (!lookup->IsProperty()) {
-    return kind() == Code::LOAD_IC
-        ? isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver)
-        : generic_stub();
-  }
-
+Handle<Code> IC::ComputeHandler(LookupResult* lookup,
+                                Handle<JSObject> receiver,
+                                Handle<String> name,
+                                Handle<Object> value) {
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
       name, receiver, kind());
   if (!code.is_null()) return code;
 
-  code = CompileLoadHandler(lookup, receiver, name);
+  code = CompileHandler(lookup, receiver, name, value);
   if (code.is_null()) return slow_stub();
 
   if (code->is_handler() && code->type() != Code::NORMAL) {
@@ -1177,9 +1177,10 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
 }
 
 
-Handle<Code> LoadIC::CompileLoadHandler(LookupResult* lookup,
-                                        Handle<JSObject> receiver,
-                                        Handle<String> name) {
+Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
+                                    Handle<JSObject> receiver,
+                                    Handle<String> name,
+                                    Handle<Object> unused) {
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD:
@@ -1390,9 +1391,10 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object,
 }
 
 
-Handle<Code> KeyedLoadIC::CompileLoadHandler(LookupResult* lookup,
-                                             Handle<JSObject> receiver,
-                                             Handle<String> name) {
+Handle<Code> KeyedLoadIC::CompileHandler(LookupResult* lookup,
+                                         Handle<JSObject> receiver,
+                                         Handle<String> name,
+                                         Handle<Object> value) {
   // Compute a monomorphic stub.
   Handle<JSObject> holder(lookup->holder(), isolate());
   switch (lookup->type()) {
@@ -1633,37 +1635,17 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   // These are not cacheable, so we never see such LookupResults here.
   ASSERT(!lookup->IsHandler());
 
-  Handle<Code> code = ComputeStoreHandler(lookup, receiver, name, value);
-  if (code.is_null()) code = slow_stub();
+  Handle<Code> code = ComputeHandler(lookup, receiver, name, value);
 
   PatchCache(receiver, name, code);
   TRACE_IC("StoreIC", name);
 }
 
 
-Handle<Code> StoreIC::ComputeStoreHandler(LookupResult* lookup,
-                                          Handle<JSObject> receiver,
-                                          Handle<String> name,
-                                          Handle<Object> value) {
-  Handle<Code> code = isolate()->stub_cache()->FindHandler(
-      name, receiver, kind(), strict_mode());
-  if (!code.is_null()) return code;
-
-  code = CompileStoreHandler(lookup, receiver, name, value);
-  if (code.is_null()) return generic_stub();
-
-  if (code->is_handler() && code->type() != Code::NORMAL) {
-    HeapObject::UpdateMapCodeCache(receiver, name, code);
-  }
-
-  return code;
-}
-
-
-Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
-                                          Handle<JSObject> receiver,
-                                          Handle<String> name,
-                                          Handle<Object> value) {
+Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
+                                     Handle<JSObject> receiver,
+                                     Handle<String> name,
+                                     Handle<Object> value) {
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD:
@@ -2052,10 +2034,10 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
 }
 
 
-Handle<Code> KeyedStoreIC::CompileStoreHandler(LookupResult* lookup,
-                                               Handle<JSObject> receiver,
-                                               Handle<String> name,
-                                               Handle<Object> value) {
+Handle<Code> KeyedStoreIC::CompileHandler(LookupResult* lookup,
+                                          Handle<JSObject> receiver,
+                                          Handle<String> name,
+                                          Handle<Object> value) {
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
   // current state.
