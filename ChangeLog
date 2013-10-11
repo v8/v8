@@ -1,3 +1,13 @@
+2013-10-11: Version 3.22.10
+
+        Fixed timezone issues with date-time/parse-* tests.
+        (Chromium issue 2919)
+
+        Added column getter to CpuProfileNode (Chromium issue 302537)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-10: Version 3.22.9
 
         Ensure only whitelisted stubs have sse2 versions in the snapshot.
