@@ -318,6 +318,11 @@ TEST(Is) {
   CheckUnordered(T.Array, T.Function);
 
   // Structured subtyping
+  CheckSub(T.None, T.ObjectClass);
+  CheckSub(T.None, T.ObjectConstant1);
+  CheckSub(T.ObjectClass, T.Any);
+  CheckSub(T.ObjectConstant1, T.Any);
+
   CheckSub(T.ObjectClass, T.Object);
   CheckSub(T.ArrayClass, T.Object);
   CheckUnordered(T.ObjectClass, T.ArrayClass);
@@ -384,6 +389,9 @@ TEST(Maybe) {
   CheckDisjoint(T.Object, T.Proxy);
   CheckDisjoint(T.Array, T.Function);
 
+  CheckOverlap(T.ObjectClass, T.Any);
+  CheckOverlap(T.ObjectConstant1, T.Any);
+
   CheckOverlap(T.ObjectClass, T.Object);
   CheckOverlap(T.ArrayClass, T.Object);
   CheckOverlap(T.ObjectClass, T.ObjectClass);
@@ -432,6 +440,8 @@ TEST(Union) {
   CHECK(IsUnion(Type::Union(T.ObjectClass, T.ArrayClass)));
 
   CheckEqual(T.Union(T.ObjectClass, T.ObjectClass), T.ObjectClass);
+  CheckSub(T.None, T.Union(T.ObjectClass, T.ArrayClass));
+  CheckSub(T.Union(T.ObjectClass, T.ArrayClass), T.Any);
   CheckSub(T.ObjectClass, T.Union(T.ObjectClass, T.ArrayClass));
   CheckSub(T.ArrayClass, T.Union(T.ObjectClass, T.ArrayClass));
   CheckSub(T.Union(T.ObjectClass, T.ArrayClass), T.Object);
@@ -447,6 +457,8 @@ TEST(Union) {
   CheckEqual(T.Union(T.ObjectConstant1, T.ObjectConstant1), T.ObjectConstant1);
   CheckEqual(T.Union(T.ArrayConstant1, T.ArrayConstant1), T.ArrayConstant1);
   CheckEqual(T.Union(T.ArrayConstant1, T.ArrayConstant1), T.ArrayConstant2);
+  CheckSub(T.None, T.Union(T.ObjectConstant1, T.ObjectConstant2));
+  CheckSub(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.Any);
   CheckSub(T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2));
   CheckSub(T.ObjectConstant2, T.Union(T.ObjectConstant1, T.ObjectConstant2));
   CheckSub(T.ArrayConstant2, T.Union(T.ArrayConstant1, T.ObjectConstant2));
@@ -463,6 +475,7 @@ TEST(Union) {
   CHECK(IsUnion(Type::Union(T.ObjectClass, T.Number)));
 
   CheckEqual(T.Union(T.ObjectClass, T.Object), T.Object);
+  CheckSub(T.None, T.Union(T.ObjectClass, T.Number));
   CheckSub(T.Union(T.ObjectClass, T.Number), T.Any);
   CheckSub(T.Union(T.ObjectClass, T.Smi), T.Union(T.Object, T.Number));
   CheckSub(T.Union(T.ObjectClass, T.Array), T.Object);
@@ -477,6 +490,7 @@ TEST(Union) {
 
   CheckEqual(T.Union(T.SmiConstant, T.Number), T.Number);
   CheckEqual(T.Union(T.ObjectConstant1, T.Object), T.Object);
+  CheckSub(T.None, T.Union(T.ObjectConstant1, T.Number));
   CheckSub(T.Union(T.ObjectConstant1, T.Number), T.Any);
   CheckSub(T.Union(T.ObjectConstant1, T.Signed32), T.Union(T.Object, T.Number));
   CheckSub(T.Union(T.ObjectConstant1, T.Array), T.Object);
@@ -489,6 +503,8 @@ TEST(Union) {
   CHECK(IsUnion(Type::Union(T.ObjectConstant1, T.ObjectClass)));
   CHECK(IsUnion(Type::Union(T.ArrayClass, T.ObjectConstant2)));
 
+  CheckSub(T.None, T.Union(T.ObjectConstant1, T.ArrayClass));
+  CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass), T.Any);
   CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass), T.Object);
   CheckSub(T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ArrayClass));
   CheckSub(T.ArrayClass, T.Union(T.ObjectConstant1, T.ArrayClass));
@@ -518,6 +534,9 @@ TEST(Union) {
       T.ObjectConstant1,
       T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double));
   CheckSub(
+      T.None,
+      T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double));
+  CheckSub(
       T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double),
       T.Any);
   CheckSub(
@@ -533,6 +552,12 @@ TEST(Union) {
   CheckEqual(
       T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
       T.Union(T.ObjectClass, T.ObjectConstant1));
+  CheckSub(
+      T.None,
+      T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)));
+  CheckSub(
+      T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
+      T.Any);
   CheckSub(
       T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
       T.Object);
