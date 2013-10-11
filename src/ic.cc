@@ -1603,10 +1603,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   ASSERT(!lookup->IsHandler());
 
   Handle<Code> code = ComputeStoreHandler(lookup, receiver, name, value);
-  if (code.is_null()) {
-    set_target(*generic_stub());
-    return;
-  }
+  if (code.is_null()) code = slow_stub();
 
   PatchCache(receiver, name, code);
   TRACE_IC("StoreIC", name);

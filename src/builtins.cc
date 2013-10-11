@@ -1378,6 +1378,11 @@ static void Generate_StoreIC_Slow(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_Slow_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateSlow(masm);
+}
+
+
 static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
   StoreIC::GenerateInitialize(masm);
 }
@@ -1469,6 +1474,11 @@ static void Generate_KeyedStoreIC_MissForceGeneric(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateSlow(masm);
+}
+
+
+static void Generate_KeyedStoreIC_Slow_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }
 

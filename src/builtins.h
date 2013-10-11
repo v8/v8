@@ -117,13 +117,9 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_Miss,                   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(StoreIC_Slow,                   BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
   V(KeyedStoreIC_Miss,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(KeyedStoreIC_MissForceGeneric,  BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
-  V(KeyedStoreIC_Slow,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(LoadIC_Initialize,              LOAD_IC, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -214,6 +210,10 @@ enum BuiltinExtraArguments {
 #define BUILTIN_LIST_H(V)                                                 \
   V(LoadIC_Slow,                    LOAD_IC, Code::kNoExtraICState)       \
   V(KeyedLoadIC_Slow,               KEYED_LOAD_IC, Code::kNoExtraICState) \
+  V(StoreIC_Slow,                   STORE_IC, Code::kNoExtraICState)      \
+  V(StoreIC_Slow_Strict,            STORE_IC, kStrictMode)                \
+  V(KeyedStoreIC_Slow,              KEYED_STORE_IC, Code::kNoExtraICState)\
+  V(KeyedStoreIC_Slow_Strict,       KEYED_STORE_IC, kStrictMode)          \
   V(LoadIC_Normal,                  LOAD_IC, Code::kNoExtraICState)       \
   V(StoreIC_Normal,                 STORE_IC, Code::kNoExtraICState)      \
   V(StoreIC_Normal_Strict,          STORE_IC, kStrictMode)
