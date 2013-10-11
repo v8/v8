@@ -47,6 +47,7 @@ using v8::internal::MacroAssembler;
 using v8::internal::OS;
 using v8::internal::Operand;
 using v8::internal::RelocInfo;
+using v8::internal::Representation;
 using v8::internal::Smi;
 using v8::internal::SmiIndex;
 using v8::internal::byte;
@@ -2633,6 +2634,115 @@ TEST(OperandOffset) {
   CHECK_EQ(0, result);
 }
 
+
+TEST(LoadAndStoreWithRepresentation) {
+  v8::internal::V8::Initialize(NULL);
+
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
+  masm->set_allow_stub_calls(false);
+  EntryCode(masm);
+  __ subq(rsp, Immediate(1 * kPointerSize));
+  Label exit;
+
+  // Test 1.
+  __ movq(rax, Immediate(1));  // Test number.
+  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(rcx, Immediate(-1));
+  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Byte());
+  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ movl(rdx, Immediate(255));
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Byte());
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+
+  // Test 2.
+  __ movq(rax, Immediate(2));  // Test number.
+  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ Set(rcx, V8_2PART_UINT64_C(0xdeadbeaf, 12345678));
+  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Smi());
+  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Set(rdx, V8_2PART_UINT64_C(0xdeadbeaf, 12345678));
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Smi());
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+
+  // Test 3.
+  __ movq(rax, Immediate(3));  // Test number.
+  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(rcx, Immediate(-1));
+  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Integer32());
+  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ movl(rdx, Immediate(-1));
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Integer32());
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+
+  // Test 4.
+  __ movq(rax, Immediate(4));  // Test number.
+  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movl(rcx, Immediate(0x44332211));
+  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::HeapObject());
+  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ movl(rdx, Immediate(0x44332211));
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::HeapObject());
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+
+  // Test 5.
+  __ movq(rax, Immediate(5));  // Test number.
+  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ Set(rcx, V8_2PART_UINT64_C(0x12345678, deadbeaf));
+  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Tagged());
+  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Set(rdx, V8_2PART_UINT64_C(0x12345678, deadbeaf));
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Tagged());
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+
+  // Test 6.
+  __ movq(rax, Immediate(6));  // Test number.
+  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ Set(rcx, V8_2PART_UINT64_C(0x11223344, 55667788));
+  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::External());
+  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Set(rdx, V8_2PART_UINT64_C(0x11223344, 55667788));
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::External());
+  __ cmpq(rcx, rdx);
+  __ j(not_equal, &exit);
+
+  __ xor_(rax, rax);  // Success.
+  __ bind(&exit);
+  __ addq(rsp, Immediate(1 * kPointerSize));
+  ExitCode(masm);
+  __ ret(0);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  // Call the function from C++.
+  int result = FUNCTION_CAST<F0>(buffer)();
+  CHECK_EQ(0, result);
+}
 
 
 #undef __
