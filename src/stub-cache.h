@@ -90,14 +90,10 @@ class StubCache {
                       Code::Kind kind,
                       Code::ExtraICState extra_state = Code::kNoExtraICState);
 
-  Handle<Code> FindLoadHandler(Handle<Name> name,
-                               Handle<JSObject> receiver,
-                               Code::Kind kind);
-
-  Handle<Code> FindStoreHandler(Handle<Name> name,
-                                Handle<JSObject> receiver,
-                                Code::Kind kind,
-                                StrictModeFlag strict_mode);
+  Handle<Code> FindHandler(Handle<Name> name,
+                           Handle<JSObject> receiver,
+                           Code::Kind kind,
+                           StrictModeFlag strict_mode = kNonStrictMode);
 
   Handle<Code> ComputeMonomorphicIC(Handle<HeapObject> receiver,
                                     Handle<Code> handler,

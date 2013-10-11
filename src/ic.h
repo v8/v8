@@ -198,6 +198,7 @@ class IC {
   virtual StrictModeFlag strict_mode() const { return kNonStrictMode; }
   bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                               Handle<String> name);
+  void TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name);
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.
@@ -394,7 +395,10 @@ class LoadIC: public IC {
                     Handle<Object> object,
                     Handle<String> name);
 
-  virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
+  Handle<Code> ComputeLoadHandler(LookupResult* lookup,
+                                  Handle<JSObject> receiver,
+                                  Handle<String> name);
+  virtual Handle<Code> CompileLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
 
@@ -471,8 +475,7 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  // Update the inline cache.
-  virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
+  virtual Handle<Code> CompileLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
@@ -590,7 +593,11 @@ class StoreIC: public IC {
   // Compute the code stub for this store; used for rewriting to
   // monomorphic state and making sure that the code stub is in the
   // stub cache.
-  virtual Handle<Code> ComputeStoreHandler(LookupResult* lookup,
+  Handle<Code> ComputeStoreHandler(LookupResult* lookup,
+                                   Handle<JSObject> receiver,
+                                   Handle<String> name,
+                                   Handle<Object> value);
+  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
                                            Handle<JSObject> receiver,
                                            Handle<String> name,
                                            Handle<Object> value);
@@ -661,7 +668,7 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual Handle<Code> ComputeStoreHandler(LookupResult* lookup,
+  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
                                            Handle<JSObject> receiver,
                                            Handle<String> name,
                                            Handle<Object> value);

@@ -300,7 +300,8 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
       break;
   }
 
-  Map* map = IC::GetCodeCacheHolder(isolate(), *receiver, cache_holder)->map();
+  Handle<Map> map(
+      IC::GetCodeCacheHolder(isolate(), *receiver, cache_holder)->map());
 
   // Decide whether the inline cache failed because of changes to the
   // receiver itself or changes to one of its prototypes.
@@ -314,13 +315,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
   if (index >= 0) {
     map->RemoveFromCodeCache(*name, *target(), index);
     // Handlers are stored in addition to the ICs on the map. Remove those, too.
-    Code* handler = target()->FindFirstHandler();
-    if (handler != NULL) {
-      index = map->IndexInCodeCache(*name, handler);
-      if (index >= 0) {
-        map->RemoveFromCodeCache(*name, handler, index);
-      }
-    }
+    TryRemoveInvalidHandlers(map, name);
     return true;
   }
 
@@ -334,7 +329,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
   // the map cannot be deprecated and the stub invalidated.
   if (cache_holder == OWN_MAP) {
     Map* old_map = target()->FindFirstMap();
-    if (old_map == map) return true;
+    if (old_map == *map) return true;
     if (old_map != NULL) {
       if (old_map->is_deprecated()) return true;
       if (IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
@@ -357,8 +352,30 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
 }
 
 
+void IC::TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name) {
+  CodeHandleList handlers;
+  target()->FindHandlers(&handlers);
+  for (int i = 0; i < handlers.length(); i++) {
+    Handle<Code> handler = handlers.at(i);
+    int index = map->IndexInCodeCache(*name, *handler);
+    if (index >= 0) {
+      map->RemoveFromCodeCache(*name, *handler, index);
+      return;
+    }
+  }
+}
+
+
 void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
-  if (state() != MONOMORPHIC || !name->IsString()) return;
+  if (!name->IsString()) return;
+  if (state() != MONOMORPHIC) {
+    if (state() == POLYMORPHIC && receiver->IsHeapObject()) {
+      TryRemoveInvalidHandlers(
+          handle(Handle<HeapObject>::cast(receiver)->map()),
+          Handle<String>::cast(name));
+    }
+    return;
+  }
   if (receiver->IsUndefined() || receiver->IsNull()) return;
 
   // Remove the target from the code cache if it became invalid
@@ -1122,7 +1139,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = slow_stub();
   } else {
     code = ComputeLoadHandler(lookup, Handle<JSObject>::cast(receiver), name);
-    if (code.is_null()) code = slow_stub();
   }
 
   PatchCache(receiver, name, code);
@@ -1141,11 +1157,29 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
                                         Handle<JSObject> receiver,
                                         Handle<String> name) {
   if (!lookup->IsProperty()) {
-    // Nonexistent property. The result is undefined.
-    return isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver);
+    return kind() == Code::LOAD_IC
+        ? isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver)
+        : generic_stub();
   }
 
-  // Compute monomorphic stub.
+  Handle<Code> code = isolate()->stub_cache()->FindHandler(
+      name, receiver, kind());
+  if (!code.is_null()) return code;
+
+  code = CompileLoadHandler(lookup, receiver, name);
+  if (code.is_null()) return slow_stub();
+
+  if (code->is_handler() && code->type() != Code::NORMAL) {
+    HeapObject::UpdateMapCodeCache(receiver, name, code);
+  }
+
+  return code;
+}
+
+
+Handle<Code> LoadIC::CompileLoadHandler(LookupResult* lookup,
+                                        Handle<JSObject> receiver,
+                                        Handle<String> name) {
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD:
@@ -1356,12 +1390,9 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object,
 }
 
 
-Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
+Handle<Code> KeyedLoadIC::CompileLoadHandler(LookupResult* lookup,
                                              Handle<JSObject> receiver,
                                              Handle<String> name) {
-  // Bail out if we didn't find a result.
-  if (!lookup->IsProperty()) return Handle<Code>::null();
-
   // Compute a monomorphic stub.
   Handle<JSObject> holder(lookup->holder(), isolate());
   switch (lookup->type()) {
@@ -1611,6 +1642,25 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
 
 Handle<Code> StoreIC::ComputeStoreHandler(LookupResult* lookup,
+                                          Handle<JSObject> receiver,
+                                          Handle<String> name,
+                                          Handle<Object> value) {
+  Handle<Code> code = isolate()->stub_cache()->FindHandler(
+      name, receiver, kind(), strict_mode());
+  if (!code.is_null()) return code;
+
+  code = CompileStoreHandler(lookup, receiver, name, value);
+  if (code.is_null()) return generic_stub();
+
+  if (code->is_handler() && code->type() != Code::NORMAL) {
+    HeapObject::UpdateMapCodeCache(receiver, name, code);
+  }
+
+  return code;
+}
+
+
+Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name,
                                           Handle<Object> value) {
@@ -2002,7 +2052,7 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
 }
 
 
-Handle<Code> KeyedStoreIC::ComputeStoreHandler(LookupResult* lookup,
+Handle<Code> KeyedStoreIC::CompileStoreHandler(LookupResult* lookup,
                                                Handle<JSObject> receiver,
                                                Handle<String> name,
                                                Handle<Object> value) {
