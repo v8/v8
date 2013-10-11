@@ -202,78 +202,6 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
 }
 
 
-Handle<Code> StubCache::ComputeLoadField(Handle<Name> name,
-                                         Handle<JSObject> receiver,
-                                         Handle<JSObject> holder,
-                                         PropertyIndex field,
-                                         Representation representation) {
-  if (receiver.is_identical_to(holder)) {
-    LoadFieldStub stub(field.is_inobject(holder),
-                       field.translate(holder),
-                       representation);
-    return stub.GetCode(isolate());
-  }
-
-  LoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadField(
-      receiver, holder, name, field, representation);
-}
-
-
-Handle<Code> StubCache::ComputeLoadCallback(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<ExecutableAccessorInfo> callback) {
-  ASSERT(v8::ToCData<Address>(callback->getter()) != 0);
-  LoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadCallback(receiver, holder, name, callback);
-}
-
-
-Handle<Code> StubCache::ComputeLoadCallback(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    const CallOptimization& call_optimization) {
-  LoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadCallback(
-      receiver, holder, name, call_optimization);
-}
-
-
-Handle<Code> StubCache::ComputeLoadViaGetter(Handle<Name> name,
-                                             Handle<JSObject> receiver,
-                                             Handle<JSObject> holder,
-                                             Handle<JSFunction> getter) {
-  LoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadViaGetter(receiver, holder, name, getter);
-}
-
-
-Handle<Code> StubCache::ComputeLoadConstant(Handle<Name> name,
-                                            Handle<JSObject> receiver,
-                                            Handle<JSObject> holder,
-                                            Handle<Object> value) {
-  LoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadConstant(receiver, holder, name, value);
-}
-
-
-Handle<Code> StubCache::ComputeLoadInterceptor(Handle<Name> name,
-                                               Handle<JSObject> receiver,
-                                               Handle<JSObject> holder) {
-  LoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadInterceptor(receiver, holder, name);
-}
-
-
-Handle<Code> StubCache::ComputeLoadNormal(Handle<Name> name,
-                                          Handle<JSObject> receiver) {
-  return isolate_->builtins()->LoadIC_Normal();
-}
-
-
 Handle<Code> StubCache::ComputeLoadGlobal(Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           Handle<GlobalObject> holder,
@@ -287,83 +215,6 @@ Handle<Code> StubCache::ComputeLoadGlobal(Handle<Name> name,
       compiler.CompileLoadGlobal(receiver, holder, cell, name, is_dont_delete);
   HeapObject::UpdateMapCodeCache(receiver, name, ic);
   return ic;
-}
-
-
-Handle<Code> StubCache::ComputeKeyedLoadField(Handle<Name> name,
-                                              Handle<JSObject> receiver,
-                                              Handle<JSObject> holder,
-                                              PropertyIndex field,
-                                              Representation representation) {
-  if (receiver.is_identical_to(holder)) {
-    // TODO(titzer): this should use an HObjectAccess
-    KeyedLoadFieldStub stub(field.is_inobject(holder),
-                            field.translate(holder),
-                            representation);
-    return stub.GetCode(isolate());
-  }
-
-  KeyedLoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadField(
-      receiver, holder, name, field, representation);
-}
-
-
-Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<Name> name,
-                                                 Handle<JSObject> receiver,
-                                                 Handle<JSObject> holder,
-                                                 Handle<Object> value) {
-  KeyedLoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadConstant(
-      receiver, holder, name, value);
-}
-
-
-Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<Name> name,
-                                                    Handle<JSObject> receiver,
-                                                    Handle<JSObject> holder) {
-  KeyedLoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadInterceptor(receiver, holder, name);
-}
-
-
-Handle<Code> StubCache::ComputeKeyedLoadCallback(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<ExecutableAccessorInfo> callback) {
-  KeyedLoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadCallback(receiver, holder, name, callback);
-}
-
-
-Handle<Code> StubCache::ComputeKeyedLoadCallback(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    const CallOptimization& call_optimization) {
-  KeyedLoadStubCompiler compiler(isolate_);
-  return compiler.CompileLoadCallback(
-      receiver, holder, name, call_optimization);
-}
-
-
-Handle<Code> StubCache::ComputeStoreField(Handle<Name> name,
-                                          Handle<JSObject> receiver,
-                                          LookupResult* lookup,
-                                          StrictModeFlag strict_mode) {
-  StoreStubCompiler compiler(isolate_, strict_mode);
-  return compiler.CompileStoreField(receiver, lookup, name);
-}
-
-
-Handle<Code> StubCache::ComputeStoreTransition(Handle<Name> name,
-                                               Handle<JSObject> receiver,
-                                               LookupResult* lookup,
-                                               Handle<Map> transition,
-                                               StrictModeFlag strict_mode) {
-  StoreStubCompiler compiler(isolate_, strict_mode);
-  return compiler.CompileStoreTransition(receiver, lookup, transition, name);
 }
 
 
@@ -411,13 +262,6 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
 }
 
 
-Handle<Code> StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
-  return (strict_mode == kStrictMode)
-      ? isolate_->builtins()->Builtins::StoreIC_Normal_Strict()
-      : isolate_->builtins()->Builtins::StoreIC_Normal();
-}
-
-
 Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
                                            Handle<GlobalObject> receiver,
                                            Handle<PropertyCell> cell,
@@ -445,68 +289,6 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
   HeapObject::UpdateMapCodeCache(receiver, name, code);
 
   return code;
-}
-
-
-Handle<Code> StubCache::ComputeStoreCallback(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<ExecutableAccessorInfo> callback,
-    StrictModeFlag strict_mode) {
-  ASSERT(v8::ToCData<Address>(callback->setter()) != 0);
-  StoreStubCompiler compiler(isolate_, strict_mode);
-  return compiler.CompileStoreCallback(receiver, holder, name, callback);
-}
-
-
-Handle<Code> StubCache::ComputeStoreCallback(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    const CallOptimization& call_optimization,
-    StrictModeFlag strict_mode) {
-  StoreStubCompiler compiler(isolate_, strict_mode);
-  return compiler.CompileStoreCallback(
-      receiver, holder, name, call_optimization);
-}
-
-
-Handle<Code> StubCache::ComputeStoreViaSetter(Handle<Name> name,
-                                              Handle<JSObject> receiver,
-                                              Handle<JSObject> holder,
-                                              Handle<JSFunction> setter,
-                                              StrictModeFlag strict_mode) {
-  StoreStubCompiler compiler(isolate_, strict_mode);
-  return compiler.CompileStoreViaSetter(receiver, holder, name, setter);
-}
-
-
-Handle<Code> StubCache::ComputeStoreInterceptor(Handle<Name> name,
-                                                Handle<JSObject> receiver,
-                                                StrictModeFlag strict_mode) {
-  StoreStubCompiler compiler(isolate_, strict_mode);
-  return compiler.CompileStoreInterceptor(receiver, name);
-}
-
-
-Handle<Code> StubCache::ComputeKeyedStoreField(Handle<Name> name,
-                                               Handle<JSObject> receiver,
-                                               LookupResult* lookup,
-                                               StrictModeFlag strict_mode) {
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
-  return compiler.CompileStoreField(receiver, lookup, name);
-}
-
-
-Handle<Code> StubCache::ComputeKeyedStoreTransition(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    LookupResult* lookup,
-    Handle<Map> transition,
-    StrictModeFlag strict_mode) {
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
-  return compiler.CompileStoreTransition(receiver, lookup, transition, name);
 }
 
 
@@ -1387,7 +1169,7 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
-Register BaseLoadStubCompiler::HandlerFrontendHeader(
+Register LoadStubCompiler::HandlerFrontendHeader(
     Handle<JSObject> object,
     Register object_reg,
     Handle<JSObject> holder,
@@ -1401,7 +1183,7 @@ Register BaseLoadStubCompiler::HandlerFrontendHeader(
 
 // HandlerFrontend for store uses the name register. It has to be restored
 // before a miss.
-Register BaseStoreStubCompiler::HandlerFrontendHeader(
+Register StoreStubCompiler::HandlerFrontendHeader(
     Handle<JSObject> object,
     Register object_reg,
     Handle<JSObject> holder,
@@ -1427,7 +1209,7 @@ Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<JSObject> object,
 }
 
 
-Handle<Code> BaseLoadStubCompiler::CompileLoadField(
+Handle<Code> LoadStubCompiler::CompileLoadField(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1447,7 +1229,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadField(
 }
 
 
-Handle<Code> BaseLoadStubCompiler::CompileLoadConstant(
+Handle<Code> LoadStubCompiler::CompileLoadConstant(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1462,7 +1244,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadConstant(
 }
 
 
-Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
+Handle<Code> LoadStubCompiler::CompileLoadCallback(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1479,7 +1261,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
 }
 
 
-Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
+Handle<Code> LoadStubCompiler::CompileLoadCallback(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1498,7 +1280,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
 }
 
 
-Handle<Code> BaseLoadStubCompiler::CompileLoadInterceptor(
+Handle<Code> LoadStubCompiler::CompileLoadInterceptor(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<Name> name) {
@@ -1518,7 +1300,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadInterceptor(
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadPostInterceptor(
+void LoadStubCompiler::GenerateLoadPostInterceptor(
     Register interceptor_reg,
     Handle<JSObject> interceptor_holder,
     Handle<Name> name,
@@ -1577,14 +1359,14 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
   HandlerFrontend(object, receiver(), holder, name, &success);
 
   __ bind(&success);
-  GenerateLoadViaGetter(masm(), getter);
+  GenerateLoadViaGetter(masm(), receiver(), getter);
 
   // Return the generated code.
   return GetCode(kind(), Code::CALLBACKS, name);
 }
 
 
-Handle<Code> BaseStoreStubCompiler::CompileStoreTransition(
+Handle<Code> StoreStubCompiler::CompileStoreTransition(
     Handle<JSObject> object,
     LookupResult* lookup,
     Handle<Map> transition,
@@ -1641,9 +1423,9 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreTransition(
 }
 
 
-Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
-                                                      LookupResult* lookup,
-                                                      Handle<Name> name) {
+Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
+                                                  LookupResult* lookup,
+                                                  Handle<Name> name) {
   Label miss;
 
   HandlerFrontendHeader(object, receiver(), object, name, &miss);
@@ -1736,23 +1518,33 @@ void StubCompiler::TailCallBuiltin(MacroAssembler* masm, Builtins::Name name) {
 }
 
 
-void LoadStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+void BaseLoadStoreStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  GDBJITInterface::CodeTag tag;
+  if (kind_ == Code::LOAD_IC) {
+    tag = GDBJITInterface::LOAD_IC;
+  } else if (kind_ == Code::KEYED_LOAD_IC) {
+    tag = GDBJITInterface::KEYED_LOAD_IC;
+  } else if (kind_ == Code::STORE_IC) {
+    tag = GDBJITInterface::STORE_IC;
+  } else {
+    tag = GDBJITInterface::KEYED_STORE_IC;
+  }
+  GDBJIT(AddCode(tag, *name, *code));
+#endif
 }
 
 
-void KeyedLoadStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
-}
-
-
-void StoreStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
-}
-
-
-void KeyedStoreStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
-  GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code));
+void BaseLoadStoreStubCompiler::InitializeRegisters() {
+  if (kind_ == Code::LOAD_IC) {
+    registers_ = LoadStubCompiler::registers();
+  } else if (kind_ == Code::KEYED_LOAD_IC) {
+    registers_ = KeyedLoadStubCompiler::registers();
+  } else if (kind_ == Code::STORE_IC) {
+    registers_ = StoreStubCompiler::registers();
+  } else {
+    registers_ = KeyedStoreStubCompiler::registers();
+  }
 }
 
 

@@ -434,6 +434,11 @@ class LoadIC: public IC {
     return pre_monomorphic_stub(isolate());
   }
 
+  Handle<Code> SimpleFieldLoad(int offset,
+                               bool inobject = true,
+                               Representation representation =
+                                    Representation::Tagged());
+
   static void Clear(Isolate* isolate, Address address, Code* target);
 
   friend class IC;
@@ -493,10 +498,6 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
-                                      Handle<String> name,
-                                      Handle<Object> unused);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
  private:
@@ -680,10 +681,6 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
-                                      Handle<String> name,
-                                      Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
   virtual Handle<Code> pre_monomorphic_stub() {
