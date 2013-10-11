@@ -436,22 +436,30 @@ template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* undefined = graph()->GetConstantUndefined();
 
-  HInstruction* boilerplate = Add<HLoadKeyed>(GetParameter(0),
-                                              GetParameter(1),
-                                              static_cast<HValue*>(NULL),
-                                              FAST_ELEMENTS);
+  HInstruction* allocation_site = Add<HLoadKeyed>(GetParameter(0),
+                                                  GetParameter(1),
+                                                  static_cast<HValue*>(NULL),
+                                                  FAST_ELEMENTS);
 
   IfBuilder checker(this);
-  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(boilerplate,
+  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(allocation_site,
                                                     undefined);
   checker.And();
 
+  HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
+  HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
+
   int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
+  int object_size = size;
+  if (FLAG_allocation_site_pretenuring) {
+    size += AllocationMemento::kSize;
+  }
+
   HValue* boilerplate_map = Add<HLoadNamedField>(
       boilerplate, HObjectAccess::ForMap());
   HValue* boilerplate_size = Add<HLoadNamedField>(
       boilerplate_map, HObjectAccess::ForMapInstanceSize());
-  HValue* size_in_words = Add<HConstant>(size >> kPointerSizeLog2);
+  HValue* size_in_words = Add<HConstant>(object_size >> kPointerSizeLog2);
   checker.If<HCompareNumericAndBranch>(boilerplate_size,
                                        size_in_words, Token::EQ);
   checker.Then();
@@ -461,10 +469,15 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HInstruction* object = Add<HAllocate>(size_in_bytes, HType::JSObject(),
       isolate()->heap()->GetPretenureMode(), JS_OBJECT_TYPE);
 
-  for (int i = 0; i < size; i += kPointerSize) {
+  for (int i = 0; i < object_size; i += kPointerSize) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
     Add<HStoreNamedField>(object, access,
                           Add<HLoadNamedField>(boilerplate, access));
+  }
+
+  ASSERT(FLAG_allocation_site_pretenuring || (size == object_size));
+  if (FLAG_allocation_site_pretenuring) {
+    BuildCreateAllocationMemento(object, object_size, allocation_site);
   }
 
   environment()->Push(object);

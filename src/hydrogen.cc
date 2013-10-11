@@ -4335,15 +4335,20 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int max_properties = kMaxFastLiteralProperties;
-  Handle<Object> boilerplate(closure->literals()->get(
-      expr->literal_index()), isolate());
-  if (boilerplate->IsJSObject() &&
-      IsFastLiteral(Handle<JSObject>::cast(boilerplate),
-                    kMaxFastLiteralDepth,
-                    &max_properties)) {
-    Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
+  Handle<Object> literals_cell(closure->literals()->get(expr->literal_index()),
+                               isolate());
+  Handle<AllocationSite> site;
+  Handle<JSObject> boilerplate;
+  if (!literals_cell->IsUndefined()) {
+    // Retrieve the boilerplate
+    site = Handle<AllocationSite>::cast(literals_cell);
+    boilerplate = Handle<JSObject>(JSObject::cast(site->transition_info()),
+                                   isolate());
+  }
 
-    literal = BuildFastLiteral(boilerplate_object);
+  if (!boilerplate.is_null() &&
+      IsFastLiteral(boilerplate, kMaxFastLiteralDepth, &max_properties)) {
+    literal = BuildFastLiteral(boilerplate);
   } else {
     NoObservableSideEffectsScope no_effects(this);
     Handle<FixedArray> closure_literals(closure->literals(), isolate());
