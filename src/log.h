@@ -471,7 +471,7 @@ class CodeEventListener {
                                SharedFunctionInfo* shared,
                                CompilationInfo* info,
                                Name* source,
-                               int line) = 0;
+                               int line, int column) = 0;
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
                                Code* code,
                                int args_count) = 0;
@@ -510,7 +510,7 @@ class CodeEventLogger : public CodeEventListener {
                                SharedFunctionInfo* shared,
                                CompilationInfo* info,
                                Name* source,
-                               int line);
+                               int line, int column);
   virtual void RegExpCodeCreateEvent(Code* code, String* source);
 
   virtual void CallbackEvent(Name* name, Address entry_point) { }

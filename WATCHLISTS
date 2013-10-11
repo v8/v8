@@ -1,4 +1,4 @@
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2013 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -25,20 +25,22 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-[
-[ALWAYS, {
-  # TODO(mstarzinger): This script parses but throws a TypeError when run.
-  'non-alphanum': [FAIL],
+# Watchlist Rules
+# Refer: http://dev.chromium.org/developers/contributing-code/watchlists
 
-  # We don't parse RegExps at scanning time, so we can't fail on octal
-  # escapes (we need to parse to distinguish octal escapes from valid
-  # back-references).
-  'strict-octal-regexp': [FAIL],
-}],  # ALWAYS
+# IMPORTANT: The regular expression filepath is tested against each path using
+# re.search, so it is not usually necessary to add .*.
 
-['arch == android_arm or arch == android_ia32', {
-  # Remove this once the issue above is fixed. Android test runner does not
-  # handle "FAIL" test expectation correctly.
-  'strict-octal-regexp': [SKIP],
-}],  # 'arch == android_arm or arch == android_ia32'
-]
+{
+  'WATCHLIST_DEFINITIONS': {
+    'public_api': {
+      'filepath': 'include/',
+    },
+  },
+
+  'WATCHLISTS': {
+    'public_api': [
+      'phajdan.jr@chromium.org',
+    ],
+  },
+}

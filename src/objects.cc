@@ -142,6 +142,20 @@ void Object::Lookup(Name* name, LookupResult* result) {
 }
 
 
+Handle<Object> Object::GetPropertyWithReceiver(
+    Handle<Object> object,
+    Handle<Object> receiver,
+    Handle<Name> name,
+    PropertyAttributes* attributes) {
+  LookupResult lookup(name->GetIsolate());
+  object->Lookup(*name, &lookup);
+  Handle<Object> result =
+      GetProperty(object, receiver, &lookup, name, attributes);
+  ASSERT(*attributes <= ABSENT);
+  return result;
+}
+
+
 MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
                                              Name* name,
                                              PropertyAttributes* attributes) {
@@ -492,57 +506,65 @@ MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
 }
 
 
+// TODO(yangguo): this should eventually replace the non-handlified version.
+Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
+                                                 Handle<Object> receiver,
+                                                 Handle<Object> structure,
+                                                 Handle<Name> name) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->GetPropertyWithCallback(*receiver,
+                                                     *structure,
+                                                     *name),
+                     Object);
+}
+
+
 // Only deal with CALLBACKS and INTERCEPTOR
-MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
-    Object* receiver,
+Handle<Object> JSObject::GetPropertyWithFailedAccessCheck(
+    Handle<JSObject> object,
+    Handle<Object> receiver,
     LookupResult* result,
-    Name* name,
+    Handle<Name> name,
     PropertyAttributes* attributes) {
+  Isolate* isolate = name->GetIsolate();
   if (result->IsProperty()) {
     switch (result->type()) {
       case CALLBACKS: {
         // Only allow API accessors.
-        Object* obj = result->GetCallbackObject();
-        if (obj->IsAccessorInfo()) {
-          AccessorInfo* info = AccessorInfo::cast(obj);
-          if (info->all_can_read()) {
-            *attributes = result->GetAttributes();
-            return result->holder()->GetPropertyWithCallback(
-                receiver, result->GetCallbackObject(), name);
-          }
-        } else if (obj->IsAccessorPair()) {
-          AccessorPair* pair = AccessorPair::cast(obj);
-          if (pair->all_can_read()) {
-            return result->holder()->GetPropertyWithCallback(
-                receiver, result->GetCallbackObject(), name);
-          }
+        Handle<Object> callback_obj(result->GetCallbackObject(), isolate);
+        if (callback_obj->IsAccessorInfo()) {
+          if (!AccessorInfo::cast(*callback_obj)->all_can_read()) break;
+          *attributes = result->GetAttributes();
+          // Fall through to GetPropertyWithCallback.
+        } else if (callback_obj->IsAccessorPair()) {
+          if (!AccessorPair::cast(*callback_obj)->all_can_read()) break;
+          // Fall through to GetPropertyWithCallback.
+        } else {
+          break;
         }
-        break;
+        Handle<JSObject> holder(result->holder(), isolate);
+        return GetPropertyWithCallback(holder, receiver, callback_obj, name);
       }
       case NORMAL:
       case FIELD:
       case CONSTANT: {
         // Search ALL_CAN_READ accessors in prototype chain.
-        LookupResult r(GetIsolate());
-        result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
+        LookupResult r(isolate);
+        result->holder()->LookupRealNamedPropertyInPrototypes(*name, &r);
         if (r.IsProperty()) {
-          return GetPropertyWithFailedAccessCheck(receiver,
-                                                  &r,
-                                                  name,
-                                                  attributes);
+          return GetPropertyWithFailedAccessCheck(
+              object, receiver, &r, name, attributes);
         }
         break;
       }
       case INTERCEPTOR: {
         // If the object has an interceptor, try real named properties.
         // No access check in GetPropertyAttributeWithInterceptor.
-        LookupResult r(GetIsolate());
-        result->holder()->LookupRealNamedProperty(name, &r);
+        LookupResult r(isolate);
+        result->holder()->LookupRealNamedProperty(*name, &r);
         if (r.IsProperty()) {
-          return GetPropertyWithFailedAccessCheck(receiver,
-                                                  &r,
-                                                  name,
-                                                  attributes);
+          return GetPropertyWithFailedAccessCheck(
+              object, receiver, &r, name, attributes);
         }
         break;
       }
@@ -553,11 +575,9 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
 
   // No accessible property found.
   *attributes = ABSENT;
-  Heap* heap = name->GetHeap();
-  Isolate* isolate = heap->isolate();
-  isolate->ReportFailedAccessCheck(this, v8::ACCESS_GET);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  return heap->undefined_value();
+  isolate->ReportFailedAccessCheck(*object, v8::ACCESS_GET);
+  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -803,6 +823,7 @@ MaybeObject* Object::GetPropertyOrFail(Handle<Object> object,
 }
 
 
+// TODO(yangguo): handlify this and get rid of.
 MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
                                  Name* name,
@@ -841,11 +862,16 @@ MaybeObject* Object::GetProperty(Object* receiver,
         // property from the current object, we still check that we have
         // access to it.
         JSObject* checked = JSObject::cast(current);
-        if (!heap->isolate()->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
-          return checked->GetPropertyWithFailedAccessCheck(receiver,
-                                                           result,
-                                                           name,
-                                                           attributes);
+        if (!isolate->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
+          HandleScope scope(isolate);
+          Handle<Object> value = JSObject::GetPropertyWithFailedAccessCheck(
+              handle(checked, isolate),
+              handle(receiver, isolate),
+              result,
+              handle(name, isolate),
+              attributes);
+          RETURN_IF_EMPTY_HANDLE(isolate, value);
+          return *value;
         }
       }
       // Stop traversing the chain once we reach the last object in the
@@ -881,9 +907,16 @@ MaybeObject* Object::GetProperty(Object* receiver,
           receiver, result->GetCallbackObject(), name);
     case HANDLER:
       return result->proxy()->GetPropertyWithHandler(receiver, name);
-    case INTERCEPTOR:
-      return result->holder()->GetPropertyWithInterceptor(
-          receiver, name, attributes);
+    case INTERCEPTOR: {
+      HandleScope scope(isolate);
+      Handle<Object> value = JSObject::GetPropertyWithInterceptor(
+          handle(result->holder(), isolate),
+          handle(receiver, isolate),
+          handle(name, isolate),
+          attributes);
+      RETURN_IF_EMPTY_HANDLE(isolate, value);
+      return *value;
+    }
     case TRANSITION:
     case NONEXISTENT:
       UNREACHABLE();
@@ -12951,21 +12984,26 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 }
 
 
-MaybeObject* JSObject::GetPropertyPostInterceptor(
-    Object* receiver,
-    Name* name,
+Handle<Object> JSObject::GetPropertyPostInterceptor(
+    Handle<JSObject> object,
+    Handle<Object> receiver,
+    Handle<Name> name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
-  LookupResult result(GetIsolate());
-  LocalLookupRealNamedProperty(name, &result);
-  if (result.IsFound()) {
-    return GetProperty(receiver, &result, name, attributes);
+  Isolate* isolate = object->GetIsolate();
+  LookupResult lookup(isolate);
+  object->LocalLookupRealNamedProperty(*name, &lookup);
+  Handle<Object> result;
+  if (lookup.IsFound()) {
+    result = GetProperty(object, receiver, &lookup, name, attributes);
+  } else {
+    // Continue searching via the prototype chain.
+    Handle<Object> prototype(object->GetPrototype(), isolate);
+    *attributes = ABSENT;
+    if (prototype->IsNull()) return isolate->factory()->undefined_value();
+    result = GetPropertyWithReceiver(prototype, receiver, name, attributes);
   }
-  // Continue searching via the prototype chain.
-  Object* pt = GetPrototype();
-  *attributes = ABSENT;
-  if (pt->IsNull()) return GetHeap()->undefined_value();
-  return pt->GetPropertyWithReceiver(receiver, name, attributes);
+  return result;
 }
 
 
@@ -12983,44 +13021,39 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
 }
 
 
-MaybeObject* JSObject::GetPropertyWithInterceptor(
-    Object* receiver,
-    Name* name,
+Handle<Object> JSObject::GetPropertyWithInterceptor(
+    Handle<JSObject> object,
+    Handle<Object> receiver,
+    Handle<Name> name,
     PropertyAttributes* attributes) {
-  // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return GetHeap()->undefined_value();
+  Isolate* isolate = object->GetIsolate();
 
-  Isolate* isolate = GetIsolate();
-  InterceptorInfo* interceptor = GetNamedInterceptor();
-  HandleScope scope(isolate);
-  Handle<Object> receiver_handle(receiver, isolate);
-  Handle<JSObject> holder_handle(this);
-  Handle<String> name_handle(String::cast(name));
+  // TODO(rossberg): Support symbols in the API.
+  if (name->IsSymbol()) return isolate->factory()->undefined_value();
+
+  Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor(), isolate);
+  Handle<String> name_string = Handle<String>::cast(name);
 
   if (!interceptor->getter()->IsUndefined()) {
     v8::NamedPropertyGetterCallback getter =
         v8::ToCData<v8::NamedPropertyGetterCallback>(interceptor->getter());
     LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-get", *holder_handle, name));
+        ApiNamedPropertyAccess("interceptor-named-get", *object, *name));
     PropertyCallbackArguments
-        args(isolate, interceptor->data(), receiver, this);
+        args(isolate, interceptor->data(), *receiver, *object);
     v8::Handle<v8::Value> result =
-        args.Call(getter, v8::Utils::ToLocal(name_handle));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+        args.Call(getter, v8::Utils::ToLocal(name_string));
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) {
       *attributes = NONE;
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();
-      return *result_internal;
+      // Rebox handle to escape this scope.
+      return handle(*result_internal, isolate);
     }
   }
 
-  MaybeObject* result = holder_handle->GetPropertyPostInterceptor(
-      *receiver_handle,
-      *name_handle,
-      attributes);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  return result;
+  return GetPropertyPostInterceptor(object, receiver, name, attributes);
 }
 
 

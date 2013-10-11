@@ -569,14 +569,12 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
 
   State max_input = Max(left_state_, right_state_);
 
-  // Avoid unnecessary Representation changes.
+  // TODO(olivf) Instead of doing this normalization we should have a Hydrogen
+  // version of the LookupNumberStringCache to avoid a converting StringAddStub.
   if (left_state_ == STRING && right_state_ < STRING) {
     right_state_ = GENERIC;
   } else if (right_state_ == STRING && left_state_ < STRING) {
     left_state_ = GENERIC;
-  } else if ((right_state_ == GENERIC && left_state_ != STRING) ||
-             (left_state_ == GENERIC && right_state_ != STRING)) {
-    left_state_ = right_state_ = GENERIC;
   } else if (!has_int_result() && op_ != Token::SHR &&
              max_input <= NUMBER && max_input > result_state_) {
     result_state_ = max_input;
@@ -586,11 +584,18 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
          op_ == Token::ADD);
 
   if (old_state == GetExtraICState()) {
-    // Since the fpu is to precise, we might bail out on numbers which
-    // actually would truncate with 64 bit precision.
-    ASSERT(!CpuFeatures::IsSupported(SSE2) &&
-           result_state_ <= INT32);
-    result_state_ = NUMBER;
+    // Tagged operations can lead to non-truncating HChanges
+    if (left->IsUndefined()) {
+      left_state_ = GENERIC;
+    } else if (right->IsUndefined()) {
+      right_state_ = GENERIC;
+    } else {
+      // Since the fpu is to precise, we might bail out on numbers which
+      // actually would truncate with 64 bit precision.
+      ASSERT(!CpuFeatures::IsSupported(SSE2) &&
+             result_state_ <= INT32);
+      result_state_ = NUMBER;
+    }
   }
 }
 

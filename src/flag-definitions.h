@@ -207,6 +207,8 @@ DEFINE_bool(pretenuring, true, "allocate objects in old space")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
 DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
+DEFINE_bool(allocation_site_pretenuring, false,
+            "pretenure with allocation sites")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
@@ -511,7 +513,7 @@ DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
-DEFINE_bool(weak_embedded_objects_in_optimized_code, false,
+DEFINE_bool(weak_embedded_objects_in_optimized_code, true,
             "make objects embedded in optimized code weak")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")

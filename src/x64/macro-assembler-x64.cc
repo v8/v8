@@ -948,6 +948,7 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
 
 
 void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
+  ASSERT(!r.IsDouble());
   if (r.IsByte()) {
     movzxbl(dst, src);
   } else if (r.IsInteger32()) {
@@ -959,6 +960,7 @@ void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
 
 
 void MacroAssembler::Store(const Operand& dst, Register src, Representation r) {
+  ASSERT(!r.IsDouble());
   if (r.IsByte()) {
     movb(dst, src);
   } else if (r.IsInteger32()) {

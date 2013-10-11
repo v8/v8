@@ -57,6 +57,12 @@ class V8_EXPORT CpuProfileNode {
    */
   int GetLineNumber() const;
 
+  /**
+   * Returns 1-based number of the column where the function originates.
+   * kNoColumnNumberInfo if no column number information is available.
+   */
+  int GetColumnNumber() const;
+
   /** Returns bailout reason for the function
     * if the optimization was disabled for it.
     */
@@ -80,6 +86,7 @@ class V8_EXPORT CpuProfileNode {
   const CpuProfileNode* GetChild(int index) const;
 
   static const int kNoLineNumberInfo = Message::kNoLineNumberInfo;
+  static const int kNoColumnNumberInfo = Message::kNoColumnInfo;
 };
 
 

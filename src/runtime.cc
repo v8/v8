@@ -486,16 +486,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
 
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> boilerplate(literals->get(literals_index), isolate);
-  if (*boilerplate == isolate->heap()->undefined_value()) {
+  Handle<Object> literal_site(literals->get(literals_index), isolate);
+  Handle<AllocationSite> site;
+  Handle<Object> boilerplate;
+  if (*literal_site == isolate->heap()->undefined_value()) {
     boilerplate = CreateObjectLiteralBoilerplate(isolate,
                                                  literals,
                                                  constant_properties,
                                                  should_have_fast_elements,
                                                  has_function_literal);
     RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
+    site = isolate->factory()->NewAllocationSite();
+    site->set_transition_info(*boilerplate);
+
     // Update the functions literal and return the boilerplate.
-    literals->set(literals_index, *boilerplate);
+    literals->set(literals_index, *site);
+  } else {
+    site = Handle<AllocationSite>::cast(literal_site);
+    boilerplate = Handle<JSObject>(JSObject::cast(site->transition_info()));
   }
 
   Handle<Object> copy = JSObject::DeepCopy(Handle<JSObject>::cast(boilerplate));
@@ -10888,7 +10896,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugNamedInterceptorPropertyValue) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   PropertyAttributes attributes;
-  return obj->GetPropertyWithInterceptor(*obj, *name, &attributes);
+  Handle<Object> result =
+      JSObject::GetPropertyWithInterceptor(obj, obj, name, &attributes);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 

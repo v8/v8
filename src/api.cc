@@ -6928,6 +6928,12 @@ int CpuProfileNode::GetLineNumber() const {
 }
 
 
+int CpuProfileNode::GetColumnNumber() const {
+  return reinterpret_cast<const i::ProfileNode*>(this)->
+      entry()->column_number();
+}
+
+
 const char* CpuProfileNode::GetBailoutReason() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return node->entry()->bailout_reason();

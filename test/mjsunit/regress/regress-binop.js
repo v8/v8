@@ -166,3 +166,16 @@ assertEquals(t2(undefined,2), NaN/2);
 assertEquals(t2(1,1<<30), 1/(1<<30));
 assertEquals(t2(1,2), 1/2);
 
+
+// Assert that the hole is not truncated to nan for string add.
+function string_add(a,i) {
+  var d = [0.1, ,0.3];
+  return a + d[i];
+}
+
+string_add(1.1, 0);
+string_add("", 0);
+%OptimizeFunctionOnNextCall(string_add);
+string_add(1.1, 0);
+// There comes the hole
+assertEquals("undefined", string_add("", 1));

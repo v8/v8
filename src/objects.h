@@ -1457,6 +1457,12 @@ class Object : public MaybeObject {
   MUST_USE_RESULT inline MaybeObject* GetProperty(
       Name* key,
       PropertyAttributes* attributes);
+
+  // TODO(yangguo): this should eventually replace the non-handlified version.
+  static Handle<Object> GetPropertyWithReceiver(Handle<Object> object,
+                                                Handle<Object> receiver,
+                                                Handle<Name> name,
+                                                PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithReceiver(
       Object* receiver,
       Name* key,
@@ -2112,6 +2118,11 @@ class JSObject: public JSReceiver {
   // a dictionary, and it will stay a dictionary.
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
+  static Handle<Object> GetPropertyWithCallback(Handle<JSObject> object,
+                                                Handle<Object> receiver,
+                                                Handle<Object> structure,
+                                                Handle<Name> name);
+
   MUST_USE_RESULT MaybeObject* GetPropertyWithCallback(Object* receiver,
                                                        Object* structure,
                                                        Name* name);
@@ -2237,19 +2248,15 @@ class JSObject: public JSReceiver {
   static Handle<Object> SetAccessor(Handle<JSObject> object,
                                     Handle<AccessorInfo> info);
 
-  // Used from Object::GetProperty().
-  MUST_USE_RESULT MaybeObject* GetPropertyWithFailedAccessCheck(
-      Object* receiver,
-      LookupResult* result,
-      Name* name,
+  static Handle<Object> GetPropertyWithInterceptor(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      Handle<Name> name,
       PropertyAttributes* attributes);
-  MUST_USE_RESULT MaybeObject* GetPropertyWithInterceptor(
-      Object* receiver,
-      Name* name,
-      PropertyAttributes* attributes);
-  MUST_USE_RESULT MaybeObject* GetPropertyPostInterceptor(
-      Object* receiver,
-      Name* name,
+  static Handle<Object> GetPropertyPostInterceptor(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      Handle<Name> name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
       Object* receiver,
@@ -2640,6 +2647,15 @@ class JSObject: public JSReceiver {
  private:
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
+  friend class Object;
+
+  // Used from Object::GetProperty().
+  static Handle<Object> GetPropertyWithFailedAccessCheck(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      LookupResult* result,
+      Handle<Name> name,
+      PropertyAttributes* attributes);
 
   MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
                                                       Object* structure,
@@ -4000,6 +4016,15 @@ class WeakHashTable: public HashTable<WeakHashTableShape<2>, Object*> {
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
   MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+
+  // This function is called when heap verification is turned on.
+  void Zap(Object* value) {
+    int capacity = Capacity();
+    for (int i = 0; i < capacity; i++) {
+      set(EntryToIndex(i), value);
+      set(EntryToValueIndex(i), value);
+    }
+  }
 
  private:
   friend class MarkCompactCollector;

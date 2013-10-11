@@ -3771,84 +3771,6 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
 }
 
 
-// Validation per 11.1.5 Object Initialiser
-class ObjectLiteralPropertyChecker {
- public:
-  ObjectLiteralPropertyChecker(Parser* parser, LanguageMode language_mode) :
-    props_(Literal::Match),
-    parser_(parser),
-    language_mode_(language_mode) {
-  }
-
-  void CheckProperty(
-    ObjectLiteral::Property* property,
-    Scanner::Location loc,
-    bool* ok);
-
- private:
-  enum PropertyKind {
-    kGetAccessor = 0x01,
-    kSetAccessor = 0x02,
-    kAccessor = kGetAccessor | kSetAccessor,
-    kData = 0x04
-  };
-
-  static intptr_t GetPropertyKind(ObjectLiteral::Property* property) {
-    switch (property->kind()) {
-      case ObjectLiteral::Property::GETTER:
-        return kGetAccessor;
-      case ObjectLiteral::Property::SETTER:
-        return kSetAccessor;
-      default:
-        return kData;
-    }
-  }
-
-  HashMap props_;
-  Parser* parser_;
-  LanguageMode language_mode_;
-};
-
-
-void ObjectLiteralPropertyChecker::CheckProperty(
-    ObjectLiteral::Property* property,
-    Scanner::Location loc,
-    bool* ok) {
-  ASSERT(property != NULL);
-  Literal* literal = property->key();
-  HashMap::Entry* entry = props_.Lookup(literal, literal->Hash(), true);
-  intptr_t prev = reinterpret_cast<intptr_t> (entry->value);
-  intptr_t curr = GetPropertyKind(property);
-
-  // Duplicate data properties are illegal in strict or extended mode.
-  if (language_mode_ != CLASSIC_MODE && (curr & prev & kData) != 0) {
-    parser_->ReportMessageAt(loc, "strict_duplicate_property",
-                             Vector<const char*>::empty());
-    *ok = false;
-    return;
-  }
-  // Data property conflicting with an accessor.
-  if (((curr & kData) && (prev & kAccessor)) ||
-      ((prev & kData) && (curr & kAccessor))) {
-    parser_->ReportMessageAt(loc, "accessor_data_property",
-                             Vector<const char*>::empty());
-    *ok = false;
-    return;
-  }
-  // Two accessors of the same type conflicting
-  if ((curr & prev & kAccessor) != 0) {
-    parser_->ReportMessageAt(loc, "accessor_get_set",
-                             Vector<const char*>::empty());
-    *ok = false;
-    return;
-  }
-
-  // Update map
-  entry->value = reinterpret_cast<void*> (prev | curr);
-  *ok = true;
-}
-
-
 void Parser::BuildObjectLiteralConstantProperties(
     ZoneList<ObjectLiteral::Property*>* properties,
     Handle<FixedArray> constant_properties,
@@ -3921,39 +3843,9 @@ void Parser::BuildObjectLiteralConstantProperties(
 }
 
 
-ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
-                                                          bool* ok) {
-  // Special handling of getter and setter syntax:
-  // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
-  // We have already read the "get" or "set" keyword.
-  Token::Value next = Next();
-  bool is_keyword = Token::IsKeyword(next);
-  if (next == Token::IDENTIFIER || next == Token::NUMBER ||
-      next == Token::FUTURE_RESERVED_WORD ||
-      next == Token::FUTURE_STRICT_RESERVED_WORD ||
-      next == Token::STRING || is_keyword) {
-    Handle<String> name;
-    if (is_keyword) {
-      name = isolate_->factory()->InternalizeUtf8String(Token::String(next));
-    } else {
-      name = GetSymbol();
-    }
-    FunctionLiteral* value =
-        ParseFunctionLiteral(name,
-                             false,   // reserved words are allowed here
-                             false,   // not a generator
-                             RelocInfo::kNoPosition,
-                             FunctionLiteral::ANONYMOUS_EXPRESSION,
-                             CHECK_OK);
-    // Allow any number of parameters for compatibilty with JSC.
-    // Specification only allows zero parameters for get and one for set.
-    return factory()->NewObjectLiteralProperty(is_getter, value);
-  } else {
-    ReportUnexpectedToken(next);
-    *ok = false;
-    return NULL;
-  }
-}
+// Force instantiation of template instances class.
+template void ObjectLiteralChecker<Parser>::CheckProperty(
+    Token::Value property, PropertyKind type, bool* ok);
 
 
 Expression* Parser::ParseObjectLiteral(bool* ok) {
@@ -3968,7 +3860,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
-  ObjectLiteralPropertyChecker checker(this, top_scope_->language_mode());
+  ObjectLiteralChecker<Parser> checker(this, &scanner_,
+                                       top_scope_->language_mode());
 
   Expect(Token::LBRACE, CHECK_OK);
 
@@ -3977,9 +3870,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     Literal* key = NULL;
     Token::Value next = peek();
-
-    // Location of the property name token
-    Scanner::Location loc = scanner().peek_location();
 
     switch (next) {
       case Token::FUTURE_RESERVED_WORD:
@@ -3992,23 +3882,50 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         if (fni_ != NULL) fni_->PushLiteralName(id);
 
         if ((is_getter || is_setter) && peek() != Token::COLON) {
-            // Update loc to point to the identifier
-            loc = scanner().peek_location();
-            ObjectLiteral::Property* property =
-                ParseObjectLiteralGetSet(is_getter, CHECK_OK);
-            if (IsBoilerplateProperty(property)) {
-              number_of_boilerplate_properties++;
-            }
-            // Validate the property.
-            checker.CheckProperty(property, loc, CHECK_OK);
-            properties->Add(property, zone());
-            if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
+          // Special handling of getter and setter syntax:
+          // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
+          // We have already read the "get" or "set" keyword.
+          Token::Value next = Next();
+          bool is_keyword = Token::IsKeyword(next);
+          if (next != i::Token::IDENTIFIER &&
+              next != i::Token::FUTURE_RESERVED_WORD &&
+              next != i::Token::FUTURE_STRICT_RESERVED_WORD &&
+              next != i::Token::NUMBER &&
+              next != i::Token::STRING &&
+              !is_keyword) {
+            // Unexpected token.
+            ReportUnexpectedToken(next);
+            *ok = false;
+            return NULL;
+          }
+          // Validate the property.
+          PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
+          checker.CheckProperty(next, type, CHECK_OK);
+          Handle<String> name = is_keyword
+              ? isolate_->factory()->InternalizeUtf8String(Token::String(next))
+              : GetSymbol();
+          FunctionLiteral* value =
+              ParseFunctionLiteral(name,
+                                   false,   // reserved words are allowed here
+                                   false,   // not a generator
+                                   RelocInfo::kNoPosition,
+                                   FunctionLiteral::ANONYMOUS_EXPRESSION,
+                                   CHECK_OK);
+          // Allow any number of parameters for compatibilty with JSC.
+          // Specification only allows zero parameters for get and one for set.
+          ObjectLiteral::Property* property =
+              factory()->NewObjectLiteralProperty(is_getter, value);
+          if (IsBoilerplateProperty(property)) {
+            number_of_boilerplate_properties++;
+          }
+          properties->Add(property, zone());
+          if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
 
-            if (fni_ != NULL) {
-              fni_->Infer();
-              fni_->Leave();
-            }
-            continue;  // restart the while
+          if (fni_ != NULL) {
+            fni_->Infer();
+            fni_->Leave();
+          }
+          continue;  // restart the while
         }
         // Failed to parse as get/set property, so it's just a property
         // called "get" or "set".
@@ -4051,6 +3968,9 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         }
     }
 
+    // Validate the property
+    checker.CheckProperty(next, kValueProperty, CHECK_OK);
+
     Expect(Token::COLON, CHECK_OK);
     Expression* value = ParseAssignmentExpression(true, CHECK_OK);
 
@@ -4068,8 +3988,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
     if (IsBoilerplateProperty(property)) number_of_boilerplate_properties++;
-    // Validate the property
-    checker.CheckProperty(property, loc, CHECK_OK);
     properties->Add(property, zone());
 
     // TODO(1240767): Consider allowing trailing comma.
