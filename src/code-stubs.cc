@@ -585,9 +585,9 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
 
   if (old_state == GetExtraICState()) {
     // Tagged operations can lead to non-truncating HChanges
-    if (left->IsUndefined()) {
+    if (left->IsUndefined() || left->IsBoolean()) {
       left_state_ = GENERIC;
-    } else if (right->IsUndefined()) {
+    } else if (right->IsUndefined() || right->IsBoolean()) {
       right_state_ = GENERIC;
     } else {
       // Since the fpu is to precise, we might bail out on numbers which
@@ -602,14 +602,17 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
 
 void BinaryOpStub::UpdateStatus(Handle<Object> object,
                                 State* state) {
+  bool is_truncating = (op_ == Token::BIT_AND || op_ == Token::BIT_OR ||
+                        op_ == Token::BIT_XOR || op_ == Token::SAR ||
+                        op_ == Token::SHL || op_ == Token::SHR);
   v8::internal::TypeInfo type = v8::internal::TypeInfo::FromValue(object);
+  if (object->IsBoolean() && is_truncating) {
+    // Booleans are converted by truncating by HChange.
+    type = TypeInfo::Integer32();
+  }
   if (object->IsUndefined()) {
     // Undefined will be automatically truncated for us by HChange.
-    type = (op_ == Token::BIT_AND || op_ == Token::BIT_OR ||
-            op_ == Token::BIT_XOR || op_ == Token::SAR ||
-            op_ == Token::SHL || op_ == Token::SHR)
-      ? TypeInfo::Integer32()
-      : TypeInfo::Double();
+    type = is_truncating ? TypeInfo::Integer32() : TypeInfo::Double();
   }
   State int_state = SmiValuesAre32Bits() ? NUMBER : INT32;
   State new_state = NONE;
