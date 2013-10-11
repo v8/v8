@@ -247,8 +247,8 @@ void AstTyper::VisitForStatement(ForStatement* stmt) {
     RECURSE(Visit(stmt->cond()));
   }
   RECURSE(Visit(stmt->body()));
+  store_.Forget();  // Control may transfer here via 'continue'.
   if (stmt->next() != NULL) {
-    store_.Forget();  // Control may transfer here via 'continue'.
     RECURSE(Visit(stmt->next()));
   }
   store_.Forget();  // Control may transfer here via termination or 'break'.
@@ -580,9 +580,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Type* upper = Type::Union(
           expr->left()->bounds().upper, expr->right()->bounds().upper);
       if (!upper->Is(Type::Signed32())) upper = Type::Signed32();
-      Type* lower = Type::Intersect(
-          handle(Type::Smi(), isolate_), handle(upper, isolate_));
-      NarrowType(expr, Bounds(lower, upper, isolate_));
+      NarrowType(expr, Bounds(Type::Smi(), upper, isolate_));
       break;
     }
     case Token::BIT_XOR:
@@ -595,8 +593,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SHR:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      // TODO(rossberg): we could use an UnsignedSmi as lower bound here...
-      NarrowType(expr, Bounds(Type::Unsigned32(), isolate_));
+      NarrowType(expr, Bounds(Type::Smi(), Type::Unsigned32(), isolate_));
       break;
     case Token::ADD: {
       RECURSE(Visit(expr->left()));
@@ -604,17 +601,15 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Bounds l = expr->left()->bounds();
       Bounds r = expr->right()->bounds();
       Type* lower =
-          l.lower->Is(Type::None()) || r.lower->Is(Type::None()) ?
-              Type::None() :
-          l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
-              Type::String() :
           l.lower->Is(Type::Number()) && r.lower->Is(Type::Number()) ?
-              Type::Smi() : Type::None();
+              Type::Smi() :
+          l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
+              Type::String() : Type::None();
       Type* upper =
-          l.upper->Is(Type::String()) || r.upper->Is(Type::String()) ?
-              Type::String() :
           l.upper->Is(Type::Number()) && r.upper->Is(Type::Number()) ?
-              Type::Number() : Type::NumberOrString();
+              Type::Number() :
+          l.upper->Is(Type::String()) || r.upper->Is(Type::String()) ?
+              Type::String() : Type::NumberOrString();
       NarrowType(expr, Bounds(lower, upper, isolate_));
       break;
     }

@@ -240,7 +240,6 @@ int Type::GlbBitset() {
 // Check this <= that.
 bool Type::SlowIs(Type* that) {
   // Fast path for bitsets.
-  if (this->is_none()) return true;
   if (that->is_bitset()) {
     return (this->LubBitset() | that->as_bitset()) == that->as_bitset();
   }
@@ -527,13 +526,9 @@ void Type::TypePrint(FILE* out) {
     }
     PrintF(out, "}");
   } else if (is_constant()) {
-    PrintF(out, "Constant(%p : ", static_cast<void*>(*as_constant()));
-    from_bitset(LubBitset())->TypePrint(out);
-    PrintF(")");
+    PrintF(out, "Constant(%p)", static_cast<void*>(*as_constant()));
   } else if (is_class()) {
-    PrintF(out, "Class(%p < ", static_cast<void*>(*as_class()));
-    from_bitset(LubBitset())->TypePrint(out);
-    PrintF(")");
+    PrintF(out, "Class(%p)", static_cast<void*>(*as_class()));
   } else if (is_union()) {
     PrintF(out, "{");
     Handle<Unioned> unioned = as_union();
