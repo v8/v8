@@ -1,128 +1,460 @@
-/*!re2c
+#include <fcntl.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
+/*!types:re2c */
 
-  re2c:define:YYCTYPE  = "uint8_t";
-  re2c:define:YYCURSOR = p;
-  re2c:yyfill:enable   = 0;
-  re2c:yych:conversion = 0;
-  re2c:indent:top      = 1;
+#if defined(WIN32)
 
+    typedef signed char     int8_t;
+    typedef signed short    int16_t;
+    typedef signed int      int32_t;
 
-  eof = [\000];
-  any = [\000-\377];
-  whitespace_char = [ \h\t\v\f\r];
-  whitespace = whitespace_char+;
-  identifier_start = [$_\\a-zA-z];
-  identifier_char = [$_\\a-zA-z0-9];
-  number_start = [0-9];
-  line_terminator = [\n\r]+;
+    typedef unsigned char   uint8_t;
+    typedef unsigned short  uint16_t;
+    typedef unsigned int    uint32_t;
 
+#else
 
-  <NORMAL> "("                     { PUSH_T(LPAREN); }
-  <NORMAL> ")"                     { PUSH_T(RPAREN); }
-  <NORMAL> "["                     { PUSH_T(LBRACK); }
-  <NORMAL> "]"                     { PUSH_T(RBRACK); }
-  <NORMAL> "{"                     { PUSH_T(LBRACE); }
-  <NORMAL> "}"                     { PUSH_T(RBRACE); }
-  <NORMAL> ":"                     { PUSH_T(COLON); }
-  <NORMAL> ";"                     { PUSH_T(SEMICOLON); }
-  <NORMAL> "."                     { PUSH_T(PERIOD); }
-  <NORMAL> "?"                     { PUSH_T(CONDITIONAL); }
-  <NORMAL> "++"                    { PUSH_T(INC); }
-  <NORMAL> "--"                    { PUSH_T(DEC); }
+    #include <stdint.h>
+    #include <unistd.h>
 
+    #ifndef O_BINARY
+        #define O_BINARY 0
+    #endif
 
-  <NORMAL> "="                     { PUSH_T(ASSIGN); }
-  <NORMAL> "|="                    { PUSH_T(ASSIGN_BIT_OR); }
-  <NORMAL> "^="                    { PUSH_T(ASSIGN_BIT_XOR); }
-  <NORMAL> "&="                    { PUSH_T(ASSIGN_BIT_AND); }
-  <NORMAL> "<<="                   { PUSH_T(ASSIGN_SHL); }
-  <NORMAL> ">>="                   { PUSH_T(ASSIGN_SAR); }
-  <NORMAL> ">>>="                  { PUSH_T(ASSIGN_SHR); }
-  <NORMAL> "+="                    { PUSH_T(ASSIGN_ADD); }
-  <NORMAL> "-="                    { PUSH_T(ASSIGN_SUB); }
-  <NORMAL> "*="                    { PUSH_T(ASSIGN_MUL); }
-  <NORMAL> "/="                    { PUSH_T(ASSIGN_DIV); }
-  <NORMAL> "%="                    { PUSH_T(ASSIGN_MOD); }
+#endif
 
+// ----------------------------------------------------------------------
+#define PUSH_EOS(T) { printf("got eos\n"); }
+#define PUSH_T(T) { printf("got token %d\n", T); SKIP(); }
+#define PUSH_STRING() { printf("got string\n"); SKIP(); }
+#define PUSH_NUMBER() { printf("got number\n"); SKIP(); }
+#define PUSH_IDENTIFIER() { \
+        printf("got identifier: "); \
+        size_t tokenSize = cursor-start; \
+        fwrite(start, tokenSize, 1, stdout); \
+        printf("\n"); \
+        SKIP(); }
+#define PUSH_LINE_TERMINATOR() { printf("got line terminator\n"); SKIP();}
+#define TERMINATE_ILLEGAL() { return 1; }
 
-  <NORMAL> ","                     { PUSH_T(COMMA); }
-  <NORMAL> "||"                    { PUSH_T(OR); }
-  <NORMAL> "&&"                    { PUSH_T(AND); }
-  <NORMAL> "|"                     { PUSH_T(BIT_OR); }
-  <NORMAL> "^"                     { PUSH_T(BIT_XOR); }
-  <NORMAL> "&"                     { PUSH_T(BIT_AND); }
-  <NORMAL> "<<"                    { PUSH_T(SHL); }
-  <NORMAL> ">>"                    { PUSH_T(SAR); }
-  <NORMAL> "+"                     { PUSH_T(ADD); }
-  <NORMAL> "-"                     { PUSH_T(SUB); }
-  <NORMAL> "*"                     { PUSH_T(MUL); }
-  <NORMAL> "/"                     { PUSH_T(DIV); }
-  <NORMAL> "%"                     { PUSH_T(MOD); }
+#define TOKENS \
+        TOK(EOS) \
+        TOK(LPAREN) \
+        TOK(RPAREN) \
+        TOK(LBRACK) \
+        TOK(RBRACK) \
+        TOK(LBRACE) \
+        TOK(RBRACE) \
+        TOK(COLON) \
+        TOK(SEMICOLON) \
+        TOK(PERIOD) \
+        TOK(CONDITIONAL) \
+        TOK(INC) \
+        TOK(DEC) \
+        TOK(ASSIGN) \
+        TOK(ASSIGN_BIT_OR) \
+        TOK(ASSIGN_BIT_XOR) \
+        TOK(ASSIGN_BIT_AND) \
+        TOK(ASSIGN_SHL) \
+        TOK(ASSIGN_SAR) \
+        TOK(ASSIGN_SHR) \
+        TOK(ASSIGN_ADD) \
+        TOK(ASSIGN_SUB) \
+        TOK(ASSIGN_MUL) \
+        TOK(ASSIGN_DIV) \
+        TOK(ASSIGN_MOD) \
+        TOK(COMMA) \
+        TOK(OR) \
+        TOK(AND) \
+        TOK(BIT_OR) \
+        TOK(BIT_XOR) \
+        TOK(BIT_AND) \
+        TOK(SHL) \
+        TOK(SAR) \
+        TOK(ADD) \
+        TOK(SUB) \
+        TOK(MUL) \
+        TOK(DIV) \
+        TOK(MOD) \
+        TOK(EQ) \
+        TOK(NE) \
+        TOK(EQ_STRICT) \
+        TOK(NE_STRICT) \
+        TOK(LT) \
+        TOK(GT) \
+        TOK(LTE) \
+        TOK(GTE) \
+        TOK(NOT) \
+        TOK(BIT_NOT) \
 
+// ----------------------------------------------------------------------
+static const char *tokenNames[] =
+{
+    #define TOK(x) #x,
+        TOKENS
+    #undef TOK
+};
 
-  <NORMAL> "=="                    { PUSH_T(EQ); }
-  <NORMAL> "!="                    { PUSH_T(NE); }
-  <NORMAL> "==="                   { PUSH_T(EQ_STRICT); }
-  <NORMAL> "!=="                   { PUSH_T(NE_STRICT); }
-  <NORMAL> "<"                     { PUSH_T(LT); }
-  <NORMAL> ">"                     { PUSH_T(GT); }
-  <NORMAL> "<="                    { PUSH_T(LTE); }
-  <NORMAL> ">="                    { PUSH_T(GTE); }
+// ----------------------------------------------------------------------
+class PushScanner
+{
+public:
 
+    enum Token
+    {
+        #define TOK(x) x,
+            TOKENS
+        #undef TOK
+    };
 
-  <NORMAL> "!"                     { PUSH_T(NOT); }
-  <NORMAL> "~"                     { PUSH_T(BIT_NOT); }
+private:
 
-  <NORMAL> line_terminator+        { PUSH_LINE_TERMINATOR(); }
+    bool        eof;
+    int32_t     state;
+    int32_t     condition;
 
-  <NORMAL> whitespace              {}
+    uint8_t     *limit;
+    uint8_t     *start;
+    uint8_t     *cursor;
+    uint8_t     *marker;
 
+    uint8_t     *buffer;
+    uint8_t     *bufferEnd;
 
-  <NORMAL> "//"                    :=> SINGLE_LINE_COMMENT
-  <NORMAL> "/*"                    :=> MULTILINE_COMMENT
-  <NORMAL> "<!--"                  :=> HTML_COMMENT
+    uint8_t     yych;
+    uint32_t    yyaccept;
 
+public:
 
-  <NORMAL> ["]                     :=> STRING
-  <NORMAL> [']                     :=> SINGLE_QUOTE_STRING
+    // ----------------------------------------------------------------------
+    PushScanner()
+    {
+        limit = 0;
+        start = 0;
+        state = -1;
+        condition = EConditionNormal;
+        cursor = 0;
+        marker = 0;
+        buffer = 0;
+        eof = false;
+        bufferEnd = 0;
+    }
 
+    // ----------------------------------------------------------------------
+    ~PushScanner()
+    {
+    }
 
-  <NORMAL> identifier_start        :=> IDENTIFIER
+    // ----------------------------------------------------------------------
+    void send(
+        Token token
+    )
+    {
+        size_t tokenSize = cursor-start;
+        const char *tokenName = tokenNames[token];
+        printf(
+            "scanner is pushing out a token of type %d (%s)",
+            token,
+            tokenName
+        );
 
-  <NORMAL> number_start            :=> NUMBER
+        if(token==EOS) putchar('\n');
+        else
+        {
+            size_t tokenNameSize = strlen(tokenNames[token]);
+            size_t padSize = 20-(20<tokenNameSize ? 20 : tokenNameSize);
+            for(size_t i=0; i<padSize; ++i) putchar(' ');
+            printf(" : ---->");
 
+            fwrite(
+                start,
+                tokenSize,
+                1,
+                stdout
+            );
 
-  <NORMAL> eof                     { PUSH_T(EOS); }
-  <NORMAL> any                     { TERMINATE_ILLEGAL(); }
+            printf("<----\n");
+        }
+    }
 
+    // ----------------------------------------------------------------------
+    uint32_t push(
+        const void  *input,
+        ssize_t     inputSize
+    )
+    {
+        printf(
+            "scanner is receiving a new data batch of length %ld\n"
+            "scanner continues with saved state = %d\n",
+            inputSize,
+            state
+        );
 
+        /*
+         * Data source is signaling end of file when batch size
+         * is less than maxFill. This is slightly annoying because
+         * maxFill is a value that can only be known after re2c does
+         * its thing. Practically though, maxFill is never bigger than
+         * the longest keyword, so given our grammar, 32 is a safe bet.
+         */
+        uint8_t null[64];
+        const ssize_t maxFill = 32;
+        if(inputSize<maxFill) // FIXME: do something about this!!!
+        {
+            eof = true;
+            input = null;
+            inputSize = sizeof(null);
+            memset(null, 0, sizeof(null));
+        }
 
-  <STRING> "\\\""                {}
-  <STRING> ["]                   { PUSH_STRING(); TRANSITION(NORMAL); }
-  <STRING> any                   {}
+        /*
+         * When we get here, we have a partially
+         * consumed buffer which is in the following state:
+         *                                                                last valid char        last valid buffer spot
+         *                                                                v                      v
+         * +-------------------+-------------+---------------+-------------+----------------------+
+         * ^                   ^             ^               ^             ^                      ^
+         * buffer              start         marker          cursor        limit                  bufferEnd
+         * 
+         * We need to stretch the buffer and concatenate the new chunk of input to it
+         *
+         */
+        size_t used = limit-buffer;
+        size_t needed = used+inputSize;
+        size_t allocated = bufferEnd-buffer;
+        if(allocated<needed)
+        {
+            size_t limitOffset = limit-buffer;
+            size_t startOffset = start-buffer;
+            size_t markerOffset = marker-buffer;
+            size_t cursorOffset = cursor-buffer;
 
+                buffer = (uint8_t*)realloc(buffer, needed);
+                bufferEnd = needed+buffer;
 
-  <SINGLE_QUOTE_STRING> "\\'"    {}
-  <SINGLE_QUOTE_STRING> "'"      { PUSH_STRING(); TRANSITION(NORMAL); }
-  <SINGLE_QUOTE_STRING> any      {}
+            marker = markerOffset + buffer;
+            cursor = cursorOffset + buffer;
+            start = buffer + startOffset;
+            limit = limitOffset + buffer;
+        }
+        memcpy(limit, input, inputSize);
+        limit += inputSize;
 
+        // The scanner starts here
+        #define YYLIMIT         limit
+        #define YYCURSOR        cursor
+        #define YYMARKER        marker
+        #define YYCTYPE         uint8_t
 
+        #define SKIP()          { start = cursor; YYSETCONDITION(EConditionNormal); goto yy0; }
+        #define SEND(x)         { send(x); SKIP();          }
+        #define YYFILL(n)       { goto fill;                }
 
-  <IDENTIFIER> identifier_char+  {}
-  <IDENTIFIER> any               { PUSH_IDENTIFIER(); TRANSITION(NORMAL); }
+        #define YYGETSTATE()    state
+        #define YYSETSTATE(x)   { state = (x);  }
 
+        #define YYGETCONDITION() condition
+        #define YYSETCONDITION(x) { condition = (x);  }
 
+    start:
 
-  <SINGLE_LINE_COMMENT> line_terminator
-                                 { PUSH_LINE_TERMINATOR(); TRANSITION(NORMAL); }
+        printf("Starting a round; state: %d, condition: %d\n", state, condition);
 
-  <SINGLE_LINE_COMMENT> any+     {}
+        /*!re2c
+        re2c:indent:top      = 1;
+        re2c:yych:conversion = 0;
+        re2c:condenumprefix          = ECondition;
+        re2c:define:YYCONDTYPE       = Condition;
 
+        eof = "\000";
+        any = [\000-\377];
+        whitespace_char = [ \t\v\f\r];
+        whitespace = whitespace_char+;
+        identifier_start = [$_\\a-zA-z];
+        identifier_char = [$_\\a-zA-z0-9];
+        number_start = [0-9];
+        number_char = [0-9\.e];
+        line_terminator = [\n\r]+;
 
+        <Normal> "("                     { PUSH_T(LPAREN); }
+        <Normal> ")"                     { PUSH_T(RPAREN); }
+        <Normal> "["                     { PUSH_T(LBRACK); }
+        <Normal> "]"                     { PUSH_T(RBRACK); }
+        <Normal> "{"                     { PUSH_T(LBRACE); }
+        <Normal> "}"                     { PUSH_T(RBRACE); }
+        <Normal> ":"                     { PUSH_T(COLON); }
+        <Normal> ";"                     { PUSH_T(SEMICOLON); }
+        <Normal> "."                     { PUSH_T(PERIOD); }
+        <Normal> "?"                     { PUSH_T(CONDITIONAL); }
+        <Normal> "++"                    { PUSH_T(INC); }
+        <Normal> "--"                    { PUSH_T(DEC); }
 
-  <MULTILINE_COMMENT> [*][//]      { PUSH_LINE_TERMINATOR(); TRANSITION(NORMAL); }
-  <MULTILINE_COMMENT> eof { TERMINATE_ILLEGAL(); }
-  <MULTILINE_COMMENT> any+       {}
+        <Normal> "|="                    { PUSH_T(ASSIGN_BIT_OR); }
+        <Normal> "^="                    { PUSH_T(ASSIGN_BIT_XOR); }
+        <Normal> "&="                    { PUSH_T(ASSIGN_BIT_AND); }
+        <Normal> "<<="                   { PUSH_T(ASSIGN_SHL); }
+        <Normal> ">>="                   { PUSH_T(ASSIGN_SAR); }
+        <Normal> ">>>="                  { PUSH_T(ASSIGN_SHR); }
+        <Normal> "+="                    { PUSH_T(ASSIGN_ADD); }
+        <Normal> "-="                    { PUSH_T(ASSIGN_SUB); }
+        <Normal> "*="                    { PUSH_T(ASSIGN_MUL); }
+        <Normal> "/="                    { PUSH_T(ASSIGN_DIV); }
+        <Normal> "%="                    { PUSH_T(ASSIGN_MOD); }
 
-*/
+        <Normal> ","                     { PUSH_T(COMMA); }
+        <Normal> "||"                    { PUSH_T(OR); }
+        <Normal> "&&"                    { PUSH_T(AND); }
+        <Normal> "|"                     { PUSH_T(BIT_OR); }
+        <Normal> "^"                     { PUSH_T(BIT_XOR); }
+        <Normal> "&"                     { PUSH_T(BIT_AND); }
+        <Normal> "<<"                    { PUSH_T(SHL); }
+        <Normal> ">>"                    { PUSH_T(SAR); }
+        <Normal> "+"                     { PUSH_T(ADD); }
+        <Normal> "-"                     { PUSH_T(SUB); }
+        <Normal> "*"                     { PUSH_T(MUL); }
+        <Normal> "/"                     { PUSH_T(DIV); }
+        <Normal> "%"                     { PUSH_T(MOD); }
+
+        <Normal> "==="                   { PUSH_T(EQ_STRICT); }
+        <Normal> "=="                    { PUSH_T(EQ); }
+        <Normal> "!=="                   { PUSH_T(NE_STRICT); }
+        <Normal> "!="                    { PUSH_T(NE); }
+        <Normal> "<="                    { PUSH_T(LTE); }
+        <Normal> ">="                    { PUSH_T(GTE); }
+        <Normal> "<"                     { PUSH_T(LT); }
+        <Normal> ">"                     { PUSH_T(GT); }
+
+        <Normal> "="                     { PUSH_T(ASSIGN); }
+
+        <Normal> "!"                     { PUSH_T(NOT); }
+        <Normal> "~"                     { PUSH_T(BIT_NOT); }
+
+        <Normal> line_terminator+        { PUSH_LINE_TERMINATOR(); }
+        <Normal> whitespace              { SKIP();}
+
+        <Normal> "//"                    :=> SingleLineComment
+        <Normal> "/*"                    :=> MultiLineComment
+        <Normal> "<!--"                  :=> HtmlComment
+
+        <Normal> ["]                     :=> DoubleQuoteString
+        <Normal> [']                     :=> SingleQuoteString
+
+        <Normal> identifier_start        :=> Identifier
+        <Normal> number_start            :=> Number
+
+        <Normal> eof                     { PUSH_EOS(); return 1; }
+        <Normal> any                     { TERMINATE_ILLEGAL(); }
+
+        <DoubleQuoteString> "\\\""       {}
+        <DoubleQuoteString> ["]          { PUSH_STRING();}
+        <DoubleQuoteString> any          {}
+
+        <SingleQuoteString> "\\'"    {}
+        <SingleQuoteString> "'"      { PUSH_STRING();}
+        <SingleQuoteString> any      {}
+
+        <Identifier> identifier_char+  {}
+        <Identifier> any               { PUSH_IDENTIFIER(); }
+
+        <SingleLineComment> line_terminator
+                                       { PUSH_LINE_TERMINATOR();}
+
+        <SingleLineComment> any+     {}
+
+        <MultiLineComment> [*][//]      { PUSH_LINE_TERMINATOR();}
+        <MultiLineComment> eof { TERMINATE_ILLEGAL(); }
+        <MultiLineComment> any+       {}
+
+        <HtmlComment> any+            {}
+        <HtmlComment> eof { TERMINATE_ILLEGAL(); }
+        <HtmlComment> "-->"           { }
+
+        <Number> number_char+          { }
+        <Number> any                   { PUSH_NUMBER(); }
+
+        */
+
+    fill:
+        ssize_t unfinishedSize = cursor-start;
+        printf(
+            "scanner needs a refill. Exiting for now with:\n"
+            "    saved fill state = %d\n"
+            "    unfinished token size = %ld\n",
+            state,
+            unfinishedSize
+        );
+
+        if(0<unfinishedSize && start<limit)
+        {
+            printf("    unfinished token is: ");
+            fwrite(start, 1, cursor-start, stdout);
+            putchar('\n');
+        }
+        putchar('\n');
+
+        /*
+         * Once we get here, we can get rid of
+         * everything before start and after limit.
+         */
+        if(eof==true) goto start;
+        if(buffer<start)
+        {
+            size_t startOffset = start-buffer;
+            memmove(buffer, start, limit-start);
+            marker -= startOffset;
+            cursor -= startOffset;
+            limit -= startOffset;
+            start -= startOffset;
+        }
+        return 0;
+    }
+};
+
+// ----------------------------------------------------------------------
+int main(
+    int     argc,
+    char    **argv
+)
+{
+    // Parse cmd line
+    int input = 0;
+    if(1<argc)
+    {
+        input = open(argv[1], O_RDONLY | O_BINARY);
+        if(input<0)
+        {
+            fprintf(
+                stderr,
+                "could not open file %s\n",
+                argv[1]
+            );
+            exit(1);
+        }
+    }
+
+    /*
+     * Tokenize input file by pushing batches
+     * of data one by one into the scanner.
+     */
+    const size_t batchSize = 256;
+    uint8_t buffer[batchSize];
+    PushScanner scanner;
+    while(1)
+    {
+        ssize_t n = read(input, buffer, batchSize);
+        if (scanner.push(buffer, n)) {
+          printf("Scanner: illegal data\n");
+          return 1;
+       }
+        if(n<batchSize) break;
+    }
+    scanner.push(0, -1);
+    close(input);
+
+    // Done
+    return 0;
+}
