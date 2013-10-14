@@ -79,6 +79,21 @@ Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
 }
 
 
+Handle<ConstantPoolArray> Factory::NewConstantPoolArray(
+    int number_of_int64_entries,
+    int number_of_ptr_entries,
+    int number_of_int32_entries) {
+  ASSERT(number_of_int64_entries > 0 || number_of_ptr_entries > 0 ||
+         number_of_int32_entries > 0);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateConstantPoolArray(number_of_int64_entries,
+                                                   number_of_ptr_entries,
+                                                   number_of_int32_entries),
+      ConstantPoolArray);
+}
+
+
 Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
   ASSERT(0 <= at_least_space_for);
   CALL_HEAP_FUNCTION(isolate(),
@@ -621,6 +636,12 @@ Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
 Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
     Handle<FixedDoubleArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedDoubleArray);
+}
+
+
+Handle<ConstantPoolArray> Factory::CopyConstantPoolArray(
+    Handle<ConstantPoolArray> array) {
+  CALL_HEAP_FUNCTION(isolate(), array->Copy(), ConstantPoolArray);
 }
 
 

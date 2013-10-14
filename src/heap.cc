@@ -1957,6 +1957,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 
 
 STATIC_ASSERT((FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) == 0);
+STATIC_ASSERT((ConstantPoolArray::kHeaderSize & kDoubleAlignmentMask) == 0);
 
 
 INLINE(static HeapObject* EnsureDoubleAligned(Heap* heap,
@@ -2656,6 +2657,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_fixed_double_array_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_constant_pool_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
@@ -5384,6 +5391,27 @@ MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
 }
 
 
+MaybeObject* Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
+                                                Map* map) {
+  int int64_entries = src->count_of_int64_entries();
+  int ptr_entries = src->count_of_ptr_entries();
+  int int32_entries = src->count_of_int32_entries();
+  Object* obj;
+  { MaybeObject* maybe_obj =
+        AllocateConstantPoolArray(int64_entries, ptr_entries, int32_entries);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  HeapObject* dst = HeapObject::cast(obj);
+  dst->set_map_no_write_barrier(map);
+  CopyBlock(
+      dst->address() + ConstantPoolArray::kLengthOffset,
+      src->address() + ConstantPoolArray::kLengthOffset,
+      ConstantPoolArray::SizeFor(int64_entries, ptr_entries, int32_entries)
+          - ConstantPoolArray::kLengthOffset);
+  return obj;
+}
+
+
 MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
     return Failure::OutOfMemoryException(0xe);
@@ -5512,6 +5540,40 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
   }
 
   return EnsureDoubleAligned(this, object, size);
+}
+
+
+MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
+                                             int number_of_ptr_entries,
+                                             int number_of_int32_entries) {
+  ASSERT(number_of_int64_entries > 0 || number_of_ptr_entries > 0 ||
+         number_of_int32_entries > 0);
+  int size = ConstantPoolArray::SizeFor(number_of_int64_entries,
+                                        number_of_ptr_entries,
+                                        number_of_int32_entries);
+#ifndef V8_HOST_ARCH_64_BIT
+  size += kPointerSize;
+#endif
+
+  HeapObject* object;
+  { MaybeObject* maybe_object = old_pointer_space_->AllocateRaw(size);
+    if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
+  }
+  object = EnsureDoubleAligned(this, object, size);
+  HeapObject::cast(object)->set_map_no_write_barrier(constant_pool_array_map());
+
+  ConstantPoolArray* constant_pool =
+      reinterpret_cast<ConstantPoolArray*>(object);
+  constant_pool->SetEntryCounts(number_of_int64_entries,
+                                number_of_ptr_entries,
+                                number_of_int32_entries);
+  MemsetPointer(
+      HeapObject::RawField(
+          constant_pool,
+          constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
+      undefined_value(),
+      number_of_ptr_entries);
+  return constant_pool;
 }
 
 

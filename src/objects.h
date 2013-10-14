@@ -405,6 +405,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
                                                                                \
   V(FIXED_ARRAY_TYPE)                                                          \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
+  V(CONSTANT_POOL_ARRAY_TYPE)                                                  \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
                                                                                \
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \
@@ -715,6 +716,7 @@ enum InstanceType {
   EXTERNAL_DOUBLE_ARRAY_TYPE,
   EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
   FIXED_DOUBLE_ARRAY_TYPE,
+  CONSTANT_POOL_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
@@ -1000,6 +1002,7 @@ class MaybeObject BASE_EMBEDDED {
   V(TypeFeedbackCells)                         \
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
+  V(ConstantPoolArray)                         \
   V(Context)                                   \
   V(NativeContext)                             \
   V(ScopeInfo)                                 \
@@ -3029,6 +3032,100 @@ class FixedDoubleArray: public FixedArrayBase {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
+};
+
+
+// ConstantPoolArray describes a fixed-sized array containing constant pool
+// entires.
+// The format of the pool is:
+//   [0]: Field holding the first index which is a pointer entry
+//   [1]: Field holding the first index which is a int32 entry
+//   [2] ... [first_ptr_index() - 1]: 64 bit entries
+//   [first_ptr_index()] ... [first_int32_index() - 1]: pointer entries
+//   [first_int32_index()] ... [length - 1]: 32 bit entries
+class ConstantPoolArray: public FixedArrayBase {
+ public:
+  // Getters for the field storing the first index for different type entries.
+  inline int first_ptr_index();
+  inline int first_int64_index();
+  inline int first_int32_index();
+
+  // Getters for counts of different type entries.
+  inline int count_of_ptr_entries();
+  inline int count_of_int64_entries();
+  inline int count_of_int32_entries();
+
+  // Setter and getter for pool elements.
+  inline Object* get_ptr_entry(int index);
+  inline int64_t get_int64_entry(int index);
+  inline int32_t get_int32_entry(int index);
+  inline double get_int64_entry_as_double(int index);
+
+  inline void set(int index, Object* value);
+  inline void set(int index, int64_t value);
+  inline void set(int index, double value);
+  inline void set(int index, int32_t value);
+
+  // Set up initial state.
+  inline void SetEntryCounts(int number_of_int64_entries,
+                             int number_of_ptr_entries,
+                             int number_of_int32_entries);
+
+  // Copy operations
+  MUST_USE_RESULT inline MaybeObject* Copy();
+
+  // Garbage collection support.
+  inline static int SizeFor(int number_of_int64_entries,
+                            int number_of_ptr_entries,
+                            int number_of_int32_entries) {
+    return RoundUp(OffsetAt(number_of_int64_entries,
+                            number_of_ptr_entries,
+                            number_of_int32_entries),
+                   kPointerSize);
+  }
+
+  // Code Generation support.
+  inline int OffsetOfElementAt(int index) {
+    ASSERT(index < length());
+    if (index >= first_int32_index()) {
+      return OffsetAt(count_of_int64_entries(), count_of_ptr_entries(),
+                      index - first_int32_index());
+    } else if (index >= first_ptr_index()) {
+      return OffsetAt(count_of_int64_entries(), index - first_ptr_index(), 0);
+    } else {
+      return OffsetAt(index, 0, 0);
+    }
+  }
+
+  // Casting.
+  static inline ConstantPoolArray* cast(Object* obj);
+
+  // Layout description.
+  static const int kFirstPointerIndexOffset = FixedArray::kHeaderSize;
+  static const int kFirstInt32IndexOffset =
+      kFirstPointerIndexOffset + kPointerSize;
+  static const int kFirstOffset = kFirstInt32IndexOffset + kPointerSize;
+
+  // Dispatched behavior.
+  void ConstantPoolIterateBody(ObjectVisitor* v);
+
+  DECLARE_PRINTER(ConstantPoolArray)
+  DECLARE_VERIFIER(ConstantPoolArray)
+
+ private:
+  inline void set_first_ptr_index(int value);
+  inline void set_first_int32_index(int value);
+
+  inline static int OffsetAt(int number_of_int64_entries,
+                             int number_of_ptr_entries,
+                             int number_of_int32_entries) {
+    return kFirstOffset
+        + (number_of_int64_entries * kInt64Size)
+        + (number_of_ptr_entries * kPointerSize)
+        + (number_of_int32_entries * kInt32Size);
+  }
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolArray);
 };
 
 
