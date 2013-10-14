@@ -441,8 +441,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
-    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this),
-                        zone);
+    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this), zone);
   } else if (oracle->LoadIsPolymorphic(this)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
