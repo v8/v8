@@ -4,6 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+/*
+TODO:
+- SpiderMonkey compatibility hack: "    --> something" is treated as a single line comment.
+- An identifier cannot start immediately after a number.
+
+*/
+
+
 /*!types:re2c */
 
 #if defined(WIN32)
@@ -39,7 +48,6 @@
         printf("\n"); \
         SKIP(); }
 #define PUSH_NUMBER() { \
-        --cursor; \
         printf("got number\n"); \
         size_t tokenSize = cursor-start; \
         fwrite(start, tokenSize, 1, stdout); \
@@ -289,9 +297,44 @@ public:
         whitespace = whitespace_char+;
         identifier_start = [$_\\a-zA-z];
         identifier_char = [$_\\a-zA-z0-9];
-        number_start = [0-9];
-        number_char = [0-9\.e];
         line_terminator = [\n\r]+;
+        digit = [0-9];
+        hex_digit = [0-9a-fA-F];
+        maybe_exponent = ('e' [-+]? digit+)?;
+
+        <Normal> "|="                    { PUSH_TOKEN(ASSIGN_BIT_OR); }
+        <Normal> "^="                    { PUSH_TOKEN(ASSIGN_BIT_XOR); }
+        <Normal> "&="                    { PUSH_TOKEN(ASSIGN_BIT_AND); }
+        <Normal> "+="                    { PUSH_TOKEN(ASSIGN_ADD); }
+        <Normal> "-="                    { PUSH_TOKEN(ASSIGN_SUB); }
+        <Normal> "*="                    { PUSH_TOKEN(ASSIGN_MUL); }
+        <Normal> "/="                    { PUSH_TOKEN(ASSIGN_DIV); }
+        <Normal> "%="                    { PUSH_TOKEN(ASSIGN_MOD); }
+
+        <Normal> "==="                   { PUSH_TOKEN(EQ_STRICT); }
+        <Normal> "=="                    { PUSH_TOKEN(EQ); }
+        <Normal> "="                     { PUSH_TOKEN(ASSIGN); }
+        <Normal> "!=="                   { PUSH_TOKEN(NE_STRICT); }
+        <Normal> "!="                    { PUSH_TOKEN(NE); }
+        <Normal> "!"                     { PUSH_TOKEN(NOT); }
+
+        <Normal> "//"                    :=> SingleLineComment
+        <Normal> "/*"                    :=> MultiLineComment
+        <Normal> "<!--"                  :=> HtmlComment
+
+        <Normal> ">>>="                  { PUSH_TOKEN(ASSIGN_SHR); }
+        <Normal> "<<="                   { PUSH_TOKEN(ASSIGN_SHL); }
+        <Normal> ">>="                   { PUSH_TOKEN(ASSIGN_SAR); }
+        <Normal> "<="                    { PUSH_TOKEN(LTE); }
+        <Normal> ">="                    { PUSH_TOKEN(GTE); }
+        <Normal> "<<"                    { PUSH_TOKEN(SHL); }
+        <Normal> ">>"                    { PUSH_TOKEN(SAR); }
+        <Normal> "<"                     { PUSH_TOKEN(LT); }
+        <Normal> ">"                     { PUSH_TOKEN(GT); }
+
+        <Normal> '0x' hex_digit+         { PUSH_NUMBER(); }
+        <Normal> "." digit+ maybe_exponent { PUSH_NUMBER(); }
+        <Normal> digit+ ("." digit+)? maybe_exponent { PUSH_NUMBER(); }
 
         <Normal> "("                     { PUSH_TOKEN(LPAREN); }
         <Normal> ")"                     { PUSH_TOKEN(RPAREN); }
@@ -306,58 +349,27 @@ public:
         <Normal> "++"                    { PUSH_TOKEN(INC); }
         <Normal> "--"                    { PUSH_TOKEN(DEC); }
 
-        <Normal> "|="                    { PUSH_TOKEN(ASSIGN_BIT_OR); }
-        <Normal> "^="                    { PUSH_TOKEN(ASSIGN_BIT_XOR); }
-        <Normal> "&="                    { PUSH_TOKEN(ASSIGN_BIT_AND); }
-        <Normal> "<<="                   { PUSH_TOKEN(ASSIGN_SHL); }
-        <Normal> ">>="                   { PUSH_TOKEN(ASSIGN_SAR); }
-        <Normal> ">>>="                  { PUSH_TOKEN(ASSIGN_SHR); }
-        <Normal> "+="                    { PUSH_TOKEN(ASSIGN_ADD); }
-        <Normal> "-="                    { PUSH_TOKEN(ASSIGN_SUB); }
-        <Normal> "*="                    { PUSH_TOKEN(ASSIGN_MUL); }
-        <Normal> "/="                    { PUSH_TOKEN(ASSIGN_DIV); }
-        <Normal> "%="                    { PUSH_TOKEN(ASSIGN_MOD); }
-
-        <Normal> ","                     { PUSH_TOKEN(COMMA); }
         <Normal> "||"                    { PUSH_TOKEN(OR); }
         <Normal> "&&"                    { PUSH_TOKEN(AND); }
+
         <Normal> "|"                     { PUSH_TOKEN(BIT_OR); }
         <Normal> "^"                     { PUSH_TOKEN(BIT_XOR); }
         <Normal> "&"                     { PUSH_TOKEN(BIT_AND); }
-        <Normal> "<<"                    { PUSH_TOKEN(SHL); }
-        <Normal> ">>"                    { PUSH_TOKEN(SAR); }
         <Normal> "+"                     { PUSH_TOKEN(ADD); }
         <Normal> "-"                     { PUSH_TOKEN(SUB); }
         <Normal> "*"                     { PUSH_TOKEN(MUL); }
         <Normal> "/"                     { PUSH_TOKEN(DIV); }
         <Normal> "%"                     { PUSH_TOKEN(MOD); }
-
-        <Normal> "==="                   { PUSH_TOKEN(EQ_STRICT); }
-        <Normal> "=="                    { PUSH_TOKEN(EQ); }
-        <Normal> "!=="                   { PUSH_TOKEN(NE_STRICT); }
-        <Normal> "!="                    { PUSH_TOKEN(NE); }
-        <Normal> "<="                    { PUSH_TOKEN(LTE); }
-        <Normal> ">="                    { PUSH_TOKEN(GTE); }
-        <Normal> "<"                     { PUSH_TOKEN(LT); }
-        <Normal> ">"                     { PUSH_TOKEN(GT); }
-
-        <Normal> "="                     { PUSH_TOKEN(ASSIGN); }
-
-        <Normal> "!"                     { PUSH_TOKEN(NOT); }
         <Normal> "~"                     { PUSH_TOKEN(BIT_NOT); }
+        <Normal> ","                     { PUSH_TOKEN(COMMA); }
 
         <Normal> line_terminator+        { PUSH_LINE_TERMINATOR(); }
-        <Normal> whitespace              { SKIP();}
-
-        <Normal> "//"                    :=> SingleLineComment
-        <Normal> "/*"                    :=> MultiLineComment
-        <Normal> "<!--"                  :=> HtmlComment
+        <Normal> whitespace              { SKIP(); }
 
         <Normal> ["]                     :=> DoubleQuoteString
         <Normal> [']                     :=> SingleQuoteString
 
         <Normal> identifier_start        :=> Identifier
-        <Normal> number_start            :=> Number
 
         <Normal> eof                     { PUSH_EOS(); return 1; }
         <Normal> any                     { TERMINATE_ILLEGAL(); }
@@ -384,10 +396,6 @@ public:
         <HtmlComment> eof                { TERMINATE_ILLEGAL(); }
         <HtmlComment> "-->"              { PUSH_LINE_TERMINATOR();}
         <HtmlComment> any                { goto yy0; }
-
-        <Number> number_char+            { goto yy0; }
-        <Number> any                     { PUSH_NUMBER(); }
-
         */
 
     fill:
