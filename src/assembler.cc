@@ -1333,6 +1333,14 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 }
 
 
+ExternalReference ExternalReference::record_object_allocation_function(
+  Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate,
+               FUNCTION_ADDR(HeapProfiler::RecordObjectAllocationFromMasm)));
+}
+
+
 #ifndef V8_INTERPRETED_REGEXP
 
 ExternalReference ExternalReference::re_check_stack_guard_state(

@@ -348,4 +348,26 @@ static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
 }
 
 
+// Helper class for new allocations tracking and checking.
+// To use checking of JS allocations tracking in a test,
+// just create an instance of this class.
+class HeapObjectsTracker {
+ public:
+  HeapObjectsTracker() {
+    heap_profiler_ = i::Isolate::Current()->heap_profiler();
+    CHECK_NE(NULL, heap_profiler_);
+    heap_profiler_->StartHeapAllocationsRecording();
+  }
+
+  ~HeapObjectsTracker() {
+    i::Isolate::Current()->heap()->CollectAllAvailableGarbage();
+    CHECK_EQ(0, heap_profiler_->FindUntrackedObjects());
+    heap_profiler_->StopHeapAllocationsRecording();
+  }
+
+ private:
+  i::HeapProfiler* heap_profiler_;
+};
+
+
 #endif  // ifndef CCTEST_H_

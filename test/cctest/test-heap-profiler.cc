@@ -2005,3 +2005,19 @@ TEST(JSFunctionHasCodeLink) {
       GetProperty(foo_func, v8::HeapGraphEdge::kInternal, "code");
   CHECK_NE(NULL, code);
 }
+
+
+// This is an example of using checking of JS allocations tracking in a test.
+TEST(HeapObjectsTracker) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  HeapObjectsTracker tracker;
+  CompileRun("var a = 1.2");
+  CompileRun("var a = 1.2; var b = 1.0; var c = 1.0;");
+  CompileRun(
+    "var a = [];"
+    "for (var i = 0; i < 5; ++i)"
+    "    a[i] = i;\n"
+    "for (var i = 0; i < 3; ++i)"
+    "    a.shift();\n");
+}

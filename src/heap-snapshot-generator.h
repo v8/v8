@@ -227,8 +227,12 @@ class HeapObjectsMap {
 
   void SnapshotGenerationFinished();
   SnapshotObjectId FindEntry(Address addr);
-  SnapshotObjectId FindOrAddEntry(Address addr, unsigned int size);
-  void MoveObject(Address from, Address to);
+  SnapshotObjectId FindOrAddEntry(Address addr,
+                                  unsigned int size,
+                                  bool accessed = true);
+  void MoveObject(Address from, Address to, int size);
+  void NewObject(Address addr, int size);
+  void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;
   }
@@ -246,6 +250,10 @@ class HeapObjectsMap {
   static const SnapshotObjectId kNativesRootObjectId;
   static const SnapshotObjectId kGcRootsFirstSubrootId;
   static const SnapshotObjectId kFirstAvailableObjectId;
+
+  int FindUntrackedObjects();
+
+  void UpdateHeapObjectsMap();
 
  private:
   struct EntryInfo {
@@ -265,7 +273,6 @@ class HeapObjectsMap {
     uint32_t count;
   };
 
-  void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
 
   SnapshotObjectId next_id_;
@@ -306,11 +313,21 @@ class HeapSnapshotsCollection {
     return ids_.FindOrAddEntry(object_addr, object_size);
   }
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
-  void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
+  void ObjectMoveEvent(Address from, Address to, int size) {
+    ids_.MoveObject(from, to, size);
+  }
+  void NewObjectEvent(Address addr, int size) { ids_.NewObject(addr, size); }
+  void UpdateObjectSizeEvent(Address addr, int size) {
+    ids_.UpdateObjectSize(addr, size);
+  }
   SnapshotObjectId last_assigned_id() const {
     return ids_.last_assigned_id();
   }
   size_t GetUsedMemorySize() const;
+
+  int FindUntrackedObjects() { return ids_.FindUntrackedObjects(); }
+
+  void UpdateHeapObjectsMap() { ids_.UpdateHeapObjectsMap(); }
 
  private:
   bool is_tracking_objects_;  // Whether tracking object moves is needed.

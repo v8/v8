@@ -2759,7 +2759,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          Address src,
                                          int size,
                                          AllocationSpace dest) {
-  HEAP_PROFILE(heap(), ObjectMoveEvent(src, dst));
+  HEAP_PROFILE(heap(), ObjectMoveEvent(src, dst, size));
   ASSERT(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));
   ASSERT(dest != LO_SPACE && size <= Page::kMaxNonCodeHeapObjectSize);
   if (dest == OLD_POINTER_SPACE) {
@@ -2942,7 +2942,9 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   ASSERT(target_space == heap()->old_pointer_space() ||
          target_space == heap()->old_data_space());
   Object* result;
-  MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
+  MaybeObject* maybe_result = target_space->AllocateRaw(
+      object_size,
+      PagedSpace::MOVE_OBJECT);
   if (maybe_result->ToObject(&result)) {
     HeapObject* target = HeapObject::cast(result);
     MigrateObject(target->address(),
@@ -3015,7 +3017,7 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
       int size = object->Size();
 
-      MaybeObject* target = space->AllocateRaw(size);
+      MaybeObject* target = space->AllocateRaw(size, PagedSpace::MOVE_OBJECT);
       if (target->IsFailure()) {
         // OS refused to give us memory.
         V8::FatalProcessOutOfMemory("Evacuation");

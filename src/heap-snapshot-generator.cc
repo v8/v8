@@ -397,7 +397,7 @@ void HeapObjectsMap::SnapshotGenerationFinished() {
 }
 
 
-void HeapObjectsMap::MoveObject(Address from, Address to) {
+void HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
   ASSERT(to != NULL);
   ASSERT(from != NULL);
   if (from == to) return;
@@ -428,8 +428,23 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
     int from_entry_info_index =
         static_cast<int>(reinterpret_cast<intptr_t>(from_value));
     entries_.at(from_entry_info_index).addr = to;
+    // Size of an object can change during its life, so to keep information
+    // about the object in entries_ consistent, we have to adjust size when the
+    // object is migrated.
+    entries_.at(from_entry_info_index).size = object_size;
     to_entry->value = from_value;
   }
+}
+
+
+void HeapObjectsMap::NewObject(Address addr, int size) {
+  ASSERT(addr != NULL);
+  FindOrAddEntry(addr, size, false);
+}
+
+
+void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
+  FindOrAddEntry(addr, size, false);
 }
 
 
@@ -445,7 +460,8 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
 
 
 SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
-                                                unsigned int size) {
+                                                unsigned int size,
+                                                bool accessed) {
   ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   HashMap::Entry* entry = entries_map_.Lookup(addr, ComputePointerHash(addr),
                                               true);
@@ -453,14 +469,14 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
     int entry_index =
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_.at(entry_index);
-    entry_info.accessed = true;
+    entry_info.accessed = accessed;
     entry_info.size = size;
     return entry_info.id;
   }
   entry->value = reinterpret_cast<void*>(entries_.length());
   SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
-  entries_.Add(EntryInfo(id, addr, size));
+  entries_.Add(EntryInfo(id, addr, size, accessed));
   ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   return id;
 }
@@ -481,6 +497,27 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
     FindOrAddEntry(obj->address(), obj->Size());
   }
   RemoveDeadEntries();
+}
+
+
+int HeapObjectsMap::FindUntrackedObjects() {
+  HeapIterator iterator(heap_);
+  int untracked = 0;
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next()) {
+    HashMap::Entry* entry = entries_map_.Lookup(
+      obj->address(), ComputePointerHash(obj->address()), false);
+    if (entry == NULL) {
+      untracked++;
+    } else {
+      int entry_index = static_cast<int>(
+          reinterpret_cast<intptr_t>(entry->value));
+      EntryInfo& entry_info = entries_.at(entry_index);
+      CHECK_EQ(obj->Size(), static_cast<int>(entry_info.size));
+    }
+  }
+  return untracked;
 }
 
 

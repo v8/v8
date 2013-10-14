@@ -2284,6 +2284,13 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
       MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
     }
   }
+
+  // The array may not be moved during GC,
+  // and size has to be adjusted nevertheless.
+  HeapProfiler* profiler = heap->isolate()->heap_profiler();
+  if (profiler->is_tracking_allocations()) {
+    profiler->UpdateObjectSizeEvent(elms->address(), elms->Size());
+  }
 }
 
 

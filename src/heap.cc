@@ -2101,7 +2101,8 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (logging_and_profiling_mode == LOGGING_AND_PROFILING_ENABLED) {
       // Update NewSpace stats if necessary.
       RecordCopiedObject(heap, target);
-      HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
+      HEAP_PROFILE(heap,
+                   ObjectMoveEvent(source->address(), target->address(), size));
       Isolate* isolate = heap->isolate();
       if (isolate->logger()->is_logging_code_events() ||
           isolate->cpu_profiler()->is_profiling()) {
@@ -4927,6 +4928,13 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
       alloc_memento->set_map_no_write_barrier(allocation_memento_map());
       ASSERT(site->map() == allocation_site_map());
       alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
+      HeapProfiler* profiler = isolate()->heap_profiler();
+      if (profiler->is_tracking_allocations()) {
+        profiler->UpdateObjectSizeEvent(HeapObject::cast(clone)->address(),
+                                        object_size);
+        profiler->NewObjectEvent(alloc_memento->address(),
+                                 AllocationMemento::kSize);
+      }
     }
   }
 

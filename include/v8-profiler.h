@@ -475,6 +475,19 @@ class V8_EXPORT HeapProfiler {
    */
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
+  /**
+   * Starts recording JS allocations immediately as they arrive and tracking of
+   * heap objects population statistics.
+   */
+  void StartRecordingHeapAllocations();
+
+  /**
+   * Stops recording JS allocations and tracking of heap objects population
+   * statistics, cleans all collected heap objects population statistics data.
+   */
+  void StopRecordingHeapAllocations();
+
+
  private:
   HeapProfiler();
   ~HeapProfiler();
