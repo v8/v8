@@ -4375,9 +4375,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // building an AST. This gathers the data needed to build a lazy
         // function.
         SingletonLogger logger;
-        preparser::PreParser::PreParseResult result =
-            LazyParseFunctionLiteral(&logger);
-        if (result == preparser::PreParser::kPreParseStackOverflow) {
+        PreParser::PreParseResult result = LazyParseFunctionLiteral(&logger);
+        if (result == PreParser::kPreParseStackOverflow) {
           // Propagate stack overflow.
           stack_overflow_ = true;
           *ok = false;
@@ -4535,16 +4534,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 }
 
 
-preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
+PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
     SingletonLogger* logger) {
   HistogramTimerScope preparse_scope(isolate()->counters()->pre_parse());
   ASSERT_EQ(Token::LBRACE, scanner().current_token());
 
   if (reusable_preparser_ == NULL) {
     intptr_t stack_limit = isolate()->stack_guard()->real_climit();
-    reusable_preparser_ = new preparser::PreParser(&scanner_,
-                                                   NULL,
-                                                   stack_limit);
+    reusable_preparser_ = new PreParser(&scanner_, NULL, stack_limit);
     reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
     reusable_preparser_->set_allow_modules(allow_modules());
     reusable_preparser_->set_allow_natives_syntax(allow_natives_syntax());
@@ -4554,7 +4551,7 @@ preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
     reusable_preparser_->set_allow_harmony_numeric_literals(
         allow_harmony_numeric_literals());
   }
-  preparser::PreParser::PreParseResult result =
+  PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
                                                 is_generator(),
                                                 logger);
@@ -5821,15 +5818,15 @@ ScriptDataImpl* PreParserApi::PreParse(Isolate* isolate,
   HistogramTimerScope timer(isolate->counters()->pre_parse());
   Scanner scanner(isolate->unicode_cache());
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
-  preparser::PreParser preparser(&scanner, &recorder, stack_limit);
+  PreParser preparser(&scanner, &recorder, stack_limit);
   preparser.set_allow_lazy(true);
   preparser.set_allow_generators(FLAG_harmony_generators);
   preparser.set_allow_for_of(FLAG_harmony_iteration);
   preparser.set_allow_harmony_scoping(FLAG_harmony_scoping);
   preparser.set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   scanner.Initialize(source);
-  preparser::PreParser::PreParseResult result = preparser.PreParseProgram();
-  if (result == preparser::PreParser::kPreParseStackOverflow) {
+  PreParser::PreParseResult result = preparser.PreParseProgram();
+  if (result == PreParser::kPreParseStackOverflow) {
     isolate->StackOverflow();
     return NULL;
   }

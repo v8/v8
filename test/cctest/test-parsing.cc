@@ -264,12 +264,11 @@ TEST(StandAlonePreParser) {
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
 
-    v8::preparser::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(&scanner, &log, stack_limit);
     preparser.set_allow_lazy(true);
     preparser.set_allow_natives_syntax(true);
-    v8::preparser::PreParser::PreParseResult result =
-        preparser.PreParseProgram();
-    CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
     i::ScriptDataImpl data(log.ExtractData());
     CHECK(!data.has_error());
   }
@@ -300,11 +299,10 @@ TEST(StandAlonePreParserNoNatives) {
     scanner.Initialize(&stream);
 
     // Preparser defaults to disallowing natives syntax.
-    v8::preparser::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(&scanner, &log, stack_limit);
     preparser.set_allow_lazy(true);
-    v8::preparser::PreParser::PreParseResult result =
-        preparser.PreParseProgram();
-    CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
     i::ScriptDataImpl data(log.ExtractData());
     // Data contains syntax error.
     CHECK(data.has_error());
@@ -402,11 +400,10 @@ TEST(PreParseOverflow) {
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
 
-  v8::preparser::PreParser preparser(&scanner, &log, stack_limit);
+  i::PreParser preparser(&scanner, &log, stack_limit);
   preparser.set_allow_lazy(true);
-  v8::preparser::PreParser::PreParseResult result =
-      preparser.PreParseProgram();
-  CHECK_EQ(v8::preparser::PreParser::kPreParseStackOverflow, result);
+  i::PreParser::PreParseResult result = preparser.PreParseProgram();
+  CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
 
 
@@ -1121,12 +1118,11 @@ void TestParserSyncWithFlags(i::Handle<i::String> source, unsigned flags) {
   {
     i::Scanner scanner(isolate->unicode_cache());
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-    v8::preparser::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(&scanner, &log, stack_limit);
     SET_PARSER_FLAGS(preparser, flags);
     scanner.Initialize(&stream);
-    v8::preparser::PreParser::PreParseResult result =
-        preparser.PreParseProgram();
-    CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
   i::ScriptDataImpl data(log.ExtractData());
 

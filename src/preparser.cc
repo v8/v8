@@ -53,8 +53,7 @@ int isfinite(double value);
 #endif
 
 namespace v8 {
-
-namespace preparser {
+namespace internal {
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
     i::LanguageMode mode, bool is_generator, i::ParserRecorder* log) {
@@ -1663,4 +1662,4 @@ bool PreParser::peek_any_identifier() {
          next == i::Token::YIELD;
 }
 
-} }  // v8::preparser
+} }  // v8::internal

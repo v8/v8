@@ -843,7 +843,7 @@ class Parser BASE_EMBEDDED {
                             Handle<String> type,
                             Vector< Handle<Object> > arguments);
 
-  preparser::PreParser::PreParseResult LazyParseFunctionLiteral(
+  PreParser::PreParseResult LazyParseFunctionLiteral(
        SingletonLogger* logger);
 
   AstNodeFactory<AstConstructionVisitor>* factory() {
@@ -855,7 +855,7 @@ class Parser BASE_EMBEDDED {
 
   Handle<Script> script_;
   Scanner scanner_;
-  preparser::PreParser* reusable_preparser_;
+  PreParser* reusable_preparser_;
   Scope* top_scope_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   FunctionState* current_function_state_;

@@ -33,7 +33,6 @@
 #include "scanner.h"
 
 namespace v8 {
-
 namespace internal {
 
 // Used to detect duplicates in object literals. Each of the values
@@ -125,11 +124,6 @@ void ObjectLiteralChecker<P>::CheckProperty(Token::Value property,
   }
 }
 
-}  // v8::internal
-
-namespace preparser {
-
-typedef uint8_t byte;
 
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
@@ -144,6 +138,7 @@ typedef uint8_t byte;
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
 
+typedef uint8_t byte;
 namespace i = v8::internal;
 
 class PreParser {
@@ -693,6 +688,6 @@ class PreParser {
   friend class i::ObjectLiteralChecker<PreParser>;
 };
 
-} }  // v8::preparser
+} }  // v8::internal
 
 #endif  // V8_PREPARSER_H
