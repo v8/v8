@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=50
+// Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
-function f(x) {
-  var xx = x * x;
-  var xxstr = xx.toString();
-  return xxstr.length;
+function new_object() {
+  var o = {};
+  o.a = 1;
+  o.b = 2;
+  return o;
 }
 
-function g(x) {
-  var xxx = Math.sqrt(x) | 0;
-  var xxxstr = xxx.toString();
-  return xxxstr.length;
+function add_field(obj) {
+  obj.c = 3;
 }
 
-function k(x) {
-  return x * x;
-}
+add_field(new_object());
+add_field(new_object());
+%OptimizeFunctionOnNextCall(add_field, "concurrent");
 
-f(g(1));
-assertUnoptimized(f);
-assertUnoptimized(g);
-
-%OptimizeFunctionOnNextCall(f, "concurrent");
-%OptimizeFunctionOnNextCall(g, "concurrent");
-f(g(2));  // Trigger optimization.
-
-assertUnoptimized(f, "no sync");  // Not yet optimized while background thread
-assertUnoptimized(g, "no sync");  // is running.
-
-assertOptimized(f, "sync");  // Optimized once we sync with the
-assertOptimized(g, "sync");  // background thread.
+var o = new_object();
+// Kick off recompilation.
+add_field(o);
+// Invalidate transition map after compile graph has been created.
+o.c = 2.2;
+// In the mean time, concurrent recompiling is still blocked.
+assertUnoptimized(add_field, "no sync");
+// Let concurrent recompilation proceed.
+%UnblockConcurrentRecompilation();
+// Sync with background thread to conclude optimization that bailed out.
+assertUnoptimized(add_field, "sync");
