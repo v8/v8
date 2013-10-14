@@ -51,6 +51,7 @@ namespace internal {
   HT(compile_lazy, V8.CompileLazy)
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
+  /* Heap fragmentation. */                                           \
   HP(external_fragmentation_total,                                    \
      V8.MemoryExternalFragmentationTotal)                             \
   HP(external_fragmentation_old_pointer_space,                        \
@@ -67,12 +68,26 @@ namespace internal {
      V8.MemoryExternalFragmentationPropertyCellSpace)                 \
   HP(external_fragmentation_lo_space,                                 \
      V8.MemoryExternalFragmentationLoSpace)                           \
+  /* Percentages of heap committed to each space. */                  \
+  HP(heap_fraction_new_space,                                         \
+     V8.MemoryHeapFractionNewSpace)                                   \
+  HP(heap_fraction_old_pointer_space,                                 \
+     V8.MemoryHeapFractionOldPointerSpace)                            \
+  HP(heap_fraction_old_data_space,                                    \
+     V8.MemoryHeapFractionOldDataSpace)                               \
+  HP(heap_fraction_code_space,                                        \
+     V8.MemoryHeapFractionCodeSpace)                                  \
   HP(heap_fraction_map_space,                                         \
      V8.MemoryHeapFractionMapSpace)                                   \
   HP(heap_fraction_cell_space,                                        \
      V8.MemoryHeapFractionCellSpace)                                  \
   HP(heap_fraction_property_cell_space,                               \
      V8.MemoryHeapFractionPropertyCellSpace)                          \
+  HP(heap_fraction_lo_space,                                          \
+     V8.MemoryHeapFractionLoSpace)                                    \
+  /* Percentage of crankshafted codegen. */                           \
+  HP(codegen_fraction_crankshaft,                                     \
+     V8.CodegenFractionCrankshaft)                                    \
 
 
 #define HISTOGRAM_MEMORY_LIST(HM)                                     \
@@ -84,6 +99,8 @@ namespace internal {
      V8.MemoryHeapSampleCellSpaceCommitted)                           \
   HM(heap_sample_property_cell_space_committed,                       \
      V8.MemoryHeapSamplePropertyCellSpaceCommitted)                   \
+  HM(heap_sample_code_space_committed,                                \
+     V8.MemoryHeapSampleCodeSpaceCommitted)                           \
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC

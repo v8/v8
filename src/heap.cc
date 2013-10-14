@@ -141,6 +141,8 @@ Heap::Heap()
       mark_sweeps_since_idle_round_started_(0),
       gc_count_at_last_idle_gc_(0),
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
+      full_codegen_bytes_generated_(0),
+      crankshaft_codegen_bytes_generated_(0),
       gcs_since_last_deopt_(0),
 #ifdef VERIFY_HEAP
       no_weak_object_verification_scope_depth_(0),
@@ -508,10 +510,31 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->number_of_symbols()->Set(
       string_table()->NumberOfElements());
 
+  if (full_codegen_bytes_generated_ + crankshaft_codegen_bytes_generated_ > 0) {
+    isolate_->counters()->codegen_fraction_crankshaft()->AddSample(
+        static_cast<int>((crankshaft_codegen_bytes_generated_ * 100.0) /
+            (crankshaft_codegen_bytes_generated_
+            + full_codegen_bytes_generated_)));
+  }
+
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
         static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));
 
+    isolate_->counters()->heap_fraction_new_space()->
+        AddSample(static_cast<int>(
+            (new_space()->CommittedMemory() * 100.0) / CommittedMemory()));
+    isolate_->counters()->heap_fraction_old_pointer_space()->AddSample(
+        static_cast<int>(
+            (old_pointer_space()->CommittedMemory() * 100.0) /
+            CommittedMemory()));
+    isolate_->counters()->heap_fraction_old_data_space()->AddSample(
+        static_cast<int>(
+            (old_data_space()->CommittedMemory() * 100.0) /
+            CommittedMemory()));
+    isolate_->counters()->heap_fraction_code_space()->
+        AddSample(static_cast<int>(
+            (code_space()->CommittedMemory() * 100.0) / CommittedMemory()));
     isolate_->counters()->heap_fraction_map_space()->AddSample(
         static_cast<int>(
             (map_space()->CommittedMemory() * 100.0) / CommittedMemory()));
@@ -522,6 +545,9 @@ void Heap::GarbageCollectionEpilogue() {
         AddSample(static_cast<int>(
             (property_cell_space()->CommittedMemory() * 100.0) /
             CommittedMemory()));
+    isolate_->counters()->heap_fraction_lo_space()->
+        AddSample(static_cast<int>(
+            (lo_space()->CommittedMemory() * 100.0) / CommittedMemory()));
 
     isolate_->counters()->heap_sample_total_committed()->AddSample(
         static_cast<int>(CommittedMemory() / KB));
@@ -535,6 +561,8 @@ void Heap::GarbageCollectionEpilogue() {
         heap_sample_property_cell_space_committed()->
             AddSample(static_cast<int>(
                 property_cell_space()->CommittedMemory() / KB));
+    isolate_->counters()->heap_sample_code_space_committed()->AddSample(
+        static_cast<int>(code_space()->CommittedMemory() / KB));
   }
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                                       \

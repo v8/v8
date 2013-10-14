@@ -1676,6 +1676,14 @@ class Heap {
     total_regexp_code_generated_ += size;
   }
 
+  void IncrementCodeGeneratedBytes(bool is_crankshafted, int size) {
+    if (is_crankshafted) {
+      crankshaft_codegen_bytes_generated_ += size;
+    } else {
+      full_codegen_bytes_generated_ += size;
+    }
+  }
+
   // Returns maximum GC pause.
   double get_max_gc_pause() { return max_gc_pause_; }
 
@@ -2370,6 +2378,10 @@ class Heap {
   int mark_sweeps_since_idle_round_started_;
   unsigned int gc_count_at_last_idle_gc_;
   int scavenges_since_last_idle_round_;
+
+  // These two counters are monotomically increasing and never reset.
+  size_t full_codegen_bytes_generated_;
+  size_t crankshaft_codegen_bytes_generated_;
 
   // If the --deopt_every_n_garbage_collections flag is set to a positive value,
   // this variable holds the number of garbage collections since the last

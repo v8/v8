@@ -116,6 +116,8 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
                                   false, is_crankshafted);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
+  isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
+      code->instruction_size());
   code->set_prologue_offset(info->prologue_offset());
   return code;
 }
