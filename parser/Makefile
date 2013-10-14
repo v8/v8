@@ -38,6 +38,7 @@ ANDROID_NDK_HOST_ARCH ?=
 ANDROID_TOOLCHAIN ?=
 ANDROID_V8 ?= /data/local/tmp/v8
 NACL_SDK_ROOT ?=
+RE2C ?= re2c
 
 # Special build flags. Use them like this: "make library=shared"
 
