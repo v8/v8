@@ -2571,8 +2571,6 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
 
-  if (loop != NULL) loop->set_condition_position(position());
-
   Expression* cond = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
@@ -3024,13 +3022,10 @@ Expression* Parser::ParseConditionalExpression(bool accept_IN, bool* ok) {
   // In parsing the first assignment expression in conditional
   // expressions we always accept the 'in' keyword; see ECMA-262,
   // section 11.12, page 58.
-  int left_position = peek_position();
   Expression* left = ParseAssignmentExpression(true, CHECK_OK);
   Expect(Token::COLON, CHECK_OK);
-  int right_position = peek_position();
   Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  return factory()->NewConditional(
-      expression, left, right, left_position, right_position, pos);
+  return factory()->NewConditional(expression, left, right, pos);
 }
 
 

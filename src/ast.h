@@ -255,7 +255,6 @@ class AstNode: public ZoneObject {
 
 class Statement : public AstNode {
  public:
-  // TODO(rossberg)
   explicit Statement(int position) : AstNode(position) {}
 
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
@@ -765,12 +764,6 @@ class DoWhileStatement V8_FINAL : public IterationStatement {
 
   Expression* cond() const { return cond_; }
 
-  // TODO(rossberg): get rid of this.
-  // Position where condition expression starts. We need it to make
-  // the loop's condition a breakable location.
-  int condition_position() { return condition_position_; }
-  void set_condition_position(int pos) { condition_position_ = pos; }
-
   virtual BailoutId ContinueId() const V8_OVERRIDE { return continue_id_; }
   virtual BailoutId StackCheckId() const V8_OVERRIDE { return back_edge_id_; }
   BailoutId BackEdgeId() const { return back_edge_id_; }
@@ -779,15 +772,12 @@ class DoWhileStatement V8_FINAL : public IterationStatement {
   DoWhileStatement(Isolate* isolate, ZoneStringList* labels, int pos)
       : IterationStatement(isolate, labels, pos),
         cond_(NULL),
-        condition_position_(-1),
         continue_id_(GetNextId(isolate)),
         back_edge_id_(GetNextId(isolate)) {
   }
 
  private:
   Expression* cond_;
-
-  int condition_position_;
 
   const BailoutId continue_id_;
   const BailoutId back_edge_id_;
@@ -2058,10 +2048,6 @@ class Conditional V8_FINAL : public Expression {
   Expression* then_expression() const { return then_expression_; }
   Expression* else_expression() const { return else_expression_; }
 
-  // TODO(rossberg): get rid of this.
-  int then_expression_position() const { return then_expression_position_; }
-  int else_expression_position() const { return else_expression_position_; }
-
   BailoutId ThenId() const { return then_id_; }
   BailoutId ElseId() const { return else_id_; }
 
@@ -2070,15 +2056,11 @@ class Conditional V8_FINAL : public Expression {
               Expression* condition,
               Expression* then_expression,
               Expression* else_expression,
-              int then_expression_position,
-              int else_expression_position,
               int position)
       : Expression(isolate, position),
         condition_(condition),
         then_expression_(then_expression),
         else_expression_(else_expression),
-        then_expression_position_(then_expression_position),
-        else_expression_position_(else_expression_position),
         then_id_(GetNextId(isolate)),
         else_id_(GetNextId(isolate)) { }
 
@@ -2086,8 +2068,6 @@ class Conditional V8_FINAL : public Expression {
   Expression* condition_;
   Expression* then_expression_;
   Expression* else_expression_;
-  int then_expression_position_;
-  int else_expression_position_;
   const BailoutId then_id_;
   const BailoutId else_id_;
 };
@@ -3192,12 +3172,9 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
   Conditional* NewConditional(Expression* condition,
                               Expression* then_expression,
                               Expression* else_expression,
-                              int then_expression_position,
-                              int else_expression_position,
                               int position) {
     Conditional* cond = new(zone_) Conditional(
-        isolate_, condition, then_expression, else_expression,
-        then_expression_position, else_expression_position, position);
+        isolate_, condition, then_expression, else_expression, position);
     VISIT_AND_RETURN(Conditional, cond)
   }
 
@@ -3251,9 +3228,8 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     return lit;
   }
 
-  NativeFunctionLiteral* NewNativeFunctionLiteral(Handle<String> name,
-                                                  v8::Extension* extension,
-                                                  int pos) {
+  NativeFunctionLiteral* NewNativeFunctionLiteral(
+      Handle<String> name, v8::Extension* extension, int pos) {
     NativeFunctionLiteral* lit =
         new(zone_) NativeFunctionLiteral(isolate_, name, extension, pos);
     VISIT_AND_RETURN(NativeFunctionLiteral, lit)
