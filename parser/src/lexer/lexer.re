@@ -29,10 +29,25 @@
 
 // ----------------------------------------------------------------------
 #define PUSH_EOS(T) { printf("got eos\n"); }
-#define PUSH_T(T) { printf("got token %d\n", T); SKIP(); }
-#define PUSH_STRING() { printf("got string\n"); SKIP(); }
-#define PUSH_NUMBER() { printf("got number\n"); SKIP(); }
+#define PUSH_TOKEN(T) { \
+        printf("got token %s (%d)\n", tokenNames[T], T); \
+         SKIP(); }
+#define PUSH_STRING() { \
+        --cursor; \
+        printf("got string\n"); \
+        size_t tokenSize = cursor-start; \
+        fwrite(start, tokenSize, 1, stdout); \
+        printf("\n"); \
+        SKIP(); }
+#define PUSH_NUMBER() { \
+        --cursor; \
+        printf("got number\n"); \
+        size_t tokenSize = cursor-start; \
+        fwrite(start, tokenSize, 1, stdout); \
+        printf("\n"); \
+        SKIP(); }
 #define PUSH_IDENTIFIER() { \
+        --cursor; \
         printf("got identifier: "); \
         size_t tokenSize = cursor-start; \
         fwrite(start, tokenSize, 1, stdout); \
@@ -251,7 +266,6 @@ public:
         #define YYCTYPE         uint8_t
 
         #define SKIP()          { start = cursor; YYSETCONDITION(EConditionNormal); goto yy0; }
-        #define SEND(x)         { send(x); SKIP();          }
         #define YYFILL(n)       { goto fill;                }
 
         #define YYGETSTATE()    state
@@ -280,58 +294,58 @@ public:
         number_char = [0-9\.e];
         line_terminator = [\n\r]+;
 
-        <Normal> "("                     { PUSH_T(LPAREN); }
-        <Normal> ")"                     { PUSH_T(RPAREN); }
-        <Normal> "["                     { PUSH_T(LBRACK); }
-        <Normal> "]"                     { PUSH_T(RBRACK); }
-        <Normal> "{"                     { PUSH_T(LBRACE); }
-        <Normal> "}"                     { PUSH_T(RBRACE); }
-        <Normal> ":"                     { PUSH_T(COLON); }
-        <Normal> ";"                     { PUSH_T(SEMICOLON); }
-        <Normal> "."                     { PUSH_T(PERIOD); }
-        <Normal> "?"                     { PUSH_T(CONDITIONAL); }
-        <Normal> "++"                    { PUSH_T(INC); }
-        <Normal> "--"                    { PUSH_T(DEC); }
+        <Normal> "("                     { PUSH_TOKEN(LPAREN); }
+        <Normal> ")"                     { PUSH_TOKEN(RPAREN); }
+        <Normal> "["                     { PUSH_TOKEN(LBRACK); }
+        <Normal> "]"                     { PUSH_TOKEN(RBRACK); }
+        <Normal> "{"                     { PUSH_TOKEN(LBRACE); }
+        <Normal> "}"                     { PUSH_TOKEN(RBRACE); }
+        <Normal> ":"                     { PUSH_TOKEN(COLON); }
+        <Normal> ";"                     { PUSH_TOKEN(SEMICOLON); }
+        <Normal> "."                     { PUSH_TOKEN(PERIOD); }
+        <Normal> "?"                     { PUSH_TOKEN(CONDITIONAL); }
+        <Normal> "++"                    { PUSH_TOKEN(INC); }
+        <Normal> "--"                    { PUSH_TOKEN(DEC); }
 
-        <Normal> "|="                    { PUSH_T(ASSIGN_BIT_OR); }
-        <Normal> "^="                    { PUSH_T(ASSIGN_BIT_XOR); }
-        <Normal> "&="                    { PUSH_T(ASSIGN_BIT_AND); }
-        <Normal> "<<="                   { PUSH_T(ASSIGN_SHL); }
-        <Normal> ">>="                   { PUSH_T(ASSIGN_SAR); }
-        <Normal> ">>>="                  { PUSH_T(ASSIGN_SHR); }
-        <Normal> "+="                    { PUSH_T(ASSIGN_ADD); }
-        <Normal> "-="                    { PUSH_T(ASSIGN_SUB); }
-        <Normal> "*="                    { PUSH_T(ASSIGN_MUL); }
-        <Normal> "/="                    { PUSH_T(ASSIGN_DIV); }
-        <Normal> "%="                    { PUSH_T(ASSIGN_MOD); }
+        <Normal> "|="                    { PUSH_TOKEN(ASSIGN_BIT_OR); }
+        <Normal> "^="                    { PUSH_TOKEN(ASSIGN_BIT_XOR); }
+        <Normal> "&="                    { PUSH_TOKEN(ASSIGN_BIT_AND); }
+        <Normal> "<<="                   { PUSH_TOKEN(ASSIGN_SHL); }
+        <Normal> ">>="                   { PUSH_TOKEN(ASSIGN_SAR); }
+        <Normal> ">>>="                  { PUSH_TOKEN(ASSIGN_SHR); }
+        <Normal> "+="                    { PUSH_TOKEN(ASSIGN_ADD); }
+        <Normal> "-="                    { PUSH_TOKEN(ASSIGN_SUB); }
+        <Normal> "*="                    { PUSH_TOKEN(ASSIGN_MUL); }
+        <Normal> "/="                    { PUSH_TOKEN(ASSIGN_DIV); }
+        <Normal> "%="                    { PUSH_TOKEN(ASSIGN_MOD); }
 
-        <Normal> ","                     { PUSH_T(COMMA); }
-        <Normal> "||"                    { PUSH_T(OR); }
-        <Normal> "&&"                    { PUSH_T(AND); }
-        <Normal> "|"                     { PUSH_T(BIT_OR); }
-        <Normal> "^"                     { PUSH_T(BIT_XOR); }
-        <Normal> "&"                     { PUSH_T(BIT_AND); }
-        <Normal> "<<"                    { PUSH_T(SHL); }
-        <Normal> ">>"                    { PUSH_T(SAR); }
-        <Normal> "+"                     { PUSH_T(ADD); }
-        <Normal> "-"                     { PUSH_T(SUB); }
-        <Normal> "*"                     { PUSH_T(MUL); }
-        <Normal> "/"                     { PUSH_T(DIV); }
-        <Normal> "%"                     { PUSH_T(MOD); }
+        <Normal> ","                     { PUSH_TOKEN(COMMA); }
+        <Normal> "||"                    { PUSH_TOKEN(OR); }
+        <Normal> "&&"                    { PUSH_TOKEN(AND); }
+        <Normal> "|"                     { PUSH_TOKEN(BIT_OR); }
+        <Normal> "^"                     { PUSH_TOKEN(BIT_XOR); }
+        <Normal> "&"                     { PUSH_TOKEN(BIT_AND); }
+        <Normal> "<<"                    { PUSH_TOKEN(SHL); }
+        <Normal> ">>"                    { PUSH_TOKEN(SAR); }
+        <Normal> "+"                     { PUSH_TOKEN(ADD); }
+        <Normal> "-"                     { PUSH_TOKEN(SUB); }
+        <Normal> "*"                     { PUSH_TOKEN(MUL); }
+        <Normal> "/"                     { PUSH_TOKEN(DIV); }
+        <Normal> "%"                     { PUSH_TOKEN(MOD); }
 
-        <Normal> "==="                   { PUSH_T(EQ_STRICT); }
-        <Normal> "=="                    { PUSH_T(EQ); }
-        <Normal> "!=="                   { PUSH_T(NE_STRICT); }
-        <Normal> "!="                    { PUSH_T(NE); }
-        <Normal> "<="                    { PUSH_T(LTE); }
-        <Normal> ">="                    { PUSH_T(GTE); }
-        <Normal> "<"                     { PUSH_T(LT); }
-        <Normal> ">"                     { PUSH_T(GT); }
+        <Normal> "==="                   { PUSH_TOKEN(EQ_STRICT); }
+        <Normal> "=="                    { PUSH_TOKEN(EQ); }
+        <Normal> "!=="                   { PUSH_TOKEN(NE_STRICT); }
+        <Normal> "!="                    { PUSH_TOKEN(NE); }
+        <Normal> "<="                    { PUSH_TOKEN(LTE); }
+        <Normal> ">="                    { PUSH_TOKEN(GTE); }
+        <Normal> "<"                     { PUSH_TOKEN(LT); }
+        <Normal> ">"                     { PUSH_TOKEN(GT); }
 
-        <Normal> "="                     { PUSH_T(ASSIGN); }
+        <Normal> "="                     { PUSH_TOKEN(ASSIGN); }
 
-        <Normal> "!"                     { PUSH_T(NOT); }
-        <Normal> "~"                     { PUSH_T(BIT_NOT); }
+        <Normal> "!"                     { PUSH_TOKEN(NOT); }
+        <Normal> "~"                     { PUSH_TOKEN(BIT_NOT); }
 
         <Normal> line_terminator+        { PUSH_LINE_TERMINATOR(); }
         <Normal> whitespace              { SKIP();}
@@ -349,31 +363,30 @@ public:
         <Normal> eof                     { PUSH_EOS(); return 1; }
         <Normal> any                     { TERMINATE_ILLEGAL(); }
 
-        <DoubleQuoteString> "\\\""       {}
-        <DoubleQuoteString> ["]          { PUSH_STRING();}
-        <DoubleQuoteString> any          {}
+        <DoubleQuoteString> "\\\""       { goto yy0; }
+        <DoubleQuoteString> '"'          { PUSH_STRING();}
+        <DoubleQuoteString> any          { goto yy0; }
 
-        <SingleQuoteString> "\\'"    {}
+        <SingleQuoteString> "\\'"    { goto yy0; }
         <SingleQuoteString> "'"      { PUSH_STRING();}
-        <SingleQuoteString> any      {}
+        <SingleQuoteString> any      { goto yy0; }
 
-        <Identifier> identifier_char+  {}
+        <Identifier> identifier_char+  { goto yy0; }
         <Identifier> any               { PUSH_IDENTIFIER(); }
 
-        <SingleLineComment> line_terminator
-                                       { PUSH_LINE_TERMINATOR();}
-
-        <SingleLineComment> any+     {}
+        <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
+        <SingleLineComment> eof { PUSH_LINE_TERMINATOR();}
+        <SingleLineComment> any     :=> SingleLineComment
 
         <MultiLineComment> [*][//]      { PUSH_LINE_TERMINATOR();}
         <MultiLineComment> eof { TERMINATE_ILLEGAL(); }
-        <MultiLineComment> any+       {}
+        <MultiLineComment> any       :=> MultiLineComment
 
-        <HtmlComment> any+            {}
         <HtmlComment> eof { TERMINATE_ILLEGAL(); }
-        <HtmlComment> "-->"           { }
+        <HtmlComment> "-->"          { PUSH_LINE_TERMINATOR();}
+        <HtmlComment> any            :=> HtmlComment
 
-        <Number> number_char+          { }
+        <Number> number_char+          { goto yy0; }
         <Number> any                   { PUSH_NUMBER(); }
 
         */
