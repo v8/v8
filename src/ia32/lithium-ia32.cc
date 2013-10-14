@@ -1926,7 +1926,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   // building a stack frame.
   if (from.IsTagged()) {
     if (to.IsDouble()) {
-      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       // Temp register only necessary for minus zero check.
       LOperand* temp = TempRegister();

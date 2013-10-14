@@ -25,33 +25,70 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Testing v8Parse method for date and time pattern.
+// Test bitwise operations with booleans.
 
-var dtf = new Intl.DateTimeFormat(['en'],
-                                  {year: 'numeric', month: 'numeric',
-                                   day: 'numeric', hour: 'numeric',
-                                   minute: 'numeric', second: 'numeric',
-                                   timeZone: 'UTC'});
+var t = 1;
 
-// Make sure we have pattern we expect (may change in the future).
-assertEquals('M/d/y h:mm:ss a', dtf.resolved.pattern);
+function testFalseLeftHandSide() {
+  var b;
+  if (t) b = false;
+  assertEquals(b | 1, 1);
+  assertEquals(b & 1, 0);
+  assertEquals(b ^ 1, 1);
+  assertEquals(b << 1, 0);
+  assertEquals(b >> 1, 0);
+  assertEquals(b >>> 1, 0);
+}
 
-var date = dtf.v8Parse('2/4/74 12:30:42 pm');
-assertEquals(1974, date.getUTCFullYear());
-assertEquals(1, date.getUTCMonth());
-assertEquals(4, date.getUTCDate());
-assertEquals(12, date.getUTCHours());
-assertEquals(30, date.getUTCMinutes());
-assertEquals(42, date.getUTCSeconds());
+function testFalseRightHandSide() {
+  if (t) b = false;
+  assertEquals(1 |   b, 1);
+  assertEquals(1 &   b, 0);
+  assertEquals(1 ^   b, 1);
+  assertEquals(1 <<  b, 1);
+  assertEquals(1 >>  b, 1);
+  assertEquals(1 >>> b, 1);
+}
 
-// AM/PM were not specified.
-assertEquals(undefined, dtf.v8Parse('2/4/74 12:30:12'));
+function testTrueLeftHandSide() {
+  if (t) b = true;
+  assertEquals(b | 1, 1);
+  assertEquals(b & 1, 1);
+  assertEquals(b ^ 1, 0);
+  assertEquals(b << 1, 2);
+  assertEquals(b >> 1, 0);
+  assertEquals(b >>> 1, 0);
+}
 
-// Time was not specified.
-assertEquals(undefined, dtf.v8Parse('2/4/74'));
+function testTrueRightHandSide() {
+  if (t) b = true;
+  assertEquals(1 |   b, 1);
+  assertEquals(1 &   b, 1);
+  assertEquals(1 ^   b, 0);
+  assertEquals(1 <<  b, 2);
+  assertEquals(1 >>  b, 0);
+  assertEquals(1 >>> b, 0);
+}
 
-// Month is numeric, so it fails on "Feb".
-assertEquals(undefined, dtf.v8Parse('Feb 4th 1974'));
+function testBothSides() {
+  if (t) a = true;
+  if (t) b = false;
+  assertEquals(a |   b, 1);
+  assertEquals(a &   b, 0);
+  assertEquals(a ^   b, 1);
+  assertEquals(a <<  b, 1);
+  assertEquals(a >>  b, 1);
+  assertEquals(a >>> b, 1);
+}
 
-// Wrong date delimiter.
-assertEquals(undefined, dtf.v8Parse('2-4-74 12:30:12 am'));
+
+testFalseLeftHandSide();
+testFalseRightHandSide();
+testTrueLeftHandSide();
+testTrueRightHandSide();
+testFalseLeftHandSide();
+testFalseRightHandSide();
+testTrueLeftHandSide();
+testTrueRightHandSide();
+testBothSides();
+testBothSides();

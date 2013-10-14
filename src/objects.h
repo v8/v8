@@ -5073,7 +5073,7 @@ class Code: public HeapObject {
 
   // Find |length| handlers and put them into |code_list|. Returns false if not
   // enough handlers can be found.
-  MUST_USE_RESULT bool FindHandlers(CodeHandleList* code_list, int length);
+  bool FindHandlers(CodeHandleList* code_list, int length = -1);
 
   // Find the first name in an IC stub.
   Name* FindFirstName();

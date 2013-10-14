@@ -4612,24 +4612,38 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
 
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
-  Label heap_number;
   Register input_reg = ToRegister(instr->value());
 
-
   if (instr->truncating()) {
+    Label no_heap_number, check_bools, check_false;
+
     // Heap number map check.
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    __ j(equal, &heap_number, Label::kNear);
-    // Check for undefined. Undefined is converted to zero for truncating
-    // conversions.
+    __ j(not_equal, &no_heap_number, Label::kNear);
+    __ TruncateHeapNumberToI(input_reg, input_reg);
+    __ jmp(done);
+
+    __ bind(&no_heap_number);
+    // Check for Oddballs. Undefined/False is converted to zero and True to one
+    // for truncating conversions.
     __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-    DeoptimizeIf(not_equal, instr->environment());
+    __ j(not_equal, &check_bools, Label::kNear);
     __ Set(input_reg, 0);
     __ jmp(done);
 
-    __ bind(&heap_number);
-    __ TruncateHeapNumberToI(input_reg, input_reg);
+    __ bind(&check_bools);
+    __ CompareRoot(input_reg, Heap::kTrueValueRootIndex);
+    __ j(not_equal, &check_false, Label::kNear);
+    __ Set(input_reg, 1);
+    __ jmp(done);
+
+    __ bind(&check_false);
+    __ CompareRoot(input_reg, Heap::kFalseValueRootIndex);
+    __ RecordComment("Deferred TaggedToI: cannot truncate");
+    DeoptimizeIf(not_equal, instr->environment());
+    __ Set(input_reg, 0);
+    __ jmp(done);
   } else {
     Label bailout;
     XMMRegister xmm_temp = ToDoubleRegister(instr->temp());

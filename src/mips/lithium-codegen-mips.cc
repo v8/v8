@@ -4895,19 +4895,32 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   if (instr->truncating()) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
-    Label heap_number;
-    __ Branch(&heap_number, eq, scratch1, Operand(at));  // HeapNumber map?
-    // Check for undefined. Undefined is converted to zero for truncating
-    // conversions.
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-    DeoptimizeIf(ne, instr->environment(), input_reg, Operand(at));
-    ASSERT(ToRegister(instr->result()).is(input_reg));
-    __ mov(input_reg, zero_reg);
-    __ Branch(&done);
-
-    __ bind(&heap_number);
+    Label no_heap_number, check_bools, check_false;
+    __ Branch(&no_heap_number, ne, scratch1, Operand(at));  // HeapNumber map?
     __ mov(scratch2, input_reg);
     __ TruncateHeapNumberToI(input_reg, scratch2);
+    __ Branch(&done);
+
+    // Check for Oddballs. Undefined/False is converted to zero and True to one
+    // for truncating conversions.
+    __ bind(&no_heap_number);
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ Branch(&check_bools, ne, input_reg, Operand(at));
+    ASSERT(ToRegister(instr->result()).is(input_reg));
+    __ Branch(USE_DELAY_SLOT, &done);
+    __ mov(input_reg, zero_reg);  // In delay slot.
+
+    __ bind(&check_bools);
+    __ LoadRoot(at, Heap::kTrueValueRootIndex);
+    __ Branch(&check_false, ne, scratch2, Operand(at));
+    __ Branch(USE_DELAY_SLOT, &done);
+    __ li(input_reg, Operand(1));  // In delay slot.
+
+    __ bind(&check_false);
+    __ LoadRoot(at, Heap::kFalseValueRootIndex);
+    DeoptimizeIf(ne, instr->environment(), scratch2, Operand(at));
+    __ Branch(USE_DELAY_SLOT, &done);
+    __ mov(input_reg, zero_reg);  // In delay slot.
   } else {
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment(), scratch1, Operand(at));

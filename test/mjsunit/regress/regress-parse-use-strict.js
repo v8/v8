@@ -25,33 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Testing v8Parse method for date and time pattern.
+// Filler long enough to trigger lazy parsing.
+var filler = "/*" + new Array(1024).join('x') + "*/";
 
-var dtf = new Intl.DateTimeFormat(['en'],
-                                  {year: 'numeric', month: 'numeric',
-                                   day: 'numeric', hour: 'numeric',
-                                   minute: 'numeric', second: 'numeric',
-                                   timeZone: 'UTC'});
+// Snippet trying to switch to strict mode.
+var strict = '"use strict"; with({}) {}';
 
-// Make sure we have pattern we expect (may change in the future).
-assertEquals('M/d/y h:mm:ss a', dtf.resolved.pattern);
+// Test switching to strict mode after string literal.
+assertThrows('function f() { "use sanity";' + strict + '}');
+assertThrows('function f() { "use sanity";' + strict + filler + '}');
 
-var date = dtf.v8Parse('2/4/74 12:30:42 pm');
-assertEquals(1974, date.getUTCFullYear());
-assertEquals(1, date.getUTCMonth());
-assertEquals(4, date.getUTCDate());
-assertEquals(12, date.getUTCHours());
-assertEquals(30, date.getUTCMinutes());
-assertEquals(42, date.getUTCSeconds());
-
-// AM/PM were not specified.
-assertEquals(undefined, dtf.v8Parse('2/4/74 12:30:12'));
-
-// Time was not specified.
-assertEquals(undefined, dtf.v8Parse('2/4/74'));
-
-// Month is numeric, so it fails on "Feb".
-assertEquals(undefined, dtf.v8Parse('Feb 4th 1974'));
-
-// Wrong date delimiter.
-assertEquals(undefined, dtf.v8Parse('2-4-74 12:30:12 am'));
+// Test switching to strict mode after function declaration.
+// We must use eval instead of assertDoesNotThrow here to make sure that
+// lazy parsing is triggered. Otherwise the bug won't reproduce.
+eval('function f() { function g() {}' + strict + '}');
+eval('function f() { function g() {}' + strict + filler + '}');

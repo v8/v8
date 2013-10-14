@@ -885,8 +885,7 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
     // critical.
     if (left_type->Maybe(Type::String())) {
       IfBuilder left_string(this);
-      left_string.IfNot<HIsSmiAndBranch>(left);
-      left_string.AndIf<HIsStringAndBranch>(left);
+      left_string.If<HIsStringAndBranch>(left);
       left_string.Then();
       Push(Add<HStringAdd>(left, right, STRING_ADD_CHECK_RIGHT));
       left_string.Else();
@@ -897,8 +896,7 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
       result = Pop();
     } else {
       IfBuilder right_string(this);
-      right_string.IfNot<HIsSmiAndBranch>(right);
-      right_string.AndIf<HIsStringAndBranch>(right);
+      right_string.If<HIsStringAndBranch>(right);
       right_string.Then();
       Push(Add<HStringAdd>(left, right, STRING_ADD_CHECK_LEFT));
       right_string.Else();

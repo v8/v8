@@ -767,9 +767,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 };
 
 
-void BaseStoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
-                                                Label* label,
-                                                Handle<Name> name) {
+void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
+                                            Label* label,
+                                            Handle<Name> name) {
   if (!label->is_unused()) {
     __ bind(label);
     __ Move(this->name(), name);
@@ -795,7 +795,7 @@ static void GenerateCheckPropertyCell(MacroAssembler* masm,
 }
 
 
-void BaseStoreStubCompiler::GenerateNegativeHolderLookup(
+void StoreStubCompiler::GenerateNegativeHolderLookup(
     MacroAssembler* masm,
     Handle<JSObject> holder,
     Register holder_reg,
@@ -813,19 +813,19 @@ void BaseStoreStubCompiler::GenerateNegativeHolderLookup(
 
 // Receiver_reg is preserved on jumps to miss_label, but may be destroyed if
 // store is successful.
-void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
-                                                    Handle<JSObject> object,
-                                                    LookupResult* lookup,
-                                                    Handle<Map> transition,
-                                                    Handle<Name> name,
-                                                    Register receiver_reg,
-                                                    Register storage_reg,
-                                                    Register value_reg,
-                                                    Register scratch1,
-                                                    Register scratch2,
-                                                    Register unused,
-                                                    Label* miss_label,
-                                                    Label* slow) {
+void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
+                                                Handle<JSObject> object,
+                                                LookupResult* lookup,
+                                                Handle<Map> transition,
+                                                Handle<Name> name,
+                                                Register receiver_reg,
+                                                Register storage_reg,
+                                                Register value_reg,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register unused,
+                                                Label* miss_label,
+                                                Label* slow) {
   int descriptor = transition->LastAdded();
   DescriptorArray* descriptors = transition->instance_descriptors();
   PropertyDetails details = descriptors->GetDetails(descriptor);
@@ -958,15 +958,15 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
 // Both name_reg and receiver_reg are preserved on jumps to miss_label,
 // but may be destroyed if store is successful.
-void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                               Handle<JSObject> object,
-                                               LookupResult* lookup,
-                                               Register receiver_reg,
-                                               Register name_reg,
-                                               Register value_reg,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* miss_label) {
+void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
+                                           Handle<JSObject> object,
+                                           LookupResult* lookup,
+                                           Register receiver_reg,
+                                           Register name_reg,
+                                           Register value_reg,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* miss_label) {
   // Stub never generated for non-global objects that require access
   // checks.
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
@@ -1209,9 +1209,9 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
 }
 
 
-void BaseLoadStubCompiler::HandlerFrontendFooter(Handle<Name> name,
-                                                 Label* success,
-                                                 Label* miss) {
+void LoadStubCompiler::HandlerFrontendFooter(Handle<Name> name,
+                                             Label* success,
+                                             Label* miss) {
   if (!miss->is_unused()) {
     __ jmp(success);
     __ bind(miss);
@@ -1220,9 +1220,9 @@ void BaseLoadStubCompiler::HandlerFrontendFooter(Handle<Name> name,
 }
 
 
-void BaseStoreStubCompiler::HandlerFrontendFooter(Handle<Name> name,
-                                                  Label* success,
-                                                  Label* miss) {
+void StoreStubCompiler::HandlerFrontendFooter(Handle<Name> name,
+                                              Label* success,
+                                              Label* miss) {
   if (!miss->is_unused()) {
     __ jmp(success);
     GenerateRestoreName(masm(), miss, name);
@@ -1231,7 +1231,7 @@ void BaseStoreStubCompiler::HandlerFrontendFooter(Handle<Name> name,
 }
 
 
-Register BaseLoadStubCompiler::CallbackHandlerFrontend(
+Register LoadStubCompiler::CallbackHandlerFrontend(
     Handle<JSObject> object,
     Register object_reg,
     Handle<JSObject> holder,
@@ -1282,7 +1282,7 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
 }
 
 
-void BaseLoadStubCompiler::NonexistentHandlerFrontend(
+void LoadStubCompiler::NonexistentHandlerFrontend(
     Handle<JSObject> object,
     Handle<JSObject> last,
     Handle<Name> name,
@@ -1302,7 +1302,7 @@ void BaseLoadStubCompiler::NonexistentHandlerFrontend(
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadField(Register reg,
+void LoadStubCompiler::GenerateLoadField(Register reg,
                                              Handle<JSObject> holder,
                                              PropertyIndex field,
                                              Representation representation) {
@@ -1321,14 +1321,14 @@ void BaseLoadStubCompiler::GenerateLoadField(Register reg,
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadCallback(
+void LoadStubCompiler::GenerateLoadCallback(
     const CallOptimization& call_optimization) {
   GenerateFastApiCall(
       masm(), call_optimization, receiver(), scratch3(), 0, NULL);
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadCallback(
+void LoadStubCompiler::GenerateLoadCallback(
     Register reg,
     Handle<ExecutableAccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
@@ -1409,14 +1409,14 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
+void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
   __ LoadObject(rax, value);
   __ ret(0);
 }
 
 
-void BaseLoadStubCompiler::GenerateLoadInterceptor(
+void LoadStubCompiler::GenerateLoadInterceptor(
     Register holder_reg,
     Handle<JSObject> object,
     Handle<JSObject> interceptor_holder,
@@ -3022,6 +3022,7 @@ void KeyedStoreStubCompiler::GenerateNameCheck(Handle<Name> name,
 
 
 void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
+                                             Register receiver,
                                              Handle<JSFunction> getter) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
@@ -3033,7 +3034,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 
     if (!getter.is_null()) {
       // Call the JavaScript getter with the receiver on the stack.
-      __ push(rax);
+      __ push(receiver);
       ParameterCount actual(0);
       ParameterCount expected(getter);
       __ InvokeFunction(getter, expected, actual,

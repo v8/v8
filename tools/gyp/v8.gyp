@@ -344,6 +344,7 @@
         '../../src/hydrogen-environment-liveness.h',
         '../../src/hydrogen-escape-analysis.cc',
         '../../src/hydrogen-escape-analysis.h',
+        '../../src/hydrogen-flow-engine.h',
         '../../src/hydrogen-instructions.cc',
         '../../src/hydrogen-instructions.h',
         '../../src/hydrogen.cc',

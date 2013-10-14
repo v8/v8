@@ -234,33 +234,6 @@ bool ObjectLiteral::Property::emit_store() {
 }
 
 
-bool IsEqualString(void* first, void* second) {
-  ASSERT((*reinterpret_cast<String**>(first))->IsString());
-  ASSERT((*reinterpret_cast<String**>(second))->IsString());
-  Handle<String> h1(reinterpret_cast<String**>(first));
-  Handle<String> h2(reinterpret_cast<String**>(second));
-  return (*h1)->Equals(*h2);
-}
-
-
-bool IsEqualNumber(void* first, void* second) {
-  ASSERT((*reinterpret_cast<Object**>(first))->IsNumber());
-  ASSERT((*reinterpret_cast<Object**>(second))->IsNumber());
-
-  Handle<Object> h1(reinterpret_cast<Object**>(first));
-  Handle<Object> h2(reinterpret_cast<Object**>(second));
-  if (h1->IsSmi()) {
-    return h2->IsSmi() && *h1 == *h2;
-  }
-  if (h2->IsSmi()) return false;
-  Handle<HeapNumber> n1 = Handle<HeapNumber>::cast(h1);
-  Handle<HeapNumber> n2 = Handle<HeapNumber>::cast(h2);
-  ASSERT(std::isfinite(n1->value()));
-  ASSERT(std::isfinite(n2->value()));
-  return n1->value() == n2->value();
-}
-
-
 void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   ZoneAllocationPolicy allocator(zone);
 
