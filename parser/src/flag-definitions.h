@@ -572,6 +572,8 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_bool(trace_parse, false, "trace parsing and preparsing")
 
+DEFINE_bool(trace_lexer, false, "trace lexing")
+
 // simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
 DEFINE_bool(check_icache, false,

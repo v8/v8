@@ -42,6 +42,7 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "scanner.h"
+#include "lexer.h"
 
 using namespace v8::internal;
 
@@ -84,26 +85,17 @@ class BaselineScanner {
     delete unicode_cache_;
   }
 
-  Token::Value Next() {
-    return scanner_->Next();
-  }
-
-  Scanner::Location Location() {
-    return scanner_->location();
+  Token::Value Next(int* beg_pos, int* end_pos) {
+    Token::Value res = scanner_->Next();
+    *beg_pos = scanner_->location().beg_pos;
+    *end_pos = scanner_->location().end_pos;
+    return res;
   }
 
  private:
   UnicodeCache* unicode_cache_;
   Scanner* scanner_;
   GenericStringUtf16CharacterStream* stream_;
-};
-
-
-class ExperimentalScanner {
-  explicit ExperimentalScanner(const char* fname);
-  ~ExperimentalScanner();
-  Token::Value Next();
-  Scanner::Location Location();
 };
 
 
@@ -121,13 +113,28 @@ int main(int argc, char* argv[]) {
       Isolate* isolate = Isolate::Current();
       HandleScope handle_scope(isolate);
       BaselineScanner baseline(argv[1], isolate);
-      Token::Value current;
-      while ((current = baseline.Next()) != Token::EOS) {
-        printf("%11s => (%d, %d)\n",
-               Token::Name(current),
-               baseline.Location().beg_pos,
-               baseline.Location().end_pos);
-      }
+      ExperimentalScanner experimental(argv[1]);
+      Token::Value expected_token, actual_token;
+      int expected_beg, expected_end, actual_beg, actual_end;
+      do {
+        expected_token = baseline.Next(&expected_beg, &expected_end);
+        actual_token = experimental.Next(&actual_beg, &actual_end);
+        printf("=> %11s at (%d, %d)\n",
+               Token::Name(actual_token),
+               actual_beg, actual_end);
+        if (expected_token != actual_token ||
+            expected_beg != actual_beg ||
+            expected_end != actual_end) {
+          printf("MISMATCH:\n");
+          printf("Expected: %s at (%d, %d)\n",
+                 Token::Name(expected_token),
+                 expected_beg, expected_end);
+          printf("Actual:   %s at (%d, %d)\n",
+                 Token::Name(actual_token),
+                 actual_beg, actual_end);
+          return 1;
+        }
+      } while (actual_token != Token::EOS);
     }
   }
   v8::V8::Dispose();

@@ -41,10 +41,12 @@
       # Generated source files need this explicitly:
       'include_dirs+': [
         '../../src',
+        '../../src/lexer',
       ],
       'sources': [
         'lexer-shell.cc',
-# TODO: fix compiler errors and add '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
+        'lexer.h',
+        '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {
