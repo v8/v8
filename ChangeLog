@@ -1,3 +1,8 @@
+2013-10-14: Version 3.22.11
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-11: Version 3.22.10
 
         Fixed timezone issues with date-time/parse-* tests.
