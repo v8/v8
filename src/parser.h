@@ -592,6 +592,8 @@ class Parser BASE_EMBEDDED {
 
   bool inside_with() const { return top_scope_->inside_with(); }
   Scanner& scanner()  { return scanner_; }
+  int position() { return scanner_.location().beg_pos; }
+  int peek_position() { return scanner_.peek_location().beg_pos; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   bool is_extended_mode() {
@@ -767,8 +769,8 @@ class Parser BASE_EMBEDDED {
   Handle<String> GetSymbol();
 
   // Get odd-ball literals.
-  Literal* GetLiteralUndefined();
-  Literal* GetLiteralTheHole();
+  Literal* GetLiteralUndefined(int position);
+  Literal* GetLiteralTheHole(int position);
 
   Handle<String> ParseIdentifier(bool* ok);
   Handle<String> ParseIdentifierOrStrictReservedWord(

@@ -826,7 +826,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
-    CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+    CodeGenerator::RecordPositions(masm_, stmt->position());
   } else {
     // Check if the statement will be breakable without adding a debug break
     // slot.
@@ -836,7 +836,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
     // breakable. For breakable statements the actual recording of the
     // position will be postponed to the breakable code (typically an IC).
     bool position_recorded = CodeGenerator::RecordPositions(
-        masm_, stmt->statement_pos(), !checker.is_breakable());
+        masm_, stmt->position(), !checker.is_breakable());
     // If the position recording did record a new position generate a debug
     // break slot to make the statement breakable.
     if (position_recorded) {
@@ -844,7 +844,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
     }
   }
 #else
-  CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+  CodeGenerator::RecordPositions(masm_, stmt->position());
 #endif
 }
 

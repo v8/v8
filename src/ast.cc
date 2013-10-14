@@ -82,14 +82,13 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) {
 }
 
 
-VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
-    : Expression(isolate),
+VariableProxy::VariableProxy(Isolate* isolate, Variable* var, int position)
+    : Expression(isolate, position),
       name_(var->name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(RelocInfo::kNoPosition),
       interface_(var->interface()) {
   BindTo(var);
 }
@@ -100,13 +99,12 @@ VariableProxy::VariableProxy(Isolate* isolate,
                              bool is_this,
                              Interface* interface,
                              int position)
-    : Expression(isolate),
+    : Expression(isolate, position),
       name_(name),
       var_(NULL),
       is_this_(is_this),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(position),
       interface_(interface) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsInternalizedString());
@@ -133,11 +131,10 @@ Assignment::Assignment(Isolate* isolate,
                        Expression* target,
                        Expression* value,
                        int pos)
-    : Expression(isolate),
+    : Expression(isolate, pos),
       op_(op),
       target_(target),
       value_(value),
-      pos_(pos),
       binary_operation_(NULL),
       assignment_id_(GetNextId(isolate)),
       is_monomorphic_(false),
