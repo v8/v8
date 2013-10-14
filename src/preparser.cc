@@ -63,17 +63,17 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   set_language_mode(mode);
   Scope function_scope(&scope_, kFunctionScope);
   function_scope.set_is_generator(is_generator);
-  ASSERT_EQ(i::Token::LBRACE, scanner_->current_token());
+  ASSERT_EQ(i::Token::LBRACE, scanner()->current_token());
   bool ok = true;
-  int start_position = scanner_->peek_location().beg_pos;
+  int start_position = scanner()->peek_location().beg_pos;
   ParseLazyFunctionLiteralBody(&ok);
-  if (stack_overflow_) return kPreParseStackOverflow;
+  if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
-    ReportUnexpectedToken(scanner_->current_token());
+    ReportUnexpectedToken(scanner()->current_token());
   } else {
-    ASSERT_EQ(i::Token::RBRACE, scanner_->peek());
+    ASSERT_EQ(i::Token::RBRACE, scanner()->peek());
     if (!is_classic_mode()) {
-      int end_pos = scanner_->location().end_pos;
+      int end_pos = scanner()->location().end_pos;
       CheckOctalLiteral(start_position, end_pos, &ok);
       if (ok) {
         CheckDelayedStrictModeViolation(start_position, end_pos, &ok);
@@ -101,10 +101,10 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
   // over, in ParseProgram.
-  if (token == i::Token::ILLEGAL && stack_overflow_) {
+  if (token == i::Token::ILLEGAL && stack_overflow()) {
     return;
   }
-  i::Scanner::Location source_location = scanner_->location();
+  i::Scanner::Location source_location = scanner()->location();
 
   // Four of the tokens are treated specially
   switch (token) {
@@ -132,10 +132,10 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
 // Checks whether octal literal last seen is between beg_pos and end_pos.
 // If so, reports an error.
 void PreParser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  i::Scanner::Location octal = scanner_->octal_position();
+  i::Scanner::Location octal = scanner()->octal_position();
   if (beg_pos <= octal.beg_pos && octal.end_pos <= end_pos) {
     ReportMessageAt(octal, "strict_octal_literal", NULL);
-    scanner_->clear_octal_position();
+    scanner()->clear_octal_position();
     *ok = false;
   }
 }
@@ -274,9 +274,9 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       return ParseTryStatement(ok);
 
     case i::Token::FUNCTION: {
-      i::Scanner::Location start_location = scanner_->peek_location();
+      i::Scanner::Location start_location = scanner()->peek_location();
       Statement statement = ParseFunctionDeclaration(CHECK_OK);
-      i::Scanner::Location end_location = scanner_->location();
+      i::Scanner::Location end_location = scanner()->location();
       if (!is_classic_mode()) {
         ReportMessageAt(start_location.beg_pos, end_location.end_pos,
                         "strict_function", NULL);
@@ -304,9 +304,9 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   //      '{' FunctionBody '}'
   Expect(i::Token::FUNCTION, CHECK_OK);
 
-  bool is_generator = allow_generators_ && Check(i::Token::MUL);
+  bool is_generator = allow_generators() && Check(i::Token::MUL);
   Identifier identifier = ParseIdentifier(CHECK_OK);
-  i::Scanner::Location location = scanner_->location();
+  i::Scanner::Location location = scanner()->location();
 
   Expression function_value = ParseFunctionLiteral(is_generator, CHECK_OK);
 
@@ -402,7 +402,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       case i::CLASSIC_MODE:
         break;
       case i::STRICT_MODE: {
-        i::Scanner::Location location = scanner_->peek_location();
+        i::Scanner::Location location = scanner()->peek_location();
         ReportMessageAt(location, "strict_const", NULL);
         *ok = false;
         return Statement::Default();
@@ -410,7 +410,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       case i::EXTENDED_MODE:
         if (var_context != kSourceElement &&
             var_context != kForStatement) {
-          i::Scanner::Location location = scanner_->peek_location();
+          i::Scanner::Location location = scanner()->peek_location();
           ReportMessageAt(location.beg_pos, location.end_pos,
                           "unprotected_const", NULL);
           *ok = false;
@@ -427,7 +427,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // * It is a Syntax Error if the code that matches this production is not
     //   contained in extended code.
     if (!is_extended_mode()) {
-      i::Scanner::Location location = scanner_->peek_location();
+      i::Scanner::Location location = scanner()->peek_location();
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "illegal_let", NULL);
       *ok = false;
@@ -436,7 +436,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     Consume(i::Token::LET);
     if (var_context != kSourceElement &&
         var_context != kForStatement) {
-      i::Scanner::Location location = scanner_->peek_location();
+      i::Scanner::Location location = scanner()->peek_location();
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "unprotected_let", NULL);
       *ok = false;
@@ -457,7 +457,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     if (nvars > 0) Consume(i::Token::COMMA);
     Identifier identifier  = ParseIdentifier(CHECK_OK);
     if (!is_classic_mode() && !identifier.IsValidStrictVariable()) {
-      StrictModeIdentifierViolation(scanner_->location(),
+      StrictModeIdentifierViolation(scanner()->location(),
                                     "strict_var_name",
                                     identifier,
                                     ok);
@@ -524,7 +524,7 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
 
   Expect(i::Token::CONTINUE, CHECK_OK);
   i::Token::Value tok = peek();
-  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -541,7 +541,7 @@ PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
 
   Expect(i::Token::BREAK, CHECK_OK);
   i::Token::Value tok = peek();
-  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -567,7 +567,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // This is not handled during preparsing.
 
   i::Token::Value tok = peek();
-  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -583,7 +583,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   //   'with' '(' Expression ')' Statement
   Expect(i::Token::WITH, CHECK_OK);
   if (!is_classic_mode()) {
-    i::Scanner::Location location = scanner_->location();
+    i::Scanner::Location location = scanner()->location();
     ReportMessageAt(location, "strict_mode_with", NULL);
     *ok = false;
     return Statement::Default();
@@ -661,7 +661,7 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 bool PreParser::CheckInOrOf(bool accept_OF) {
   if (peek() == i::Token::IN ||
       (allow_for_of() && accept_OF && peek() == i::Token::IDENTIFIER &&
-       scanner_->is_next_contextual_keyword(v8::internal::CStrVector("of")))) {
+       scanner()->is_next_contextual_keyword(v8::internal::CStrVector("of")))) {
     Next();
     return true;
   }
@@ -728,8 +728,8 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
   //   'throw' [no line terminator] Expression ';'
 
   Expect(i::Token::THROW, CHECK_OK);
-  if (scanner_->HasAnyLineTerminatorBeforeNext()) {
-    i::Scanner::Location pos = scanner_->location();
+  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
+    i::Scanner::Location pos = scanner()->location();
     ReportMessageAt(pos, "newline_after_throw", NULL);
     *ok = false;
     return Statement::Default();
@@ -765,7 +765,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Expect(i::Token::LPAREN, CHECK_OK);
     Identifier id = ParseIdentifier(CHECK_OK);
     if (!is_classic_mode() && !id.IsValidStrictVariable()) {
-      StrictModeIdentifierViolation(scanner_->location(),
+      StrictModeIdentifierViolation(scanner()->location(),
                                     "strict_catch_variable",
                                     id,
                                     ok);
@@ -838,7 +838,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
     return ParseYieldExpression(ok);
   }
 
-  i::Scanner::Location before = scanner_->peek_location();
+  i::Scanner::Location before = scanner()->peek_location();
   Expression expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (!i::Token::IsAssignmentOp(peek())) {
@@ -849,7 +849,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
   if (!is_classic_mode() &&
       expression.IsIdentifier() &&
       expression.AsIdentifier().IsEvalOrArguments()) {
-    i::Scanner::Location after = scanner_->location();
+    i::Scanner::Location after = scanner()->location();
     ReportMessageAt(before.beg_pos, after.end_pos,
                     "strict_lhs_assignment", NULL);
     *ok = false;
@@ -946,12 +946,12 @@ PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
     return Expression::Default();
   } else if (i::Token::IsCountOp(op)) {
     op = Next();
-    i::Scanner::Location before = scanner_->peek_location();
+    i::Scanner::Location before = scanner()->peek_location();
     Expression expression = ParseUnaryExpression(CHECK_OK);
     if (!is_classic_mode() &&
         expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
-      i::Scanner::Location after = scanner_->location();
+      i::Scanner::Location after = scanner()->location();
       ReportMessageAt(before.beg_pos, after.end_pos,
                       "strict_lhs_prefix", NULL);
       *ok = false;
@@ -967,14 +967,14 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
-  i::Scanner::Location before = scanner_->peek_location();
+  i::Scanner::Location before = scanner()->peek_location();
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       i::Token::IsCountOp(peek())) {
     if (!is_classic_mode() &&
         expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
-      i::Scanner::Location after = scanner_->location();
+      i::Scanner::Location after = scanner()->location();
       ReportMessageAt(before.beg_pos, after.end_pos,
                       "strict_lhs_postfix", NULL);
       *ok = false;
@@ -1074,14 +1074,14 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
   if (peek() == i::Token::FUNCTION) {
     Consume(i::Token::FUNCTION);
 
-    bool is_generator = allow_generators_ && Check(i::Token::MUL);
+    bool is_generator = allow_generators() && Check(i::Token::MUL);
     Identifier identifier = Identifier::Default();
     if (peek_any_identifier()) {
       identifier = ParseIdentifier(CHECK_OK);
     }
     result = ParseFunctionLiteral(is_generator, CHECK_OK);
     if (result.IsStrictFunction() && !identifier.IsValidStrictVariable()) {
-      StrictModeIdentifierViolation(scanner_->location(),
+      StrictModeIdentifierViolation(scanner()->location(),
                                     "strict_function_name",
                                     identifier,
                                     ok);
@@ -1238,7 +1238,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
   //    )*[','] '}'
 
-  i::ObjectLiteralChecker<PreParser> checker(this, scanner_, language_mode());
+  i::ObjectLiteralChecker<PreParser> checker(this, scanner(), language_mode());
 
   Expect(i::Token::LBRACE, CHECK_OK);
   while (peek() != i::Token::RBRACE) {
@@ -1312,18 +1312,18 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
 
 PreParser::Expression PreParser::ParseRegExpLiteral(bool seen_equal,
                                                     bool* ok) {
-  if (!scanner_->ScanRegExpPattern(seen_equal)) {
+  if (!scanner()->ScanRegExpPattern(seen_equal)) {
     Next();
-    ReportMessageAt(scanner_->location(), "unterminated_regexp", NULL);
+    ReportMessageAt(scanner()->location(), "unterminated_regexp", NULL);
     *ok = false;
     return Expression::Default();
   }
 
   scope_->NextMaterializedLiteralIndex();
 
-  if (!scanner_->ScanRegExpFlags()) {
+  if (!scanner()->ScanRegExpFlags()) {
     Next();
-    ReportMessageAt(scanner_->location(), "invalid_regexp_flags", NULL);
+    ReportMessageAt(scanner()->location(), "invalid_regexp_flags", NULL);
     *ok = false;
     return Expression::Default();
   }
@@ -1368,28 +1368,28 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(i::Token::LPAREN, CHECK_OK);
-  int start_position = scanner_->location().beg_pos;
+  int start_position = scanner()->location().beg_pos;
   bool done = (peek() == i::Token::RPAREN);
-  i::DuplicateFinder duplicate_finder(scanner_->unicode_cache());
+  i::DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   while (!done) {
     Identifier id = ParseIdentifier(CHECK_OK);
     if (!id.IsValidStrictVariable()) {
-      StrictModeIdentifierViolation(scanner_->location(),
+      StrictModeIdentifierViolation(scanner()->location(),
                                     "strict_param_name",
                                     id,
                                     CHECK_OK);
     }
     int prev_value;
-    if (scanner_->is_literal_ascii()) {
+    if (scanner()->is_literal_ascii()) {
       prev_value =
-          duplicate_finder.AddAsciiSymbol(scanner_->literal_ascii_string(), 1);
+          duplicate_finder.AddAsciiSymbol(scanner()->literal_ascii_string(), 1);
     } else {
       prev_value =
-          duplicate_finder.AddUtf16Symbol(scanner_->literal_utf16_string(), 1);
+          duplicate_finder.AddUtf16Symbol(scanner()->literal_utf16_string(), 1);
     }
 
     if (prev_value != 0) {
-      SetStrictModeViolation(scanner_->location(),
+      SetStrictModeViolation(scanner()->location(),
                              "strict_param_dupe",
                              CHECK_OK);
     }
@@ -1404,7 +1404,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
   // Currently only happens to top-level functions.
   // Optimistically assume that all top-level functions are lazily compiled.
   bool is_lazily_compiled = (outer_scope_type == kTopLevelScope &&
-                             !inside_with && allow_lazy_ &&
+                             !inside_with && allow_lazy() &&
                              !parenthesized_function_);
   parenthesized_function_ = false;
 
@@ -1417,7 +1417,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
   Expect(i::Token::RBRACE, CHECK_OK);
 
   if (!is_classic_mode()) {
-    int end_position = scanner_->location().end_pos;
+    int end_position = scanner()->location().end_pos;
     CheckOctalLiteral(start_position, end_position, CHECK_OK);
     CheckDelayedStrictModeViolation(start_position, end_position, CHECK_OK);
     return Expression::StrictFunction();
@@ -1428,15 +1428,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
 
 
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
-  int body_start = scanner_->location().beg_pos;
+  int body_start = scanner()->location().beg_pos;
   log_->PauseRecording();
   ParseSourceElements(i::Token::RBRACE, ok);
   log_->ResumeRecording();
   if (!*ok) return;
 
   // Position right after terminal '}'.
-  ASSERT_EQ(i::Token::RBRACE, scanner_->peek());
-  int body_end = scanner_->peek_location().end_pos;
+  ASSERT_EQ(i::Token::RBRACE, scanner()->peek());
+  int body_end = scanner()->peek_location().end_pos;
   log_->LogFunction(body_start, body_end,
                     scope_->materialized_literal_count(),
                     scope_->expected_properties(),
@@ -1448,7 +1448,7 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   // CallRuntime ::
   //   '%' Identifier Arguments
   Expect(i::Token::MOD, CHECK_OK);
-  if (!allow_natives_syntax_) {
+  if (!allow_natives_syntax()) {
     *ok = false;
     return Expression::Default();
   }
@@ -1461,29 +1461,12 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
 #undef CHECK_OK
 
 
-void PreParser::ExpectSemicolon(bool* ok) {
-  // Check for automatic semicolon insertion according to
-  // the rules given in ECMA-262, section 7.9, page 21.
-  i::Token::Value tok = peek();
-  if (tok == i::Token::SEMICOLON) {
-    Next();
-    return;
-  }
-  if (scanner_->HasAnyLineTerminatorBeforeNext() ||
-      tok == i::Token::RBRACE ||
-      tok == i::Token::EOS) {
-    return;
-  }
-  Expect(i::Token::SEMICOLON, ok);
-}
-
-
 void PreParser::LogSymbol() {
-  int identifier_pos = scanner_->location().beg_pos;
-  if (scanner_->is_literal_ascii()) {
-    log_->LogAsciiSymbol(identifier_pos, scanner_->literal_ascii_string());
+  int identifier_pos = scanner()->location().beg_pos;
+  if (scanner()->is_literal_ascii()) {
+    log_->LogAsciiSymbol(identifier_pos, scanner()->literal_ascii_string());
   } else {
-    log_->LogUtf16Symbol(identifier_pos, scanner_->literal_utf16_string());
+    log_->LogUtf16Symbol(identifier_pos, scanner()->literal_utf16_string());
   }
 }
 
@@ -1492,10 +1475,10 @@ PreParser::Expression PreParser::GetStringSymbol() {
   const int kUseStrictLength = 10;
   const char* kUseStrictChars = "use strict";
   LogSymbol();
-  if (scanner_->is_literal_ascii() &&
-      scanner_->literal_length() == kUseStrictLength &&
-      !scanner_->literal_contains_escapes() &&
-      !strncmp(scanner_->literal_ascii_string().start(), kUseStrictChars,
+  if (scanner()->is_literal_ascii() &&
+      scanner()->literal_length() == kUseStrictLength &&
+      !scanner()->literal_contains_escapes() &&
+      !strncmp(scanner()->literal_ascii_string().start(), kUseStrictChars,
                kUseStrictLength)) {
     return Expression::UseStrictStringLiteral();
   }
@@ -1505,22 +1488,22 @@ PreParser::Expression PreParser::GetStringSymbol() {
 
 PreParser::Identifier PreParser::GetIdentifierSymbol() {
   LogSymbol();
-  if (scanner_->current_token() == i::Token::FUTURE_RESERVED_WORD) {
+  if (scanner()->current_token() == i::Token::FUTURE_RESERVED_WORD) {
     return Identifier::FutureReserved();
-  } else if (scanner_->current_token() ==
+  } else if (scanner()->current_token() ==
              i::Token::FUTURE_STRICT_RESERVED_WORD) {
     return Identifier::FutureStrictReserved();
-  } else if (scanner_->current_token() == i::Token::YIELD) {
+  } else if (scanner()->current_token() == i::Token::YIELD) {
     return Identifier::Yield();
   }
-  if (scanner_->is_literal_ascii()) {
+  if (scanner()->is_literal_ascii()) {
     // Detect strict-mode poison words.
-    if (scanner_->literal_length() == 4 &&
-        !strncmp(scanner_->literal_ascii_string().start(), "eval", 4)) {
+    if (scanner()->literal_length() == 4 &&
+        !strncmp(scanner()->literal_ascii_string().start(), "eval", 4)) {
       return Identifier::Eval();
     }
-    if (scanner_->literal_length() == 9 &&
-        !strncmp(scanner_->literal_ascii_string().start(), "arguments", 9)) {
+    if (scanner()->literal_length() == 9 &&
+        !strncmp(scanner()->literal_ascii_string().start(), "arguments", 9)) {
       return Identifier::Arguments();
     }
   }
@@ -1532,7 +1515,7 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
   i::Token::Value next = Next();
   switch (next) {
     case i::Token::FUTURE_RESERVED_WORD: {
-      i::Scanner::Location location = scanner_->location();
+      i::Scanner::Location location = scanner()->location();
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "reserved_word", NULL);
       *ok = false;
@@ -1541,14 +1524,14 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
     case i::Token::YIELD:
       if (scope_->is_generator()) {
         // 'yield' in a generator is only valid as part of a YieldExpression.
-        ReportMessageAt(scanner_->location(), "unexpected_token", "yield");
+        ReportMessageAt(scanner()->location(), "unexpected_token", "yield");
         *ok = false;
         return Identifier::Yield();
       }
       // FALLTHROUGH
     case i::Token::FUTURE_STRICT_RESERVED_WORD:
       if (!is_classic_mode()) {
-        i::Scanner::Location location = scanner_->location();
+        i::Scanner::Location location = scanner()->location();
         ReportMessageAt(location.beg_pos, location.end_pos,
                         "strict_reserved_word", NULL);
         *ok = false;
@@ -1619,7 +1602,7 @@ void PreParser::StrictModeIdentifierViolation(i::Scanner::Location location,
 PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
   i::Token::Value next = Next();
   if (i::Token::IsKeyword(next)) {
-    int pos = scanner_->location().beg_pos;
+    int pos = scanner()->location().beg_pos;
     const char* keyword = i::Token::String(next);
     log_->LogAsciiSymbol(pos, i::Vector<const char>(keyword,
                                                     i::StrLength(keyword)));
@@ -1644,22 +1627,14 @@ PreParser::Identifier PreParser::ParseIdentifierNameOrGetOrSet(bool* is_get,
                                                                bool* ok) {
   Identifier result = ParseIdentifierName(ok);
   if (!*ok) return Identifier::Default();
-  if (scanner_->is_literal_ascii() &&
-      scanner_->literal_length() == 3) {
-    const char* token = scanner_->literal_ascii_string().start();
+  if (scanner()->is_literal_ascii() &&
+      scanner()->literal_length() == 3) {
+    const char* token = scanner()->literal_ascii_string().start();
     *is_get = strncmp(token, "get", 3) == 0;
     *is_set = !*is_get && strncmp(token, "set", 3) == 0;
   }
   return result;
 }
 
-
-bool PreParser::peek_any_identifier() {
-  i::Token::Value next = peek();
-  return next == i::Token::IDENTIFIER ||
-         next == i::Token::FUTURE_RESERVED_WORD ||
-         next == i::Token::FUTURE_STRICT_RESERVED_WORD ||
-         next == i::Token::YIELD;
-}
 
 } }  // v8::internal

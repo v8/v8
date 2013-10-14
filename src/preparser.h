@@ -125,6 +125,112 @@ void ObjectLiteralChecker<P>::CheckProperty(Token::Value property,
 }
 
 
+// Common base class shared between parser and pre-parser.
+class ParserBase {
+ public:
+  ParserBase(Scanner* scanner, uintptr_t stack_limit)
+      : scanner_(scanner),
+        stack_limit_(stack_limit),
+        stack_overflow_(false),
+        allow_lazy_(false),
+        allow_natives_syntax_(false),
+        allow_generators_(false),
+        allow_for_of_(false) { }
+  // TODO(mstarzinger): Only virtual until message reporting has been unified.
+  virtual ~ParserBase() { }
+
+  // Getters that indicate whether certain syntactical constructs are
+  // allowed to be parsed by this instance of the parser.
+  bool allow_lazy() const { return allow_lazy_; }
+  bool allow_natives_syntax() const { return allow_natives_syntax_; }
+  bool allow_generators() const { return allow_generators_; }
+  bool allow_for_of() const { return allow_for_of_; }
+  bool allow_modules() const { return scanner()->HarmonyModules(); }
+  bool allow_harmony_scoping() const { return scanner()->HarmonyScoping(); }
+  bool allow_harmony_numeric_literals() const {
+    return scanner()->HarmonyNumericLiterals();
+  }
+
+  // Setters that determine whether certain syntactical constructs are
+  // allowed to be parsed by this instance of the parser.
+  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
+  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
+  void set_allow_generators(bool allow) { allow_generators_ = allow; }
+  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
+  void set_allow_modules(bool allow) { scanner()->SetHarmonyModules(allow); }
+  void set_allow_harmony_scoping(bool allow) {
+    scanner()->SetHarmonyScoping(allow);
+  }
+  void set_allow_harmony_numeric_literals(bool allow) {
+    scanner()->SetHarmonyNumericLiterals(allow);
+  }
+
+ protected:
+  Scanner* scanner() const { return scanner_; }
+  bool stack_overflow() const { return stack_overflow_; }
+  void set_stack_overflow() { stack_overflow_ = true; }
+
+  INLINE(Token::Value peek()) {
+    if (stack_overflow_) return Token::ILLEGAL;
+    return scanner()->peek();
+  }
+
+  INLINE(Token::Value Next()) {
+    if (stack_overflow_) return Token::ILLEGAL;
+    {
+      int marker;
+      if (reinterpret_cast<uintptr_t>(&marker) < stack_limit_) {
+        // Any further calls to Next or peek will return the illegal token.
+        // The current call must return the next token, which might already
+        // have been peek'ed.
+        stack_overflow_ = true;
+      }
+    }
+    return scanner()->Next();
+  }
+
+  void Consume(Token::Value token) {
+    Token::Value next = Next();
+    USE(next);
+    USE(token);
+    ASSERT(next == token);
+  }
+
+  bool Check(Token::Value token) {
+    Token::Value next = peek();
+    if (next == token) {
+      Consume(next);
+      return true;
+    }
+    return false;
+  }
+
+  void Expect(Token::Value token, bool* ok) {
+    Token::Value next = Next();
+    if (next != token) {
+      ReportUnexpectedToken(next);
+      *ok = false;
+    }
+  }
+
+  bool peek_any_identifier();
+  void ExpectSemicolon(bool* ok);
+
+  // Report syntax errors.
+  virtual void ReportUnexpectedToken(Token::Value token) = 0;
+
+ private:
+  Scanner* scanner_;
+  uintptr_t stack_limit_;
+  bool stack_overflow_;
+
+  bool allow_lazy_;
+  bool allow_natives_syntax_;
+  bool allow_generators_;
+  bool allow_for_of_;
+};
+
+
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
 // See preparse-data-format.h for the data format.
@@ -141,7 +247,7 @@ void ObjectLiteralChecker<P>::CheckProperty(Token::Value property,
 typedef uint8_t byte;
 namespace i = v8::internal;
 
-class PreParser {
+class PreParser : public ParserBase {
  public:
   enum PreParseResult {
     kPreParseStackOverflow,
@@ -152,42 +258,14 @@ class PreParser {
   PreParser(i::Scanner* scanner,
             i::ParserRecorder* log,
             uintptr_t stack_limit)
-      : scanner_(scanner),
+      : ParserBase(scanner, stack_limit),
         log_(log),
         scope_(NULL),
-        stack_limit_(stack_limit),
         strict_mode_violation_location_(i::Scanner::Location::invalid()),
         strict_mode_violation_type_(NULL),
-        stack_overflow_(false),
-        allow_lazy_(false),
-        allow_natives_syntax_(false),
-        allow_generators_(false),
-        allow_for_of_(false),
         parenthesized_function_(false) { }
 
   ~PreParser() {}
-
-  bool allow_natives_syntax() const { return allow_natives_syntax_; }
-  bool allow_lazy() const { return allow_lazy_; }
-  bool allow_modules() const { return scanner_->HarmonyModules(); }
-  bool allow_harmony_scoping() const { return scanner_->HarmonyScoping(); }
-  bool allow_generators() const { return allow_generators_; }
-  bool allow_for_of() const { return allow_for_of_; }
-  bool allow_harmony_numeric_literals() const {
-    return scanner_->HarmonyNumericLiterals();
-  }
-
-  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
-  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
-  void set_allow_modules(bool allow) { scanner_->SetHarmonyModules(allow); }
-  void set_allow_harmony_scoping(bool allow) {
-    scanner_->SetHarmonyScoping(allow);
-  }
-  void set_allow_generators(bool allow) { allow_generators_ = allow; }
-  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
-  void set_allow_harmony_numeric_literals(bool allow) {
-    scanner_->SetHarmonyNumericLiterals(allow);
-  }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -196,13 +274,13 @@ class PreParser {
   PreParseResult PreParseProgram() {
     Scope top_scope(&scope_, kTopLevelScope);
     bool ok = true;
-    int start_position = scanner_->peek_location().beg_pos;
+    int start_position = scanner()->peek_location().beg_pos;
     ParseSourceElements(i::Token::EOS, &ok);
-    if (stack_overflow_) return kPreParseStackOverflow;
+    if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
-      ReportUnexpectedToken(scanner_->current_token());
+      ReportUnexpectedToken(scanner()->current_token());
     } else if (!scope_->is_classic_mode()) {
-      CheckOctalLiteral(start_position, scanner_->location().end_pos, &ok);
+      CheckOctalLiteral(start_position, scanner()->location().end_pos, &ok);
     }
     return kPreParseSuccess;
   }
@@ -604,27 +682,6 @@ class PreParser {
   // Log the currently parsed string literal.
   Expression GetStringSymbol();
 
-  i::Token::Value peek() {
-    if (stack_overflow_) return i::Token::ILLEGAL;
-    return scanner_->peek();
-  }
-
-  i::Token::Value Next() {
-    if (stack_overflow_) return i::Token::ILLEGAL;
-    {
-      int marker;
-      if (reinterpret_cast<uintptr_t>(&marker) < stack_limit_) {
-        // Further calls to peek/Next will return illegal token.
-        // The current one will still be returned. It might already
-        // have been seen using peek.
-        stack_overflow_ = true;
-      }
-    }
-    return scanner_->Next();
-  }
-
-  bool peek_any_identifier();
-
   void set_language_mode(i::LanguageMode language_mode) {
     scope_->set_language_mode(language_mode);
   }
@@ -638,24 +695,6 @@ class PreParser {
   }
 
   i::LanguageMode language_mode() { return scope_->language_mode(); }
-
-  void Consume(i::Token::Value token) { Next(); }
-
-  void Expect(i::Token::Value token, bool* ok) {
-    if (Next() != token) {
-      *ok = false;
-    }
-  }
-
-  bool Check(i::Token::Value token) {
-    i::Token::Value next = peek();
-    if (next == token) {
-      Consume(next);
-      return true;
-    }
-    return false;
-  }
-  void ExpectSemicolon(bool* ok);
 
   bool CheckInOrOf(bool accept_OF);
 
@@ -672,17 +711,10 @@ class PreParser {
                                      Identifier identifier,
                                      bool* ok);
 
-  i::Scanner* scanner_;
   i::ParserRecorder* log_;
   Scope* scope_;
-  uintptr_t stack_limit_;
   i::Scanner::Location strict_mode_violation_location_;
   const char* strict_mode_violation_type_;
-  bool stack_overflow_;
-  bool allow_lazy_;
-  bool allow_natives_syntax_;
-  bool allow_generators_;
-  bool allow_for_of_;
   bool parenthesized_function_;
 
   friend class i::ObjectLiteralChecker<PreParser>;

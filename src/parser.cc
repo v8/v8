@@ -536,7 +536,8 @@ Parser::FunctionState::~FunctionState() {
 // Implementation of Parser
 
 Parser::Parser(CompilationInfo* info)
-    : isolate_(info->isolate()),
+    : ParserBase(&scanner_, info->isolate()->stack_guard()->real_climit()),
+      isolate_(info->isolate()),
       symbol_cache_(0, info->zone()),
       script_(info->script()),
       scanner_(isolate_->unicode_cache()),
@@ -548,11 +549,6 @@ Parser::Parser(CompilationInfo* info)
       extension_(info->extension()),
       pre_parse_data_(NULL),
       fni_(NULL),
-      allow_natives_syntax_(false),
-      allow_lazy_(false),
-      allow_generators_(false),
-      allow_for_of_(false),
-      stack_overflow_(false),
       parenthesized_function_(false),
       zone_(info->zone()),
       info_(info) {
@@ -690,7 +686,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
       result->set_ast_properties(factory()->visitor()->ast_properties());
       result->set_dont_optimize_reason(
           factory()->visitor()->dont_optimize_reason());
-    } else if (stack_overflow_) {
+    } else if (stack_overflow()) {
       isolate()->StackOverflow();
     }
   }
@@ -787,7 +783,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
   ASSERT(target_stack_ == NULL);
 
   if (result == NULL) {
-    if (stack_overflow_) isolate()->StackOverflow();
+    if (stack_overflow()) isolate()->StackOverflow();
   } else {
     Handle<String> inferred_name(shared_info->inferred_name());
     result->set_inferred_name(inferred_name);
@@ -3484,7 +3480,7 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
   // over, in ParseProgram/ParseJson.
-  if (token == Token::ILLEGAL && stack_overflow_) return;
+  if (token == Token::ILLEGAL && stack_overflow()) return;
   // Four of the tokens are treated specially
   switch (token) {
     case Token::EOS:
@@ -4378,7 +4374,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         PreParser::PreParseResult result = LazyParseFunctionLiteral(&logger);
         if (result == PreParser::kPreParseStackOverflow) {
           // Propagate stack overflow.
-          stack_overflow_ = true;
+          set_stack_overflow();
           *ok = false;
           return NULL;
         }
@@ -4613,38 +4609,12 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 }
 
 
-bool Parser::peek_any_identifier() {
+bool ParserBase::peek_any_identifier() {
   Token::Value next = peek();
   return next == Token::IDENTIFIER ||
          next == Token::FUTURE_RESERVED_WORD ||
          next == Token::FUTURE_STRICT_RESERVED_WORD ||
          next == Token::YIELD;
-}
-
-
-void Parser::Consume(Token::Value token) {
-  Token::Value next = Next();
-  USE(next);
-  USE(token);
-  ASSERT(next == token);
-}
-
-
-void Parser::Expect(Token::Value token, bool* ok) {
-  Token::Value next = Next();
-  if (next == token) return;
-  ReportUnexpectedToken(next);
-  *ok = false;
-}
-
-
-bool Parser::Check(Token::Value token) {
-  Token::Value next = peek();
-  if (next == token) {
-    Consume(next);
-    return true;
-  }
-  return false;
 }
 
 
@@ -4658,7 +4628,7 @@ bool Parser::CheckContextualKeyword(Vector<const char> keyword) {
 }
 
 
-void Parser::ExpectSemicolon(bool* ok) {
+void ParserBase::ExpectSemicolon(bool* ok) {
   // Check for automatic semicolon insertion according to
   // the rules given in ECMA-262, section 7.9, page 21.
   Token::Value tok = peek();
@@ -4666,7 +4636,7 @@ void Parser::ExpectSemicolon(bool* ok) {
     Next();
     return;
   }
-  if (scanner().HasAnyLineTerminatorBeforeNext() ||
+  if (scanner()->HasAnyLineTerminatorBeforeNext() ||
       tok == Token::RBRACE ||
       tok == Token::EOS) {
     return;

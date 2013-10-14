@@ -425,34 +425,12 @@ class RegExpParser BASE_EMBEDDED {
 // Forward declaration.
 class SingletonLogger;
 
-class Parser BASE_EMBEDDED {
+class Parser : public ParserBase {
  public:
   explicit Parser(CompilationInfo* info);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
-  }
-
-  bool allow_natives_syntax() const { return allow_natives_syntax_; }
-  bool allow_lazy() const { return allow_lazy_; }
-  bool allow_modules() { return scanner().HarmonyModules(); }
-  bool allow_harmony_scoping() { return scanner().HarmonyScoping(); }
-  bool allow_generators() const { return allow_generators_; }
-  bool allow_for_of() const { return allow_for_of_; }
-  bool allow_harmony_numeric_literals() {
-    return scanner().HarmonyNumericLiterals();
-  }
-
-  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
-  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
-  void set_allow_modules(bool allow) { scanner().SetHarmonyModules(allow); }
-  void set_allow_harmony_scoping(bool allow) {
-    scanner().SetHarmonyScoping(allow);
-  }
-  void set_allow_generators(bool allow) { allow_generators_ = allow; }
-  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
-  void set_allow_harmony_numeric_literals(bool allow) {
-    scanner().SetHarmonyNumericLiterals(allow);
   }
 
   // Parses the source code represented by the compilation info and sets its
@@ -712,37 +690,10 @@ class Parser BASE_EMBEDDED {
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);
 
-  INLINE(Token::Value peek()) {
-    if (stack_overflow_) return Token::ILLEGAL;
-    return scanner().peek();
-  }
-
-  INLINE(Token::Value Next()) {
-    // BUG 1215673: Find a thread safe way to set a stack limit in
-    // pre-parse mode. Otherwise, we cannot safely pre-parse from other
-    // threads.
-    if (stack_overflow_) {
-      return Token::ILLEGAL;
-    }
-    if (StackLimitCheck(isolate()).HasOverflowed()) {
-      // Any further calls to Next or peek will return the illegal token.
-      // The current call must return the next token, which might already
-      // have been peek'ed.
-      stack_overflow_ = true;
-    }
-    return scanner().Next();
-  }
-
   bool is_generator() const { return current_function_state_->is_generator(); }
 
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
-  bool peek_any_identifier();
-
-  INLINE(void Consume(Token::Value token));
-  void Expect(Token::Value token, bool* ok);
-  bool Check(Token::Value token);
-  void ExpectSemicolon(bool* ok);
   bool CheckContextualKeyword(Vector<const char> keyword);
   void ExpectContextualKeyword(Vector<const char> keyword, bool* ok);
 
@@ -865,11 +816,6 @@ class Parser BASE_EMBEDDED {
   FuncNameInferrer* fni_;
 
   Mode mode_;
-  bool allow_natives_syntax_;
-  bool allow_lazy_;
-  bool allow_generators_;
-  bool allow_for_of_;
-  bool stack_overflow_;
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.
   // Heuristically that means that the function will be called immediately,
