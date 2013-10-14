@@ -33,7 +33,6 @@
         printf("got token %s (%d)\n", tokenNames[T], T); \
          SKIP(); }
 #define PUSH_STRING() { \
-        --cursor; \
         printf("got string\n"); \
         size_t tokenSize = cursor-start; \
         fwrite(start, tokenSize, 1, stdout); \
@@ -367,27 +366,27 @@ public:
         <DoubleQuoteString> '"'          { PUSH_STRING();}
         <DoubleQuoteString> any          { goto yy0; }
 
-        <SingleQuoteString> "\\'"    { goto yy0; }
-        <SingleQuoteString> "'"      { PUSH_STRING();}
-        <SingleQuoteString> any      { goto yy0; }
+        <SingleQuoteString> "\\'"        { goto yy0; }
+        <SingleQuoteString> "'"          { PUSH_STRING();}
+        <SingleQuoteString> any          { goto yy0; }
 
-        <Identifier> identifier_char+  { goto yy0; }
-        <Identifier> any               { PUSH_IDENTIFIER(); }
+        <Identifier> identifier_char+    { goto yy0; }
+        <Identifier> any                 { PUSH_IDENTIFIER(); }
 
         <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
-        <SingleLineComment> eof { PUSH_LINE_TERMINATOR();}
-        <SingleLineComment> any     :=> SingleLineComment
+        <SingleLineComment> eof          { PUSH_LINE_TERMINATOR();}
+        <SingleLineComment> any          { goto yy0; }
 
-        <MultiLineComment> [*][//]      { PUSH_LINE_TERMINATOR();}
-        <MultiLineComment> eof { TERMINATE_ILLEGAL(); }
-        <MultiLineComment> any       :=> MultiLineComment
+        <MultiLineComment> [*][//]       { PUSH_LINE_TERMINATOR();}
+        <MultiLineComment> eof           { TERMINATE_ILLEGAL(); }
+        <MultiLineComment> any           { goto yy0; }
 
-        <HtmlComment> eof { TERMINATE_ILLEGAL(); }
-        <HtmlComment> "-->"          { PUSH_LINE_TERMINATOR();}
-        <HtmlComment> any            :=> HtmlComment
+        <HtmlComment> eof                { TERMINATE_ILLEGAL(); }
+        <HtmlComment> "-->"              { PUSH_LINE_TERMINATOR();}
+        <HtmlComment> any                { goto yy0; }
 
-        <Number> number_char+          { goto yy0; }
-        <Number> any                   { PUSH_NUMBER(); }
+        <Number> number_char+            { goto yy0; }
+        <Number> any                     { PUSH_NUMBER(); }
 
         */
 
