@@ -207,6 +207,11 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
+void Processor::VisitCaseClause(CaseClause* clause) {
+  UNREACHABLE();
+}
+
+
 void Processor::VisitContinueStatement(ContinueStatement* node) {
   is_set_ = false;
 }

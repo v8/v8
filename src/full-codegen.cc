@@ -193,6 +193,10 @@ void BreakableStatementChecker::VisitDebuggerStatement(
 }
 
 
+void BreakableStatementChecker::VisitCaseClause(CaseClause* clause) {
+}
+
+
 void BreakableStatementChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
@@ -1512,6 +1516,11 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
   __ DebugBreak();
   // Ignore the return value.
 #endif
+}
+
+
+void FullCodeGenerator::VisitCaseClause(CaseClause* clause) {
+  UNREACHABLE();
 }
 
 

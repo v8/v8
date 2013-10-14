@@ -206,6 +206,11 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
+void AstTyper::VisitCaseClause(CaseClause* clause) {
+  UNREACHABLE();
+}
+
+
 void AstTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
   // Collect type feedback.
   if (!stmt->cond()->ToBooleanIsTrue()) {

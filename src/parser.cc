@@ -2392,7 +2392,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
     statements->Add(stat, zone());
   }
 
-  return new(zone()) CaseClause(isolate(), label, statements, pos);
+  return factory()->NewCaseClause(label, statements, pos);
 }
 
 
@@ -3231,7 +3231,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     return factory()->NewCountOperation(op,
                                         true /* prefix */,
                                         expression,
-                                        position());  // TODO(rossberg): ???
+                                        position());
 
   } else {
     return ParsePostfixExpression(ok);
@@ -3267,7 +3267,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
         factory()->NewCountOperation(next,
                                      false /* postfix */,
                                      expression,
-                                     position());  // TODO(rossberg): ???
+                                     position());
   }
   return expression;
 }

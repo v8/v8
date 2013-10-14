@@ -1034,9 +1034,9 @@ CaseClause::CaseClause(Isolate* isolate,
                        Expression* label,
                        ZoneList<Statement*>* statements,
                        int pos)
-    : label_(label),
+    : AstNode(pos),
+      label_(label),
       statements_(statements),
-      position_(pos),
       compare_type_(Type::None(), isolate),
       compare_id_(AstNode::GetNextId(isolate)),
       entry_id_(AstNode::GetNextId(isolate)) {
@@ -1078,6 +1078,7 @@ REGULAR_NODE(ContinueStatement)
 REGULAR_NODE(BreakStatement)
 REGULAR_NODE(ReturnStatement)
 REGULAR_NODE(SwitchStatement)
+REGULAR_NODE(CaseClause)
 REGULAR_NODE(Conditional)
 REGULAR_NODE(Literal)
 REGULAR_NODE(ArrayLiteral)

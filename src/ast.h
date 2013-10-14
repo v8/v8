@@ -117,11 +117,15 @@ namespace internal {
   V(CompareOperation)                           \
   V(ThisFunction)
 
+#define AUXILIARY_NODE_LIST(V)                  \
+  V(CaseClause)
+
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
   MODULE_NODE_LIST(V)                           \
   STATEMENT_NODE_LIST(V)                        \
-  EXPRESSION_NODE_LIST(V)
+  EXPRESSION_NODE_LIST(V)                       \
+  AUXILIARY_NODE_LIST(V)
 
 // Forward declarations
 class AstConstructionVisitor;
@@ -1102,12 +1106,9 @@ class WithStatement V8_FINAL : public Statement {
 };
 
 
-class CaseClause V8_FINAL : public ZoneObject {
+class CaseClause V8_FINAL : public AstNode {
  public:
-  CaseClause(Isolate* isolate,
-             Expression* label,
-             ZoneList<Statement*>* statements,
-             int pos);
+  DECLARE_NODE_TYPE(CaseClause)
 
   bool is_default() const { return label_ == NULL; }
   Expression* label() const {
@@ -1117,9 +1118,6 @@ class CaseClause V8_FINAL : public ZoneObject {
   Label* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const { return statements_; }
 
-  int position() const { return position_; }
-  void set_position(int pos) { position_ = pos; }
-
   BailoutId EntryId() const { return entry_id_; }
 
   // Type feedback information.
@@ -1128,10 +1126,14 @@ class CaseClause V8_FINAL : public ZoneObject {
   Handle<Type> compare_type() { return compare_type_; }
 
  private:
+  CaseClause(Isolate* isolate,
+             Expression* label,
+             ZoneList<Statement*>* statements,
+             int pos);
+
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
-  int position_;
   Handle<Type> compare_type_;
 
   const TypeFeedbackId compare_id_;
@@ -3034,6 +3036,13 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
 
   EmptyStatement* NewEmptyStatement(int pos) {
     return new(zone_) EmptyStatement(pos);
+  }
+
+  CaseClause* NewCaseClause(
+      Expression* label, ZoneList<Statement*>* statements, int pos) {
+    CaseClause* clause =
+        new(zone_) CaseClause(isolate_, label, statements, pos);
+    VISIT_AND_RETURN(CaseClause, clause)
   }
 
   Literal* NewLiteral(Handle<Object> handle, int pos) {
