@@ -79,25 +79,6 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
       children_(CodeEntriesMatch),
       id_(tree->next_node_id()) { }
 
-
-CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
-  switch (tag) {
-    case GC:
-      return gc_entry_;
-    case JS:
-    case COMPILER:
-    // DOM events handlers are reported as OTHER / EXTERNAL entries.
-    // To avoid confusing people, let's put all these entries into
-    // one bucket.
-    case OTHER:
-    case EXTERNAL:
-      return program_entry_;
-    case IDLE:
-      return idle_entry_;
-    default: return NULL;
-  }
-}
-
 } }  // namespace v8::internal
 
 #endif  // V8_PROFILE_GENERATOR_INL_H_
