@@ -932,17 +932,15 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
     result = EnforceNumberType(result, result_type);
   }
 
-  // Reuse the double box if we are allowed to (i.e. chained binops).
+  // Reuse the double box of one of the operands if we are allowed to (i.e.
+  // chained binops).
   if (stub->CanReuseDoubleBox()) {
-    HValue* reuse = (stub->mode() == OVERWRITE_LEFT) ? left : right;
+    HValue* operand = (stub->mode() == OVERWRITE_LEFT) ? left : right;
     IfBuilder if_heap_number(this);
-    if_heap_number.IfNot<HIsSmiAndBranch>(reuse);
+    if_heap_number.IfNot<HIsSmiAndBranch>(operand);
     if_heap_number.Then();
-    HValue* res_val = Add<HForceRepresentation>(result,
-                                                Representation::Double());
-    HObjectAccess access = HObjectAccess::ForHeapNumberValue();
-    Add<HStoreNamedField>(reuse, access, res_val);
-    Push(reuse);
+    Add<HStoreNamedField>(operand, HObjectAccess::ForHeapNumberValue(), result);
+    Push(operand);
     if_heap_number.Else();
     Push(result);
     if_heap_number.End();
