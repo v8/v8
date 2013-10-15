@@ -31,7 +31,6 @@
 #include "v8.h"
 
 #include "accessors.h"
-#include "allocation-site-scopes.h"
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
@@ -489,34 +488,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(literals->get(literals_index), isolate);
   Handle<AllocationSite> site;
-  Handle<JSObject> boilerplate;
+  Handle<Object> boilerplate;
   if (*literal_site == isolate->heap()->undefined_value()) {
-    Handle<Object> raw_boilerplate = CreateObjectLiteralBoilerplate(
-        isolate,
-        literals,
-        constant_properties,
-        should_have_fast_elements,
-        has_function_literal);
-    RETURN_IF_EMPTY_HANDLE(isolate, raw_boilerplate);
-    boilerplate = Handle<JSObject>::cast(raw_boilerplate);
-
-    AllocationSiteCreationContext creation_context(isolate);
-    site = creation_context.EnterNewScope();
-    JSObject::DeepWalk(boilerplate, &creation_context);
-    creation_context.ExitScope(site, boilerplate);
+    boilerplate = CreateObjectLiteralBoilerplate(isolate,
+                                                 literals,
+                                                 constant_properties,
+                                                 should_have_fast_elements,
+                                                 has_function_literal);
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
+    site = isolate->factory()->NewAllocationSite();
+    site->set_transition_info(*boilerplate);
 
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
-    boilerplate = Handle<JSObject>(JSObject::cast(site->transition_info()),
-                                   isolate);
+    boilerplate = Handle<JSObject>(JSObject::cast(site->transition_info()));
   }
 
-  AllocationSiteUsageContext usage_context(isolate, site, true);
-  usage_context.EnterNewScope();
-  Handle<Object> copy = JSObject::DeepCopy(boilerplate, &usage_context);
-  usage_context.ExitScope(site, boilerplate);
+  Handle<Object> copy = JSObject::DeepCopy(Handle<JSObject>::cast(boilerplate));
   RETURN_IF_EMPTY_HANDLE(isolate, copy);
   return *copy;
 }
@@ -534,13 +524,12 @@ static Handle<AllocationSite> GetLiteralAllocationSite(
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
     Handle<Object> boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    if (boilerplate.is_null()) return Handle<AllocationSite>::null();
-
-    AllocationSiteCreationContext creation_context(isolate);
-    site = creation_context.EnterNewScope();
-    JSObject::DeepWalk(Handle<JSObject>::cast(boilerplate), &creation_context);
-    creation_context.ExitScope(site, Handle<JSObject>::cast(boilerplate));
-
+    if (boilerplate.is_null()) {
+      ASSERT(site.is_null());
+      return site;
+    }
+    site = isolate->factory()->NewAllocationSite();
+    site->set_transition_info(*boilerplate);
     literals->set(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
@@ -562,10 +551,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   RETURN_IF_EMPTY_HANDLE(isolate, site);
 
   Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
-  AllocationSiteUsageContext usage_context(isolate, site, true);
-  usage_context.EnterNewScope();
-  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context);
-  usage_context.ExitScope(site, boilerplate);
+  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate);
   RETURN_IF_EMPTY_HANDLE(isolate, copy);
   return *copy;
 }
@@ -588,8 +574,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
     isolate->counters()->cow_arrays_created_runtime()->Increment();
   }
 
-  if (AllocationSite::GetMode(boilerplate->GetElementsKind()) ==
-      TRACK_ALLOCATION_SITE) {
+  AllocationSiteMode mode = AllocationSite::GetMode(
+      boilerplate->GetElementsKind());
+  if (mode == TRACK_ALLOCATION_SITE) {
     return isolate->heap()->CopyJSObject(boilerplate, *site);
   }
 
@@ -14698,7 +14685,7 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
     Handle<Cell> cell = Handle<Cell>::cast(type_info);
     Handle<AllocationSite> site = Handle<AllocationSite>(
         AllocationSite::cast(cell->value()), isolate);
-    ASSERT(!site->SitePointsToLiteral());
+    ASSERT(!site->IsLiteralSite());
     ElementsKind to_kind = site->GetElementsKind();
     if (holey && !IsFastHoleyElementsKind(to_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);

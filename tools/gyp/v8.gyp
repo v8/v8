@@ -209,8 +209,6 @@
         '../../src/accessors.h',
         '../../src/allocation.cc',
         '../../src/allocation.h',
-        '../../src/allocation-site-scopes.cc',
-        '../../src/allocation-site-scopes.h',
         '../../src/api.cc',
         '../../src/api.h',
         '../../src/apiutils.h',

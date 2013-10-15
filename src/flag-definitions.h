@@ -806,9 +806,6 @@ DEFINE_implication(log_internal_timer_events, prof)
 // elements.cc
 DEFINE_bool(trace_elements_transitions, false, "trace elements transitions")
 
-DEFINE_bool(trace_creation_allocation_sites, false,
-            "trace the creation of allocation sites")
-
 // code-stubs.cc
 DEFINE_bool(print_code_stubs, false, "print code stubs")
 DEFINE_bool(test_secondary_stub_cache,
