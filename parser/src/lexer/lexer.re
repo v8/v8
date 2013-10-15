@@ -47,6 +47,7 @@ enum Condition {
 using namespace v8::internal;
 
 #define PUSH_TOKEN(T) { send(T); SKIP(); }
+#define PUSH_TOKEN_LOOKAHEAD(T) { --cursor_; send(T); SKIP(); }
 #define PUSH_LINE_TERMINATOR() { SKIP(); }
 #define TERMINATE_ILLEGAL() { return 1; }
 
@@ -171,56 +172,57 @@ public:
     whitespace = whitespace_char+;
     identifier_start_ = [$_\\a-zA-Z];
     identifier_char = [$_\\a-zA-Z0-9];
+    not_identifier_char = any\identifier_char;
     line_terminator = [\n\r]+;
     digit = [0-9];
     hex_digit = [0-9a-fA-F];
     maybe_exponent = ('e' [-+]? digit+)?;
 
-    <Normal> "break"       { PUSH_TOKEN(Token::BREAK); }
-    <Normal> "case"        { PUSH_TOKEN(Token::CASE); }
-    <Normal> "catch"       { PUSH_TOKEN(Token::CATCH); }
-    <Normal> "class"       { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
-    <Normal> "const"       { PUSH_TOKEN(Token::CONST); }
-    <Normal> "continue"    { PUSH_TOKEN(Token::CONTINUE); }
-    <Normal> "debugger"    { PUSH_TOKEN(Token::DEBUGGER); }
-    <Normal> "default"     { PUSH_TOKEN(Token::DEFAULT); }
-    <Normal> "delete"      { PUSH_TOKEN(Token::DELETE); }
-    <Normal> "do"          { PUSH_TOKEN(Token::DO); }
-    <Normal> "else"        { PUSH_TOKEN(Token::ELSE); }
-    <Normal> "enum"        { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
-    <Normal> "export"      { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
-    <Normal> "extends"     { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
-    <Normal> "false"       { PUSH_TOKEN(Token::FALSE_LITERAL); }
-    <Normal> "finally"     { PUSH_TOKEN(Token::FINALLY); }
-    <Normal> "for"         { PUSH_TOKEN(Token::FOR); }
-    <Normal> "function"    { PUSH_TOKEN(Token::FUNCTION); }
-    <Normal> "if"          { PUSH_TOKEN(Token::IF); }
-    <Normal> "implements"  { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "import"      { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
-    <Normal> "in"          { PUSH_TOKEN(Token::IN); }
-    <Normal> "instanceof"  { PUSH_TOKEN(Token::INSTANCEOF); }
-    <Normal> "interface"   { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "let"         { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "new"         { PUSH_TOKEN(Token::NEW); }
-    <Normal> "null"        { PUSH_TOKEN(Token::NULL_LITERAL); }
-    <Normal> "package"     { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "private"     { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "protected"   { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "public"      { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "return"      { PUSH_TOKEN(Token::RETURN); }
-    <Normal> "static"      { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
-    <Normal> "super"       { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
-    <Normal> "switch"      { PUSH_TOKEN(Token::SWITCH); }
-    <Normal> "this"        { PUSH_TOKEN(Token::THIS); }
-    <Normal> "throw"       { PUSH_TOKEN(Token::THROW); }
-    <Normal> "true"        { PUSH_TOKEN(Token::TRUE_LITERAL); }
-    <Normal> "try"         { PUSH_TOKEN(Token::TRY); }
-    <Normal> "typeof"      { PUSH_TOKEN(Token::TYPEOF); }
-    <Normal> "var"         { PUSH_TOKEN(Token::VAR); }
-    <Normal> "void"        { PUSH_TOKEN(Token::VOID); }
-    <Normal> "while"       { PUSH_TOKEN(Token::WHILE); }
-    <Normal> "with"        { PUSH_TOKEN(Token::WITH); }
-    <Normal> "yield"       { PUSH_TOKEN(Token::YIELD); }
+    <Normal> "break" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::BREAK); }
+    <Normal> "case" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::CASE); }
+    <Normal> "catch" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::CATCH); }
+    <Normal> "class" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "const" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::CONST); }
+    <Normal> "continue" not_identifier_char   { PUSH_TOKEN_LOOKAHEAD(Token::CONTINUE); }
+    <Normal> "debugger" not_identifier_char   { PUSH_TOKEN_LOOKAHEAD(Token::DEBUGGER); }
+    <Normal> "default" not_identifier_char    { PUSH_TOKEN_LOOKAHEAD(Token::DEFAULT); }
+    <Normal> "delete" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::DELETE); }
+    <Normal> "do" not_identifier_char         { PUSH_TOKEN_LOOKAHEAD(Token::DO); }
+    <Normal> "else" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::ELSE); }
+    <Normal> "enum" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "export" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "extends" not_identifier_char    { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "false" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::FALSE_LITERAL); }
+    <Normal> "finally" not_identifier_char    { PUSH_TOKEN_LOOKAHEAD(Token::FINALLY); }
+    <Normal> "for" not_identifier_char        { PUSH_TOKEN_LOOKAHEAD(Token::FOR); }
+    <Normal> "function" not_identifier_char   { PUSH_TOKEN_LOOKAHEAD(Token::FUNCTION); }
+    <Normal> "if" not_identifier_char         { PUSH_TOKEN_LOOKAHEAD(Token::IF); }
+    <Normal> "implements" not_identifier_char { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "import" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "in" not_identifier_char         { PUSH_TOKEN_LOOKAHEAD(Token::IN); }
+    <Normal> "instanceof" not_identifier_char { PUSH_TOKEN_LOOKAHEAD(Token::INSTANCEOF); }
+    <Normal> "interface" not_identifier_char  { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "let" not_identifier_char        { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "new" not_identifier_char        { PUSH_TOKEN_LOOKAHEAD(Token::NEW); }
+    <Normal> "null" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::NULL_LITERAL); }
+    <Normal> "package" not_identifier_char    { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "private" not_identifier_char    { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "protected" not_identifier_char  { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "public" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "return" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::RETURN); }
+    <Normal> "static" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "super" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "switch" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::SWITCH); }
+    <Normal> "this" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::THIS); }
+    <Normal> "throw" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::THROW); }
+    <Normal> "true" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::TRUE_LITERAL); }
+    <Normal> "try" not_identifier_char        { PUSH_TOKEN_LOOKAHEAD(Token::TRY); }
+    <Normal> "typeof" not_identifier_char     { PUSH_TOKEN_LOOKAHEAD(Token::TYPEOF); }
+    <Normal> "var" not_identifier_char        { PUSH_TOKEN_LOOKAHEAD(Token::VAR); }
+    <Normal> "void" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::VOID); }
+    <Normal> "while" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::WHILE); }
+    <Normal> "with" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::WITH); }
+    <Normal> "yield" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::YIELD); }
 
     <Normal> "|="          { PUSH_TOKEN(Token::ASSIGN_BIT_OR); }
     <Normal> "^="          { PUSH_TOKEN(Token::ASSIGN_BIT_XOR); }
@@ -303,7 +305,7 @@ public:
     <SingleQuoteString> any     { goto yy0; }
 
     <Identifier> identifier_char+  { goto yy0; }
-    <Identifier> any               { cursor_--; PUSH_TOKEN(Token::IDENTIFIER); }
+    <Identifier> any               { PUSH_TOKEN_LOOKAHEAD(Token::IDENTIFIER); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
     <SingleLineComment> eof             { PUSH_LINE_TERMINATOR();}
