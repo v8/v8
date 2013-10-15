@@ -14323,129 +14323,6 @@ THREADED_TEST(CrossContextNew) {
 }
 
 
-class RegExpInterruptTest {
- public:
-  RegExpInterruptTest() : block_(0) {}
-  ~RegExpInterruptTest() {}
-  void RunTest() {
-    gc_count_ = 0;
-    gc_during_regexp_ = 0;
-    regexp_success_ = false;
-    gc_success_ = false;
-    GCThread gc_thread(this);
-    gc_thread.Start();
-    v8::Isolate* isolate = CcTest::isolate();
-    v8::Locker::StartPreemption(isolate, 1);
-
-    LongRunningRegExp();
-    {
-      v8::Unlocker unlock(isolate);
-      gc_thread.Join();
-    }
-    v8::Locker::StopPreemption(isolate);
-    CHECK(regexp_success_);
-    CHECK(gc_success_);
-  }
-
- private:
-  // Number of garbage collections required.
-  static const int kRequiredGCs = 5;
-
-  class GCThread : public i::Thread {
-   public:
-    explicit GCThread(RegExpInterruptTest* test)
-        : Thread("GCThread"), test_(test) {}
-    virtual void Run() {
-      test_->CollectGarbage();
-    }
-   private:
-     RegExpInterruptTest* test_;
-  };
-
-  void CollectGarbage() {
-    block_.Wait();
-    while (gc_during_regexp_ < kRequiredGCs) {
-      {
-        v8::Locker lock(CcTest::isolate());
-        v8::Isolate::Scope isolate_scope(CcTest::isolate());
-        // TODO(lrn): Perhaps create some garbage before collecting.
-        CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
-        gc_count_++;
-      }
-      i::OS::Sleep(1);
-    }
-    gc_success_ = true;
-  }
-
-  void LongRunningRegExp() {
-    block_.Signal();  // Enable garbage collection thread on next preemption.
-    int rounds = 0;
-    while (gc_during_regexp_ < kRequiredGCs) {
-      int gc_before = gc_count_;
-      {
-        // Match 15-30 "a"'s against 14 and a "b".
-        const char* c_source =
-            "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
-            ".exec('aaaaaaaaaaaaaaab') === null";
-        Local<String> source = String::New(c_source);
-        Local<Script> script = Script::Compile(source);
-        Local<Value> result = script->Run();
-        if (!result->BooleanValue()) {
-          gc_during_regexp_ = kRequiredGCs;  // Allow gc thread to exit.
-          return;
-        }
-      }
-      {
-        // Match 15-30 "a"'s against 15 and a "b".
-        const char* c_source =
-            "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
-            ".exec('aaaaaaaaaaaaaaaab')[0] === 'aaaaaaaaaaaaaaaa'";
-        Local<String> source = String::New(c_source);
-        Local<Script> script = Script::Compile(source);
-        Local<Value> result = script->Run();
-        if (!result->BooleanValue()) {
-          gc_during_regexp_ = kRequiredGCs;
-          return;
-        }
-      }
-      int gc_after = gc_count_;
-      gc_during_regexp_ += gc_after - gc_before;
-      rounds++;
-      i::OS::Sleep(1);
-    }
-    regexp_success_ = true;
-  }
-
-  i::Semaphore block_;
-  int gc_count_;
-  int gc_during_regexp_;
-  bool regexp_success_;
-  bool gc_success_;
-};
-
-
-// Test that a regular expression execution can be interrupted and
-// survive a garbage collection.
-TEST(RegExpInterruption) {
-  v8::Locker lock(CcTest::isolate());
-  v8::HandleScope scope(CcTest::isolate());
-  Local<Context> local_env;
-  {
-    LocalContext env;
-    local_env = env.local();
-  }
-
-  // Local context should still be live.
-  CHECK(!local_env.IsEmpty());
-  local_env->Enter();
-
-  // Should complete without problems.
-  RegExpInterruptTest().RunTest();
-
-  local_env->Exit();
-}
-
-
 class ApplyInterruptTest {
  public:
   ApplyInterruptTest() : block_(0) {}
@@ -14735,142 +14612,73 @@ TEST(CompileExternalTwoByteSource) {
 }
 
 
-class RegExpStringModificationTest {
+struct RegExpInterruptionData {
+  int loop_count;
+  UC16VectorResource* string_resource;
+  v8::Persistent<v8::String> string;
+} regexp_interruption_data;
+
+
+class RegExpInterruptionThread : public i::Thread {
  public:
-  RegExpStringModificationTest()
-      : block_(0),
-        morphs_(0),
-        morphs_during_regexp_(0),
-        ascii_resource_(i::Vector<const char>("aaaaaaaaaaaaaab", 15)),
-        uc16_resource_(i::Vector<const uint16_t>(two_byte_content_, 15)) {}
-  ~RegExpStringModificationTest() {}
-  void RunTest() {
-    v8::Isolate* isolate = CcTest::isolate();
-    i::Factory* factory = CcTest::i_isolate()->factory();
+  explicit RegExpInterruptionThread(v8::Isolate* isolate)
+      : Thread("TimeoutThread"), isolate_(isolate) {}
 
-    regexp_success_ = false;
-    morph_success_ = false;
-
-    // Initialize the contents of two_byte_content_ to be a uc16 representation
-    // of "aaaaaaaaaaaaaab".
-    for (int i = 0; i < 14; i++) {
-      two_byte_content_[i] = 'a';
+  virtual void Run() {
+    for (regexp_interruption_data.loop_count = 0;
+         regexp_interruption_data.loop_count < 7;
+         regexp_interruption_data.loop_count++) {
+      i::OS::Sleep(50);  // Wait a bit before requesting GC.
+      reinterpret_cast<i::Isolate*>(isolate_)->stack_guard()->RequestGC();
     }
-    two_byte_content_[14] = 'b';
-
-    // Create the input string for the regexp - the one we are going to change
-    // properties of.
-    input_ = factory->NewExternalStringFromAscii(&ascii_resource_);
-
-    // Inject the input as a global variable.
-    i::Handle<i::String> input_name =
-        factory->NewStringFromAscii(i::Vector<const char>("input", 5));
-    i::JSReceiver::SetProperty(
-        i::handle(CcTest::i_isolate()->native_context()->global_object()),
-        input_name,
-        input_,
-        NONE,
-        i::kNonStrictMode);
-
-    MorphThread morph_thread(this);
-    morph_thread.Start();
-    v8::Locker::StartPreemption(isolate, 1);
-    LongRunningRegExp();
-    {
-      v8::Unlocker unlock(isolate);
-      morph_thread.Join();
-    }
-    v8::Locker::StopPreemption(isolate);
-    CHECK(regexp_success_);
-    CHECK(morph_success_);
+    i::OS::Sleep(50);  // Wait a bit before terminating.
+    v8::V8::TerminateExecution(isolate_);
   }
 
  private:
-  // Number of string modifications required.
-  static const int kRequiredModifications = 5;
-  static const int kMaxModifications = 100;
-
-  class MorphThread : public i::Thread {
-   public:
-    explicit MorphThread(RegExpStringModificationTest* test)
-        : Thread("MorphThread"), test_(test) {}
-    virtual void Run() {
-      test_->MorphString();
-    }
-   private:
-     RegExpStringModificationTest* test_;
-  };
-
-  void MorphString() {
-    block_.Wait();
-    while (morphs_during_regexp_ < kRequiredModifications &&
-           morphs_ < kMaxModifications) {
-      {
-        v8::Locker lock(CcTest::isolate());
-        v8::Isolate::Scope isolate_scope(CcTest::isolate());
-        // Swap string between ascii and two-byte representation.
-        i::String* string = *input_;
-        MorphAString(string, &ascii_resource_, &uc16_resource_);
-        morphs_++;
-      }
-      i::OS::Sleep(1);
-    }
-    morph_success_ = true;
-  }
-
-  void LongRunningRegExp() {
-    block_.Signal();  // Enable morphing thread on next preemption.
-    while (morphs_during_regexp_ < kRequiredModifications &&
-           morphs_ < kMaxModifications) {
-      int morphs_before = morphs_;
-      {
-        v8::HandleScope scope(CcTest::isolate());
-        // Match 15-30 "a"'s against 14 and a "b".
-        const char* c_source =
-            "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
-            ".exec(input) === null";
-        Local<String> source = String::New(c_source);
-        Local<Script> script = Script::Compile(source);
-        Local<Value> result = script->Run();
-        CHECK(result->IsTrue());
-      }
-      int morphs_after = morphs_;
-      morphs_during_regexp_ += morphs_after - morphs_before;
-    }
-    regexp_success_ = true;
-  }
-
-  i::uc16 two_byte_content_[15];
-  i::Semaphore block_;
-  int morphs_;
-  int morphs_during_regexp_;
-  bool regexp_success_;
-  bool morph_success_;
-  i::Handle<i::String> input_;
-  AsciiVectorResource ascii_resource_;
-  UC16VectorResource uc16_resource_;
+  v8::Isolate* isolate_;
 };
 
 
-// Test that a regular expression execution can be interrupted and
-// the string changed without failing.
-TEST(RegExpStringModification) {
-  v8::Locker lock(CcTest::isolate());
+void RunBeforeGC(v8::GCType type, v8::GCCallbackFlags flags) {
+  if (regexp_interruption_data.loop_count != 2) return;
   v8::HandleScope scope(CcTest::isolate());
-  Local<Context> local_env;
-  {
-    LocalContext env;
-    local_env = env.local();
-  }
+  v8::Local<v8::String> string = v8::Local<v8::String>::New(
+      CcTest::isolate(), regexp_interruption_data.string);
+  string->MakeExternal(regexp_interruption_data.string_resource);
+}
 
-  // Local context should still be live.
-  CHECK(!local_env.IsEmpty());
-  local_env->Enter();
 
-  // Should complete without problems.
-  RegExpStringModificationTest().RunTest();
+// Test that RegExp execution can be interrupted.  Specifically, we test
+// * interrupting with GC
+// * turn the subject string from one-byte internal to two-byte external string
+// * force termination
+TEST(RegExpInterruption) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
 
-  local_env->Exit();
+  RegExpInterruptionThread timeout_thread(CcTest::isolate());
+
+  v8::V8::AddGCPrologueCallback(RunBeforeGC);
+  static const char* ascii_content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  i::uc16* uc16_content = AsciiToTwoByteString(ascii_content);
+  v8::Local<v8::String> string = v8_str(ascii_content);
+
+  CcTest::global()->Set(v8_str("a"), string);
+  regexp_interruption_data.string.Reset(CcTest::isolate(), string);
+  regexp_interruption_data.string_resource = new UC16VectorResource(
+      i::Vector<const i::uc16>(uc16_content, i::StrLength(ascii_content)));
+
+  v8::TryCatch try_catch;
+  timeout_thread.Start();
+
+  CompileRun("/((a*)*)*b/.exec(a)");
+  CHECK(try_catch.HasTerminated());
+
+  timeout_thread.Join();
+
+  delete regexp_interruption_data.string_resource;
+  regexp_interruption_data.string.Dispose();
 }
 
 
