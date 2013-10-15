@@ -5570,23 +5570,24 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg,
+    Label* no_memento_found,
     Condition cond,
     Label* allocation_memento_present) {
-  Label no_memento_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
   Addu(scratch_reg, receiver_reg,
        Operand(JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
-  Branch(&no_memento_available, lt, scratch_reg, Operand(new_space_start));
+  Branch(no_memento_found, lt, scratch_reg, Operand(new_space_start));
   li(at, Operand(new_space_allocation_top));
   lw(at, MemOperand(at));
-  Branch(&no_memento_available, gt, scratch_reg, Operand(at));
+  Branch(no_memento_found, gt, scratch_reg, Operand(at));
   lw(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
-  Branch(allocation_memento_present, cond, scratch_reg,
-         Operand(isolate()->factory()->allocation_memento_map()));
-  bind(&no_memento_available);
+  if (allocation_memento_present) {
+    Branch(allocation_memento_present, cond, scratch_reg,
+           Operand(isolate()->factory()->allocation_memento_map()));
+  }
 }
 
 
