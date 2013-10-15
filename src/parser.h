@@ -439,13 +439,6 @@ class Parser : public ParserBase {
   static bool Parse(CompilationInfo* info) { return Parser(info).Parse(); }
   bool Parse();
 
-  void ReportMessageAt(Scanner::Location loc,
-                       const char* message,
-                       Vector<const char*> args = Vector<const char*>::empty());
-  void ReportMessageAt(Scanner::Location loc,
-                       const char* message,
-                       Vector<Handle<String> > args);
-
  private:
   static const int kMaxNumFunctionLocals = 131071;  // 2^17-1
 
@@ -562,6 +555,15 @@ class Parser : public ParserBase {
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
   void ReportMessage(const char* message, Vector<const char*> args);
   void ReportMessage(const char* message, Vector<Handle<String> > args);
+  void ReportMessageAt(Scanner::Location location, const char* type) {
+    ReportMessageAt(location, type, Vector<const char*>::empty());
+  }
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<const char*> args);
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<Handle<String> > args);
 
   void set_pre_parse_data(ScriptDataImpl *data) {
     pre_parse_data_ = data;
@@ -570,8 +572,6 @@ class Parser : public ParserBase {
 
   bool inside_with() const { return top_scope_->inside_with(); }
   Scanner& scanner()  { return scanner_; }
-  int position() { return scanner_.location().beg_pos; }
-  int peek_position() { return scanner_.peek_location().beg_pos; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   bool is_extended_mode() {
@@ -694,9 +694,6 @@ class Parser : public ParserBase {
 
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
-  bool CheckContextualKeyword(Vector<const char> keyword);
-  void ExpectContextualKeyword(Vector<const char> keyword, bool* ok);
-
   Handle<String> LiteralString(PretenureFlag tenured) {
     if (scanner().is_literal_ascii()) {
       return isolate_->factory()->NewStringFromAscii(
@@ -740,9 +737,6 @@ class Parser : public ParserBase {
   void CheckStrictModeLValue(Expression* expression,
                              const char* error,
                              bool* ok);
-
-  // Strict mode octal literal validation.
-  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
 
   // For harmony block scoping mode: Check if the scope has conflicting var/let
   // declarations from different scopes. It covers for example
@@ -826,7 +820,6 @@ class Parser : public ParserBase {
   CompilationInfo* info_;
   friend class BlockState;
   friend class FunctionState;
-  friend class ObjectLiteralChecker<Parser>;
 };
 
 

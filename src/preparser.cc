@@ -65,7 +65,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   function_scope.set_is_generator(is_generator);
   ASSERT_EQ(i::Token::LBRACE, scanner()->current_token());
   bool ok = true;
-  int start_position = scanner()->peek_location().beg_pos;
+  int start_position = peek_position();
   ParseLazyFunctionLiteralBody(&ok);
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
@@ -125,18 +125,6 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
   default:
     const char* name = i::Token::String(token);
     ReportMessageAt(source_location, "unexpected_token", name);
-  }
-}
-
-
-// Checks whether octal literal last seen is between beg_pos and end_pos.
-// If so, reports an error.
-void PreParser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  i::Scanner::Location octal = scanner()->octal_position();
-  if (beg_pos <= octal.beg_pos && octal.end_pos <= end_pos) {
-    ReportMessageAt(octal, "strict_octal_literal", NULL);
-    scanner()->clear_octal_position();
-    *ok = false;
   }
 }
 
@@ -659,10 +647,9 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 
 
 bool PreParser::CheckInOrOf(bool accept_OF) {
-  if (peek() == i::Token::IN ||
-      (allow_for_of() && accept_OF && peek() == i::Token::IDENTIFIER &&
-       scanner()->is_next_contextual_keyword(v8::internal::CStrVector("of")))) {
-    Next();
+  if (Check(Token::IN) ||
+      (allow_for_of() && accept_OF &&
+       CheckContextualKeyword(CStrVector("of")))) {
     return true;
   }
   return false;
@@ -898,14 +885,6 @@ PreParser::Expression PreParser::ParseConditionalExpression(bool accept_IN,
   Expect(i::Token::COLON, CHECK_OK);
   ParseAssignmentExpression(accept_IN, CHECK_OK);
   return Expression::Default();
-}
-
-
-int PreParser::Precedence(i::Token::Value tok, bool accept_IN) {
-  if (tok == i::Token::IN && !accept_IN)
-    return 0;  // 0 precedence will terminate binary expression parsing
-
-  return i::Token::Precedence(tok);
 }
 
 
@@ -1238,7 +1217,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
   //    )*[','] '}'
 
-  i::ObjectLiteralChecker<PreParser> checker(this, scanner(), language_mode());
+  ObjectLiteralChecker checker(this, language_mode());
 
   Expect(i::Token::LBRACE, CHECK_OK);
   while (peek() != i::Token::RBRACE) {
@@ -1265,8 +1244,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
             if (!is_keyword) {
               LogSymbol();
             }
-            i::PropertyKind type = is_getter ? i::kGetterProperty
-                                             : i::kSetterProperty;
+            PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
             checker.CheckProperty(name, type, CHECK_OK);
             ParseFunctionLiteral(false, CHECK_OK);
             if (peek() != i::Token::RBRACE) {
@@ -1274,22 +1252,22 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
             }
             continue;  // restart the while
         }
-        checker.CheckProperty(next, i::kValueProperty, CHECK_OK);
+        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         break;
       }
       case i::Token::STRING:
         Consume(next);
-        checker.CheckProperty(next, i::kValueProperty, CHECK_OK);
+        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         GetStringSymbol();
         break;
       case i::Token::NUMBER:
         Consume(next);
-        checker.CheckProperty(next, i::kValueProperty, CHECK_OK);
+        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         break;
       default:
         if (i::Token::IsKeyword(next)) {
           Consume(next);
-          checker.CheckProperty(next, i::kValueProperty, CHECK_OK);
+          checker.CheckProperty(next, kValueProperty, CHECK_OK);
         } else {
           // Unexpected token.
           *ok = false;
@@ -1368,7 +1346,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(i::Token::LPAREN, CHECK_OK);
-  int start_position = scanner()->location().beg_pos;
+  int start_position = position();
   bool done = (peek() == i::Token::RPAREN);
   i::DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   while (!done) {
@@ -1428,7 +1406,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
 
 
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
-  int body_start = scanner()->location().beg_pos;
+  int body_start = position();
   log_->PauseRecording();
   ParseSourceElements(i::Token::RBRACE, ok);
   log_->ResumeRecording();
@@ -1462,7 +1440,7 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
 
 
 void PreParser::LogSymbol() {
-  int identifier_pos = scanner()->location().beg_pos;
+  int identifier_pos = position();
   if (scanner()->is_literal_ascii()) {
     log_->LogAsciiSymbol(identifier_pos, scanner()->literal_ascii_string());
   } else {
@@ -1602,7 +1580,7 @@ void PreParser::StrictModeIdentifierViolation(i::Scanner::Location location,
 PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
   i::Token::Value next = Next();
   if (i::Token::IsKeyword(next)) {
-    int pos = scanner()->location().beg_pos;
+    int pos = position();
     const char* keyword = i::Token::String(next);
     log_->LogAsciiSymbol(pos, i::Vector<const char>(keyword,
                                                     i::StrLength(keyword)));
@@ -1636,5 +1614,37 @@ PreParser::Identifier PreParser::ParseIdentifierNameOrGetOrSet(bool* is_get,
   return result;
 }
 
+
+void PreParser::ObjectLiteralChecker::CheckProperty(Token::Value property,
+                                                    PropertyKind type,
+                                                    bool* ok) {
+  int old;
+  if (property == Token::NUMBER) {
+    old = finder_.AddNumber(scanner()->literal_ascii_string(), type);
+  } else if (scanner()->is_literal_ascii()) {
+    old = finder_.AddAsciiSymbol(scanner()->literal_ascii_string(), type);
+  } else {
+    old = finder_.AddUtf16Symbol(scanner()->literal_utf16_string(), type);
+  }
+  PropertyKind old_type = static_cast<PropertyKind>(old);
+  if (HasConflict(old_type, type)) {
+    if (IsDataDataConflict(old_type, type)) {
+      // Both are data properties.
+      if (language_mode_ == CLASSIC_MODE) return;
+      parser()->ReportMessageAt(scanner()->location(),
+                               "strict_duplicate_property");
+    } else if (IsDataAccessorConflict(old_type, type)) {
+      // Both a data and an accessor property with the same name.
+      parser()->ReportMessageAt(scanner()->location(),
+                               "accessor_data_property");
+    } else {
+      ASSERT(IsAccessorAccessorConflict(old_type, type));
+      // Both accessors of the same type.
+      parser()->ReportMessageAt(scanner()->location(),
+                               "accessor_get_set");
+    }
+    *ok = false;
+  }
+}
 
 } }  // v8::internal

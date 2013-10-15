@@ -35,96 +35,6 @@
 namespace v8 {
 namespace internal {
 
-// Used to detect duplicates in object literals. Each of the values
-// kGetterProperty, kSetterProperty and kValueProperty represents
-// a type of object literal property. When parsing a property, its
-// type value is stored in the DuplicateFinder for the property name.
-// Values are chosen so that having intersection bits means the there is
-// an incompatibility.
-// I.e., you can add a getter to a property that already has a setter, since
-// kGetterProperty and kSetterProperty doesn't intersect, but not if it
-// already has a getter or a value. Adding the getter to an existing
-// setter will store the value (kGetterProperty | kSetterProperty), which
-// is incompatible with adding any further properties.
-enum PropertyKind {
-  kNone = 0,
-  // Bit patterns representing different object literal property types.
-  kGetterProperty = 1,
-  kSetterProperty = 2,
-  kValueProperty = 7,
-  // Helper constants.
-  kValueFlag = 4
-};
-
-
-// Validation per 11.1.5 Object Initialiser
-template<typename P>
-class ObjectLiteralChecker {
- public:
-  ObjectLiteralChecker(P* parser, Scanner* scanner, LanguageMode mode)
-      : parser_(parser),
-        scanner_(scanner),
-        finder_(scanner->unicode_cache()),
-        language_mode_(mode) { }
-
-  void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
-
- private:
-  // Checks the type of conflict based on values coming from PropertyType.
-  bool HasConflict(PropertyKind type1, PropertyKind type2) {
-    return (type1 & type2) != 0;
-  }
-  bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
-    return ((type1 & type2) & kValueFlag) != 0;
-  }
-  bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
-    return ((type1 ^ type2) & kValueFlag) != 0;
-  }
-  bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
-    return ((type1 | type2) & kValueFlag) == 0;
-  }
-
-  P* parser_;
-  Scanner* scanner_;
-  DuplicateFinder finder_;
-  LanguageMode language_mode_;
-};
-
-
-template<typename P>
-void ObjectLiteralChecker<P>::CheckProperty(Token::Value property,
-                                            PropertyKind type,
-                                            bool* ok) {
-  int old;
-  if (property == Token::NUMBER) {
-    old = finder_.AddNumber(scanner_->literal_ascii_string(), type);
-  } else if (scanner_->is_literal_ascii()) {
-    old = finder_.AddAsciiSymbol(scanner_->literal_ascii_string(), type);
-  } else {
-    old = finder_.AddUtf16Symbol(scanner_->literal_utf16_string(), type);
-  }
-  PropertyKind old_type = static_cast<PropertyKind>(old);
-  if (HasConflict(old_type, type)) {
-    if (IsDataDataConflict(old_type, type)) {
-      // Both are data properties.
-      if (language_mode_ == CLASSIC_MODE) return;
-      parser_->ReportMessageAt(scanner_->location(),
-                               "strict_duplicate_property");
-    } else if (IsDataAccessorConflict(old_type, type)) {
-      // Both a data and an accessor property with the same name.
-      parser_->ReportMessageAt(scanner_->location(),
-                               "accessor_data_property");
-    } else {
-      ASSERT(IsAccessorAccessorConflict(old_type, type));
-      // Both accessors of the same type.
-      parser_->ReportMessageAt(scanner_->location(),
-                               "accessor_get_set");
-    }
-    *ok = false;
-  }
-}
-
-
 // Common base class shared between parser and pre-parser.
 class ParserBase {
  public:
@@ -167,6 +77,8 @@ class ParserBase {
 
  protected:
   Scanner* scanner() const { return scanner_; }
+  int position() { return scanner_->location().beg_pos; }
+  int peek_position() { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
 
@@ -215,9 +127,72 @@ class ParserBase {
 
   bool peek_any_identifier();
   void ExpectSemicolon(bool* ok);
+  bool CheckContextualKeyword(Vector<const char> keyword);
+  void ExpectContextualKeyword(Vector<const char> keyword, bool* ok);
+
+  // Strict mode octal literal validation.
+  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
+
+  // Determine precedence of given token.
+  static int Precedence(Token::Value token, bool accept_IN);
 
   // Report syntax errors.
   virtual void ReportUnexpectedToken(Token::Value token) = 0;
+  virtual void ReportMessageAt(Scanner::Location loc, const char* type) = 0;
+
+  // Used to detect duplicates in object literals. Each of the values
+  // kGetterProperty, kSetterProperty and kValueProperty represents
+  // a type of object literal property. When parsing a property, its
+  // type value is stored in the DuplicateFinder for the property name.
+  // Values are chosen so that having intersection bits means the there is
+  // an incompatibility.
+  // I.e., you can add a getter to a property that already has a setter, since
+  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
+  // already has a getter or a value. Adding the getter to an existing
+  // setter will store the value (kGetterProperty | kSetterProperty), which
+  // is incompatible with adding any further properties.
+  enum PropertyKind {
+    kNone = 0,
+    // Bit patterns representing different object literal property types.
+    kGetterProperty = 1,
+    kSetterProperty = 2,
+    kValueProperty = 7,
+    // Helper constants.
+    kValueFlag = 4
+  };
+
+  // Validation per ECMA 262 - 11.1.5 "Object Initialiser".
+  class ObjectLiteralChecker {
+   public:
+    ObjectLiteralChecker(ParserBase* parser, LanguageMode mode)
+        : parser_(parser),
+          finder_(scanner()->unicode_cache()),
+          language_mode_(mode) { }
+
+    void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
+
+   private:
+    ParserBase* parser() const { return parser_; }
+    Scanner* scanner() const { return parser_->scanner(); }
+
+    // Checks the type of conflict based on values coming from PropertyType.
+    bool HasConflict(PropertyKind type1, PropertyKind type2) {
+      return (type1 & type2) != 0;
+    }
+    bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 & type2) & kValueFlag) != 0;
+    }
+    bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 ^ type2) & kValueFlag) != 0;
+    }
+    bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 | type2) & kValueFlag) == 0;
+    }
+
+    ParserBase* parser_;
+    DuplicateFinder finder_;
+    LanguageMode language_mode_;
+  };
 
  private:
   Scanner* scanner_;
@@ -254,14 +229,13 @@ class PreParser : public ParserBase {
     kPreParseSuccess
   };
 
-
-  PreParser(i::Scanner* scanner,
-            i::ParserRecorder* log,
+  PreParser(Scanner* scanner,
+            ParserRecorder* log,
             uintptr_t stack_limit)
       : ParserBase(scanner, stack_limit),
         log_(log),
         scope_(NULL),
-        strict_mode_violation_location_(i::Scanner::Location::invalid()),
+        strict_mode_violation_location_(Scanner::Location::invalid()),
         strict_mode_violation_type_(NULL),
         parenthesized_function_(false) { }
 
@@ -275,7 +249,7 @@ class PreParser : public ParserBase {
     Scope top_scope(&scope_, kTopLevelScope);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
-    ParseSourceElements(i::Token::EOS, &ok);
+    ParseSourceElements(Token::EOS, &ok);
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
@@ -293,9 +267,9 @@ class PreParser : public ParserBase {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(i::LanguageMode mode,
+  PreParseResult PreParseLazyFunction(LanguageMode mode,
                                       bool is_generator,
-                                      i::ParserRecorder* log);
+                                      ParserRecorder* log);
 
  private:
   // These types form an algebra over syntactic categories that is just
@@ -556,7 +530,7 @@ class PreParser : public ParserBase {
           expected_properties_(0),
           with_nesting_count_(0),
           language_mode_(
-              (prev_ != NULL) ? prev_->language_mode() : i::CLASSIC_MODE),
+              (prev_ != NULL) ? prev_->language_mode() : CLASSIC_MODE),
           is_generator_(false) {
       *variable = this;
     }
@@ -570,12 +544,12 @@ class PreParser : public ParserBase {
     bool is_generator() { return is_generator_; }
     void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
     bool is_classic_mode() {
-      return language_mode_ == i::CLASSIC_MODE;
+      return language_mode_ == CLASSIC_MODE;
     }
-    i::LanguageMode language_mode() {
+    LanguageMode language_mode() {
       return language_mode_;
     }
-    void set_language_mode(i::LanguageMode language_mode) {
+    void set_language_mode(LanguageMode language_mode) {
       language_mode_ = language_mode;
     }
 
@@ -599,15 +573,18 @@ class PreParser : public ParserBase {
     int materialized_literal_count_;
     int expected_properties_;
     int with_nesting_count_;
-    i::LanguageMode language_mode_;
+    LanguageMode language_mode_;
     bool is_generator_;
   };
 
   // Report syntax error
-  void ReportUnexpectedToken(i::Token::Value token);
-  void ReportMessageAt(i::Scanner::Location location,
+  void ReportUnexpectedToken(Token::Value token);
+  void ReportMessageAt(Scanner::Location location, const char* type) {
+    ReportMessageAt(location, type, NULL);
+  }
+  void ReportMessageAt(Scanner::Location location,
                        const char* type,
-                       const char* name_opt = NULL) {
+                       const char* name_opt) {
     log_->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
   }
   void ReportMessageAt(int start_pos,
@@ -616,8 +593,6 @@ class PreParser : public ParserBase {
                        const char* name_opt) {
     log_->LogMessage(start_pos, end_pos, type, name_opt);
   }
-
-  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -682,42 +657,38 @@ class PreParser : public ParserBase {
   // Log the currently parsed string literal.
   Expression GetStringSymbol();
 
-  void set_language_mode(i::LanguageMode language_mode) {
+  void set_language_mode(LanguageMode language_mode) {
     scope_->set_language_mode(language_mode);
   }
 
   bool is_classic_mode() {
-    return scope_->language_mode() == i::CLASSIC_MODE;
+    return scope_->language_mode() == CLASSIC_MODE;
   }
 
   bool is_extended_mode() {
-    return scope_->language_mode() == i::EXTENDED_MODE;
+    return scope_->language_mode() == EXTENDED_MODE;
   }
 
-  i::LanguageMode language_mode() { return scope_->language_mode(); }
+  LanguageMode language_mode() { return scope_->language_mode(); }
 
   bool CheckInOrOf(bool accept_OF);
 
-  static int Precedence(i::Token::Value tok, bool accept_IN);
-
-  void SetStrictModeViolation(i::Scanner::Location,
+  void SetStrictModeViolation(Scanner::Location,
                               const char* type,
                               bool* ok);
 
   void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
 
-  void StrictModeIdentifierViolation(i::Scanner::Location,
+  void StrictModeIdentifierViolation(Scanner::Location,
                                      const char* eval_args_type,
                                      Identifier identifier,
                                      bool* ok);
 
-  i::ParserRecorder* log_;
+  ParserRecorder* log_;
   Scope* scope_;
-  i::Scanner::Location strict_mode_violation_location_;
+  Scanner::Location strict_mode_violation_location_;
   const char* strict_mode_violation_type_;
   bool parenthesized_function_;
-
-  friend class i::ObjectLiteralChecker<PreParser>;
 };
 
 } }  // v8::internal
