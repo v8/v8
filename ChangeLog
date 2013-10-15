@@ -1,3 +1,16 @@
+2013-10-15: Version 3.22.12
+
+        Added histograms to track fraction of heap spaces and percentage of
+        generated crankshaft code.
+
+        Moved v8_optimized_debug default value to standalone.gypi.
+
+        Track JS allocations as they arrive with no affection on performance
+        when tracking is switched off (Chromium issue 277984).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-14: Version 3.22.11
 
         Performance and stability improvements on all platforms.
