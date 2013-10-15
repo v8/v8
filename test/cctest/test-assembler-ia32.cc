@@ -564,4 +564,35 @@ TEST(StackAlignmentForSSE2) {
 #endif  // __GNUC__
 
 
+TEST(AssemblerIa32Extractps) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE4_1)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  { CpuFeatureScope fscope2(&assm, SSE2);
+    CpuFeatureScope fscope41(&assm, SSE4_1);
+    __ movdbl(xmm1, Operand(esp, 4));
+    __ extractps(eax, xmm1, 0x1);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Code* code = Code::cast(isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked());
+  CHECK(code->IsCode());
+#ifdef OBJECT_PRINT
+  Code::cast(code)->Print();
+#endif
+
+  F4 f = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  CHECK_EQ(0x7FF80000, f(OS::nan_value()));
+}
+
+
 #undef __

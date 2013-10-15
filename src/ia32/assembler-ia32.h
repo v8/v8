@@ -1168,6 +1168,7 @@ class Assembler : public AssemblerBase {
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(Register dst, XMMRegister src);
+  void emit_sse_operand(XMMRegister dst, Register src);
 
   byte* addr_at(int pos) { return buffer_ + pos; }
 
