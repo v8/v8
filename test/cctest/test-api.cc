@@ -14612,6 +14612,8 @@ TEST(CompileExternalTwoByteSource) {
 }
 
 
+#ifndef V8_INTERPRETED_REGEXP
+
 struct RegExpInterruptionData {
   int loop_count;
   UC16VectorResource* string_resource;
@@ -14680,6 +14682,8 @@ TEST(RegExpInterruption) {
   delete regexp_interruption_data.string_resource;
   regexp_interruption_data.string.Dispose();
 }
+
+#endif  // V8_INTERPRETED_REGEXP
 
 
 // Test that we cannot set a property on the global object if there
