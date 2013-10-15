@@ -2257,9 +2257,14 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
   ASSERT(args.length() == 4);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Handle<Object> value = args.at<Object>(0);
+  Handle<Map> map = args.at<Map>(1);
   Handle<Object> key = args.at<Object>(2);
   Handle<Object> object = args.at<Object>(3);
   StrictModeFlag strict_mode = ic.strict_mode();
+  if (object->IsJSObject()) {
+    JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
+                                     map->elements_kind());
+  }
   return Runtime::SetObjectProperty(isolate,
                                     object,
                                     key,
