@@ -3512,9 +3512,8 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
-    Register scratch_reg) {
-  Label no_memento_available;
-
+    Register scratch_reg,
+    Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -3523,12 +3522,11 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   lea(scratch_reg, Operand(receiver_reg,
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   cmp(scratch_reg, Immediate(new_space_start));
-  j(less, &no_memento_available);
+  j(less, no_memento_found);
   cmp(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
-  j(greater, &no_memento_available);
+  j(greater, no_memento_found);
   cmp(MemOperand(scratch_reg, -AllocationMemento::kSize),
       Immediate(isolate()->factory()->allocation_memento_map()));
-  bind(&no_memento_available);
 }
 
 

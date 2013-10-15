@@ -263,8 +263,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
     ASSERT(allocation_memento_found != NULL);
-    __ TestJSArrayForAllocationMemento(rdx, rdi);
-    __ j(equal, allocation_memento_found);
+    __ JumpIfJSArrayHasAllocationMemento(rdx, rdi, allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -292,8 +291,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label allocated, new_backing_store, only_change_map, done;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(rdx, rdi);
-    __ j(equal, fail);
+    __ JumpIfJSArrayHasAllocationMemento(rdx, rdi, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -418,8 +416,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label loop, entry, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(rdx, rdi);
-    __ j(equal, fail);
+    __ JumpIfJSArrayHasAllocationMemento(rdx, rdi, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
