@@ -824,7 +824,7 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
 // work in the snapshot case is done in HookUpInnerGlobal.
 void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                                Handle<JSFunction> empty_function) {
-  // --- G l o b a l   C o n t e x t ---
+  // --- N a t i v e   C o n t e x t ---
   // Use the empty function as closure (no scope info).
   native_context()->set_closure(*empty_function);
   native_context()->set_previous(NULL);

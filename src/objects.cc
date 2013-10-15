@@ -1737,6 +1737,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case FIXED_ARRAY_TYPE:
       FixedArray::BodyDescriptor::IterateBody(this, object_size, v);
       break;
+    case CONSTANT_POOL_ARRAY_TYPE:
+      reinterpret_cast<ConstantPoolArray*>(this)->ConstantPoolIterateBody(v);
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       break;
     case JS_OBJECT_TYPE:
@@ -2283,6 +2286,13 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
     } else {
       MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
     }
+  }
+
+  // The array may not be moved during GC,
+  // and size has to be adjusted nevertheless.
+  HeapProfiler* profiler = heap->isolate()->heap_profiler();
+  if (profiler->is_tracking_allocations()) {
+    profiler->UpdateObjectSizeEvent(elms->address(), elms->Size());
   }
 }
 
@@ -9352,6 +9362,16 @@ bool Map::EquivalentToForNormalization(Map* other,
   int properties = mode == CLEAR_INOBJECT_PROPERTIES
       ? 0 : other->inobject_properties();
   return CheckEquivalent(this, other) && inobject_properties() == properties;
+}
+
+
+void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
+  int first_ptr_offset = OffsetOfElementAt(first_ptr_index());
+  int last_ptr_offset =
+      OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries());
+  v->VisitPointers(
+      HeapObject::RawField(this, first_ptr_offset),
+      HeapObject::RawField(this, last_ptr_offset));
 }
 
 

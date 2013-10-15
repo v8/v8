@@ -274,7 +274,8 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   }
 
   HEAP_PROFILE(heap, ObjectMoveEvent(elms->address(),
-                                     elms->address() + size_delta));
+                                     elms->address() + size_delta,
+                                     elms->Size()));
   return FixedArrayBase::cast(HeapObject::FromAddress(
       elms->address() + to_trim * entry_size));
 }

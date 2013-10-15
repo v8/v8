@@ -55,7 +55,8 @@ class OptimizingCompilerThread : public Thread {
       input_queue_semaphore_(0),
       osr_cursor_(0),
       osr_hits_(0),
-      osr_attempts_(0) {
+      osr_attempts_(0),
+      blocked_jobs_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
     if (FLAG_concurrent_osr) {
@@ -73,6 +74,7 @@ class OptimizingCompilerThread : public Thread {
   void Stop();
   void Flush();
   void QueueForOptimization(RecompileJob* optimizing_compiler);
+  void Unblock();
   void InstallOptimizedFunctions();
   RecompileJob* FindReadyOSRCandidate(Handle<JSFunction> function,
                                       uint32_t osr_pc_offset);
@@ -141,6 +143,8 @@ class OptimizingCompilerThread : public Thread {
 
   int osr_hits_;
   int osr_attempts_;
+
+  int blocked_jobs_;
 };
 
 } }  // namespace v8::internal

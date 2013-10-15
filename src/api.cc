@@ -7300,6 +7300,16 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 }
 
 
+void HeapProfiler::StartRecordingHeapAllocations() {
+  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapAllocationsRecording();
+}
+
+
+void HeapProfiler::StopRecordingHeapAllocations() {
+  reinterpret_cast<i::HeapProfiler*>(this)->StopHeapAllocationsRecording();
+}
+
+
 v8::Testing::StressType internal::Testing::stress_type_ =
     v8::Testing::kStressTypeOpt;
 

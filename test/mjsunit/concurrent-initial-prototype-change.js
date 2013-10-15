@@ -26,29 +26,32 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=50
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
-function f(foo) { return foo.bar(); }
+function f1(a, i) {
+  return a[i] + 0.5;
+}
 
-var o = {};
-o.__proto__ = { __proto__: { bar: function() { return 1; } } };
+var arr = [0.0,,2.5];
+assertEquals(0.5, f1(arr, 0));
+assertEquals(0.5, f1(arr, 0));
 
-assertEquals(1, f(o));
-assertEquals(1, f(o));
-
-// Mark for concurrent optimization.
-%OptimizeFunctionOnNextCall(f, "concurrent");
-// Trigger optimization in the background thread.
-assertEquals(1, f(o));
-// While concurrent recompilation is running, optimization not yet done.
-assertUnoptimized(f, "no sync");
-// Change the prototype chain during optimization to trigger map invalidation.
-o.__proto__.__proto__ = { bar: function() { return 2; } };
-// Optimization eventually bails out due to map dependency.
-assertUnoptimized(f, "sync");
-assertEquals(2, f(o));
+// Optimized code of f1 depends on initial object and array maps.
+%OptimizeFunctionOnNextCall(f1, "concurrent");
+// Kick off recompilation;
+assertEquals(0.5, f1(arr, 0));
+// Invalidate current initial object map after compile graph has been created.
+Object.prototype[1] = 1.5;
+assertEquals(2, f1(arr, 1));
+// Not yet optimized since concurrent recompilation is blocked.
+assertUnoptimized(f1, "no sync");
+// Let concurrent recompilation proceed.
+%UnblockConcurrentRecompilation();
+// Sync with background thread to conclude optimization, which bails out
+// due to map dependency.
+assertUnoptimized(f1, "sync");

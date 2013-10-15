@@ -71,6 +71,7 @@ namespace internal {
   V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
+  V(Map, constant_pool_array_map, ConstantPoolArrayMap)                        \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
@@ -943,6 +944,16 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CopyFixedDoubleArrayWithMap(
       FixedDoubleArray* src, Map* map);
 
+  // Make a copy of src and return it. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT inline MaybeObject* CopyConstantPoolArray(
+      ConstantPoolArray* src);
+
+  // Make a copy of src, set the map, and return the copy. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT MaybeObject* CopyConstantPoolArrayWithMap(
+      ConstantPoolArray* src, Map* map);
+
   // Allocates a fixed array initialized with the hole values.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -950,6 +961,11 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateFixedArrayWithHoles(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT MaybeObject* AllocateConstantPoolArray(
+      int first_int64_index,
+      int first_ptr_index,
+      int first_int32_index);
 
   // Allocates a fixed double array with uninitialized values. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
@@ -1660,6 +1676,14 @@ class Heap {
     total_regexp_code_generated_ += size;
   }
 
+  void IncrementCodeGeneratedBytes(bool is_crankshafted, int size) {
+    if (is_crankshafted) {
+      crankshaft_codegen_bytes_generated_ += size;
+    } else {
+      full_codegen_bytes_generated_ += size;
+    }
+  }
+
   // Returns maximum GC pause.
   double get_max_gc_pause() { return max_gc_pause_; }
 
@@ -2354,6 +2378,10 @@ class Heap {
   int mark_sweeps_since_idle_round_started_;
   unsigned int gc_count_at_last_idle_gc_;
   int scavenges_since_last_idle_round_;
+
+  // These two counters are monotomically increasing and never reset.
+  size_t full_codegen_bytes_generated_;
+  size_t crankshaft_codegen_bytes_generated_;
 
   // If the --deopt_every_n_garbage_collections flag is set to a positive value,
   // this variable holds the number of garbage collections since the last

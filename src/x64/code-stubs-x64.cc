@@ -4226,9 +4226,15 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ testb(rbx, Immediate(kStringEncodingMask));
-    __ j(zero, &two_byte_slice, Label::kNear);
+    // Make long jumps when allocations tracking is on due to
+    // RecordObjectAllocation inside MacroAssembler::Allocate.
+    Label::Distance jump_distance =
+        masm->isolate()->heap_profiler()->is_tracking_allocations()
+        ? Label::kFar
+        : Label::kNear;
+    __ j(zero, &two_byte_slice, jump_distance);
     __ AllocateAsciiSlicedString(rax, rbx, r14, &runtime);
-    __ jmp(&set_slice_header, Label::kNear);
+    __ jmp(&set_slice_header, jump_distance);
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(rax, rbx, r14, &runtime);
     __ bind(&set_slice_header);

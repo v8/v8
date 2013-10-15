@@ -59,6 +59,11 @@ class Factory {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<ConstantPoolArray> NewConstantPoolArray(
+      int number_of_int64_entries,
+      int number_of_ptr_entries,
+      int number_of_int32_entries);
+
   Handle<SeededNumberDictionary> NewSeededNumberDictionary(
       int at_least_space_for);
 
@@ -272,6 +277,9 @@ class Factory {
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);
+
+  Handle<ConstantPoolArray> CopyConstantPoolArray(
+      Handle<ConstantPoolArray> array);
 
   // Numbers (e.g. literals) are pretenured by the parser.
   Handle<Object> NewNumber(double value,

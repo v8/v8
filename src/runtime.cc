@@ -8579,6 +8579,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_UnblockConcurrentRecompilation) {
+  RUNTIME_ASSERT(FLAG_block_concurrent_recompilation);
+  isolate->optimizing_compiler_thread()->Unblock();
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationCount) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);

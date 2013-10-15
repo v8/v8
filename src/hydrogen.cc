@@ -3969,6 +3969,11 @@ void HOptimizedGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
+void HOptimizedGraphBuilder::VisitCaseClause(CaseClause* clause) {
+  UNREACHABLE();
+}
+
+
 static Handle<SharedFunctionInfo> SearchSharedFunctionInfo(
     Code* unoptimized_code, FunctionLiteral* expr) {
   int start_position = expr->start_position();

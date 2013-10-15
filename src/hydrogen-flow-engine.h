@@ -107,7 +107,7 @@ class HFlowEngine {
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       state = state->Process(it.Current(), zone_);
     }
-    return StateAt(block);
+    return state;
   }
 
   // Global analysis. Iterates over all blocks that are dominated by the given

@@ -168,6 +168,7 @@ void OptimizingCompilerThread::FlushOsrBuffer(bool restore_function_code) {
 void OptimizingCompilerThread::Flush() {
   ASSERT(!IsOptimizerThread());
   Release_Store(&stop_thread_, static_cast<AtomicWord>(FLUSH));
+  if (FLAG_block_concurrent_recompilation) Unblock();
   input_queue_semaphore_.Signal();
   stop_semaphore_.Wait();
   FlushOutputQueue(true);
@@ -181,6 +182,7 @@ void OptimizingCompilerThread::Flush() {
 void OptimizingCompilerThread::Stop() {
   ASSERT(!IsOptimizerThread());
   Release_Store(&stop_thread_, static_cast<AtomicWord>(STOP));
+  if (FLAG_block_concurrent_recompilation) Unblock();
   input_queue_semaphore_.Signal();
   stop_semaphore_.Wait();
 
@@ -252,7 +254,20 @@ void OptimizingCompilerThread::QueueForOptimization(RecompileJob* job) {
     info->closure()->MarkInRecompileQueue();
   }
   input_queue_.Enqueue(job);
-  input_queue_semaphore_.Signal();
+  if (FLAG_block_concurrent_recompilation) {
+    blocked_jobs_++;
+  } else {
+    input_queue_semaphore_.Signal();
+  }
+}
+
+
+void OptimizingCompilerThread::Unblock() {
+  ASSERT(!IsOptimizerThread());
+  while (blocked_jobs_ > 0) {
+    input_queue_semaphore_.Signal();
+    blocked_jobs_--;
+  }
 }
 
 
