@@ -169,8 +169,8 @@ public:
     any = [\000-\377];
     whitespace_char = [ \t\v\f\r];
     whitespace = whitespace_char+;
-    identifier_start_ = [$_\\a-zA-z];
-    identifier_char = [$_\\a-zA-z0-9];
+    identifier_start_ = [$_\\a-zA-Z];
+    identifier_char = [$_\\a-zA-Z0-9];
     line_terminator = [\n\r]+;
     digit = [0-9];
     hex_digit = [0-9a-fA-F];
