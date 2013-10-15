@@ -445,19 +445,14 @@ void MacroAssembler::TaggedToI(Register result_reg,
 }
 
 
-
-static double kUint32Bias =
-    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
-
-
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src,
                                 XMMRegister scratch) {
-  ASSERT(!Serializer::enabled());
   Label done;
   cmp(src, Immediate(0));
-  movdbl(scratch,
-         Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
+  ExternalReference uint32_bias =
+        ExternalReference::address_of_uint32_bias();
+  movdbl(scratch, Operand::StaticVariable(uint32_bias));
   Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, scratch);
@@ -466,13 +461,14 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
 
 
 void MacroAssembler::LoadUint32NoSSE2(Register src) {
-  ASSERT(!Serializer::enabled());
   Label done;
   push(src);
   fild_s(Operand(esp, 0));
   cmp(src, Immediate(0));
   j(not_sign, &done, Label::kNear);
-  fld_d(Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
+  ExternalReference uint32_bias =
+        ExternalReference::address_of_uint32_bias();
+  fld_d(Operand::StaticVariable(uint32_bias));
   faddp(1);
   bind(&done);
   add(esp, Immediate(kPointerSize));

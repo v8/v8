@@ -813,6 +813,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_canonical_non_hole_nan();
   static ExternalReference address_of_the_hole_nan();
+  static ExternalReference address_of_uint32_bias();
 
   static ExternalReference math_sin_double_function(Isolate* isolate);
   static ExternalReference math_cos_double_function(Isolate* isolate);

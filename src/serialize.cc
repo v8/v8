@@ -585,6 +585,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       64,
       "HeapProfiler::RecordObjectAllocationFromMasm");
+  Add(ExternalReference::address_of_uint32_bias().address(),
+      UNCLASSIFIED,
+      65,
+      "uint32_bias");
 
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.

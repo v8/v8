@@ -98,6 +98,7 @@ struct DoubleConstant BASE_EMBEDDED {
   double negative_infinity;
   double canonical_non_hole_nan;
   double the_hole_nan;
+  double uint32_bias;
 };
 
 static DoubleConstant double_constants;
@@ -908,6 +909,8 @@ void ExternalReference::SetUp() {
   double_constants.canonical_non_hole_nan = OS::nan_value();
   double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
+  double_constants.uint32_bias =
+    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
 
   math_exp_data_mutex = new Mutex();
 }
@@ -1338,6 +1341,12 @@ ExternalReference ExternalReference::record_object_allocation_function(
   return ExternalReference(
       Redirect(isolate,
                FUNCTION_ADDR(HeapProfiler::RecordObjectAllocationFromMasm)));
+}
+
+
+ExternalReference ExternalReference::address_of_uint32_bias() {
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.uint32_bias));
 }
 
 
