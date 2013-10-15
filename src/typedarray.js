@@ -30,7 +30,7 @@
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
 // var $Array = global.Array;
-
+var $ArrayBuffer = global.ArrayBuffer;
 
 
 // --------------- Typed Arrays ---------------------
@@ -70,7 +70,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByLength(obj, length) {
     var l = ToPositiveInteger(length, "invalid_typed_array_length");
     var byteLength = l * elementSize;
-    var buffer = new global.ArrayBuffer(byteLength);
+    var buffer = new $ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
   }
 
