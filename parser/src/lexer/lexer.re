@@ -343,12 +343,13 @@ void ExperimentalScanner::FillTokens() {
   fetched_ = 0;
   uint8_t chars[BUFFER_SIZE];
   int n = static_cast<int>(fread(&chars, 1, BUFFER_SIZE, file_));
-  scanner_->push(chars, n);
+  for (int i = n; i < BUFFER_SIZE; i++) chars[i] = 0;
+  scanner_->push(chars, BUFFER_SIZE);
 }
 
 
 Token::Value ExperimentalScanner::Next(int* beg_pos, int* end_pos) {
-  if (current_ == fetched_) {
+  while (current_ == fetched_) {
     FillTokens();
   }
   *beg_pos = beg_[current_];
