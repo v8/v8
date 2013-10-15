@@ -1311,9 +1311,9 @@ HValue* HGraphBuilder::BuildLookupNumberStringCache(
 
     // Load the key.
     HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
-    HValue* key = AddFastElementAccess(number_string_cache, key_index,
-                                       NULL, NULL, FAST_ELEMENTS, false,
-                                       ALLOW_RETURN_HOLE, STANDARD_STORE);
+    HValue* key = Add<HLoadKeyed>(number_string_cache, key_index,
+                                  static_cast<HValue*>(NULL),
+                                  FAST_ELEMENTS, ALLOW_RETURN_HOLE);
 
     // Check if object == key.
     IfBuilder if_objectiskey(this);
@@ -1343,9 +1343,9 @@ HValue* HGraphBuilder::BuildLookupNumberStringCache(
 
       // Load the key.
       HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
-      HValue* key = AddFastElementAccess(number_string_cache, key_index,
-                                        NULL, NULL, FAST_ELEMENTS, false,
-                                        ALLOW_RETURN_HOLE, STANDARD_STORE);
+      HValue* key = Add<HLoadKeyed>(number_string_cache, key_index,
+                                    static_cast<HValue*>(NULL),
+                                    FAST_ELEMENTS, ALLOW_RETURN_HOLE);
 
       // Check if key is a heap number.
       IfBuilder if_keyisnumber(this);
@@ -1380,9 +1380,9 @@ HValue* HGraphBuilder::BuildLookupNumberStringCache(
   // Load the value in case of cache hit.
   HValue* key_index = Pop();
   HValue* value_index = Add<HAdd>(key_index, graph()->GetConstant1());
-  HValue* value = AddFastElementAccess(number_string_cache, value_index,
-                                      NULL, NULL, FAST_ELEMENTS, false,
-                                      ALLOW_RETURN_HOLE, STANDARD_STORE);
+  HValue* value = Add<HLoadKeyed>(number_string_cache, value_index,
+                                  static_cast<HValue*>(NULL),
+                                  FAST_ELEMENTS, ALLOW_RETURN_HOLE);
   AddIncrementCounter(isolate()->counters()->number_to_string_native());
 
   if_found.CaptureContinuation(continuation);
@@ -1470,7 +1470,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       HValue* bounds_check = negative_checker.If<HCompareNumericAndBranch>(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
-      HInstruction* result = AddExternalArrayElementAccess(
+      HInstruction* result = AddElementAccess(
           external_elements, key, val, bounds_check, elements_kind, is_store);
       negative_checker.ElseDeopt("Negative key encountered");
       length_checker.End();
@@ -1480,7 +1480,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       checked_key = Add<HBoundsCheck>(key, length);
       HLoadExternalArrayPointer* external_elements =
           Add<HLoadExternalArrayPointer>(elements);
-      return AddExternalArrayElementAccess(
+      return AddElementAccess(
           external_elements, checked_key, val,
           checked_object, elements_kind, is_store);
     }
@@ -1513,14 +1513,13 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
                                             elements_kind, length);
       } else {
         HCheckMaps* check_cow_map = Add<HCheckMaps>(
-            elements, isolate()->factory()->fixed_array_map(),
-            top_info());
+            elements, isolate()->factory()->fixed_array_map(), top_info());
         check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
       }
     }
   }
-  return AddFastElementAccess(elements, checked_key, val, checked_object,
-                              elements_kind, is_store, load_mode, store_mode);
+  return AddElementAccess(elements, checked_key, val, checked_object,
+                          elements_kind, is_store, load_mode);
 }
 
 
@@ -1610,85 +1609,31 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
 }
 
 
-HInstruction* HGraphBuilder::AddExternalArrayElementAccess(
-    HValue* external_elements,
+HInstruction* HGraphBuilder::AddElementAccess(
+    HValue* elements,
     HValue* checked_key,
     HValue* val,
     HValue* dependency,
     ElementsKind elements_kind,
-    bool is_store) {
-  if (is_store) {
-    ASSERT(val != NULL);
-    switch (elements_kind) {
-      case EXTERNAL_PIXEL_ELEMENTS: {
-        val = Add<HClampToUint8>(val);
-        break;
-      }
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-        break;
-      }
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
-        break;
-      case FAST_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-      case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
-        UNREACHABLE();
-        break;
-    }
-    return Add<HStoreKeyed>(external_elements, checked_key, val, elements_kind);
-  } else {
-    ASSERT(val == NULL);
-    HLoadKeyed* load = Add<HLoadKeyed>(external_elements,
-                                       checked_key,
-                                       dependency,
-                                       elements_kind);
-    if (FLAG_opt_safe_uint32_operations &&
-        elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
-      graph()->RecordUint32Instruction(load);
-    }
-    return load;
-  }
-}
-
-
-HInstruction* HGraphBuilder::AddFastElementAccess(
-    HValue* elements,
-    HValue* checked_key,
-    HValue* val,
-    HValue* load_dependency,
-    ElementsKind elements_kind,
     bool is_store,
-    LoadKeyedHoleMode load_mode,
-    KeyedAccessStoreMode store_mode) {
+    LoadKeyedHoleMode load_mode) {
   if (is_store) {
     ASSERT(val != NULL);
-    switch (elements_kind) {
-      case FAST_SMI_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        return Add<HStoreKeyed>(elements, checked_key, val, elements_kind);
-      default:
-        UNREACHABLE();
-        return NULL;
+    if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
+      val = Add<HClampToUint8>(val);
     }
+    return Add<HStoreKeyed>(elements, checked_key, val, elements_kind);
   }
-  // It's an element load (!is_store).
-  return Add<HLoadKeyed>(
-      elements, checked_key, load_dependency, elements_kind, load_mode);
+
+  ASSERT(!is_store);
+  ASSERT(val == NULL);
+  HLoadKeyed* load = Add<HLoadKeyed>(
+      elements, checked_key, dependency, elements_kind, load_mode);
+  if (FLAG_opt_safe_uint32_operations &&
+      elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+    graph()->RecordUint32Instruction(load);
+  }
+  return load;
 }
 
 
@@ -5139,8 +5084,7 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
     HValue* key = environment()->ExpressionStackAt(1);
     HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
-    HandleKeyedElementAccess(object, key, value, expr, return_id,
-                             expr->position(),
+    HandleKeyedElementAccess(object, key, value, expr, expr->position(),
                              true,  // is_store
                              &has_side_effects);
     Drop(3);
@@ -5689,7 +5633,6 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HValue* key,
     HValue* val,
     SmallMapList* maps,
-    BailoutId ast_id,
     int position,
     bool is_store,
     KeyedAccessStoreMode store_mode,
@@ -5821,7 +5764,6 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     HValue* key,
     HValue* val,
     Expression* expr,
-    BailoutId ast_id,
     int position,
     bool is_store,
     bool* has_side_effects) {
@@ -5844,7 +5786,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     }
   } else if (types != NULL && !types->is_empty()) {
     return HandlePolymorphicElementAccess(
-        obj, key, val, types, ast_id, position, is_store,
+        obj, key, val, types, position, is_store,
         expr->GetStoreMode(), has_side_effects);
   } else {
     if (is_store) {
@@ -6033,7 +5975,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
 
     bool has_side_effects = false;
     HValue* load = HandleKeyedElementAccess(
-        obj, key, NULL, expr, ast_id, position,
+        obj, key, NULL, expr, position,
         false,  // is_store
         &has_side_effects);
     if (has_side_effects) {

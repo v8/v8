@@ -1253,23 +1253,14 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
-  HInstruction* AddExternalArrayElementAccess(
-      HValue* external_elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
-      bool is_store);
-
-  HInstruction* AddFastElementAccess(
+  HInstruction* AddElementAccess(
       HValue* elements,
       HValue* checked_key,
       HValue* val,
       HValue* dependency,
       ElementsKind elements_kind,
       bool is_store,
-      LoadKeyedHoleMode load_mode,
-      KeyedAccessStoreMode store_mode);
+      LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE);
 
   HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
   HInstruction* BuildLoadStringLength(HValue* object, HValue* checked_value);
@@ -2196,7 +2187,6 @@ class HOptimizedGraphBuilder V8_FINAL
                                          HValue* key,
                                          HValue* val,
                                          SmallMapList* maps,
-                                         BailoutId ast_id,
                                          int position,
                                          bool is_store,
                                          KeyedAccessStoreMode store_mode,
@@ -2206,7 +2196,6 @@ class HOptimizedGraphBuilder V8_FINAL
                                    HValue* key,
                                    HValue* val,
                                    Expression* expr,
-                                   BailoutId ast_id,
                                    int position,
                                    bool is_store,
                                    bool* has_side_effects);
