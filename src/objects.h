@@ -2541,7 +2541,7 @@ class JSObject: public JSReceiver {
   static Handle<Object> Freeze(Handle<JSObject> object);
 
   // Called the first time an object is observed with ES7 Object.observe.
-  MUST_USE_RESULT MaybeObject* SetObserved(Isolate* isolate);
+  static void SetObserved(Handle<JSObject> object);
 
   // Copy object.
   static Handle<JSObject> Copy(Handle<JSObject> object);
@@ -5977,6 +5977,8 @@ class Map: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
+
+  static Handle<Map> CopyForObserved(Handle<Map> map);
   MUST_USE_RESULT MaybeObject* CopyForObserved();
 
   static Handle<Map> CopyNormalized(Handle<Map> map,

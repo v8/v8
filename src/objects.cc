@@ -5581,37 +5581,34 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
 }
 
 
-MUST_USE_RESULT MaybeObject* JSObject::SetObserved(Isolate* isolate) {
-  if (map()->is_observed())
-    return isolate->heap()->undefined_value();
+void JSObject::SetObserved(Handle<JSObject> object) {
+  Isolate* isolate = object->GetIsolate();
 
-  Heap* heap = isolate->heap();
+  if (object->map()->is_observed())
+    return;
 
-  if (!HasExternalArrayElements()) {
+  if (!object->HasExternalArrayElements()) {
     // Go to dictionary mode, so that we don't skip map checks.
-    MaybeObject* maybe = NormalizeElements();
-    if (maybe->IsFailure()) return maybe;
-    ASSERT(!HasFastElements());
+    NormalizeElements(object);
+    ASSERT(!object->HasFastElements());
   }
 
   LookupResult result(isolate);
-  map()->LookupTransition(this, heap->observed_symbol(), &result);
+  object->map()->LookupTransition(*object,
+                                  isolate->heap()->observed_symbol(),
+                                  &result);
 
-  Map* new_map;
+  Handle<Map> new_map;
   if (result.IsTransition()) {
-    new_map = result.GetTransitionTarget();
+    new_map = handle(result.GetTransitionTarget());
     ASSERT(new_map->is_observed());
-  } else if (map()->CanHaveMoreTransitions()) {
-    MaybeObject* maybe_new_map = map()->CopyForObserved();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  } else if (object->map()->CanHaveMoreTransitions()) {
+    new_map = Map::CopyForObserved(handle(object->map()));
   } else {
-    MaybeObject* maybe_copy = map()->Copy();
-    if (!maybe_copy->To(&new_map)) return maybe_copy;
+    new_map = Map::Copy(handle(object->map()));
     new_map->set_is_observed(true);
   }
-  set_map(new_map);
-
-  return heap->undefined_value();
+  object->set_map(*new_map);
 }
 
 
@@ -6836,6 +6833,13 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
   }
 
   return new_map;
+}
+
+
+Handle<Map> Map::CopyForObserved(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->CopyForObserved(),
+                     Map);
 }
 
 
