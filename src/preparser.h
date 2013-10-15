@@ -218,10 +218,6 @@ class ParserBase {
 // rather it is to speed up properly written and correct programs.
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
-
-typedef uint8_t byte;
-namespace i = v8::internal;
-
 class PreParser : public ParserBase {
  public:
   enum PreParseResult {
