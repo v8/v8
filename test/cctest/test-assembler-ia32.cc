@@ -591,7 +591,10 @@ TEST(AssemblerIa32Extractps) {
 #endif
 
   F4 f = FUNCTION_CAST<F4>(Code::cast(code)->entry());
-  CHECK_EQ(0x7FF80000, f(OS::nan_value()));
+  uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
+  CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
+  uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
+  CHECK_EQ(0x87654321, f(uint64_to_double(value2)));
 }
 
 
