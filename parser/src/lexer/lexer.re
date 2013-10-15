@@ -8,6 +8,8 @@
 // - SpiderMonkey compatibility hack: "  --> something" is treated
 //   as a single line comment.
 // - An identifier cannot start immediately after a number.
+// - Run-time lexing modifications: harmony number literals, keywords depending
+//   on harmony_modules, harmony_scoping
 
 enum Condition {
   kConditionNormal,
@@ -173,6 +175,52 @@ public:
     digit = [0-9];
     hex_digit = [0-9a-fA-F];
     maybe_exponent = ('e' [-+]? digit+)?;
+
+    <Normal> "break"       { PUSH_TOKEN(Token::BREAK); }
+    <Normal> "case"        { PUSH_TOKEN(Token::CASE); }
+    <Normal> "catch"       { PUSH_TOKEN(Token::CATCH); }
+    <Normal> "class"       { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "const"       { PUSH_TOKEN(Token::CONST); }
+    <Normal> "continue"    { PUSH_TOKEN(Token::CONTINUE); }
+    <Normal> "debugger"    { PUSH_TOKEN(Token::DEBUGGER); }
+    <Normal> "default"     { PUSH_TOKEN(Token::DEFAULT); }
+    <Normal> "delete"      { PUSH_TOKEN(Token::DELETE); }
+    <Normal> "do"          { PUSH_TOKEN(Token::DO); }
+    <Normal> "else"        { PUSH_TOKEN(Token::ELSE); }
+    <Normal> "enum"        { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "export"      { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "extends"     { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "false"       { PUSH_TOKEN(Token::FALSE_LITERAL); }
+    <Normal> "finally"     { PUSH_TOKEN(Token::FINALLY); }
+    <Normal> "for"         { PUSH_TOKEN(Token::FOR); }
+    <Normal> "function"    { PUSH_TOKEN(Token::FUNCTION); }
+    <Normal> "if"          { PUSH_TOKEN(Token::IF); }
+    <Normal> "implements"  { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "import"      { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "in"          { PUSH_TOKEN(Token::IN); }
+    <Normal> "instanceof"  { PUSH_TOKEN(Token::INSTANCEOF); }
+    <Normal> "interface"   { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "let"         { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "new"         { PUSH_TOKEN(Token::NEW); }
+    <Normal> "null"        { PUSH_TOKEN(Token::NULL_LITERAL); }
+    <Normal> "package"     { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "private"     { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "protected"   { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "public"      { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "return"      { PUSH_TOKEN(Token::RETURN); }
+    <Normal> "static"      { PUSH_TOKEN(Token::FUTURE_STRICT_RESERVED_WORD); }
+    <Normal> "super"       { PUSH_TOKEN(Token::FUTURE_RESERVED_WORD); }
+    <Normal> "switch"      { PUSH_TOKEN(Token::SWITCH); }
+    <Normal> "this"        { PUSH_TOKEN(Token::THIS); }
+    <Normal> "throw"       { PUSH_TOKEN(Token::THROW); }
+    <Normal> "true"        { PUSH_TOKEN(Token::TRUE_LITERAL); }
+    <Normal> "try"         { PUSH_TOKEN(Token::TRY); }
+    <Normal> "typeof"      { PUSH_TOKEN(Token::TYPEOF); }
+    <Normal> "var"         { PUSH_TOKEN(Token::VAR); }
+    <Normal> "void"        { PUSH_TOKEN(Token::VOID); }
+    <Normal> "while"       { PUSH_TOKEN(Token::WHILE); }
+    <Normal> "with"        { PUSH_TOKEN(Token::WITH); }
+    <Normal> "yield"       { PUSH_TOKEN(Token::YIELD); }
 
     <Normal> "|="          { PUSH_TOKEN(Token::ASSIGN_BIT_OR); }
     <Normal> "^="          { PUSH_TOKEN(Token::ASSIGN_BIT_XOR); }
