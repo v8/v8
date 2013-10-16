@@ -46,36 +46,34 @@
 
 using namespace v8::internal;
 
-Handle<String> ReadFile(const char* name, Isolate* isolate) {
+const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
   FILE* file = fopen(name, "rb");
-  if (file == NULL) return Handle<String>();
+  *size = 0;
+  if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
-  int size = ftell(file);
+  *size = ftell(file);
   rewind(file);
 
-  uint8_t* chars = new uint8_t[size + 1];
-  chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
+  byte* chars = new byte[*size + 1];
+  chars[*size] = 0;
+  for (int i = 0; i < *size;) {
+    int read = static_cast<int>(fread(&chars[i], 1, *size - i, file));
     i += read;
   }
   fclose(file);
-  Handle<String> result = isolate->factory()->NewStringFromOneByte(
-      Vector<const uint8_t>(chars, size));
-  delete[] chars;
-  return result;
+  return chars;
 }
 
 
 class BaselineScanner {
  public:
   BaselineScanner(const char* fname, Isolate* isolate) {
-    Handle<String> source = ReadFile(fname, isolate);
+    int length = 0;
+    source_ = ReadFile(fname, isolate, &length);
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
-    stream_ = new GenericStringUtf16CharacterStream(
-                      source, 0, source->length());
+    stream_ = new Utf8ToUtf16CharacterStream(source_, length);
     scanner_->Initialize(stream_);
   }
 
@@ -83,6 +81,7 @@ class BaselineScanner {
     delete scanner_;
     delete stream_;
     delete unicode_cache_;
+    delete source_;
   }
 
   Token::Value Next(int* beg_pos, int* end_pos) {
@@ -95,7 +94,8 @@ class BaselineScanner {
  private:
   UnicodeCache* unicode_cache_;
   Scanner* scanner_;
-  GenericStringUtf16CharacterStream* stream_;
+  const byte* source_;
+  Utf8ToUtf16CharacterStream* stream_;
 };
 
 
