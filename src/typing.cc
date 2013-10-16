@@ -603,8 +603,10 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SHR:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      // TODO(rossberg): we could use an UnsignedSmi as lower bound here...
-      NarrowType(expr, Bounds(Type::Unsigned32(), isolate_));
+      // TODO(rossberg): The upper bound would be Unsigned32, but since there
+      // is no 'positive Smi' type for the lower bound, we use the smallest
+      // union of Smi and Unsigned32 as upper bound instead.
+      NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
       break;
     case Token::ADD: {
       RECURSE(Visit(expr->left()));
