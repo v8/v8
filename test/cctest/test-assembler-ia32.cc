@@ -566,7 +566,8 @@ TEST(StackAlignmentForSSE2) {
 
 TEST(AssemblerIa32Extractps) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE4_1)) return;
+  if (!CpuFeatures::IsSupported(SSE2) ||
+      !CpuFeatures::IsSupported(SSE4_1)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
