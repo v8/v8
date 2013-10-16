@@ -2977,10 +2977,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
   CONVERT_SMI_ARG_CHECKED(num, 1);
   RUNTIME_ASSERT(num >= 0);
-  SetExpectedNofProperties(function, num);
+  // If objects constructed from this function exist then changing
+  // 'estimated_nof_properties' is dangerous since the previous value might
+  // have been compiled into the fast construct stub. Moreover, the inobject
+  // slack tracking logic might have adjusted the previous value, so even
+  // passing the same value is risky.
+  if (!func->shared()->live_objects_may_exist()) {
+    func->shared()->set_expected_nof_properties(num);
+    if (func->has_initial_map()) {
+      Handle<Map> new_initial_map =
+          func->GetIsolate()->factory()->CopyMap(
+              Handle<Map>(func->initial_map()));
+      new_initial_map->set_unused_property_fields(num);
+      func->set_initial_map(*new_initial_map);
+    }
+  }
   return isolate->heap()->undefined_value();
 }
 
