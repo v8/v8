@@ -53,21 +53,29 @@ class OptimizingCompilerThread : public Thread {
       isolate_(isolate),
       stop_semaphore_(0),
       input_queue_semaphore_(0),
-      osr_cursor_(0),
+      input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
+      input_queue_length_(0),
+      input_queue_shift_(0),
+      osr_buffer_capacity_(FLAG_concurrent_recompilation_queue_length + 4),
+      osr_buffer_cursor_(0),
       osr_hits_(0),
       osr_attempts_(0),
       blocked_jobs_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
-    NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
-    if (FLAG_concurrent_osr) {
-      osr_buffer_size_ = FLAG_concurrent_recompilation_queue_length + 4;
-      osr_buffer_ = NewArray<RecompileJob*>(osr_buffer_size_);
-      for (int i = 0; i < osr_buffer_size_; i++) osr_buffer_[i] = NULL;
-    }
+    input_queue_ = NewArray<RecompileJob*>(input_queue_capacity_);
+    osr_buffer_ = NewArray<RecompileJob*>(osr_buffer_capacity_);
+    // Mark OSR buffer slots as empty.
+    for (int i = 0; i < osr_buffer_capacity_; i++) osr_buffer_[i] = NULL;
   }
 
   ~OptimizingCompilerThread() {
-    if (FLAG_concurrent_osr) DeleteArray(osr_buffer_);
+    ASSERT_EQ(0, input_queue_length_);
+#ifdef DEBUG
+    for (int i = 0; i < osr_buffer_capacity_; i++) {
+      CHECK_EQ(NULL, osr_buffer_[i]);
+    }
+#endif
+    DeleteArray(osr_buffer_);
   }
 
   void Run();
@@ -83,17 +91,15 @@ class OptimizingCompilerThread : public Thread {
   bool IsQueuedForOSR(JSFunction* function);
 
   inline bool IsQueueAvailable() {
-    // We don't need a barrier since we have a data dependency right
-    // after.
-    Atomic32 current_length = NoBarrier_Load(&queue_length_);
+    LockGuard<Mutex> access_input_queue(&input_queue_mutex_);
+    return input_queue_length_ < input_queue_capacity_;
+  }
 
-    // This can be queried only from the execution thread.
-    ASSERT(!IsOptimizerThread());
-    // Since only the execution thread increments queue_length_ and
-    // only one thread can run inside an Isolate at one time, a direct
-    // doesn't introduce a race -- queue_length_ may decreased in
-    // meantime, but not increased.
-    return (current_length < FLAG_concurrent_recompilation_queue_length);
+  inline void AgeBufferedOsrJobs() {
+    // Advance cursor of the cyclic buffer to next empty slot or stale OSR job.
+    // Dispose said OSR job in the latter case.  Calling this on every GC
+    // should make sure that we do not hold onto stale jobs indefinitely.
+    AddToOsrBuffer(NULL);
   }
 
 #ifdef DEBUG
@@ -107,12 +113,17 @@ class OptimizingCompilerThread : public Thread {
   void FlushOutputQueue(bool restore_function_code);
   void FlushOsrBuffer(bool restore_function_code);
   void CompileNext();
+  RecompileJob* NextInput();
 
   // Add a recompilation task for OSR to the cyclic buffer, awaiting OSR entry.
   // Tasks evicted from the cyclic buffer are discarded.
   void AddToOsrBuffer(RecompileJob* compiler);
-  void AdvanceOsrCursor() {
-    osr_cursor_ = (osr_cursor_ + 1) % osr_buffer_size_;
+
+  inline int InputQueueIndex(int i) {
+    int result = (i + input_queue_shift_) % input_queue_capacity_;
+    ASSERT_LE(0, result);
+    ASSERT_LT(result, input_queue_capacity_);
+    return result;
   }
 
 #ifdef DEBUG
@@ -124,20 +135,22 @@ class OptimizingCompilerThread : public Thread {
   Semaphore stop_semaphore_;
   Semaphore input_queue_semaphore_;
 
-  // Queue of incoming recompilation tasks (including OSR).
-  UnboundQueue<RecompileJob*> input_queue_;
+  // Circular queue of incoming recompilation tasks (including OSR).
+  RecompileJob** input_queue_;
+  int input_queue_capacity_;
+  int input_queue_length_;
+  int input_queue_shift_;
+  Mutex input_queue_mutex_;
+
   // Queue of recompilation tasks ready to be installed (excluding OSR).
   UnboundQueue<RecompileJob*> output_queue_;
+
   // Cyclic buffer of recompilation tasks for OSR.
-  // TODO(yangguo): This may keep zombie tasks indefinitely, holding on to
-  //                a lot of memory.  Fix this.
   RecompileJob** osr_buffer_;
-  // Cursor for the cyclic buffer.
-  int osr_cursor_;
-  int osr_buffer_size_;
+  int osr_buffer_capacity_;
+  int osr_buffer_cursor_;
 
   volatile AtomicWord stop_thread_;
-  volatile Atomic32 queue_length_;
   TimeDelta time_spent_compiling_;
   TimeDelta time_spent_total_;
 

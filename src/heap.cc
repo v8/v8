@@ -450,6 +450,10 @@ void Heap::GarbageCollectionPrologue() {
 #endif  // DEBUG
 
   store_buffer()->GCPrologue();
+
+  if (FLAG_concurrent_osr) {
+    isolate()->optimizing_compiler_thread()->AgeBufferedOsrJobs();
+  }
 }
 
 
