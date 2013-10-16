@@ -55,9 +55,6 @@
 
   # Boot up memory use is bloated in debug mode.
   'test-mark-compact/BootUpMemoryUse': [PASS, PASS, ['mode == debug', FAIL]],
-
-  # Some CPU profiler tests are flaky.
-  'test-cpu-profiler/*': [PASS, FLAKY],
 }],  # ALWAYS
 
 ##############################################################################

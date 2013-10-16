@@ -411,13 +411,11 @@ TEST(ProfileStartEndTime) {
 static const v8::CpuProfile* RunProfiler(
     LocalContext& env, v8::Handle<v8::Function> function,
     v8::Handle<v8::Value> argv[], int argc,
-    unsigned min_js_samples, bool script_will_start_profiler = false) {
+    unsigned min_js_samples) {
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   v8::Local<v8::String> profile_name = v8::String::New("my_profile");
 
-  if (!script_will_start_profiler) {
-    cpu_profiler->StartCpuProfiling(profile_name);
-  }
+  cpu_profiler->StartCpuProfiling(profile_name);
 
   i::Sampler* sampler =
       reinterpret_cast<i::Isolate*>(env->GetIsolate())->logger()->sampler();
@@ -1144,7 +1142,7 @@ TEST(JsNativeJsSample) {
   int32_t duration_ms = 20;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 10, true);
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   {
@@ -1223,7 +1221,7 @@ TEST(JsNativeJsRuntimeJsSample) {
   int32_t duration_ms = 20;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 10, true);
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   ScopedVector<v8::Handle<v8::String> > names(3);
@@ -1310,7 +1308,7 @@ TEST(JsNative1JsNative2JsSample) {
   int32_t duration_ms = 20;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 10, true);
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   ScopedVector<v8::Handle<v8::String> > names(3);
