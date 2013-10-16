@@ -865,8 +865,9 @@ enum CompareResult {
   inline void set_##name(type* value,                                   \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
-
 class AccessorPair;
+class AllocationSite;
+class AllocationSiteContext;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
 class Failure;
@@ -2544,8 +2545,13 @@ class JSObject: public JSReceiver {
   static void SetObserved(Handle<JSObject> object);
 
   // Copy object.
+  static Handle<JSObject> Copy(Handle<JSObject> object,
+                               Handle<AllocationSite> site);
   static Handle<JSObject> Copy(Handle<JSObject> object);
-  static Handle<JSObject> DeepCopy(Handle<JSObject> object);
+  static Handle<JSObject> DeepCopy(Handle<JSObject> object,
+                                   AllocationSiteContext* site_context);
+  static Handle<JSObject> DeepWalk(Handle<JSObject> object,
+                                   AllocationSiteContext* site_context);
 
   // Casting.
   static inline JSObject* cast(Object* obj);
@@ -8007,8 +8013,15 @@ class AllocationSite: public Struct {
 
   inline void Initialize();
 
+  bool HasNestedSites() {
+    return nested_site()->IsAllocationSite();
+  }
+
+  // This method is expensive, it should only be called for reporting.
+  bool IsNestedSite();
+
   ElementsKind GetElementsKind() {
-    ASSERT(!IsLiteralSite());
+    ASSERT(!SitePointsToLiteral());
     return static_cast<ElementsKind>(Smi::cast(transition_info())->value());
   }
 
@@ -8016,11 +8029,11 @@ class AllocationSite: public Struct {
     set_transition_info(Smi::FromInt(static_cast<int>(kind)));
   }
 
-  bool IsLiteralSite() {
+  bool SitePointsToLiteral() {
     // If transition_info is a smi, then it represents an ElementsKind
     // for a constructed array. Otherwise, it must be a boilerplate
-    // for an array literal
-    return transition_info()->IsJSArray();
+    // for an object or array literal.
+    return transition_info()->IsJSArray() || transition_info()->IsJSObject();
   }
 
   DECLARE_PRINTER(AllocationSite)
