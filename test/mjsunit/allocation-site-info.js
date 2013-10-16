@@ -148,12 +148,8 @@ if (support_smi_only_arrays) {
     assertKind(elements_kind.fast_double, obj);
     obj = fastliteralcase([3, 6, 2], 1.5);
     assertKind(elements_kind.fast_double, obj);
-
-    // Note: thanks to pessimistic transition store stubs, we'll attempt
-    // to transition to the most general elements kind seen at a particular
-    // store site. So, the elements kind will be double.
     obj = fastliteralcase([2, 6, 3], 2);
-    assertKind(elements_kind.fast_double, obj);
+    assertKind(elements_kind.fast_smi_only, obj);
   }
 
   // Verify that we will not pretransition the double->fast path.
