@@ -48,6 +48,7 @@ using namespace v8::internal;
 
 #define PUSH_TOKEN(T) { send(T); SKIP(); }
 #define PUSH_TOKEN_LOOKAHEAD(T) { --cursor_; send(T); SKIP(); }
+#define PUSH_EOF_AND_RETURN() { send(Token::EOS); eof_ = true; return 1;}
 #define PUSH_LINE_TERMINATOR() { SKIP(); }
 #define TERMINATE_ILLEGAL() { return 1; }
 
@@ -125,7 +126,7 @@ public:
     size_t allocated = buffer_end_ - buffer_;
     if(allocated < needed) {
       size_t limit__offset = limit_ - buffer_;
-      size_t start__offset = start_ - buffer_;
+      size_t start_offset = start_ - buffer_;
       size_t marker__offset = marker_ - buffer_;
       size_t cursor__offset = cursor_ - buffer_;
 
@@ -134,7 +135,7 @@ public:
 
       marker_ = marker__offset + buffer_;
       cursor_ = cursor__offset + buffer_;
-      start_ = buffer_ + start__offset;
+      start_ = buffer_ + start_offset;
       limit_ = limit__offset + buffer_;
     }
     memcpy(limit_, input, input_size);
@@ -293,7 +294,7 @@ public:
 
     <Normal> identifier_start_    :=> Identifier
 
-    <Normal> eof           { PUSH_TOKEN(Token::EOS); return 1; }
+    <Normal> eof           { PUSH_EOF_AND_RETURN();}
     <Normal> any           { TERMINATE_ILLEGAL(); }
 
     <DoubleQuoteString> "\\\""  { goto yy0; }
@@ -321,7 +322,7 @@ public:
     */
 
  fill:
-    int unfinished_size = cursor_-start_;
+    int unfinished_size = cursor_ - start_;
     if (FLAG_trace_lexer) {
       printf(
         "scanner needs a refill. Exiting for now with:\n"
@@ -332,7 +333,7 @@ public:
       );
       if(0 < unfinished_size && start_ < limit_) {
         printf("  unfinished token is: ");
-        fwrite(start_, 1, cursor_-start_, stdout);
+        fwrite(start_, 1, cursor_ - start_, stdout);
         putchar('\n');
       }
       putchar('\n');
@@ -344,13 +345,13 @@ public:
     //  everything before start_ and after limit_.
 
     if (buffer_ < start_) {
-      size_t start__offset = start_ - buffer_;
+      size_t start_offset = start_ - buffer_;
       memmove(buffer_, start_, limit_ - start_);
-      marker_ -= start__offset;
-      cursor_ -= start__offset;
-      limit_ -= start__offset;
-      start_ -= start__offset;
-      real_start_ += start__offset;
+      marker_ -= start_offset;
+      cursor_ -= start_offset;
+      limit_ -= start_offset;
+      start_ -= start_offset;
+      real_start_ += start_offset;
     }
     return 0;
   }

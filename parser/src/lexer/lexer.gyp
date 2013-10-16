@@ -66,7 +66,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
           ],
           'action': [
-            '$(RE2C)',
+            're2c',
             '-f',
             '-c',
             '--output',
