@@ -9381,6 +9381,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     if (number_of_own_descriptors > 0) {
       TrimDescriptorArray(heap, this, descriptors, number_of_own_descriptors);
       ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
+      set_owns_descriptors(true);
     } else {
       ASSERT(descriptors == GetHeap()->empty_descriptor_array());
     }
