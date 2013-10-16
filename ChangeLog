@@ -1,3 +1,11 @@
+2013-10-16: Version 3.22.13
+
+        Do not look up ArrayBuffer on global object in typed array constructor.
+        (issue 2931)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-15: Version 3.22.12
 
         Added histograms to track fraction of heap spaces and percentage of
