@@ -2396,6 +2396,12 @@ void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
 }
 
 
+void HCapturedObject::PrintDataTo(StringStream* stream) {
+  stream->Add("#%d ", capture_id());
+  HDematerializedObject::PrintDataTo(stream);
+}
+
+
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
   ASSERT(return_target->IsInlineReturnTarget());
