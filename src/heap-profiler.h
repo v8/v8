@@ -37,14 +37,6 @@ namespace internal {
 class HeapSnapshot;
 class HeapSnapshotsCollection;
 
-#define HEAP_PROFILE(heap, call)                                             \
-  do {                                                                       \
-    v8::internal::HeapProfiler* profiler = heap->isolate()->heap_profiler(); \
-    if (profiler != NULL && profiler->is_profiling()) {                      \
-      profiler->call;                                                        \
-    }                                                                        \
-  } while (false)
-
 class HeapProfiler {
  public:
   explicit HeapProfiler(Heap* heap);

@@ -273,9 +273,12 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
     MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
   }
 
-  HEAP_PROFILE(heap, ObjectMoveEvent(elms->address(),
-                                     elms->address() + size_delta,
-                                     elms->Size()));
+  HeapProfiler* profiler = heap->isolate()->heap_profiler();
+  if (profiler->is_profiling()) {
+    profiler->ObjectMoveEvent(elms->address(),
+                              elms->address() + size_delta,
+                              elms->Size());
+  }
   return FixedArrayBase::cast(HeapObject::FromAddress(
       elms->address() + to_trim * entry_size));
 }
