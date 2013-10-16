@@ -2127,10 +2127,6 @@ class JSObject: public JSReceiver {
                                                 Handle<Object> structure,
                                                 Handle<Name> name);
 
-  MUST_USE_RESULT MaybeObject* GetPropertyWithCallback(Object* receiver,
-                                                       Object* structure,
-                                                       Name* name);
-
   static Handle<Object> SetPropertyWithCallback(
       Handle<JSObject> object,
       Handle<Object> structure,
