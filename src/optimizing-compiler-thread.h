@@ -63,20 +63,14 @@ class OptimizingCompilerThread : public Thread {
       blocked_jobs_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
     input_queue_ = NewArray<RecompileJob*>(input_queue_capacity_);
-    osr_buffer_ = NewArray<RecompileJob*>(osr_buffer_capacity_);
-    // Mark OSR buffer slots as empty.
-    for (int i = 0; i < osr_buffer_capacity_; i++) osr_buffer_[i] = NULL;
+    if (FLAG_concurrent_osr) {
+      // Allocate and mark OSR buffer slots as empty.
+      osr_buffer_ = NewArray<RecompileJob*>(osr_buffer_capacity_);
+      for (int i = 0; i < osr_buffer_capacity_; i++) osr_buffer_[i] = NULL;
+    }
   }
 
-  ~OptimizingCompilerThread() {
-    ASSERT_EQ(0, input_queue_length_);
-#ifdef DEBUG
-    for (int i = 0; i < osr_buffer_capacity_; i++) {
-      CHECK_EQ(NULL, osr_buffer_[i]);
-    }
-#endif
-    DeleteArray(osr_buffer_);
-  }
+  ~OptimizingCompilerThread();
 
   void Run();
   void Stop();

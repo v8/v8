@@ -37,6 +37,19 @@
 namespace v8 {
 namespace internal {
 
+OptimizingCompilerThread::~OptimizingCompilerThread() {
+  ASSERT_EQ(0, input_queue_length_);
+  DeleteArray(input_queue_);
+  if (FLAG_concurrent_osr) {
+#ifdef DEBUG
+    for (int i = 0; i < osr_buffer_capacity_; i++) {
+      CHECK_EQ(NULL, osr_buffer_[i]);
+    }
+#endif
+    DeleteArray(osr_buffer_);
+  }
+}
+
 
 void OptimizingCompilerThread::Run() {
 #ifdef DEBUG
