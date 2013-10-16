@@ -473,6 +473,7 @@ void BinaryOpStub::GenerateAheadOfTime(Isolate* isolate) {
   Generate(Token::SHR, INT32, SMI, SMI, OVERWRITE_RIGHT, isolate);
   Generate(Token::SHR, NUMBER, SMI, SMI, NO_OVERWRITE, isolate);
   Generate(Token::SHR, NUMBER, SMI, SMI, OVERWRITE_LEFT, isolate);
+  Generate(Token::SHR, NUMBER, SMI, INT32, OVERWRITE_RIGHT, isolate);
   Generate(Token::SHR, SMI, SMI, SMI, NO_OVERWRITE, isolate);
   Generate(Token::SHR, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
   Generate(Token::SHR, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);

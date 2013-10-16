@@ -3025,7 +3025,7 @@ Expression* Parser::ParseConditionalExpression(bool accept_IN, bool* ok) {
 }
 
 
-static int Precedence(Token::Value tok, bool accept_IN) {
+int ParserBase::Precedence(Token::Value tok, bool accept_IN) {
   if (tok == Token::IN && !accept_IN)
     return 0;  // 0 precedence will terminate binary expression parsing
 
@@ -3845,11 +3845,6 @@ void Parser::BuildObjectLiteralConstantProperties(
 }
 
 
-// Force instantiation of template instances class.
-template void ObjectLiteralChecker<Parser>::CheckProperty(
-    Token::Value property, PropertyKind type, bool* ok);
-
-
 Expression* Parser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
   //   '{' (
@@ -3863,8 +3858,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
-  ObjectLiteralChecker<Parser> checker(this, &scanner_,
-                                       top_scope_->language_mode());
+  ObjectLiteralChecker checker(this, top_scope_->language_mode());
 
   Expect(Token::LBRACE, CHECK_OK);
 
@@ -4618,9 +4612,9 @@ bool ParserBase::peek_any_identifier() {
 }
 
 
-bool Parser::CheckContextualKeyword(Vector<const char> keyword) {
+bool ParserBase::CheckContextualKeyword(Vector<const char> keyword) {
   if (peek() == Token::IDENTIFIER &&
-      scanner().is_next_contextual_keyword(keyword)) {
+      scanner()->is_next_contextual_keyword(keyword)) {
     Consume(Token::IDENTIFIER);
     return true;
   }
@@ -4645,12 +4639,12 @@ void ParserBase::ExpectSemicolon(bool* ok) {
 }
 
 
-void Parser::ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
+void ParserBase::ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
   Expect(Token::IDENTIFIER, ok);
   if (!*ok) return;
-  if (!scanner().is_literal_contextual_keyword(keyword)) {
+  if (!scanner()->is_literal_contextual_keyword(keyword)) {
+    ReportUnexpectedToken(scanner()->current_token());
     *ok = false;
-    ReportUnexpectedToken(scanner().current_token());
   }
 }
 
@@ -4745,14 +4739,11 @@ void Parser::CheckStrictModeLValue(Expression* expression,
 
 // Checks whether an octal literal was last seen between beg_pos and end_pos.
 // If so, reports an error. Only called for strict mode.
-void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  Scanner::Location octal = scanner().octal_position();
-  if (octal.IsValid() &&
-      beg_pos <= octal.beg_pos &&
-      octal.end_pos <= end_pos) {
-    ReportMessageAt(octal, "strict_octal_literal",
-                    Vector<const char*>::empty());
-    scanner().clear_octal_position();
+void ParserBase::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+  Scanner::Location octal = scanner()->octal_position();
+  if (octal.IsValid() && beg_pos <= octal.beg_pos && octal.end_pos <= end_pos) {
+    ReportMessageAt(octal, "strict_octal_literal");
+    scanner()->clear_octal_position();
     *ok = false;
   }
 }

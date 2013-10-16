@@ -429,6 +429,7 @@ TEST(DisasmIa320) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ pextrd(eax, xmm0, 1);
       __ pinsrd(xmm1, eax, 0);
+      __ extractps(eax, xmm1, 0);
     }
   }
 

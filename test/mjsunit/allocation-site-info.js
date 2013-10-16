@@ -148,8 +148,12 @@ if (support_smi_only_arrays) {
     assertKind(elements_kind.fast_double, obj);
     obj = fastliteralcase([3, 6, 2], 1.5);
     assertKind(elements_kind.fast_double, obj);
+
+    // Note: thanks to pessimistic transition store stubs, we'll attempt
+    // to transition to the most general elements kind seen at a particular
+    // store site. So, the elements kind will be double.
     obj = fastliteralcase([2, 6, 3], 2);
-    assertKind(elements_kind.fast_smi_only, obj);
+    assertKind(elements_kind.fast_double, obj);
   }
 
   // Verify that we will not pretransition the double->fast path.
@@ -379,4 +383,114 @@ if (support_smi_only_arrays) {
 
   instanceof_check(realmBArray);
   assertUnoptimized(instanceof_check);
+
+  // Case: make sure nested arrays benefit from allocation site feedback as
+  // well.
+  (function() {
+    // Make sure we handle nested arrays
+   function get_nested_literal() {
+     var literal = [[1,2,3,4], [2], [3]];
+     return literal;
+   }
+
+   obj = get_nested_literal();
+   assertKind(elements_kind.fast, obj);
+   obj[0][0] = 3.5;
+   obj[2][0] = "hello";
+   obj = get_nested_literal();
+   assertKind(elements_kind.fast_double, obj[0]);
+   assertKind(elements_kind.fast_smi_only, obj[1]);
+   assertKind(elements_kind.fast, obj[2]);
+
+   // A more complex nested literal case.
+   function get_deep_nested_literal() {
+     var literal = [[1], [[2], "hello"], 3, [4]];
+     return literal;
+   }
+
+   obj = get_deep_nested_literal();
+   assertKind(elements_kind.fast_smi_only, obj[1][0]);
+   obj[0][0] = 3.5;
+   obj[1][0][0] = "goodbye";
+   assertKind(elements_kind.fast_double, obj[0]);
+   assertKind(elements_kind.fast, obj[1][0]);
+
+   obj = get_deep_nested_literal();
+   assertKind(elements_kind.fast_double, obj[0]);
+   assertKind(elements_kind.fast, obj[1][0]);
+  })();
+
+
+  // Make sure object literals with array fields benefit from the type feedback
+  // that allocation mementos provide.
+  (function() {
+    // A literal in an object
+    function get_object_literal() {
+      var literal = {
+        array: [1,2,3],
+        data: 3.5
+      };
+      return literal;
+    }
+
+    obj = get_object_literal();
+    assertKind(elements_kind.fast_smi_only, obj.array);
+    obj.array[1] = 3.5;
+    assertKind(elements_kind.fast_double, obj.array);
+    obj = get_object_literal();
+    assertKind(elements_kind.fast_double, obj.array);
+
+    function get_nested_object_literal() {
+      var literal = {
+        array: [[1],[2],[3]],
+        data: 3.5
+      };
+      return literal;
+    }
+
+    obj = get_nested_object_literal();
+    assertKind(elements_kind.fast, obj.array);
+    assertKind(elements_kind.fast_smi_only, obj.array[1]);
+    obj.array[1][0] = 3.5;
+    assertKind(elements_kind.fast_double, obj.array[1]);
+    obj = get_nested_object_literal();
+    assertKind(elements_kind.fast_double, obj.array[1]);
+
+    %OptimizeFunctionOnNextCall(get_nested_object_literal);
+    get_nested_object_literal();
+    obj = get_nested_object_literal();
+    assertKind(elements_kind.fast_double, obj.array[1]);
+
+    // Make sure we handle nested arrays
+    function get_nested_literal() {
+      var literal = [[1,2,3,4], [2], [3]];
+      return literal;
+    }
+
+    obj = get_nested_literal();
+    assertKind(elements_kind.fast, obj);
+    obj[0][0] = 3.5;
+    obj[2][0] = "hello";
+    obj = get_nested_literal();
+    assertKind(elements_kind.fast_double, obj[0]);
+    assertKind(elements_kind.fast_smi_only, obj[1]);
+    assertKind(elements_kind.fast, obj[2]);
+
+    // A more complex nested literal case.
+    function get_deep_nested_literal() {
+      var literal = [[1], [[2], "hello"], 3, [4]];
+      return literal;
+    }
+
+    obj = get_deep_nested_literal();
+    assertKind(elements_kind.fast_smi_only, obj[1][0]);
+    obj[0][0] = 3.5;
+    obj[1][0][0] = "goodbye";
+    assertKind(elements_kind.fast_double, obj[0]);
+    assertKind(elements_kind.fast, obj[1][0]);
+
+    obj = get_deep_nested_literal();
+    assertKind(elements_kind.fast_double, obj[0]);
+    assertKind(elements_kind.fast, obj[1][0]);
+  })();
 }

@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "accessors.h"
+#include "allocation-site-scopes.h"
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
@@ -5581,37 +5582,42 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
 }
 
 
-MUST_USE_RESULT MaybeObject* JSObject::SetObserved(Isolate* isolate) {
-  if (map()->is_observed())
-    return isolate->heap()->undefined_value();
+void JSObject::SetObserved(Handle<JSObject> object) {
+  Isolate* isolate = object->GetIsolate();
 
-  Heap* heap = isolate->heap();
+  if (object->map()->is_observed())
+    return;
 
-  if (!HasExternalArrayElements()) {
+  if (!object->HasExternalArrayElements()) {
     // Go to dictionary mode, so that we don't skip map checks.
-    MaybeObject* maybe = NormalizeElements();
-    if (maybe->IsFailure()) return maybe;
-    ASSERT(!HasFastElements());
+    NormalizeElements(object);
+    ASSERT(!object->HasFastElements());
   }
 
   LookupResult result(isolate);
-  map()->LookupTransition(this, heap->observed_symbol(), &result);
+  object->map()->LookupTransition(*object,
+                                  isolate->heap()->observed_symbol(),
+                                  &result);
 
-  Map* new_map;
+  Handle<Map> new_map;
   if (result.IsTransition()) {
-    new_map = result.GetTransitionTarget();
+    new_map = handle(result.GetTransitionTarget());
     ASSERT(new_map->is_observed());
-  } else if (map()->CanHaveMoreTransitions()) {
-    MaybeObject* maybe_new_map = map()->CopyForObserved();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  } else if (object->map()->CanHaveMoreTransitions()) {
+    new_map = Map::CopyForObserved(handle(object->map()));
   } else {
-    MaybeObject* maybe_copy = map()->Copy();
-    if (!maybe_copy->To(&new_map)) return maybe_copy;
+    new_map = Map::Copy(handle(object->map()));
     new_map->set_is_observed(true);
   }
-  set_map(new_map);
+  object->set_map(*new_map);
+}
 
-  return heap->undefined_value();
+
+Handle<JSObject> JSObject::Copy(Handle<JSObject> object,
+                                Handle<AllocationSite> site) {
+  Isolate* isolate = object->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     isolate->heap()->CopyJSObject(*object, *site), JSObject);
 }
 
 
@@ -5624,45 +5630,93 @@ Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
 
 class JSObjectWalkVisitor {
  public:
-  explicit JSObjectWalkVisitor() {}
+  explicit JSObjectWalkVisitor(AllocationSiteContext* site_context) :
+      site_context_(site_context) {}
   virtual ~JSObjectWalkVisitor() {}
 
   Handle<JSObject> Visit(Handle<JSObject> object) {
     return StructureWalk(object);
   }
 
-  // Returns true if the visitor is a copying visitor.
   virtual bool is_copying() = 0;
 
  protected:
   Handle<JSObject> StructureWalk(Handle<JSObject> object);
 
-  // The returned handle should point to a new object if the visitor is a
-  // copying visitor, otherwise it should be the same as the input object.
+  // The returned handle will be used for the object in all subsequent usages.
+  // This allows VisitObject to make a copy of the object if desired.
   virtual Handle<JSObject> VisitObject(Handle<JSObject> object) = 0;
-
-  // The returned handle should point to a new value if the visitor is a
-  // copying visitor, otherwise it should be the same as the input value.
   virtual Handle<JSObject> VisitElementOrProperty(Handle<JSObject> object,
                                                   Handle<JSObject> value) = 0;
+
+  AllocationSiteContext* site_context() { return site_context_; }
+
+ private:
+  AllocationSiteContext* site_context_;
 };
 
 
 class JSObjectCopyVisitor: public JSObjectWalkVisitor {
  public:
-  explicit JSObjectCopyVisitor() {}
+  explicit JSObjectCopyVisitor(AllocationSiteContext* site_context)
+      : JSObjectWalkVisitor(site_context) {}
 
   virtual bool is_copying() V8_OVERRIDE { return true; }
 
- protected:
+  // The returned handle will be used for the object in all
+  // subsequent usages. This allows VisitObject to make a copy
+  // of the object if desired.
   virtual Handle<JSObject> VisitObject(Handle<JSObject> object) V8_OVERRIDE {
-    return JSObject::Copy(object);
+    // Only create a memento if
+    // 1) we have a JSArray, and
+    // 2) the elements kind is palatable
+    // 3) allow_mementos is true
+    Handle<JSObject> copy;
+    if (site_context()->activated() &&
+        AllocationSite::CanTrack(object->map()->instance_type()) &&
+        AllocationSite::GetMode(object->GetElementsKind()) ==
+        TRACK_ALLOCATION_SITE) {
+      copy = JSObject::Copy(object, site_context()->current());
+    } else {
+      copy = JSObject::Copy(object);
+    }
+
+    return copy;
   }
 
   virtual Handle<JSObject> VisitElementOrProperty(
       Handle<JSObject> object,
       Handle<JSObject> value) V8_OVERRIDE {
-    return StructureWalk(value);
+    Handle<AllocationSite> current_site = site_context()->EnterNewScope();
+    Handle<JSObject> copy_of_value = StructureWalk(value);
+    site_context()->ExitScope(current_site, value);
+    return copy_of_value;
+  }
+};
+
+
+class JSObjectCreateAllocationSitesVisitor: public JSObjectWalkVisitor {
+ public:
+  explicit JSObjectCreateAllocationSitesVisitor(
+      AllocationSiteContext* site_context)
+      : JSObjectWalkVisitor(site_context) {}
+
+  virtual bool is_copying() V8_OVERRIDE { return false; }
+
+  // The returned handle will be used for the object in all
+  // subsequent usages. This allows VisitObject to make a copy
+  // of the object if desired.
+  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) V8_OVERRIDE {
+    return object;
+  }
+
+  virtual Handle<JSObject> VisitElementOrProperty(
+      Handle<JSObject> object,
+      Handle<JSObject> value) V8_OVERRIDE {
+    Handle<AllocationSite> current_site = site_context()->EnterNewScope();
+    value = StructureWalk(value);
+    site_context()->ExitScope(current_site, value);
+    return value;
   }
 };
 
@@ -5809,8 +5863,19 @@ Handle<JSObject> JSObjectWalkVisitor::StructureWalk(Handle<JSObject> object) {
 }
 
 
-Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
-  JSObjectCopyVisitor v;
+Handle<JSObject> JSObject::DeepWalk(Handle<JSObject> object,
+                                    AllocationSiteContext* site_context) {
+  JSObjectCreateAllocationSitesVisitor v(site_context);
+  Handle<JSObject> result = v.Visit(object);
+  ASSERT(!v.is_copying() &&
+         (result.is_null() || result.is_identical_to(object)));
+  return result;
+}
+
+
+Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object,
+                                    AllocationSiteContext* site_context) {
+  JSObjectCopyVisitor v(site_context);
   Handle<JSObject> copy = v.Visit(object);
   ASSERT(v.is_copying() && !copy.is_identical_to(object));
   return copy;
@@ -6836,6 +6901,13 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
   }
 
   return new_map;
+}
+
+
+Handle<Map> Map::CopyForObserved(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->CopyForObserved(),
+                     Map);
 }
 
 
@@ -12573,6 +12645,20 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
 }
 
 
+bool AllocationSite::IsNestedSite() {
+  ASSERT(FLAG_trace_track_allocation_sites);
+  Object* current = GetHeap()->allocation_sites_list();
+  while (current != NULL && current->IsAllocationSite()) {
+    AllocationSite* current_site = AllocationSite::cast(current);
+    if (current_site->nested_site() == this) {
+      return true;
+    }
+    current = current_site->weak_next();
+  }
+  return false;
+}
+
+
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   if (!FLAG_track_allocation_sites || !IsJSArray()) {
     return this;
@@ -12585,7 +12671,8 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
 
   // Walk through to the Allocation Site
   AllocationSite* site = memento->GetAllocationSite();
-  if (site->IsLiteralSite()) {
+  if (site->SitePointsToLiteral() &&
+      site->transition_info()->IsJSArray()) {
     JSArray* transition_info = JSArray::cast(site->transition_info());
     ElementsKind kind = transition_info->GetElementsKind();
     // if kind is holey ensure that to_kind is as well.
@@ -12599,9 +12686,11 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
       CHECK(transition_info->length()->ToArrayIndex(&length));
       if (length <= AllocationSite::kMaximumArrayBytesToPretransition) {
         if (FLAG_trace_track_allocation_sites) {
+          bool is_nested = site->IsNestedSite();
           PrintF(
-              "AllocationSite: JSArray %p boilerplate updated %s->%s\n",
+              "AllocationSite: JSArray %p boilerplate %s updated %s->%s\n",
               reinterpret_cast<void*>(this),
+              is_nested ? "(nested)" : "",
               ElementsKindToString(kind),
               ElementsKindToString(to_kind));
         }

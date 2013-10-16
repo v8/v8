@@ -445,19 +445,14 @@ void MacroAssembler::TaggedToI(Register result_reg,
 }
 
 
-
-static double kUint32Bias =
-    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
-
-
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src,
                                 XMMRegister scratch) {
-  ASSERT(!Serializer::enabled());
   Label done;
   cmp(src, Immediate(0));
-  movdbl(scratch,
-         Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
+  ExternalReference uint32_bias =
+        ExternalReference::address_of_uint32_bias();
+  movdbl(scratch, Operand::StaticVariable(uint32_bias));
   Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, scratch);
@@ -466,13 +461,14 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
 
 
 void MacroAssembler::LoadUint32NoSSE2(Register src) {
-  ASSERT(!Serializer::enabled());
   Label done;
   push(src);
   fild_s(Operand(esp, 0));
   cmp(src, Immediate(0));
   j(not_sign, &done, Label::kNear);
-  fld_d(Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
+  ExternalReference uint32_bias =
+        ExternalReference::address_of_uint32_bias();
+  fld_d(Operand::StaticVariable(uint32_bias));
   faddp(1);
   bind(&done);
   add(esp, Immediate(kPointerSize));
@@ -3512,9 +3508,8 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
-    Register scratch_reg) {
-  Label no_memento_available;
-
+    Register scratch_reg,
+    Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -3523,12 +3518,11 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   lea(scratch_reg, Operand(receiver_reg,
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   cmp(scratch_reg, Immediate(new_space_start));
-  j(less, &no_memento_available);
+  j(less, no_memento_found);
   cmp(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
-  j(greater, &no_memento_available);
+  j(greater, no_memento_found);
   cmp(MemOperand(scratch_reg, -AllocationMemento::kSize),
       Immediate(isolate()->factory()->allocation_memento_map()));
-  bind(&no_memento_available);
 }
 
 

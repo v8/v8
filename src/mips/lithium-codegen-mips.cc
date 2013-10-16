@@ -4466,10 +4466,11 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  Label fail;
-  __ TestJSArrayForAllocationMemento(object, temp, ne, &fail);
+  Label no_memento_found;
+  __ TestJSArrayForAllocationMemento(object, temp, &no_memento_found,
+                                     ne, &no_memento_found);
   DeoptimizeIf(al, instr->environment());
-  __ bind(&fail);
+  __ bind(&no_memento_found);
 }
 
 

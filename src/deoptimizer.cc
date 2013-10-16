@@ -1694,28 +1694,34 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   // output frames are used to materialize arguments objects later on they need
   // to already contain valid heap numbers.
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
-    HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
+    HeapNumberMaterializationDescriptor<Address> d = deferred_heap_numbers_[i];
     Handle<Object> num = isolate_->factory()->NewNumber(d.value());
     if (trace_) {
       PrintF("Materialized a new heap number %p [%e] in slot %p\n",
              reinterpret_cast<void*>(*num),
              d.value(),
-             d.slot_address());
+             d.destination());
     }
-    Memory::Object_at(d.slot_address()) = *num;
+    Memory::Object_at(d.destination()) = *num;
   }
 
   // Materialize all heap numbers required for arguments/captured objects.
-  for (int i = 0; i < values.length(); i++) {
-    if (!values.at(i)->IsTheHole()) continue;
-    double double_value = deferred_objects_double_values_[i];
-    Handle<Object> num = isolate_->factory()->NewNumber(double_value);
+  for (int i = 0; i < deferred_objects_double_values_.length(); i++) {
+    HeapNumberMaterializationDescriptor<int> d =
+        deferred_objects_double_values_[i];
+    Handle<Object> num = isolate_->factory()->NewNumber(d.value());
     if (trace_) {
-      PrintF("Materialized a new heap number %p [%e] for object\n",
-             reinterpret_cast<void*>(*num), double_value);
+      PrintF("Materialized a new heap number %p [%e] for object at %d\n",
+             reinterpret_cast<void*>(*num),
+             d.value(),
+             d.destination());
     }
-    values.Set(i, num);
+    ASSERT(values.at(d.destination())->IsTheHole());
+    values.Set(d.destination(), num);
   }
+
+  // Play it safe and clear all object double values before we continue.
+  deferred_objects_double_values_.Clear();
 
   // Materialize arguments/captured objects.
   if (!deferred_objects_.is_empty()) {
@@ -1766,11 +1772,11 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
   Address parameters_bottom = parameters_top + parameters_size;
   Address expressions_bottom = expressions_top + expressions_size;
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
-    HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
+    HeapNumberMaterializationDescriptor<Address> d = deferred_heap_numbers_[i];
 
     // Check of the heap number to materialize actually belong to the frame
     // being extracted.
-    Address slot = d.slot_address();
+    Address slot = d.destination();
     if (parameters_top <= slot && slot < parameters_bottom) {
       Handle<Object> num = isolate_->factory()->NewNumber(d.value());
 
@@ -1782,7 +1788,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
                "for parameter slot #%d\n",
                reinterpret_cast<void*>(*num),
                d.value(),
-               d.slot_address(),
+               d.destination(),
                index);
       }
 
@@ -1798,7 +1804,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
                "for expression slot #%d\n",
                reinterpret_cast<void*>(*num),
                d.value(),
-               d.slot_address(),
+               d.destination(),
                index);
       }
 
@@ -2406,18 +2412,19 @@ void Deoptimizer::AddObjectDuplication(intptr_t slot, int object_index) {
 
 void Deoptimizer::AddObjectTaggedValue(intptr_t value) {
   deferred_objects_tagged_values_.Add(reinterpret_cast<Object*>(value));
-  deferred_objects_double_values_.Add(isolate()->heap()->nan_value()->value());
 }
 
 
 void Deoptimizer::AddObjectDoubleValue(double value) {
   deferred_objects_tagged_values_.Add(isolate()->heap()->the_hole_value());
-  deferred_objects_double_values_.Add(value);
+  HeapNumberMaterializationDescriptor<int> value_desc(
+      deferred_objects_tagged_values_.length() - 1, value);
+  deferred_objects_double_values_.Add(value_desc);
 }
 
 
 void Deoptimizer::AddDoubleValue(intptr_t slot_address, double value) {
-  HeapNumberMaterializationDescriptor value_desc(
+  HeapNumberMaterializationDescriptor<Address> value_desc(
       reinterpret_cast<Address>(slot_address), value);
   deferred_heap_numbers_.Add(value_desc);
 }

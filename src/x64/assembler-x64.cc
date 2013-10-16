@@ -2554,15 +2554,15 @@ void Assembler::movdqu(XMMRegister dst, const Operand& src) {
 
 
 void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
-  ASSERT(CpuFeatures::IsSupported(SSE4_1));
+  ASSERT(IsEnabled(SSE4_1));
   ASSERT(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   emit(0x66);
-  emit_optional_rex_32(dst, src);
+  emit_optional_rex_32(src, dst);
   emit(0x0F);
   emit(0x3A);
   emit(0x17);
-  emit_sse_operand(dst, src);
+  emit_sse_operand(src, dst);
   emit(imm8);
 }
 

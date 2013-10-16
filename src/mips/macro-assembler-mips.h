@@ -1520,11 +1520,22 @@ class MacroAssembler: public Assembler {
   // to another type.
   // On entry, receiver_reg should point to the array object.
   // scratch_reg gets clobbered.
-  // If allocation info is present, jump to allocation_info_present
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Condition cond,
-                                       Label* allocation_memento_present);
+  // If allocation info is present, jump to allocation_memento_present.
+  void TestJSArrayForAllocationMemento(
+      Register receiver_reg,
+      Register scratch_reg,
+      Label* no_memento_found,
+      Condition cond = al,
+      Label* allocation_memento_present = NULL);
+
+  void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
+                                         Register scratch_reg,
+                                         Label* memento_found) {
+    Label no_memento_found;
+    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
+                                    &no_memento_found, eq, memento_found);
+    bind(&no_memento_found);
+  }
 
  private:
   void CallCFunctionHelper(Register function,
