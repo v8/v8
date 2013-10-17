@@ -332,8 +332,9 @@ def Execute(arch, mode, args, options, suites, workspace):
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
-    variant_flags = s.VariantFlags() or VARIANT_FLAGS
-    s.tests = [ t.CopyAddingFlags(v) for t in s.tests for v in variant_flags ]
+    s.tests = [ t.CopyAddingFlags(v)
+                for t in s.tests
+                for v in s.VariantFlags(t, VARIANT_FLAGS) ]
     s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
     num_tests += len(s.tests)
     for t in s.tests:
