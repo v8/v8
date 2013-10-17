@@ -1,3 +1,32 @@
+// Portions of this code based on re2c:
+//   (re2c/examples/push.re)
+// Copyright 2013 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -52,116 +81,113 @@ using namespace v8::internal;
 #define PUSH_LINE_TERMINATOR() { SKIP(); }
 #define TERMINATE_ILLEGAL() { return 1; }
 
-class PushScanner {
+PushScanner::PushScanner(ExperimentalScanner* sink)
+: eof_(false),
+  state_(-1),
+  condition_(kConditionNormal),
+  limit_(NULL),
+  start_(NULL),
+  cursor_(NULL),
+  marker_(NULL),
+  real_start_(0),
+  buffer_(NULL),
+  buffer_end_(NULL),
+  yych(0),
+  yyaccept(0),
+  sink_(sink) {
 
-public:
-  PushScanner(ExperimentalScanner* sink):
-      eof_(false),
-      state_(-1),
-      condition_(kConditionNormal),
-      limit_(NULL),
-      start_(NULL),
-      cursor_(NULL),
-      marker_(NULL),
-      real_start_(0),
-      buffer_(NULL),
-      buffer_end_(NULL),
-      yych(0),
-      yyaccept(0),
-      sink_(sink) {
+}
+
+PushScanner::~PushScanner() {
+}
+
+void PushScanner::send(Token::Value token) {
+  int beg = (start_ - buffer_) + real_start_;
+  int end = (cursor_ - buffer_) + real_start_;
+  if (FLAG_trace_lexer) {
+    printf("got %s at (%d, %d): ", Token::Name(token), beg, end);
+    for (uint8_t* s = start_; s != cursor_; s++) printf("%c", (char)*s);
+    printf(".\n");
   }
+  sink_->Record(token, beg, end);
+}
 
-  ~PushScanner() {
-  }
-
-  void send(Token::Value token) {
-    int beg = (start_ - buffer_) + real_start_;
-    int end = (cursor_ - buffer_) + real_start_;
-    if (FLAG_trace_lexer) {
-      printf("got %s at (%d, %d): ", Token::Name(token), beg, end);
-      for (uint8_t* s = start_; s != cursor_; s++) printf("%c", (char)*s);
-      printf(".\n");
-    }
-    sink_->Record(token, beg, end);
-  }
-
-  uint32_t push(const void *input, int input_size) {
-    if (FLAG_trace_lexer) {
-      printf(
+uint32_t PushScanner::push(const void *input, int input_size) {
+  if (FLAG_trace_lexer) {
+    printf(
         "scanner is receiving a new data batch of length %d\n"
         "scanner continues with saved state_ = %d\n",
         input_size,
-        state_
-      );
-    }
+        state_);
+  }
 
-    //  Data source is signaling end of file when batch size
-    //  is less than max_fill. This is slightly annoying because
-    //  max_fill is a value that can only be known after re2c does
-    //  its thing. Practically though, max_fill is never bigger than
-    //  the longest keyword, so given our grammar, 32 is a safe bet.
+  //  Data source is signaling end of file when batch size
+  //  is less than max_fill. This is slightly annoying because
+  //  max_fill is a value that can only be known after re2c does
+  //  its thing. Practically though, max_fill is never bigger than
+  //  the longest keyword, so given our grammar, 32 is a safe bet.
 
-    uint8_t null[64];
-    const int max_fill = 32;
-    if (input_size < max_fill) { // FIXME: do something about this!!!
-      eof_ = true;
-      input = null;
-      input_size = sizeof(null);
-      memset(null, 0, sizeof(null));
-    }
+  uint8_t null[64];
+  const int max_fill = 32;
+  if (input_size < max_fill) { // FIXME: do something about this!!!
+    eof_ = true;
+    input = null;
+    input_size = sizeof(null);
+    memset(null, 0, sizeof(null));
+  }
 
 
-    //  When we get here, we have a partially
-    //  consumed buffer_ which is in the following state_:
-    //                                 last valid char    last valid buffer_ spot
-    //                                 v           v
-    //  +-------------------+-------------+---------------+-------------+----------------------+
-    //  ^          ^       ^        ^       ^           ^
-    //  buffer_       start_     marker_     cursor_    limit_         buffer_end_
-    //
-    //  We need to stretch the buffer_ and concatenate the new chunk of input to it
+  //  When we get here, we have a partially
+  //  consumed buffer_ which is in the following state_:
+  //                                 last valid char    last valid buffer_ spot
+  //                                 v           v
+  //  +-------------------+-------------+---------------+-------------+----------------------+
+  //  ^          ^       ^        ^       ^           ^
+  //  buffer_       start_     marker_     cursor_    limit_         buffer_end_
+  //
+  //  We need to stretch the buffer_ and concatenate the new chunk of input to it
 
-    size_t used = limit_ - buffer_;
-    size_t needed = used + input_size;
-    size_t allocated = buffer_end_ - buffer_;
-    if(allocated < needed) {
-      size_t limit__offset = limit_ - buffer_;
-      size_t start_offset = start_ - buffer_;
-      size_t marker__offset = marker_ - buffer_;
-      size_t cursor__offset = cursor_ - buffer_;
+  size_t used = limit_ - buffer_;
+  size_t needed = used + input_size;
+  size_t allocated = buffer_end_ - buffer_;
+  if (allocated < needed) {
+    size_t limit__offset = limit_ - buffer_;
+    size_t start_offset = start_ - buffer_;
+    size_t marker__offset = marker_ - buffer_;
+    size_t cursor__offset = cursor_ - buffer_;
 
-      buffer_ = (uint8_t*)realloc(buffer_, needed);
-      buffer_end_ = needed + buffer_;
+    buffer_ = (uint8_t*)realloc(buffer_, needed);
+    buffer_end_ = needed + buffer_;
 
-      marker_ = marker__offset + buffer_;
-      cursor_ = cursor__offset + buffer_;
-      start_ = buffer_ + start_offset;
-      limit_ = limit__offset + buffer_;
-    }
-    memcpy(limit_, input, input_size);
-    limit_ += input_size;
+    marker_ = marker__offset + buffer_;
+    cursor_ = cursor__offset + buffer_;
+    start_ = buffer_ + start_offset;
+    limit_ = limit__offset + buffer_;
+  }
+  memcpy(limit_, input, input_size);
+  limit_ += input_size;
 
-    // The scanner start_s here
-    #define YYLIMIT     limit_
-    #define YYCURSOR    cursor_
-    #define YYMARKER    marker_
-    #define YYCTYPE     uint8_t
+  // The scanner starts here
+#define YYLIMIT     limit_
+#define YYCURSOR    cursor_
+#define YYMARKER    marker_
+#define YYCTYPE     uint8_t
 
-    #define SKIP()     { start_ = cursor_; YYSETCONDITION(kConditionNormal); goto yy0; }
-    #define YYFILL(n)    { goto fill;        }
+#define SKIP()     { start_ = cursor_; YYSETCONDITION(kConditionNormal); goto yy0; }
+#define YYFILL(n)    { goto fill;        }
 
-    #define YYGETSTATE()  state_
-    #define YYSETSTATE(x)  { state_ = (x); }
+#define YYGETSTATE()  state_
+#define YYSETSTATE(x)  { state_ = (x); }
 
-    #define YYGETCONDITION() condition_
-    #define YYSETCONDITION(x) { condition_ = (x); }
+#define YYGETCONDITION() condition_
+#define YYSETCONDITION(x) { condition_ = (x); }
 
- start_:
-    if (FLAG_trace_lexer) {
-      printf("Starting a round; state_: %d, condition_: %d\n", state_, condition_);
-    }
+start_:
+  if (FLAG_trace_lexer) {
+    printf("Starting a round; state_: %d, condition_: %d\n", state_, condition_);
+  }
 
-    /*!re2c
+  /*!re2c
     re2c:indent:top   = 1;
     re2c:yych:conversion = 0;
     re2c:condenumprefix     = kCondition;
@@ -321,103 +347,36 @@ public:
     <HtmlComment> any        { goto yy0; }
     */
 
- fill:
-    int unfinished_size = cursor_ - start_;
-    if (FLAG_trace_lexer) {
-      printf(
+fill:
+  int unfinished_size = cursor_ - start_;
+  if (FLAG_trace_lexer) {
+    printf(
         "scanner needs a refill. Exiting for now with:\n"
         "  saved fill state_ = %d\n"
         "  unfinished token size = %d\n",
         state_,
-        unfinished_size
-      );
-      if(0 < unfinished_size && start_ < limit_) {
-        printf("  unfinished token is: ");
-        fwrite(start_, 1, cursor_ - start_, stdout);
-        putchar('\n');
-      }
+        unfinished_size);
+    if(0 < unfinished_size && start_ < limit_) {
+      printf("  unfinished token is: ");
+      fwrite(start_, 1, cursor_ - start_, stdout);
       putchar('\n');
     }
-
-    if (eof_) goto start_;
-
-    //  Once we get here, we can get rid of
-    //  everything before start_ and after limit_.
-
-    if (buffer_ < start_) {
-      size_t start_offset = start_ - buffer_;
-      memmove(buffer_, start_, limit_ - start_);
-      marker_ -= start_offset;
-      cursor_ -= start_offset;
-      limit_ -= start_offset;
-      start_ -= start_offset;
-      real_start_ += start_offset;
-    }
-    return 0;
+    putchar('\n');
   }
 
- private:
-  bool eof_;
-  int32_t state_;
-  int32_t condition_;
+  if (eof_) goto start_;
 
-  uint8_t* limit_;
-  uint8_t* start_;
-  uint8_t* cursor_;
-  uint8_t* marker_;
-  int real_start_;
+  //  Once we get here, we can get rid of
+  //  everything before start_ and after limit_.
 
-  uint8_t* buffer_;
-  uint8_t* buffer_end_;
-
-  uint8_t yych;
-  uint32_t yyaccept;
-
-  ExperimentalScanner* sink_;
-};
-
-
-ExperimentalScanner::ExperimentalScanner(const char* fname) :
-    current_(0), fetched_(0) {
-  file_ = fopen(fname, "rb");
-  scanner_ = new PushScanner(this);
-}
-
-
-ExperimentalScanner::~ExperimentalScanner() {
-  fclose(file_);
-}
-
-
-void ExperimentalScanner::FillTokens() {
-  current_ = 0;
-  fetched_ = 0;
-  uint8_t chars[BUFFER_SIZE];
-  int n = static_cast<int>(fread(&chars, 1, BUFFER_SIZE, file_));
-  for (int i = n; i < BUFFER_SIZE; i++) chars[i] = 0;
-  scanner_->push(chars, BUFFER_SIZE);
-}
-
-
-Token::Value ExperimentalScanner::Next(int* beg_pos, int* end_pos) {
-  while (current_ == fetched_) {
-    FillTokens();
+  if (buffer_ < start_) {
+    size_t start_offset = start_ - buffer_;
+    memmove(buffer_, start_, limit_ - start_);
+    marker_ -= start_offset;
+    cursor_ -= start_offset;
+    limit_ -= start_offset;
+    start_ -= start_offset;
+    real_start_ += start_offset;
   }
-  *beg_pos = beg_[current_];
-  *end_pos = end_[current_];
-  Token::Value res = token_[current_];
-  if (token_[current_] != Token::Token::EOS &&
-      token_[current_] != Token::ILLEGAL) {
-    current_++;
-  }
-  return res;
-}
-
-
-void ExperimentalScanner::Record(Token::Value token, int beg, int end) {
-  if (token == Token::EOS) end--;
-  token_[fetched_] = token;
-  beg_[fetched_] = beg;
-  end_[fetched_] = end;
-  fetched_++;
+  return 0;
 }

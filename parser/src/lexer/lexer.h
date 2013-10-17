@@ -1,3 +1,5 @@
+// Portions of this code based on re2c:
+//   (re2c/examples/push.re)
 // Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -28,27 +30,62 @@
 #ifndef V8_LEXER_LEXER_H
 #define V8_LEXER_LEXER_H
 
+#include <vector>
+
 #include "token.h"
 #include "flags.h"
 
-class PushScanner;
+class ExperimentalScanner;
+
+class PushScanner {
+ public:
+  explicit PushScanner(ExperimentalScanner* sink);
+
+  ~PushScanner();
+
+  void send(v8::internal::Token::Value token);
+  uint32_t push(const void *input, int input_size);
+
+ private:
+  bool eof_;
+  int32_t state_;
+  int32_t condition_;
+
+  uint8_t* limit_;
+  uint8_t* start_;
+  uint8_t* cursor_;
+  uint8_t* marker_;
+  int real_start_;
+
+  uint8_t* buffer_;
+  uint8_t* buffer_end_;
+
+  uint8_t yych;
+  uint32_t yyaccept;
+
+  ExperimentalScanner* sink_;
+};
 
 class ExperimentalScanner {
  public:
-  explicit ExperimentalScanner(const char* fname);
+  ExperimentalScanner(const char* fname, bool read_all_at_once);
   ~ExperimentalScanner();
   v8::internal::Token::Value Next(int* beg_pos, int* end_pos);
   void Record(v8::internal::Token::Value token, int beg_pos, int end_pos);
+
  private:
   void FillTokens();
   static const int BUFFER_SIZE = 256;
-  v8::internal::Token::Value token_[BUFFER_SIZE];
-  int beg_[BUFFER_SIZE];
-  int end_[BUFFER_SIZE];
-  int current_;
-  int fetched_;
+  std::vector<v8::internal::Token::Value> token_;
+  std::vector<int> beg_;
+  std::vector<int> end_;
+  size_t current_;
+  size_t fetched_;
   FILE* file_;
   PushScanner* scanner_;
+  bool read_all_at_once_;
+  const v8::internal::byte* source_;
+  int length_;
 };
 
 #endif  // V8_LEXER_LEXER_H

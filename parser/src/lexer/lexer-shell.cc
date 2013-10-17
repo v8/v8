@@ -81,7 +81,7 @@ class BaselineScanner {
     delete scanner_;
     delete stream_;
     delete unicode_cache_;
-    delete source_;
+    delete[] source_;
   }
 
   Token::Value Next(int* beg_pos, int* end_pos) {
@@ -98,6 +98,70 @@ class BaselineScanner {
   Utf8ToUtf16CharacterStream* stream_;
 };
 
+ExperimentalScanner::ExperimentalScanner(const char* fname,
+                                         bool read_all_at_once)
+    : current_(0),
+      fetched_(0),
+      read_all_at_once_(read_all_at_once),
+      source_(0),
+      length_(0) {
+  file_ = fopen(fname, "rb");
+  scanner_ = new PushScanner(this);
+  if (read_all_at_once_) {
+    source_ = ReadFile(fname, NULL, &length_);
+  }
+}
+
+
+ExperimentalScanner::~ExperimentalScanner() {
+  fclose(file_);
+  delete[] source_;
+}
+
+
+void ExperimentalScanner::FillTokens() {
+  current_ = 0;
+  fetched_ = 0;
+  if (read_all_at_once_) {
+    scanner_->push(source_, length_ + 1);
+  } else {
+    uint8_t chars[BUFFER_SIZE];
+    int n = static_cast<int>(fread(&chars, 1, BUFFER_SIZE, file_));
+    for (int i = n; i < BUFFER_SIZE; i++) chars[i] = 0;
+    scanner_->push(chars, BUFFER_SIZE);
+  }
+}
+
+
+Token::Value ExperimentalScanner::Next(int* beg_pos, int* end_pos) {
+  while (current_ == fetched_) {
+    FillTokens();
+  }
+  *beg_pos = beg_[current_];
+  *end_pos = end_[current_];
+  Token::Value res = token_[current_];
+  if (token_[current_] != Token::Token::EOS &&
+      token_[current_] != Token::ILLEGAL) {
+    current_++;
+  }
+  return res;
+}
+
+
+void ExperimentalScanner::Record(Token::Value token, int beg, int end) {
+  if (token == Token::EOS) end--;
+  if (fetched_ >= token_.size()) {
+    token_.push_back(token);
+    beg_.push_back(beg);
+    end_.push_back(end);
+  } else {
+    token_[fetched_] = token;
+    beg_[fetched_] = beg;
+    end_[fetched_] = end;
+  }
+  fetched_++;
+}
+
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
@@ -113,28 +177,58 @@ int main(int argc, char* argv[]) {
       Isolate* isolate = Isolate::Current();
       HandleScope handle_scope(isolate);
       BaselineScanner baseline(argv[1], isolate);
-      ExperimentalScanner experimental(argv[1]);
-      Token::Value expected_token, actual_token;
-      int expected_beg, expected_end, actual_beg, actual_end;
-      do {
-        expected_token = baseline.Next(&expected_beg, &expected_end);
-        actual_token = experimental.Next(&actual_beg, &actual_end);
+      ExperimentalScanner experimental(argv[1], true);
+
+      std::vector<Token::Value> baseline_tokens, experimental_tokens;
+      std::vector<size_t> baseline_beg, baseline_end, experimental_beg,
+          experimental_end;
+      Token::Value token;
+      int beg, end;
+
+      TimeDelta baseline_time, experimental_time;
+      ElapsedTimer timer;
+      {
+        timer.Start();
+        do {
+          token = baseline.Next(&beg, &end);
+          baseline_tokens.push_back(token);
+          baseline_beg.push_back(beg);
+          baseline_end.push_back(end);
+        } while (token != Token::EOS);
+        baseline_time = timer.Elapsed();
+      }
+
+      {
+        timer.Start();
+        do {
+          token = experimental.Next(&beg, &end);
+          experimental_tokens.push_back(token);
+          experimental_beg.push_back(beg);
+          experimental_end.push_back(end);
+        } while (token != Token::EOS);
+        experimental_time = timer.Elapsed();
+      }
+
+      for (size_t i = 0; i < experimental_tokens.size(); ++i) {
         printf("=> %11s at (%d, %d)\n",
-               Token::Name(actual_token),
-               actual_beg, actual_end);
-        if (expected_token != actual_token ||
-            expected_beg != actual_beg ||
-            expected_end != actual_end) {
+               Token::Name(experimental_tokens[i]),
+               experimental_beg[i], experimental_end[i]);
+        if (experimental_tokens[i] != baseline_tokens[i] ||
+            experimental_beg[i] != baseline_beg[i] ||
+            experimental_end[i] != baseline_end[i]) {
           printf("MISMATCH:\n");
           printf("Expected: %s at (%d, %d)\n",
-                 Token::Name(expected_token),
-                 expected_beg, expected_end);
+                 Token::Name(baseline_tokens[i]),
+                 baseline_beg[i], baseline_end[i]);
           printf("Actual:   %s at (%d, %d)\n",
-                 Token::Name(actual_token),
-                 actual_beg, actual_end);
+                 Token::Name(experimental_tokens[i]),
+                 experimental_beg[i], experimental_end[i]);
           return 1;
         }
-      } while (actual_token != Token::EOS);
+      }
+      printf("Baseline: %f ms\nExperimental %f ms\n",
+             baseline_time.InMillisecondsF(),
+             experimental_time.InMillisecondsF());
     }
   }
   v8::V8::Dispose();
