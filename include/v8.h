@@ -712,6 +712,7 @@ template <class T, class M> class Persistent {
   V8_INLINE T* operator*() const { return val_; }
 
  private:
+  friend class Isolate;
   friend class Utils;
   template<class F> friend class Handle;
   template<class F> friend class Local;
@@ -4066,8 +4067,8 @@ class V8_EXPORT Isolate {
    * garbage collection types it is sufficient to provide object groups
    * for partially dependent handles only.
    */
-  void SetObjectGroupId(const Persistent<Value>& object,
-                        UniqueId id);
+  template<typename T> void SetObjectGroupId(const Persistent<T>& object,
+                                             UniqueId id);
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -4076,8 +4077,8 @@ class V8_EXPORT Isolate {
    * are removed. It is intended to be used in the before-garbage-collection
    * callback function.
    */
-  void SetReferenceFromGroup(UniqueId id,
-                             const Persistent<Value>& child);
+  template<typename T> void SetReferenceFromGroup(UniqueId id,
+                                                  const Persistent<T>& child);
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -4085,8 +4086,8 @@ class V8_EXPORT Isolate {
    * too. After each garbage collection, all implicit references are removed. It
    * is intended to be used in the before-garbage-collection callback function.
    */
-  void SetReference(const Persistent<Object>& parent,
-                    const Persistent<Value>& child);
+  template<typename T, typename S>
+  void SetReference(const Persistent<T>& parent, const Persistent<S>& child);
 
   typedef void (*GCPrologueCallback)(Isolate* isolate,
                                      GCType type,
@@ -4140,8 +4141,11 @@ class V8_EXPORT Isolate {
   Isolate& operator=(const Isolate&);
   void* operator new(size_t size);
   void operator delete(void*, size_t);
-};
 
+  void SetObjectGroupId(internal::Object** object, UniqueId id);
+  void SetReferenceFromGroup(UniqueId id, internal::Object** object);
+  void SetReference(internal::Object** parent, internal::Object** child);
+};
 
 class V8_EXPORT StartupData {
  public:
@@ -6417,6 +6421,33 @@ void Isolate::SetData(void* data) {
 void* Isolate::GetData() {
   typedef internal::Internals I;
   return I::GetEmbedderData(this);
+}
+
+
+template<typename T>
+void Isolate::SetObjectGroupId(const Persistent<T>& object,
+                               UniqueId id) {
+  TYPE_CHECK(Value, T);
+  SetObjectGroupId(reinterpret_cast<v8::internal::Object**>(object.val_), id);
+}
+
+
+template<typename T>
+void Isolate::SetReferenceFromGroup(UniqueId id,
+                                    const Persistent<T>& object) {
+  TYPE_CHECK(Value, T);
+  SetReferenceFromGroup(id,
+                        reinterpret_cast<v8::internal::Object**>(object.val_));
+}
+
+
+template<typename T, typename S>
+void Isolate::SetReference(const Persistent<T>& parent,
+                           const Persistent<S>& child) {
+  TYPE_CHECK(Object, T);
+  TYPE_CHECK(Value, S);
+  SetReference(reinterpret_cast<v8::internal::Object**>(parent.val_),
+               reinterpret_cast<v8::internal::Object**>(child.val_));
 }
 
 

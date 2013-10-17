@@ -6350,31 +6350,32 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
 }
 
 
-void Isolate::SetObjectGroupId(const Persistent<Value>& object,
-                               UniqueId id) {
+void Isolate::SetObjectGroupId(internal::Object** object, UniqueId id) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetObjectGroupId(
-      Utils::OpenPersistent(object).location(),
+      v8::internal::Handle<v8::internal::Object>(object).location(),
       id);
+  internal_isolate->global_handles()->SetObjectGroupId(object, id);
 }
 
 
-void Isolate::SetReferenceFromGroup(UniqueId id,
-                                    const Persistent<Value>& object) {
+void Isolate::SetReferenceFromGroup(UniqueId id, internal::Object** object) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetReferenceFromGroup(
       id,
-      Utils::OpenPersistent(object).location());
+      v8::internal::Handle<v8::internal::Object>(object).location());
+  internal_isolate->global_handles()->SetReferenceFromGroup(id, object);
 }
 
 
-void Isolate::SetReference(const Persistent<Object>& parent,
-                           const Persistent<Value>& child) {
+void Isolate::SetReference(internal::Object** parent,
+                           internal::Object** child) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Object** parent_location = Utils::OpenPersistent(parent).location();
+  i::Object** parent_location =
+      v8::internal::Handle<v8::internal::Object>(parent).location();
   internal_isolate->global_handles()->SetReference(
       reinterpret_cast<i::HeapObject**>(parent_location),
-      Utils::OpenPersistent(child).location());
+      v8::internal::Handle<v8::internal::Object>(child).location());
 }
 
 
