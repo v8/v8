@@ -677,7 +677,7 @@ function ArraySlice(start, end) {
   var start_i = TO_INTEGER(start);
   var end_i = len;
 
-  if (end !== void 0) end_i = TO_INTEGER(end);
+  if (!IS_UNDEFINED(end)) end_i = TO_INTEGER(end);
 
   if (start_i < 0) {
     start_i += len;
@@ -1016,7 +1016,7 @@ function ArraySort(comparefn) {
         var proto_length = indices;
         for (var i = from; i < proto_length; i++) {
           if (proto.hasOwnProperty(i)) {
-            obj[i] = void 0;
+            obj[i] = UNDEFINED;
           }
         }
       } else {
@@ -1024,7 +1024,7 @@ function ArraySort(comparefn) {
           var index = indices[i];
           if (!IS_UNDEFINED(index) && from <= index &&
               proto.hasOwnProperty(index)) {
-            obj[index] = void 0;
+            obj[index] = UNDEFINED;
           }
         }
       }
@@ -1061,7 +1061,7 @@ function ArraySort(comparefn) {
       if (first_undefined < last_defined) {
         // Fill in hole or undefined.
         obj[first_undefined] = obj[last_defined];
-        obj[last_defined] = void 0;
+        obj[last_defined] = UNDEFINED;
       }
     }
     // If there were any undefineds in the entire array, first_undefined
@@ -1073,12 +1073,12 @@ function ArraySort(comparefn) {
     // an undefined should be and vice versa.
     var i;
     for (i = first_undefined; i < length - num_holes; i++) {
-      obj[i] = void 0;
+      obj[i] = UNDEFINED;
     }
     for (i = length - num_holes; i < length; i++) {
       // For compatability with Webkit, do not expose elements in the prototype.
       if (i in %GetPrototype(obj)) {
-        obj[i] = void 0;
+        obj[i] = UNDEFINED;
       } else {
         delete obj[i];
       }
