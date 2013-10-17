@@ -2137,7 +2137,9 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
     AddSlowProperty(object, name, value, attributes);
   }
 
-  if (FLAG_harmony_observation && object->map()->is_observed()) {
+  if (FLAG_harmony_observation &&
+      object->map()->is_observed() &&
+      *name != isolate->heap()->hidden_string()) {
     Handle<Object> old_value = isolate->factory()->the_hole_value();
     EnqueueChangeRecord(object, "new", name, old_value);
   }
@@ -4015,8 +4017,10 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  if (FLAG_harmony_observation &&
-      object->map()->is_observed() && lookup->IsDataProperty()) {
+  bool is_observed = FLAG_harmony_observation &&
+                     object->map()->is_observed() &&
+                     *name != isolate->heap()->hidden_string();
+  if (is_observed && lookup->IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
   }
 
@@ -4055,7 +4059,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
 
-  if (FLAG_harmony_observation && object->map()->is_observed()) {
+  if (is_observed) {
     if (lookup->IsTransition()) {
       EnqueueChangeRecord(object, "new", name, old_value);
     } else {
@@ -4156,7 +4160,9 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   PropertyAttributes old_attributes = ABSENT;
-  bool is_observed = FLAG_harmony_observation && object->map()->is_observed();
+  bool is_observed = FLAG_harmony_observation &&
+                     object->map()->is_observed() &&
+                     *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) old_value =
         Object::GetProperty(object, name);
@@ -5220,7 +5226,9 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation && object->map()->is_observed();
+  bool is_observed = FLAG_harmony_observation &&
+                     object->map()->is_observed() &&
+                     *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
   }
@@ -6292,7 +6300,9 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   bool is_element = name->AsArrayIndex(&index);
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation && object->map()->is_observed();
+  bool is_observed = FLAG_harmony_observation &&
+                     object->map()->is_observed() &&
+                     *name != isolate->heap()->hidden_string();
   bool preexists = false;
   if (is_observed) {
     if (is_element) {
