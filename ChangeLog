@@ -1,3 +1,8 @@
+2013-10-17: Version 3.22.14
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-16: Version 3.22.13
 
         Do not look up ArrayBuffer on global object in typed array constructor.
