@@ -299,14 +299,6 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
                                Handle<FixedArray> second);
 
-// Sets the expected number of properties for the function's instances.
-void SetExpectedNofProperties(Handle<JSFunction> func, int nof);
-
-// Sets the expected number of properties based on estimate from compiler.
-void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
-                                          int estimate);
-
-
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
     Handle<JSGlobalProxy> global);

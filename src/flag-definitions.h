@@ -313,6 +313,8 @@ DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
+DEFINE_int(escape_analysis_iterations, 1,
+           "maximum number of escape analysis fix-point iterations")
 
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")

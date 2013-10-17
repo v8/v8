@@ -2336,6 +2336,10 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
     case Token::EQ_STRICT:
       cond = eq;
       break;
+    case Token::NE:
+    case Token::NE_STRICT:
+      cond = ne;
+      break;
     case Token::LT:
       cond = is_unsigned ? lo : lt;
       break;

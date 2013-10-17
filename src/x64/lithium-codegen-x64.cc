@@ -2048,6 +2048,10 @@ inline Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
     case Token::EQ_STRICT:
       cond = equal;
       break;
+    case Token::NE:
+    case Token::NE_STRICT:
+      cond = not_equal;
+      break;
     case Token::LT:
       cond = is_unsigned ? below : less;
       break;

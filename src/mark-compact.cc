@@ -2759,7 +2759,10 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          Address src,
                                          int size,
                                          AllocationSpace dest) {
-  HEAP_PROFILE(heap(), ObjectMoveEvent(src, dst, size));
+  HeapProfiler* heap_profiler = heap()->isolate()->heap_profiler();
+  if (heap_profiler->is_profiling()) {
+    heap_profiler->ObjectMoveEvent(src, dst, size);
+  }
   ASSERT(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));
   ASSERT(dest != LO_SPACE && size <= Page::kMaxNonCodeHeapObjectSize);
   if (dest == OLD_POINTER_SPACE) {

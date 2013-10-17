@@ -97,10 +97,12 @@ void HDeadCodeEliminationPhase::RemoveDeadInstructions() {
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
       if (!instr->CheckFlag(HValue::kIsLive)) {
-        // Instruction has not been marked live; assume it is dead and remove.
-        // TODO(titzer): we don't remove constants because some special ones
-        // might be used by later phases and are assumed to be in the graph
-        if (!instr->IsConstant()) instr->DeleteAndReplaceWith(NULL);
+        // Instruction has not been marked live, so remove it.
+        if (!instr->IsConstant() || instr->block()->block_id() != 0) {
+          // TODO(titzer): Some global constants in block 0 can be used
+          // again later, and can't currently be removed. Fix that.
+          instr->DeleteAndReplaceWith(NULL);
+        }
       } else {
         // Clear the liveness flag to leave the graph clean for the next DCE.
         instr->ClearFlag(HValue::kIsLive);

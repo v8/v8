@@ -343,9 +343,10 @@ static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
 }
 
 
-MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
-                                               Object* structure,
-                                               Name* name) {
+Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
+                                                 Handle<Object> receiver,
+                                                 Handle<Object> structure,
+                                                 Handle<Name> name) {
   Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
   // data structure used to store the callbacks.  Eventually foreign
@@ -353,66 +354,71 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   if (structure->IsForeign()) {
     AccessorDescriptor* callback =
         reinterpret_cast<AccessorDescriptor*>(
-            Foreign::cast(structure)->foreign_address());
-    MaybeObject* value = (callback->getter)(isolate, receiver, callback->data);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return value;
+            Handle<Foreign>::cast(structure)->foreign_address());
+    CALL_HEAP_FUNCTION(isolate,
+                       (callback->getter)(isolate, *receiver, callback->data),
+                       Object);
   }
 
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
-    if (!AccessorInfo::cast(structure)->IsCompatibleReceiver(receiver)) {
-      Handle<Object> name_handle(name, isolate);
-      Handle<Object> receiver_handle(receiver, isolate);
-      Handle<Object> args[2] = { name_handle, receiver_handle };
+    Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
+    if (!accessor_info->IsCompatibleReceiver(*receiver)) {
+      Handle<Object> args[2] = { name, receiver };
       Handle<Object> error =
           isolate->factory()->NewTypeError("incompatible_method_receiver",
                                            HandleVector(args,
                                                         ARRAY_SIZE(args)));
-      return isolate->Throw(*error);
+      isolate->Throw(*error);
+      return Handle<Object>::null();
     }
     // TODO(rossberg): Handling symbols in the API requires changing the API,
     // so we do not support it for now.
-    if (name->IsSymbol()) return isolate->heap()->undefined_value();
+    if (name->IsSymbol()) return isolate->factory()->undefined_value();
     if (structure->IsDeclaredAccessorInfo()) {
-      return GetDeclaredAccessorProperty(receiver,
-                                         DeclaredAccessorInfo::cast(structure),
-                                         isolate);
+      CALL_HEAP_FUNCTION(
+          isolate,
+          GetDeclaredAccessorProperty(*receiver,
+                                      DeclaredAccessorInfo::cast(*structure),
+                                      isolate),
+          Object);
     }
-    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(structure);
-    Object* fun_obj = data->getter();
+
+    Handle<ExecutableAccessorInfo> data =
+        Handle<ExecutableAccessorInfo>::cast(structure);
     v8::AccessorGetterCallback call_fun =
-        v8::ToCData<v8::AccessorGetterCallback>(fun_obj);
-    if (call_fun == NULL) return isolate->heap()->undefined_value();
+        v8::ToCData<v8::AccessorGetterCallback>(data->getter());
+    if (call_fun == NULL) return isolate->factory()->undefined_value();
+
     HandleScope scope(isolate);
-    JSObject* self = JSObject::cast(receiver);
-    Handle<String> key(String::cast(name));
-    LOG(isolate, ApiNamedPropertyAccess("load", self, name));
-    PropertyCallbackArguments args(isolate, data->data(), self, this);
+    Handle<JSObject> self = Handle<JSObject>::cast(receiver);
+    Handle<String> key = Handle<String>::cast(name);
+    LOG(isolate, ApiNamedPropertyAccess("load", *self, *name));
+    PropertyCallbackArguments args(isolate, data->data(), *self, *object);
     v8::Handle<v8::Value> result =
         args.Call(call_fun, v8::Utils::ToLocal(key));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.IsEmpty()) {
-      return isolate->heap()->undefined_value();
+      return isolate->factory()->undefined_value();
     }
-    Object* return_value = *v8::Utils::OpenHandle(*result);
+    Handle<Object> return_value = v8::Utils::OpenHandle(*result);
     return_value->VerifyApiCallResultType();
-    return return_value;
+    return scope.CloseAndEscape(return_value);
   }
 
   // __defineGetter__ callback
-  if (structure->IsAccessorPair()) {
-    Object* getter = AccessorPair::cast(structure)->getter();
-    if (getter->IsSpecFunction()) {
-      // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
-    }
-    // Getter is not a function.
-    return isolate->heap()->undefined_value();
+  Handle<Object> getter(Handle<AccessorPair>::cast(structure)->getter(),
+                        isolate);
+  if (getter->IsSpecFunction()) {
+    // TODO(rossberg): nicer would be to cast to some JSCallable here...
+    CALL_HEAP_FUNCTION(
+        isolate,
+        object->GetPropertyWithDefinedGetter(*receiver,
+                                             JSReceiver::cast(*getter)),
+        Object);
   }
-
-  UNREACHABLE();
-  return NULL;
+  // Getter is not a function.
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -504,19 +510,6 @@ MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *result;
-}
-
-
-// TODO(yangguo): this should eventually replace the non-handlified version.
-Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
-                                                 Handle<Object> receiver,
-                                                 Handle<Object> structure,
-                                                 Handle<Name> name) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->GetPropertyWithCallback(*receiver,
-                                                     *structure,
-                                                     *name),
-                     Object);
 }
 
 
@@ -903,9 +896,16 @@ MaybeObject* Object::GetProperty(Object* receiver,
     }
     case CONSTANT:
       return result->GetConstant();
-    case CALLBACKS:
-      return result->holder()->GetPropertyWithCallback(
-          receiver, result->GetCallbackObject(), name);
+    case CALLBACKS: {
+      HandleScope scope(isolate);
+      Handle<Object> value = JSObject::GetPropertyWithCallback(
+          handle(result->holder(), isolate),
+          handle(receiver, isolate),
+          handle(result->GetCallbackObject(), isolate),
+          handle(name, isolate));
+      RETURN_IF_EMPTY_HANDLE(isolate, value);
+      return *value;
+    }
     case HANDLER:
       return result->proxy()->GetPropertyWithHandler(receiver, name);
     case INTERCEPTOR: {
@@ -9381,6 +9381,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     if (number_of_own_descriptors > 0) {
       TrimDescriptorArray(heap, this, descriptors, number_of_own_descriptors);
       ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
+      set_owns_descriptors(true);
     } else {
       ASSERT(descriptors == GetHeap()->empty_descriptor_array());
     }

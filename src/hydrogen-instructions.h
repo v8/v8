@@ -3317,6 +3317,8 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
   // Replay effects of this instruction on the given environment.
   void ReplayEnvironment(HEnvironment* env);
 
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
   DECLARE_CONCRETE_INSTRUCTION(CapturedObject)
 
  private:
