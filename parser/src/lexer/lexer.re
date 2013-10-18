@@ -27,18 +27,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <fcntl.h>
 #include <stdio.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
 // TODO:
 // - SpiderMonkey compatibility hack: "  --> something" is treated
 //   as a single line comment.
-// - An identifier cannot start immediately after a number.
 // - Run-time lexing modifications: harmony number literals, keywords depending
 //   on harmony_modules, harmony_scoping
+// - Escaping the string literals (like the baseline does)
+// - Error recovery after illegal tokens.
 
 enum Condition {
   kConditionNormal,
@@ -79,7 +78,7 @@ using namespace v8::internal;
 #define PUSH_TOKEN_LOOKAHEAD(T) { --cursor_; send(T); SKIP(); }
 #define PUSH_EOF_AND_RETURN() { send(Token::EOS); eof_ = true; return 1;}
 #define PUSH_LINE_TERMINATOR() { SKIP(); }
-#define TERMINATE_ILLEGAL() { return 1; }
+#define TERMINATE_ILLEGAL() { send(Token::ILLEGAL); send(Token::EOS); return 1; }
 
 PushScanner::PushScanner(ExperimentalScanner* sink)
 : eof_(false),
@@ -167,20 +166,14 @@ uint32_t PushScanner::push(const void *input, int input_size) {
   memcpy(limit_, input, input_size);
   limit_ += input_size;
 
-  // The scanner starts here
-#define YYLIMIT     limit_
-#define YYCURSOR    cursor_
-#define YYMARKER    marker_
-#define YYCTYPE     uint8_t
+#define SKIP()                { start_ = cursor_; YYSETCONDITION(kConditionNormal); goto yy0; }
+#define YYFILL(n)             { goto fill;        }
 
-#define SKIP()     { start_ = cursor_; YYSETCONDITION(kConditionNormal); goto yy0; }
-#define YYFILL(n)    { goto fill;        }
+#define YYGETSTATE()          state_
+#define YYSETSTATE(x)         { state_ = (x); }
 
-#define YYGETSTATE()  state_
-#define YYSETSTATE(x)  { state_ = (x); }
-
-#define YYGETCONDITION() condition_
-#define YYSETCONDITION(x) { condition_ = (x); }
+#define YYGETCONDITION()      condition_
+#define YYSETCONDITION(x)     { condition_ = (x); }
 
 start_:
   if (FLAG_trace_lexer) {
@@ -188,10 +181,14 @@ start_:
   }
 
   /*!re2c
-    re2c:indent:top   = 1;
+    re2c:indent:top = 1;
     re2c:yych:conversion = 0;
-    re2c:condenumprefix     = kCondition;
-    re2c:define:YYCONDTYPE    = Condition;
+    re2c:condenumprefix = kCondition;
+    re2c:define:YYCONDTYPE = Condition;
+    re2c:define:YYCURSOR = cursor_;
+    re2c:define:YYCTYPE = uint8_t;
+    re2c:define:YYLIMIT = limit_;
+    re2c:define:YYMARKER = marker_;
 
     eof = "\000";
     any = [\000-\377];
@@ -281,9 +278,9 @@ start_:
     <Normal> "<"           { PUSH_TOKEN(Token::LT); }
     <Normal> ">"           { PUSH_TOKEN(Token::GT); }
 
-    <Normal> '0x' hex_digit+                     { PUSH_TOKEN(Token::NUMBER); }
-    <Normal> "." digit+ maybe_exponent           { PUSH_TOKEN(Token::NUMBER); }
-    <Normal> digit+ ("." digit+)? maybe_exponent { PUSH_TOKEN(Token::NUMBER); }
+    <Normal> '0x' hex_digit+ not_identifier_char                     { PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
+    <Normal> "." digit+ maybe_exponent not_identifier_char           { PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
+    <Normal> digit+ ("." digit+)? maybe_exponent not_identifier_char { PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
 
     <Normal> "("           { PUSH_TOKEN(Token::LPAREN); }
     <Normal> ")"           { PUSH_TOKEN(Token::RPAREN); }
@@ -312,7 +309,7 @@ start_:
     <Normal> "~"           { PUSH_TOKEN(Token::BIT_NOT); }
     <Normal> ","           { PUSH_TOKEN(Token::COMMA); }
 
-    <Normal> line_terminator+ { PUSH_LINE_TERMINATOR(); }
+    <Normal> line_terminator  { PUSH_LINE_TERMINATOR(); }
     <Normal> whitespace       { SKIP(); }
 
     <Normal> ["]           :=> DoubleQuoteString
@@ -325,10 +322,14 @@ start_:
 
     <DoubleQuoteString> "\\\""  { goto yy0; }
     <DoubleQuoteString> '"'     { PUSH_TOKEN(Token::STRING);}
+    <DoubleQuoteString> line_terminator { TERMINATE_ILLEGAL(); }
+    <DoubleQuoteString> eof     { TERMINATE_ILLEGAL(); }
     <DoubleQuoteString> any     { goto yy0; }
 
     <SingleQuoteString> "\\'"   { goto yy0; }
     <SingleQuoteString> "'"     { PUSH_TOKEN(Token::STRING);}
+    <SingleQuoteString> line_terminator { TERMINATE_ILLEGAL(); }
+    <SingleQuoteString> eof     { TERMINATE_ILLEGAL(); }
     <SingleQuoteString> any     { goto yy0; }
 
     <Identifier> identifier_char+  { goto yy0; }
@@ -356,7 +357,7 @@ fill:
         "  unfinished token size = %d\n",
         state_,
         unfinished_size);
-    if(0 < unfinished_size && start_ < limit_) {
+    if (0 < unfinished_size && start_ < limit_) {
       printf("  unfinished token is: ");
       fwrite(start_, 1, cursor_ - start_, stdout);
       putchar('\n');

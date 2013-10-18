@@ -109,6 +109,13 @@ ExperimentalScanner::ExperimentalScanner(const char* fname,
   scanner_ = new PushScanner(this);
   if (read_all_at_once_) {
     source_ = ReadFile(fname, NULL, &length_);
+    token_.resize(1500);
+    beg_.resize(1500);
+    end_.resize(1500);
+  } else {
+    token_.resize(BUFFER_SIZE);
+    beg_.resize(BUFFER_SIZE);
+    end_.resize(BUFFER_SIZE);
   }
 }
 
@@ -134,16 +141,13 @@ void ExperimentalScanner::FillTokens() {
 
 
 Token::Value ExperimentalScanner::Next(int* beg_pos, int* end_pos) {
-  while (current_ == fetched_) {
+  while (current_ == fetched_)
     FillTokens();
-  }
   *beg_pos = beg_[current_];
   *end_pos = end_[current_];
   Token::Value res = token_[current_];
-  if (token_[current_] != Token::Token::EOS &&
-      token_[current_] != Token::ILLEGAL) {
+  if (res != Token::Token::EOS)
     current_++;
-  }
   return res;
 }
 
@@ -151,14 +155,13 @@ Token::Value ExperimentalScanner::Next(int* beg_pos, int* end_pos) {
 void ExperimentalScanner::Record(Token::Value token, int beg, int end) {
   if (token == Token::EOS) end--;
   if (fetched_ >= token_.size()) {
-    token_.push_back(token);
-    beg_.push_back(beg);
-    end_.push_back(end);
-  } else {
-    token_[fetched_] = token;
-    beg_[fetched_] = beg;
-    end_[fetched_] = end;
+    token_.resize(token_.size() * 2);
+    beg_.resize(beg_.size() * 2);
+    end_.resize(end_.size() * 2);
   }
+  token_[fetched_] = token;
+  beg_[fetched_] = beg;
+  end_[fetched_] = end;
   fetched_++;
 }
 
@@ -226,6 +229,7 @@ int main(int argc, char* argv[]) {
           return 1;
         }
       }
+      printf("No of tokens: %d\n", experimental_tokens.size());
       printf("Baseline: %f ms\nExperimental %f ms\n",
              baseline_time.InMillisecondsF(),
              experimental_time.InMillisecondsF());
