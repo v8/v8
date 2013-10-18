@@ -322,12 +322,16 @@ start_:
 
     <DoubleQuoteString> "\\\""  { goto yy0; }
     <DoubleQuoteString> '"'     { PUSH_TOKEN(Token::STRING);}
+    <DoubleQuoteString> "\\" "\n" "\r"? { goto yy0; }
+    <DoubleQuoteString> "\\" "\r" "\n"? { goto yy0; }
     <DoubleQuoteString> line_terminator { TERMINATE_ILLEGAL(); }
     <DoubleQuoteString> eof     { TERMINATE_ILLEGAL(); }
     <DoubleQuoteString> any     { goto yy0; }
 
     <SingleQuoteString> "\\'"   { goto yy0; }
     <SingleQuoteString> "'"     { PUSH_TOKEN(Token::STRING);}
+    <SingleQuoteString> "\\" "\n" "\r"? { goto yy0; }
+    <SingleQuoteString> "\\" "\r" "\n"? { goto yy0; }
     <SingleQuoteString> line_terminator { TERMINATE_ILLEGAL(); }
     <SingleQuoteString> eof     { TERMINATE_ILLEGAL(); }
     <SingleQuoteString> any     { goto yy0; }
