@@ -33,16 +33,6 @@
 namespace v8 {
 namespace internal {
 
-const char* StringsStorage::GetFunctionName(Name* name) {
-  return GetFunctionName(GetName(name));
-}
-
-
-const char* StringsStorage::GetFunctionName(const char* name) {
-  return strlen(name) > 0 ? name : ProfileGenerator::kAnonymousFunctionName;
-}
-
-
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* name,
                      const char* name_prefix,
