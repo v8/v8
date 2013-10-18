@@ -6557,7 +6557,7 @@ Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     for (Handle<Object> obj = object;
-         *obj != isolate->heap()->null_value();
+         !obj->IsNull();
          obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
       if (obj->IsJSObject() && JSObject::cast(*obj)->HasDictionaryElements()) {
         JSObject* js_object = JSObject::cast(*obj);
@@ -6575,7 +6575,7 @@ Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
     }
   } else {
     for (Handle<Object> obj = object;
-         *obj != isolate->heap()->null_value();
+         !obj->IsNull();
          obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
       LookupResult result(isolate);
       JSReceiver::cast(*obj)->LocalLookup(*name, &result);
@@ -13177,52 +13177,62 @@ Handle<Object> JSObject::GetPropertyWithInterceptor(
 }
 
 
-bool JSObject::HasRealNamedProperty(Isolate* isolate, Name* key) {
+bool JSObject::HasRealNamedProperty(Handle<JSObject> object,
+                                    Handle<Name> key) {
+  Isolate* isolate = object->GetIsolate();
+  SealHandleScope shs(isolate);
   // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  if (object->IsAccessCheckNeeded()) {
+    if (!isolate->MayNamedAccess(*object, *key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
       return false;
     }
   }
 
   LookupResult result(isolate);
-  LocalLookupRealNamedProperty(key, &result);
+  object->LocalLookupRealNamedProperty(*key, &result);
   return result.IsFound() && !result.IsInterceptor();
 }
 
 
-bool JSObject::HasRealElementProperty(Isolate* isolate, uint32_t index) {
+bool JSObject::HasRealElementProperty(Handle<JSObject> object, uint32_t index) {
+  Isolate* isolate = object->GetIsolate();
+  SealHandleScope shs(isolate);
   // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  if (object->IsAccessCheckNeeded()) {
+    if (!isolate->MayIndexedAccess(*object, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
       return false;
     }
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
+  if (object->IsJSGlobalProxy()) {
+    HandleScope scope(isolate);
+    Handle<Object> proto(object->GetPrototype(), isolate);
     if (proto->IsNull()) return false;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->HasRealElementProperty(isolate, index);
+    return HasRealElementProperty(Handle<JSObject>::cast(proto), index);
   }
 
-  return GetElementAttributeWithoutInterceptor(this, index, false) != ABSENT;
+  return object->GetElementAttributeWithoutInterceptor(
+             *object, index, false) != ABSENT;
 }
 
 
-bool JSObject::HasRealNamedCallbackProperty(Isolate* isolate, Name* key) {
+bool JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
+                                            Handle<Name> key) {
+  Isolate* isolate = object->GetIsolate();
+  SealHandleScope shs(isolate);
   // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  if (object->IsAccessCheckNeeded()) {
+    if (!isolate->MayNamedAccess(*object, *key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
       return false;
     }
   }
 
   LookupResult result(isolate);
-  LocalLookupRealNamedProperty(key, &result);
+  object->LocalLookupRealNamedProperty(*key, &result);
   return result.IsPropertyCallbacks();
 }
 
