@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,50 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PROFILE_GENERATOR_INL_H_
-#define V8_PROFILE_GENERATOR_INL_H_
+// Flags: --allow-natives-syntax
 
-#include "profile-generator.h"
+function Counter() {
+  this.value = 0;
+};
 
-namespace v8 {
-namespace internal {
+Object.defineProperty(Counter.prototype, 'count', {
+  get: function() { return this.value; },
+  set: function(value) { this.value = value; }
+});
 
-CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
-                     const char* name,
-                     const char* name_prefix,
-                     const char* resource_name,
-                     int line_number,
-                     int column_number)
-    : tag_(tag),
-      builtin_id_(Builtins::builtin_count),
-      name_prefix_(name_prefix),
-      name_(name),
-      resource_name_(resource_name),
-      line_number_(line_number),
-      column_number_(column_number),
-      shared_id_(0),
-      script_id_(v8::Script::kNoScriptId),
-      no_frame_ranges_(NULL),
-      bailout_reason_(kEmptyBailoutReason) { }
+var obj = new Counter();
 
-
-bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
-  return tag == Logger::FUNCTION_TAG
-      || tag == Logger::LAZY_COMPILE_TAG
-      || tag == Logger::SCRIPT_TAG
-      || tag == Logger::NATIVE_FUNCTION_TAG
-      || tag == Logger::NATIVE_LAZY_COMPILE_TAG
-      || tag == Logger::NATIVE_SCRIPT_TAG;
+function bummer() {
+  obj.count++;
+  return obj.count;
 }
 
-
-ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
-    : tree_(tree),
-      entry_(entry),
-      self_ticks_(0),
-      children_(CodeEntriesMatch),
-      id_(tree->next_node_id()) { }
-
-} }  // namespace v8::internal
-
-#endif  // V8_PROFILE_GENERATOR_INL_H_
+assertEquals(1, bummer());
+assertEquals(2, bummer());
+assertEquals(3, bummer());
+%OptimizeFunctionOnNextCall(bummer);
+assertEquals(4, bummer());
+assertEquals(5, bummer());
+assertEquals(6, bummer());

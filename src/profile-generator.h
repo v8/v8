@@ -49,20 +49,18 @@ class StringsStorage {
   const char* GetVFormatted(const char* format, va_list args);
   const char* GetName(Name* name);
   const char* GetName(int index);
-  inline const char* GetFunctionName(Name* name);
-  inline const char* GetFunctionName(const char* name);
+  const char* GetFunctionName(Name* name);
+  const char* GetFunctionName(const char* name);
   size_t GetUsedMemorySize() const;
 
  private:
   static const int kMaxNameSize = 1024;
 
-  static bool StringsMatch(void* key1, void* key2) {
-    return strcmp(reinterpret_cast<char*>(key1),
-                  reinterpret_cast<char*>(key2)) == 0;
-  }
-  const char* AddOrDisposeString(char* str, uint32_t hash);
+  static bool StringsMatch(void* key1, void* key2);
+  const char* BeautifyFunctionName(const char* name);
+  const char* AddOrDisposeString(char* str, int len);
+  HashMap::Entry* GetEntry(const char* str, int len);
 
-  // Mapping of strings by String::Hash to const char* strings.
   uint32_t hash_seed_;
   HashMap names_;
 

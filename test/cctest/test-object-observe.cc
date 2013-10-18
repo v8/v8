@@ -720,3 +720,18 @@ TEST(AccessCheckDisallowApiModifications) {
   }
   CHECK(CompileRun("records")->IsNull());
 }
+
+
+TEST(HiddenPropertiesLeakage) {
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
+  CompileRun("var obj = {};"
+             "var records = null;"
+             "var observer = function(r) { records = r };"
+             "Object.observe(obj, observer);");
+  Handle<Value> obj = context->Global()->Get(String::New("obj"));
+  Handle<Object>::Cast(obj)->SetHiddenValue(String::New("foo"), Null());
+  CompileRun("");  // trigger delivery
+  CHECK(CompileRun("records")->IsNull());
+}

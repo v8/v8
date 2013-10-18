@@ -290,7 +290,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
  * Parameter locales is treated as a priority list.
  */
 function supportedLocalesOf(service, locales, options) {
-  if (service.match(GetServiceRE()) === null) {
+  if (IS_NULL(service.match(GetServiceRE()))) {
     throw new $Error('Internal error, wrong service type: ' + service);
   }
 
@@ -447,7 +447,7 @@ function resolveLocale(service, requestedLocales, options) {
  * lookup algorithm.
  */
 function lookupMatcher(service, requestedLocales) {
-  if (service.match(GetServiceRE()) === null) {
+  if (IS_NULL(service.match(GetServiceRE()))) {
     throw new $Error('Internal error, wrong service type: ' + service);
   }
 
@@ -463,7 +463,7 @@ function lookupMatcher(service, requestedLocales) {
       if (AVAILABLE_LOCALES[service][locale] !== undefined) {
         // Return the resolved locale and extension.
         var extensionMatch = requestedLocales[i].match(GetUnicodeExtensionRE());
-        var extension = (extensionMatch === null) ? '' : extensionMatch[0];
+        var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
         return {'locale': locale, 'extension': extension, 'position': i};
       }
       // Truncate locale if possible.
@@ -535,7 +535,7 @@ function parseExtension(extension) {
  * Converts parameter to an Object if possible.
  */
 function toObject(value) {
-  if (value === undefined || value === null) {
+  if (IS_NULL_OR_UNDEFINED(value)) {
     throw new $TypeError('Value cannot be converted to an Object.');
   }
 
@@ -733,7 +733,7 @@ function toTitleCaseWord(word) {
 function canonicalizeLanguageTag(localeID) {
   // null is typeof 'object' so we have to do extra check.
   if (typeof localeID !== 'string' && typeof localeID !== 'object' ||
-      localeID === null) {
+      IS_NULL(localeID)) {
     throw new $TypeError('Language ID should be string or object.');
   }
 
@@ -1449,7 +1449,7 @@ function fromLDMLString(ldmlString) {
 
 
 function appendToDateTimeObject(options, option, match, pairs) {
-  if (match === null) {
+  if (IS_NULL(match)) {
     if (!options.hasOwnProperty(option)) {
       defineWEProperty(options, option, undefined);
     }
@@ -1751,7 +1751,7 @@ function canonicalizeTimeZoneID(tzID) {
   // We expect only _ and / beside ASCII letters.
   // All inputs should conform to Area/Location from now on.
   var match = GetTimezoneNameCheckRE().exec(tzID);
-  if (match === null) {
+  if (IS_NULL(match)) {
     throw new $RangeError('Expected Area/Location for time zone, got ' + tzID);
   }
 
@@ -1971,7 +1971,7 @@ $Object.defineProperty($String.prototype, 'localeCompare', {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    if (this === undefined || this === null) {
+    if (IS_NULL_OR_UNDEFINED(this)) {
       throw new $TypeError('Method invoked on undefined or null value.');
     }
 

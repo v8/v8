@@ -66,7 +66,7 @@
   'array-constructor': [PASS, TIMEOUT],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, ['arch == arm or arch == android_arm or arch == mipsel', TIMEOUT]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == mipsel', TIMEOUT]],
 
   ##############################################################################
   # This test expects to reach a certain recursion depth, which may not work

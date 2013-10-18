@@ -131,9 +131,9 @@ function MathMax(arg1, arg2) {  // length == 2
       return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg2 : arg1;
     }
     // All comparisons failed, one of the arguments must be NaN.
-    return 0/0;  // Compiler constant-folds this to NaN.
+    return NAN;
   }
-  var r = -1/0;  // Compiler constant-folds this to -Infinity.
+  var r = -INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
@@ -161,9 +161,9 @@ function MathMin(arg1, arg2) {  // length == 2
       return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg1 : arg2;
     }
     // All comparisons failed, one of the arguments must be NaN.
-    return 0/0;  // Compiler constant-folds this to NaN.
+    return NAN;
   }
-  var r = 1/0;  // Compiler constant-folds this to Infinity.
+  var r = INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);

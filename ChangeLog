@@ -1,3 +1,11 @@
+2013-10-18: Version 3.22.15
+
+        Enabled calling the SetReference* & SetObjectGroupId functions with a
+        Persistent<SubclassOfValue>.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-17: Version 3.22.14
 
         Performance and stability improvements on all platforms.

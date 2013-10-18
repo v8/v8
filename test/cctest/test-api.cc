@@ -3318,8 +3318,9 @@ class WeakCallCounter {
 };
 
 
+template<typename T>
 static void WeakPointerCallback(v8::Isolate* isolate,
-                                Persistent<Value>* handle,
+                                Persistent<T>* handle,
                                 WeakCallCounter* counter) {
   CHECK_EQ(1234, counter->id());
   counter->increment();
@@ -3327,7 +3328,8 @@ static void WeakPointerCallback(v8::Isolate* isolate,
 }
 
 
-static UniqueId MakeUniqueId(const Persistent<Value>& p) {
+template<typename T>
+static UniqueId MakeUniqueId(const Persistent<T>& p) {
   return UniqueId(reinterpret_cast<uintptr_t>(*v8::Utils::OpenPersistent(p)));
 }
 
@@ -3406,6 +3408,97 @@ THREADED_TEST(ApiObjectGroups) {
     iso->SetObjectGroupId(g1s1, id1);
     iso->SetObjectGroupId(g1s2, id1);
     iso->SetReferenceFromGroup(id1, g1c1);
+    iso->SetObjectGroupId(g2s1, id2);
+    iso->SetObjectGroupId(g2s2, id2);
+    iso->SetReferenceFromGroup(id2, g2c1);
+  }
+
+  heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+
+  // All objects should be gone. 5 global handles in total.
+  CHECK_EQ(5, counter.NumberOfWeakCalls());
+
+  // And now make children weak again and collect them.
+  g1c1.MakeWeak(&counter, &WeakPointerCallback);
+  g2c1.MakeWeak(&counter, &WeakPointerCallback);
+
+  heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  CHECK_EQ(7, counter.NumberOfWeakCalls());
+}
+
+
+THREADED_TEST(ApiObjectGroupsForSubtypes) {
+  LocalContext env;
+  v8::Isolate* iso = env->GetIsolate();
+  HandleScope scope(iso);
+
+  Persistent<Object> g1s1;
+  Persistent<String> g1s2;
+  Persistent<String> g1c1;
+  Persistent<Object> g2s1;
+  Persistent<String> g2s2;
+  Persistent<String> g2c1;
+
+  WeakCallCounter counter(1234);
+
+  {
+    HandleScope scope(iso);
+    g1s1.Reset(iso, Object::New());
+    g1s2.Reset(iso, String::New("foo1"));
+    g1c1.Reset(iso, String::New("foo2"));
+    g1s1.MakeWeak(&counter, &WeakPointerCallback);
+    g1s2.MakeWeak(&counter, &WeakPointerCallback);
+    g1c1.MakeWeak(&counter, &WeakPointerCallback);
+
+    g2s1.Reset(iso, Object::New());
+    g2s2.Reset(iso, String::New("foo3"));
+    g2c1.Reset(iso, String::New("foo4"));
+    g2s1.MakeWeak(&counter, &WeakPointerCallback);
+    g2s2.MakeWeak(&counter, &WeakPointerCallback);
+    g2c1.MakeWeak(&counter, &WeakPointerCallback);
+  }
+
+  Persistent<Value> root(iso, g1s1);  // make a root.
+
+  // Connect group 1 and 2, make a cycle.
+  {
+    HandleScope scope(iso);
+    CHECK(Local<Object>::New(iso, g1s1)->Set(0, Local<Object>::New(iso, g2s1)));
+    CHECK(Local<Object>::New(iso, g2s1)->Set(0, Local<Object>::New(iso, g1s1)));
+  }
+
+  {
+    UniqueId id1 = MakeUniqueId(g1s1);
+    UniqueId id2 = MakeUniqueId(g2s2);
+    iso->SetObjectGroupId(g1s1, id1);
+    iso->SetObjectGroupId(g1s2, id1);
+    iso->SetReference(g1s1, g1c1);
+    iso->SetObjectGroupId(g2s1, id2);
+    iso->SetObjectGroupId(g2s2, id2);
+    iso->SetReferenceFromGroup(id2, g2c1);
+  }
+  // Do a single full GC, ensure incremental marking is stopped.
+  v8::internal::Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
+      iso)->heap();
+  heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+
+  // All object should be alive.
+  CHECK_EQ(0, counter.NumberOfWeakCalls());
+
+  // Weaken the root.
+  root.MakeWeak(&counter, &WeakPointerCallback);
+  // But make children strong roots---all the objects (except for children)
+  // should be collectable now.
+  g1c1.ClearWeak();
+  g2c1.ClearWeak();
+
+  // Groups are deleted, rebuild groups.
+  {
+    UniqueId id1 = MakeUniqueId(g1s1);
+    UniqueId id2 = MakeUniqueId(g2s2);
+    iso->SetObjectGroupId(g1s1, id1);
+    iso->SetObjectGroupId(g1s2, id1);
+    iso->SetReference(g1s1, g1c1);
     iso->SetObjectGroupId(g2s1, id2);
     iso->SetObjectGroupId(g2s2, id2);
     iso->SetReferenceFromGroup(id2, g2c1);
