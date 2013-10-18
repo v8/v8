@@ -1,5 +1,3 @@
-// Portions of this code based on re2c:
-//   (re2c/examples/push.re)
 // Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -27,46 +25,59 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_LEXER_LEXER_H
-#define V8_LEXER_LEXER_H
+#ifndef V8_LEXER_EXPERIMENTAL_SCANNER_H
+#define V8_LEXER_EXPERIMENTAL_SCANNER_H
 
-#include "token.h"
+#include <vector>
+
 #include "flags.h"
+#include "token.h"
 
 namespace v8 {
 namespace internal {
 
-class ExperimentalScanner;
+class PushScanner;
 
-class PushScanner {
+class ExperimentalScanner {
  public:
-  explicit PushScanner(ExperimentalScanner* sink);
+  struct Location {
+    Location(int b, int e) : beg_pos(b), end_pos(e) { }
+    Location() : beg_pos(0), end_pos(0) { }
 
-  ~PushScanner();
+    bool IsValid() const {
+      return beg_pos >= 0 && end_pos >= beg_pos;
+    }
 
-  void send(v8::internal::Token::Value token);
-  uint32_t push(const void *input, int input_size);
+    static Location invalid() { return Location(-1, -1); }
+
+    int beg_pos;
+    int end_pos;
+  };
+
+  ExperimentalScanner(const char* fname, bool read_all_at_once);
+  ~ExperimentalScanner();
+
+  Token::Value Next();
+  Token::Value current_token();
+  Location location();
+
+  void Record(v8::internal::Token::Value token, int beg_pos, int end_pos);
 
  private:
-  bool eof_;
-  int32_t state_;
-  int32_t condition_;
-
-  uint8_t* limit_;
-  uint8_t* start_;
-  uint8_t* cursor_;
-  uint8_t* marker_;
-  int real_start_;
-
-  uint8_t* buffer_;
-  uint8_t* buffer_end_;
-
-  uint8_t yych;
-  uint32_t yyaccept;
-
-  ExperimentalScanner* sink_;
+  void FillTokens();
+  static const int BUFFER_SIZE = 256;
+  std::vector<v8::internal::Token::Value> token_;
+  std::vector<int> beg_;
+  std::vector<int> end_;
+  size_t current_;
+  size_t fetched_;
+  FILE* file_;
+  PushScanner* scanner_;
+  bool read_all_at_once_;
+  const v8::internal::byte* source_;
+  int length_;
 };
 
-} }
+} }  // namespace v8::internal
 
-#endif  // V8_LEXER_LEXER_H
+#endif

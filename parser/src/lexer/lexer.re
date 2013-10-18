@@ -70,6 +70,7 @@ enum Condition {
 
 #endif //  defined(WIN32)
 
+#include "experimental-scanner.h"
 #include "lexer.h"
 
 using namespace v8::internal;

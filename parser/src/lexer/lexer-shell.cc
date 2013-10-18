@@ -42,6 +42,8 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "scanner.h"
+
+#include "experimental-scanner.h"
 #include "lexer.h"
 
 using namespace v8::internal;
@@ -98,73 +100,6 @@ class BaselineScanner {
   Utf8ToUtf16CharacterStream* stream_;
 };
 
-ExperimentalScanner::ExperimentalScanner(const char* fname,
-                                         bool read_all_at_once)
-    : current_(0),
-      fetched_(0),
-      read_all_at_once_(read_all_at_once),
-      source_(0),
-      length_(0) {
-  file_ = fopen(fname, "rb");
-  scanner_ = new PushScanner(this);
-  if (read_all_at_once_) {
-    source_ = ReadFile(fname, NULL, &length_);
-    token_.resize(1500);
-    beg_.resize(1500);
-    end_.resize(1500);
-  } else {
-    token_.resize(BUFFER_SIZE);
-    beg_.resize(BUFFER_SIZE);
-    end_.resize(BUFFER_SIZE);
-  }
-}
-
-
-ExperimentalScanner::~ExperimentalScanner() {
-  fclose(file_);
-  delete[] source_;
-}
-
-
-void ExperimentalScanner::FillTokens() {
-  current_ = 0;
-  fetched_ = 0;
-  if (read_all_at_once_) {
-    scanner_->push(source_, length_ + 1);
-  } else {
-    uint8_t chars[BUFFER_SIZE];
-    int n = static_cast<int>(fread(&chars, 1, BUFFER_SIZE, file_));
-    for (int i = n; i < BUFFER_SIZE; i++) chars[i] = 0;
-    scanner_->push(chars, BUFFER_SIZE);
-  }
-}
-
-
-Token::Value ExperimentalScanner::Next(int* beg_pos, int* end_pos) {
-  while (current_ == fetched_)
-    FillTokens();
-  *beg_pos = beg_[current_];
-  *end_pos = end_[current_];
-  Token::Value res = token_[current_];
-  if (res != Token::Token::EOS)
-    current_++;
-  return res;
-}
-
-
-void ExperimentalScanner::Record(Token::Value token, int beg, int end) {
-  if (token == Token::EOS) end--;
-  if (fetched_ >= token_.size()) {
-    token_.resize(token_.size() * 2);
-    beg_.resize(beg_.size() * 2);
-    end_.resize(end_.size() * 2);
-  }
-  token_[fetched_] = token;
-  beg_[fetched_] = beg;
-  end_[fetched_] = end;
-  fetched_++;
-}
-
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
@@ -204,10 +139,11 @@ int main(int argc, char* argv[]) {
       {
         timer.Start();
         do {
-          token = experimental.Next(&beg, &end);
+          token = experimental.Next();
           experimental_tokens.push_back(token);
-          experimental_beg.push_back(beg);
-          experimental_end.push_back(end);
+          ExperimentalScanner::Location location = experimental.location();
+          experimental_beg.push_back(location.beg_pos);
+          experimental_end.push_back(location.end_pos);
         } while (token != Token::EOS);
         experimental_time = timer.Elapsed();
       }
