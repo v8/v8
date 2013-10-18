@@ -107,10 +107,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
   ApiFunction function(descriptor->deoptimization_handler_);
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->register_param_count_;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    params++;
-  }
+  int params = descriptor->environment_length();
   output_frame->SetRegister(r0.code(), params);
   output_frame->SetRegister(r1.code(), handler);
 }

@@ -1494,7 +1494,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   intptr_t caller_arg_count = 0;
-  bool arg_count_known = descriptor->stack_parameter_count_ == NULL;
+  bool arg_count_known = !descriptor->stack_parameter_count_.is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
   output_frame_offset -= kPointerSize;
