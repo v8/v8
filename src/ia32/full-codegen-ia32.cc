@@ -3310,7 +3310,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
     __ cvtss2sd(xmm1, xmm1);
     __ xorps(xmm0, xmm1);
     __ subsd(xmm0, xmm1);
-    __ movdbl(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
+    __ movsd(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
   } else {
     // 0x4130000000000000 is 1.0 x 2^20 as a double.
     __ mov(FieldOperand(edi, HeapNumber::kExponentOffset),

@@ -264,15 +264,15 @@ TEST(AssemblerIa326) {
   Assembler assm(isolate, buffer, sizeof buffer);
 
   CpuFeatureScope fscope(&assm, SSE2);
-  __ movdbl(xmm0, Operand(esp, 1 * kPointerSize));
-  __ movdbl(xmm1, Operand(esp, 3 * kPointerSize));
+  __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
+  __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
   __ addsd(xmm0, xmm1);
   __ mulsd(xmm0, xmm1);
   __ subsd(xmm0, xmm1);
   __ divsd(xmm0, xmm1);
   // Copy xmm0 to st(0) using eight bytes of stack.
   __ sub(esp, Immediate(8));
-  __ movdbl(Operand(esp, 0), xmm0);
+  __ movsd(Operand(esp, 0), xmm0);
   __ fld_d(Operand(esp, 0));
   __ add(esp, Immediate(8));
   __ ret(0);
@@ -313,7 +313,7 @@ TEST(AssemblerIa328) {
   __ cvtsi2sd(xmm0, eax);
   // Copy xmm0 to st(0) using eight bytes of stack.
   __ sub(esp, Immediate(8));
-  __ movdbl(Operand(esp, 0), xmm0);
+  __ movsd(Operand(esp, 0), xmm0);
   __ fld_d(Operand(esp, 0));
   __ add(esp, Immediate(8));
   __ ret(0);
@@ -575,7 +575,7 @@ TEST(AssemblerIa32Extractps) {
   MacroAssembler assm(isolate, buffer, sizeof buffer);
   { CpuFeatureScope fscope2(&assm, SSE2);
     CpuFeatureScope fscope41(&assm, SSE4_1);
-    __ movdbl(xmm1, Operand(esp, 4));
+    __ movsd(xmm1, Operand(esp, 4));
     __ extractps(eax, xmm1, 0x1);
     __ ret(0);
   }

@@ -3673,10 +3673,35 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::UNTAGGED);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  ASSERT(instr->value()->Equals(instr->result()));
+  XMMRegister input_reg = ToDoubleRegister(instr->value());
+  XMMRegister xmm_scratch = double_scratch0();
+  Label positive, done, zero;
+  __ xorps(xmm_scratch, xmm_scratch);
+  __ ucomisd(input_reg, xmm_scratch);
+  __ j(above, &positive, Label::kNear);
+  __ j(equal, &zero, Label::kNear);
+  ExternalReference nan =
+      ExternalReference::address_of_canonical_non_hole_nan();
+  Operand nan_operand = masm()->ExternalOperand(nan);
+  __ movsd(input_reg, nan_operand);
+  __ jmp(&done, Label::kNear);
+  __ bind(&zero);
+  ExternalReference ninf =
+      ExternalReference::address_of_negative_infinity();
+  Operand ninf_operand = masm()->ExternalOperand(ninf);
+  __ movsd(input_reg, ninf_operand);
+  __ jmp(&done, Label::kNear);
+  __ bind(&positive);
+  __ fldln2();
+  __ subq(rsp, Immediate(kDoubleSize));
+  __ movsd(Operand(rsp, 0), input_reg);
+  __ fld_d(Operand(rsp, 0));
+  __ fyl2x();
+  __ fstp_d(Operand(rsp, 0));
+  __ movsd(input_reg, Operand(rsp, 0));
+  __ addq(rsp, Immediate(kDoubleSize));
+  __ bind(&done);
 }
 
 

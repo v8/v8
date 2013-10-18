@@ -358,8 +358,8 @@ TEST(DisasmIa320) {
       __ mulsd(xmm1, xmm0);
       __ subsd(xmm1, xmm0);
       __ divsd(xmm1, xmm0);
-      __ movdbl(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ movdbl(Operand(ebx, ecx, times_4, 10000), xmm1);
+      __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
       __ ucomisd(xmm0, xmm1);
 
       // 128 bit move instructions.
