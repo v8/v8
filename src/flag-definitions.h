@@ -541,6 +541,12 @@ DEFINE_int(sweeper_threads, 0,
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 #endif
 
+
+// heap-snapshot-generator.cc
+DEFINE_bool(heap_profiler_trace_objects, false,
+            "Dump heap object allocations/movements/size_updates")
+
+
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")

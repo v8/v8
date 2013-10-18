@@ -431,6 +431,13 @@ void HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
     // Size of an object can change during its life, so to keep information
     // about the object in entries_ consistent, we have to adjust size when the
     // object is migrated.
+    if (FLAG_heap_profiler_trace_objects) {
+      PrintF("Move object from %p to %p old size %6d new size %6d\n",
+             from,
+             to,
+             entries_.at(from_entry_info_index).size,
+             object_size);
+    }
     entries_.at(from_entry_info_index).size = object_size;
     to_entry->value = from_value;
   }
@@ -438,6 +445,12 @@ void HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
 
 
 void HeapObjectsMap::NewObject(Address addr, int size) {
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("New object         : %p %6d. Next address is %p\n",
+           addr,
+           size,
+           addr + size);
+  }
   ASSERT(addr != NULL);
   FindOrAddEntry(addr, size, false);
 }
@@ -470,6 +483,12 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_.at(entry_index);
     entry_info.accessed = accessed;
+    if (FLAG_heap_profiler_trace_objects) {
+      PrintF("Update object size : %p with old size %d and new size %d\n",
+             addr,
+             entry_info.size,
+             size);
+    }
     entry_info.size = size;
     return entry_info.id;
   }
@@ -488,6 +507,10 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 
 
 void HeapObjectsMap::UpdateHeapObjectsMap() {
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("Begin HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
+           entries_map_.occupancy());
+  }
   heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
   HeapIterator iterator(heap_);
@@ -495,12 +518,68 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
        obj != NULL;
        obj = iterator.next()) {
     FindOrAddEntry(obj->address(), obj->Size());
+    if (FLAG_heap_profiler_trace_objects) {
+      PrintF("Update object      : %p %6d. Next address is %p\n",
+             obj->address(),
+             obj->Size(),
+             obj->address() + obj->Size());
+    }
   }
   RemoveDeadEntries();
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("End HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
+           entries_map_.occupancy());
+  }
 }
 
 
+namespace {
+
+
+struct HeapObjectInfo {
+  HeapObjectInfo(HeapObject* obj, size_t expected_size)
+    : obj(obj),
+      expected_size(expected_size) {
+  }
+
+  HeapObject* obj;
+  int expected_size;
+
+  bool IsValid() const { return expected_size == obj->Size(); }
+
+  void Print() const {
+    if (expected_size == 0) {
+      PrintF("Untracked object   : %p %6d. Next address is %p\n",
+             obj->address(),
+             obj->Size(),
+             obj->address() + obj->Size());
+    } else if (obj->Size() != expected_size) {
+      PrintF("Wrong size %6d: %p %6d. Next address is %p\n",
+             expected_size,
+             obj->address(),
+             obj->Size(),
+             obj->address() + obj->Size());
+    } else {
+      PrintF("Good object      : %p %6d. Next address is %p\n",
+             obj->address(),
+             expected_size,
+             obj->address() + obj->Size());
+    }
+  }
+};
+
+
+static int comparator(const HeapObjectInfo* a, const HeapObjectInfo* b) {
+  return a->obj - b->obj;
+}
+
+
+}  // namespace
+
+
 int HeapObjectsMap::FindUntrackedObjects() {
+  List<HeapObjectInfo> heap_objects(1000);
+
   HeapIterator iterator(heap_);
   int untracked = 0;
   for (HeapObject* obj = iterator.next();
@@ -509,13 +588,55 @@ int HeapObjectsMap::FindUntrackedObjects() {
     HashMap::Entry* entry = entries_map_.Lookup(
       obj->address(), ComputePointerHash(obj->address()), false);
     if (entry == NULL) {
-      untracked++;
+      ++untracked;
+      if (FLAG_heap_profiler_trace_objects) {
+        heap_objects.Add(HeapObjectInfo(obj, 0));
+      }
     } else {
       int entry_index = static_cast<int>(
           reinterpret_cast<intptr_t>(entry->value));
       EntryInfo& entry_info = entries_.at(entry_index);
-      CHECK_EQ(obj->Size(), static_cast<int>(entry_info.size));
+      if (FLAG_heap_profiler_trace_objects) {
+        heap_objects.Add(HeapObjectInfo(obj,
+                         static_cast<int>(entry_info.size)));
+        if (obj->Size() != static_cast<int>(entry_info.size))
+          ++untracked;
+      } else {
+        CHECK_EQ(obj->Size(), static_cast<int>(entry_info.size));
+      }
     }
+  }
+  if (FLAG_heap_profiler_trace_objects) {
+    PrintF("\nBegin HeapObjectsMap::FindUntrackedObjects. %d entries in map.\n",
+           entries_map_.occupancy());
+    heap_objects.Sort(comparator);
+    int last_printed_object = -1;
+    bool print_next_object = false;
+    for (int i = 0; i < heap_objects.length(); ++i) {
+      const HeapObjectInfo& object_info = heap_objects[i];
+      if (!object_info.IsValid()) {
+        ++untracked;
+        if (last_printed_object != i - 1) {
+          if (i > 0) {
+            PrintF("%d objects were skipped\n", i - 1 - last_printed_object);
+            heap_objects[i - 1].Print();
+          }
+        }
+        object_info.Print();
+        last_printed_object = i;
+        print_next_object = true;
+      } else if (print_next_object) {
+        object_info.Print();
+        print_next_object = false;
+        last_printed_object = i;
+      }
+    }
+    if (last_printed_object < heap_objects.length() - 1) {
+      PrintF("Last %d objects were skipped\n",
+             heap_objects.length() - 1 - last_printed_object);
+    }
+    PrintF("End HeapObjectsMap::FindUntrackedObjects. %d entries in map.\n\n",
+           entries_map_.occupancy());
   }
   return untracked;
 }
