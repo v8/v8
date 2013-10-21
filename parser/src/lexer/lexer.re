@@ -195,9 +195,10 @@ start_:
     any = [\000-\377];
     whitespace_char = [ \t\v\f\r];
     whitespace = whitespace_char+;
-    identifier_start_ = [$_\\a-zA-Z];
-    identifier_char = [$_\\a-zA-Z0-9];
+    identifier_start_ = [$_a-zA-Z];
+    identifier_char = [$_a-zA-Z0-9];
     not_identifier_char = any\identifier_char;
+    illegal_after_identifier = [\\];
     line_terminator = [\n\r]+;
     digit = [0-9];
     hex_digit = [0-9a-fA-F];
@@ -319,7 +320,7 @@ start_:
     <Normal> identifier_start_    :=> Identifier
 
     <Normal> eof           { PUSH_EOF_AND_RETURN();}
-    <Normal> any           { TERMINATE_ILLEGAL(); }
+    <Normal> any           { PUSH_TOKEN(Token::ILLEGAL); }
 
     <DoubleQuoteString> "\\\""  { goto yy0; }
     <DoubleQuoteString> '"'     { PUSH_TOKEN(Token::STRING);}
@@ -338,6 +339,7 @@ start_:
     <SingleQuoteString> any     { goto yy0; }
 
     <Identifier> identifier_char+  { goto yy0; }
+    <Identifier> illegal_after_identifier { PUSH_TOKEN(Token::ILLEGAL); }
     <Identifier> any               { PUSH_TOKEN_LOOKAHEAD(Token::IDENTIFIER); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
