@@ -271,6 +271,7 @@ start_:
     <Normal> "<!--"        :=> HtmlComment
 
     <Normal> ">>>="        { PUSH_TOKEN(Token::ASSIGN_SHR); }
+    <Normal> ">>>"         { PUSH_TOKEN(Token::SHR); }
     <Normal> "<<="         { PUSH_TOKEN(Token::ASSIGN_SHL); }
     <Normal> ">>="         { PUSH_TOKEN(Token::ASSIGN_SAR); }
     <Normal> "<="          { PUSH_TOKEN(Token::LTE); }
@@ -325,6 +326,7 @@ start_:
     <Normal> eof           { PUSH_EOF_AND_RETURN();}
     <Normal> any           { PUSH_TOKEN(Token::ILLEGAL); }
 
+    <DoubleQuoteString> "\\\\"  { goto yy0; }
     <DoubleQuoteString> "\\\""  { goto yy0; }
     <DoubleQuoteString> '"'     { PUSH_TOKEN(Token::STRING);}
     <DoubleQuoteString> "\\" "\n" "\r"? { goto yy0; }
@@ -334,6 +336,7 @@ start_:
     <DoubleQuoteString> eof     { TERMINATE_ILLEGAL(); }
     <DoubleQuoteString> any     { goto yy0; }
 
+    <SingleQuoteString> "\\\\"  { goto yy0; }
     <SingleQuoteString> "\\'"   { goto yy0; }
     <SingleQuoteString> "'"     { PUSH_TOKEN(Token::STRING);}
     <SingleQuoteString> "\\" "\n" "\r"? { goto yy0; }
@@ -354,7 +357,7 @@ start_:
     <IdentifierIllegal> any               { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
-    <SingleLineComment> eof             { PUSH_LINE_TERMINATOR();}
+    <SingleLineComment> eof             { PUSH_TOKEN(Token::EOS); }
     <SingleLineComment> any             { goto yy0; }
 
     <MultiLineComment> [*][//]  { PUSH_LINE_TERMINATOR();}
