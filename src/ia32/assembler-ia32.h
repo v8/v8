@@ -1072,15 +1072,14 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  // Use either movsd or movlpd.
-  void movdbl(XMMRegister dst, const Operand& src);
-  void movdbl(const Operand& dst, XMMRegister src);
-
   void movd(XMMRegister dst, Register src) { movd(dst, Operand(src)); }
   void movd(XMMRegister dst, const Operand& src);
   void movd(Register dst, XMMRegister src) { movd(Operand(dst), src); }
   void movd(const Operand& dst, XMMRegister src);
   void movsd(XMMRegister dst, XMMRegister src);
+  void movsd(XMMRegister dst, const Operand& src);
+  void movsd(const Operand& dst, XMMRegister src);
+
 
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
@@ -1162,9 +1161,6 @@ class Assembler : public AssemblerBase {
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
  protected:
-  void movsd(XMMRegister dst, const Operand& src);
-  void movsd(const Operand& dst, XMMRegister src);
-
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(Register dst, XMMRegister src);

@@ -3526,9 +3526,8 @@ bool v8::Object::HasRealNamedProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasRealNamedProperty()",
              return false);
-  return Utils::OpenHandle(this)->HasRealNamedProperty(
-      isolate,
-      *Utils::OpenHandle(*key));
+  return i::JSObject::HasRealNamedProperty(Utils::OpenHandle(this),
+                                           Utils::OpenHandle(*key));
 }
 
 
@@ -3536,7 +3535,7 @@ bool v8::Object::HasRealIndexedProperty(uint32_t index) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasRealIndexedProperty()",
              return false);
-  return Utils::OpenHandle(this)->HasRealElementProperty(isolate, index);
+  return i::JSObject::HasRealElementProperty(Utils::OpenHandle(this), index);
 }
 
 
@@ -3546,9 +3545,8 @@ bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
              "v8::Object::HasRealNamedCallbackProperty()",
              return false);
   ENTER_V8(isolate);
-  return Utils::OpenHandle(this)->HasRealNamedCallbackProperty(
-      isolate,
-      *Utils::OpenHandle(*key));
+  return i::JSObject::HasRealNamedCallbackProperty(Utils::OpenHandle(this),
+                                                   Utils::OpenHandle(*key));
 }
 
 

@@ -879,7 +879,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                 miss_label, DONT_DO_SMI_CHECK);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ movdbl(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
+      __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
     } else {
       __ fld_d(FieldOperand(value_reg, HeapNumber::kValueOffset));
     }
@@ -887,7 +887,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ bind(&do_store);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ movdbl(FieldOperand(storage_reg, HeapNumber::kValueOffset), xmm0);
+      __ movsd(FieldOperand(storage_reg, HeapNumber::kValueOffset), xmm0);
     } else {
       __ fstp_d(FieldOperand(storage_reg, HeapNumber::kValueOffset));
     }
@@ -1057,14 +1057,14 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
                 miss_label, DONT_DO_SMI_CHECK);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ movdbl(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
+      __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
     } else {
       __ fld_d(FieldOperand(value_reg, HeapNumber::kValueOffset));
     }
     __ bind(&do_store);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ movdbl(FieldOperand(scratch1, HeapNumber::kValueOffset), xmm0);
+      __ movsd(FieldOperand(scratch1, HeapNumber::kValueOffset), xmm0);
     } else {
       __ fstp_d(FieldOperand(scratch1, HeapNumber::kValueOffset));
     }
@@ -2397,7 +2397,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   // Check if the argument is a heap number and load its value into xmm0.
   Label slow;
   __ CheckMap(eax, factory()->heap_number_map(), &slow, DONT_DO_SMI_CHECK);
-  __ movdbl(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
+  __ movsd(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
 
   // Check if the argument is strictly positive. Note this also
   // discards NaN.
@@ -2447,7 +2447,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   // Return a new heap number.
   __ AllocateHeapNumber(eax, ebx, edx, &slow);
-  __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+  __ movsd(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
   __ ret(2 * kPointerSize);
 
   // Return the argument (when it's an already round heap number).

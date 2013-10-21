@@ -444,7 +444,7 @@ class RecordWriteStub: public PlatformCodeStub {
         // Save all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);
-          masm->movdbl(Operand(esp, (i - 1) * kDoubleSize), reg);
+          masm->movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
         }
       }
     }
@@ -456,7 +456,7 @@ class RecordWriteStub: public PlatformCodeStub {
         // Restore all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);
-          masm->movdbl(reg, Operand(esp, (i - 1) * kDoubleSize));
+          masm->movsd(reg, Operand(esp, (i - 1) * kDoubleSize));
         }
         masm->add(esp,
                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));

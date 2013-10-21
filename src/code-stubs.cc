@@ -41,7 +41,7 @@ namespace internal {
 
 CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
     : register_param_count_(-1),
-      stack_parameter_count_(NULL),
+      stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),

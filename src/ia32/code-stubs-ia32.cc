@@ -172,7 +172,7 @@ static void InitializeArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
-    descriptor->stack_parameter_count_ = &eax;
+    descriptor->stack_parameter_count_ = eax;
   }
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
@@ -194,7 +194,7 @@ static void InitializeInternalArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
-    descriptor->stack_parameter_count_ = &eax;
+    descriptor->stack_parameter_count_ = eax;
   }
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
@@ -454,7 +454,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
     __ sub(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      __ movdbl(Operand(esp, i * kDoubleSize), reg);
+      __ movsd(Operand(esp, i * kDoubleSize), reg);
     }
   }
   const int argument_count = 1;
@@ -470,7 +470,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
     CpuFeatureScope scope(masm, SSE2);
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      __ movdbl(reg, Operand(esp, i * kDoubleSize));
+      __ movsd(reg, Operand(esp, i * kDoubleSize));
     }
     __ add(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
   }
@@ -770,7 +770,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ ret(kPointerSize);
   } else {  // UNTAGGED.
     CpuFeatureScope scope(masm, SSE2);
-    __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+    __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
   }
 
@@ -785,7 +785,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     CpuFeatureScope scope(masm, SSE2);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
     __ sub(esp, Immediate(kDoubleSize));
-    __ movdbl(Operand(esp, 0), xmm1);
+    __ movsd(Operand(esp, 0), xmm1);
     __ fld_d(Operand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
   }
@@ -798,17 +798,17 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ ret(kPointerSize);
   } else {  // UNTAGGED.
     CpuFeatureScope scope(masm, SSE2);
-    __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+    __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
 
     // Skip cache and return answer directly, only in untagged case.
     __ bind(&skip_cache);
     __ sub(esp, Immediate(kDoubleSize));
-    __ movdbl(Operand(esp, 0), xmm1);
+    __ movsd(Operand(esp, 0), xmm1);
     __ fld_d(Operand(esp, 0));
     GenerateOperation(masm, type_);
     __ fstp_d(Operand(esp, 0));
-    __ movdbl(xmm1, Operand(esp, 0));
+    __ movsd(xmm1, Operand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
     // We return the value in xmm1 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
@@ -834,13 +834,13 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call_clear_stack);
     __ bind(&runtime_call);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
-    __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm1);
+    __ movsd(FieldOperand(eax, HeapNumber::kValueOffset), xmm1);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ push(eax);
       __ CallRuntime(RuntimeFunction(), 1);
     }
-    __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+    __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
   }
 }
@@ -983,7 +983,7 @@ void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
   Factory* factory = masm->isolate()->factory();
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset), factory->heap_number_map());
   __ j(not_equal, not_numbers);  // Argument in edx is not a number.
-  __ movdbl(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
+  __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
   __ bind(&load_eax);
   // Load operand in eax into xmm1, or branch to not_numbers.
   __ JumpIfSmi(eax, &load_smi_eax, Label::kNear);
@@ -1001,7 +1001,7 @@ void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
   __ SmiTag(eax);  // Retag smi for heap number overwriting test.
   __ jmp(&done, Label::kNear);
   __ bind(&load_float_eax);
-  __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+  __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
   __ bind(&done);
 }
 
@@ -1059,7 +1059,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
            factory->heap_number_map());
     __ j(not_equal, &call_runtime);
 
-    __ movdbl(double_base, FieldOperand(base, HeapNumber::kValueOffset));
+    __ movsd(double_base, FieldOperand(base, HeapNumber::kValueOffset));
     __ jmp(&unpack_exponent, Label::kNear);
 
     __ bind(&base_is_smi);
@@ -1075,7 +1075,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ cmp(FieldOperand(exponent, HeapObject::kMapOffset),
            factory->heap_number_map());
     __ j(not_equal, &call_runtime);
-    __ movdbl(double_exponent,
+    __ movsd(double_exponent,
               FieldOperand(exponent, HeapNumber::kValueOffset));
   } else if (exponent_type_ == TAGGED) {
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
@@ -1083,7 +1083,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ jmp(&int_exponent);
 
     __ bind(&exponent_not_smi);
-    __ movdbl(double_exponent,
+    __ movsd(double_exponent,
               FieldOperand(exponent, HeapNumber::kValueOffset));
   }
 
@@ -1178,9 +1178,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ fnclex();  // Clear flags to catch exceptions later.
     // Transfer (B)ase and (E)xponent onto the FPU register stack.
     __ sub(esp, Immediate(kDoubleSize));
-    __ movdbl(Operand(esp, 0), double_exponent);
+    __ movsd(Operand(esp, 0), double_exponent);
     __ fld_d(Operand(esp, 0));  // E
-    __ movdbl(Operand(esp, 0), double_base);
+    __ movsd(Operand(esp, 0), double_base);
     __ fld_d(Operand(esp, 0));  // B, E
 
     // Exponent is in st(1) and base is in st(0)
@@ -1203,7 +1203,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ test_b(eax, 0x5F);  // We check for all but precision exception.
     __ j(not_zero, &fast_power_failed, Label::kNear);
     __ fstp_d(Operand(esp, 0));
-    __ movdbl(double_result, Operand(esp, 0));
+    __ movsd(double_result, Operand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
     __ jmp(&done);
 
@@ -1270,7 +1270,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // as heap number in exponent.
     __ bind(&done);
     __ AllocateHeapNumber(eax, scratch, base, &call_runtime);
-    __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), double_result);
+    __ movsd(FieldOperand(eax, HeapNumber::kValueOffset), double_result);
     __ IncrementCounter(counters->math_pow(), 1);
     __ ret(2 * kPointerSize);
   } else {
@@ -1278,8 +1278,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ PrepareCallCFunction(4, scratch);
-      __ movdbl(Operand(esp, 0 * kDoubleSize), double_base);
-      __ movdbl(Operand(esp, 1 * kDoubleSize), double_exponent);
+      __ movsd(Operand(esp, 0 * kDoubleSize), double_base);
+      __ movsd(Operand(esp, 1 * kDoubleSize), double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()), 4);
     }
@@ -1287,7 +1287,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // Store it into the (fixed) result register.
     __ sub(esp, Immediate(kDoubleSize));
     __ fstp_d(Operand(esp, 0));
-    __ movdbl(double_result, Operand(esp, 0));
+    __ movsd(double_result, Operand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
 
     __ bind(&done);
@@ -4730,7 +4730,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
     __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
            masm->isolate()->factory()->heap_number_map());
     __ j(not_equal, &maybe_undefined1, Label::kNear);
-    __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+    __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ jmp(&left, Label::kNear);
     __ bind(&right_smi);
     __ mov(ecx, eax);  // Can't clobber eax because we can still jump away.
@@ -4742,7 +4742,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
     __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
            masm->isolate()->factory()->heap_number_map());
     __ j(not_equal, &maybe_undefined2, Label::kNear);
-    __ movdbl(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
+    __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
     __ jmp(&done);
     __ bind(&left_smi);
     __ mov(ecx, edx);  // Can't clobber edx because we can still jump away.

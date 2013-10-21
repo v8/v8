@@ -2007,17 +2007,68 @@ TEST(JSFunctionHasCodeLink) {
 }
 
 
+
+class HeapProfilerExtension : public v8::Extension {
+ public:
+  static const char* kName;
+  HeapProfilerExtension() : v8::Extension(kName, kSource) { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+      v8::Handle<v8::String> name);
+  static void FindUntrackedObjects(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+ private:
+  static const char* kSource;
+};
+
+const char* HeapProfilerExtension::kName = "v8/heap-profiler";
+
+
+const char* HeapProfilerExtension::kSource =
+    "native function findUntrackedObjects();";
+
+
+v8::Handle<v8::FunctionTemplate> HeapProfilerExtension::GetNativeFunction(
+    v8::Handle<v8::String> name) {
+  if (name->Equals(v8::String::New("findUntrackedObjects"))) {
+    return v8::FunctionTemplate::New(
+        HeapProfilerExtension::FindUntrackedObjects);
+  } else {
+    CHECK(false);
+    return v8::Handle<v8::FunctionTemplate>();
+  }
+}
+
+
+void HeapProfilerExtension::FindUntrackedObjects(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  i::HeapProfiler* heap_profiler =
+      reinterpret_cast<i::HeapProfiler*>(args.GetIsolate()->GetHeapProfiler());
+  int untracked_objects = heap_profiler->FindUntrackedObjects();
+  args.GetReturnValue().Set(untracked_objects);
+  CHECK_EQ(0, untracked_objects);
+}
+
+
+static HeapProfilerExtension kHeapProfilerExtension;
+v8::DeclareExtension kHeapProfilerExtensionDeclaration(
+    &kHeapProfilerExtension);
+
+
 // This is an example of using checking of JS allocations tracking in a test.
 TEST(HeapObjectsTracker) {
-  LocalContext env;
+  const char* extensions[] = { HeapProfilerExtension::kName };
+  v8::ExtensionConfiguration config(1, extensions);
+  LocalContext env(&config);
   v8::HandleScope scope(env->GetIsolate());
   HeapObjectsTracker tracker;
   CompileRun("var a = 1.2");
   CompileRun("var a = 1.2; var b = 1.0; var c = 1.0;");
   CompileRun(
-    "var a = [];"
-    "for (var i = 0; i < 5; ++i)"
+    "var a = [];\n"
+    "for (var i = 0; i < 5; ++i)\n"
     "    a[i] = i;\n"
-    "for (var i = 0; i < 3; ++i)"
-    "    a.shift();\n");
+    "findUntrackedObjects();\n"
+    "for (var i = 0; i < 3; ++i)\n"
+    "    a.shift();\n"
+    "findUntrackedObjects();\n");
 }

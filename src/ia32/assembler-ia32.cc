@@ -2067,6 +2067,7 @@ void Assembler::xorps(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
   EMIT(0x0F);
@@ -2076,6 +2077,7 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::andpd(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2085,6 +2087,7 @@ void Assembler::andpd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::orpd(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2244,18 +2247,6 @@ void Assembler::prefetch(const Operand& src, int level) {
   // Emit hint number in Reg position of RegR/M.
   XMMRegister code = XMMRegister::from_code(level);
   emit_sse_operand(code, src);
-}
-
-
-void Assembler::movdbl(XMMRegister dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  movsd(dst, src);
-}
-
-
-void Assembler::movdbl(const Operand& dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  movsd(dst, src);
 }
 
 

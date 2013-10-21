@@ -162,7 +162,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   }
 
   HInstruction* stack_parameter_count;
-  if (descriptor_->stack_parameter_count_ != NULL) {
+  if (descriptor_->stack_parameter_count_.is_valid()) {
     ASSERT(descriptor_->environment_length() == (param_count + 1));
     stack_parameter_count = New<HParameter>(param_count,
                                             HParameter::REGISTER_PARAMETER,
@@ -298,7 +298,7 @@ static Handle<Code> DoGenerateCode(Isolate* isolate, Stub* stub) {
   // the runtime that is significantly faster than using the standard
   // stub-failure deopt mechanism.
   if (stub->IsUninitialized() && descriptor->has_miss_handler()) {
-    ASSERT(descriptor->stack_parameter_count_ == NULL);
+    ASSERT(!descriptor->stack_parameter_count_.is_valid());
     return stub->GenerateLightweightMissCode(isolate);
   }
   ElapsedTimer timer;
