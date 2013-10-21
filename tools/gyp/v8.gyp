@@ -936,6 +936,7 @@
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
+          '../../src/harmony-math.js'
         ],
       },
       'actions': [
