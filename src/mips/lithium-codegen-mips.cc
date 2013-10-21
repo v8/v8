@@ -253,8 +253,9 @@ bool LCodeGen::GenerateDeferredCode() {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
 
-      int pos = instructions_->at(code->instruction_index())->position();
-      RecordAndUpdatePosition(pos);
+      HValue* value =
+          instructions_->at(code->instruction_index())->hydrogen_value();
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -656,8 +657,6 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                SafepointMode safepoint_mode) {
   EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   ASSERT(instr != NULL);
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   __ Call(code, mode);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode);
 }
@@ -668,9 +667,6 @@ void LCodeGen::CallRuntime(const Runtime::Function* function,
                            LInstruction* instr,
                            SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
-  LPointerMap* pointers = instr->pointer_map();
-  ASSERT(pointers != NULL);
-  RecordPosition(pointers->position());
 
   __ CallRuntime(function, num_arguments, save_doubles);
 
@@ -937,7 +933,7 @@ void LCodeGen::RecordSafepoint(LPointerMap* pointers,
 
 
 void LCodeGen::RecordSafepoint(Safepoint::DeoptMode deopt_mode) {
-  LPointerMap empty_pointers(RelocInfo::kNoPosition, zone());
+  LPointerMap empty_pointers(zone());
   RecordSafepoint(&empty_pointers, deopt_mode);
 }
 
@@ -959,17 +955,10 @@ void LCodeGen::RecordSafepointWithRegistersAndDoubles(
 }
 
 
-void LCodeGen::RecordPosition(int position) {
+void LCodeGen::RecordAndWritePosition(int position) {
   if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
-}
-
-
-void LCodeGen::RecordAndUpdatePosition(int position) {
-  if (position >= 0 && position != old_position_) {
-    masm()->positions_recorder()->RecordPosition(position);
-    old_position_ = position;
-  }
+  masm()->positions_recorder()->WriteRecordedPositions();
 }
 
 
@@ -3374,7 +3363,6 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ bind(&invoke);
   ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(
       this, pointers, Safepoint::kLazyDeopt);
   // The number of arguments is stored in receiver which is a0, as expected
@@ -3463,7 +3451,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
       dont_adapt_arguments || formal_parameter_count == arity;
 
   LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
 
   if (can_invoke_directly) {
     if (a1_state == A1_UNINITIALIZED) {
@@ -3921,7 +3908,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   Handle<JSFunction> known_function = instr->hydrogen()->known_function();
   if (known_function.is_null()) {
     LPointerMap* pointers = instr->pointer_map();
-    RecordPosition(pointers->position());
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
     __ InvokeFunction(a1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
