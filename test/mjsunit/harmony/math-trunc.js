@@ -25,36 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-'use strict';
+// Flags: --harmony-maths
 
-// ES6 draft 09-27-13, section 20.2.2.28.
-function MathSign(x) {
-  x = TO_NUMBER_INLINE(x);
-  if (x > 0) return 1;
-  if (x < 0) return -1;
-  if (x === 0) return x;
-  return NAN;
-}
-
-
-// ES6 draft 09-27-13, section 20.2.2.34.
-function MathTrunc(x) {
-  x = TO_NUMBER_INLINE(x);
-  if (x > 0) return MathFloor(x);
-  if (x < 0) return MathCeil(x);
-  if (x === 0) return x;
-  return NAN;
-}
-
-
-function ExtendMath() {
-  %CheckIsBootstrapping();
-
-  // Set up the non-enumerable functions on the Math object.
-  InstallFunctions($Math, DONT_ENUM, $Array(
-    "sign", MathSign,
-    "trunc", MathTrunc
-  ));
-}
-
-ExtendMath();
+assertEquals("Infinity", String(1/Math.trunc(0)));
+assertEquals("-Infinity", String(1/Math.trunc(-0)));
+assertEquals("Infinity", String(1/Math.trunc(Math.PI/4)));
+assertEquals("-Infinity", String(1/Math.trunc(-Math.sqrt(2)/2)));
+assertEquals(100, Math.trunc(100));
+assertEquals(-199, Math.trunc(-199));
+assertEquals(100, Math.trunc(100.1));
+assertTrue(isNaN(Math.trunc("abc")));
+assertTrue(isNaN(Math.trunc({})));
+assertEquals(0, Math.trunc([]));
+assertEquals(1, Math.trunc([1]));
+assertEquals(-100, Math.trunc([-100.1]));
+assertTrue(isNaN(Math.trunc([1, 1])));
+assertEquals(-100, Math.trunc({ toString: function() { return "-100.3"; } }));
+assertEquals(10, Math.trunc({ toString: function() { return 10.1; } }));
+assertEquals(-1, Math.trunc({ valueOf: function() { return -1.1; } }));
+assertEquals("-Infinity",
+             String(1/Math.trunc({ valueOf: function() { return "-0.1"; } })));
+assertEquals("-Infinity", String(Math.trunc(-Infinity)));
+assertEquals("Infinity", String(Math.trunc(Infinity)));
+assertEquals("-Infinity", String(Math.trunc("-Infinity")));
+assertEquals("Infinity", String(Math.trunc("Infinity")));
