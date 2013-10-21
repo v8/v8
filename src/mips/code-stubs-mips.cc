@@ -66,7 +66,8 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   static Register registers[] = { a0 };
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNumberToString)->entry;
 }
 
 
