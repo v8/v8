@@ -1,3 +1,10 @@
+2013-10-21: Version 3.22.17
+
+        Harmony: Implement Math.trunc and Math.sign. (issue 2938)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-21: Version 3.22.16
 
         Performance and stability improvements on all platforms.

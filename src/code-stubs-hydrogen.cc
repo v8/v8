@@ -351,7 +351,7 @@ template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
   HValue* number = GetParameter(NumberToStringStub::kNumber);
-  return BuildNumberToString(number);
+  return BuildNumberToString(number, handle(Type::Number(), isolate()));
 }
 
 
@@ -881,35 +881,52 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
   if (stub->operation() == Token::ADD &&
       (left_type->Maybe(Type::String()) || right_type->Maybe(Type::String())) &&
       !left_type->Is(Type::String()) && !right_type->Is(Type::String())) {
-    // For the generic add stub a fast case for String add is performance
+    // For the generic add stub a fast case for string addition is performance
     // critical.
     if (left_type->Maybe(Type::String())) {
-      IfBuilder left_string(this);
-      left_string.If<HIsStringAndBranch>(left);
-      left_string.Then();
-      Push(Add<HStringAdd>(left, right, STRING_ADD_CHECK_RIGHT));
-      left_string.Else();
-      Push(AddInstruction(BuildBinaryOperation(stub->operation(),
-          left, right, left_type, right_type, result_type,
-          stub->fixed_right_arg(), true)));
-      left_string.End();
+      IfBuilder if_leftisstring(this);
+      if_leftisstring.If<HIsStringAndBranch>(left);
+      if_leftisstring.Then();
+      {
+        Push(AddInstruction(BuildBinaryOperation(
+                    stub->operation(), left, right,
+                    handle(Type::String(), isolate()), right_type,
+                    result_type, stub->fixed_right_arg(), true)));
+      }
+      if_leftisstring.Else();
+      {
+        Push(AddInstruction(BuildBinaryOperation(
+                    stub->operation(), left, right,
+                    left_type, right_type, result_type,
+                    stub->fixed_right_arg(), true)));
+      }
+      if_leftisstring.End();
       result = Pop();
     } else {
-      IfBuilder right_string(this);
-      right_string.If<HIsStringAndBranch>(right);
-      right_string.Then();
-      Push(Add<HStringAdd>(left, right, STRING_ADD_CHECK_LEFT));
-      right_string.Else();
-      Push(AddInstruction(BuildBinaryOperation(stub->operation(),
-          left, right, left_type, right_type, result_type,
-          stub->fixed_right_arg(), true)));
-      right_string.End();
+      IfBuilder if_rightisstring(this);
+      if_rightisstring.If<HIsStringAndBranch>(right);
+      if_rightisstring.Then();
+      {
+        Push(AddInstruction(BuildBinaryOperation(
+                    stub->operation(), left, right,
+                    left_type, handle(Type::String(), isolate()),
+                    result_type, stub->fixed_right_arg(), true)));
+      }
+      if_rightisstring.Else();
+      {
+        Push(AddInstruction(BuildBinaryOperation(
+                    stub->operation(), left, right,
+                    left_type, right_type, result_type,
+                    stub->fixed_right_arg(), true)));
+      }
+      if_rightisstring.End();
       result = Pop();
     }
   } else {
-    result = AddInstruction(BuildBinaryOperation(stub->operation(),
-        left, right, left_type, right_type, result_type,
-        stub->fixed_right_arg(), true));
+    result = AddInstruction(BuildBinaryOperation(
+            stub->operation(), left, right,
+            left_type, right_type, result_type,
+            stub->fixed_right_arg(), true));
   }
 
   // If we encounter a generic argument, the number conversion is

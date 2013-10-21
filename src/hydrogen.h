@@ -1234,14 +1234,7 @@ class HGraphBuilder {
                                    ElementsKind to_kind,
                                    bool is_jsarray);
 
-  // Do lookup in the number string cache. If the object is not found
-  // in the cache, the false branch of the continuation is taken;
-  // otherwise the true branch is taken and the returned value contains
-  // the cache value for the object. The returned value must NOT be used
-  // on the false branch.
-  HValue* BuildLookupNumberStringCache(HValue* object,
-                                       HIfContinuation* continuation);
-  HValue* BuildNumberToString(HValue* number);
+  HValue* BuildNumberToString(HValue* object, Handle<Type> type);
 
   HInstruction* BuildUncheckedMonomorphicElementAccess(
       HValue* checked_object,
