@@ -149,23 +149,27 @@ int main(int argc, char* argv[]) {
       }
 
       for (size_t i = 0; i < experimental_tokens.size(); ++i) {
-        printf("=> %11s at (%zd, %zd)\n",
+        printf("=> %11s at (%d, %d)\n",
                Token::Name(experimental_tokens[i]),
-               experimental_beg[i], experimental_end[i]);
+               static_cast<int>(experimental_beg[i]),
+               static_cast<int>(experimental_end[i]));
         if (experimental_tokens[i] != baseline_tokens[i] ||
             experimental_beg[i] != baseline_beg[i] ||
             experimental_end[i] != baseline_end[i]) {
           printf("MISMATCH:\n");
-          printf("Expected: %s at (%zd, %zd)\n",
+          printf("Expected: %s at (%d, %d)\n",
                  Token::Name(baseline_tokens[i]),
-                 baseline_beg[i], baseline_end[i]);
-          printf("Actual:   %s at (%zd, %zd)\n",
+                 static_cast<int>(baseline_beg[i]),
+                 static_cast<int>(baseline_end[i]));
+          printf("Actual:   %s at (%d, %d)\n",
                  Token::Name(experimental_tokens[i]),
-                 experimental_beg[i], experimental_end[i]);
+                 static_cast<int>(experimental_beg[i]),
+                 static_cast<int>(experimental_end[i]));
           return 1;
         }
       }
-      printf("No of tokens: %zd\n", experimental_tokens.size());
+      printf("No of tokens: %d\n",
+             static_cast<int>(experimental_tokens.size()));
       printf("Baseline: %f ms\nExperimental %f ms\n",
              baseline_time.InMillisecondsF(),
              experimental_time.InMillisecondsF());

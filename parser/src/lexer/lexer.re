@@ -326,7 +326,8 @@ start_:
     <DoubleQuoteString> '"'     { PUSH_TOKEN(Token::STRING);}
     <DoubleQuoteString> "\\" "\n" "\r"? { goto yy0; }
     <DoubleQuoteString> "\\" "\r" "\n"? { goto yy0; }
-    <DoubleQuoteString> line_terminator { TERMINATE_ILLEGAL(); }
+    <DoubleQuoteString> "\n"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
+    <DoubleQuoteString> "\r"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
     <DoubleQuoteString> eof     { TERMINATE_ILLEGAL(); }
     <DoubleQuoteString> any     { goto yy0; }
 
@@ -334,7 +335,8 @@ start_:
     <SingleQuoteString> "'"     { PUSH_TOKEN(Token::STRING);}
     <SingleQuoteString> "\\" "\n" "\r"? { goto yy0; }
     <SingleQuoteString> "\\" "\r" "\n"? { goto yy0; }
-    <SingleQuoteString> line_terminator { TERMINATE_ILLEGAL(); }
+    <SingleQuoteString> "\n"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
+    <SingleQuoteString> "\r"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
     <SingleQuoteString> eof     { TERMINATE_ILLEGAL(); }
     <SingleQuoteString> any     { goto yy0; }
 
