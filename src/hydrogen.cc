@@ -1283,9 +1283,10 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
 }
 
 
-HValue* HGraphBuilder::BuildLookupNumberStringCache(
-    HValue* object,
-    HIfContinuation* continuation) {
+HValue* HGraphBuilder::BuildNumberToString(HValue* object,
+                                           Handle<Type> type) {
+  NoObservableSideEffectsScope scope(this);
+
   // Create a joinable continuation.
   HIfContinuation found(graph()->CreateBasicBlock(),
                         graph()->CreateBasicBlock());
@@ -1294,7 +1295,7 @@ HValue* HGraphBuilder::BuildLookupNumberStringCache(
   HValue* number_string_cache =
       Add<HLoadRoot>(Heap::kNumberStringCacheRootIndex);
 
-  // Make the hash maks from the length of the number string cache. It
+  // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
   HValue* mask = AddLoadFixedArrayLength(number_string_cache);
   mask->set_type(HType::Smi());
@@ -1317,7 +1318,7 @@ HValue* HGraphBuilder::BuildLookupNumberStringCache(
 
     // Check if object == key.
     IfBuilder if_objectiskey(this);
-    if_objectiskey.If<HCompareObjectEqAndBranch>(key, object);
+    if_objectiskey.If<HCompareObjectEqAndBranch>(object, key);
     if_objectiskey.Then();
     {
       // Make the key_index available.
@@ -1327,92 +1328,84 @@ HValue* HGraphBuilder::BuildLookupNumberStringCache(
   }
   if_objectissmi.Else();
   {
-    // Check if object is a heap number.
-    IfBuilder if_objectisnumber(this);
-    if_objectisnumber.If<HCompareMap>(
-        object, isolate()->factory()->heap_number_map());
-    if_objectisnumber.Then();
-    {
-      // Compute hash for heap number similar to double_get_hash().
-      HValue* low = Add<HLoadNamedField>(
-          object, HObjectAccess::ForHeapNumberValueLowestBits());
-      HValue* high = Add<HLoadNamedField>(
-          object, HObjectAccess::ForHeapNumberValueHighestBits());
-      HValue* hash = Add<HBitwise>(Token::BIT_XOR, low, high);
-      hash = Add<HBitwise>(Token::BIT_AND, hash, mask);
-
-      // Load the key.
-      HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
-      HValue* key = Add<HLoadKeyed>(number_string_cache, key_index,
-                                    static_cast<HValue*>(NULL),
-                                    FAST_ELEMENTS, ALLOW_RETURN_HOLE);
-
-      // Check if key is a heap number.
-      IfBuilder if_keyisnumber(this);
-      if_keyisnumber.IfNot<HIsSmiAndBranch>(key);
-      if_keyisnumber.AndIf<HCompareMap>(
-          key, isolate()->factory()->heap_number_map());
-      if_keyisnumber.Then();
+    if (type->Is(Type::Smi())) {
+      if_objectissmi.Deopt("Excepted smi");
+    } else {
+      // Check if the object is a heap number.
+      IfBuilder if_objectisnumber(this);
+      if_objectisnumber.If<HCompareMap>(
+          object, isolate()->factory()->heap_number_map());
+      if_objectisnumber.Then();
       {
-        // Check if values of key and object match.
-        IfBuilder if_keyeqobject(this);
-        if_keyeqobject.If<HCompareNumericAndBranch>(
-            Add<HLoadNamedField>(key, HObjectAccess::ForHeapNumberValue()),
-            Add<HLoadNamedField>(object, HObjectAccess::ForHeapNumberValue()),
-            Token::EQ);
-        if_keyeqobject.Then();
+        // Compute hash for heap number similar to double_get_hash().
+        HValue* low = Add<HLoadNamedField>(
+            object, HObjectAccess::ForHeapNumberValueLowestBits());
+        HValue* high = Add<HLoadNamedField>(
+            object, HObjectAccess::ForHeapNumberValueHighestBits());
+        HValue* hash = Add<HBitwise>(Token::BIT_XOR, low, high);
+        hash = Add<HBitwise>(Token::BIT_AND, hash, mask);
+
+        // Load the key.
+        HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
+        HValue* key = Add<HLoadKeyed>(number_string_cache, key_index,
+                                      static_cast<HValue*>(NULL),
+                                      FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+
+        // Check if key is a heap number (the number string cache contains only
+        // SMIs and heap number, so it is sufficient to do a SMI check here).
+        IfBuilder if_keyisnotsmi(this);
+        if_keyisnotsmi.IfNot<HIsSmiAndBranch>(key);
+        if_keyisnotsmi.Then();
         {
-          // Make the key_index available.
-          Push(key_index);
+          // Check if values of key and object match.
+          IfBuilder if_keyeqobject(this);
+          if_keyeqobject.If<HCompareNumericAndBranch>(
+              Add<HLoadNamedField>(key, HObjectAccess::ForHeapNumberValue()),
+              Add<HLoadNamedField>(object, HObjectAccess::ForHeapNumberValue()),
+              Token::EQ);
+          if_keyeqobject.Then();
+          {
+            // Make the key_index available.
+            Push(key_index);
+          }
+          if_keyeqobject.JoinContinuation(&found);
         }
-        if_keyeqobject.JoinContinuation(&found);
+        if_keyisnotsmi.JoinContinuation(&found);
       }
-      if_keyisnumber.JoinContinuation(&found);
+      if_objectisnumber.Else();
+      {
+        if (type->Is(Type::Number())) {
+          if_objectisnumber.Deopt("Expected heap number");
+        }
+      }
+      if_objectisnumber.JoinContinuation(&found);
     }
-    if_objectisnumber.JoinContinuation(&found);
   }
-  if_objectissmi.End();
+  if_objectissmi.JoinContinuation(&found);
 
   // Check for cache hit.
   IfBuilder if_found(this, &found);
   if_found.Then();
+  {
+    // Count number to string operation in native code.
+    AddIncrementCounter(isolate()->counters()->number_to_string_native());
 
-  // Load the value in case of cache hit.
-  HValue* key_index = Pop();
-  HValue* value_index = Add<HAdd>(key_index, graph()->GetConstant1());
-  HValue* value = Add<HLoadKeyed>(number_string_cache, value_index,
-                                  static_cast<HValue*>(NULL),
-                                  FAST_ELEMENTS, ALLOW_RETURN_HOLE);
-  AddIncrementCounter(isolate()->counters()->number_to_string_native());
-
-  if_found.CaptureContinuation(continuation);
-
-  // The value is only available in true branch of continuation.
-  return value;
-}
-
-
-HValue* HGraphBuilder::BuildNumberToString(HValue* number) {
-  NoObservableSideEffectsScope scope(this);
-
-  // Lookup the number in the number string cache.
-  HIfContinuation continuation;
-  HValue* value = BuildLookupNumberStringCache(number, &continuation);
-  IfBuilder if_found(this, &continuation);
-  if_found.Then();
-
-  // Cache hit.
-  Push(value);
-
+    // Load the value in case of cache hit.
+    HValue* key_index = Pop();
+    HValue* value_index = Add<HAdd>(key_index, graph()->GetConstant1());
+    Push(Add<HLoadKeyed>(number_string_cache, value_index,
+                         static_cast<HValue*>(NULL),
+                         FAST_ELEMENTS, ALLOW_RETURN_HOLE));
+  }
   if_found.Else();
-
-  // Cache miss, fallback to runtime.
-  Add<HPushArgument>(number);
-  Push(Add<HCallRuntime>(
-          isolate()->factory()->empty_string(),
-          Runtime::FunctionForId(Runtime::kNumberToStringSkipCache),
-          1));
-
+  {
+    // Cache miss, fallback to runtime.
+    Add<HPushArgument>(object);
+    Push(Add<HCallRuntime>(
+            isolate()->factory()->empty_string(),
+            Runtime::FunctionForId(Runtime::kNumberToStringSkipCache),
+            1));
+  }
   if_found.End();
 
   return Pop();
@@ -7850,6 +7843,42 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     right_rep = Representation::FromType(right_type);
   }
 
+  // Special case for string addition here.
+  if (op == Token::ADD &&
+      (left_type->Is(Type::String()) || right_type->Is(Type::String()))) {
+    if (left_type->Is(Type::String())) {
+      IfBuilder if_isstring(this);
+      if_isstring.If<HIsStringAndBranch>(left);
+      if_isstring.Then();
+      if_isstring.ElseDeopt("Expected string for LHS of binary operation");
+    } else if (left_type->Is(Type::Number())) {
+      left = BuildNumberToString(left, left_type);
+    } else {
+      ASSERT(right_type->Is(Type::String()));
+      HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_RIGHT);
+      Add<HPushArgument>(left);
+      Add<HPushArgument>(right);
+      return NewUncasted<HInvokeFunction>(function, 2);
+    }
+
+    if (right_type->Is(Type::String())) {
+      IfBuilder if_isstring(this);
+      if_isstring.If<HIsStringAndBranch>(right);
+      if_isstring.Then();
+      if_isstring.ElseDeopt("Expected string for RHS of binary operation");
+    } else if (right_type->Is(Type::Number())) {
+      right = BuildNumberToString(right, right_type);
+    } else {
+      ASSERT(left_type->Is(Type::String()));
+      HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_LEFT);
+      Add<HPushArgument>(left);
+      Add<HPushArgument>(right);
+      return NewUncasted<HInvokeFunction>(function, 2);
+    }
+
+    return NewUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
+  }
+
   if (binop_stub) {
     left = EnforceNumberType(left, left_type);
     right = EnforceNumberType(right, right_type);
@@ -7859,15 +7888,12 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
 
   bool is_non_primitive = (left_rep.IsTagged() && !left_rep.IsSmi()) ||
                           (right_rep.IsTagged() && !right_rep.IsSmi());
-  bool is_string_add    = op == Token::ADD &&
-                          (left_type->Is(Type::String()) ||
-                           right_type->Is(Type::String()));
 
   HInstruction* instr = NULL;
   // Only the stub is allowed to call into the runtime, since otherwise we would
   // inline several instructions (including the two pushes) for every tagged
   // operation in optimized code, which is more expensive, than a stub call.
-  if (binop_stub && is_non_primitive && !is_string_add) {
+  if (binop_stub && is_non_primitive) {
     HValue* function = AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op));
     Add<HPushArgument>(left);
     Add<HPushArgument>(right);
@@ -7875,23 +7901,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
   } else {
     switch (op) {
       case Token::ADD:
-        if (is_string_add) {
-          StringAddFlags flags = STRING_ADD_CHECK_BOTH;
-          if (left_type->Is(Type::String())) {
-            BuildCheckHeapObject(left);
-            AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
-            flags = STRING_ADD_CHECK_RIGHT;
-          }
-          if (right_type->Is(Type::String())) {
-            BuildCheckHeapObject(right);
-            AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
-            flags = (flags == STRING_ADD_CHECK_BOTH)
-                ? STRING_ADD_CHECK_LEFT : STRING_ADD_CHECK_NONE;
-          }
-          instr = NewUncasted<HStringAdd>(left, right, flags);
-        } else {
-          instr = NewUncasted<HAdd>(left, right);
-        }
+        instr = NewUncasted<HAdd>(left, right);
         break;
       case Token::SUB:
         instr = NewUncasted<HSub>(left, right);
@@ -9090,7 +9100,8 @@ void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* number = Pop();
-  HValue* result = BuildNumberToString(number);
+  HValue* result = BuildNumberToString(
+      number, handle(Type::Number(), isolate()));
   return ast_context()->ReturnValue(result);
 }
 

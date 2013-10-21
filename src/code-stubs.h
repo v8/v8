@@ -477,6 +477,8 @@ class NumberToStringStub V8_FINAL : public HydrogenCodeStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 
+  static void InstallDescriptors(Isolate* isolate);
+
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kNumber = 0;
 
