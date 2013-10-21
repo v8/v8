@@ -33,6 +33,8 @@
 namespace v8 {
 namespace internal {
 
+class AllocationTracker;
+class AllocationTraceNode;
 class HeapEntry;
 class HeapSnapshot;
 
@@ -296,8 +298,8 @@ class HeapSnapshotsCollection {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
     return ids_.PushHeapObjectsStats(stream);
   }
-  void StartHeapObjectsTracking() { is_tracking_objects_ = true; }
-  void StopHeapObjectsTracking() { ids_.StopHeapObjectsTracking(); }
+  void StartHeapObjectsTracking();
+  void StopHeapObjectsTracking();
 
   HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
   void SnapshotGenerationFinished(HeapSnapshot* snapshot);
@@ -305,6 +307,7 @@ class HeapSnapshotsCollection {
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
   StringsStorage* names() { return &names_; }
+  AllocationTracker* allocation_tracker() { return allocation_tracker_; }
 
   SnapshotObjectId FindObjectId(Address object_addr) {
     return ids_.FindEntry(object_addr);
@@ -316,7 +319,7 @@ class HeapSnapshotsCollection {
   void ObjectMoveEvent(Address from, Address to, int size) {
     ids_.MoveObject(from, to, size);
   }
-  void NewObjectEvent(Address addr, int size) { ids_.NewObject(addr, size); }
+  void NewObjectEvent(Address addr, int size);
   void UpdateObjectSizeEvent(Address addr, int size) {
     ids_.UpdateObjectSize(addr, size);
   }
@@ -335,6 +338,7 @@ class HeapSnapshotsCollection {
   StringsStorage names_;
   // Mapping from HeapObject addresses to objects' uids.
   HeapObjectsMap ids_;
+  AllocationTracker* allocation_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsCollection);
 };
@@ -673,6 +677,9 @@ class HeapSnapshotJSONSerializer {
   void SerializeNode(HeapEntry* entry);
   void SerializeNodes();
   void SerializeSnapshot();
+  void SerializeTraceTree();
+  void SerializeTraceNode(AllocationTraceNode* node);
+  void SerializeTraceNodeInfos();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();
 
