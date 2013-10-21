@@ -1948,7 +1948,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     env->Bind(index, value);
     if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
       HEnvironmentMarker* bind =
-          new(zone()) HEnvironmentMarker(HEnvironmentMarker::BIND, index);
+          New<HEnvironmentMarker>(HEnvironmentMarker::BIND, index);
       AddInstruction(bind);
 #ifdef DEBUG
       bind->set_closure(env->closure());
@@ -1961,7 +1961,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     HValue* value = env->Lookup(index);
     if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
       HEnvironmentMarker* lookup =
-          new(zone()) HEnvironmentMarker(HEnvironmentMarker::LOOKUP, index);
+          New<HEnvironmentMarker>(HEnvironmentMarker::LOOKUP, index);
       AddInstruction(lookup);
 #ifdef DEBUG
       lookup->set_closure(env->closure());

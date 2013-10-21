@@ -1776,8 +1776,7 @@ class HEnvironmentMarker V8_FINAL : public HTemplateInstruction<1> {
  public:
   enum Kind { BIND, LOOKUP };
 
-  HEnvironmentMarker(Kind kind, int index)
-      : kind_(kind), index_(index), next_simulate_(NULL) { }
+  DECLARE_INSTRUCTION_FACTORY_P2(HEnvironmentMarker, Kind, int);
 
   Kind kind() { return kind_; }
   int index() { return index_; }
@@ -1804,6 +1803,9 @@ class HEnvironmentMarker V8_FINAL : public HTemplateInstruction<1> {
   DECLARE_CONCRETE_INSTRUCTION(EnvironmentMarker);
 
  private:
+  HEnvironmentMarker(Kind kind, int index)
+      : kind_(kind), index_(index), next_simulate_(NULL) { }
+
   Kind kind_;
   int index_;
   HSimulate* next_simulate_;
