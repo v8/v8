@@ -44,6 +44,7 @@ enum Condition {
   kConditionDoubleQuoteString,
   kConditionSingleQuoteString,
   kConditionIdentifier,
+  kConditionIdentifierIllegal,
   kConditionSingleLineComment,
   kConditionMultiLineComment,
   kConditionHtmlComment
@@ -197,8 +198,7 @@ start_:
     whitespace = whitespace_char+;
     identifier_start_ = [$_a-zA-Z];
     identifier_char = [$_a-zA-Z0-9];
-    not_identifier_char = any\identifier_char;
-    illegal_after_identifier = [\\];
+    not_identifier_char = any\identifier_char\[\\];
     line_terminator = [\n\r]+;
     digit = [0-9];
     hex_digit = [0-9a-fA-F];
@@ -318,6 +318,9 @@ start_:
     <Normal> [']           :=> SingleQuoteString
 
     <Normal> identifier_start_    :=> Identifier
+    <Normal> "\\u0000"            :=> IdentifierIllegal
+    <Normal> "\\u" [0-9a-fA-F]{4}    :=> Identifier
+    <Normal> "\\"                 { PUSH_TOKEN(Token::ILLEGAL); }
 
     <Normal> eof           { PUSH_EOF_AND_RETURN();}
     <Normal> any           { PUSH_TOKEN(Token::ILLEGAL); }
@@ -341,8 +344,14 @@ start_:
     <SingleQuoteString> any     { goto yy0; }
 
     <Identifier> identifier_char+  { goto yy0; }
-    <Identifier> illegal_after_identifier { PUSH_TOKEN(Token::ILLEGAL); }
+    <Identifier> "\\u0000"         :=> IdentifierIllegal
+    <Identifier> "\\u" [0-9a-fA-F]{4} { goto yy0; }
+    <Identifier> "\\"              { PUSH_TOKEN(Token::ILLEGAL); }
     <Identifier> any               { PUSH_TOKEN_LOOKAHEAD(Token::IDENTIFIER); }
+
+    <IdentifierIllegal> identifier_char+  { goto yy0; }
+    <IdentifierIllegal> "\\"+              { goto yy0; }
+    <IdentifierIllegal> any               { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
     <SingleLineComment> eof             { PUSH_LINE_TERMINATOR();}
