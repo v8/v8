@@ -648,10 +648,21 @@ HConstant* HGraph::GetConstant(SetOncePointer<HConstant>* pointer,
     // Can't pass GetInvalidContext() to HConstant::New, because that will
     // recursively call GetConstant
     HConstant* constant = HConstant::New(zone(), NULL, value);
-    constant->InsertAfter(GetConstantUndefined());
+    constant->InsertAfter(entry_block()->first());
     pointer->set(constant);
+    return constant;
   }
-  return pointer->get();
+  return ReinsertConstantIfNecessary(pointer->get());
+}
+
+
+HConstant* HGraph::ReinsertConstantIfNecessary(HConstant* constant) {
+  if (!constant->IsLinked()) {
+    // The constant was removed from the graph. Reinsert.
+    constant->ClearFlag(HValue::kIsDead);
+    constant->InsertAfter(entry_block()->first());
+  }
+  return constant;
 }
 
 
@@ -681,13 +692,14 @@ HConstant* HGraph::GetConstant##Name() {                                       \
         true,                                                                  \
         false,                                                                 \
         boolean_value);                                                        \
-    constant->InsertAfter(GetConstantUndefined());                             \
+    constant->InsertAfter(entry_block()->first());                             \
     constant_##name##_.set(constant);                                          \
   }                                                                            \
-  return constant_##name##_.get();                                             \
+  return ReinsertConstantIfNecessary(constant_##name##_.get());                \
 }
 
 
+DEFINE_GET_CONSTANT(Undefined, undefined, HType::Tagged(), false)
 DEFINE_GET_CONSTANT(True, true, HType::Boolean(), true)
 DEFINE_GET_CONSTANT(False, false, HType::Boolean(), false)
 DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
@@ -3233,10 +3245,6 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   HInstruction* context = Add<HContext>();
   environment()->BindContext(context);
 
-  HConstant* undefined_constant = HConstant::cast(Add<HConstant>(
-      isolate()->factory()->undefined_value()));
-  graph()->set_undefined_constant(undefined_constant);
-
   // Create an arguments object containing the initial parameters.  Set the
   // initial values of parameters including "this" having parameter index 0.
   ASSERT_EQ(scope->num_parameters() + 1, environment()->parameter_count());
@@ -3250,6 +3258,7 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   AddInstruction(arguments_object);
   graph()->SetArgumentsObject(arguments_object);
 
+  HConstant* undefined_constant = graph()->GetConstantUndefined();
   // Initialize specials and locals to undefined.
   for (int i = environment()->parameter_count() + 1;
        i < environment()->length();

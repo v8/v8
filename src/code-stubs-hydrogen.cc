@@ -150,10 +150,6 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
 
-  HConstant* undefined_constant =
-      Add<HConstant>(isolate()->factory()->undefined_value());
-  graph()->set_undefined_constant(undefined_constant);
-
   for (int i = 0; i < param_count; ++i) {
     HParameter* param =
         Add<HParameter>(i, HParameter::REGISTER_PARAMETER);

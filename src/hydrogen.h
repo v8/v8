@@ -342,10 +342,7 @@ class HGraph V8_FINAL : public ZoneObject {
 
   void CollectPhis();
 
-  void set_undefined_constant(HConstant* constant) {
-    undefined_constant_.set(constant);
-  }
-  HConstant* GetConstantUndefined() const { return undefined_constant_.get(); }
+  HConstant* GetConstantUndefined();
   HConstant* GetConstant0();
   HConstant* GetConstant1();
   HConstant* GetConstantMinus1();
@@ -460,6 +457,7 @@ class HGraph V8_FINAL : public ZoneObject {
   bool IsInsideNoSideEffectsScope() { return no_side_effects_scope_count_ > 0; }
 
  private:
+  HConstant* ReinsertConstantIfNecessary(HConstant* constant);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          int32_t integer_value);
 
@@ -479,7 +477,7 @@ class HGraph V8_FINAL : public ZoneObject {
   ZoneList<HValue*> values_;
   ZoneList<HPhi*>* phi_list_;
   ZoneList<HInstruction*>* uint32_instructions_;
-  SetOncePointer<HConstant> undefined_constant_;
+  SetOncePointer<HConstant> constant_undefined_;
   SetOncePointer<HConstant> constant_0_;
   SetOncePointer<HConstant> constant_1_;
   SetOncePointer<HConstant> constant_minus1_;

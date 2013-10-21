@@ -2576,6 +2576,7 @@ bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
   if (block()->graph()->has_osr() &&
       block()->graph()->IsStandardConstant(this)) {
+    // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
     return true;
   }
   if (UseCount() == 0) return true;
