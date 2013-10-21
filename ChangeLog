@@ -1,3 +1,8 @@
+2013-10-21: Version 3.22.16
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-18: Version 3.22.15
 
         Enabled calling the SetReference* & SetObjectGroupId functions with a
