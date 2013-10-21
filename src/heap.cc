@@ -2963,7 +2963,7 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 }
 
 
-MaybeObject* Heap::AllocatePropertyCell(Object* value) {
+MaybeObject* Heap::AllocatePropertyCell() {
   Object* result;
   MaybeObject* maybe_result = AllocateRawPropertyCell();
   if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -2973,10 +2973,8 @@ MaybeObject* Heap::AllocatePropertyCell(Object* value) {
   PropertyCell* cell = PropertyCell::cast(result);
   cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                            SKIP_WRITE_BARRIER);
-  cell->set_value(value);
+  cell->set_value(the_hole_value());
   cell->set_type(Type::None());
-  maybe_result = cell->SetValueInferType(value);
-  if (maybe_result->IsFailure()) return maybe_result;
   return result;
 }
 
@@ -4848,73 +4846,6 @@ MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
   result->set_call_trap(call_trap);
   result->set_construct_trap(construct_trap);
   return result;
-}
-
-
-MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
-  ASSERT(constructor->has_initial_map());
-  Map* map = constructor->initial_map();
-  ASSERT(map->is_dictionary_map());
-
-  // Make sure no field properties are described in the initial map.
-  // This guarantees us that normalizing the properties does not
-  // require us to change property values to PropertyCells.
-  ASSERT(map->NextFreePropertyIndex() == 0);
-
-  // Make sure we don't have a ton of pre-allocated slots in the
-  // global objects. They will be unused once we normalize the object.
-  ASSERT(map->unused_property_fields() == 0);
-  ASSERT(map->inobject_properties() == 0);
-
-  // Initial size of the backing store to avoid resize of the storage during
-  // bootstrapping. The size differs between the JS global object ad the
-  // builtins object.
-  int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
-
-  // Allocate a dictionary object for backing storage.
-  NameDictionary* dictionary;
-  MaybeObject* maybe_dictionary =
-      NameDictionary::Allocate(
-          this,
-          map->NumberOfOwnDescriptors() * 2 + initial_size);
-  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
-
-  // The global object might be created from an object template with accessors.
-  // Fill these accessors into the dictionary.
-  DescriptorArray* descs = map->instance_descriptors();
-  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
-    ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d = PropertyDetails(details.attributes(), CALLBACKS, i + 1);
-    Object* value = descs->GetCallbacksObject(i);
-    MaybeObject* maybe_value = AllocatePropertyCell(value);
-    if (!maybe_value->ToObject(&value)) return maybe_value;
-
-    MaybeObject* maybe_added = dictionary->Add(descs->GetKey(i), value, d);
-    if (!maybe_added->To(&dictionary)) return maybe_added;
-  }
-
-  // Allocate the global object and initialize it with the backing store.
-  JSObject* global;
-  MaybeObject* maybe_global = Allocate(map, OLD_POINTER_SPACE);
-  if (!maybe_global->To(&global)) return maybe_global;
-
-  InitializeJSObjectFromMap(global, dictionary, map);
-
-  // Create a new map for the global object.
-  Map* new_map;
-  MaybeObject* maybe_map = map->CopyDropDescriptors();
-  if (!maybe_map->To(&new_map)) return maybe_map;
-  new_map->set_dictionary_map(true);
-
-  // Set up the global object as a normalized object.
-  global->set_map(new_map);
-  global->set_properties(dictionary);
-
-  // Make sure result is a global object with properties in dictionary.
-  ASSERT(global->IsGlobalObject());
-  ASSERT(!global->HasFastProperties());
-  return global;
 }
 
 

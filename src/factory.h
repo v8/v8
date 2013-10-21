@@ -248,6 +248,8 @@ class Factory {
 
   Handle<Cell> NewCell(Handle<Object> value);
 
+  Handle<PropertyCell> NewPropertyCellWithHole();
+
   Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
 
   Handle<AllocationSite> NewAllocationSite();
@@ -306,7 +308,7 @@ class Factory {
   Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                PretenureFlag pretenure = NOT_TENURED);
 
-  // Global objects are pretenured.
+  // Global objects are pretenured and initialized based on a constructor.
   Handle<GlobalObject> NewGlobalObject(Handle<JSFunction> constructor);
 
   // JS objects are pretenured when allocated by the bootstrapper and

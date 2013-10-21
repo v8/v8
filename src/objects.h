@@ -9193,11 +9193,17 @@ class PropertyCell: public Cell {
   // a change of the type of the cell's contents, code dependent on the cell
   // will be deoptimized.
   static void SetValueInferType(Handle<PropertyCell> cell,
-                                Handle<Object> value,
-                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  MUST_USE_RESULT MaybeObject* SetValueInferType(
-      Object* value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+                                Handle<Object> value);
+
+  // Computes the new type of the cell's contents for the given value, but
+  // without actually modifying the 'type' field.
+  // TODO(mstarzinger): Return value should be handlified.
+  static Type* UpdatedType(Handle<PropertyCell> cell,
+                           Handle<Object> value);
+
+  void AddDependentCompilationInfo(CompilationInfo* info);
+
+  void AddDependentCode(Handle<Code> code);
 
   // Casting.
   static inline PropertyCell* cast(Object* obj);
@@ -9221,13 +9227,6 @@ class PropertyCell: public Cell {
   typedef FixedBodyDescriptor<kValueOffset,
                               kSize,
                               kSize> BodyDescriptor;
-
-  void AddDependentCompilationInfo(CompilationInfo* info);
-
-  void AddDependentCode(Handle<Code> code);
-
-  static Type* UpdateType(Handle<PropertyCell> cell,
-                          Handle<Object> value);
 
  private:
   DECL_ACCESSORS(type_raw, Object)
