@@ -128,16 +128,6 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
 }
 
 
-bool TypeFeedbackOracle::LoadIsPreMonomorphic(Property* expr) {
-  Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
-  if (map_or_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(map_or_code);
-    return code->ic_state() == PREMONOMORPHIC;
-  }
-  return false;
-}
-
-
 bool TypeFeedbackOracle::LoadIsPolymorphic(Property* expr) {
   Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsCode()) {
@@ -171,16 +161,6 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
     if (map == NULL) return false;
     map = map->CurrentMapForDeprecated();
     return map != NULL && !CanRetainOtherContext(map, *native_context_);
-  }
-  return false;
-}
-
-
-bool TypeFeedbackOracle::StoreIsPreMonomorphic(TypeFeedbackId ast_id) {
-  Handle<Object> map_or_code = GetInfo(ast_id);
-  if (map_or_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(map_or_code);
-    return code->ic_state() == PREMONOMORPHIC;
   }
   return false;
 }
@@ -642,6 +622,12 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 
       case Code::KEYED_LOAD_IC:
       case Code::KEYED_STORE_IC:
+        if (target->ic_state() == MONOMORPHIC ||
+            target->ic_state() == POLYMORPHIC) {
+          SetInfo(ast_id, target);
+        }
+        break;
+
       case Code::BINARY_OP_IC:
       case Code::COMPARE_IC:
       case Code::TO_BOOLEAN_IC:

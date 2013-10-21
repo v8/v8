@@ -5792,14 +5792,13 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
         expr->GetStoreMode(), has_side_effects);
   } else {
     if (is_store) {
-      if (expr->IsAssignment() &&
-          expr->AsAssignment()->HasNoTypeInformation()) {
+      if (expr->IsAssignment() && expr->AsAssignment()->IsUninitialized()) {
         Add<HDeoptimize>("Insufficient type feedback for keyed store",
                          Deoptimizer::SOFT);
       }
       instr = BuildStoreKeyedGeneric(obj, key, val);
     } else {
-      if (expr->AsProperty()->HasNoTypeInformation()) {
+      if (expr->AsProperty()->IsUninitialized()) {
         Add<HDeoptimize>("Insufficient type feedback for keyed load",
                          Deoptimizer::SOFT);
       }
