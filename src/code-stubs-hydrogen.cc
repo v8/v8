@@ -146,7 +146,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   int param_count = descriptor_->register_param_count_;
   HEnvironment* start_environment = graph()->start_environment();
   HBasicBlock* next_block = CreateBasicBlock(start_environment);
-  current_block()->Goto(next_block);
+  Goto(next_block);
   next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
 
@@ -207,8 +207,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   if (current_block() != NULL) {
     HReturn* hreturn_instruction = New<HReturn>(return_value,
                                                 stack_pop_count);
-    current_block()->Finish(hreturn_instruction);
-    set_current_block(NULL);
+    FinishCurrentBlock(hreturn_instruction);
   }
   return true;
 }
@@ -845,7 +844,7 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   HIfContinuation continuation;
   Handle<Map> sentinel_map(isolate->heap()->meta_map());
   Handle<Type> type = stub->GetType(isolate, sentinel_map);
-  BuildCompareNil(GetParameter(0), type, RelocInfo::kNoPosition, &continuation);
+  BuildCompareNil(GetParameter(0), type, &continuation);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();
   if (continuation.IsFalseReachable()) {
