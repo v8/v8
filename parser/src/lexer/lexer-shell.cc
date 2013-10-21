@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
       Isolate* isolate = Isolate::Current();
       HandleScope handle_scope(isolate);
       BaselineScanner baseline(argv[1], isolate);
-      ExperimentalScanner experimental(argv[1], true);
+      ExperimentalScanner experimental(argv[1], true, isolate);
 
       std::vector<Token::Value> baseline_tokens, experimental_tokens;
       std::vector<size_t> baseline_beg, baseline_end, experimental_beg,

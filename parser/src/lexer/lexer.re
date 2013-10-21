@@ -31,6 +31,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+// FIXME: some of this is probably not needed.
+#include "allocation.h"
+#include "ast.h"
+#include "preparse-data-format.h"
+#include "preparse-data.h"
+#include "scopes.h"
+#include "preparser.h"
+#include "api.h"
+#include "ast.h"
+#include "bootstrapper.h"
+#include "char-predicates-inl.h"
+#include "codegen.h"
+#include "compiler.h"
+#include "func-name-inferrer.h"
+#include "messages.h"
+#include "parser.h"
+#include "platform.h"
+#include "preparser.h"
+#include "runtime.h"
+#include "scanner-character-streams.h"
+#include "scopeinfo.h"
+#include "string-stream.h"
+
+
 // TODO:
 // - SpiderMonkey compatibility hack: "  --> something" is treated
 //   as a single line comment.
@@ -76,14 +100,29 @@ enum Condition {
 
 using namespace v8::internal;
 
+namespace {
+
+inline int HexValue(uc32 c) {
+  c -= '0';
+  if (static_cast<unsigned>(c) <= 9) return c;
+  c = (c | 0x20) - ('a' - '0');  // detect 0x11..0x16 and 0x31..0x36.
+  if (static_cast<unsigned>(c) <= 5) return c + 10;
+  return -1;
+}
+
+}
+
 #define PUSH_TOKEN(T) { send(T); SKIP(); }
 #define PUSH_TOKEN_LOOKAHEAD(T) { --cursor_; send(T); SKIP(); }
 #define PUSH_EOF_AND_RETURN() { send(Token::EOS); eof_ = true; return 1;}
 #define PUSH_LINE_TERMINATOR() { SKIP(); }
 #define TERMINATE_ILLEGAL() { send(Token::ILLEGAL); send(Token::EOS); return 1; }
 
-PushScanner::PushScanner(ExperimentalScanner* sink)
-: eof_(false),
+#define YYCTYPE uint8_t
+
+PushScanner::PushScanner(ExperimentalScanner* sink, UnicodeCache* unicode_cache)
+: unicode_cache_(unicode_cache),
+  eof_(false),
   state_(-1),
   condition_(kConditionNormal),
   limit_(NULL),
@@ -100,6 +139,31 @@ PushScanner::PushScanner(ExperimentalScanner* sink)
 }
 
 PushScanner::~PushScanner() {
+}
+
+
+uc32 PushScanner::ScanHexNumber(int length) {
+  // We have seen \uXXXX, let's see what it is.
+  // FIXME: we never end up in here if only a subset of the 4 chars are valid
+  // hex digits -> handle the case where they're not.
+  uc32 x = 0;
+  for (YYCTYPE* s = cursor_ - length; s != cursor_; ++s) {
+    int d = HexValue(*s);
+    if (d < 0) {
+      return -1;
+    }
+    x = x * 16 + d;
+  }
+  return x;
+}
+
+
+bool PushScanner::ValidIdentifierPart() {
+  return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
+}
+
+bool PushScanner::ValidIdentifierStart() {
+  return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
 }
 
 void PushScanner::send(Token::Value token) {
@@ -188,7 +252,6 @@ start_:
     re2c:condenumprefix = kCondition;
     re2c:define:YYCONDTYPE = Condition;
     re2c:define:YYCURSOR = cursor_;
-    re2c:define:YYCTYPE = uint8_t;
     re2c:define:YYLIMIT = limit_;
     re2c:define:YYMARKER = marker_;
 
@@ -319,8 +382,7 @@ start_:
     <Normal> [']           :=> SingleQuoteString
 
     <Normal> identifier_start_    :=> Identifier
-    <Normal> "\\u0000"            :=> IdentifierIllegal
-    <Normal> "\\u" [0-9a-fA-F]{4}    :=> Identifier
+    <Normal> "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierStart()) { YYSETCONDITION(kConditionIdentifier); goto yy0; } YYSETCONDITION(kConditionIdentifierIllegal); send(Token::ILLEGAL); start_ = cursor_;  goto yy0; }
     <Normal> "\\"                 { PUSH_TOKEN(Token::ILLEGAL); }
 
     <Normal> eof           { PUSH_EOF_AND_RETURN();}
@@ -347,13 +409,12 @@ start_:
     <SingleQuoteString> any     { goto yy0; }
 
     <Identifier> identifier_char+  { goto yy0; }
-    <Identifier> "\\u0000"         :=> IdentifierIllegal
-    <Identifier> "\\u" [0-9a-fA-F]{4} { goto yy0; }
+    <Identifier> "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierPart()) goto yy0; YYSETCONDITION(kConditionIdentifierIllegal); send(Token::ILLEGAL); }
     <Identifier> "\\"              { PUSH_TOKEN(Token::ILLEGAL); }
     <Identifier> any               { PUSH_TOKEN_LOOKAHEAD(Token::IDENTIFIER); }
 
     <IdentifierIllegal> identifier_char+  { goto yy0; }
-    <IdentifierIllegal> "\\"+              { goto yy0; }
+    <IdentifierIllegal> "\\"+             { goto yy0; }
     <IdentifierIllegal> any               { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}

@@ -54,7 +54,9 @@ class ExperimentalScanner {
     int end_pos;
   };
 
-  ExperimentalScanner(const char* fname, bool read_all_at_once);
+  ExperimentalScanner(const char* fname,
+                      bool read_all_at_once,
+                      Isolate* isolate);
   ~ExperimentalScanner();
 
   Token::Value Next();

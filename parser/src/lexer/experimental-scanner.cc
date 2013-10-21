@@ -27,6 +27,12 @@
 
 #include "experimental-scanner.h"
 
+#include "v8.h"
+
+#include "objects.h"
+#include "objects-inl.h"
+#include "spaces-inl.h"
+#include "isolate.h"
 #include "lexer.h"
 
 namespace v8 {
@@ -57,16 +63,17 @@ const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
 }
 
 ExperimentalScanner::ExperimentalScanner(const char* fname,
-                                         bool read_all_at_once)
+                                         bool read_all_at_once,
+                                         Isolate* isolate)
     : current_(0),
       fetched_(0),
       read_all_at_once_(read_all_at_once),
       source_(0),
       length_(0) {
   file_ = fopen(fname, "rb");
-  scanner_ = new PushScanner(this);
+  scanner_ = new PushScanner(this, isolate->unicode_cache());
   if (read_all_at_once_) {
-    source_ = ReadFile(fname, NULL, &length_);
+    source_ = ReadFile(fname, isolate, &length_);
     token_.resize(1500);
     beg_.resize(1500);
     end_.resize(1500);

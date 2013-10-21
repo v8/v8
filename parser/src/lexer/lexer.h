@@ -37,10 +37,11 @@ namespace v8 {
 namespace internal {
 
 class ExperimentalScanner;
+class UnicodeCache;
 
 class PushScanner {
  public:
-  explicit PushScanner(ExperimentalScanner* sink);
+  explicit PushScanner(ExperimentalScanner* sink, UnicodeCache* unicode_cache);
 
   ~PushScanner();
 
@@ -48,6 +49,12 @@ class PushScanner {
   uint32_t push(const void *input, int input_size);
 
  private:
+  bool ValidIdentifierStart();
+  bool ValidIdentifierPart();
+  uc32 ScanHexNumber(int length);
+
+  UnicodeCache* unicode_cache_;
+
   bool eof_;
   int32_t state_;
   int32_t condition_;
