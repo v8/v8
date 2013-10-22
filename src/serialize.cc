@@ -1326,6 +1326,14 @@ void PartialSerializer::Serialize(Object** object) {
 }
 
 
+bool Serializer::ShouldBeSkipped(Object** current) {
+  Object** roots = isolate()->heap()->roots_array_start();
+  return current == &roots[Heap::kStoreBufferTopRootIndex]
+      || current == &roots[Heap::kStackLimitRootIndex]
+      || current == &roots[Heap::kRealStackLimitRootIndex];
+}
+
+
 void Serializer::VisitPointers(Object** start, Object** end) {
   Isolate* isolate = this->isolate();;
 
@@ -1334,8 +1342,7 @@ void Serializer::VisitPointers(Object** start, Object** end) {
       root_index_wave_front_ =
           Max(root_index_wave_front_, static_cast<intptr_t>(current - start));
     }
-    if (reinterpret_cast<Address>(current) ==
-        isolate->heap()->store_buffer()->TopAddress()) {
+    if (ShouldBeSkipped(current)) {
       sink_->Put(kSkip, "Skip");
       sink_->PutInt(kPointerSize, "SkipOneWord");
     } else if ((*current)->IsSmi()) {
