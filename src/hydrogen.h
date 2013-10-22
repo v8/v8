@@ -1283,6 +1283,7 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE);
 
   HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
+  HInstruction* AddLoadNamedField(HValue* object, HObjectAccess access);
   HInstruction* BuildLoadStringLength(HValue* object, HValue* checked_value);
   HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map>);
   HLoadNamedField* AddLoadElements(HValue* object);
@@ -1948,21 +1949,22 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     env->Bind(index, value);
     if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
       HEnvironmentMarker* bind =
-          New<HEnvironmentMarker>(HEnvironmentMarker::BIND, index);
-      AddInstruction(bind);
+          Add<HEnvironmentMarker>(HEnvironmentMarker::BIND, index);
+      USE(bind);
 #ifdef DEBUG
       bind->set_closure(env->closure());
 #endif
     }
   }
+
   HValue* LookupAndMakeLive(Variable* var) {
     HEnvironment* env = environment();
     int index = env->IndexFor(var);
     HValue* value = env->Lookup(index);
     if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
       HEnvironmentMarker* lookup =
-          New<HEnvironmentMarker>(HEnvironmentMarker::LOOKUP, index);
-      AddInstruction(lookup);
+          Add<HEnvironmentMarker>(HEnvironmentMarker::LOOKUP, index);
+      USE(lookup);
 #ifdef DEBUG
       lookup->set_closure(env->closure());
 #endif
