@@ -5769,6 +5769,9 @@ class Map: public HeapObject {
                               int target_number_of_fields,
                               int target_inobject,
                               int target_unused);
+  static Handle<Map> GeneralizeAllFieldRepresentations(
+      Handle<Map> map,
+      Representation new_representation);
   static Handle<Map> GeneralizeRepresentation(
       Handle<Map> map,
       int modify_index,

@@ -2734,6 +2734,21 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 }
 
 
+// Generalize the representation of all FIELD descriptors.
+Handle<Map> Map::GeneralizeAllFieldRepresentations(
+    Handle<Map> map,
+    Representation new_representation) {
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.type() == FIELD) {
+      map = GeneralizeRepresentation(map, i, new_representation, FORCE_FIELD);
+    }
+  }
+  return map;
+}
+
+
 Map* Map::CurrentMapForDeprecated() {
   DisallowHeapAllocation no_allocation;
   if (!is_deprecated()) return this;

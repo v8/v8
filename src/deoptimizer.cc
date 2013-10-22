@@ -1614,7 +1614,10 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     }
   } else {
     // Dispatch on the instance type of the object to be materialized.
-    Handle<Map> map = Handle<Map>::cast(MaterializeNextValue());
+    // We also need to make sure that the representation of all fields
+    // in the given object are general enough to hold a tagged value.
+    Handle<Map> map = Map::GeneralizeAllFieldRepresentations(
+        Handle<Map>::cast(MaterializeNextValue()), Representation::Tagged());
     switch (map->instance_type()) {
       case HEAP_NUMBER_TYPE: {
         Handle<HeapNumber> object = isolate_->factory()->NewHeapNumber(0.0);
