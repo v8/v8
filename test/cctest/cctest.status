@@ -55,10 +55,6 @@
 
   # Boot up memory use is bloated in debug mode.
   'test-mark-compact/BootUpMemoryUse': [PASS, PASS, ['mode == debug', FAIL]],
-
-  # Fails in nosnap debug mode:
-  # https://code.google.com/p/v8/issues/detail?id=2949
-  'test-heap-profiler/TrackHeapAllocations': ['mode == debug', SKIP],
 }],  # ALWAYS
 
 ##############################################################################
