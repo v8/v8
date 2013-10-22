@@ -17537,6 +17537,23 @@ THREADED_TEST(ScriptColumnNumber) {
 }
 
 
+THREADED_TEST(FunctionIsBuiltin) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Local<v8::Function> f;
+  f = v8::Local<v8::Function>::Cast(CompileRun("Math.floor"));
+  CHECK(f->IsBuiltin());
+  f = v8::Local<v8::Function>::Cast(CompileRun("Object"));
+  CHECK(f->IsBuiltin());
+  f = v8::Local<v8::Function>::Cast(CompileRun("Object.__defineSetter__"));
+  CHECK(f->IsBuiltin());
+  f = v8::Local<v8::Function>::Cast(CompileRun("Array.prototype.toString"));
+  CHECK(f->IsBuiltin());
+  f = v8::Local<v8::Function>::Cast(CompileRun("function a() {}; a;"));
+  CHECK(!f->IsBuiltin());
+}
+
+
 THREADED_TEST(FunctionGetScriptId) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

@@ -2490,6 +2490,11 @@ class V8_EXPORT Function : public Object {
   int GetScriptColumnNumber() const;
 
   /**
+   * Tells whether this function is builtin.
+   */
+  bool IsBuiltin() const;
+
+  /**
    * Returns scriptId object.
    */
   V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId()) const;
