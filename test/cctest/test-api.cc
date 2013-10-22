@@ -17504,6 +17504,77 @@ THREADED_TEST(FunctionGetInferredName) {
 }
 
 
+THREADED_TEST(FunctionGetDisplayName) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  const char* code = "var error = false;"
+                     "function a() { this.x = 1; };"
+                     "a.displayName = 'display_a';"
+                     "var b = (function() {"
+                     "  var f = function() { this.x = 2; };"
+                     "  f.displayName = 'display_b';"
+                     "  return f;"
+                     "})();"
+                     "var c = function() {};"
+                     "c.__defineGetter__('displayName', function() {"
+                     "  error = true;"
+                     "  throw new Error();"
+                     "});"
+                     "function d() {};"
+                     "d.__defineGetter__('displayName', function() {"
+                     "  error = true;"
+                     "  return 'wrong_display_name';"
+                     "});"
+                     "function e() {};"
+                     "e.displayName = 'wrong_display_name';"
+                     "e.__defineSetter__('displayName', function() {"
+                     "  error = true;"
+                     "  throw new Error();"
+                     "});"
+                     "function f() {};"
+                     "f.displayName = { 'foo': 6, toString: function() {"
+                     "  error = true;"
+                     "  return 'wrong_display_name';"
+                     "}};"
+                     "var g = function() {"
+                     "  arguments.callee.displayName = 'set_in_runtime';"
+                     "}; g();"
+                     "a.prototype.displayName = 'prototype_display_a';"
+                     "var hClass = function() {};"
+                     "hClass.prototype.__proto__ = a.prototype;"
+                     "var h = new hClass();"
+                     ;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::Script::Compile(v8::String::New(code), &origin)->Run();
+  v8::Local<v8::Value> error = env->Global()->Get(v8::String::New("error"));
+  v8::Local<v8::Function> a = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("a")));
+  v8::Local<v8::Function> b = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("b")));
+  v8::Local<v8::Function> c = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("c")));
+  v8::Local<v8::Function> d = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("d")));
+  v8::Local<v8::Function> e = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("e")));
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("f")));
+  v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("g")));
+  v8::Local<v8::Function> h = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("h")));
+  CHECK_EQ(false, error->BooleanValue());
+  CHECK_EQ("display_a", *v8::String::Utf8Value(a->GetDisplayName()));
+  CHECK_EQ("display_b", *v8::String::Utf8Value(b->GetDisplayName()));
+  CHECK(c->GetDisplayName()->IsUndefined());
+  CHECK(d->GetDisplayName()->IsUndefined());
+  CHECK(e->GetDisplayName()->IsUndefined());
+  CHECK(f->GetDisplayName()->IsUndefined());
+  CHECK_EQ("set_in_runtime", *v8::String::Utf8Value(g->GetDisplayName()));
+  CHECK_EQ("prototype_display_a", *v8::String::Utf8Value(h->GetDisplayName()));
+}
+
+
 THREADED_TEST(ScriptLineNumber) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

@@ -2479,6 +2479,12 @@ class V8_EXPORT Function : public Object {
   Handle<Value> GetInferredName() const;
 
   /**
+   * User-defined name assigned to the "displayName" property of this function.
+   * Used to facilitate debugging and profiling of JavaScript code.
+   */
+  Handle<Value> GetDisplayName() const;
+
+  /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */
