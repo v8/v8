@@ -9197,9 +9197,8 @@ class PropertyCell: public Cell {
 
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the 'type' field.
-  // TODO(mstarzinger): Return value should be handlified.
-  static Type* UpdatedType(Handle<PropertyCell> cell,
-                           Handle<Object> value);
+  static Handle<Type> UpdatedType(Handle<PropertyCell> cell,
+                                  Handle<Object> value);
 
   void AddDependentCompilationInfo(CompilationInfo* info);
 

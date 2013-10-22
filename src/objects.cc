@@ -16310,8 +16310,8 @@ void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
 }
 
 
-Type* PropertyCell::UpdatedType(Handle<PropertyCell> cell,
-                                Handle<Object> value) {
+Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
+                                       Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<Type> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
@@ -16321,17 +16321,17 @@ Type* PropertyCell::UpdatedType(Handle<PropertyCell> cell,
                         : Type::Constant(value, isolate), isolate);
 
   if (new_type->Is(old_type)) {
-    return *old_type;
+    return old_type;
   }
 
   cell->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kPropertyCellChangedGroup);
 
   if (old_type->Is(Type::None()) || old_type->Is(Type::Undefined())) {
-    return *new_type;
+    return new_type;
   }
 
-  return Type::Any();
+  return handle(Type::Any(), isolate);
 }
 
 
@@ -16339,8 +16339,8 @@ void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
                                      Handle<Object> value) {
   cell->set_value(*value);
   if (!Type::Any()->Is(cell->type())) {
-    Type* new_type = UpdatedType(cell, value);
-    cell->set_type(new_type);
+    Handle<Type> new_type = UpdatedType(cell, value);
+    cell->set_type(*new_type);
   }
 }
 
