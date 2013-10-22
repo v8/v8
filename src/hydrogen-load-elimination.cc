@@ -212,7 +212,7 @@ class HLoadEliminationTable : public ZoneObject {
   // instruction is redundant. Otherwise, return {instr}.
   HValue* store(HStoreNamedField* instr) {
     int field = FieldOf(instr->access());
-    if (field < 0) return instr;
+    if (field < 0) return KillIfMisaligned(instr);
 
     HValue* object = instr->object()->ActualValue();
     HValue* value = instr->value();
@@ -248,6 +248,38 @@ class HLoadEliminationTable : public ZoneObject {
     if (field >= 0 && field < fields_.length()) {
       fields_[field] = NULL;
     }
+  }
+
+  // Kill all entries aliasing the given store.
+  void KillStore(HStoreNamedField* s) {
+    int field = FieldOf(s->access());
+    if (field >= 0) {
+      KillFieldInternal(s->object()->ActualValue(), field, s->value());
+    } else {
+      KillIfMisaligned(s);
+    }
+  }
+
+  // Kill multiple entries in the case of a misaligned store.
+  HValue* KillIfMisaligned(HStoreNamedField* instr) {
+    HObjectAccess access = instr->access();
+    if (access.IsInobject()) {
+      int offset = access.offset();
+      if ((offset % kPointerSize) != 0) {
+        // Kill the field containing the first word of the access.
+        HValue* object = instr->object()->ActualValue();
+        int field = offset / kPointerSize;
+        KillFieldInternal(object, field, NULL);
+
+        // Kill the next field in case of overlap.
+        int size = kPointerSize;
+        if (access.representation().IsByte()) size = 1;
+        else if (access.representation().IsInteger32()) size = 4;
+        int next_field = (offset + size - 1) / kPointerSize;
+        if (next_field != field) KillFieldInternal(object, next_field, NULL);
+      }
+    }
+    return instr;
   }
 
   // Find an entry for the given object and field pair.
@@ -347,7 +379,8 @@ class HLoadEliminationTable : public ZoneObject {
   // Compute the field index for the given in-object offset; -1 if not tracked.
   int FieldOf(int offset) {
     if (offset >= kMaxTrackedFields * kPointerSize) return -1;
-    ASSERT((offset % kPointerSize) == 0);  // Assume aligned accesses.
+    // TODO(titzer): track misaligned loads in a separate list?
+    if ((offset % kPointerSize) != 0) return -1;  // Ignore misaligned accesses.
     return offset / kPointerSize;
   }
 
@@ -430,11 +463,7 @@ class HLoadEliminationEffects : public ZoneObject {
 
     // Kill non-agreeing fields for each store contained in these effects.
     for (int i = 0; i < stores_.length(); i++) {
-      HStoreNamedField* s = stores_[i];
-      int field = table->FieldOf(s->access());
-      if (field >= 0) {
-        table->KillFieldInternal(s->object()->ActualValue(), field, s->value());
-      }
+      table->KillStore(stores_[i]);
     }
   }
 

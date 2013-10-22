@@ -66,7 +66,8 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   static Register registers[] = { a0 };
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNumberToString)->entry;
 }
 
 
@@ -546,23 +547,27 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
       GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch);
   Register scratch3 =
       GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch, scratch2);
-  DoubleRegister double_scratch = kLithiumScratchDouble.low();
-  DoubleRegister double_input = f12;
+  DoubleRegister double_scratch = kLithiumScratchDouble;
 
   __ Push(scratch, scratch2, scratch3);
 
-  __ ldc1(double_input, MemOperand(input_reg, double_offset));
-
   if (!skip_fastpath()) {
+    // Load double input.
+    __ ldc1(double_scratch, MemOperand(input_reg, double_offset));
+
     // Clear cumulative exception flags and save the FCSR.
     __ cfc1(scratch2, FCSR);
     __ ctc1(zero_reg, FCSR);
+
     // Try a conversion to a signed integer.
-    __ trunc_w_d(double_scratch, double_input);
+    __ Trunc_w_d(double_scratch, double_scratch);
+    // Move the converted value into the result register.
     __ mfc1(result_reg, double_scratch);
+
     // Retrieve and restore the FCSR.
     __ cfc1(scratch, FCSR);
     __ ctc1(scratch2, FCSR);
+
     // Check for overflow and NaNs.
     __ And(
         scratch, scratch,
@@ -575,7 +580,9 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // Load the double value and perform a manual truncation.
   Register input_high = scratch2;
   Register input_low = scratch3;
-  __ Move(input_low, input_high, double_input);
+
+  __ lw(input_low, MemOperand(input_reg, double_offset));
+  __ lw(input_high, MemOperand(input_reg, double_offset + kIntSize));
 
   Label normal_exponent, restore_sign;
   // Extract the biased exponent in result.

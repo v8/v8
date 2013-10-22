@@ -16310,8 +16310,8 @@ void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
 }
 
 
-Type* PropertyCell::UpdateType(Handle<PropertyCell> cell,
-                               Handle<Object> value) {
+Type* PropertyCell::UpdatedType(Handle<PropertyCell> cell,
+                                Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<Type> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
@@ -16336,27 +16336,12 @@ Type* PropertyCell::UpdateType(Handle<PropertyCell> cell,
 
 
 void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
-                                     Handle<Object> value,
-                                     WriteBarrierMode mode) {
-  CALL_HEAP_FUNCTION_VOID(cell->GetIsolate(),
-                          cell->SetValueInferType(*value, mode));
-}
-
-
-MaybeObject* PropertyCell::SetValueInferType(Object* value,
-                                             WriteBarrierMode ignored) {
-  set_value(value, ignored);
-  if (!Type::Any()->Is(type())) {
-    IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
-    MaybeObject* maybe_type = trampoline.CallWithReturnValue(
-        &PropertyCell::UpdateType,
-        Handle<PropertyCell>(this),
-        Handle<Object>(value, GetIsolate()));
-    Type* new_type = NULL;
-    if (!maybe_type->To(&new_type)) return maybe_type;
-    set_type(new_type);
+                                     Handle<Object> value) {
+  cell->set_value(*value);
+  if (!Type::Any()->Is(cell->type())) {
+    Type* new_type = UpdatedType(cell, value);
+    cell->set_type(new_type);
   }
-  return value;
 }
 
 

@@ -741,6 +741,10 @@ void HInstruction::InsertBefore(HInstruction* next) {
   next_ = next;
   previous_ = prev;
   SetBlock(next->block());
+  if (position() == RelocInfo::kNoPosition &&
+      next->position() != RelocInfo::kNoPosition) {
+    set_position(next->position());
+  }
 }
 
 
@@ -774,6 +778,10 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   if (next != NULL) next->previous_ = this;
   if (block->last() == previous) {
     block->set_last(this);
+  }
+  if (position() == RelocInfo::kNoPosition &&
+      previous->position() != RelocInfo::kNoPosition) {
+    set_position(previous->position());
   }
 }
 
@@ -1589,6 +1597,11 @@ Range* HConstant::InferRange(Zone* zone) {
     return result;
   }
   return HValue::InferRange(zone);
+}
+
+
+int HPhi::position() const {
+  return block()->first()->position();
 }
 
 
@@ -2563,6 +2576,7 @@ bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
   if (block()->graph()->has_osr() &&
       block()->graph()->IsStandardConstant(this)) {
+    // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
     return true;
   }
   if (UseCount() == 0) return true;

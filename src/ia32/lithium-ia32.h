@@ -214,7 +214,6 @@ class LInstruction : public ZoneObject {
       : environment_(NULL),
         hydrogen_value_(NULL),
         bit_field_(IsCallBits::encode(false)) {
-    set_position(RelocInfo::kNoPosition);
   }
 
   virtual ~LInstruction() {}
@@ -254,15 +253,6 @@ class LInstruction : public ZoneObject {
   void set_pointer_map(LPointerMap* p) { pointer_map_.set(p); }
   LPointerMap* pointer_map() const { return pointer_map_.get(); }
   bool HasPointerMap() const { return pointer_map_.is_set(); }
-
-  // The 31 bits PositionBits is used to store the int position value. And the
-  // position value may be RelocInfo::kNoPosition (-1). The accessor always
-  // +1/-1 so that the encoded value of position in bit_field_ is always >= 0
-  // and can fit into the 31 bits PositionBits.
-  void set_position(int pos) {
-    bit_field_ = PositionBits::update(bit_field_, pos + 1);
-  }
-  int position() { return PositionBits::decode(bit_field_) - 1; }
 
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
@@ -309,7 +299,6 @@ class LInstruction : public ZoneObject {
   virtual LOperand* TempAt(int i) = 0;
 
   class IsCallBits: public BitField<bool, 0, 1> {};
-  class PositionBits: public BitField<int, 1, 31> {};
 
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
@@ -2750,7 +2739,6 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
         next_block_(NULL),
         argument_count_(0),
         allocator_(allocator),
-        position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
         pending_deoptimization_ast_id_(BailoutId::None()) { }
 
@@ -2908,7 +2896,6 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   HBasicBlock* next_block_;
   int argument_count_;
   LAllocator* allocator_;
-  int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
   BailoutId pending_deoptimization_ast_id_;
 

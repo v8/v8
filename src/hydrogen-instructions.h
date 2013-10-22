@@ -638,6 +638,8 @@ class HValue : public ZoneObject {
         flags_(0) {}
   virtual ~HValue() {}
 
+  virtual int position() const { return RelocInfo::kNoPosition; }
+
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
   int LoopWeight() const;
@@ -1114,7 +1116,7 @@ class HInstruction : public HValue {
   void InsertAfter(HInstruction* previous);
 
   // The position is a write-once variable.
-  int position() const { return position_; }
+  virtual int position() const V8_OVERRIDE { return position_; }
   bool has_position() const { return position_ != RelocInfo::kNoPosition; }
   void set_position(int position) {
     ASSERT(!has_position());
@@ -1774,8 +1776,7 @@ class HEnvironmentMarker V8_FINAL : public HTemplateInstruction<1> {
  public:
   enum Kind { BIND, LOOKUP };
 
-  HEnvironmentMarker(Kind kind, int index)
-      : kind_(kind), index_(index), next_simulate_(NULL) { }
+  DECLARE_INSTRUCTION_FACTORY_P2(HEnvironmentMarker, Kind, int);
 
   Kind kind() { return kind_; }
   int index() { return index_; }
@@ -1802,6 +1803,9 @@ class HEnvironmentMarker V8_FINAL : public HTemplateInstruction<1> {
   DECLARE_CONCRETE_INSTRUCTION(EnvironmentMarker);
 
  private:
+  HEnvironmentMarker(Kind kind, int index)
+      : kind_(kind), index_(index), next_simulate_(NULL) { }
+
   Kind kind_;
   int index_;
   HSimulate* next_simulate_;
@@ -3146,6 +3150,8 @@ class HPhi V8_FINAL : public HValue {
 
   bool IsReceiver() const { return merged_index_ == 0; }
   bool HasMergedIndex() const { return merged_index_ != kInvalidMergedIndex; }
+
+  virtual int position() const V8_OVERRIDE;
 
   int merged_index() const { return merged_index_; }
 

@@ -661,12 +661,6 @@ class Heap {
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocates and initializes a new global object based on a constructor.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateGlobalObject(JSFunction* constructor);
-
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
@@ -887,22 +881,6 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateSymbol();
-
-  // Allocate a tenured simple cell.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateCell(Object* value);
-
-  // Allocate a tenured JS global property cell.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocatePropertyCell(Object* value);
-
-  // Allocate Box.
-  MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
-                                           PretenureFlag pretenure);
 
   // Allocate a tenured AllocationSite. It's payload is null
   MUST_USE_RESULT MaybeObject* AllocateAllocationSite();
@@ -2164,6 +2142,16 @@ class Heap {
 
   // Allocate empty fixed double array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();
+
+  // Allocate a tenured simple cell.
+  MUST_USE_RESULT MaybeObject* AllocateCell(Object* value);
+
+  // Allocate a tenured JS global property cell initialized with the hole.
+  MUST_USE_RESULT MaybeObject* AllocatePropertyCell();
+
+  // Allocate Box.
+  MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
+                                           PretenureFlag pretenure);
 
   // Performs a minor collection in new generation.
   void Scavenge();

@@ -313,6 +313,43 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 }
 
 
+class HOptimizedGraphBuilderWithPotisions: public HOptimizedGraphBuilder {
+ public:
+  explicit HOptimizedGraphBuilderWithPotisions(CompilationInfo* info)
+      : HOptimizedGraphBuilder(info) {
+  }
+
+#define DEF_VISIT(type)                                 \
+  virtual void Visit##type(type* node) V8_OVERRIDE {    \
+    if (node->position() != RelocInfo::kNoPosition) {   \
+      SetSourcePosition(node->position());              \
+    }                                                   \
+    HOptimizedGraphBuilder::Visit##type(node);          \
+  }
+  EXPRESSION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                                          \
+  virtual void Visit##type(type* node) V8_OVERRIDE {             \
+    if (node->position() != RelocInfo::kNoPosition) {            \
+      SetSourcePosition(node->position());                       \
+    }                                                            \
+    HOptimizedGraphBuilder::Visit##type(node);                   \
+  }
+  STATEMENT_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                                            \
+  virtual void Visit##type(type* node) V8_OVERRIDE {               \
+    HOptimizedGraphBuilder::Visit##type(node);                     \
+  }
+  MODULE_NODE_LIST(DEF_VISIT)
+  DECLARATION_NODE_LIST(DEF_VISIT)
+  AUXILIARY_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+};
+
+
 RecompileJob::Status RecompileJob::CreateGraph() {
   ASSERT(isolate()->use_crankshaft());
   ASSERT(info()->IsOptimizing());
@@ -419,7 +456,9 @@ RecompileJob::Status RecompileJob::CreateGraph() {
   // Type-check the function.
   AstTyper::Run(info());
 
-  graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info());
+  graph_builder_ = FLAG_emit_opt_code_positions
+      ? new(info()->zone()) HOptimizedGraphBuilderWithPotisions(info())
+      : new(info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
   graph_ = graph_builder_->CreateGraph();
