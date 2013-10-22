@@ -795,6 +795,7 @@ HControlInstruction* HGraphBuilder::IfBuilder::AddCompare(
 
 
 void HGraphBuilder::IfBuilder::Or() {
+  ASSERT(!needs_compare_);
   ASSERT(!did_and_);
   did_or_ = true;
   HEnvironment* env = first_false_block_->last_environment();
@@ -810,6 +811,7 @@ void HGraphBuilder::IfBuilder::Or() {
 
 
 void HGraphBuilder::IfBuilder::And() {
+  ASSERT(!needs_compare_);
   ASSERT(!did_or_);
   did_and_ = true;
   HEnvironment* env = first_false_block_->last_environment();
