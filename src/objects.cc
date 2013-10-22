@@ -2434,6 +2434,16 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 }
 
 
+Handle<TransitionArray> Map::AddTransition(Handle<Map> map,
+                                           Handle<Name> key,
+                                           Handle<Map> target,
+                                           SimpleTransitionFlag flag) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->AddTransition(*key, *target, flag),
+                     TransitionArray);
+}
+
+
 void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
                                              int modify_index,
                                              Representation new_representation,
@@ -6930,41 +6940,33 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
 
 
 Handle<Map> Map::CopyForObserved(Handle<Map> map) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     map->CopyForObserved(),
-                     Map);
-}
+  ASSERT(!map->is_observed());
 
-
-MaybeObject* Map::CopyForObserved() {
-  ASSERT(!is_observed());
+  Isolate* isolate = map->GetIsolate();
 
   // In case the map owned its own descriptors, share the descriptors and
   // transfer ownership to the new map.
-  Map* new_map;
-  MaybeObject* maybe_new_map;
-  if (owns_descriptors()) {
-    maybe_new_map = CopyDropDescriptors();
+  Handle<Map> new_map;
+  if (map->owns_descriptors()) {
+    new_map = Map::CopyDropDescriptors(map);
   } else {
-    maybe_new_map = Copy();
+    new_map = Map::Copy(map);
   }
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
-  TransitionArray* transitions;
-  MaybeObject* maybe_transitions = AddTransition(GetHeap()->observed_symbol(),
-                                                 new_map,
-                                                 FULL_TRANSITION);
-  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-  set_transitions(transitions);
+  Handle<TransitionArray> transitions =
+      Map::AddTransition(map, isolate->factory()->observed_symbol(), new_map,
+                         FULL_TRANSITION);
+
+  map->set_transitions(*transitions);
 
   new_map->set_is_observed(true);
 
-  if (owns_descriptors()) {
-    new_map->InitializeDescriptors(instance_descriptors());
-    set_owns_descriptors(false);
+  if (map->owns_descriptors()) {
+    new_map->InitializeDescriptors(map->instance_descriptors());
+    map->set_owns_descriptors(false);
   }
 
-  new_map->SetBackPointer(this);
+  new_map->SetBackPointer(*map);
   return new_map;
 }
 

@@ -5749,6 +5749,12 @@ class Map: public HeapObject {
       Map* transitioned_map);
   inline void SetTransition(int transition_index, Map* target);
   inline Map* GetTransition(int transition_index);
+
+  static Handle<TransitionArray> AddTransition(Handle<Map> map,
+                                               Handle<Name> key,
+                                               Handle<Map> target,
+                                               SimpleTransitionFlag flag);
+
   MUST_USE_RESULT inline MaybeObject* AddTransition(Name* key,
                                                     Map* target,
                                                     SimpleTransitionFlag flag);
@@ -5986,7 +5992,6 @@ class Map: public HeapObject {
                                                   TransitionFlag flag);
 
   static Handle<Map> CopyForObserved(Handle<Map> map);
-  MUST_USE_RESULT MaybeObject* CopyForObserved();
 
   static Handle<Map> CopyNormalized(Handle<Map> map,
                                     PropertyNormalizationMode mode,
