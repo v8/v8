@@ -5300,7 +5300,7 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
                         PretenureFlag pretenure_flag,
                         InstanceType instance_type) {
     return new(zone) HAllocate(context, size, type, pretenure_flag,
-        instance_type);
+        instance_type, zone);
   }
 
   // Maximum instance size for which allocations will be inlined.
@@ -5373,7 +5373,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             HValue* size,
             HType type,
             PretenureFlag pretenure_flag,
-            InstanceType instance_type)
+            InstanceType instance_type,
+            Zone* zone)
       : HTemplateInstruction<2>(type),
         dominating_allocate_(NULL),
         filler_free_space_size_(NULL),
@@ -5396,7 +5397,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     // other, i.e., have a pointer to each other. A GC in between these
     // allocations may leave such objects behind in a not completely initialized
     // state.
-    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
+    if (!FLAG_use_gvn || !FLAG_use_allocation_folding ||
+        zone->isolate()->heap_profiler()->is_tracking_allocations()) {
       flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
     }
     clear_next_map_word_ = pretenure_flag == NOT_TENURED &&

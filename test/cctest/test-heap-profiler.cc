@@ -2072,3 +2072,23 @@ TEST(HeapObjectsTracker) {
     "    a.shift();\n"
     "findUntrackedObjects();\n");
 }
+
+
+// If we don't disable allocation folding when allocations tracking is on, we
+// may have untracked allocations.
+TEST(DisableAllocationFolding) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  HeapObjectsTracker tracker;
+  CompileRun(
+    "function literal() {"
+    "    return [1];"
+    "}"
+    "function modify_literal(literal, v) {"
+    "    literal[0] = v;"
+    "    return literal;"
+    "}"
+    "obj = modify_literal(literal(), 1);"
+    "obj = modify_literal(literal(), 1.5);"
+    "obj = modify_literal(literal(), 1);");
+}
