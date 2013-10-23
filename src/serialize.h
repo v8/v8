@@ -573,6 +573,10 @@ class Serializer : public SerializerDeserializer {
 
   int SpaceAreaSize(int space);
 
+  // Some roots should not be serialized, because their actual value depends on
+  // absolute addresses and they are reset after deserialization, anyway.
+  bool ShouldBeSkipped(Object** current);
+
   Isolate* isolate_;
   // Keep track of the fullness of each space in order to generate
   // relative addresses for back references.

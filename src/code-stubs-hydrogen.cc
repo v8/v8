@@ -174,8 +174,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     arguments_length_ = graph()->GetConstant0();
   }
 
-  context_ = New<HContext>();
-  AddInstruction(context_);
+  context_ = Add<HContext>();
   start_environment->BindContext(context_);
 
   Add<HSimulate>(BailoutId::StubEntry());
@@ -567,7 +566,7 @@ HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
   HObjectAccess access = casted_stub()->is_inobject() ?
       HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
       HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
+  return AddLoadNamedField(GetParameter(0), access);
 }
 
 
@@ -582,7 +581,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
   HObjectAccess access = casted_stub()->is_inobject() ?
       HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
       HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
+  return AddLoadNamedField(GetParameter(0), access);
 }
 
 
@@ -688,14 +687,13 @@ HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
   HValue* constant_zero = graph()->GetConstant0();
 
   HInstruction* elements = Add<HArgumentsElements>(false);
-  HInstruction* argument = AddInstruction(
-      new(zone()) HAccessArgumentsAt(elements, constant_one, constant_zero));
+  HInstruction* argument = Add<HAccessArgumentsAt>(
+      elements, constant_one, constant_zero);
 
   HConstant* max_alloc_length =
       Add<HConstant>(JSObject::kInitialMaxFastElementArray);
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
-  HConstant* initial_capacity_node = New<HConstant>(initial_capacity);
-  AddInstruction(initial_capacity_node);
+  HConstant* initial_capacity_node = Add<HConstant>(initial_capacity);
 
   HInstruction* checked_arg = Add<HBoundsCheck>(argument, max_alloc_length);
   IfBuilder if_builder(this);
@@ -738,8 +736,8 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
   HValue* start = graph()->GetConstant0();
   HValue* key = builder.BeginBody(start, length, Token::LT);
   HInstruction* argument_elements = Add<HArgumentsElements>(false);
-  HInstruction* argument = AddInstruction(new(zone()) HAccessArgumentsAt(
-      argument_elements, length, key));
+  HInstruction* argument = Add<HAccessArgumentsAt>(
+      argument_elements, length, key);
 
   Add<HStoreKeyed>(elements, key, argument, kind);
   builder.EndBody();
@@ -1168,8 +1166,8 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
         }
         restore_check.Else();
         {
-          HValue* keyed_minus = AddInstruction(HSub::New(zone(), context(), key,
-              shared_function_entry_length));
+          HValue* keyed_minus = AddUncasted<HSub>(
+              key, shared_function_entry_length);
           HInstruction* keyed_lookup = Add<HLoadKeyed>(optimized_map,
               keyed_minus, static_cast<HValue*>(NULL), FAST_ELEMENTS);
           IfBuilder done_check(this);
@@ -1178,8 +1176,8 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
           done_check.Then();
           {
             // Hit: fetch the optimized code.
-            HValue* keyed_plus = AddInstruction(HAdd::New(zone(), context(),
-                keyed_minus, graph()->GetConstant1()));
+            HValue* keyed_plus = AddUncasted<HAdd>(
+                keyed_minus, graph()->GetConstant1());
             HValue* code_object = Add<HLoadKeyed>(optimized_map,
                 keyed_plus, static_cast<HValue*>(NULL), FAST_ELEMENTS);
             BuildInstallOptimizedCode(js_function, native_context, code_object);

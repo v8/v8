@@ -267,8 +267,7 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
                                            Handle<PropertyCell> cell,
                                            Handle<Object> value,
                                            StrictModeFlag strict_mode) {
-  Isolate* isolate = cell->GetIsolate();
-  Handle<Type> union_type(PropertyCell::UpdatedType(cell, value), isolate);
+  Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
   bool is_constant = union_type->IsConstant();
   StoreGlobalStub stub(strict_mode, is_constant);
 

@@ -4148,6 +4148,12 @@ int Function::GetScriptColumnNumber() const {
 }
 
 
+bool Function::IsBuiltin() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  return func->IsBuiltin();
+}
+
+
 Handle<Value> Function::GetScriptId() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   i::Isolate* isolate = func->GetIsolate();

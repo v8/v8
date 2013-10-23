@@ -2434,6 +2434,16 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 }
 
 
+Handle<TransitionArray> Map::AddTransition(Handle<Map> map,
+                                           Handle<Name> key,
+                                           Handle<Map> target,
+                                           SimpleTransitionFlag flag) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->AddTransition(*key, *target, flag),
+                     TransitionArray);
+}
+
+
 void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
                                              int modify_index,
                                              Representation new_representation,
@@ -2731,6 +2741,21 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 
   new_map->set_owns_descriptors(true);
   return new_map;
+}
+
+
+// Generalize the representation of all FIELD descriptors.
+Handle<Map> Map::GeneralizeAllFieldRepresentations(
+    Handle<Map> map,
+    Representation new_representation) {
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.type() == FIELD) {
+      map = GeneralizeRepresentation(map, i, new_representation, FORCE_FIELD);
+    }
+  }
+  return map;
 }
 
 
@@ -6915,41 +6940,33 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
 
 
 Handle<Map> Map::CopyForObserved(Handle<Map> map) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     map->CopyForObserved(),
-                     Map);
-}
+  ASSERT(!map->is_observed());
 
-
-MaybeObject* Map::CopyForObserved() {
-  ASSERT(!is_observed());
+  Isolate* isolate = map->GetIsolate();
 
   // In case the map owned its own descriptors, share the descriptors and
   // transfer ownership to the new map.
-  Map* new_map;
-  MaybeObject* maybe_new_map;
-  if (owns_descriptors()) {
-    maybe_new_map = CopyDropDescriptors();
+  Handle<Map> new_map;
+  if (map->owns_descriptors()) {
+    new_map = Map::CopyDropDescriptors(map);
   } else {
-    maybe_new_map = Copy();
+    new_map = Map::Copy(map);
   }
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
-  TransitionArray* transitions;
-  MaybeObject* maybe_transitions = AddTransition(GetHeap()->observed_symbol(),
-                                                 new_map,
-                                                 FULL_TRANSITION);
-  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-  set_transitions(transitions);
+  Handle<TransitionArray> transitions =
+      Map::AddTransition(map, isolate->factory()->observed_symbol(), new_map,
+                         FULL_TRANSITION);
+
+  map->set_transitions(*transitions);
 
   new_map->set_is_observed(true);
 
-  if (owns_descriptors()) {
-    new_map->InitializeDescriptors(instance_descriptors());
-    set_owns_descriptors(false);
+  if (map->owns_descriptors()) {
+    new_map->InitializeDescriptors(map->instance_descriptors());
+    map->set_owns_descriptors(false);
   }
 
-  new_map->SetBackPointer(this);
+  new_map->SetBackPointer(*map);
   return new_map;
 }
 
@@ -16310,8 +16327,8 @@ void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
 }
 
 
-Type* PropertyCell::UpdatedType(Handle<PropertyCell> cell,
-                                Handle<Object> value) {
+Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
+                                       Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<Type> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
@@ -16321,17 +16338,17 @@ Type* PropertyCell::UpdatedType(Handle<PropertyCell> cell,
                         : Type::Constant(value, isolate), isolate);
 
   if (new_type->Is(old_type)) {
-    return *old_type;
+    return old_type;
   }
 
   cell->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kPropertyCellChangedGroup);
 
   if (old_type->Is(Type::None()) || old_type->Is(Type::Undefined())) {
-    return *new_type;
+    return new_type;
   }
 
-  return Type::Any();
+  return handle(Type::Any(), isolate);
 }
 
 
@@ -16339,8 +16356,8 @@ void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
                                      Handle<Object> value) {
   cell->set_value(*value);
   if (!Type::Any()->Is(cell->type())) {
-    Type* new_type = UpdatedType(cell, value);
-    cell->set_type(new_type);
+    Handle<Type> new_type = UpdatedType(cell, value);
+    cell->set_type(*new_type);
   }
 }
 
