@@ -1556,8 +1556,7 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> value = instr->value(isolate());
-  AllowDeferredHandleDereference smi_check;
-  __ LoadObject(ToRegister(instr->result()), value);
+  __ Move(ToRegister(instr->result()), value);
 }
 
 
@@ -2129,7 +2128,7 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
 
   if (instr->right()->IsConstantOperand()) {
     Handle<Object> right = ToHandle(LConstantOperand::cast(instr->right()));
-    __ CmpObject(left, right);
+    __ Cmp(left, right);
   } else {
     Register right = ToRegister(instr->right());
     __ cmpq(left, right);
@@ -2497,7 +2496,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     InstanceofStub stub(flags);
 
     __ push(ToRegister(instr->value()));
-    __ PushHeapObject(instr->function());
+    __ Push(instr->function());
 
     static const int kAdditionalDelta = 10;
     int delta =
@@ -3208,7 +3207,7 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   __ push(rsi);  // The context is the first argument.
-  __ PushHeapObject(instr->hydrogen()->pairs());
+  __ Push(instr->hydrogen()->pairs());
   __ Push(Smi::FromInt(instr->hydrogen()->flags()));
   CallRuntime(Runtime::kDeclareGlobals, 3, instr);
 }
@@ -3242,7 +3241,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 
   if (can_invoke_directly) {
     if (rdi_state == RDI_UNINITIALIZED) {
-      __ LoadHeapObject(rdi, function);
+      __ Move(rdi, function);
     }
 
     // Change context.
@@ -4838,8 +4837,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 void LCodeGen::DoCheckValue(LCheckValue* instr) {
   Register reg = ToRegister(instr->value());
-  Handle<HeapObject> object = instr->hydrogen()->object().handle();
-  __ CmpHeapObject(reg, object);
+  __ Cmp(reg, instr->hydrogen()->object().handle());
   DeoptimizeIf(not_equal, instr->environment());
 }
 
@@ -5066,7 +5064,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   // rax = regexp literal clone.
   int literal_offset =
       FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
-  __ LoadHeapObject(rcx, instr->hydrogen()->literals());
+  __ Move(rcx, instr->hydrogen()->literals());
   __ movq(rbx, FieldOperand(rcx, literal_offset));
   __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
   __ j(not_equal, &materialized, Label::kNear);
@@ -5137,13 +5135,7 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
 void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
   ASSERT(!operand->IsDoubleRegister());
   if (operand->IsConstantOperand()) {
-    Handle<Object> object = ToHandle(LConstantOperand::cast(operand));
-    AllowDeferredHandleDereference smi_check;
-    if (object->IsSmi()) {
-      __ Push(Handle<Smi>::cast(object));
-    } else {
-      __ PushHeapObject(Handle<HeapObject>::cast(object));
-    }
+    __ Push(ToHandle(LConstantOperand::cast(operand)));
   } else if (operand->IsRegister()) {
     __ push(ToRegister(operand));
   } else {

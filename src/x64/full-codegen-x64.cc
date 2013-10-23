@@ -1129,7 +1129,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       Handle<Object>(Smi::FromInt(TypeFeedbackCells::kForInFastCaseMarker),
                      isolate()));
   RecordTypeFeedbackCell(stmt->ForInFeedbackId(), cell);
-  __ LoadHeapObject(rbx, cell);
+  __ Move(rbx, cell);
   __ Move(FieldOperand(rbx, Cell::kValueOffset),
           Smi::FromInt(TypeFeedbackCells::kForInSlowCaseMarker));
 

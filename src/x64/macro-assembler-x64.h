@@ -812,27 +812,7 @@ class MacroAssembler: public Assembler {
 
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
-  void CmpHeapObject(Register reg, Handle<HeapObject> object);
-  void PushHeapObject(Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, object);
-    }
-  }
-
-  void CmpObject(Register reg, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      CmpHeapObject(reg, Handle<HeapObject>::cast(object));
-    } else {
-      Cmp(reg, object);
-    }
-  }
+  void MoveHeapObject(Register result, Handle<Object> object);
 
   // Load a global cell into a register.
   void LoadGlobalCell(Register dst, Handle<Cell> cell);

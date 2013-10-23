@@ -2492,8 +2492,7 @@ void MacroAssembler::Move(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(dst, source);
   }
 }
 
@@ -2503,8 +2502,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     movq(dst, kScratchRegister);
   }
 }
@@ -2515,8 +2513,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     cmpq(dst, kScratchRegister);
   }
 }
@@ -2527,8 +2524,7 @@ void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     cmpq(dst, kScratchRegister);
   }
 }
@@ -2539,47 +2535,22 @@ void MacroAssembler::Push(Handle<Object> source) {
   if (source->IsSmi()) {
     Push(Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     push(kScratchRegister);
   }
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
+void MacroAssembler::MoveHeapObject(Register result,
+                                    Handle<Object> object) {
   AllowDeferredHandleDereference using_raw_address;
+  ASSERT(object->IsHeapObject());
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
     movq(result, cell, RelocInfo::CELL);
     movq(result, Operand(result, 0));
   } else {
-    Move(result, object);
-  }
-}
-
-
-void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movq(kScratchRegister, cell, RelocInfo::CELL);
-    cmpq(reg, Operand(kScratchRegister, 0));
-  } else {
-    Cmp(reg, object);
-  }
-}
-
-
-void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movq(kScratchRegister, cell, RelocInfo::CELL);
-    movq(kScratchRegister, Operand(kScratchRegister, 0));
-    push(kScratchRegister);
-  } else {
-    Push(object);
+    movq(result, object, RelocInfo::EMBEDDED_OBJECT);
   }
 }
 
@@ -3591,7 +3562,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(rdi, function);
+  Move(rdi, function);
   movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to

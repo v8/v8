@@ -464,7 +464,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
-  __ LoadHeapObject(rdi, function);
+  __ Move(rdi, function);
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
   // Construct the FunctionCallbackInfo on the stack.
   __ movq(args.GetArgumentOperand(offset - FCA::kCalleeIndex), rdi);
@@ -834,7 +834,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
   if (details.type() == CONSTANT) {
     Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
-    __ CmpObject(value_reg, constant);
+    __ Cmp(value_reg, constant);
     __ j(not_equal, miss_label);
   } else if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
@@ -1411,7 +1411,7 @@ void LoadStubCompiler::GenerateLoadCallback(
 
 void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
-  __ LoadObject(rax, value);
+  __ Move(rax, value);
   __ ret(0);
 }
 
