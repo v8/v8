@@ -532,66 +532,58 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       52,
       "cpu_features");
-  Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
-      UNCLASSIFIED,
-      53,
-      "Heap::NewSpaceAllocationTopAddress");
-  Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
-      UNCLASSIFIED,
-      54,
-      "Heap::NewSpaceAllocationLimitAddress");
   Add(ExternalReference(Runtime::kAllocateInNewSpace, isolate).address(),
       UNCLASSIFIED,
-      55,
+      53,
       "Runtime::AllocateInNewSpace");
   Add(ExternalReference::old_pointer_space_allocation_top_address(
       isolate).address(),
       UNCLASSIFIED,
-      56,
+      54,
       "Heap::OldPointerSpaceAllocationTopAddress");
   Add(ExternalReference::old_pointer_space_allocation_limit_address(
       isolate).address(),
       UNCLASSIFIED,
-      57,
+      55,
       "Heap::OldPointerSpaceAllocationLimitAddress");
   Add(ExternalReference(Runtime::kAllocateInOldPointerSpace, isolate).address(),
       UNCLASSIFIED,
-      58,
+      56,
       "Runtime::AllocateInOldPointerSpace");
   Add(ExternalReference::old_data_space_allocation_top_address(
       isolate).address(),
       UNCLASSIFIED,
-      59,
+      57,
       "Heap::OldDataSpaceAllocationTopAddress");
   Add(ExternalReference::old_data_space_allocation_limit_address(
       isolate).address(),
       UNCLASSIFIED,
-      60,
+      58,
       "Heap::OldDataSpaceAllocationLimitAddress");
   Add(ExternalReference(Runtime::kAllocateInOldDataSpace, isolate).address(),
       UNCLASSIFIED,
-      61,
+      59,
       "Runtime::AllocateInOldDataSpace");
   Add(ExternalReference::new_space_high_promotion_mode_active_address(isolate).
       address(),
       UNCLASSIFIED,
-      62,
+      60,
       "Heap::NewSpaceAllocationLimitAddress");
   Add(ExternalReference::allocation_sites_list_address(isolate).address(),
       UNCLASSIFIED,
-      63,
+      61,
       "Heap::allocation_sites_list_address()");
   Add(ExternalReference::record_object_allocation_function(isolate).address(),
       UNCLASSIFIED,
-      64,
+      62,
       "HeapProfiler::RecordObjectAllocationFromMasm");
   Add(ExternalReference::address_of_uint32_bias().address(),
       UNCLASSIFIED,
-      65,
+      63,
       "uint32_bias");
   Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
       UNCLASSIFIED,
-      66,
+      64,
       "Code::MarkCodeAsExecuted");
 
   // Add a small set of deopt entry addresses to encoder without generating the
@@ -603,7 +595,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
         entry,
         Deoptimizer::LAZY,
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);
-    Add(address, LAZY_DEOPTIMIZATION, 65 + entry, "lazy_deopt");
+    Add(address, LAZY_DEOPTIMIZATION, 64 + entry, "lazy_deopt");
   }
 }
 
