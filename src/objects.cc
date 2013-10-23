@@ -4473,14 +4473,14 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
 Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
                                     Handle<JSObject> obj,
                                     PropertyNormalizationMode mode) {
-  Map* fast = obj->map();
-  int index = fast->Hash() % kEntries;
-  Object* result = cache->get(index);
+  int index = obj->map()->Hash() % kEntries;
+  Handle<Object> result = handle(cache->get(index), cache->GetIsolate());
   if (result->IsMap() &&
-      Map::cast(result)->EquivalentToForNormalization(fast, mode)) {
+      Handle<Map>::cast(result)->EquivalentToForNormalization(obj->map(),
+                                                              mode)) {
 #ifdef VERIFY_HEAP
     if (FLAG_verify_heap) {
-      Map::cast(result)->SharedMapVerify();
+      Handle<Map>::cast(result)->SharedMapVerify();
     }
 #endif
 #ifdef DEBUG
@@ -4488,27 +4488,25 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
       // applied to the shared map.
-      Object* fresh;
-      MaybeObject* maybe_fresh =
-          fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
-      if (maybe_fresh->ToObject(&fresh)) {
-        ASSERT(memcmp(Map::cast(fresh)->address(),
-                      Map::cast(result)->address(),
-                      Map::kCodeCacheOffset) == 0);
-        STATIC_ASSERT(Map::kDependentCodeOffset ==
-                      Map::kCodeCacheOffset + kPointerSize);
-        int offset = Map::kDependentCodeOffset + kPointerSize;
-        ASSERT(memcmp(Map::cast(fresh)->address() + offset,
-                      Map::cast(result)->address() + offset,
-                      Map::kSize - offset) == 0);
-      }
+      Handle<Map> fresh = Map::CopyNormalized(handle(obj->map()), mode,
+                                              SHARED_NORMALIZED_MAP);
+
+      ASSERT(memcmp(fresh->address(),
+                    Handle<Map>::cast(result)->address(),
+                    Map::kCodeCacheOffset) == 0);
+      STATIC_ASSERT(Map::kDependentCodeOffset ==
+                    Map::kCodeCacheOffset + kPointerSize);
+      int offset = Map::kDependentCodeOffset + kPointerSize;
+      ASSERT(memcmp(fresh->address() + offset,
+                    Handle<Map>::cast(result)->address() + offset,
+                    Map::kSize - offset) == 0);
     }
 #endif
-    return handle(Map::cast(result));
+    return Handle<Map>::cast(result);
   }
 
   Isolate* isolate = cache->GetIsolate();
-  Handle<Map> map = Map::CopyNormalized(handle(fast), mode,
+  Handle<Map> map = Map::CopyNormalized(handle(obj->map()), mode,
                                         SHARED_NORMALIZED_MAP);
   ASSERT(map->is_dictionary_map());
   cache->set(index, *map);
@@ -6649,6 +6647,14 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 }
 
 
+Handle<Map> Map::RawCopy(Handle<Map> map,
+                         int instance_size) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->RawCopy(instance_size),
+                     Map);
+}
+
+
 MaybeObject* Map::RawCopy(int instance_size) {
   Map* result;
   MaybeObject* maybe_result =
@@ -6673,25 +6679,15 @@ MaybeObject* Map::RawCopy(int instance_size) {
 Handle<Map> Map::CopyNormalized(Handle<Map> map,
                                 PropertyNormalizationMode mode,
                                 NormalizedMapSharingMode sharing) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     map->CopyNormalized(mode, sharing),
-                     Map);
-}
-
-
-MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
-                                 NormalizedMapSharingMode sharing) {
-  int new_instance_size = instance_size();
+  int new_instance_size = map->instance_size();
   if (mode == CLEAR_INOBJECT_PROPERTIES) {
-    new_instance_size -= inobject_properties() * kPointerSize;
+    new_instance_size -= map->inobject_properties() * kPointerSize;
   }
 
-  Map* result;
-  MaybeObject* maybe_result = RawCopy(new_instance_size);
-  if (!maybe_result->To(&result)) return maybe_result;
+  Handle<Map> result = Map::RawCopy(map, new_instance_size);
 
   if (mode != CLEAR_INOBJECT_PROPERTIES) {
-    result->set_inobject_properties(inobject_properties());
+    result->set_inobject_properties(map->inobject_properties());
   }
 
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);

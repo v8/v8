@@ -5965,6 +5965,7 @@ class Map: public HeapObject {
   // descriptor array of the map. Returns NULL if no updated map is found.
   Map* CurrentMapForDeprecated();
 
+  static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
@@ -6006,8 +6007,6 @@ class Map: public HeapObject {
   static Handle<Map> CopyNormalized(Handle<Map> map,
                                     PropertyNormalizationMode mode,
                                     NormalizedMapSharingMode sharing);
-  MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
-                                              NormalizedMapSharingMode sharing);
 
   inline void AppendDescriptor(Descriptor* desc,
                                const DescriptorArray::WhitenessWitness&);
