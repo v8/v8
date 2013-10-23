@@ -123,7 +123,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     mode_ = STUB;
     return;
   }
-  mode_ = isolate->use_crankshaft() ? mode : NONOPT;
+  mode_ = mode;
   abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();

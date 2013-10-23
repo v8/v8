@@ -5249,7 +5249,7 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
   __ Cmp(Operand(temp, StandardFrameConstants::kContextOffset),
          Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &check_frame_marker, Label::kNear);
-  __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
+  __ movq(temp, Operand(temp, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
   __ bind(&check_frame_marker);
