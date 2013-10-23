@@ -5520,9 +5520,10 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
 #endif
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, TENURED);
 
   HeapObject* object;
-  { MaybeObject* maybe_object = old_pointer_space_->AllocateRaw(size);
+  { MaybeObject* maybe_object = AllocateRaw(size, space, OLD_POINTER_SPACE);
     if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
   }
   object = EnsureDoubleAligned(this, object, size);
