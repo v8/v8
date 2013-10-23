@@ -155,7 +155,12 @@ class IC {
 #endif
 
   // Set the call-site target.
-  void set_target(Code* code) { SetTargetAtAddress(address(), code); }
+  void set_target(Code* code) {
+    SetTargetAtAddress(address(), code);
+    target_set_ = true;
+  }
+
+  bool is_target_set() { return target_set_; }
 
 #ifdef DEBUG
   char TransitionMarkFromState(IC::State state);
@@ -235,6 +240,7 @@ class IC {
   // The original code target that missed.
   Handle<Code> target_;
   State state_;
+  bool target_set_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };

@@ -117,7 +117,9 @@ void IC::TraceIC(const char* type,
 #define TRACE_IC(type, name)             \
   ASSERT((TraceIC(type, name), true))
 
-IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
+IC::IC(FrameDepth depth, Isolate* isolate)
+    : isolate_(isolate),
+      target_set_(false) {
   // To improve the performance of the (much used) IC code, we unfold a few
   // levels of the stack frame iteration code. This yields a ~35% speedup when
   // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
@@ -1363,40 +1365,46 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object,
     return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
   }
 
+  MaybeObject* maybe_object = NULL;
+  Handle<Code> stub = generic_stub();
+
   // Check for values that can be converted into an internalized string directly
   // or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
   if (key->IsInternalizedString()) {
-    return LoadIC::Load(object, Handle<String>::cast(key));
-  }
-
-  if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
+    maybe_object = LoadIC::Load(object, Handle<String>::cast(key));
+    if (maybe_object->IsFailure()) return maybe_object;
+  } else if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
     ASSERT(!object->IsJSGlobalProxy());
-    Handle<Code> stub = generic_stub();
-    if (miss_mode == MISS_FORCE_GENERIC) {
-      TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "force generic");
-    } else if (object->IsString() && key->IsNumber()) {
-      if (state() == UNINITIALIZED) stub = string_stub();
-    } else if (object->IsJSObject()) {
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (receiver->elements()->map() ==
-          isolate()->heap()->non_strict_arguments_elements_map()) {
-        stub = non_strict_arguments_stub();
-      } else if (receiver->HasIndexedInterceptor()) {
-        stub = indexed_interceptor_stub();
-      } else if (!key->ToSmi()->IsFailure() &&
-                 (!target().is_identical_to(non_strict_arguments_stub()))) {
-        stub = LoadElementStub(receiver);
+    if (miss_mode != MISS_FORCE_GENERIC) {
+      if (object->IsString() && key->IsNumber()) {
+        if (state() == UNINITIALIZED) stub = string_stub();
+      } else if (object->IsJSObject()) {
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        if (receiver->elements()->map() ==
+            isolate()->heap()->non_strict_arguments_elements_map()) {
+          stub = non_strict_arguments_stub();
+        } else if (receiver->HasIndexedInterceptor()) {
+          stub = indexed_interceptor_stub();
+        } else if (!key->ToSmi()->IsFailure() &&
+                   (!target().is_identical_to(non_strict_arguments_stub()))) {
+          stub = LoadElementStub(receiver);
+        }
       }
     }
+  }
 
+  if (!is_target_set()) {
+    if (*stub == *generic_stub()) {
+      TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
+    }
     ASSERT(!stub.is_null());
     set_target(*stub);
     TRACE_IC("LoadIC", key);
   }
 
-
+  if (maybe_object != NULL) return maybe_object;
   return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
 }
 
@@ -1936,53 +1944,58 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
   // or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
+  MaybeObject* maybe_object = NULL;
+  Handle<Code> stub = generic_stub();
+
   if (key->IsInternalizedString()) {
-    return StoreIC::Store(object,
-                          Handle<String>::cast(key),
-                          value,
-                          JSReceiver::MAY_BE_STORE_FROM_KEYED);
-  }
+    maybe_object = StoreIC::Store(object,
+                                  Handle<String>::cast(key),
+                                  value,
+                                  JSReceiver::MAY_BE_STORE_FROM_KEYED);
+    if (maybe_object->IsFailure()) return maybe_object;
+  } else {
+    bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
+        !(FLAG_harmony_observation && object->IsJSObject() &&
+          JSObject::cast(*object)->map()->is_observed());
+    if (use_ic && !object->IsSmi()) {
+      // Don't use ICs for maps of the objects in Array's prototype chain. We
+      // expect to be able to trap element sets to objects with those maps in
+      // the runtime to enable optimization of element hole access.
+      Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
+      if (heap_object->map()->IsMapInArrayPrototypeChain()) use_ic = false;
+    }
 
-  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
-      !(FLAG_harmony_observation && object->IsJSObject() &&
-        JSObject::cast(*object)->map()->is_observed());
-  if (use_ic && !object->IsSmi()) {
-    // Don't use ICs for maps of the objects in Array's prototype chain. We
-    // expect to be able to trap element sets to objects with those maps in the
-    // runtime to enable optimization of element hole access.
-    Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
-    if (heap_object->map()->IsMapInArrayPrototypeChain()) use_ic = false;
-  }
+    if (use_ic) {
+      ASSERT(!object->IsJSGlobalProxy());
 
-  if (use_ic) {
-    ASSERT(!object->IsJSGlobalProxy());
-
-    Handle<Code> stub = generic_stub();
-    if (miss_mode != MISS_FORCE_GENERIC) {
-      if (object->IsJSObject()) {
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
-        if (receiver->elements()->map() ==
-            isolate()->heap()->non_strict_arguments_elements_map()) {
-          stub = non_strict_arguments_stub();
-        } else if (key_is_smi_like &&
-                   (!target().is_identical_to(non_strict_arguments_stub()))) {
-          KeyedAccessStoreMode store_mode = GetStoreMode(receiver, key, value);
-          stub = StoreElementStub(receiver, store_mode);
-        } else {
-          TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "key not a number");
+      if (miss_mode != MISS_FORCE_GENERIC) {
+        if (object->IsJSObject()) {
+          Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+          bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
+          if (receiver->elements()->map() ==
+              isolate()->heap()->non_strict_arguments_elements_map()) {
+            stub = non_strict_arguments_stub();
+          } else if (key_is_smi_like &&
+                     (!target().is_identical_to(non_strict_arguments_stub()))) {
+            KeyedAccessStoreMode store_mode =
+                GetStoreMode(receiver, key, value);
+            stub = StoreElementStub(receiver, store_mode);
+          }
         }
-      } else {
-        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "not an object");
       }
-    } else {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "force generic");
+    }
+  }
+
+  if (!is_target_set()) {
+    if (*stub == *generic_stub()) {
+      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
     }
     ASSERT(!stub.is_null());
     set_target(*stub);
     TRACE_IC("StoreIC", key);
   }
 
+  if (maybe_object) return maybe_object;
   return Runtime::SetObjectPropertyOrFail(
       isolate(), object , key, value, NONE, strict_mode());
 }
