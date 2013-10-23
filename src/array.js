@@ -430,7 +430,7 @@ function ArrayPop() {
 
   n--;
   var value = this[n];
-  delete this[n];
+  Delete(this, ToName(n), true);
   this.length = n;
   return value;
 }
