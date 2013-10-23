@@ -34,7 +34,7 @@
 # define __has_feature(x) 0
 #endif
 
-#if __has_feature(memory_sanitizer)
+#if __has_feature(memory_sanitizer) && !defined(MEMORY_SANITIZER)
 # define MEMORY_SANITIZER
 #endif
 
