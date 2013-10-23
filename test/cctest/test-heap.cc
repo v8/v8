@@ -1031,6 +1031,7 @@ TEST(TestCodeFlushing) {
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_optimize_for_size = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1076,10 +1077,76 @@ TEST(TestCodeFlushing) {
 }
 
 
+TEST(TestCodeFlushingPreAged) {
+  // If we do not flush code this test is invalid.
+  if (!FLAG_flush_code) return;
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_optimize_for_size = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(CcTest::isolate());
+  const char* source = "function foo() {"
+                       "  var x = 42;"
+                       "  var y = 42;"
+                       "  var z = x + y;"
+                       "};"
+                       "foo()";
+  Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+
+  // Compile foo, but don't run it.
+  { v8::HandleScope scope(CcTest::isolate());
+    CompileRun(source);
+  }
+
+  // Check function is compiled.
+  Object* func_value = Isolate::Current()->context()->global_object()->
+      GetProperty(*foo_name)->ToObjectChecked();
+  CHECK(func_value->IsJSFunction());
+  Handle<JSFunction> function(JSFunction::cast(func_value));
+  CHECK(function->shared()->is_compiled());
+
+  // The code has been run so will survive at least one GC.
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CHECK(function->shared()->is_compiled());
+
+  // The code was only run once, so it should be pre-aged and collected on the
+  // next GC.
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
+
+  // Execute the function again twice, and ensure it is reset to the young age.
+  { v8::HandleScope scope(CcTest::isolate());
+    CompileRun("foo();"
+               "foo();");
+  }
+
+  // The code will survive at least two GC now that it is young again.
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CHECK(function->shared()->is_compiled());
+
+  // Simulate several GCs that use full marking.
+  const int kAgingThreshold = 6;
+  for (int i = 0; i < kAgingThreshold; i++) {
+    CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  }
+
+  // foo should no longer be in the compilation cache
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
+  CHECK(!function->is_compiled() || function->IsOptimized());
+  // Call foo to get it recompiled.
+  CompileRun("foo()");
+  CHECK(function->shared()->is_compiled());
+  CHECK(function->is_compiled());
+}
+
+
 TEST(TestCodeFlushingIncremental) {
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_optimize_for_size = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1148,6 +1215,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_optimize_for_size = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1216,6 +1284,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_optimize_for_size = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

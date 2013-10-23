@@ -143,14 +143,7 @@ bool LCodeGen::GeneratePrologue() {
   if (NeedsEagerFrame()) {
     ASSERT(!frame_is_built_);
     frame_is_built_ = true;
-    __ push(rbp);  // Caller's frame pointer.
-    __ movq(rbp, rsp);
-    __ push(rsi);  // Callee's context.
-    if (info()->IsStub()) {
-      __ Push(Smi::FromInt(StackFrame::STUB));
-    } else {
-      __ push(rdi);  // Callee's JS function.
-    }
+    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     info()->AddNoFrameRange(0, masm_->pc_offset());
   }
 

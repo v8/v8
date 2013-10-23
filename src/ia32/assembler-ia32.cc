@@ -1414,7 +1414,8 @@ void Assembler::call(Handle<Code> code,
                      TypeFeedbackId ast_id) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode)
+      || rmode == RelocInfo::CODE_AGE_SEQUENCE);
   EMIT(0xE8);
   emit(code, rmode, ast_id);
 }

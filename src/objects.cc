@@ -10384,6 +10384,10 @@ void Code::CopyFrom(const CodeDesc& desc) {
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
       Address p = it.rinfo()->target_runtime_entry(origin);
       it.rinfo()->set_target_runtime_entry(p, SKIP_WRITE_BARRIER);
+    } else if (mode == RelocInfo::CODE_AGE_SEQUENCE) {
+      Handle<Object> p = it.rinfo()->code_age_stub_handle(origin);
+      Code* code = Code::cast(*p);
+      it.rinfo()->set_code_age_stub(code);
     } else {
       it.rinfo()->apply(delta);
     }
@@ -10625,6 +10629,12 @@ void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
 }
 
 
+void Code::MarkCodeAsExecuted(byte* sequence, Isolate* isolate) {
+  PatchPlatformCodeAge(isolate, sequence, kExecutedOnceCodeAge,
+      NO_MARKING_PARITY);
+}
+
+
 void Code::MakeOlder(MarkingParity current_parity) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
@@ -10642,18 +10652,14 @@ void Code::MakeOlder(MarkingParity current_parity) {
 
 
 bool Code::IsOld() {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence == NULL) return false;
-  Age age;
-  MarkingParity parity;
-  GetCodeAgeAndParity(sequence, &age, &parity);
-  return age >= kSexagenarianCodeAge;
+  Age age = GetAge();
+  return age >= kIsOldCodeAge;
 }
 
 
 byte* Code::FindCodeAgeSequence() {
   return FLAG_age_code &&
-      prologue_offset() != kPrologueOffsetNotSet &&
+      prologue_offset() != Code::kPrologueOffsetNotSet &&
       (kind() == OPTIMIZED_FUNCTION ||
        (kind() == FUNCTION && !has_debug_break_slots()))
       ? instruction_start() + prologue_offset()
@@ -10661,7 +10667,7 @@ byte* Code::FindCodeAgeSequence() {
 }
 
 
-int Code::GetAge() {
+Code::Age Code::GetAge() {
   byte* sequence = FindCodeAgeSequence();
   if (sequence == NULL) {
     return Code::kNoAge;
@@ -10693,6 +10699,20 @@ void Code::GetCodeAgeAndParity(Code* code, Age* age,
   }
   CODE_AGE_LIST(HANDLE_CODE_AGE)
 #undef HANDLE_CODE_AGE
+  stub = *builtins->MarkCodeAsExecutedOnce();
+  if (code == stub) {
+    // Treat that's never been executed as old immediatly.
+    *age = kIsOldCodeAge;
+    *parity = NO_MARKING_PARITY;
+    return;
+  }
+  stub = *builtins->MarkCodeAsExecutedTwice();
+  if (code == stub) {
+    // Pre-age code that has only been executed once.
+    *age = kPreAgedCodeAge;
+    *parity = NO_MARKING_PARITY;
+    return;
+  }
   UNREACHABLE();
 }
 
@@ -10709,6 +10729,14 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
     }
     CODE_AGE_LIST(HANDLE_CODE_AGE)
 #undef HANDLE_CODE_AGE
+    case kNotExecutedCodeAge: {
+      ASSERT(parity == NO_MARKING_PARITY);
+      return *builtins->MarkCodeAsExecutedOnce();
+    }
+    case kExecutedOnceCodeAge: {
+      ASSERT(parity == NO_MARKING_PARITY);
+      return *builtins->MarkCodeAsExecutedTwice();
+    }
     default:
       UNREACHABLE();
       break;

@@ -133,21 +133,7 @@ bool LCodeGen::GeneratePrologue() {
 
   info()->set_prologue_offset(masm_->pc_offset());
   if (NeedsEagerFrame()) {
-    if (info()->IsStub()) {
-      __ Push(ra, fp, cp);
-      __ Push(Smi::FromInt(StackFrame::STUB));
-      // Adjust FP to point to saved FP.
-      __ Addu(fp, sp, Operand(2 * kPointerSize));
-    } else {
-      // The following three instructions must remain together and unmodified
-      // for code aging to work properly.
-      __ Push(ra, fp, cp, a1);
-      // Add unused nop to ensure prologue sequence is identical for
-      // full-codegen and lithium-codegen.
-      __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-      // Adj. FP to point to saved FP.
-      __ Addu(fp, sp, Operand(2 * kPointerSize));
-    }
+    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
   }

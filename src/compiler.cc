@@ -112,7 +112,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   zone_ = zone;
   deferred_handles_ = NULL;
   code_stub_ = NULL;
-  prologue_offset_ = kPrologueOffsetNotSet;
+  prologue_offset_ = Code::kPrologueOffsetNotSet;
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;

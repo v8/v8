@@ -4585,6 +4585,40 @@ void MacroAssembler::LoadNumberAsInt32(Register object,
 }
 
 
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    Push(ra, fp, cp);
+    Push(Smi::FromInt(StackFrame::STUB));
+    // Adjust FP to point to saved FP.
+    Addu(fp, sp, Operand(2 * kPointerSize));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(
+      this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+    // The following three instructions must remain together and unmodified
+    // for code aging to work properly.
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+      // Pre-age the code.
+      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+      nop(Assembler::CODE_AGE_MARKER_NOP);
+      // Save the function's original return address
+      // (it will be clobbered by Call(t9))
+      mov(at, ra);
+      // Load the stub address to t9 and call it
+      li(t9,
+         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())));
+      Call(t9);
+      // Record the stub address in the empty space for GetCodeAgeAndParity()
+      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    } else {
+      Push(ra, fp, cp, a1);
+      nop(Assembler::CODE_AGE_SEQUENCE_NOP);
+      // Adjust fp to point to caller's fp.
+      Addu(fp, sp, Operand(2 * kPointerSize));
+    }
+  }
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   addiu(sp, sp, -5 * kPointerSize);
   li(t8, Operand(Smi::FromInt(type)));

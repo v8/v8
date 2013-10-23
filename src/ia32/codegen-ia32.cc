@@ -1117,7 +1117,6 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 #undef __
 
-static const int kNoCodeAgeSequenceLength = 5;
 
 static byte* GetNoCodeAgeSequence(uint32_t* length) {
   static bool initialized = false;

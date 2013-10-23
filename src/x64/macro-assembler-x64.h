@@ -282,6 +282,9 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 #endif
 
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
+
   // Enter specific kind of exit frame; either in normal or
   // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer

@@ -1088,6 +1088,13 @@ ExternalReference ExternalReference::get_make_code_young_function(
 }
 
 
+ExternalReference ExternalReference::get_mark_code_as_executed_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(Code::MarkCodeAsExecuted)));
+}
+
+
 ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
   return ExternalReference(isolate->date_cache()->stamp_address());
 }

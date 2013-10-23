@@ -1015,10 +1015,12 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_ref,
                               bool immovable,
-                              bool crankshafted) {
+                              bool crankshafted,
+                              int prologue_offset) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->CreateCode(
-                         desc, flags, self_ref, immovable, crankshafted),
+                         desc, flags, self_ref, immovable, crankshafted,
+                         prologue_offset),
                      Code);
 }
 

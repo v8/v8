@@ -171,12 +171,7 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  // The following three instructions must remain together and unmodified for
-  // code aging to work properly.
-  __ Push(ra, fp, cp, a1);
-  __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-  // Adjust fp to point to caller's fp.
-  __ Addu(fp, sp, Operand(2 * kPointerSize));
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");

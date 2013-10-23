@@ -589,6 +589,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       65,
       "uint32_bias");
+  Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
+      UNCLASSIFIED,
+      66,
+      "Code::MarkCodeAsExecuted");
 
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.

@@ -4978,6 +4978,8 @@ class Code: public HeapObject {
 
   static const ExtraICState kNoExtraICState = 0;
 
+  static const int kPrologueOffsetNotSet = -1;
+
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* ICState2String(InlineCacheState state);
@@ -5297,11 +5299,15 @@ class Code: public HeapObject {
 
 #define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
+    kNotExecutedCodeAge = -2,
+    kExecutedOnceCodeAge = -1,
     kNoAge = 0,
     CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
     kAfterLastCodeAge,
     kLastCodeAge = kAfterLastCodeAge - 1,
-    kCodeAgeCount = kAfterLastCodeAge - 1
+    kCodeAgeCount = kAfterLastCodeAge - 1,
+    kIsOldCodeAge = kSexagenarianCodeAge,
+    kPreAgedCodeAge = kIsOldCodeAge - 1
   };
 #undef DECLARE_CODE_AGE_ENUM
 
@@ -5310,10 +5316,14 @@ class Code: public HeapObject {
   // relatively safe to flush this code object and replace it with the lazy
   // compilation stub.
   static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
+  static void MarkCodeAsExecuted(byte* sequence, Isolate* isolate);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
-  int GetAge();
+  Age GetAge();
+  static inline Code* GetPreAgedCodeAgeStub(Isolate* isolate) {
+    return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
+  }
 
   void PrintDeoptLocation(int bailout_id);
   bool CanDeoptAt(Address pc);

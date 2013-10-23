@@ -2635,7 +2635,8 @@ void MacroAssembler::Call(Handle<Code> code_object,
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(code_object);
 #endif
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode) ||
+      rmode == RelocInfo::CODE_AGE_SEQUENCE);
   call(code_object, rmode, ast_id);
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
@@ -3645,6 +3646,30 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);
+  }
+}
+
+
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    push(rbp);  // Caller's frame pointer.
+    movq(rbp, rsp);
+    push(rsi);  // Callee's context.
+    Push(Smi::FromInt(StackFrame::STUB));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(this,
+        kNoCodeAgeSequenceLength);
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+        // Pre-age the code.
+      Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
+           RelocInfo::CODE_AGE_SEQUENCE);
+      Nop(kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
+    } else {
+      push(rbp);  // Caller's frame pointer.
+      movq(rbp, rsp);
+      push(rsi);  // Callee's context.
+      push(rdi);  // Callee's JS function.
+    }
   }
 }
 
