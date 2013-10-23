@@ -3308,10 +3308,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);
   Zone* zone = block()->zone();
-  if (!FLAG_use_allocation_folding ||
-      isolate()->heap_profiler()->is_tracking_allocations()) {
-    return;
-  }
+  if (!FLAG_use_allocation_folding) return;
 
   // Try to fold allocations together with their dominating allocations.
   if (!dominator->IsAllocate()) {
