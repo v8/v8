@@ -4233,7 +4233,11 @@ static bool LookupSetter(Handle<Map> map,
   Handle<AccessorPair> accessors;
   if (LookupAccessorPair(map, name, &accessors, holder) &&
       accessors->setter()->IsJSFunction()) {
-    *setter = Handle<JSFunction>(JSFunction::cast(accessors->setter()));
+    Handle<JSFunction> func(JSFunction::cast(accessors->setter()));
+    CallOptimization call_optimization(func);
+    // TODO(dcarney): temporary hack unless crankshaft can handle api calls.
+    if (call_optimization.is_simple_api_call()) return false;
+    *setter = func;
     return true;
   }
   return false;
@@ -4746,7 +4750,11 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
     if (!callback->IsAccessorPair()) return false;
     Object* getter = Handle<AccessorPair>::cast(callback)->getter();
     if (!getter->IsJSFunction()) return false;
-    accessor_ = handle(JSFunction::cast(getter));
+    Handle<JSFunction> accessor = handle(JSFunction::cast(getter));
+    CallOptimization call_optimization(accessor);
+    // TODO(dcarney): temporary hack unless crankshaft can handle api calls.
+    if (call_optimization.is_simple_api_call()) return false;
+    accessor_ = accessor;
   } else if (lookup_.IsConstant()) {
     constant_ = handle(lookup_.GetConstantFromMap(*map), isolate());
   }
