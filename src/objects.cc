@@ -6837,31 +6837,21 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 }
 
 
+// Since this method is used to rewrite an existing transition tree, it can
+// always insert transitions without checking.
 Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
                                         int new_descriptor,
                                         Handle<DescriptorArray> descriptors) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     map->CopyInstallDescriptors(new_descriptor, *descriptors),
-                     Map);
-}
-
-
-// Since this method is used to rewrite an existing transition tree, it can
-// always insert transitions without checking.
-MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
-                                         DescriptorArray* descriptors) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
-  Map* result;
-  MaybeObject* maybe_result = CopyDropDescriptors();
-  if (!maybe_result->To(&result)) return maybe_result;
+  Handle<Map> result = Map::CopyDropDescriptors(map);
 
-  result->InitializeDescriptors(descriptors);
+  result->InitializeDescriptors(*descriptors);
   result->SetNumberOfOwnDescriptors(new_descriptor + 1);
 
-  int unused_property_fields = this->unused_property_fields();
+  int unused_property_fields = map->unused_property_fields();
   if (descriptors->GetDetails(new_descriptor).type() == FIELD) {
-    unused_property_fields = this->unused_property_fields() - 1;
+    unused_property_fields = map->unused_property_fields() - 1;
     if (unused_property_fields < 0) {
       unused_property_fields += JSObject::kFieldsAdded;
     }
@@ -6870,14 +6860,12 @@ MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
   result->set_unused_property_fields(unused_property_fields);
   result->set_owns_descriptors(false);
 
-  Name* name = descriptors->GetKey(new_descriptor);
-  TransitionArray* transitions;
-  MaybeObject* maybe_transitions =
-      AddTransition(name, result, SIMPLE_TRANSITION);
-  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
+  Handle<TransitionArray> transitions = Map::AddTransition(map, name, result,
+                                                           SIMPLE_TRANSITION);
 
-  set_transitions(transitions);
-  result->SetBackPointer(this);
+  map->set_transitions(*transitions);
+  result->SetBackPointer(*map);
 
   return result;
 }
