@@ -5960,7 +5960,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
       HInstruction* checked_object;
       if (AreStringTypes(types)) {
         checked_object =
-            AddInstruction(HCheckInstanceType::NewIsString(object, zone()));
+            Add<HCheckInstanceType>(object, HCheckInstanceType::IS_STRING);
       } else {
         checked_object = Add<HCheckMaps>(object, types);
       }
@@ -7642,7 +7642,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
   }
   BuildCheckHeapObject(string);
   HValue* checkstring =
-      AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
+      Add<HCheckInstanceType>(string, HCheckInstanceType::IS_STRING);
   HInstruction* length = BuildLoadStringLength(string, checkstring);
   AddInstruction(length);
   HInstruction* checked_index = Add<HBoundsCheck>(index, length);
@@ -8245,9 +8245,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
           return ast_context()->ReturnControl(result, expr->id());
         } else {
           BuildCheckHeapObject(left);
-          AddInstruction(HCheckInstanceType::NewIsSpecObject(left, zone()));
+          Add<HCheckInstanceType>(left, HCheckInstanceType::IS_SPEC_OBJECT);
           BuildCheckHeapObject(right);
-          AddInstruction(HCheckInstanceType::NewIsSpecObject(right, zone()));
+          Add<HCheckInstanceType>(right, HCheckInstanceType::IS_SPEC_OBJECT);
           HCompareObjectEqAndBranch* result =
               New<HCompareObjectEqAndBranch>(left, right);
           return ast_context()->ReturnControl(result, expr->id());
@@ -8259,17 +8259,17 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   } else if (combined_type->Is(Type::InternalizedString()) &&
              Token::IsEqualityOp(op)) {
     BuildCheckHeapObject(left);
-    AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
+    Add<HCheckInstanceType>(left, HCheckInstanceType::IS_INTERNALIZED_STRING);
     BuildCheckHeapObject(right);
-    AddInstruction(HCheckInstanceType::NewIsInternalizedString(right, zone()));
+    Add<HCheckInstanceType>(right, HCheckInstanceType::IS_INTERNALIZED_STRING);
     HCompareObjectEqAndBranch* result =
         New<HCompareObjectEqAndBranch>(left, right);
     return ast_context()->ReturnControl(result, expr->id());
   } else if (combined_type->Is(Type::String())) {
     BuildCheckHeapObject(left);
-    AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
+    Add<HCheckInstanceType>(left, HCheckInstanceType::IS_STRING);
     BuildCheckHeapObject(right);
-    AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
+    Add<HCheckInstanceType>(right, HCheckInstanceType::IS_STRING);
     HStringCompareAndBranch* result =
         New<HStringCompareAndBranch>(left, right, op);
     return ast_context()->ReturnControl(result, expr->id());

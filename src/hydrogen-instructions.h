@@ -2777,19 +2777,15 @@ class HCheckValue V8_FINAL : public HUnaryOperation {
 
 class HCheckInstanceType V8_FINAL : public HUnaryOperation {
  public:
-  static HCheckInstanceType* NewIsSpecObject(HValue* value, Zone* zone) {
-    return new(zone) HCheckInstanceType(value, IS_SPEC_OBJECT);
-  }
-  static HCheckInstanceType* NewIsJSArray(HValue* value, Zone* zone) {
-    return new(zone) HCheckInstanceType(value, IS_JS_ARRAY);
-  }
-  static HCheckInstanceType* NewIsString(HValue* value, Zone* zone) {
-    return new(zone) HCheckInstanceType(value, IS_STRING);
-  }
-  static HCheckInstanceType* NewIsInternalizedString(
-      HValue* value, Zone* zone) {
-    return new(zone) HCheckInstanceType(value, IS_INTERNALIZED_STRING);
-  }
+  enum Check {
+    IS_SPEC_OBJECT,
+    IS_JS_ARRAY,
+    IS_STRING,
+    IS_INTERNALIZED_STRING,
+    LAST_INTERVAL_CHECK = IS_JS_ARRAY
+  };
+
+  DECLARE_INSTRUCTION_FACTORY_P2(HCheckInstanceType, HValue*, Check);
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
@@ -2817,14 +2813,6 @@ class HCheckInstanceType V8_FINAL : public HUnaryOperation {
   virtual int RedefinedOperandIndex() { return 0; }
 
  private:
-  enum Check {
-    IS_SPEC_OBJECT,
-    IS_JS_ARRAY,
-    IS_STRING,
-    IS_INTERNALIZED_STRING,
-    LAST_INTERVAL_CHECK = IS_JS_ARRAY
-  };
-
   const char* GetCheckName();
 
   HCheckInstanceType(HValue* value, Check check)
