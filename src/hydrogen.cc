@@ -4759,6 +4759,9 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
   Handle<Map> map = map_;
   while (map->prototype()->IsJSObject()) {
     holder_ = handle(JSObject::cast(map->prototype()));
+    if (holder_->map()->is_deprecated()) {
+      JSObject::TryMigrateInstance(holder_);
+    }
     map = Handle<Map>(holder_->map());
     if (!CanInlinePropertyAccess(*map)) {
       lookup_.NotFound();
