@@ -1682,19 +1682,15 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
 }
 
 
-void Serializer::ObjectSerializer::VisitExternalReferences(Address* start,
-                                                           Address* end) {
-  Address references_start = reinterpret_cast<Address>(start);
+void Serializer::ObjectSerializer::VisitExternalReference(Address* p) {
+  Address references_start = reinterpret_cast<Address>(p);
   int skip = OutputRawData(references_start, kCanReturnSkipInsteadOfSkipping);
 
-  for (Address* current = start; current < end; current++) {
-    sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
-    sink_->PutInt(skip, "SkipB4ExternalRef");
-    skip = 0;
-    int reference_id = serializer_->EncodeExternalReference(*current);
-    sink_->PutInt(reference_id, "reference id");
-  }
-  bytes_processed_so_far_ += static_cast<int>((end - start) * kPointerSize);
+  sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+  sink_->PutInt(skip, "SkipB4ExternalRef");
+  int reference_id = serializer_->EncodeExternalReference(*p);
+  sink_->PutInt(reference_id, "reference id");
+  bytes_processed_so_far_ += kPointerSize;
 }
 
 

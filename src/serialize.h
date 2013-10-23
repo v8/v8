@@ -339,10 +339,6 @@ class Deserializer: public SerializerDeserializer {
  private:
   virtual void VisitPointers(Object** start, Object** end);
 
-  virtual void VisitExternalReferences(Address* start, Address* end) {
-    UNREACHABLE();
-  }
-
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {
     UNREACHABLE();
   }
@@ -521,7 +517,7 @@ class Serializer : public SerializerDeserializer {
     void Serialize();
     void VisitPointers(Object** start, Object** end);
     void VisitEmbeddedPointer(RelocInfo* target);
-    void VisitExternalReferences(Address* start, Address* end);
+    void VisitExternalReference(Address* p);
     void VisitExternalReference(RelocInfo* rinfo);
     void VisitCodeTarget(RelocInfo* target);
     void VisitCodeEntry(Address entry_address);
