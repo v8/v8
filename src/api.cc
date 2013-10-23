@@ -4110,6 +4110,29 @@ Handle<Value> Function::GetInferredName() const {
 }
 
 
+Handle<Value> Function::GetDisplayName() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Function::GetDisplayName()",
+             return ToApiHandle<Primitive>(
+                isolate->factory()->undefined_value()));
+  ENTER_V8(isolate);
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  i::Handle<i::String> property_name =
+      isolate->factory()->InternalizeOneByteString(
+          STATIC_ASCII_VECTOR("displayName"));
+  i::LookupResult lookup(isolate);
+  func->LookupRealNamedProperty(*property_name, &lookup);
+  if (lookup.IsFound()) {
+    i::Object* value = lookup.GetLazyValue();
+    if (value && value->IsString()) {
+      i::String* name = i::String::cast(value);
+      if (name->length() > 0) return Utils::ToLocal(i::Handle<i::String>(name));
+    }
+  }
+  return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
+}
+
+
 ScriptOrigin Function::GetScriptOrigin() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
