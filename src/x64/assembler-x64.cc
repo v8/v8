@@ -1897,7 +1897,7 @@ void Assembler::shrd(Register dst, Register src) {
 }
 
 
-void Assembler::xchg(Register dst, Register src) {
+void Assembler::xchgq(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   if (src.is(rax) || dst.is(rax)) {  // Single-byte encoding
     Register other = src.is(rax) ? dst : src;
@@ -1909,6 +1909,24 @@ void Assembler::xchg(Register dst, Register src) {
     emit_modrm(dst, src);
   } else {
     emit_rex_64(src, dst);
+    emit(0x87);
+    emit_modrm(src, dst);
+  }
+}
+
+
+void Assembler::xchgl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  if (src.is(rax) || dst.is(rax)) {  // Single-byte encoding
+    Register other = src.is(rax) ? dst : src;
+    emit_optional_rex_32(other);
+    emit(0x90 | other.low_bits());
+  } else if (dst.low_bits() == 4) {
+    emit_optional_rex_32(dst, src);
+    emit(0x87);
+    emit_modrm(dst, src);
+  } else {
+    emit_optional_rex_32(src, dst);
     emit(0x87);
     emit_modrm(src, dst);
   }
@@ -2030,6 +2048,14 @@ void Assembler::testl(const Operand& op, Immediate mask) {
   emit(0xF7);
   emit_operand(rax, op);  // Operation code 0
   emit(mask);
+}
+
+
+void Assembler::testl(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(reg, op);
+  emit(0x85);
+  emit_operand(reg, op);
 }
 
 
