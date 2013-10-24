@@ -2091,18 +2091,6 @@ class Heap {
     return (pretenure == TENURED) ? preferred_old_space : NEW_SPACE;
   }
 
-  // Allocate an uninitialized object in map space.  The behavior is identical
-  // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
-  // have to test the allocation space argument and (b) can reduce code size
-  // (since both AllocateRaw and AllocateRawMap are inlined).
-  MUST_USE_RESULT inline MaybeObject* AllocateRawMap();
-
-  // Allocate an uninitialized object in the simple cell space.
-  MUST_USE_RESULT inline MaybeObject* AllocateRawCell();
-
-  // Allocate an uninitialized object in the global property cell space.
-  MUST_USE_RESULT inline MaybeObject* AllocateRawPropertyCell();
-
   // Allocate an uninitialized fixed array.
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(
       int length, PretenureFlag pretenure);

@@ -296,40 +296,6 @@ void Heap::FinalizeExternalString(String* string) {
 }
 
 
-MaybeObject* Heap::AllocateRawMap() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateRawCell() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result = cell_space_->AllocateRaw(Cell::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateRawPropertyCell() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result =
-      property_cell_space_->AllocateRaw(PropertyCell::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
-}
-
-
 bool Heap::InNewSpace(Object* object) {
   bool result = new_space_.Contains(object);
   ASSERT(!result ||                  // Either not in new space
