@@ -1,3 +1,19 @@
+2013-10-24: Version 3.22.20
+
+        Made Array.prototype.pop throw if the last element is not configurable.
+
+        Fixed HObjectAccess for loads from migrating prototypes.
+        (Chromium issue 305309)
+
+        Enabled preaging of code objects when --optimize-for-size.
+        (Chromium issue 280984)
+
+        Exposed v8::Function::GetDisplayName to public API.
+        (Chromium issue 17356)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-23: Version 3.22.19
 
         Fix materialization of captured objects with field tracking.
