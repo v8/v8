@@ -1465,26 +1465,24 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   // Non-relocatable values might not need a 64-bit representation.
-  if (RelocInfo::IsNone(rmode)) {
-    if (is_uint32(value)) {
-      movl(dst, Immediate(static_cast<int32_t>(value)));
-      return;
-    } else if (is_int32(value)) {
-      movq(dst, Immediate(static_cast<int32_t>(value)));
-      return;
-    }
+  ASSERT(RelocInfo::IsNone(rmode));
+  if (is_uint32(value)) {
+    movl(dst, Immediate(static_cast<int32_t>(value)));
+  } else if (is_int32(value)) {
+    movq(dst, Immediate(static_cast<int32_t>(value)));
+  } else {
     // Value cannot be represented by 32 bits, so do a full 64 bit immediate
     // value.
+    EnsureSpace ensure_space(this);
+    emit_rex_64(dst);
+    emit(0xB8 | dst.low_bits());
+    emitq(value);
   }
-  EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  emitq(value, rmode);
 }
 
 
 void Assembler::movq(Register dst, ExternalReference ref) {
-  int64_t value = reinterpret_cast<int64_t>(ref.address());
+  Address value = reinterpret_cast<Address>(ref.address());
   movq(dst, value, RelocInfo::EXTERNAL_REFERENCE);
 }
 

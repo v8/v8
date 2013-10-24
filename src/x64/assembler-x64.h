@@ -723,7 +723,6 @@ class Assembler : public AssemblerBase {
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
-  void movq(Register dst, const char* s, RelocInfo::Mode rmode);
   // Moves the address of the external reference into the register.
   void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
@@ -1474,7 +1473,7 @@ class Assembler : public AssemblerBase {
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
   inline void emitp(void* x, RelocInfo::Mode rmode);
-  inline void emitq(uint64_t x, RelocInfo::Mode rmode);
+  inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target,
                                RelocInfo::Mode rmode,
