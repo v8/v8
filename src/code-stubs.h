@@ -405,9 +405,7 @@ enum StringAddFlags {
   // Check right parameter.
   STRING_ADD_CHECK_RIGHT = 1 << 1,
   // Check both parameters.
-  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT,
-  // Stub needs a frame before calling the runtime
-  STRING_ADD_ERECT_FRAME = 1 << 2
+  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT
 };
 
 } }  // namespace v8::internal

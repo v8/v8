@@ -3938,33 +3938,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Drop(2);
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
-  if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-    GenerateRegisterArgsPop(masm, ecx);
-    // Build a frame
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      GenerateRegisterArgsPush(masm);
-      __ CallRuntime(Runtime::kStringAdd, 2);
-    }
-    __ ret(0);
-  } else {
-    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
-  }
+  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-      GenerateRegisterArgsPop(masm, ecx);
-      // Build a frame
-      {
-        FrameScope scope(masm, StackFrame::INTERNAL);
-        GenerateRegisterArgsPush(masm);
-        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
-      }
-      __ ret(0);
-    } else {
-      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
-    }
+    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
   }
 }
 
