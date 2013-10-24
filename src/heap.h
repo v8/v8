@@ -1810,26 +1810,30 @@ class Heap {
     FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
     FIRST_FIXED_ARRAY_SUB_TYPE =
         FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
-    OBJECT_STATS_COUNT =
-        FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1
+    FIRST_CODE_AGE_SUB_TYPE =
+        FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
+    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kLastCodeAge + 1
   };
 
-  void RecordObjectStats(InstanceType type, int sub_type, size_t size) {
+  void RecordObjectStats(InstanceType type, size_t size) {
     ASSERT(type <= LAST_TYPE);
-    if (sub_type < 0) {
-      object_counts_[type]++;
-      object_sizes_[type] += size;
-    } else {
-      if (type == CODE_TYPE) {
-        ASSERT(sub_type < Code::NUMBER_OF_KINDS);
-        object_counts_[FIRST_CODE_KIND_SUB_TYPE + sub_type]++;
-        object_sizes_[FIRST_CODE_KIND_SUB_TYPE + sub_type] += size;
-      } else if (type == FIXED_ARRAY_TYPE) {
-        ASSERT(sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
-        object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + sub_type]++;
-        object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + sub_type] += size;
-      }
-    }
+    object_counts_[type]++;
+    object_sizes_[type] += size;
+  }
+
+  void RecordCodeSubTypeStats(int code_sub_type, int code_age, size_t size) {
+    ASSERT(code_sub_type < Code::NUMBER_OF_KINDS);
+    ASSERT(code_age < Code::kLastCodeAge);
+    object_counts_[FIRST_CODE_KIND_SUB_TYPE + code_sub_type]++;
+    object_sizes_[FIRST_CODE_KIND_SUB_TYPE + code_sub_type] += size;
+    object_counts_[FIRST_CODE_AGE_SUB_TYPE + code_age]++;
+    object_sizes_[FIRST_CODE_AGE_SUB_TYPE + code_age] += size;
+  }
+
+  void RecordFixedArraySubTypeStats(int array_sub_type, size_t size) {
+    ASSERT(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
+    object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
+    object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
   }
 
   void CheckpointObjectStats();

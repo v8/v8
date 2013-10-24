@@ -1570,13 +1570,11 @@ void MarkCompactMarkingVisitor::ObjectStatsCountFixedArray(
       fixed_array->map() != heap->fixed_double_array_map() &&
       fixed_array != heap->empty_fixed_array()) {
     if (fixed_array->IsDictionary()) {
-      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
-                              dictionary_type,
-                              fixed_array->Size());
+      heap->RecordFixedArraySubTypeStats(dictionary_type,
+                                         fixed_array->Size());
     } else {
-      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
-                              fast_type,
-                              fixed_array->Size());
+      heap->RecordFixedArraySubTypeStats(fast_type,
+                                         fixed_array->Size());
     }
   }
 }
@@ -1586,7 +1584,7 @@ void MarkCompactMarkingVisitor::ObjectStatsVisitBase(
     MarkCompactMarkingVisitor::VisitorId id, Map* map, HeapObject* obj) {
   Heap* heap = map->GetHeap();
   int object_size = obj->Size();
-  heap->RecordObjectStats(map->instance_type(), -1, object_size);
+  heap->RecordObjectStats(map->instance_type(), object_size);
   non_count_table_.GetVisitorById(id)(map, obj);
   if (obj->IsJSObject()) {
     JSObject* object = JSObject::cast(obj);
@@ -1619,25 +1617,20 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     if (map_obj->owns_descriptors() &&
         array != heap->empty_descriptor_array()) {
       int fixed_array_size = array->Size();
-      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
-                              DESCRIPTOR_ARRAY_SUB_TYPE,
-                              fixed_array_size);
+      heap->RecordFixedArraySubTypeStats(DESCRIPTOR_ARRAY_SUB_TYPE,
+                                         fixed_array_size);
     }
     if (map_obj->HasTransitionArray()) {
       int fixed_array_size = map_obj->transitions()->Size();
-      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
-                              TRANSITION_ARRAY_SUB_TYPE,
-                              fixed_array_size);
+      heap->RecordFixedArraySubTypeStats(TRANSITION_ARRAY_SUB_TYPE,
+                                         fixed_array_size);
     }
     if (map_obj->has_code_cache()) {
       CodeCache* cache = CodeCache::cast(map_obj->code_cache());
-      heap->RecordObjectStats(
-          FIXED_ARRAY_TYPE,
-          MAP_CODE_CACHE_SUB_TYPE,
-          cache->default_cache()->Size());
+      heap->RecordFixedArraySubTypeStats(MAP_CODE_CACHE_SUB_TYPE,
+                                         cache->default_cache()->Size());
       if (!cache->normal_type_cache()->IsUndefined()) {
-        heap->RecordObjectStats(
-            FIXED_ARRAY_TYPE,
+        heap->RecordFixedArraySubTypeStats(
             MAP_CODE_CACHE_SUB_TYPE,
             FixedArray::cast(cache->normal_type_cache())->Size());
       }
@@ -1655,7 +1648,9 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     Heap* heap = map->GetHeap();
     int object_size = obj->Size();
     ASSERT(map->instance_type() == CODE_TYPE);
-    heap->RecordObjectStats(CODE_TYPE, Code::cast(obj)->kind(), object_size);
+    Code* code_obj = Code::cast(obj);
+    heap->RecordCodeSubTypeStats(code_obj->kind(), code_obj->GetAge(),
+                                 object_size);
     ObjectStatsVisitBase(kVisitCode, map, obj);
   }
 };
@@ -1669,8 +1664,7 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     Heap* heap = map->GetHeap();
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
     if (sfi->scope_info() != heap->empty_fixed_array()) {
-      heap->RecordObjectStats(
-          FIXED_ARRAY_TYPE,
+      heap->RecordFixedArraySubTypeStats(
           SCOPE_INFO_SUB_TYPE,
           FixedArray::cast(sfi->scope_info())->Size());
     }
@@ -1687,8 +1681,7 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     Heap* heap = map->GetHeap();
     FixedArray* fixed_array = FixedArray::cast(obj);
     if (fixed_array == heap->string_table()) {
-      heap->RecordObjectStats(
-          FIXED_ARRAY_TYPE,
+      heap->RecordFixedArraySubTypeStats(
           STRING_TABLE_SUB_TYPE,
           fixed_array->Size());
     }

@@ -10609,7 +10609,7 @@ BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
 
 
 void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
-  PatchPlatformCodeAge(isolate, sequence, kNoAge, NO_MARKING_PARITY);
+  PatchPlatformCodeAge(isolate, sequence, kNoAgeCodeAge, NO_MARKING_PARITY);
 }
 
 
@@ -10654,7 +10654,7 @@ byte* Code::FindCodeAgeSequence() {
 Code::Age Code::GetAge() {
   byte* sequence = FindCodeAgeSequence();
   if (sequence == NULL) {
-    return Code::kNoAge;
+    return Code::kNoAgeCodeAge;
   }
   Age age;
   MarkingParity parity;

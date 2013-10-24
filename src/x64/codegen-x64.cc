@@ -706,7 +706,7 @@ bool Code::IsYoungSequence(byte* sequence) {
 void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
                                MarkingParity* parity) {
   if (IsYoungSequence(sequence)) {
-    *age = kNoAge;
+    *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
     sequence++;  // Skip the kCallOpcode byte
@@ -724,7 +724,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 MarkingParity parity) {
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  if (age == kNoAge) {
+  if (age == kNoAgeCodeAge) {
     CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {

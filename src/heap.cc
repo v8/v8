@@ -7937,6 +7937,18 @@ void Heap::CheckpointObjectStats() {
       static_cast<int>(object_sizes_last_time_[index]));
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                 \
+  index = FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge; \
+  counters->count_of_CODE_AGE_##name()->Increment(          \
+      static_cast<int>(object_counts_[index]));             \
+  counters->count_of_CODE_AGE_##name()->Decrement(          \
+      static_cast<int>(object_counts_last_time_[index]));   \
+  counters->size_of_CODE_AGE_##name()->Increment(           \
+      static_cast<int>(object_sizes_[index]));              \
+  counters->size_of_CODE_AGE_##name()->Decrement(          \
+      static_cast<int>(object_sizes_last_time_[index]));
+  CODE_AGE_LIST_WITH_NO_AGE(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
 
   OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   OS::MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
