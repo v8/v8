@@ -25,30 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=100
+// MemorySanitizer support.
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
+#ifndef V8_MSAN_H_
+#define V8_MSAN_H_
 
-function f1(a, i) {
-  return a[i] + 0.5;
-}
+#ifndef __has_feature
+# define __has_feature(x) 0
+#endif
 
-var arr = [0.0,,2.5];
-assertEquals(0.5, f1(arr, 0));
-assertEquals(0.5, f1(arr, 0));
+#if __has_feature(memory_sanitizer) && !defined(MEMORY_SANITIZER)
+# define MEMORY_SANITIZER
+#endif
 
-// Optimized code of f1 depends on initial object and array maps.
-%OptimizeFunctionOnNextCall(f1, "concurrent");
-// Trigger optimization in the background thread
-assertEquals(0.5, f1(arr, 0));
-Object.prototype[1] = 1.5;  // Invalidate current initial object map.
-assertEquals(2, f1(arr, 1));
-// Not yet optimized while background thread is running.
-assertUnoptimized(f1, "no sync");
-// Sync with background thread to conclude optimization, which bails out
-// due to map dependency.
-assertUnoptimized(f1, "sync");
+#ifdef MEMORY_SANITIZER
+# include <sanitizer/msan_interface.h>
+// Marks a memory range as fully initialized.
+# define MSAN_MEMORY_IS_INITIALIZED(p, s) __msan_unpoison((p), (s))
+#else
+# define MSAN_MEMORY_IS_INITIALIZED(p, s)
+#endif
+
+#endif  // V8_MSAN_H_

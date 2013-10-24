@@ -95,6 +95,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(out);
       break;
+    case CONSTANT_POOL_ARRAY_TYPE:
+      ConstantPoolArray::cast(this)->ConstantPoolArrayPrint(out);
+      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(out);
       break;
@@ -624,6 +627,23 @@ void FixedDoubleArray::FixedDoubleArrayPrint(FILE* out) {
       PrintF(out, "\n  [%d]: <the hole>", i);
     } else {
       PrintF(out, "\n  [%d]: %g", i, get_scalar(i));
+    }
+  }
+  PrintF(out, "\n");
+}
+
+
+void ConstantPoolArray::ConstantPoolArrayPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "ConstantPoolArray");
+  PrintF(out, " - length: %d", length());
+  for (int i = 0; i < length(); i++) {
+    if (i < first_ptr_index()) {
+      PrintF(out, "\n  [%d]: double: %g", i, get_int64_entry_as_double(i));
+    } else if (i < first_int32_index()) {
+      PrintF(out, "\n  [%d]: pointer: %p", i,
+             reinterpret_cast<void*>(get_ptr_entry(i)));
+    } else {
+      PrintF(out, "\n  [%d]: int32: %d", i, get_int32_entry(i));
     }
   }
   PrintF(out, "\n");

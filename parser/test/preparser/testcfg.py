@@ -112,7 +112,7 @@ class PreparserTestSuite(testsuite.TestSuite):
     with open(testcase.flags[0]) as f:
       return f.read()
 
-  def VariantFlags(self):
+  def VariantFlags(self, testcase, default_flags):
     return [[]];
 
 

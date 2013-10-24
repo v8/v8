@@ -202,10 +202,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
-  int params = descriptor->register_param_count_;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    params++;
-  }
+  int params = descriptor->environment_length();
   output_frame->SetRegister(eax.code(), params);
   output_frame->SetRegister(ebx.code(), handler);
 }
@@ -250,7 +247,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
       int offset = i * kDoubleSize;
-      __ movdbl(Operand(esp, offset), xmm_reg);
+      __ movsd(Operand(esp, offset), xmm_reg);
     }
   }
 
@@ -302,8 +299,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       int dst_offset = i * kDoubleSize + double_regs_offset;
       int src_offset = i * kDoubleSize;
-      __ movdbl(xmm0, Operand(esp, src_offset));
-      __ movdbl(Operand(ebx, dst_offset), xmm0);
+      __ movsd(xmm0, Operand(esp, src_offset));
+      __ movsd(Operand(ebx, dst_offset), xmm0);
     }
   }
 
@@ -388,7 +385,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
       int src_offset = i * kDoubleSize + double_regs_offset;
-      __ movdbl(xmm_reg, Operand(ebx, src_offset));
+      __ movsd(xmm_reg, Operand(ebx, src_offset));
     }
   }
 

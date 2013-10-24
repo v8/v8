@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,17 +25,70 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that the expected string is parsed in the json parser when the length
-// is so big that the string can't fit in new space, and it includes special
-// characters.
+// Test bitwise operations with booleans.
 
-var json = '{"key":"';
-var key = '';
-var expected = '';
-for(var i = 0; i < 60000; i++) {
-  key = key + "TESTING" + i + "\\n";
-  expected = expected + "TESTING" + i + "\n";
+var t = 1;
+
+function testFalseLeftHandSide() {
+  var b;
+  if (t) b = false;
+  assertEquals(b | 1, 1);
+  assertEquals(b & 1, 0);
+  assertEquals(b ^ 1, 1);
+  assertEquals(b << 1, 0);
+  assertEquals(b >> 1, 0);
+  assertEquals(b >>> 1, 0);
 }
-json = json + key  + '"}';
-var out = JSON.parse(json);
-assertEquals(expected, out.key);
+
+function testFalseRightHandSide() {
+  if (t) b = false;
+  assertEquals(1 |   b, 1);
+  assertEquals(1 &   b, 0);
+  assertEquals(1 ^   b, 1);
+  assertEquals(1 <<  b, 1);
+  assertEquals(1 >>  b, 1);
+  assertEquals(1 >>> b, 1);
+}
+
+function testTrueLeftHandSide() {
+  if (t) b = true;
+  assertEquals(b | 1, 1);
+  assertEquals(b & 1, 1);
+  assertEquals(b ^ 1, 0);
+  assertEquals(b << 1, 2);
+  assertEquals(b >> 1, 0);
+  assertEquals(b >>> 1, 0);
+}
+
+function testTrueRightHandSide() {
+  if (t) b = true;
+  assertEquals(1 |   b, 1);
+  assertEquals(1 &   b, 1);
+  assertEquals(1 ^   b, 0);
+  assertEquals(1 <<  b, 2);
+  assertEquals(1 >>  b, 0);
+  assertEquals(1 >>> b, 0);
+}
+
+function testBothSides() {
+  if (t) a = true;
+  if (t) b = false;
+  assertEquals(a |   b, 1);
+  assertEquals(a &   b, 0);
+  assertEquals(a ^   b, 1);
+  assertEquals(a <<  b, 1);
+  assertEquals(a >>  b, 1);
+  assertEquals(a >>> b, 1);
+}
+
+
+testFalseLeftHandSide();
+testFalseRightHandSide();
+testTrueLeftHandSide();
+testTrueRightHandSide();
+testFalseLeftHandSide();
+testFalseRightHandSide();
+testTrueLeftHandSide();
+testTrueRightHandSide();
+testBothSides();
+testBothSides();

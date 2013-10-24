@@ -188,15 +188,8 @@ bool LCodeGen::GeneratePrologue() {
   if (NeedsEagerFrame()) {
     ASSERT(!frame_is_built_);
     frame_is_built_ = true;
-    __ push(ebp);  // Caller's frame pointer.
-    __ mov(ebp, esp);
+    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     info()->AddNoFrameRange(0, masm_->pc_offset());
-    __ push(esi);  // Callee's context.
-    if (info()->IsStub()) {
-      __ push(Immediate(Smi::FromInt(StackFrame::STUB)));
-    } else {
-      __ push(edi);  // Callee's JS function.
-    }
   }
 
   if (info()->IsOptimizing() &&
@@ -257,7 +250,7 @@ bool LCodeGen::GeneratePrologue() {
       BitVector* doubles = chunk()->allocated_double_registers();
       BitVector::Iterator save_iterator(doubles);
       while (!save_iterator.Done()) {
-        __ movdbl(MemOperand(esp, count * kDoubleSize),
+        __ movsd(MemOperand(esp, count * kDoubleSize),
                   XMMRegister::FromAllocationIndex(save_iterator.Current()));
         save_iterator.Advance();
         count++;
@@ -447,8 +440,9 @@ bool LCodeGen::GenerateDeferredCode() {
       X87Stack copy(code->x87_stack());
       x87_stack_ = copy;
 
-      int pos = instructions_->at(code->instruction_index())->position();
-      RecordAndUpdatePosition(pos);
+      HValue* value =
+          instructions_->at(code->instruction_index())->hydrogen_value();
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -935,8 +929,6 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                LInstruction* instr,
                                SafepointMode safepoint_mode) {
   ASSERT(instr != NULL);
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   __ call(code, mode);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode);
 
@@ -962,8 +954,6 @@ void LCodeGen::CallRuntime(const Runtime::Function* fun,
                            SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
   ASSERT(instr->HasPointerMap());
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
 
   __ CallRuntime(fun, argc, save_doubles);
 
@@ -1256,7 +1246,7 @@ void LCodeGen::RecordSafepoint(LPointerMap* pointers,
 
 
 void LCodeGen::RecordSafepoint(Safepoint::DeoptMode mode) {
-  LPointerMap empty_pointers(RelocInfo::kNoPosition, zone());
+  LPointerMap empty_pointers(zone());
   RecordSafepoint(&empty_pointers, mode);
 }
 
@@ -1268,17 +1258,10 @@ void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
 }
 
 
-void LCodeGen::RecordPosition(int position) {
+void LCodeGen::RecordAndWritePosition(int position) {
   if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
-}
-
-
-void LCodeGen::RecordAndUpdatePosition(int position) {
-  if (position >= 0 && position != old_position_) {
-    masm()->positions_recorder()->RecordPosition(position);
-    old_position_ = position;
-  }
+  masm()->positions_recorder()->WriteRecordedPositions();
 }
 
 
@@ -2233,8 +2216,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       case Token::MOD: {
         // Pass two doubles as arguments on the stack.
         __ PrepareCallCFunction(4, eax);
-        __ movdbl(Operand(esp, 0 * kDoubleSize), left);
-        __ movdbl(Operand(esp, 1 * kDoubleSize), right);
+        __ movsd(Operand(esp, 0 * kDoubleSize), left);
+        __ movsd(Operand(esp, 1 * kDoubleSize), right);
         __ CallCFunction(
             ExternalReference::double_fp_operation(Token::MOD, isolate()),
             4);
@@ -2243,7 +2226,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
         // Store it into the result register.
         __ sub(Operand(esp), Immediate(kDoubleSize));
         __ fstp_d(Operand(esp, 0));
-        __ movdbl(result, Operand(esp, 0));
+        __ movsd(result, Operand(esp, 0));
         __ add(Operand(esp), Immediate(kDoubleSize));
         break;
       }
@@ -2503,6 +2486,10 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
     case Token::EQ_STRICT:
       cond = equal;
       break;
+    case Token::NE:
+    case Token::NE_STRICT:
+      cond = not_equal;
+      break;
     case Token::LT:
       cond = is_unsigned ? below : less;
       break;
@@ -2613,7 +2600,7 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   if (use_sse2) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(instr->object());
-    __ movdbl(MemOperand(esp, 0), input_reg);
+    __ movsd(MemOperand(esp, 0), input_reg);
   } else {
     __ fstp_d(MemOperand(esp, 0));
   }
@@ -3075,7 +3062,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     BitVector::Iterator save_iterator(doubles);
     int count = 0;
     while (!save_iterator.Done()) {
-      __ movdbl(XMMRegister::FromAllocationIndex(save_iterator.Current()),
+      __ movsd(XMMRegister::FromAllocationIndex(save_iterator.Current()),
                 MemOperand(esp, count * kDoubleSize));
       save_iterator.Advance();
       count++;
@@ -3243,7 +3230,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister result = ToDoubleRegister(instr->result());
-      __ movdbl(result, FieldOperand(object, offset));
+      __ movsd(result, FieldOperand(object, offset));
     } else {
       X87Mov(ToX87Register(instr->result()), FieldOperand(object, offset));
     }
@@ -3397,7 +3384,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
-      __ movdbl(ToDoubleRegister(instr->result()), operand);
+      __ movsd(ToDoubleRegister(instr->result()), operand);
     } else {
       X87Mov(ToX87Register(instr->result()), operand);
     }
@@ -3468,7 +3455,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister result = ToDoubleRegister(instr->result());
-    __ movdbl(result, double_load_operand);
+    __ movsd(result, double_load_operand);
   } else {
     X87Mov(ToX87Register(instr->result()), double_load_operand);
   }
@@ -3685,7 +3672,6 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ bind(&invoke);
   ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(
       this, pointers, Safepoint::kLazyDeopt);
   ParameterCount actual(eax);
@@ -3770,9 +3756,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   bool can_invoke_directly =
       dont_adapt_arguments || formal_parameter_count == arity;
 
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
-
   if (can_invoke_directly) {
     if (edi_state == EDI_UNINITIALIZED) {
       __ LoadHeapObject(edi, function);
@@ -3797,6 +3780,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
   } else {
     // We need to adapt arguments.
+    LPointerMap* pointers = instr->pointer_map();
     SafepointGenerator generator(
         this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
@@ -3991,7 +3975,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
       ExternalReference::address_of_minus_one_half();
 
   Label done, round_to_zero, below_one_half, do_not_compensate;
-  __ movdbl(xmm_scratch, Operand::StaticVariable(one_half));
+  __ movsd(xmm_scratch, Operand::StaticVariable(one_half));
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_one_half);
 
@@ -4005,7 +3989,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ jmp(&done);
 
   __ bind(&below_one_half);
-  __ movdbl(xmm_scratch, Operand::StaticVariable(minus_one_half));
+  __ movsd(xmm_scratch, Operand::StaticVariable(minus_one_half));
   __ ucomisd(xmm_scratch, input_reg);
   __ j(below_equal, &round_to_zero);
 
@@ -4192,22 +4176,21 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ j(equal, &zero, Label::kNear);
   ExternalReference nan =
       ExternalReference::address_of_canonical_non_hole_nan();
-  __ movdbl(input_reg, Operand::StaticVariable(nan));
+  __ movsd(input_reg, Operand::StaticVariable(nan));
   __ jmp(&done, Label::kNear);
   __ bind(&zero);
-  __ push(Immediate(0xFFF00000));
-  __ push(Immediate(0));
-  __ movdbl(input_reg, Operand(esp, 0));
-  __ add(Operand(esp), Immediate(kDoubleSize));
+  ExternalReference ninf =
+      ExternalReference::address_of_negative_infinity();
+  __ movsd(input_reg, Operand::StaticVariable(ninf));
   __ jmp(&done, Label::kNear);
   __ bind(&positive);
   __ fldln2();
   __ sub(Operand(esp), Immediate(kDoubleSize));
-  __ movdbl(Operand(esp, 0), input_reg);
+  __ movsd(Operand(esp, 0), input_reg);
   __ fld_d(Operand(esp, 0));
   __ fyl2x();
   __ fstp_d(Operand(esp, 0));
-  __ movdbl(input_reg, Operand(esp, 0));
+  __ movsd(input_reg, Operand(esp, 0));
   __ add(Operand(esp), Immediate(kDoubleSize));
   __ bind(&done);
 }
@@ -4266,7 +4249,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   Handle<JSFunction> known_function = instr->hydrogen()->known_function();
   if (known_function.is_null()) {
     LPointerMap* pointers = instr->pointer_map();
-    RecordPosition(pointers->position());
     SafepointGenerator generator(
         this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
@@ -4478,7 +4460,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister value = ToDoubleRegister(instr->value());
-      __ movdbl(FieldOperand(object, offset), value);
+      __ movsd(FieldOperand(object, offset), value);
     } else {
       X87Register value = ToX87Register(instr->value());
       X87Mov(FieldOperand(object, offset), value);
@@ -4628,7 +4610,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
-      __ movdbl(operand, ToDoubleRegister(instr->value()));
+      __ movsd(operand, ToDoubleRegister(instr->value()));
     } else {
       X87Mov(operand, ToX87Register(instr->value()));
     }
@@ -4686,11 +4668,11 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       __ ucomisd(value, value);
       __ j(parity_odd, &have_value);  // NaN.
 
-      __ movdbl(value, Operand::StaticVariable(canonical_nan_reference));
+      __ movsd(value, Operand::StaticVariable(canonical_nan_reference));
       __ bind(&have_value);
     }
 
-    __ movdbl(double_store_operand, value);
+    __ movsd(double_store_operand, value);
   } else {
     // Can't use SSE2 in the serializer
     if (instr->hydrogen()->IsConstantHoleStore()) {
@@ -4813,8 +4795,10 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  __ TestJSArrayForAllocationMemento(object, temp);
+  Label no_memento_found;
+  __ TestJSArrayForAllocationMemento(object, temp, &no_memento_found);
   DeoptimizeIf(equal, instr->environment());
+  __ bind(&no_memento_found);
 }
 
 
@@ -5154,7 +5138,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   __ bind(&done);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope feature_scope(masm(), SSE2);
-    __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), xmm_scratch);
+    __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), xmm_scratch);
   } else {
     __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
@@ -5198,7 +5182,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   if (use_sse2) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(instr->value());
-    __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
+    __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
   } else {
     __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
@@ -5341,7 +5325,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     }
 
     // Heap number to XMM conversion.
-    __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
 
     if (deoptimize_on_minus_zero) {
       XMMRegister xmm_scratch = double_scratch0();
@@ -5363,7 +5347,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
       ExternalReference nan =
           ExternalReference::address_of_canonical_non_hole_nan();
-      __ movdbl(result_reg, Operand::StaticVariable(nan));
+      __ movsd(result_reg, Operand::StaticVariable(nan));
       __ jmp(&done, Label::kNear);
     }
   } else {
@@ -5383,25 +5367,36 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
   Register input_reg = ToRegister(instr->value());
 
-
   if (instr->truncating()) {
-    Label heap_number, slow_case;
+    Label no_heap_number, check_bools, check_false;
 
     // Heap number map check.
     __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
            factory()->heap_number_map());
-    __ j(equal, &heap_number, Label::kNear);
-
-    // Check for undefined. Undefined is converted to zero for truncating
-    // conversions.
-    __ cmp(input_reg, factory()->undefined_value());
-    __ RecordComment("Deferred TaggedToI: cannot truncate");
-    DeoptimizeIf(not_equal, instr->environment());
-    __ mov(input_reg, 0);
+    __ j(not_equal, &no_heap_number, Label::kNear);
+    __ TruncateHeapNumberToI(input_reg, input_reg);
     __ jmp(done);
 
-    __ bind(&heap_number);
-    __ TruncateHeapNumberToI(input_reg, input_reg);
+    __ bind(&no_heap_number);
+    // Check for Oddballs. Undefined/False is converted to zero and True to one
+    // for truncating conversions.
+    __ cmp(input_reg, factory()->undefined_value());
+    __ j(not_equal, &check_bools, Label::kNear);
+    __ Set(input_reg, Immediate(0));
+    __ jmp(done);
+
+    __ bind(&check_bools);
+    __ cmp(input_reg, factory()->true_value());
+    __ j(not_equal, &check_false, Label::kNear);
+    __ Set(input_reg, Immediate(1));
+    __ jmp(done);
+
+    __ bind(&check_false);
+    __ cmp(input_reg, factory()->false_value());
+    __ RecordComment("Deferred TaggedToI: cannot truncate");
+    DeoptimizeIf(not_equal, instr->environment());
+    __ Set(input_reg, Immediate(0));
+    __ jmp(done);
   } else {
     Label bailout;
     XMMRegister scratch = (instr->temp() != NULL)
@@ -5741,7 +5736,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ movdbl(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ movsd(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
   __ ClampDoubleToUint8(xmm_scratch, temp_xmm_reg, input_reg);
   __ jmp(&done, Label::kNear);
 

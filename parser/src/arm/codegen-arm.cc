@@ -402,8 +402,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
     ASSERT(allocation_memento_found != NULL);
-    __ TestJSArrayForAllocationMemento(r2, r4);
-    __ b(eq, allocation_memento_found);
+    __ JumpIfJSArrayHasAllocationMemento(r2, r4, allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -432,8 +431,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label loop, entry, convert_hole, gc_required, only_change_map, done;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(r2, r4);
-    __ b(eq, fail);
+    __ JumpIfJSArrayHasAllocationMemento(r2, r4, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -559,8 +557,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label entry, loop, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(r2, r4);
-    __ b(eq, fail);
+    __ JumpIfJSArrayHasAllocationMemento(r2, r4, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -874,7 +871,7 @@ bool Code::IsYoungSequence(byte* sequence) {
 void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
                                MarkingParity* parity) {
   if (IsYoungSequence(sequence)) {
-    *age = kNoAge;
+    *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
     Address target_address = Memory::Address_at(
@@ -891,7 +888,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 MarkingParity parity) {
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  if (age == kNoAge) {
+  if (age == kNoAgeCodeAge) {
     CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {

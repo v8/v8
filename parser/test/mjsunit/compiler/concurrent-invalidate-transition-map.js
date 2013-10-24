@@ -25,30 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=50
+// Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
 
-function f(foo) { return foo.bar(); }
+function new_object() {
+  var o = {};
+  o.a = 1;
+  o.b = 2;
+  return o;
+}
 
-var o = {};
-o.__proto__ = { __proto__: { bar: function() { return 1; } } };
+function add_field(obj) {
+  obj.c = 3;
+}
 
-assertEquals(1, f(o));
-assertEquals(1, f(o));
+add_field(new_object());
+add_field(new_object());
+%OptimizeFunctionOnNextCall(add_field, "concurrent");
 
-// Mark for concurrent optimization.
-%OptimizeFunctionOnNextCall(f, "concurrent");
-// Trigger optimization in the background thread.
-assertEquals(1, f(o));
-// While concurrent recompilation is running, optimization not yet done.
-assertUnoptimized(f, "no sync");
-// Change the prototype chain during optimization to trigger map invalidation.
-o.__proto__.__proto__ = { bar: function() { return 2; } };
-// Optimization eventually bails out due to map dependency.
-assertUnoptimized(f, "sync");
-assertEquals(2, f(o));
+var o = new_object();
+// Kick off recompilation.
+add_field(o);
+// Invalidate transition map after compile graph has been created.
+o.c = 2.2;
+// In the mean time, concurrent recompiling is still blocked.
+assertUnoptimized(add_field, "no sync");
+// Let concurrent recompilation proceed.
+%UnblockConcurrentRecompilation();
+// Sync with background thread to conclude optimization that bailed out.
+assertUnoptimized(add_field, "sync");

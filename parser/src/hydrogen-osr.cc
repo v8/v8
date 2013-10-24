@@ -54,10 +54,10 @@ HBasicBlock* HOsrBuilder::BuildOsrLoopEntry(IterationStatement* statement) {
   HValue* true_value = graph->GetConstantTrue();
   HBranch* test = builder_->New<HBranch>(true_value, ToBooleanStub::Types(),
                                          non_osr_entry, osr_entry_);
-  builder_->current_block()->Finish(test);
+  builder_->FinishCurrentBlock(test);
 
   HBasicBlock* loop_predecessor = graph->CreateBasicBlock();
-  non_osr_entry->Goto(loop_predecessor);
+  builder_->Goto(non_osr_entry, loop_predecessor);
 
   builder_->set_current_block(osr_entry_);
   osr_entry_->set_osr_entry();
@@ -97,7 +97,7 @@ HBasicBlock* HOsrBuilder::BuildOsrLoopEntry(IterationStatement* statement) {
   builder_->Add<HOsrEntry>(osr_entry_id);
   HContext* context = builder_->Add<HContext>();
   environment->BindContext(context);
-  builder_->current_block()->Goto(loop_predecessor);
+  builder_->Goto(loop_predecessor);
   loop_predecessor->SetJoinId(statement->EntryId());
   builder_->set_current_block(loop_predecessor);
 

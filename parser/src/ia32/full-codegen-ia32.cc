@@ -158,10 +158,7 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  __ push(ebp);  // Caller's frame pointer.
-  __ mov(ebp, esp);
-  __ push(esi);  // Callee's context.
-  __ push(edi);  // Callee's JS Function.
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -3310,7 +3307,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
     __ cvtss2sd(xmm1, xmm1);
     __ xorps(xmm0, xmm1);
     __ subsd(xmm0, xmm1);
-    __ movdbl(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
+    __ movsd(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
   } else {
     // 0x4130000000000000 is 1.0 x 2^20 as a double.
     __ mov(FieldOperand(edi, HeapNumber::kExponentOffset),

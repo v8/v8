@@ -50,6 +50,10 @@ enum BuiltinExtraArguments {
 #define CODE_AGE_LIST(V) \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
+#define CODE_AGE_LIST_WITH_NO_AGE(V)               \
+  V(NoAge)                                         \
+  CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
+
 #define DECLARE_CODE_AGE_BUILTIN(C, V)             \
   V(Make##C##CodeYoungAgainOddMarking, BUILTIN,    \
     UNINITIALIZED, Code::kNoExtraICState)          \
@@ -117,13 +121,9 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_Miss,                   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(StoreIC_Slow,                   BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
   V(KeyedStoreIC_Miss,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(KeyedStoreIC_MissForceGeneric,  BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
-  V(KeyedStoreIC_Slow,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(LoadIC_Initialize,              LOAD_IC, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -208,12 +208,21 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StackCheck,                     BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+                                                                        \
+  V(MarkCodeAsExecutedOnce,         BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(MarkCodeAsExecutedTwice,        BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                                                 \
   V(LoadIC_Slow,                    LOAD_IC, Code::kNoExtraICState)       \
   V(KeyedLoadIC_Slow,               KEYED_LOAD_IC, Code::kNoExtraICState) \
+  V(StoreIC_Slow,                   STORE_IC, Code::kNoExtraICState)      \
+  V(StoreIC_Slow_Strict,            STORE_IC, kStrictMode)                \
+  V(KeyedStoreIC_Slow,              KEYED_STORE_IC, Code::kNoExtraICState)\
+  V(KeyedStoreIC_Slow_Strict,       KEYED_STORE_IC, kStrictMode)          \
   V(LoadIC_Normal,                  LOAD_IC, Code::kNoExtraICState)       \
   V(StoreIC_Normal,                 STORE_IC, Code::kNoExtraICState)      \
   V(StoreIC_Normal_Strict,          STORE_IC, kStrictMode)
@@ -412,6 +421,9 @@ class Builtins {
       MacroAssembler* masm);
   CODE_AGE_LIST(DECLARE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DECLARE_CODE_AGE_BUILTIN_GENERATOR
+
+  static void Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm);
+  static void Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm);
 
   static void InitBuiltinFunctionTable();
 

@@ -193,6 +193,10 @@ void BreakableStatementChecker::VisitDebuggerStatement(
 }
 
 
+void BreakableStatementChecker::VisitCaseClause(CaseClause* clause) {
+}
+
+
 void BreakableStatementChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
@@ -341,8 +345,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  code->set_has_debug_break_slots(
-      info->isolate()->debugger()->IsDebuggerActive());
   code->set_compiled_optimizable(info->IsOptimizable());
 #endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
@@ -826,7 +828,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
-    CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+    CodeGenerator::RecordPositions(masm_, stmt->position());
   } else {
     // Check if the statement will be breakable without adding a debug break
     // slot.
@@ -836,7 +838,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
     // breakable. For breakable statements the actual recording of the
     // position will be postponed to the breakable code (typically an IC).
     bool position_recorded = CodeGenerator::RecordPositions(
-        masm_, stmt->statement_pos(), !checker.is_breakable());
+        masm_, stmt->position(), !checker.is_breakable());
     // If the position recording did record a new position generate a debug
     // break slot to make the statement breakable.
     if (position_recorded) {
@@ -844,15 +846,15 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
     }
   }
 #else
-  CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+  CodeGenerator::RecordPositions(masm_, stmt->position());
 #endif
 }
 
 
-void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
+void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
-    CodeGenerator::RecordPositions(masm_, pos);
+    CodeGenerator::RecordPositions(masm_, expr->position());
   } else {
     // Check if the expression will be breakable without adding a debug break
     // slot.
@@ -866,7 +868,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
     // statement positions this is used for e.g. the condition expression of
     // a do while loop.
     bool position_recorded = CodeGenerator::RecordPositions(
-        masm_, pos, !checker.is_breakable());
+        masm_, expr->position(), !checker.is_breakable());
     // If the position recording did record a new position generate a debug
     // break slot to make the statement breakable.
     if (position_recorded) {
@@ -1293,7 +1295,7 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   // possible to break on the condition.
   __ bind(loop_statement.continue_label());
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
-  SetExpressionPosition(stmt->cond(), stmt->condition_position());
+  SetExpressionPosition(stmt->cond());
   VisitForControl(stmt->cond(),
                   &book_keeping,
                   loop_statement.break_label(),
@@ -1515,6 +1517,11 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
+void FullCodeGenerator::VisitCaseClause(CaseClause* clause) {
+  UNREACHABLE();
+}
+
+
 void FullCodeGenerator::VisitConditional(Conditional* expr) {
   Comment cmnt(masm_, "[ Conditional");
   Label true_case, false_case, done;
@@ -1522,8 +1529,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
 
   PrepareForBailoutForId(expr->ThenId(), NO_REGISTERS);
   __ bind(&true_case);
-  SetExpressionPosition(expr->then_expression(),
-                        expr->then_expression_position());
+  SetExpressionPosition(expr->then_expression());
   if (context()->IsTest()) {
     const TestContext* for_test = TestContext::cast(context());
     VisitForControl(expr->then_expression(),
@@ -1537,8 +1543,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
 
   PrepareForBailoutForId(expr->ElseId(), NO_REGISTERS);
   __ bind(&false_case);
-  SetExpressionPosition(expr->else_expression(),
-                        expr->else_expression_position());
+  SetExpressionPosition(expr->else_expression());
   VisitInDuplicateContext(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
   if (!context()->IsTest()) {

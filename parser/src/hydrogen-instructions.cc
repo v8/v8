@@ -741,6 +741,10 @@ void HInstruction::InsertBefore(HInstruction* next) {
   next_ = next;
   previous_ = prev;
   SetBlock(next->block());
+  if (position() == RelocInfo::kNoPosition &&
+      next->position() != RelocInfo::kNoPosition) {
+    set_position(next->position());
+  }
 }
 
 
@@ -774,6 +778,10 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   if (next != NULL) next->previous_ = this;
   if (block->last() == previous) {
     block->set_last(this);
+  }
+  if (position() == RelocInfo::kNoPosition &&
+      previous->position() != RelocInfo::kNoPosition) {
+    set_position(previous->position());
   }
 }
 
@@ -1592,6 +1600,11 @@ Range* HConstant::InferRange(Zone* zone) {
 }
 
 
+int HPhi::position() const {
+  return block()->first()->position();
+}
+
+
 Range* HPhi::InferRange(Zone* zone) {
   Representation r = representation();
   if (r.IsSmiOrInteger32()) {
@@ -2396,6 +2409,12 @@ void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
 }
 
 
+void HCapturedObject::PrintDataTo(StringStream* stream) {
+  stream->Add("#%d ", capture_id());
+  HDematerializedObject::PrintDataTo(stream);
+}
+
+
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
   ASSERT(return_target->IsInlineReturnTarget());
@@ -2557,6 +2576,7 @@ bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
   if (block()->graph()->has_osr() &&
       block()->graph()->IsStandardConstant(this)) {
+    // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
     return true;
   }
   if (UseCount() == 0) return true;

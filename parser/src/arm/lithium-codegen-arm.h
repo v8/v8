@@ -59,8 +59,7 @@ class LCodeGen: public LCodeGenBase {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple),
-        old_position_(RelocInfo::kNoPosition) {
+        expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -291,8 +290,8 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
                                               int arguments,
                                               Safepoint::DeoptMode mode);
-  void RecordPosition(int position);
-  void RecordAndUpdatePosition(int position) V8_OVERRIDE;
+
+  void RecordAndWritePosition(int position) V8_OVERRIDE;
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -380,8 +379,6 @@ class LCodeGen: public LCodeGenBase {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
-
-  int old_position_;
 
   class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
    public:

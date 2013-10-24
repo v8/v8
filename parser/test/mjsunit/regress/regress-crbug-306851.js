@@ -25,33 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --track-fields --track-double-fields --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=100
+// Flags: --allow-natives-syntax
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
+function Counter() {
+  this.value = 0;
+};
+
+Object.defineProperty(Counter.prototype, 'count', {
+  get: function() { return this.value; },
+  set: function(value) { this.value = value; }
+});
+
+var obj = new Counter();
+
+function bummer() {
+  obj.count++;
+  return obj.count;
 }
 
-function new_object() {
-  var o = {};
-  o.a = 1;
-  o.b = 2;
-  return o;
-}
-
-function add_field(obj) {
-  obj.c = 3;
-}
-
-add_field(new_object());
-add_field(new_object());
-%OptimizeFunctionOnNextCall(add_field, "concurrent");
-
-var o = new_object();
-// Trigger optimization in the background thread.
-add_field(o);
-// Invalidate transition map while optimization is underway.
-o.c = 2.2;
-// Sync with background thread to conclude optimization that bailed out.
-assertUnoptimized(add_field, "sync");
+assertEquals(1, bummer());
+assertEquals(2, bummer());
+assertEquals(3, bummer());
+%OptimizeFunctionOnNextCall(bummer);
+assertEquals(4, bummer());
+assertEquals(5, bummer());
+assertEquals(6, bummer());

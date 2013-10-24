@@ -229,7 +229,7 @@ void LPointerMap::PrintTo(StringStream* stream) {
     if (i != 0) stream->Add(";");
     pointer_operands_[i]->PrintTo(stream);
   }
-  stream->Add("} @%d", position());
+  stream->Add("}");
 }
 
 

@@ -3526,9 +3526,8 @@ bool v8::Object::HasRealNamedProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasRealNamedProperty()",
              return false);
-  return Utils::OpenHandle(this)->HasRealNamedProperty(
-      isolate,
-      *Utils::OpenHandle(*key));
+  return i::JSObject::HasRealNamedProperty(Utils::OpenHandle(this),
+                                           Utils::OpenHandle(*key));
 }
 
 
@@ -3536,7 +3535,7 @@ bool v8::Object::HasRealIndexedProperty(uint32_t index) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasRealIndexedProperty()",
              return false);
-  return Utils::OpenHandle(this)->HasRealElementProperty(isolate, index);
+  return i::JSObject::HasRealElementProperty(Utils::OpenHandle(this), index);
 }
 
 
@@ -3546,9 +3545,8 @@ bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
              "v8::Object::HasRealNamedCallbackProperty()",
              return false);
   ENTER_V8(isolate);
-  return Utils::OpenHandle(this)->HasRealNamedCallbackProperty(
-      isolate,
-      *Utils::OpenHandle(*key));
+  return i::JSObject::HasRealNamedCallbackProperty(Utils::OpenHandle(this),
+                                                   Utils::OpenHandle(*key));
 }
 
 
@@ -4112,6 +4110,29 @@ Handle<Value> Function::GetInferredName() const {
 }
 
 
+Handle<Value> Function::GetDisplayName() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Function::GetDisplayName()",
+             return ToApiHandle<Primitive>(
+                isolate->factory()->undefined_value()));
+  ENTER_V8(isolate);
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  i::Handle<i::String> property_name =
+      isolate->factory()->InternalizeOneByteString(
+          STATIC_ASCII_VECTOR("displayName"));
+  i::LookupResult lookup(isolate);
+  func->LookupRealNamedProperty(*property_name, &lookup);
+  if (lookup.IsFound()) {
+    i::Object* value = lookup.GetLazyValue();
+    if (value && value->IsString()) {
+      i::String* name = i::String::cast(value);
+      if (name->length() > 0) return Utils::ToLocal(i::Handle<i::String>(name));
+    }
+  }
+  return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
+}
+
+
 ScriptOrigin Function::GetScriptOrigin() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
@@ -4147,6 +4168,12 @@ int Function::GetScriptColumnNumber() const {
     return i::GetScriptColumnNumber(script, func->shared()->start_position());
   }
   return kLineOffsetNotFound;
+}
+
+
+bool Function::IsBuiltin() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  return func->IsBuiltin();
 }
 
 
@@ -6350,31 +6377,30 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
 }
 
 
-void Isolate::SetObjectGroupId(const Persistent<Value>& object,
-                               UniqueId id) {
+void Isolate::SetObjectGroupId(internal::Object** object, UniqueId id) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetObjectGroupId(
-      Utils::OpenPersistent(object).location(),
+      v8::internal::Handle<v8::internal::Object>(object).location(),
       id);
 }
 
 
-void Isolate::SetReferenceFromGroup(UniqueId id,
-                                    const Persistent<Value>& object) {
+void Isolate::SetReferenceFromGroup(UniqueId id, internal::Object** object) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetReferenceFromGroup(
       id,
-      Utils::OpenPersistent(object).location());
+      v8::internal::Handle<v8::internal::Object>(object).location());
 }
 
 
-void Isolate::SetReference(const Persistent<Object>& parent,
-                           const Persistent<Value>& child) {
+void Isolate::SetReference(internal::Object** parent,
+                           internal::Object** child) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Object** parent_location = Utils::OpenPersistent(parent).location();
+  i::Object** parent_location =
+      v8::internal::Handle<v8::internal::Object>(parent).location();
   internal_isolate->global_handles()->SetReference(
       reinterpret_cast<i::HeapObject**>(parent_location),
-      Utils::OpenPersistent(child).location());
+      v8::internal::Handle<v8::internal::Object>(child).location());
 }
 
 
@@ -6928,6 +6954,12 @@ int CpuProfileNode::GetLineNumber() const {
 }
 
 
+int CpuProfileNode::GetColumnNumber() const {
+  return reinterpret_cast<const i::ProfileNode*>(this)->
+      entry()->column_number();
+}
+
+
 const char* CpuProfileNode::GetBailoutReason() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return node->entry()->bailout_reason();
@@ -7291,6 +7323,16 @@ size_t HeapProfiler::GetProfilerMemorySize() {
 void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
                                          RetainedObjectInfo* info) {
   reinterpret_cast<i::HeapProfiler*>(this)->SetRetainedObjectInfo(id, info);
+}
+
+
+void HeapProfiler::StartRecordingHeapAllocations() {
+  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapAllocationsRecording();
+}
+
+
+void HeapProfiler::StopRecordingHeapAllocations() {
+  reinterpret_cast<i::HeapProfiler*>(this)->StopHeapAllocationsRecording();
 }
 
 

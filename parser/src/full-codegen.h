@@ -576,7 +576,7 @@ class FullCodeGenerator: public AstVisitor {
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
-  void SetExpressionPosition(Expression* expr, int pos);
+  void SetExpressionPosition(Expression* expr);
   void SetStatementPosition(int pos);
   void SetSourcePosition(int pos);
 

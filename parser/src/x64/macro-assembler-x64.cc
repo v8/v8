@@ -740,7 +740,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   bind(&profiler_disabled);
   // Call the api function!
-  movq(rax, reinterpret_cast<int64_t>(function_address),
+  movq(rax, reinterpret_cast<Address>(function_address),
        RelocInfo::EXTERNAL_REFERENCE);
 
   bind(&end_profiler_check);
@@ -2492,8 +2492,7 @@ void MacroAssembler::Move(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(dst, source);
   }
 }
 
@@ -2503,8 +2502,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     movq(dst, kScratchRegister);
   }
 }
@@ -2515,8 +2513,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     cmpq(dst, kScratchRegister);
   }
 }
@@ -2527,8 +2524,7 @@ void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     cmpq(dst, kScratchRegister);
   }
 }
@@ -2539,47 +2535,22 @@ void MacroAssembler::Push(Handle<Object> source) {
   if (source->IsSmi()) {
     Push(Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     push(kScratchRegister);
   }
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
+void MacroAssembler::MoveHeapObject(Register result,
+                                    Handle<Object> object) {
   AllowDeferredHandleDereference using_raw_address;
+  ASSERT(object->IsHeapObject());
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
     movq(result, cell, RelocInfo::CELL);
     movq(result, Operand(result, 0));
   } else {
-    Move(result, object);
-  }
-}
-
-
-void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movq(kScratchRegister, cell, RelocInfo::CELL);
-    cmpq(reg, Operand(kScratchRegister, 0));
-  } else {
-    Cmp(reg, object);
-  }
-}
-
-
-void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movq(kScratchRegister, cell, RelocInfo::CELL);
-    movq(kScratchRegister, Operand(kScratchRegister, 0));
-    push(kScratchRegister);
-  } else {
-    Push(object);
+    movq(result, object, RelocInfo::EMBEDDED_OBJECT);
   }
 }
 
@@ -2664,7 +2635,8 @@ void MacroAssembler::Call(Handle<Code> code_object,
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(code_object);
 #endif
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode) ||
+      rmode == RelocInfo::CODE_AGE_SEQUENCE);
   call(code_object, rmode, ast_id);
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
@@ -3591,7 +3563,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(rdi, function);
+  Move(rdi, function);
   movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -3674,6 +3646,30 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);
+  }
+}
+
+
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    push(rbp);  // Caller's frame pointer.
+    movq(rbp, rsp);
+    push(rsi);  // Callee's context.
+    Push(Smi::FromInt(StackFrame::STUB));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(this,
+        kNoCodeAgeSequenceLength);
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+        // Pre-age the code.
+      Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
+           RelocInfo::CODE_AGE_SEQUENCE);
+      Nop(kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
+    } else {
+      push(rbp);  // Caller's frame pointer.
+      movq(rbp, rsp);
+      push(rsi);  // Callee's context.
+      push(rdi);  // Callee's JS function.
+    }
   }
 }
 
@@ -4093,6 +4089,10 @@ void MacroAssembler::Allocate(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  if (isolate()->heap_profiler()->is_tracking_allocations()) {
+    RecordObjectAllocation(isolate(), result, object_size);
+  }
+
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
   if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
@@ -4171,6 +4171,10 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
+
+  if (isolate()->heap_profiler()->is_tracking_allocations()) {
+    RecordObjectAllocation(isolate(), result, object_size);
+  }
 
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
@@ -4913,8 +4917,8 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
-    Register scratch_reg) {
-  Label no_memento_available;
+    Register scratch_reg,
+    Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -4924,12 +4928,43 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   movq(kScratchRegister, new_space_start);
   cmpq(scratch_reg, kScratchRegister);
-  j(less, &no_memento_available);
+  j(less, no_memento_found);
   cmpq(scratch_reg, ExternalOperand(new_space_allocation_top));
-  j(greater, &no_memento_available);
+  j(greater, no_memento_found);
   CompareRoot(MemOperand(scratch_reg, -AllocationMemento::kSize),
               Heap::kAllocationMementoMapRootIndex);
-  bind(&no_memento_available);
+}
+
+
+void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
+                                            Register object,
+                                            Register object_size) {
+  FrameScope frame(this, StackFrame::EXIT);
+  PushSafepointRegisters();
+  PrepareCallCFunction(3);
+  // In case object is rdx
+  movq(kScratchRegister, object);
+  movq(arg_reg_3, object_size);
+  movq(arg_reg_2, kScratchRegister);
+  movq(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
+  CallCFunction(
+      ExternalReference::record_object_allocation_function(isolate), 3);
+  PopSafepointRegisters();
+}
+
+
+void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
+                                            Register object,
+                                            int object_size) {
+  FrameScope frame(this, StackFrame::EXIT);
+  PushSafepointRegisters();
+  PrepareCallCFunction(3);
+  movq(arg_reg_2, object);
+  movq(arg_reg_3, Immediate(object_size));
+  movq(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
+  CallCFunction(
+      ExternalReference::record_object_allocation_function(isolate), 3);
+  PopSafepointRegisters();
 }
 
 

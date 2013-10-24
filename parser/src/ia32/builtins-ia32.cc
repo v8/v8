@@ -563,6 +563,44 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
+  // For now, as in GenerateMakeCodeYoungAgainCommon, we are relying on the fact
+  // that make_code_young doesn't do any garbage collection which allows us to
+  // save/restore the registers without worrying about which of them contain
+  // pointers.
+  __ pushad();
+  __ mov(eax, Operand(esp, 8 * kPointerSize));
+  __ sub(eax, Immediate(Assembler::kCallInstructionLength));
+  {  // NOLINT
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(2, ebx);
+    __ mov(Operand(esp, 1 * kPointerSize),
+           Immediate(ExternalReference::isolate_address(masm->isolate())));
+    __ mov(Operand(esp, 0), eax);
+    __ CallCFunction(
+        ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
+        2);
+  }
+  __ popad();
+
+  // Perform prologue operations usually performed by the young code stub.
+  __ pop(eax);   // Pop return address into scratch register.
+  __ push(ebp);  // Caller's frame pointer.
+  __ mov(ebp, esp);
+  __ push(esi);  // Callee's context.
+  __ push(edi);  // Callee's JS Function.
+  __ push(eax);  // Push return address after frame prologue.
+
+  // Jump to point after the code-age stub.
+  __ ret(0);
+}
+
+
+void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
+  GenerateMakeCodeYoungAgainCommon(masm);
+}
+
+
 void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
   // Enter an internal frame.
   {

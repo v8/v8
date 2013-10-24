@@ -1414,7 +1414,8 @@ void Assembler::call(Handle<Code> code,
                      TypeFeedbackId ast_id) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode)
+      || rmode == RelocInfo::CODE_AGE_SEQUENCE);
   EMIT(0xE8);
   emit(code, rmode, ast_id);
 }
@@ -2067,6 +2068,7 @@ void Assembler::xorps(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
   EMIT(0x0F);
@@ -2076,6 +2078,7 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::andpd(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2085,6 +2088,7 @@ void Assembler::andpd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::orpd(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2247,18 +2251,6 @@ void Assembler::prefetch(const Operand& src, int level) {
 }
 
 
-void Assembler::movdbl(XMMRegister dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  movsd(dst, src);
-}
-
-
-void Assembler::movdbl(const Operand& dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  movsd(dst, src);
-}
-
-
 void Assembler::movsd(const Operand& dst, XMMRegister src ) {
   ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2347,7 +2339,7 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(0x0F);
   EMIT(0x3A);
   EMIT(0x17);
-  emit_sse_operand(dst, src);
+  emit_sse_operand(src, dst);
   EMIT(imm8);
 }
 
@@ -2483,6 +2475,11 @@ void Assembler::emit_sse_operand(XMMRegister dst, XMMRegister src) {
 
 void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
   EMIT(0xC0 | dst.code() << 3 | src.code());
+}
+
+
+void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
+  EMIT(0xC0 | (dst.code() << 3) | src.code());
 }
 
 

@@ -1,3 +1,104 @@
+2013-10-24: Version 3.22.21
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-24: Version 3.22.20
+
+        Made Array.prototype.pop throw if the last element is not configurable.
+
+        Fixed HObjectAccess for loads from migrating prototypes.
+        (Chromium issue 305309)
+
+        Enabled preaging of code objects when --optimize-for-size.
+        (Chromium issue 280984)
+
+        Exposed v8::Function::GetDisplayName to public API.
+        (Chromium issue 17356)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-23: Version 3.22.19
+
+        Fix materialization of captured objects with field tracking.
+        (Chromium issue 298990)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-22: Version 3.22.18
+
+        Add tool to visualize machine code/lithium.
+
+        Handle misaligned loads and stores in load elimination. Do not track
+        misaligned loads and be conservative about invalidating misaligned
+        stores. (issue 2934)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-21: Version 3.22.17
+
+        Harmony: Implement Math.trunc and Math.sign. (issue 2938)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-21: Version 3.22.16
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-18: Version 3.22.15
+
+        Enabled calling the SetReference* & SetObjectGroupId functions with a
+        Persistent<SubclassOfValue>.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-17: Version 3.22.14
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-16: Version 3.22.13
+
+        Do not look up ArrayBuffer on global object in typed array constructor.
+        (issue 2931)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-15: Version 3.22.12
+
+        Added histograms to track fraction of heap spaces and percentage of
+        generated crankshaft code.
+
+        Moved v8_optimized_debug default value to standalone.gypi.
+
+        Track JS allocations as they arrive with no affection on performance
+        when tracking is switched off (Chromium issue 277984).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-14: Version 3.22.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-11: Version 3.22.10
+
+        Fixed timezone issues with date-time/parse-* tests.
+        (Chromium issue 2919)
+
+        Added column getter to CpuProfileNode (Chromium issue 302537)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-10: Version 3.22.9
 
         Ensure only whitelisted stubs have sse2 versions in the snapshot.

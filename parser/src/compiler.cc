@@ -112,7 +112,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   zone_ = zone;
   deferred_handles_ = NULL;
   code_stub_ = NULL;
-  prologue_offset_ = kPrologueOffsetNotSet;
+  prologue_offset_ = Code::kPrologueOffsetNotSet;
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
@@ -123,7 +123,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     mode_ = STUB;
     return;
   }
-  mode_ = isolate->use_crankshaft() ? mode : NONOPT;
+  mode_ = mode;
   abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
@@ -313,6 +313,43 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 }
 
 
+class HOptimizedGraphBuilderWithPotisions: public HOptimizedGraphBuilder {
+ public:
+  explicit HOptimizedGraphBuilderWithPotisions(CompilationInfo* info)
+      : HOptimizedGraphBuilder(info) {
+  }
+
+#define DEF_VISIT(type)                                 \
+  virtual void Visit##type(type* node) V8_OVERRIDE {    \
+    if (node->position() != RelocInfo::kNoPosition) {   \
+      SetSourcePosition(node->position());              \
+    }                                                   \
+    HOptimizedGraphBuilder::Visit##type(node);          \
+  }
+  EXPRESSION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                                          \
+  virtual void Visit##type(type* node) V8_OVERRIDE {             \
+    if (node->position() != RelocInfo::kNoPosition) {            \
+      SetSourcePosition(node->position());                       \
+    }                                                            \
+    HOptimizedGraphBuilder::Visit##type(node);                   \
+  }
+  STATEMENT_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                                            \
+  virtual void Visit##type(type* node) V8_OVERRIDE {               \
+    HOptimizedGraphBuilder::Visit##type(node);                     \
+  }
+  MODULE_NODE_LIST(DEF_VISIT)
+  DECLARATION_NODE_LIST(DEF_VISIT)
+  AUXILIARY_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+};
+
+
 RecompileJob::Status RecompileJob::CreateGraph() {
   ASSERT(isolate()->use_crankshaft());
   ASSERT(info()->IsOptimizing());
@@ -419,7 +456,9 @@ RecompileJob::Status RecompileJob::CreateGraph() {
   // Type-check the function.
   AstTyper::Run(info());
 
-  graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info());
+  graph_builder_ = FLAG_emit_opt_code_positions
+      ? new(info()->zone()) HOptimizedGraphBuilderWithPotisions(info())
+      : new(info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
   graph_ = graph_builder_->CreateGraph();
@@ -552,6 +591,33 @@ static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
                                           bool allow_lazy_without_ctx = false) {
   return LiveEditFunctionTracker::IsActive(info->isolate()) ||
          (info->isolate()->DebuggerHasBreakPoints() && !allow_lazy_without_ctx);
+}
+
+
+// Sets the expected number of properties based on estimate from compiler.
+void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
+                                          int estimate) {
+  // See the comment in SetExpectedNofProperties.
+  if (shared->live_objects_may_exist()) return;
+
+  // If no properties are added in the constructor, they are more likely
+  // to be added later.
+  if (estimate == 0) estimate = 2;
+
+  // TODO(yangguo): check whether those heuristics are still up-to-date.
+  // We do not shrink objects that go into a snapshot (yet), so we adjust
+  // the estimate conservatively.
+  if (Serializer::enabled()) {
+    estimate += 2;
+  } else if (FLAG_clever_optimizations) {
+    // Inobject slack tracking will reclaim redundant inobject space later,
+    // so we can afford to adjust the estimate generously.
+    estimate += 8;
+  } else {
+    estimate += 3;
+  }
+
+  shared->set_expected_nof_properties(estimate);
 }
 
 

@@ -186,7 +186,7 @@ Debug.LiveEdit = new function() {
     // to old version.
     if (link_to_old_script_list.length == 0) {
       %LiveEditReplaceScript(script, new_source, null);
-      old_script = void 0;
+      old_script = UNDEFINED;
     } else {
       var old_script_name = CreateNameForOldScript(script);
 
@@ -266,7 +266,7 @@ Debug.LiveEdit = new function() {
       // LiveEdit itself believe that any function in heap that points to a
       // particular script is a regular function.
       // For some functions we will restore this link later.
-      %LiveEditFunctionSetScript(info.shared_function_info, void 0);
+      %LiveEditFunctionSetScript(info.shared_function_info, UNDEFINED);
       compile_info.push(info);
       old_index_map.push(i);
     }
@@ -542,16 +542,16 @@ Debug.LiveEdit = new function() {
     this.children = children;
     // an index in array of compile_info
     this.array_index = array_index;
-    this.parent = void 0;
+    this.parent = UNDEFINED;
 
     this.status = FunctionStatus.UNCHANGED;
     // Status explanation is used for debugging purposes and will be shown
     // in user UI if some explanations are needed.
-    this.status_explanation = void 0;
-    this.new_start_pos = void 0;
-    this.new_end_pos = void 0;
-    this.corresponding_node = void 0;
-    this.unmatched_new_nodes = void 0;
+    this.status_explanation = UNDEFINED;
+    this.new_start_pos = UNDEFINED;
+    this.new_end_pos = UNDEFINED;
+    this.corresponding_node = UNDEFINED;
+    this.unmatched_new_nodes = UNDEFINED;
 
     // 'Textual' correspondence/matching is weaker than 'pure'
     // correspondence/matching. We need 'textual' level for visual presentation
@@ -559,10 +559,10 @@ Debug.LiveEdit = new function() {
     // Sometimes only function body is changed (functions in old and new script
     // textually correspond), but we cannot patch the code, so we see them
     // as an old function deleted and new function created.
-    this.textual_corresponding_node = void 0;
-    this.textually_unmatched_new_nodes = void 0;
+    this.textual_corresponding_node = UNDEFINED;
+    this.textually_unmatched_new_nodes = UNDEFINED;
 
-    this.live_shared_function_infos = void 0;
+    this.live_shared_function_infos = UNDEFINED;
   }
 
   // From array of function infos that is implicitly a tree creates
@@ -740,7 +740,7 @@ Debug.LiveEdit = new function() {
                 old_children[old_index].status_explanation =
                     "Enclosing function is now incompatible. " +
                     scope_change_description;
-                old_children[old_index].corresponding_node = void 0;
+                old_children[old_index].corresponding_node = UNDEFINED;
               } else if (old_children[old_index].status !=
                   FunctionStatus.UNCHANGED) {
                 ProcessNode(old_children[old_index],
@@ -748,7 +748,7 @@ Debug.LiveEdit = new function() {
                 if (old_children[old_index].status == FunctionStatus.DAMAGED) {
                   unmatched_new_nodes_list.push(
                       old_children[old_index].corresponding_node);
-                  old_children[old_index].corresponding_node = void 0;
+                  old_children[old_index].corresponding_node = UNDEFINED;
                   old_node.status = FunctionStatus.CHANGED;
                 }
               }

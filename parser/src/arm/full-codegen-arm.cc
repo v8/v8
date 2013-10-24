@@ -163,16 +163,7 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  {
-    PredictableCodeSizeScope predictible_code_size_scope(
-        masm_, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
-    // The following three instructions must remain together and unmodified
-    // for code aging to work properly.
-    __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-    __ nop(ip.code());
-    // Adjust FP to point to saved FP.
-    __ add(fp, sp, Operand(2 * kPointerSize));
-  }
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=50
+// Flags: --allow-natives-syntax
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
+// Test the performance.now() function of d8.  This test only makes sense with
+// d8.
+
+// Don't run this test in gc stress mode. Time differences may be long
+// due to garbage collections.
+%SetFlags("--gc-interval=-1");
+%SetFlags("--nostress-compaction");
+
+if (this.performance && performance.now) {
+  (function run() {
+    var start_test = performance.now();
+    // Let the retry run for maximum 100ms to reduce flakiness.
+    for (var start = performance.now();
+        start - start_test < 100;
+        start = performance.now()) {
+      var end = performance.now();
+      assertTrue(start >= start_test);
+      assertTrue(end >= start);
+      while (end - start == 0) {
+        var next = performance.now();
+        assertTrue(next >= end);
+        end = next;
+      }
+      if (end - start <= 1) {
+        // Found (sub-)millisecond granularity.
+        return;
+      } else {
+        print("Timer difference too big: " + (end - start) + "ms");
+      }
+    }
+    assertTrue(false);
+  })()
 }
-
-function f(x) {
-  var xx = x * x;
-  var xxstr = xx.toString();
-  return xxstr.length;
-}
-
-function g(x) {
-  var xxx = Math.sqrt(x) | 0;
-  var xxxstr = xxx.toString();
-  return xxxstr.length;
-}
-
-function k(x) {
-  return x * x;
-}
-
-f(g(1));
-assertUnoptimized(f);
-assertUnoptimized(g);
-
-%OptimizeFunctionOnNextCall(f, "concurrent");
-%OptimizeFunctionOnNextCall(g, "concurrent");
-f(g(2));  // Trigger optimization.
-
-assertUnoptimized(f, "no sync");  // Not yet optimized while background thread
-assertUnoptimized(g, "no sync");  // is running.
-
-assertOptimized(f, "sync");  // Optimized once we sync with the
-assertOptimized(g, "sync");  // background thread.

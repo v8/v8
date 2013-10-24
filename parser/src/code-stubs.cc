@@ -41,7 +41,7 @@ namespace internal {
 
 CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
     : register_param_count_(-1),
-      stack_parameter_count_(NULL),
+      stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
@@ -473,6 +473,7 @@ void BinaryOpStub::GenerateAheadOfTime(Isolate* isolate) {
   Generate(Token::SHR, INT32, SMI, SMI, OVERWRITE_RIGHT, isolate);
   Generate(Token::SHR, NUMBER, SMI, SMI, NO_OVERWRITE, isolate);
   Generate(Token::SHR, NUMBER, SMI, SMI, OVERWRITE_LEFT, isolate);
+  Generate(Token::SHR, NUMBER, SMI, INT32, OVERWRITE_RIGHT, isolate);
   Generate(Token::SHR, SMI, SMI, SMI, NO_OVERWRITE, isolate);
   Generate(Token::SHR, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
   Generate(Token::SHR, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
@@ -569,16 +570,8 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
 
   State max_input = Max(left_state_, right_state_);
 
-  // Avoid unnecessary Representation changes.
-  if (left_state_ == STRING && right_state_ < STRING) {
-    right_state_ = GENERIC;
-  } else if (right_state_ == STRING && left_state_ < STRING) {
-    left_state_ = GENERIC;
-  } else if ((right_state_ == GENERIC && left_state_ != STRING) ||
-             (left_state_ == GENERIC && right_state_ != STRING)) {
-    left_state_ = right_state_ = GENERIC;
-  } else if (!has_int_result() && op_ != Token::SHR &&
-             max_input <= NUMBER && max_input > result_state_) {
+  if (!has_int_result() && op_ != Token::SHR &&
+      max_input <= NUMBER && max_input > result_state_) {
     result_state_ = max_input;
   }
 
@@ -586,25 +579,35 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
          op_ == Token::ADD);
 
   if (old_state == GetExtraICState()) {
-    // Since the fpu is to precise, we might bail out on numbers which
-    // actually would truncate with 64 bit precision.
-    ASSERT(!CpuFeatures::IsSupported(SSE2) &&
-           result_state_ <= INT32);
-    result_state_ = NUMBER;
+    // Tagged operations can lead to non-truncating HChanges
+    if (left->IsUndefined() || left->IsBoolean()) {
+      left_state_ = GENERIC;
+    } else if (right->IsUndefined() || right->IsBoolean()) {
+      right_state_ = GENERIC;
+    } else {
+      // Since the fpu is to precise, we might bail out on numbers which
+      // actually would truncate with 64 bit precision.
+      ASSERT(!CpuFeatures::IsSupported(SSE2) &&
+             result_state_ <= INT32);
+      result_state_ = NUMBER;
+    }
   }
 }
 
 
 void BinaryOpStub::UpdateStatus(Handle<Object> object,
                                 State* state) {
+  bool is_truncating = (op_ == Token::BIT_AND || op_ == Token::BIT_OR ||
+                        op_ == Token::BIT_XOR || op_ == Token::SAR ||
+                        op_ == Token::SHL || op_ == Token::SHR);
   v8::internal::TypeInfo type = v8::internal::TypeInfo::FromValue(object);
+  if (object->IsBoolean() && is_truncating) {
+    // Booleans are converted by truncating by HChange.
+    type = TypeInfo::Integer32();
+  }
   if (object->IsUndefined()) {
     // Undefined will be automatically truncated for us by HChange.
-    type = (op_ == Token::BIT_AND || op_ == Token::BIT_OR ||
-            op_ == Token::BIT_XOR || op_ == Token::SAR ||
-            op_ == Token::SHL || op_ == Token::SHR)
-      ? TypeInfo::Integer32()
-      : TypeInfo::Double();
+    type = is_truncating ? TypeInfo::Integer32() : TypeInfo::Double();
   }
   State int_state = SmiValuesAre32Bits() ? NUMBER : INT32;
   State new_state = NONE;
@@ -1115,6 +1118,12 @@ void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
   InstallDescriptor(isolate, &stub2);
   ArrayNArgumentsConstructorStub stub3(GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub3);
+}
+
+
+void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
+  NumberToStringStub stub;
+  InstallDescriptor(isolate, &stub);
 }
 
 

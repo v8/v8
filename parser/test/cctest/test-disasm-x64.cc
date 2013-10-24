@@ -392,6 +392,13 @@ TEST(DisasmX64) {
     }
   }
 
+  {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatureScope scope(&assm, SSE4_1);
+      __ extractps(rax, xmm1, 0);
+    }
+  }
+
   // Nop instructions
   for (int i = 0; i < 16; i++) {
     __ Nop(i);

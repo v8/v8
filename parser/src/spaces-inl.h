@@ -28,6 +28,7 @@
 #ifndef V8_SPACES_INL_H_
 #define V8_SPACES_INL_H_
 
+#include "heap-profiler.h"
 #include "isolate.h"
 #include "spaces.h"
 #include "v8memory.h"
@@ -273,11 +274,17 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
 
 
 // Raw allocation.
-MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
+MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
+                                     AllocationType event) {
+  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
+
   HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
+    }
+    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
+      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -291,6 +298,9 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
     }
+    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
+      profiler->NewObjectEvent(object->address(), size_in_bytes);
+    }
     return object;
   }
 
@@ -298,6 +308,9 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
+    }
+    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
+      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -332,9 +345,14 @@ MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
     return SlowAllocateRaw(size_in_bytes);
   }
 
-  Object* obj = HeapObject::FromAddress(old_top);
+  HeapObject* obj = HeapObject::FromAddress(old_top);
   allocation_info_.top += size_in_bytes;
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+
+  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
+  if (profiler != NULL && profiler->is_tracking_allocations()) {
+    profiler->NewObjectEvent(obj->address(), size_in_bytes);
+  }
 
   return obj;
 }

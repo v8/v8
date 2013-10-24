@@ -723,7 +723,6 @@ class Assembler : public AssemblerBase {
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
-  void movq(Register dst, const char* s, RelocInfo::Mode rmode);
   // Moves the address of the external reference into the register.
   void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
@@ -756,7 +755,8 @@ class Assembler : public AssemblerBase {
   void cmovl(Condition cc, Register dst, const Operand& src);
 
   // Exchange two registers
-  void xchg(Register dst, Register src);
+  void xchgq(Register dst, Register src);
+  void xchgl(Register dst, Register src);
 
   // Arithmetics
   void addl(Register dst, Register src) {
@@ -991,6 +991,10 @@ class Assembler : public AssemblerBase {
     arithmetic_op(0x09, src, dst);
   }
 
+  void orl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x09, src, dst);
+  }
+
   void or_(Register dst, Immediate src) {
     immediate_arithmetic_op(0x1, dst, src);
   }
@@ -1014,6 +1018,10 @@ class Assembler : public AssemblerBase {
 
   void rol(Register dst, Immediate imm8) {
     shift(dst, imm8, 0x0);
+  }
+
+  void roll(Register dst, Immediate imm8) {
+    shift_32(dst, imm8, 0x0);
   }
 
   void rcr(Register dst, Immediate imm8) {
@@ -1123,6 +1131,10 @@ class Assembler : public AssemblerBase {
     arithmetic_op_32(0x2B, dst, src);
   }
 
+  void subl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x29, src, dst);
+  }
+
   void subl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x5, dst, src);
   }
@@ -1141,6 +1153,7 @@ class Assembler : public AssemblerBase {
   void testb(const Operand& op, Register reg);
   void testl(Register dst, Register src);
   void testl(Register reg, Immediate mask);
+  void testl(const Operand& op, Register reg);
   void testl(const Operand& op, Immediate mask);
   void testq(const Operand& op, Register reg);
   void testq(Register dst, Register src);
@@ -1164,6 +1177,10 @@ class Assembler : public AssemblerBase {
 
   void xorl(Register dst, Immediate src) {
     immediate_arithmetic_op_32(0x6, dst, src);
+  }
+
+  void xorl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x31, src, dst);
   }
 
   void xorl(const Operand& dst, Immediate src) {
@@ -1474,7 +1491,7 @@ class Assembler : public AssemblerBase {
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
   inline void emitp(void* x, RelocInfo::Mode rmode);
-  inline void emitq(uint64_t x, RelocInfo::Mode rmode);
+  inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target,
                                RelocInfo::Mode rmode,

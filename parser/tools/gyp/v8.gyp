@@ -209,6 +209,10 @@
         '../../src/accessors.h',
         '../../src/allocation.cc',
         '../../src/allocation.h',
+        '../../src/allocation-site-scopes.cc',
+        '../../src/allocation-site-scopes.h',
+        '../../src/allocation-tracker.cc',
+        '../../src/allocation-tracker.h',
         '../../src/api.cc',
         '../../src/api.h',
         '../../src/apiutils.h',
@@ -344,6 +348,7 @@
         '../../src/hydrogen-environment-liveness.h',
         '../../src/hydrogen-escape-analysis.cc',
         '../../src/hydrogen-escape-analysis.h',
+        '../../src/hydrogen-flow-engine.h',
         '../../src/hydrogen-instructions.cc',
         '../../src/hydrogen-instructions.h',
         '../../src/hydrogen.cc',
@@ -933,6 +938,7 @@
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
+          '../../src/harmony-math.js'
         ],
       },
       'actions': [

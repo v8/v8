@@ -150,54 +150,6 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 }
 
 
-void SetExpectedNofProperties(Handle<JSFunction> func, int nof) {
-  // If objects constructed from this function exist then changing
-  // 'estimated_nof_properties' is dangerous since the previous value might
-  // have been compiled into the fast construct stub. More over, the inobject
-  // slack tracking logic might have adjusted the previous value, so even
-  // passing the same value is risky.
-  if (func->shared()->live_objects_may_exist()) return;
-
-  func->shared()->set_expected_nof_properties(nof);
-  if (func->has_initial_map()) {
-    Handle<Map> new_initial_map =
-        func->GetIsolate()->factory()->CopyMap(
-            Handle<Map>(func->initial_map()));
-    new_initial_map->set_unused_property_fields(nof);
-    func->set_initial_map(*new_initial_map);
-  }
-}
-
-
-static int ExpectedNofPropertiesFromEstimate(int estimate) {
-  // If no properties are added in the constructor, they are more likely
-  // to be added later.
-  if (estimate == 0) estimate = 2;
-
-  // We do not shrink objects that go into a snapshot (yet), so we adjust
-  // the estimate conservatively.
-  if (Serializer::enabled()) return estimate + 2;
-
-  // Inobject slack tracking will reclaim redundant inobject space later,
-  // so we can afford to adjust the estimate generously.
-  if (FLAG_clever_optimizations) {
-    return estimate + 8;
-  } else {
-    return estimate + 3;
-  }
-}
-
-
-void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
-                                          int estimate) {
-  // See the comment in SetExpectedNofProperties.
-  if (shared->live_objects_may_exist()) return;
-
-  shared->set_expected_nof_properties(
-      ExpectedNofPropertiesFromEstimate(estimate));
-}
-
-
 void FlattenString(Handle<String> string) {
   CALL_HEAP_FUNCTION_VOID(string->GetIsolate(), string->TryFlatten());
 }

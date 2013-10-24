@@ -306,7 +306,7 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
     number_of_objects_++;
     block_states_.Clear();
 
-    // Perform actual analysis steps.
+    // Perform actual analysis step.
     AnalyzeDataFlow(allocate);
 
     cumulative_values_ += number_of_values_;
@@ -320,8 +320,13 @@ void HEscapeAnalysisPhase::Run() {
   // TODO(mstarzinger): We disable escape analysis with OSR for now, because
   // spill slots might be uninitialized. Needs investigation.
   if (graph()->has_osr()) return;
-  CollectCapturedValues();
-  PerformScalarReplacement();
+  int max_fixpoint_iteration_count = FLAG_escape_analysis_iterations;
+  for (int i = 0; i < max_fixpoint_iteration_count; i++) {
+    CollectCapturedValues();
+    if (captured_.is_empty()) break;
+    PerformScalarReplacement();
+    captured_.Clear();
+  }
 }
 
 

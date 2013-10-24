@@ -401,6 +401,7 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Handle<Cell> target_cell_handle());
   INLINE(void set_target_cell(Cell* cell,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
+  INLINE(Handle<Object> code_age_stub_handle(Assembler* origin));
   INLINE(Code* code_age_stub());
   INLINE(void set_code_age_stub(Code* stub));
 
@@ -727,6 +728,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference date_cache_stamp(Isolate* isolate);
 
   static ExternalReference get_make_code_young_function(Isolate* isolate);
+  static ExternalReference get_mark_code_as_executed_function(Isolate* isolate);
+
+  // New heap objects tracking support.
+  static ExternalReference record_object_allocation_function(Isolate* isolate);
 
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
@@ -810,6 +815,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_canonical_non_hole_nan();
   static ExternalReference address_of_the_hole_nan();
+  static ExternalReference address_of_uint32_bias();
 
   static ExternalReference math_sin_double_function(Isolate* isolate);
   static ExternalReference math_cos_double_function(Isolate* isolate);

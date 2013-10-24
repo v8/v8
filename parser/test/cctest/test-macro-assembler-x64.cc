@@ -2649,10 +2649,8 @@ TEST(LoadAndStoreWithRepresentation) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   masm->set_allow_stub_calls(false);
-  __ push(rbp);
-  __ movq(rbp, rsp);
-  __ subq(rsp, Immediate(1 * kPointerSize));
   EntryCode(masm);
+  __ subq(rsp, Immediate(1 * kPointerSize));
   Label exit;
 
   // Test 1.
@@ -2735,14 +2733,13 @@ TEST(LoadAndStoreWithRepresentation) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  __ addq(rsp, Immediate(1 * kPointerSize));
   ExitCode(masm);
-  __ movq(rsp, rbp);
-  __ pop(rbp);
   __ ret(0);
 
   CodeDesc desc;
   masm->GetCode(&desc);
-  // Call the function from C++.A
+  // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
 }

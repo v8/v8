@@ -232,7 +232,7 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
   j(not_equal, &done, Label::kNear);
 
   sub(esp, Immediate(kDoubleSize));
-  movdbl(MemOperand(esp, 0), input_reg);
+  movsd(MemOperand(esp, 0), input_reg);
   SlowTruncateToI(result_reg, esp, 0);
   add(esp, Immediate(kDoubleSize));
   bind(&done);
@@ -344,7 +344,7 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
     }
   } else if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(this, SSE2);
-    movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     cvttsd2si(result_reg, Operand(xmm0));
     cmp(result_reg, 0x80000000u);
     j(not_equal, &done, Label::kNear);
@@ -361,7 +361,7 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
     if (input_reg.is(result_reg)) {
       // Input is clobbered. Restore number from double scratch.
       sub(esp, Immediate(kDoubleSize));
-      movdbl(MemOperand(esp, 0), xmm0);
+      movsd(MemOperand(esp, 0), xmm0);
       SlowTruncateToI(result_reg, esp, 0);
       add(esp, Immediate(kDoubleSize));
     } else {
@@ -390,7 +390,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
     ASSERT(!temp.is(no_xmm_reg));
     CpuFeatureScope scope(this, SSE2);
 
-    movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     cvttsd2si(result_reg, Operand(xmm0));
     Cvtsi2sd(temp, Operand(result_reg));
     ucomisd(xmm0, temp);
@@ -445,19 +445,14 @@ void MacroAssembler::TaggedToI(Register result_reg,
 }
 
 
-
-static double kUint32Bias =
-    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
-
-
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src,
                                 XMMRegister scratch) {
-  ASSERT(!Serializer::enabled());
   Label done;
   cmp(src, Immediate(0));
-  movdbl(scratch,
-         Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
+  ExternalReference uint32_bias =
+        ExternalReference::address_of_uint32_bias();
+  movsd(scratch, Operand::StaticVariable(uint32_bias));
   Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, scratch);
@@ -466,13 +461,14 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
 
 
 void MacroAssembler::LoadUint32NoSSE2(Register src) {
-  ASSERT(!Serializer::enabled());
   Label done;
   push(src);
   fild_s(Operand(esp, 0));
   cmp(src, Immediate(0));
   j(not_sign, &done, Label::kNear);
-  fld_d(Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
+  ExternalReference uint32_bias =
+        ExternalReference::address_of_uint32_bias();
+  fld_d(Operand::StaticVariable(uint32_bias));
   faddp(1);
   bind(&done);
   add(esp, Immediate(kPointerSize));
@@ -820,9 +816,9 @@ void MacroAssembler::StoreNumberToDoubleElements(
       ExternalReference::address_of_canonical_non_hole_nan();
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
     CpuFeatureScope use_sse2(this, SSE2);
-    movdbl(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
+    movsd(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
     bind(&have_double_value);
-    movdbl(FieldOperand(elements, key, times_4,
+    movsd(FieldOperand(elements, key, times_4,
                         FixedDoubleArray::kHeaderSize - elements_offset),
            scratch2);
   } else {
@@ -842,7 +838,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   bind(&is_nan);
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
     CpuFeatureScope use_sse2(this, SSE2);
-    movdbl(scratch2, Operand::StaticVariable(canonical_nan_reference));
+    movsd(scratch2, Operand::StaticVariable(canonical_nan_reference));
   } else {
     fld_d(Operand::StaticVariable(canonical_nan_reference));
   }
@@ -856,7 +852,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
     CpuFeatureScope fscope(this, SSE2);
     Cvtsi2sd(scratch2, scratch1);
-    movdbl(FieldOperand(elements, key, times_4,
+    movsd(FieldOperand(elements, key, times_4,
                         FixedDoubleArray::kHeaderSize - elements_offset),
            scratch2);
   } else {
@@ -1017,6 +1013,30 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    push(ebp);  // Caller's frame pointer.
+    mov(ebp, esp);
+    push(esi);  // Callee's context.
+    push(Immediate(Smi::FromInt(StackFrame::STUB)));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(this,
+        kNoCodeAgeSequenceLength);
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+        // Pre-age the code.
+      call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
+          RelocInfo::CODE_AGE_SEQUENCE);
+      Nop(kNoCodeAgeSequenceLength - Assembler::kCallInstructionLength);
+    } else {
+      push(ebp);  // Caller's frame pointer.
+      mov(ebp, esp);
+      push(esi);  // Callee's context.
+      push(edi);  // Callee's JS function.
+    }
+  }
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
@@ -1072,7 +1092,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
     const int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      movdbl(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
+      movsd(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else {
     sub(esp, Immediate(argc * kPointerSize));
@@ -1116,7 +1136,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     const int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      movdbl(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
+      movsd(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
     }
   }
 
@@ -3074,7 +3094,7 @@ void MacroAssembler::LookupNumberStringCache(Register object,
   JumpIfSmi(probe, not_found);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope fscope(this, SSE2);
-    movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+    movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
     ucomisd(xmm0, FieldOperand(probe, HeapNumber::kValueOffset));
   } else {
     fld_d(FieldOperand(object, HeapNumber::kValueOffset));
@@ -3512,9 +3532,8 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
-    Register scratch_reg) {
-  Label no_memento_available;
-
+    Register scratch_reg,
+    Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -3523,12 +3542,11 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   lea(scratch_reg, Operand(receiver_reg,
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   cmp(scratch_reg, Immediate(new_space_start));
-  j(less, &no_memento_available);
+  j(less, no_memento_found);
   cmp(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
-  j(greater, &no_memento_available);
+  j(greater, no_memento_found);
   cmp(MemOperand(scratch_reg, -AllocationMemento::kSize),
       Immediate(isolate()->factory()->allocation_memento_map()));
-  bind(&no_memento_available);
 }
 
 

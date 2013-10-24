@@ -2327,6 +2327,7 @@ bool Isolate::Init(Deserializer* des) {
     ArrayConstructorStubBase::InstallDescriptors(this);
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
+    NumberToStringStub::InstallDescriptors(this);
   }
 
   if (FLAG_sweeper_threads > 0) {

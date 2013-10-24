@@ -301,3 +301,43 @@
   delete deopt.deopt;
   deep(); deep();
 })();
+
+
+// Test materialization of a field that requires a Smi value.
+(function testSmiField() {
+  var deopt = { deopt:false };
+  function constructor() {
+    this.x = 1;
+  }
+  function field(x) {
+    var o = new constructor();
+    o.x = x;
+    deopt.deopt
+    assertEquals(x, o.x);
+  }
+  field(1); field(2);
+  %OptimizeFunctionOnNextCall(field);
+  field(3); field(4);
+  delete deopt.deopt;
+  field(5.5); field(6.5);
+})();
+
+
+// Test materialization of a field that requires a heap object value.
+(function testHeapObjectField() {
+  var deopt = { deopt:false };
+  function constructor() {
+    this.x = {};
+  }
+  function field(x) {
+    var o = new constructor();
+    o.x = x;
+    deopt.deopt
+    assertEquals(x, o.x);
+  }
+  field({}); field({});
+  %OptimizeFunctionOnNextCall(field);
+  field({}); field({});
+  delete deopt.deopt;
+  field(1); field(2);
+})();
