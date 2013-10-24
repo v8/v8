@@ -59,10 +59,6 @@
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
-  # No need to waste time for this test.
-  'd8-performance-now': [PASS, NO_VARIANTS],
-
-  ##############################################################################
   # These use a built-in that's only present in debug mode. They take
   # too long to run in debug mode on ARM and MIPS.
   'fuzz-natives-part*': [PASS, ['mode == release or arch == arm or arch == android_arm or arch == mipsel', SKIP]],
