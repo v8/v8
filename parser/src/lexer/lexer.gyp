@@ -71,6 +71,7 @@
             're2c',
             '-f',
             '-c',
+            '-b',
             '--output',
             '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
             '../../src/lexer/lexer.re',
