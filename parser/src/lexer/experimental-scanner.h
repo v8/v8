@@ -54,6 +54,11 @@ class ExperimentalScanner {
     int end_pos;
   };
 
+  struct SavedToken {
+    int beg, end;
+    Token::Value value;
+  };
+
   ExperimentalScanner(const char* fname,
                       bool read_all_at_once,
                       Isolate* isolate);
@@ -68,9 +73,7 @@ class ExperimentalScanner {
  private:
   void FillTokens();
   static const int BUFFER_SIZE = 256;
-  std::vector<v8::internal::Token::Value> token_;
-  std::vector<int> beg_;
-  std::vector<int> end_;
+  std::vector<SavedToken> token_;
   size_t current_;
   size_t fetched_;
   FILE* file_;

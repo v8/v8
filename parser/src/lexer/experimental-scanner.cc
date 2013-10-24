@@ -75,12 +75,8 @@ ExperimentalScanner::ExperimentalScanner(const char* fname,
   if (read_all_at_once_) {
     source_ = ReadFile(fname, isolate, &length_);
     token_.resize(1500);
-    beg_.resize(1500);
-    end_.resize(1500);
   } else {
     token_.resize(BUFFER_SIZE);
-    beg_.resize(BUFFER_SIZE);
-    end_.resize(BUFFER_SIZE);
   }
 }
 
@@ -108,17 +104,17 @@ void ExperimentalScanner::FillTokens() {
 Token::Value ExperimentalScanner::Next() {
   while (current_ == fetched_)
     FillTokens();
-  return token_[current_++];
+  return token_[current_++].value;
 }
 
 
 Token::Value ExperimentalScanner::current_token() {
-  return token_[current_ - 1];
+  return token_[current_ - 1].value;
 }
 
 
 ExperimentalScanner::Location ExperimentalScanner::location() {
-  return Location(beg_[current_ - 1], end_[current_ - 1]);
+  return Location(token_[current_ - 1].beg, token_[current_ - 1].end);
 }
 
 
@@ -126,12 +122,10 @@ void ExperimentalScanner::Record(Token::Value token, int beg, int end) {
   if (token == Token::EOS) end--;
   if (fetched_ >= token_.size()) {
     token_.resize(token_.size() * 2);
-    beg_.resize(beg_.size() * 2);
-    end_.resize(end_.size() * 2);
   }
-  token_[fetched_] = token;
-  beg_[fetched_] = beg;
-  end_[fetched_] = end;
+  token_[fetched_].value = token;
+  token_[fetched_].beg = beg;
+  token_[fetched_].end = end;
   fetched_++;
 }
 
