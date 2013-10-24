@@ -302,9 +302,10 @@ class Shell : public i::AllStatic {
                                                  Handle<String> command);
   static void DispatchDebugMessages();
 #endif  // ENABLE_DEBUGGER_SUPPORT
-#endif  // V8_SHARED
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif  // V8_SHARED
+
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -382,7 +383,6 @@ class Shell : public i::AllStatic {
 
   static const char* kPrompt;
   static ShellOptions options;
-  static const i::TimeTicks kInitialTicks;
 
  private:
   static Persistent<Context> evaluation_context_;
@@ -395,6 +395,7 @@ class Shell : public i::AllStatic {
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
   static i::Mutex context_mutex_;
+  static const i::TimeTicks kInitialTicks;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);
