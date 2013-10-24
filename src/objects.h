@@ -4978,6 +4978,8 @@ class Code: public HeapObject {
 
   static const ExtraICState kNoExtraICState = 0;
 
+  static const int kPrologueOffsetNotSet = -1;
+
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* ICState2String(InlineCacheState state);
@@ -5297,11 +5299,15 @@ class Code: public HeapObject {
 
 #define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
+    kNotExecutedCodeAge = -2,
+    kExecutedOnceCodeAge = -1,
     kNoAge = 0,
     CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
     kAfterLastCodeAge,
     kLastCodeAge = kAfterLastCodeAge - 1,
-    kCodeAgeCount = kAfterLastCodeAge - 1
+    kCodeAgeCount = kAfterLastCodeAge - 1,
+    kIsOldCodeAge = kSexagenarianCodeAge,
+    kPreAgedCodeAge = kIsOldCodeAge - 1
   };
 #undef DECLARE_CODE_AGE_ENUM
 
@@ -5310,10 +5316,14 @@ class Code: public HeapObject {
   // relatively safe to flush this code object and replace it with the lazy
   // compilation stub.
   static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
+  static void MarkCodeAsExecuted(byte* sequence, Isolate* isolate);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
-  int GetAge();
+  Age GetAge();
+  static inline Code* GetPreAgedCodeAgeStub(Isolate* isolate) {
+    return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
+  }
 
   void PrintDeoptLocation(int bailout_id);
   bool CanDeoptAt(Address pc);
@@ -5955,6 +5965,7 @@ class Map: public HeapObject {
   // descriptor array of the map. Returns NULL if no updated map is found.
   Map* CurrentMapForDeprecated();
 
+  static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
@@ -5972,9 +5983,6 @@ class Map: public HeapObject {
       Handle<Map> map,
       int new_descriptor,
       Handle<DescriptorArray> descriptors);
-  MUST_USE_RESULT MaybeObject* CopyInstallDescriptors(
-      int new_descriptor,
-      DescriptorArray* descriptors);
   MUST_USE_RESULT MaybeObject* ShareDescriptor(DescriptorArray* descriptors,
                                                Descriptor* descriptor);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
@@ -5996,8 +6004,6 @@ class Map: public HeapObject {
   static Handle<Map> CopyNormalized(Handle<Map> map,
                                     PropertyNormalizationMode mode,
                                     NormalizedMapSharingMode sharing);
-  MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
-                                              NormalizedMapSharingMode sharing);
 
   inline void AppendDescriptor(Descriptor* desc,
                                const DescriptorArray::WhitenessWitness&);
@@ -10340,6 +10346,9 @@ class ObjectVisitor BASE_EMBEDDED {
   // [start, end). Any or all of the values may be modified on return.
   virtual void VisitPointers(Object** start, Object** end) = 0;
 
+  // Handy shorthand for visiting a single pointer.
+  virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }
+
   // To allow lazy clearing of inline caches the visitor has
   // a rich interface for iterating over Code objects..
 
@@ -10368,22 +10377,14 @@ class ObjectVisitor BASE_EMBEDDED {
   // about the code's age.
   virtual void VisitCodeAgeSequence(RelocInfo* rinfo);
 
-  // Handy shorthand for visiting a single pointer.
-  virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }
-
   // Visit pointer embedded into a code object.
   virtual void VisitEmbeddedPointer(RelocInfo* rinfo);
 
-  // Visits a contiguous arrays of external references (references to the C++
-  // heap) in the half-open range [start, end). Any or all of the values
-  // may be modified on return.
-  virtual void VisitExternalReferences(Address* start, Address* end) {}
-
+  // Visits an external reference embedded into a code object.
   virtual void VisitExternalReference(RelocInfo* rinfo);
 
-  inline void VisitExternalReference(Address* p) {
-    VisitExternalReferences(p, p + 1);
-  }
+  // Visits an external reference. The value may be modified on return.
+  virtual void VisitExternalReference(Address* p) {}
 
   // Visits a handle that has an embedder-assigned class ID.
   virtual void VisitEmbedderReference(Object** p, uint16_t class_id) {}

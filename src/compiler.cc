@@ -112,7 +112,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   zone_ = zone;
   deferred_handles_ = NULL;
   code_stub_ = NULL;
-  prologue_offset_ = kPrologueOffsetNotSet;
+  prologue_offset_ = Code::kPrologueOffsetNotSet;
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
@@ -123,7 +123,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     mode_ = STUB;
     return;
   }
-  mode_ = isolate->use_crankshaft() ? mode : NONOPT;
+  mode_ = mode;
   abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();

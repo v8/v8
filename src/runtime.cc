@@ -2933,19 +2933,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   source_shared->set_dont_flush(true);
 
   // Set the code, scope info, formal parameter count, and the length
-  // of the target shared function info.  Set the source code of the
-  // target function to undefined.  SetCode is only used for built-in
-  // constructors like String, Array, and Object, and some web code
-  // doesn't like seeing source code for constructors.
+  // of the target shared function info.
   target_shared->ReplaceCode(source_shared->code());
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_formal_parameter_count(
       source_shared->formal_parameter_count());
-  target_shared->set_script(isolate->heap()->undefined_value());
-
-  // Since we don't store the source we should never optimize this.
-  target_shared->code()->set_optimizable(false);
+  target_shared->set_script(source_shared->script());
+  target_shared->set_start_position_and_type(
+      source_shared->start_position_and_type());
+  target_shared->set_end_position(source_shared->end_position());
+  bool was_native = target_shared->native();
+  target_shared->set_compiler_hints(source_shared->compiler_hints());
+  target_shared->set_native(was_native);
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
@@ -8346,7 +8346,7 @@ bool AllowOptimization(Isolate* isolate, Handle<JSFunction> function) {
 
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
-  if (!FLAG_crankshaft ||
+  if (!isolate->use_crankshaft() ||
       function->shared()->optimization_disabled() ||
       isolate->DebuggerHasBreakPoints()) {
     if (FLAG_trace_opt) {
@@ -8628,7 +8628,7 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function,
                                             Handle<Code> unoptimized) {
   // Keep track of whether we've succeeded in optimizing.
-  if (!unoptimized->optimizable()) return false;
+  if (!isolate->use_crankshaft() || !unoptimized->optimizable()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been

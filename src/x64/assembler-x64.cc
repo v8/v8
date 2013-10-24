@@ -1465,26 +1465,24 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   // Non-relocatable values might not need a 64-bit representation.
-  if (RelocInfo::IsNone(rmode)) {
-    if (is_uint32(value)) {
-      movl(dst, Immediate(static_cast<int32_t>(value)));
-      return;
-    } else if (is_int32(value)) {
-      movq(dst, Immediate(static_cast<int32_t>(value)));
-      return;
-    }
+  ASSERT(RelocInfo::IsNone(rmode));
+  if (is_uint32(value)) {
+    movl(dst, Immediate(static_cast<int32_t>(value)));
+  } else if (is_int32(value)) {
+    movq(dst, Immediate(static_cast<int32_t>(value)));
+  } else {
     // Value cannot be represented by 32 bits, so do a full 64 bit immediate
     // value.
+    EnsureSpace ensure_space(this);
+    emit_rex_64(dst);
+    emit(0xB8 | dst.low_bits());
+    emitq(value);
   }
-  EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  emitq(value, rmode);
 }
 
 
 void Assembler::movq(Register dst, ExternalReference ref) {
-  int64_t value = reinterpret_cast<int64_t>(ref.address());
+  Address value = reinterpret_cast<Address>(ref.address());
   movq(dst, value, RelocInfo::EXTERNAL_REFERENCE);
 }
 
@@ -1899,7 +1897,7 @@ void Assembler::shrd(Register dst, Register src) {
 }
 
 
-void Assembler::xchg(Register dst, Register src) {
+void Assembler::xchgq(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   if (src.is(rax) || dst.is(rax)) {  // Single-byte encoding
     Register other = src.is(rax) ? dst : src;
@@ -1911,6 +1909,24 @@ void Assembler::xchg(Register dst, Register src) {
     emit_modrm(dst, src);
   } else {
     emit_rex_64(src, dst);
+    emit(0x87);
+    emit_modrm(src, dst);
+  }
+}
+
+
+void Assembler::xchgl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  if (src.is(rax) || dst.is(rax)) {  // Single-byte encoding
+    Register other = src.is(rax) ? dst : src;
+    emit_optional_rex_32(other);
+    emit(0x90 | other.low_bits());
+  } else if (dst.low_bits() == 4) {
+    emit_optional_rex_32(dst, src);
+    emit(0x87);
+    emit_modrm(dst, src);
+  } else {
+    emit_optional_rex_32(src, dst);
     emit(0x87);
     emit_modrm(src, dst);
   }
@@ -2032,6 +2048,14 @@ void Assembler::testl(const Operand& op, Immediate mask) {
   emit(0xF7);
   emit_operand(rax, op);  // Operation code 0
   emit(mask);
+}
+
+
+void Assembler::testl(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(reg, op);
+  emit(0x85);
+  emit_operand(reg, op);
 }
 
 
@@ -3004,8 +3028,8 @@ void Assembler::dd(uint32_t data) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   ASSERT(!RelocInfo::IsNone(rmode));
-  // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+    // Don't record external references unless the heap will be serialized.
 #ifdef DEBUG
     if (!Serializer::enabled()) {
       Serializer::TooLateToEnableNow();
@@ -3014,6 +3038,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     if (!Serializer::enabled() && !emit_debug_code()) {
       return;
     }
+  } else if (rmode == RelocInfo::CODE_AGE_SEQUENCE) {
+    // Don't record psuedo relocation info for code age sequence mode.
+    return;
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);

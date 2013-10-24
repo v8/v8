@@ -4140,7 +4140,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_reference,
                               bool immovable,
-                              bool crankshafted) {
+                              bool crankshafted,
+                              int prologue_offset) {
   // Allocate ByteArray before the Code object, so that we do not risk
   // leaving uninitialized Code object (and breaking the heap).
   ByteArray* reloc_info;
@@ -4190,10 +4191,18 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
-  code->set_prologue_offset(kPrologueOffsetNotSet);
+  code->set_prologue_offset(prologue_offset);
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);
   }
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  if (code->kind() == Code::FUNCTION) {
+    code->set_has_debug_break_slots(
+        isolate_->debugger()->IsDebuggerActive());
+  }
+#endif
+
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -5520,9 +5529,10 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
 #endif
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, TENURED);
 
   HeapObject* object;
-  { MaybeObject* maybe_object = old_pointer_space_->AllocateRaw(size);
+  { MaybeObject* maybe_object = AllocateRaw(size, space, OLD_POINTER_SPACE);
     if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
   }
   object = EnsureDoubleAligned(this, object, size);

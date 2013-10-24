@@ -1309,8 +1309,6 @@ class HGraphBuilder {
   HValue* EnforceNumberType(HValue* number, Handle<Type> expected);
   HValue* TruncateToNumber(HValue* value, Handle<Type>* expected);
 
-  void PushAndAdd(HInstruction* instr);
-
   void FinishExitWithHardDeoptimization(const char* reason,
                                         HBasicBlock* continuation);
 

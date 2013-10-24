@@ -282,6 +282,9 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 #endif
 
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
+
   // Enter specific kind of exit frame; either in normal or
   // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer
@@ -812,27 +815,7 @@ class MacroAssembler: public Assembler {
 
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
-  void CmpHeapObject(Register reg, Handle<HeapObject> object);
-  void PushHeapObject(Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, object);
-    }
-  }
-
-  void CmpObject(Register reg, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      CmpHeapObject(reg, Handle<HeapObject>::cast(object));
-    } else {
-      Cmp(reg, object);
-    }
-  }
+  void MoveHeapObject(Register result, Handle<Object> object);
 
   // Load a global cell into a register.
   void LoadGlobalCell(Register dst, Handle<Cell> cell);

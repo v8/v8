@@ -1498,6 +1498,9 @@ class MacroAssembler: public Assembler {
     And(reg, reg, Operand(mask));
   }
 
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);

@@ -51,6 +51,8 @@ typedef int (*F0)();
 typedef int (*F1)(int64_t x);
 typedef int (*F2)(int64_t x, int64_t y);
 typedef int (*F3)(double x);
+typedef int64_t (*F4)(int64_t* x, int64_t* y);
+typedef int64_t (*F5)(int64_t x);
 
 #ifdef _WIN64
 static const Register arg1 = rcx;
@@ -164,6 +166,157 @@ TEST(AssemblerX64ImulOperation) {
   CHECK_EQ(1, result);
   result =  FUNCTION_CAST<F2>(buffer)(-0x100000000l, 0x100000000l);
   CHECK_EQ(-1, result);
+}
+
+
+TEST(AssemblerX64XchglOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ movq(rax, Operand(arg1, 0));
+  __ movq(rbx, Operand(arg2, 0));
+  __ xchgl(rax, rbx);
+  __ movq(Operand(arg1, 0), rax);
+  __ movq(Operand(arg2, 0), rbx);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
+  int64_t right  = V8_2PART_UINT64_C(0x30000000, 40000000);
+  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 40000000), left);
+  CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 20000000), right);
+  USE(result);
+}
+
+
+TEST(AssemblerX64OrlOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ movq(rax, Operand(arg2, 0));
+  __ orl(Operand(arg1, 0), rax);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
+  int64_t right  = V8_2PART_UINT64_C(0x30000000, 40000000);
+  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 60000000), left);
+  USE(result);
+}
+
+
+TEST(AssemblerX64RollOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ movq(rax, arg1);
+  __ roll(rax, Immediate(1));
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int64_t src    = V8_2PART_UINT64_C(0x10000000, C0000000);
+  int64_t result = FUNCTION_CAST<F5>(buffer)(src);
+  CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 80000001), result);
+}
+
+
+TEST(AssemblerX64SublOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ movq(rax, Operand(arg2, 0));
+  __ subl(Operand(arg1, 0), rax);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
+  int64_t right  = V8_2PART_UINT64_C(0x30000000, 40000000);
+  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  CHECK_EQ(V8_2PART_UINT64_C(0x10000000, e0000000), left);
+  USE(result);
+}
+
+
+TEST(AssemblerX64TestlOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  // Set rax with the ZF flag of the testl instruction.
+  Label done;
+  __ movq(rax, Immediate(1));
+  __ movq(rbx, Operand(arg2, 0));
+  __ testl(Operand(arg1, 0), rbx);
+  __ j(zero, &done, Label::kNear);
+  __ movq(rax, Immediate(0));
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
+  int64_t right  = V8_2PART_UINT64_C(0x30000000, 00000000);
+  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  CHECK_EQ(static_cast<int64_t>(1), result);
+}
+
+
+TEST(AssemblerX64XorlOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ movq(rax, Operand(arg2, 0));
+  __ xorl(Operand(arg1, 0), rax);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
+  int64_t right  = V8_2PART_UINT64_C(0x30000000, 60000000);
+  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 40000000), left);
+  USE(result);
 }
 
 

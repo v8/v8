@@ -158,10 +158,7 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  __ push(ebp);  // Caller's frame pointer.
-  __ mov(ebp, esp);
-  __ push(esi);  // Callee's context.
-  __ push(edi);  // Callee's JS Function.
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");

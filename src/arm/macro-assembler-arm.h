@@ -539,6 +539,8 @@ class MacroAssembler: public Assembler {
                          LowDwVfpRegister double_scratch1,
                          Label* not_int32);
 
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.

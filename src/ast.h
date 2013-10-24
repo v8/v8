@@ -1669,6 +1669,10 @@ class Property V8_FINAL : public Expression {
     return STANDARD_STORE;
   }
   bool IsUninitialized() { return is_uninitialized_; }
+  bool IsPreMonomorphic() { return is_pre_monomorphic_; }
+  bool HasNoTypeInformation() {
+    return is_uninitialized_ || is_pre_monomorphic_;
+  }
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
  protected:
@@ -1681,6 +1685,7 @@ class Property V8_FINAL : public Expression {
         key_(key),
         load_id_(GetNextId(isolate)),
         is_monomorphic_(false),
+        is_pre_monomorphic_(false),
         is_uninitialized_(false),
         is_string_access_(false),
         is_function_prototype_(false) { }
@@ -1692,6 +1697,7 @@ class Property V8_FINAL : public Expression {
 
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
+  bool is_pre_monomorphic_ : 1;
   bool is_uninitialized_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
@@ -2098,6 +2104,10 @@ class Assignment V8_FINAL : public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   bool IsUninitialized() { return is_uninitialized_; }
+  bool IsPreMonomorphic() { return is_pre_monomorphic_; }
+  bool HasNoTypeInformation() {
+    return is_uninitialized_ || is_pre_monomorphic_;
+  }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
   }
@@ -2130,6 +2140,7 @@ class Assignment V8_FINAL : public Expression {
 
   bool is_monomorphic_ : 1;
   bool is_uninitialized_ : 1;
+  bool is_pre_monomorphic_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   SmallMapList receiver_types_;

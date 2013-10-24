@@ -1013,6 +1013,30 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    push(ebp);  // Caller's frame pointer.
+    mov(ebp, esp);
+    push(esi);  // Callee's context.
+    push(Immediate(Smi::FromInt(StackFrame::STUB)));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(this,
+        kNoCodeAgeSequenceLength);
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+        // Pre-age the code.
+      call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
+          RelocInfo::CODE_AGE_SEQUENCE);
+      Nop(kNoCodeAgeSequenceLength - Assembler::kCallInstructionLength);
+    } else {
+      push(ebp);  // Caller's frame pointer.
+      mov(ebp, esp);
+      push(esi);  // Callee's context.
+      push(edi);  // Callee's JS function.
+    }
+  }
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);

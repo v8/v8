@@ -345,8 +345,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  code->set_has_debug_break_slots(
-      info->isolate()->debugger()->IsDebuggerActive());
   code->set_compiled_optimizable(info->IsOptimizable());
 #endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);

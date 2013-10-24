@@ -561,29 +561,34 @@ LOperand* LChunkBuilder::UseAtStart(HValue* value) {
 }
 
 
+static inline bool CanBeImmediateConstant(HValue* value) {
+  return value->IsConstant() && HConstant::cast(value)->NotInNewSpace();
+}
+
+
 LOperand* LChunkBuilder::UseOrConstant(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : Use(value);
 }
 
 
 LOperand* LChunkBuilder::UseOrConstantAtStart(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : UseAtStart(value);
 }
 
 
 LOperand* LChunkBuilder::UseRegisterOrConstant(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : UseRegister(value);
 }
 
 
 LOperand* LChunkBuilder::UseRegisterOrConstantAtStart(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : UseRegisterAtStart(value);
 }

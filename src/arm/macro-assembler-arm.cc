@@ -916,6 +916,33 @@ void MacroAssembler::LoadNumberAsInt32(Register object,
 }
 
 
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+    Push(Smi::FromInt(StackFrame::STUB));
+    // Adjust FP to point to saved FP.
+    add(fp, sp, Operand(2 * kPointerSize));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(
+        this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+    // The following three instructions must remain together and unmodified
+    // for code aging to work properly.
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+      // Pre-age the code.
+      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+      add(r0, pc, Operand(-8));
+      ldr(pc, MemOperand(pc, -4));
+      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    } else {
+      stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+      nop(ip.code());
+      // Adjust FP to point to saved FP.
+      add(fp, sp, Operand(2 * kPointerSize));
+    }
+  }
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r0-r3: preserved
   stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());

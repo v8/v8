@@ -204,6 +204,11 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StackCheck,                     BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+                                                                        \
+  V(MarkCodeAsExecutedOnce,         BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(MarkCodeAsExecutedTwice,        BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtin handlers implemented in assembly.
@@ -412,6 +417,9 @@ class Builtins {
       MacroAssembler* masm);
   CODE_AGE_LIST(DECLARE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DECLARE_CODE_AGE_BUILTIN_GENERATOR
+
+  static void Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm);
+  static void Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm);
 
   static void InitBuiltinFunctionTable();
 

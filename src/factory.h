@@ -380,7 +380,8 @@ class Factory {
                        Code::Flags flags,
                        Handle<Object> self_reference,
                        bool immovable = false,
-                       bool crankshafted = false);
+                       bool crankshafted = false,
+                       int prologue_offset = Code::kPrologueOffsetNotSet);
 
   Handle<Code> CopyCode(Handle<Code> code);
 
