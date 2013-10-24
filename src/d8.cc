@@ -160,6 +160,7 @@ i::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
 i::Mutex Shell::context_mutex_;
+const i::TimeTicks Shell::kInitialTicks = i::TimeTicks::HighResolutionNow();
 Persistent<Context> Shell::utility_context_;
 #endif  // V8_SHARED
 
@@ -287,6 +288,15 @@ int PerIsolateData::RealmFind(Handle<Context> context) {
   }
   return -1;
 }
+
+
+#ifndef V8_SHARED
+// performance.now() returns a time stamp as double, measured in milliseconds.
+void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  i::TimeDelta delta = i::TimeTicks::HighResolutionNow() - kInitialTicks;
+  args.GetReturnValue().Set(delta.InMillisecondsF());
+}
+#endif  // V8_SHARED
 
 
 // Realm.current() returns the index of the currently active realm.
@@ -871,6 +881,13 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   realm_template->SetAccessor(String::New("shared"),
                               RealmSharedGet, RealmSharedSet);
   global_template->Set(String::New("Realm"), realm_template);
+
+#ifndef V8_SHARED
+  Handle<ObjectTemplate> performance_template = ObjectTemplate::New();
+  performance_template->Set(String::New("now"),
+                            FunctionTemplate::New(PerformanceNow));
+  global_template->Set(String::New("performance"), performance_template);
+#endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
