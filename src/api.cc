@@ -6382,7 +6382,6 @@ void Isolate::SetObjectGroupId(internal::Object** object, UniqueId id) {
   internal_isolate->global_handles()->SetObjectGroupId(
       v8::internal::Handle<v8::internal::Object>(object).location(),
       id);
-  internal_isolate->global_handles()->SetObjectGroupId(object, id);
 }
 
 
@@ -6391,7 +6390,6 @@ void Isolate::SetReferenceFromGroup(UniqueId id, internal::Object** object) {
   internal_isolate->global_handles()->SetReferenceFromGroup(
       id,
       v8::internal::Handle<v8::internal::Object>(object).location());
-  internal_isolate->global_handles()->SetReferenceFromGroup(id, object);
 }
 
 

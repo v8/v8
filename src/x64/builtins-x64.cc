@@ -646,12 +646,12 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ Popad();
 
   // Perform prologue operations usually performed by the young code stub.
-  __ pop(r10);   // Pop return address into scratch register.
+  __ PopReturnAddressTo(kScratchRegister);
   __ push(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
   __ push(rsi);  // Callee's context.
   __ push(rdi);  // Callee's JS Function.
-  __ push(r10);  // Push return address after frame prologue.
+  __ PushReturnAddressFrom(kScratchRegister);
 
   // Jump to point after the code-age stub.
   __ ret(0);
@@ -696,17 +696,17 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   }
 
   // Get the full codegen state from the stack and untag it.
-  __ SmiToInteger32(r10, Operand(rsp, kPCOnStackSize));
+  __ SmiToInteger32(kScratchRegister, Operand(rsp, kPCOnStackSize));
 
   // Switch on the state.
   Label not_no_registers, not_tos_rax;
-  __ cmpq(r10, Immediate(FullCodeGenerator::NO_REGISTERS));
+  __ cmpq(kScratchRegister, Immediate(FullCodeGenerator::NO_REGISTERS));
   __ j(not_equal, &not_no_registers, Label::kNear);
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
   __ movq(rax, Operand(rsp, kPCOnStackSize + kPointerSize));
-  __ cmpq(r10, Immediate(FullCodeGenerator::TOS_REG));
+  __ cmpq(kScratchRegister, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, rax.
 

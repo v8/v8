@@ -282,8 +282,8 @@ class SourceProcessor(SourceFileProcessor):
   Check that all files include a copyright notice and no trailing whitespaces.
   """
 
-  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c',
-                         '.status', '.gyp', '.gypi']
+  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', 'SConscript',
+      'SConstruct', '.status', '.gyp', '.gypi']
 
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
@@ -292,7 +292,7 @@ class SourceProcessor(SourceFileProcessor):
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
       for file in output.stdout.read().split():
-        for dir_part in os.path.dirname(file).replace(os.sep, '/').split('/'):
+        for dir_part in os.path.dirname(file).split(os.sep):
           if self.IgnoreDir(dir_part):
             break
         else:

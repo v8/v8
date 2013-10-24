@@ -1,3 +1,8 @@
+2013-10-24: Version 3.22.21
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-24: Version 3.22.20
 
         Made Array.prototype.pop throw if the last element is not configurable.
