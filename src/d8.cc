@@ -166,6 +166,7 @@ Persistent<Context> Shell::utility_context_;
 Persistent<Context> Shell::evaluation_context_;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
+const i::TimeTicks Shell::kInitialTicks = i::TimeTicks::HighResolutionNow();
 
 
 const int MB = 1024 * 1024;
@@ -286,6 +287,15 @@ int PerIsolateData::RealmFind(Handle<Context> context) {
     if (realms_[i] == context) return i;
   }
   return -1;
+}
+
+
+// window.performance.now() returns a time stamp as double, measured in
+// milliseconds.
+void Shell::WindowPerformanceNow(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  i::TimeDelta delta = i::TimeTicks::HighResolutionNow() - kInitialTicks;
+  args.GetReturnValue().Set(delta.InMillisecondsF());
 }
 
 
@@ -871,6 +881,13 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   realm_template->SetAccessor(String::New("shared"),
                               RealmSharedGet, RealmSharedSet);
   global_template->Set(String::New("Realm"), realm_template);
+
+  Handle<ObjectTemplate> window_template = ObjectTemplate::New();
+  Handle<ObjectTemplate> performance_template = ObjectTemplate::New();
+  performance_template->Set(String::New("now"),
+                            FunctionTemplate::New(WindowPerformanceNow));
+  window_template->Set(String::New("performance"), performance_template);
+  global_template->Set(String::New("window"), window_template);
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();

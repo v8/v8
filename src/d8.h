@@ -304,6 +304,8 @@ class Shell : public i::AllStatic {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 #endif  // V8_SHARED
 
+  static void WindowPerformanceNow(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -381,6 +383,7 @@ class Shell : public i::AllStatic {
 
   static const char* kPrompt;
   static ShellOptions options;
+  static const i::TimeTicks kInitialTicks;
 
  private:
   static Persistent<Context> evaluation_context_;
