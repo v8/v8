@@ -266,7 +266,7 @@ start_:
     digit = [0-9];
     hex_digit = [0-9a-fA-F];
     maybe_exponent = ('e' [-+]? digit+)?;
-    number = ('0x' hex_digit+) | ("." digit+ maybe_exponent) | (digit+ ("." digit+)? maybe_exponent);
+    number = ('0x' hex_digit+) | ("." digit+ maybe_exponent) | (digit+ ("." digit*)? maybe_exponent);
 
     <Normal> "break" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::BREAK); }
     <Normal> "case" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::CASE); }
@@ -331,7 +331,7 @@ start_:
     <Normal> "!"           { PUSH_TOKEN(Token::NOT); }
 
     <Normal> "//"          :=> SingleLineComment
-    <Normal> whitespace? "-->" { if (just_seen_line_terminator_) { YYSETCONDITION(kConditionSingleLineComment); goto yy0; } else { --cursor_; send(Token::DEC); start_ = cursor_; goto yy0; } }
+    <Normal> whitespace* "-->" { if (just_seen_line_terminator_) { YYSETCONDITION(kConditionSingleLineComment); goto yy0; } else { --cursor_; send(Token::DEC); start_ = cursor_; goto yy0; } }
     <Normal> "/*"          :=> MultiLineComment
     <Normal> "<!--"        :=> HtmlComment
 
