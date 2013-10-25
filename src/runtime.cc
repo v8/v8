@@ -10548,11 +10548,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalPrint) {
 // property.
 // Returns the number of non-undefined elements collected.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RemoveArrayHoles) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
-  return object->PrepareElementsForSort(limit);
+  return *JSObject::PrepareElementsForSort(object, limit);
 }
 
 
