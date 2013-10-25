@@ -2590,6 +2590,11 @@ class JSObject: public JSReceiver {
   };
 
   void IncrementSpillStatistics(SpillInformation* info);
+
+  // If a GC was caused while constructing this object, the elements pointer
+  // may point to a one pointer filler map. The object won't be rooted, but
+  // our heap verification code could stumble across it.
+  bool ElementsAreSafeToExamine();
 #endif
   Object* SlowReverseLookup(Object* value);
 
