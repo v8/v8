@@ -466,7 +466,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Non-hole double, copy value into a heap number.
   __ AllocateHeapNumber(rax, r15, &gc_required);
   // rax: new heap number
-  __ movq(FieldOperand(rax, HeapNumber::kValueOffset), r14);
+  __ MoveDouble(FieldOperand(rax, HeapNumber::kValueOffset), r14);
   __ movq(FieldOperand(r11,
                        r9,
                        times_pointer_size,

@@ -594,7 +594,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // Input is a HeapNumber. Push it on the FPU stack and load its
     // bits into rbx.
     __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ MoveDouble(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
     __ movq(rdx, rbx);
 
     __ bind(&loaded);
