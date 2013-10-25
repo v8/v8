@@ -336,6 +336,14 @@ class Counters {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
+#define SC(name) \
+  StatsCounter* count_of_CODE_AGE_##name() \
+    { return &count_of_CODE_AGE_##name##_; } \
+  StatsCounter* size_of_CODE_AGE_##name() \
+    { return &size_of_CODE_AGE_##name##_; }
+  CODE_AGE_LIST_WITH_NO_AGE(SC)
+#undef SC
+
   enum Id {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
@@ -360,6 +368,10 @@ class Counters {
 #define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
     kSizeOfFIXED_ARRAY__##name,
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOfCODE_AGE__##name, \
+    kSizeOfCODE_AGE__##name,
+    CODE_AGE_LIST_WITH_NO_AGE(COUNTER_ID)
 #undef COUNTER_ID
     stats_counter_count
   };
@@ -404,6 +416,12 @@ class Counters {
   StatsCounter size_of_FIXED_ARRAY_##name##_; \
   StatsCounter count_of_FIXED_ARRAY_##name##_;
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_CODE_AGE_##name##_; \
+  StatsCounter count_of_CODE_AGE_##name##_;
+  CODE_AGE_LIST_WITH_NO_AGE(SC)
 #undef SC
 
   friend class Isolate;

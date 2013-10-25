@@ -2436,7 +2436,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
                                       int instance_size) {
   Object* result;
-  MaybeObject* maybe_result = AllocateRawMap();
+  MaybeObject* maybe_result = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
 
   // Map::cast cannot be used due to uninitialized map field.
@@ -2461,7 +2461,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
                                int instance_size,
                                ElementsKind elements_kind) {
   Object* result;
-  MaybeObject* maybe_result = AllocateRawMap();
+  MaybeObject* maybe_result = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
   if (!maybe_result->To(&result)) return maybe_result;
 
   Map* map = reinterpret_cast<Map*>(result);
@@ -2953,8 +2953,11 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 
 MaybeObject* Heap::AllocateCell(Object* value) {
+  int size = Cell::kSize;
+  STATIC_ASSERT(Cell::kSize <= Page::kNonCodeObjectAreaSize);
+
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawCell();
+  { MaybeObject* maybe_result = AllocateRaw(size, CELL_SPACE, CELL_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(cell_map());
@@ -2964,8 +2967,12 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 
 
 MaybeObject* Heap::AllocatePropertyCell() {
+  int size = PropertyCell::kSize;
+  STATIC_ASSERT(PropertyCell::kSize <= Page::kNonCodeObjectAreaSize);
+
   Object* result;
-  MaybeObject* maybe_result = AllocateRawPropertyCell();
+  MaybeObject* maybe_result =
+      AllocateRaw(size, PROPERTY_CELL_SPACE, PROPERTY_CELL_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
 
   HeapObject::cast(result)->set_map_no_write_barrier(
@@ -7936,6 +7943,18 @@ void Heap::CheckpointObjectStats() {
   counters->size_of_FIXED_ARRAY_##name()->Decrement(      \
       static_cast<int>(object_sizes_last_time_[index]));
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                 \
+  index = FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge; \
+  counters->count_of_CODE_AGE_##name()->Increment(          \
+      static_cast<int>(object_counts_[index]));             \
+  counters->count_of_CODE_AGE_##name()->Decrement(          \
+      static_cast<int>(object_counts_last_time_[index]));   \
+  counters->size_of_CODE_AGE_##name()->Increment(           \
+      static_cast<int>(object_sizes_[index]));              \
+  counters->size_of_CODE_AGE_##name()->Decrement(          \
+      static_cast<int>(object_sizes_last_time_[index]));
+  CODE_AGE_LIST_WITH_NO_AGE(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
   OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));

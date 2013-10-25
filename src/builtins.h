@@ -50,6 +50,10 @@ enum BuiltinExtraArguments {
 #define CODE_AGE_LIST(V) \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
+#define CODE_AGE_LIST_WITH_NO_AGE(V)               \
+  V(NoAge)                                         \
+  CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
+
 #define DECLARE_CODE_AGE_BUILTIN(C, V)             \
   V(Make##C##CodeYoungAgainOddMarking, BUILTIN,    \
     UNINITIALIZED, Code::kNoExtraICState)          \

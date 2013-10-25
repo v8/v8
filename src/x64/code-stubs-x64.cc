@@ -594,7 +594,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // Input is a HeapNumber. Push it on the FPU stack and load its
     // bits into rbx.
     __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ MoveDouble(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
     __ movq(rdx, rbx);
 
     __ bind(&loaded);
@@ -3775,34 +3775,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
-
-  if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-    GenerateRegisterArgsPop(masm, rcx);
-    // Build a frame
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      GenerateRegisterArgsPush(masm);
-      __ CallRuntime(Runtime::kStringAdd, 2);
-    }
-    __ Ret();
-  } else {
-    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
-  }
+  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-      GenerateRegisterArgsPop(masm, rcx);
-      // Build a frame
-      {
-        FrameScope scope(masm, StackFrame::INTERNAL);
-        GenerateRegisterArgsPush(masm);
-        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
-      }
-      __ Ret();
-    } else {
-      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
-    }
+    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
   }
 }
 

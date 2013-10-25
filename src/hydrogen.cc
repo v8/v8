@@ -2126,6 +2126,11 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   HAllocate* new_object = builder()->Add<HAllocate>(size_in_bytes,
       HType::JSArray(), NOT_TENURED, JS_ARRAY_TYPE);
 
+  // Folded array allocation should be aligned if it has fast double elements.
+  if (IsFastDoubleElementsKind(kind_)) {
+     new_object->MakeDoubleAligned();
+  }
+
   // Fill in the fields: map, properties, length
   HValue* map;
   if (allocation_site_payload_ == NULL) {

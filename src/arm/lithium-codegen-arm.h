@@ -246,8 +246,6 @@ class LCodeGen: public LCodeGenBase {
                          CallKind call_kind,
                          R1State r1_state);
 
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
-
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
 

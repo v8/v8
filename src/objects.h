@@ -5301,7 +5301,7 @@ class Code: public HeapObject {
   enum Age {
     kNotExecutedCodeAge = -2,
     kExecutedOnceCodeAge = -1,
-    kNoAge = 0,
+    kNoAgeCodeAge = 0,
     CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
     kAfterLastCodeAge,
     kLastCodeAge = kAfterLastCodeAge - 1,

@@ -25,51 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nodead-code-elimination
-// Flags: --nofold-constants --nouse-gvn
+// Flags: --allow-natives-syntax
 
-// Create a function to get a long series of removable simulates.
-// f() {
-//   var _0 = <random>, _1 = <random>, ... _1000 = <random>,
-//   _1001 = <random var> + <random var>,
-//   _1002 = <random var> + <random var>,
-//   ...
-//   _99999 = <random var> + <random var>,
-//   x = 1;
-//   return _0;
-// }
+// Test the performance.now() function of d8.  This test only makes sense with
+// d8.
 
-var seed = 1;
+// Don't run this test in gc stress mode. Time differences may be long
+// due to garbage collections.
+%SetFlags("--gc-interval=-1");
+%SetFlags("--nostress-compaction");
 
-function rand() {
-  seed = seed * 171 % 1337 + 17;
-  return (seed % 1000) / 1000;
+if (this.performance && performance.now) {
+  (function run() {
+    var start_test = performance.now();
+    // Let the retry run for maximum 100ms to reduce flakiness.
+    for (var start = performance.now();
+        start - start_test < 100;
+        start = performance.now()) {
+      var end = performance.now();
+      assertTrue(start >= start_test);
+      assertTrue(end >= start);
+      while (end - start == 0) {
+        var next = performance.now();
+        assertTrue(next >= end);
+        end = next;
+      }
+      if (end - start <= 1) {
+        // Found (sub-)millisecond granularity.
+        return;
+      } else {
+        print("Timer difference too big: " + (end - start) + "ms");
+      }
+    }
+    assertTrue(false);
+  })()
 }
-
-function randi(max) {
-  seed = seed * 131 % 1773 + 13;
-  return seed % max;
-}
-
-function varname(i) {
-  return "_" + i;
-}
-
-var source = "var ";
-
-for (var i = 0; i < 750; i++) {
-  source += [varname(i), "=", rand(), ","].join("");
-}
-
-for (var i = 750; i < 3000; i++) {
-  source += [varname(i), "=",
-             varname(randi(i)), "+",
-             varname(randi(i)), ","].join("");
-}
-
-source += "x=1; return _0;"
-var f = new Function(source);
-
-f();
-%OptimizeFunctionOnNextCall(f);
-f();
