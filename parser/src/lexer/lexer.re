@@ -266,6 +266,7 @@ start_:
     digit = [0-9];
     hex_digit = [0-9a-fA-F];
     maybe_exponent = ('e' [-+]? digit+)?;
+    number = ('0x' hex_digit+) | ("." digit+ maybe_exponent) | (digit+ ("." digit+)? maybe_exponent);
 
     <Normal> "break" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::BREAK); }
     <Normal> "case" not_identifier_char       { PUSH_TOKEN_LOOKAHEAD(Token::CASE); }
@@ -344,13 +345,9 @@ start_:
     <Normal> "<"           { PUSH_TOKEN(Token::LT); }
     <Normal> ">"           { PUSH_TOKEN(Token::GT); }
 
-    <Normal> '0x' hex_digit+ not_identifier_char                     { PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
-    <Normal> "." digit+ maybe_exponent not_identifier_char           { PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
-    <Normal> digit+ ("." digit+)? maybe_exponent not_identifier_char { PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
-
-    <Normal> '0x' hex_digit+ "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierStart()) { YYSETCONDITION(kConditionIdentifier); } else { YYSETCONDITION(kConditionIdentifierIllegal); } cursor_ -= 6; send(Token::ILLEGAL); start_ = cursor_; cursor_ += 6; goto yy0; }
-    <Normal> "." digit+ maybe_exponent "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierStart()) { YYSETCONDITION(kConditionIdentifier); } else { YYSETCONDITION(kConditionIdentifierIllegal); } cursor_ -= 6; send(Token::ILLEGAL); start_ = cursor_; cursor_ += 6; goto yy0; }
-    <Normal> digit+ ("." digit+)? maybe_exponent "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierStart()) { YYSETCONDITION(kConditionIdentifier); } else { YYSETCONDITION(kConditionIdentifierIllegal); } cursor_ -= 6; send(Token::ILLEGAL); start_ = cursor_; cursor_ += 6; goto yy0; }
+    <Normal> number not_identifier_char { PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
+    <Normal> number "\\u" [0-9a-fA-F]{4} { cursor_ -= 6; send(Token::ILLEGAL); start_ = cursor_; cursor_ += 6; if (ValidIdentifierStart()) { YYSETCONDITION(kConditionIdentifier); goto yy0; } else { PUSH_TOKEN(Token::ILLEGAL); } }
+    <Normal> number any   { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 
     <Normal> "("           { PUSH_TOKEN(Token::LPAREN); }
     <Normal> ")"           { PUSH_TOKEN(Token::RPAREN); }
@@ -390,7 +387,7 @@ start_:
     <Normal> "\\"                 { PUSH_TOKEN(Token::ILLEGAL); }
 
     <Normal> eof           { PUSH_EOF_AND_RETURN();}
-    <Normal> any           :=> IdentifierIllegal
+    <Normal> any           { marker_ = cursor_; YYSETCONDITION(kConditionIdentifierIllegal); goto yy0; }
 
     <DoubleQuoteString> "\\\\"  { goto yy0; }
     <DoubleQuoteString> "\\\""  { goto yy0; }
@@ -418,9 +415,11 @@ start_:
     <Identifier> any               { PUSH_TOKEN_LOOKAHEAD(Token::IDENTIFIER); }
 
     <IdentifierIllegal> identifier_start  { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
-    <IdentifierIllegal> identifier_char\identifier_start  { goto yy0; }
-    <IdentifierIllegal> "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierStart()) { cursor_ -= 6; PUSH_TOKEN(Token::ILLEGAL); } goto yy0; }
-    <IdentifierIllegal> "\\"+             { goto yy0; }
+    <IdentifierIllegal> identifier_char\identifier_start  { marker_ = cursor_; goto yy0; }
+    <IdentifierIllegal> "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierStart()) { cursor_ -= 6; PUSH_TOKEN(Token::ILLEGAL); } marker_ = cursor_; PUSH_TOKEN(Token::ILLEGAL); }
+    <IdentifierIllegal> "\\"+             { marker_ = cursor_; goto yy0; }
+    <IdentifierIllegal> number not_identifier_char { YYCTYPE* temp = cursor_; cursor_ = marker_; send(Token::ILLEGAL); cursor_ = temp; YYSETCONDITION(kConditionNormal); PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
+    <IdentifierIllegal> number "\\u" [0-9a-fA-F]{4} { YYCTYPE* temp = cursor_; cursor_ = marker_; send(Token::ILLEGAL); cursor_ = temp; send(Token::ILLEGAL); start_ = cursor_; goto yy0; }
     <IdentifierIllegal> any               { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
