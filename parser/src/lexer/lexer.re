@@ -388,7 +388,7 @@ start_:
     <Normal> "\\"                 { PUSH_TOKEN(Token::ILLEGAL); }
 
     <Normal> eof           { PUSH_EOF_AND_RETURN();}
-    <Normal> any           { marker_ = cursor_; YYSETCONDITION(kConditionIdentifierIllegal); goto yy0; }
+    <Normal> any           { PUSH_TOKEN(Token::ILLEGAL); }
 
     <DoubleQuoteString> "\\\\"  { goto yy0; }
     <DoubleQuoteString> "\\\""  { goto yy0; }
@@ -424,14 +424,14 @@ start_:
     <IdentifierIllegal> any               { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
-    <SingleLineComment> eof             { PUSH_TOKEN(Token::EOS); }
+    <SingleLineComment> eof             { start_ = cursor_ - 1; PUSH_TOKEN(Token::EOS); }
     <SingleLineComment> any             { goto yy0; }
 
     <MultiLineComment> [*][//]  { PUSH_LINE_TERMINATOR();}
-    <MultiLineComment> eof      { TERMINATE_ILLEGAL(); }
+    <MultiLineComment> eof      { start_ = cursor_ - 1; PUSH_TOKEN(Token::EOS); }
     <MultiLineComment> any      { goto yy0; }
 
-    <HtmlComment> eof        { TERMINATE_ILLEGAL(); }
+    <HtmlComment> eof        { start_ = cursor_ - 1; PUSH_TOKEN(Token::EOS); }
     <HtmlComment> "-->"      { PUSH_LINE_TERMINATOR();}
     <HtmlComment> line_terminator+ { PUSH_LINE_TERMINATOR();}
     <HtmlComment> any        { goto yy0; }
