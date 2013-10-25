@@ -1085,29 +1085,24 @@ enum ParserFlag {
   kAllowModules,
   kAllowGenerators,
   kAllowForOf,
-  kAllowHarmonyNumericLiterals,
-  kParserFlagCount
+  kAllowHarmonyNumericLiterals
 };
 
 
-static bool checkParserFlag(unsigned flags, ParserFlag flag) {
-  return flags & (1 << flag);
+void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
+  parser->set_allow_lazy(flags.Contains(kAllowLazy));
+  parser->set_allow_natives_syntax(flags.Contains(kAllowNativesSyntax));
+  parser->set_allow_harmony_scoping(flags.Contains(kAllowHarmonyScoping));
+  parser->set_allow_modules(flags.Contains(kAllowModules));
+  parser->set_allow_generators(flags.Contains(kAllowGenerators));
+  parser->set_allow_for_of(flags.Contains(kAllowForOf));
+  parser->set_allow_harmony_numeric_literals(
+      flags.Contains(kAllowHarmonyNumericLiterals));
 }
 
 
-#define SET_PARSER_FLAGS(parser, flags) \
-  parser.set_allow_lazy(checkParserFlag(flags, kAllowLazy)); \
-  parser.set_allow_natives_syntax(checkParserFlag(flags, \
-                                                  kAllowNativesSyntax)); \
-  parser.set_allow_harmony_scoping(checkParserFlag(flags, \
-                                                   kAllowHarmonyScoping)); \
-  parser.set_allow_modules(checkParserFlag(flags, kAllowModules)); \
-  parser.set_allow_generators(checkParserFlag(flags, kAllowGenerators)); \
-  parser.set_allow_for_of(checkParserFlag(flags, kAllowForOf)); \
-  parser.set_allow_harmony_numeric_literals( \
-      checkParserFlag(flags, kAllowHarmonyNumericLiterals));
-
-void TestParserSyncWithFlags(i::Handle<i::String> source, unsigned flags) {
+void TestParserSyncWithFlags(i::Handle<i::String> source,
+                             i::EnumSet<ParserFlag> flags) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -1119,7 +1114,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source, unsigned flags) {
     i::Scanner scanner(isolate->unicode_cache());
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
     i::PreParser preparser(&scanner, &log, stack_limit);
-    SET_PARSER_FLAGS(preparser, flags);
+    SetParserFlags(&preparser, flags);
     scanner.Initialize(&stream);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -1132,7 +1127,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source, unsigned flags) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
     i::Parser parser(&info);
-    SET_PARSER_FLAGS(parser, flags);
+    SetParserFlags(&parser, flags);
     info.MarkAsGlobal();
     parser.Parse();
     function = info.function();
@@ -1186,9 +1181,17 @@ void TestParserSyncWithFlags(i::Handle<i::String> source, unsigned flags) {
 }
 
 
-void TestParserSync(i::Handle<i::String> source) {
-  for (unsigned flags = 0; flags < (1 << kParserFlagCount); ++flags) {
-    TestParserSyncWithFlags(source, flags);
+void TestParserSync(const char* source,
+                    const ParserFlag* flag_list,
+                    size_t flag_list_length) {
+  i::Handle<i::String> str =
+      CcTest::i_isolate()->factory()->NewStringFromAscii(i::CStrVector(source));
+  for (int bits = 0; bits < (1 << flag_list_length); bits++) {
+    i::EnumSet<ParserFlag> flags;
+    for (size_t flag_index = 0; flag_index < flag_list_length; flag_index++) {
+      if ((bits & (1 << flag_index)) != 0) flags.Add(flag_list[flag_index]);
+    }
+    TestParserSyncWithFlags(str, flags);
   }
 }
 
@@ -1262,17 +1265,18 @@ TEST(ParserSync) {
     NULL
   };
 
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-
   v8::HandleScope handles(CcTest::isolate());
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   int marker;
-  isolate->stack_guard()->SetStackLimit(
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
+  static const ParserFlag flags1[] = {
+    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
+    kAllowForOf
+  };
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
       for (int k = 0; termination_data[k] != NULL; ++k) {
@@ -1292,12 +1296,20 @@ TEST(ParserSync) {
             termination_data[k],
             context_data[i][1]);
         CHECK(length == kProgramSize);
-        i::Handle<i::String> source =
-            factory->NewStringFromAscii(i::CStrVector(program.start()));
-        TestParserSync(source);
+        TestParserSync(program.start(), flags1, ARRAY_SIZE(flags1));
       }
     }
   }
+
+  // Neither Harmony numeric literals nor our natives syntax have any
+  // interaction with the flags above, so test these separately to reduce
+  // the combinatorial explosion.
+  static const ParserFlag flags2[] = { kAllowHarmonyNumericLiterals };
+  TestParserSync("0o1234", flags2, ARRAY_SIZE(flags2));
+  TestParserSync("0b1011", flags2, ARRAY_SIZE(flags2));
+
+  static const ParserFlag flags3[] = { kAllowNativesSyntax };
+  TestParserSync("%DebugPrint(123)", flags3, ARRAY_SIZE(flags3));
 }
 
 
