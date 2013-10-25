@@ -696,7 +696,7 @@ DEFINE_bool(stress_compaction, false,
 #endif
 
 // checks.cc
-#ifndef OPTIMIZED_DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 #endif
