@@ -61,6 +61,10 @@
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
+  # Only regexp stuff tested, no need for extensive Crankshaft tests.
+  'regexp-global': [PASS, NO_VARIANTS],
+
+  ##############################################################################
   # No need to waste time for this test.
   'd8-performance-now': [PASS, NO_VARIANTS],
 
