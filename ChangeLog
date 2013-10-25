@@ -1,3 +1,10 @@
+2013-10-25: Version 3.22.22
+
+        Record allocation stack traces. (Chromium issue 277984,v8:2949)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-24: Version 3.22.21
 
         Performance and stability improvements on all platforms.
