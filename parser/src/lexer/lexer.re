@@ -56,8 +56,6 @@
 
 
 // TODO:
-// - SpiderMonkey compatibility hack: "  --> something" is treated
-//   as a single line comment.
 // - Run-time lexing modifications: harmony number literals, keywords depending
 //   on harmony_modules, harmony_scoping
 // - Escaping the string literals (like the baseline does)
@@ -115,7 +113,7 @@ inline int HexValue(uc32 c) {
 #define PUSH_TOKEN(T) { send(T); SKIP(); }
 #define PUSH_TOKEN_LOOKAHEAD(T) { --cursor_; send(T); SKIP(); }
 #define PUSH_EOF_AND_RETURN() { send(Token::EOS); eof_ = true; return 1;}
-#define PUSH_LINE_TERMINATOR() { SKIP(); }
+#define PUSH_LINE_TERMINATOR() { just_seen_line_terminator_ = true; SKIP(); }
 #define TERMINATE_ILLEGAL() { send(Token::ILLEGAL); send(Token::EOS); return 1; }
 
 #define YYCTYPE uint8_t
@@ -134,6 +132,7 @@ PushScanner::PushScanner(ExperimentalScanner* sink, UnicodeCache* unicode_cache)
   buffer_end_(NULL),
   yych(0),
   yyaccept(0),
+  just_seen_line_terminator_(true),
   sink_(sink) {
 
 }
@@ -174,6 +173,7 @@ void PushScanner::send(Token::Value token) {
     for (uint8_t* s = start_; s != cursor_; s++) printf("%c", (char)*s);
     printf(".\n");
   }
+  just_seen_line_terminator_ = false;
   sink_->Record(token, beg, end);
 }
 
@@ -331,6 +331,7 @@ start_:
     <Normal> "!"           { PUSH_TOKEN(Token::NOT); }
 
     <Normal> "//"          :=> SingleLineComment
+    <Normal> whitespace? "-->" { if (just_seen_line_terminator_) { YYSETCONDITION(kConditionSingleLineComment); goto yy0; } else { --cursor_; send(Token::DEC); start_ = cursor_; goto yy0; } }
     <Normal> "/*"          :=> MultiLineComment
     <Normal> "<!--"        :=> HtmlComment
 
@@ -432,6 +433,7 @@ start_:
 
     <HtmlComment> eof        { TERMINATE_ILLEGAL(); }
     <HtmlComment> "-->"      { PUSH_LINE_TERMINATOR();}
+    <HtmlComment> line_terminator+ { PUSH_LINE_TERMINATOR();}
     <HtmlComment> any        { goto yy0; }
     */
 

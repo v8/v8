@@ -71,6 +71,8 @@ class PushScanner {
   uint8_t yych;
   uint32_t yyaccept;
 
+  bool just_seen_line_terminator_;
+
   ExperimentalScanner* sink_;
 };
 
