@@ -1196,7 +1196,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   ASSERT(!this->IsExternalString());
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
@@ -1253,7 +1253,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 
 bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
@@ -4483,7 +4483,7 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
       Handle<Map>::cast(result)->SharedMapVerify();
     }
 #endif
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
@@ -7828,7 +7828,7 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
       accessor->AddElementsToFixedArray(array, array, this);
   FixedArray* result;
   if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
@@ -7846,7 +7846,7 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
       accessor->AddElementsToFixedArray(NULL, NULL, this, other);
   FixedArray* result;
   if (!maybe_result->To(&result)) return maybe_result;
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
@@ -8901,7 +8901,7 @@ bool String::SlowEquals(String* other) {
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
   if (HasHashCode() && other->HasHashCode()) {
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       if (Hash() != other->Hash()) {
         bool found_difference = false;

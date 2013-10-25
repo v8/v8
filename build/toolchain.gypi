@@ -436,6 +436,7 @@
           'V8_ENABLE_CHECKS',
           'OBJECT_PRINT',
           'VERIFY_HEAP',
+          'DEBUG'
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -503,15 +504,6 @@
           },
         },
         'conditions': [
-          ['v8_optimized_debug==2', {
-            'defines': [
-              'NDEBUG',
-            ],
-          }, {
-            'defines': [
-              'DEBUG',
-            ],
-          }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual',
@@ -552,6 +544,9 @@
                 'cflags': [
                   '-fdata-sections',
                   '-ffunction-sections',
+                ],
+                'defines': [
+                  'OPTIMIZED_DEBUG'
                 ],
                 'conditions': [
                   # TODO(crbug.com/272548): Avoid -O3 in NaCl

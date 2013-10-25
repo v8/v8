@@ -80,7 +80,7 @@ PropertyDetails PropertyDetails::AsDeleted() {
 
 #define CAST_ACCESSOR(type)                     \
   type* type::cast(Object* object) {            \
-    ASSERT(object->Is##type());                 \
+    SLOW_ASSERT(object->Is##type());            \
     return reinterpret_cast<type*>(object);     \
   }
 
@@ -1190,7 +1190,7 @@ void HeapObject::VerifySmiField(int offset) {
 Heap* HeapObject::GetHeap() {
   Heap* heap =
       MemoryChunk::FromAddress(reinterpret_cast<Address>(this))->heap();
-  ASSERT(heap != NULL);
+  SLOW_ASSERT(heap != NULL);
   return heap;
 }
 
@@ -1307,7 +1307,7 @@ FixedArrayBase* JSObject::elements() {
 
 
 void JSObject::ValidateElements() {
-#if DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     ElementsAccessor* accessor = GetElementsAccessor();
     accessor->Validate(this);
@@ -1901,7 +1901,7 @@ FixedArrayBase* FixedArrayBase::cast(Object* object) {
 
 
 Object* FixedArray::get(int index) {
-  ASSERT(index >= 0 && index < this->length());
+  SLOW_ASSERT(index >= 0 && index < this->length());
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
