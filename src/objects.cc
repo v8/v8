@@ -9156,7 +9156,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   if (newspace->Contains(start_of_string) &&
       newspace->top() == start_of_string + old_size) {
     // Last allocated object in new space.  Simply lower allocation top.
-    *(newspace->allocation_top_address()) = start_of_string + new_size;
+    newspace->set_top(start_of_string + new_size);
   } else {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
