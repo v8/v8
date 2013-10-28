@@ -5786,20 +5786,9 @@ class HObjectAccess V8_FINAL {
                 ? Representation::Smi() : Representation::Tagged());
   }
 
-  static HObjectAccess ForAllocationSiteTransitionInfo() {
-    return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
-  }
-
-  static HObjectAccess ForAllocationSiteNestedSite() {
-    return HObjectAccess(kInobject, AllocationSite::kNestedSiteOffset);
-  }
-
-  static HObjectAccess ForAllocationSiteDependentCode() {
-    return HObjectAccess(kInobject, AllocationSite::kDependentCodeOffset);
-  }
-
-  static HObjectAccess ForAllocationSiteWeakNext() {
-    return HObjectAccess(kInobject, AllocationSite::kWeakNextOffset);
+  static HObjectAccess ForAllocationSiteOffset(int offset) {
+    ASSERT(offset >= HeapObject::kHeaderSize && offset < AllocationSite::kSize);
+    return HObjectAccess(kInobject, offset);
   }
 
   static HObjectAccess ForAllocationSiteList() {
