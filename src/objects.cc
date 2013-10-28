@@ -9912,9 +9912,13 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
   String* name = shared()->DebugName();
   Vector<const char> filter = CStrVector(raw_filter);
   if (filter.length() == 0) return name->length() == 0;
-  if (filter[0] != '-' && name->IsUtf8EqualTo(filter)) return true;
-  if (filter[0] == '-' &&
-      !name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+  if (filter[0] == '-') {
+    if (filter.length() == 1) {
+      return (name->length() != 0);
+    } else if (!name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+      return true;
+    }
+  } else if (name->IsUtf8EqualTo(filter)) {
     return true;
   }
   if (filter[filter.length() - 1] == '*' &&
