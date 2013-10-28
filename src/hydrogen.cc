@@ -5406,9 +5406,9 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   if (lookup.IsField()) {
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
-    Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
     HValue* checked_holder = BuildCheckPrototypeMaps(prototype, holder);
+    Handle<Map> holder_map(holder->map());
     return BuildLoadNamedField(
         checked_holder, HObjectAccess::ForField(holder_map, &lookup, name));
   }
