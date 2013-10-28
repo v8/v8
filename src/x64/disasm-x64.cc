@@ -1260,6 +1260,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     byte_size_operand_ = idesc.byte_size_operation;
     current += PrintOperands(idesc.mnem, idesc.op_order_, current);
 
+  } else if (opcode == 0x54) {
+    // xorps xmm, xmm/m128
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("andps %s,", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
+
   } else if (opcode == 0x57) {
     // xorps xmm, xmm/m128
     int mod, regop, rm;

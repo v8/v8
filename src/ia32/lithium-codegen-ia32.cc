@@ -3883,7 +3883,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
-    __ pand(input_reg, scratch);
+    __ andps(input_reg, scratch);
   } else if (r.IsSmiOrInteger32()) {
     EmitIntegerMathAbs(instr);
   } else {  // Tagged case.

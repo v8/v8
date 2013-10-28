@@ -2476,6 +2476,17 @@ void Assembler::emit_farith(int b1, int b2, int i) {
 }
 
 
+// SSE operations.
+
+void Assembler::andps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
 // SSE 2 operations.
 
 void Assembler::movd(XMMRegister dst, Register src) {
