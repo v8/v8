@@ -1346,13 +1346,26 @@ class Assembler : public AssemblerBase {
 
   void sahf();
 
+  // SSE instructions
+  void movaps(XMMRegister dst, XMMRegister src);
+  void movss(XMMRegister dst, const Operand& src);
+  void movss(const Operand& dst, XMMRegister src);
+
+  void cvttss2si(Register dst, const Operand& src);
+  void cvttss2si(Register dst, XMMRegister src);
+  void cvtlsi2ss(XMMRegister dst, Register src);
+
+  void xorps(XMMRegister dst, XMMRegister src);
+  void andps(XMMRegister dst, XMMRegister src);
+
+  void movmskps(Register dst, XMMRegister src);
+
   // SSE2 instructions
   void movd(XMMRegister dst, Register src);
   void movd(Register dst, XMMRegister src);
   void movq(XMMRegister dst, Register src);
   void movq(Register dst, XMMRegister src);
   void movq(XMMRegister dst, XMMRegister src);
-  void extractps(Register dst, XMMRegister src, byte imm8);
 
   // Don't use this unless it's important to keep the
   // top half of the destination register unchanged.
@@ -1370,13 +1383,7 @@ class Assembler : public AssemblerBase {
   void movdqu(XMMRegister dst, const Operand& src);
 
   void movapd(XMMRegister dst, XMMRegister src);
-  void movaps(XMMRegister dst, XMMRegister src);
 
-  void movss(XMMRegister dst, const Operand& src);
-  void movss(const Operand& dst, XMMRegister src);
-
-  void cvttss2si(Register dst, const Operand& src);
-  void cvttss2si(Register dst, XMMRegister src);
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, XMMRegister src);
@@ -1386,7 +1393,6 @@ class Assembler : public AssemblerBase {
   void cvtqsi2sd(XMMRegister dst, const Operand& src);
   void cvtqsi2sd(XMMRegister dst, Register src);
 
-  void cvtlsi2ss(XMMRegister dst, Register src);
 
   void cvtss2sd(XMMRegister dst, XMMRegister src);
   void cvtss2sd(XMMRegister dst, const Operand& src);
@@ -1405,11 +1411,16 @@ class Assembler : public AssemblerBase {
   void andpd(XMMRegister dst, XMMRegister src);
   void orpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
-  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
+  void cmpltsd(XMMRegister dst, XMMRegister src);
+
+  void movmskpd(Register dst, XMMRegister src);
+
+  // SSE 4.1 instruction
+  void extractps(Register dst, XMMRegister src, byte imm8);
 
   enum RoundingMode {
     kRoundToNearest = 0x0,
@@ -1419,17 +1430,6 @@ class Assembler : public AssemblerBase {
   };
 
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
-
-  void movmskpd(Register dst, XMMRegister src);
-  void movmskps(Register dst, XMMRegister src);
-
-  void cmpltsd(XMMRegister dst, XMMRegister src);
-
-  // The first argument is the reg field, the second argument is the r/m field.
-  void emit_sse_operand(XMMRegister dst, XMMRegister src);
-  void emit_sse_operand(XMMRegister reg, const Operand& adr);
-  void emit_sse_operand(XMMRegister dst, Register src);
-  void emit_sse_operand(Register dst, XMMRegister src);
 
   // Debugging
   void Print();
@@ -1610,6 +1610,12 @@ class Assembler : public AssemblerBase {
 
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
+
+  // The first argument is the reg field, the second argument is the r/m field.
+  void emit_sse_operand(XMMRegister dst, XMMRegister src);
+  void emit_sse_operand(XMMRegister reg, const Operand& adr);
+  void emit_sse_operand(XMMRegister dst, Register src);
+  void emit_sse_operand(Register dst, XMMRegister src);
 
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all

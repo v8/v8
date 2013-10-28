@@ -2112,14 +2112,19 @@ class JSObject: public JSReceiver {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Requires: HasFastElements().
+  static Handle<FixedArray> EnsureWritableFastElements(
+      Handle<JSObject> object);
   MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
   // Returns the number of non-undefined values.
-  MUST_USE_RESULT MaybeObject* PrepareElementsForSort(uint32_t limit);
+  static Handle<Object> PrepareElementsForSort(Handle<JSObject> object,
+                                               uint32_t limit);
   // As PrepareElementsForSort, but only on objects where elements is
   // a dictionary, and it will stay a dictionary.
+  static Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
+                                                   uint32_t limit);
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
   static Handle<Object> GetPropertyWithCallback(Handle<JSObject> object,
@@ -2590,6 +2595,11 @@ class JSObject: public JSReceiver {
   };
 
   void IncrementSpillStatistics(SpillInformation* info);
+
+  // If a GC was caused while constructing this object, the elements pointer
+  // may point to a one pointer filler map. The object won't be rooted, but
+  // our heap verification code could stumble across it.
+  bool ElementsAreSafeToExamine();
 #endif
   Object* SlowReverseLookup(Object* value);
 

@@ -696,8 +696,10 @@ DEFINE_bool(stress_compaction, false,
 #endif
 
 // checks.cc
+#ifdef ENABLE_SLOW_ASSERTS
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
+#endif
 
 // codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_bool(print_source, false, "pretty print source code")

@@ -358,7 +358,7 @@ F FUNCTION_CAST(Address addr) {
 // Define DISABLE_ASAN macros.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
-#define DISABLE_ASAN __attribute__((no_address_safety_analysis))
+#define DISABLE_ASAN __attribute__((no_sanitize_address))
 #endif
 #endif
 

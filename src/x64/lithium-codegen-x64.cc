@@ -3369,7 +3369,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
-    __ andpd(input_reg, scratch);
+    __ andps(input_reg, scratch);
   } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
   } else if (r.IsSmi()) {

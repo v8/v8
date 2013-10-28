@@ -1017,6 +1017,10 @@ class Assembler : public AssemblerBase {
 
   void cpuid();
 
+  // SSE instructions
+  void andps(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
+
   // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
@@ -1034,7 +1038,6 @@ class Assembler : public AssemblerBase {
   void mulsd(XMMRegister dst, const Operand& src);
   void divsd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
-  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void andpd(XMMRegister dst, XMMRegister src);
@@ -1157,7 +1160,7 @@ class Assembler : public AssemblerBase {
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
 
-  byte byte_at(int pos)  { return buffer_[pos]; }
+  byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
  protected:

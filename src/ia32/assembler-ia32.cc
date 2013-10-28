@@ -2344,6 +2344,14 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
 }
 
 
+void Assembler::andps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::pand(XMMRegister dst, XMMRegister src) {
   ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);

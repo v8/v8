@@ -33,9 +33,6 @@
   # TODO(mvstanton) Re-enable when the performance is bearable again.
   'regress/regress-2185-2': [SKIP],
 
-  # TODO(mvstanton) Re-enable when the bug is fixed.
-  'regress/regress-2612': [PASS, ['mode == debug', SKIP]],
-
   ##############################################################################
   # Fails.
   'regress/regress-1119': [FAIL],

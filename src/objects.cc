@@ -343,6 +343,14 @@ static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
 }
 
 
+Handle<FixedArray> JSObject::EnsureWritableFastElements(
+    Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->EnsureWritableFastElements(),
+                     FixedArray);
+}
+
+
 Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
                                                  Handle<Object> receiver,
                                                  Handle<Object> structure,
@@ -1196,7 +1204,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   ASSERT(!this->IsExternalString());
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
@@ -1253,7 +1261,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 
 bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
@@ -4483,7 +4491,7 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
       Handle<Map>::cast(result)->SharedMapVerify();
     }
 #endif
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
@@ -7828,7 +7836,7 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
       accessor->AddElementsToFixedArray(array, array, this);
   FixedArray* result;
   if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
@@ -7846,7 +7854,7 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
       accessor->AddElementsToFixedArray(NULL, NULL, this, other);
   FixedArray* result;
   if (!maybe_result->To(&result)) return maybe_result;
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
@@ -8901,7 +8909,7 @@ bool String::SlowEquals(String* other) {
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
   if (HasHashCode() && other->HasHashCode()) {
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       if (Hash() != other->Hash()) {
         bool found_difference = false;
@@ -9156,7 +9164,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   if (newspace->Contains(start_of_string) &&
       newspace->top() == start_of_string + old_size) {
     // Last allocated object in new space.  Simply lower allocation top.
-    *(newspace->allocation_top_address()) = start_of_string + new_size;
+    newspace->set_top(start_of_string + new_size);
   } else {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
@@ -9904,9 +9912,13 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
   String* name = shared()->DebugName();
   Vector<const char> filter = CStrVector(raw_filter);
   if (filter.length() == 0) return name->length() == 0;
-  if (filter[0] != '-' && name->IsUtf8EqualTo(filter)) return true;
-  if (filter[0] == '-' &&
-      !name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+  if (filter[0] == '-') {
+    if (filter.length() == 1) {
+      return (name->length() != 0);
+    } else if (!name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+      return true;
+    }
+  } else if (name->IsUtf8EqualTo(filter)) {
     return true;
   }
   if (filter[filter.length() - 1] == '*' &&
@@ -14287,6 +14299,14 @@ template
 int HashTable<SeededNumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
 
 
+Handle<Object> JSObject::PrepareSlowElementsForSort(
+    Handle<JSObject> object, uint32_t limit) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->PrepareSlowElementsForSort(limit),
+                     Object);
+}
+
+
 // Collates undefined and unexisting elements below limit from position
 // zero of the elements. The object stays in Dictionary mode.
 MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
@@ -14389,74 +14409,57 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // the start of the elements array.
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
-MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
-  Heap* heap = GetHeap();
+Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
+                                                uint32_t limit) {
+  Isolate* isolate = object->GetIsolate();
 
-  ASSERT(!map()->is_observed());
-  if (HasDictionaryElements()) {
+  ASSERT(!object->map()->is_observed());
+  if (object->HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
-    SeededNumberDictionary* dict = element_dictionary();
-    if (IsJSArray() || dict->requires_slow_elements() ||
+    Handle<SeededNumberDictionary> dict(object->element_dictionary());
+    if (object->IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
-      return PrepareSlowElementsForSort(limit);
+      return JSObject::PrepareSlowElementsForSort(object, limit);
     }
     // Convert to fast elements.
 
-    Object* obj;
-    MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
-                                                      FAST_HOLEY_ELEMENTS);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    Map* new_map = Map::cast(obj);
+    Handle<Map> new_map =
+        JSObject::GetElementsTransitionMap(object, FAST_HOLEY_ELEMENTS);
 
-    PretenureFlag tenure = heap->InNewSpace(this) ? NOT_TENURED: TENURED;
-    Object* new_array;
-    { MaybeObject* maybe_new_array =
-          heap->AllocateFixedArray(dict->NumberOfElements(), tenure);
-      if (!maybe_new_array->ToObject(&new_array)) return maybe_new_array;
-    }
-    FixedArray* fast_elements = FixedArray::cast(new_array);
-    dict->CopyValuesTo(fast_elements);
-    ValidateElements();
+    PretenureFlag tenure = isolate->heap()->InNewSpace(*object) ?
+        NOT_TENURED: TENURED;
+    Handle<FixedArray> fast_elements =
+        isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
+    dict->CopyValuesTo(*fast_elements);
+    object->ValidateElements();
 
-    set_map_and_elements(new_map, fast_elements);
-  } else if (HasExternalArrayElements()) {
+    object->set_map_and_elements(*new_map, *fast_elements);
+  } else if (object->HasExternalArrayElements()) {
     // External arrays cannot have holes or undefined elements.
-    return Smi::FromInt(ExternalArray::cast(elements())->length());
-  } else if (!HasFastDoubleElements()) {
-    Object* obj;
-    { MaybeObject* maybe_obj = EnsureWritableFastElements();
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
+    return handle(Smi::FromInt(
+        ExternalArray::cast(object->elements())->length()), isolate);
+  } else if (!object->HasFastDoubleElements()) {
+    JSObject::EnsureWritableFastElements(object);
   }
-  ASSERT(HasFastSmiOrObjectElements() || HasFastDoubleElements());
+  ASSERT(object->HasFastSmiOrObjectElements() ||
+         object->HasFastDoubleElements());
 
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.
 
-  FixedArrayBase* elements_base = FixedArrayBase::cast(this->elements());
+  Handle<FixedArrayBase> elements_base(object->elements());
   uint32_t elements_length = static_cast<uint32_t>(elements_base->length());
   if (limit > elements_length) {
     limit = elements_length ;
   }
   if (limit == 0) {
-    return Smi::FromInt(0);
-  }
-
-  HeapNumber* result_double = NULL;
-  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
-    // Pessimistically allocate space for return value before
-    // we start mutating the array.
-    Object* new_double;
-    { MaybeObject* maybe_new_double = heap->AllocateHeapNumber(0.0);
-      if (!maybe_new_double->ToObject(&new_double)) return maybe_new_double;
-    }
-    result_double = HeapNumber::cast(new_double);
+    return handle(Smi::FromInt(0), isolate);
   }
 
   uint32_t result = 0;
-  if (elements_base->map() == heap->fixed_double_array_map()) {
-    FixedDoubleArray* elements = FixedDoubleArray::cast(elements_base);
+  if (elements_base->map() == isolate->heap()->fixed_double_array_map()) {
+    FixedDoubleArray* elements = FixedDoubleArray::cast(*elements_base);
     // Split elements into defined and the_hole, in that order.
     unsigned int holes = limit;
     // Assume most arrays contain no holes and undefined values, so minimize the
@@ -14483,7 +14486,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
       holes++;
     }
   } else {
-    FixedArray* elements = FixedArray::cast(elements_base);
+    FixedArray* elements = FixedArray::cast(*elements_base);
     DisallowHeapAllocation no_gc;
 
     // Split elements into defined, undefined and the_hole, in that order.  Only
@@ -14528,12 +14531,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     }
   }
 
-  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
-    return Smi::FromInt(static_cast<int>(result));
-  }
-  ASSERT_NE(NULL, result_double);
-  result_double->set_value(static_cast<double>(result));
-  return result_double;
+  return isolate->factory()->NewNumberFromUint(result);
 }
 
 

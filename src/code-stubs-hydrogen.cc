@@ -371,7 +371,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                     undefined);
   checker.Then();
 
-  HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
+  HObjectAccess access = HObjectAccess::ForAllocationSiteOffset(
+      AllocationSite::kTransitionInfoOffset);
   HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
   HValue* push_value;
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
@@ -440,7 +441,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
                                                     undefined);
   checker.And();
 
-  HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
+  HObjectAccess access = HObjectAccess::ForAllocationSiteOffset(
+      AllocationSite::kTransitionInfoOffset);
   HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
 
   int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
@@ -500,12 +502,14 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   // Store the payload (smi elements kind)
   HValue* initial_elements_kind = Add<HConstant>(GetInitialFastElementsKind());
   Add<HStoreNamedField>(object,
-                        HObjectAccess::ForAllocationSiteTransitionInfo(),
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kTransitionInfoOffset),
                         initial_elements_kind);
 
   // Unlike literals, constructed arrays don't have nested sites
   Add<HStoreNamedField>(object,
-                        HObjectAccess::ForAllocationSiteNestedSite(),
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kNestedSiteOffset),
                         graph()->GetConstant0());
 
   // Store an empty fixed array for the code dependency.
@@ -513,7 +517,8 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
     Add<HConstant>(isolate()->factory()->empty_fixed_array());
   HStoreNamedField* store = Add<HStoreNamedField>(
       object,
-      HObjectAccess::ForAllocationSiteDependentCode(),
+      HObjectAccess::ForAllocationSiteOffset(
+          AllocationSite::kDependentCodeOffset),
       empty_fixed_array);
 
   // Link the object to the allocation site list
@@ -522,8 +527,8 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   HValue* site = Add<HLoadNamedField>(site_list,
                                       HObjectAccess::ForAllocationSiteList());
   store = Add<HStoreNamedField>(object,
-                                HObjectAccess::ForAllocationSiteWeakNext(),
-                                site);
+      HObjectAccess::ForAllocationSiteOffset(AllocationSite::kWeakNextOffset),
+      site);
   store->SkipWriteBarrier();
   Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
                         object);

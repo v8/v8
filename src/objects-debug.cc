@@ -335,9 +335,7 @@ void JSObject::JSObjectVerify() {
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  if ((FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map())) {
+  if (ElementsAreSafeToExamine()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
               (elements() == GetHeap()->empty_fixed_array())),
              (elements()->map() == GetHeap()->fixed_array_map() ||
@@ -698,9 +696,7 @@ void JSArray::JSArrayVerify() {
   CHECK(length()->IsNumber() || length()->IsUndefined());
   // If a GC was caused while constructing this array, the elements
   // pointer may point to a one pointer filler map.
-  if ((FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map())) {
+  if (ElementsAreSafeToExamine()) {
     CHECK(elements()->IsUndefined() ||
           elements()->IsFixedArray() ||
           elements()->IsFixedDoubleArray());
@@ -1140,6 +1136,13 @@ void JSObject::SpillInformation::Print() {
          number_of_slow_used_elements_, number_of_slow_unused_elements_);
 
   PrintF("\n");
+}
+
+
+bool JSObject::ElementsAreSafeToExamine() {
+  return (FLAG_use_gvn && FLAG_use_allocation_folding) ||
+      reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map();
 }
 
 

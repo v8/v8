@@ -148,13 +148,10 @@ void FullCodeGenerator::Generate() {
   // receiver object). r5 is zero for method calls and non-zero for
   // function calls.
   if (!info->is_classic_mode() || info->is_native()) {
-    Label ok;
     __ cmp(r5, Operand::Zero());
-    __ b(eq, &ok);
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-    __ str(r2, MemOperand(sp, receiver_offset));
-    __ bind(&ok);
+    __ str(r2, MemOperand(sp, receiver_offset), ne);
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The

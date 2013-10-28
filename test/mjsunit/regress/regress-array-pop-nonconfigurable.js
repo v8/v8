@@ -25,46 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The GYP based build ends up defining USING_V8_SHARED when compiling this
-// file.
-#undef USING_V8_SHARED
-#include "../include/v8-defaults.h"
+var a = [];
+Object.defineProperty(a, 0, {});
+assertThrows(function() { a.pop(); });
 
-#include "platform.h"
-#include "globals.h"
-#include "v8.h"
-
-namespace v8 {
-
-
-bool ConfigureResourceConstraintsForCurrentPlatform(
-    ResourceConstraints* constraints) {
-  if (constraints == NULL) {
-    return false;
-  }
-
-  int lump_of_memory = (i::kPointerSize / 4) * i::MB;
-
-  // The young_space_size should be a power of 2 and old_generation_size should
-  // be a multiple of Page::kPageSize.
-#if V8_OS_ANDROID
-  constraints->set_max_young_space_size(8 * lump_of_memory);
-  constraints->set_max_old_space_size(256 * lump_of_memory);
-  constraints->set_max_executable_size(192 * lump_of_memory);
-#else
-  constraints->set_max_young_space_size(16 * lump_of_memory);
-  constraints->set_max_old_space_size(700 * lump_of_memory);
-  constraints->set_max_executable_size(256 * lump_of_memory);
-#endif
-  return true;
-}
-
-
-bool SetDefaultResourceConstraintsForCurrentPlatform() {
-  ResourceConstraints constraints;
-  if (!ConfigureResourceConstraintsForCurrentPlatform(&constraints))
-    return false;
-  return SetResourceConstraints(&constraints);
-}
-
-}  // namespace v8

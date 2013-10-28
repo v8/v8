@@ -2306,6 +2306,7 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
                          right_type->Maybe(Type::Smi());
 
   Maybe<Handle<Object> > result = stub.Result(left, right, isolate());
+  if (!result.has_value) return Failure::Exception();
 
 #ifdef DEBUG
   if (FLAG_trace_ic) {
@@ -2346,9 +2347,8 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
     PatchInlinedSmiCode(address(), DISABLE_INLINED_SMI_CHECK);
   }
 
-  return result.has_value
-      ? static_cast<MaybeObject*>(*result.value)
-      : Failure::Exception();
+  ASSERT(result.has_value);
+  return static_cast<MaybeObject*>(*result.value);
 }
 
 

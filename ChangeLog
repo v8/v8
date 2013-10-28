@@ -1,3 +1,13 @@
+2013-10-28: Version 3.22.23
+
+        Renamed deprecated __attribute__((no_address_safety_analysis)) to
+        __attribute__((no_sanitize_address)) (Chromium issue 311283)
+
+        Defined DEBUG for v8_optimized_debug=2
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-25: Version 3.22.22
 
         Record allocation stack traces. (Chromium issue 277984,v8:2949)

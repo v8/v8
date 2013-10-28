@@ -627,7 +627,7 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
       holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
       receiver_types_.Add(handle(holder_->map()), oracle->zone());
     }
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       int length = receiver_types_.length();
       for (int i = 0; i < length; i++) {

@@ -335,61 +335,53 @@ TEST(DisasmX64) {
   __ fcompp();
   __ fwait();
   __ nop();
-  {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope fscope(SSE2);
-      __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
-      __ cvttss2si(rdx, xmm1);
-      __ cvttsd2si(rdx, Operand(rbx, rcx, times_4, 10000));
-      __ cvttsd2si(rdx, xmm1);
-      __ cvttsd2siq(rdx, xmm1);
-      __ addsd(xmm1, xmm0);
-      __ mulsd(xmm1, xmm0);
-      __ subsd(xmm1, xmm0);
-      __ divsd(xmm1, xmm0);
-      __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
-      __ ucomisd(xmm0, xmm1);
 
-      // 128 bit move instructions.
-      __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
-      __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
-    }
+  // SSE instruction
+  {
+    __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
+    __ cvttss2si(rdx, xmm1);
+    __ movaps(xmm0, xmm1);
+
+    __ andps(xmm0, xmm1);
+  }
+  // SSE 2 instructions
+  {
+    __ cvttsd2si(rdx, Operand(rbx, rcx, times_4, 10000));
+    __ cvttsd2si(rdx, xmm1);
+    __ cvttsd2siq(rdx, xmm1);
+    __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
+    // 128 bit move instructions.
+    __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
+
+    __ addsd(xmm1, xmm0);
+    __ mulsd(xmm1, xmm0);
+    __ subsd(xmm1, xmm0);
+    __ divsd(xmm1, xmm0);
+    __ ucomisd(xmm0, xmm1);
+
+    __ andpd(xmm0, xmm1);
   }
 
   // cmov.
   {
-    if (CpuFeatures::IsSupported(CMOV)) {
-      CpuFeatures::Scope use_cmov(CMOV);
-      __ cmovq(overflow, rax, Operand(rax, 0));
-      __ cmovq(no_overflow, rax, Operand(rax, 1));
-      __ cmovq(below, rax, Operand(rax, 2));
-      __ cmovq(above_equal, rax, Operand(rax, 3));
-      __ cmovq(equal, rax, Operand(rbx, 0));
-      __ cmovq(not_equal, rax, Operand(rbx, 1));
-      __ cmovq(below_equal, rax, Operand(rbx, 2));
-      __ cmovq(above, rax, Operand(rbx, 3));
-      __ cmovq(sign, rax, Operand(rcx, 0));
-      __ cmovq(not_sign, rax, Operand(rcx, 1));
-      __ cmovq(parity_even, rax, Operand(rcx, 2));
-      __ cmovq(parity_odd, rax, Operand(rcx, 3));
-      __ cmovq(less, rax, Operand(rdx, 0));
-      __ cmovq(greater_equal, rax, Operand(rdx, 1));
-      __ cmovq(less_equal, rax, Operand(rdx, 2));
-      __ cmovq(greater, rax, Operand(rdx, 3));
-    }
-  }
-
-  // andpd, etc.
-  {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope fscope(SSE2);
-      __ andpd(xmm0, xmm1);
-      __ andpd(xmm1, xmm2);
-
-      __ movaps(xmm0, xmm1);
-      __ movaps(xmm1, xmm2);
-    }
+    __ cmovq(overflow, rax, Operand(rax, 0));
+    __ cmovq(no_overflow, rax, Operand(rax, 1));
+    __ cmovq(below, rax, Operand(rax, 2));
+    __ cmovq(above_equal, rax, Operand(rax, 3));
+    __ cmovq(equal, rax, Operand(rbx, 0));
+    __ cmovq(not_equal, rax, Operand(rbx, 1));
+    __ cmovq(below_equal, rax, Operand(rbx, 2));
+    __ cmovq(above, rax, Operand(rbx, 3));
+    __ cmovq(sign, rax, Operand(rcx, 0));
+    __ cmovq(not_sign, rax, Operand(rcx, 1));
+    __ cmovq(parity_even, rax, Operand(rcx, 2));
+    __ cmovq(parity_odd, rax, Operand(rcx, 3));
+    __ cmovq(less, rax, Operand(rdx, 0));
+    __ cmovq(greater_equal, rax, Operand(rdx, 1));
+    __ cmovq(less_equal, rax, Operand(rdx, 2));
+    __ cmovq(greater, rax, Operand(rdx, 3));
   }
 
   {
