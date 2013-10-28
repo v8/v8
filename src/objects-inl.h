@@ -1667,7 +1667,9 @@ int JSObject::GetHeaderSize() {
     case JS_MESSAGE_OBJECT_TYPE:
       return JSMessageObject::kSize;
     default:
-      UNREACHABLE();
+      // TODO(jkummerow): Re-enable this. Blink currently hits this
+      // from its CustomElementConstructorBuilder.
+      // UNREACHABLE();
       return 0;
   }
 }
