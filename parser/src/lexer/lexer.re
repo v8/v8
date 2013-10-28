@@ -257,10 +257,10 @@ start_:
 
     eof = "\000";
     any = [\000-\377];
-    whitespace_char = [ \t\v\f\r];
+    whitespace_char = [ \t\v\f\r\240];
     whitespace = whitespace_char+;
-    identifier_start = [$_a-zA-Z];
-    identifier_char = [$_a-zA-Z0-9];
+    identifier_start = [$_a-zA-Z\300-\377];
+    identifier_char = [$_a-zA-Z0-9\300-\377];
     not_identifier_char = any\identifier_char\[\\];
     line_terminator = [\n\r]+;
     digit = [0-9];
