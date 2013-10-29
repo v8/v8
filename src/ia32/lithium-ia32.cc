@@ -1728,9 +1728,12 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     ASSERT(instr->right()->representation().IsDouble());
     LOperand* left;
     LOperand* right;
-    if (instr->left()->IsConstant() && instr->right()->IsConstant()) {
-      left = UseRegisterOrConstantAtStart(instr->left());
-      right = UseRegisterOrConstantAtStart(instr->right());
+    if (CanBeImmediateConstant(instr->left()) &&
+        CanBeImmediateConstant(instr->right())) {
+      // The code generator requires either both inputs to be constant
+      // operands, or neither.
+      left = UseConstant(instr->left());
+      right = UseConstant(instr->right());
     } else {
       left = UseRegisterAtStart(instr->left());
       right = UseRegisterAtStart(instr->right());
