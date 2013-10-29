@@ -30,25 +30,9 @@
 #ifndef V8_LEXER_LEXER_H
 #define V8_LEXER_LEXER_H
 
-#if defined(WIN32)  // FIXME: does this work?
-
-typedef signed char   int8_t;
-typedef signed short  int16_t;
-typedef signed int   int32_t;
-
-typedef unsigned char  uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int  uint32_t;
-
-#else
-
-#include <stdint.h>
-#include <unistd.h>
-
-#endif  // defined(WIN32)
-
 #include "token.h"
 #include "flags.h"
+#include "v8stdint.h"
 
 #define YYCTYPE uint8_t
 

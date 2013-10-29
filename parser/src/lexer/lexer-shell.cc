@@ -48,6 +48,14 @@
 
 using namespace v8::internal;
 
+enum Encoding {
+  ASCII,
+  LATIN1,
+  UTF8,
+  UTF16
+};
+
+
 const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
   FILE* file = fopen(name, "rb");
   *size = 0;
@@ -67,15 +75,37 @@ const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
   return chars;
 }
 
-
 class BaselineScanner {
  public:
-  BaselineScanner(const char* fname, Isolate* isolate) {
+  BaselineScanner(const char* fname, Isolate* isolate, Encoding encoding) {
     int length = 0;
     source_ = ReadFile(fname, isolate, &length);
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
-    stream_ = new Utf8ToUtf16CharacterStream(source_, length);
+    switch (encoding) {
+      case ASCII:
+      case UTF8:
+        stream_ = new Utf8ToUtf16CharacterStream(source_, length);
+        break;
+      case UTF16: {
+        Handle<String> result = isolate->factory()->NewStringFromTwoByte(
+            Vector<const uint16_t>(
+                reinterpret_cast<const uint16_t*>(source_),
+                length / 2));
+        stream_ =
+            new GenericStringUtf16CharacterStream(result, 0, result->length());
+        break;
+      }
+      case LATIN1: {
+        Handle<String> result = isolate->factory()->NewStringFromOneByte(
+            Vector<const uint8_t>(source_, length));
+        stream_ =
+            new GenericStringUtf16CharacterStream(result, 0, result->length());
+        break;
+      }
+      default:
+        break;
+    }
     scanner_->Initialize(stream_);
   }
 
@@ -97,13 +127,28 @@ class BaselineScanner {
   UnicodeCache* unicode_cache_;
   Scanner* scanner_;
   const byte* source_;
-  Utf8ToUtf16CharacterStream* stream_;
+  BufferedUtf16CharacterStream* stream_;
 };
 
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
+  Encoding encoding = ASCII;
+  bool print_baseline = false;
+  for (int i = 0; i < argc; ++i) {
+    if (strcmp(argv[i], "--latin1") == 0) {
+      encoding = LATIN1;
+    } else if (strcmp(argv[i], "--utf8") == 0) {
+      encoding = UTF8;
+    } else if (strcmp(argv[i], "--utf16") == 0) {
+      encoding = UTF16;
+    } else if (strcmp(argv[i], "--ascii") == 0) {
+      encoding = ASCII;
+    } else if (strcmp(argv[i], "--print-baseline") == 0) {
+      print_baseline = true;
+    }
+  }
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   {
     v8::HandleScope handle_scope(isolate);
@@ -114,7 +159,7 @@ int main(int argc, char* argv[]) {
       v8::Context::Scope scope(context);
       Isolate* isolate = Isolate::Current();
       HandleScope handle_scope(isolate);
-      BaselineScanner baseline(argv[1], isolate);
+      BaselineScanner baseline(argv[1], isolate, encoding);
       ExperimentalScanner experimental(argv[1], true, isolate);
 
       std::vector<Token::Value> baseline_tokens, experimental_tokens;
@@ -146,6 +191,17 @@ int main(int argc, char* argv[]) {
           experimental_end.push_back(location.end_pos);
         } while (token != Token::EOS);
         experimental_time = timer.Elapsed();
+      }
+
+      if (print_baseline) {
+        printf("Baseline:\n");
+        for (size_t i = 0; i < baseline_tokens.size(); ++i) {
+          printf("=> %11s at (%d, %d)\n",
+                 Token::Name(baseline_tokens[i]),
+                 static_cast<int>(baseline_beg[i]),
+                 static_cast<int>(baseline_end[i]));
+        }
+        printf("(Mis)matches:\n");
       }
 
       for (size_t i = 0; i < experimental_tokens.size(); ++i) {
