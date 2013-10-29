@@ -565,7 +565,9 @@ Parser::Parser(CompilationInfo* info)
 
 
 FunctionLiteral* Parser::ParseProgram() {
-  HistogramTimerScope timer_scope(isolate()->counters()->parse());
+  // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
+  // see comment for HistogramTimerScope class.
+  HistogramTimerScope timer_scope(isolate()->counters()->parse(), true);
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
   ElapsedTimer timer;
