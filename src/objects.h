@@ -2595,12 +2595,15 @@ class JSObject: public JSReceiver {
   };
 
   void IncrementSpillStatistics(SpillInformation* info);
+#endif
 
+#ifdef VERIFY_HEAP
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
   bool ElementsAreSafeToExamine();
 #endif
+
   Object* SlowReverseLookup(Object* value);
 
   // Maximal number of fast properties for the JSObject. Used to
