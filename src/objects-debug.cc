@@ -306,6 +306,13 @@ void ExternalDoubleArray::ExternalDoubleArrayVerify() {
 }
 
 
+bool JSObject::ElementsAreSafeToExamine() {
+  return (FLAG_use_gvn && FLAG_use_allocation_folding) ||
+      reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map();
+}
+
+
 void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
@@ -1136,13 +1143,6 @@ void JSObject::SpillInformation::Print() {
          number_of_slow_used_elements_, number_of_slow_unused_elements_);
 
   PrintF("\n");
-}
-
-
-bool JSObject::ElementsAreSafeToExamine() {
-  return (FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map();
 }
 
 
