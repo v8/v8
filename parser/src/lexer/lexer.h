@@ -30,8 +30,27 @@
 #ifndef V8_LEXER_LEXER_H
 #define V8_LEXER_LEXER_H
 
+#if defined(WIN32)  // FIXME: does this work?
+
+typedef signed char   int8_t;
+typedef signed short  int16_t;
+typedef signed int   int32_t;
+
+typedef unsigned char  uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int  uint32_t;
+
+#else
+
+#include <stdint.h>
+#include <unistd.h>
+
+#endif  // defined(WIN32)
+
 #include "token.h"
 #include "flags.h"
+
+#define YYCTYPE uint8_t
 
 namespace v8 {
 namespace internal {
@@ -59,16 +78,16 @@ class PushScanner {
   int32_t state_;
   int32_t condition_;
 
-  uint8_t* limit_;
-  uint8_t* start_;
-  uint8_t* cursor_;
-  uint8_t* marker_;
+  YYCTYPE* limit_;
+  YYCTYPE* start_;
+  YYCTYPE* cursor_;
+  YYCTYPE* marker_;
   int real_start_;
 
-  uint8_t* buffer_;
-  uint8_t* buffer_end_;
+  YYCTYPE* buffer_;
+  YYCTYPE* buffer_end_;
 
-  uint8_t yych;
+  YYCTYPE yych;
   uint32_t yyaccept;
 
   bool just_seen_line_terminator_;

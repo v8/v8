@@ -27,6 +27,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "lexer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +56,7 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 
+#include "experimental-scanner.h"
 
 // TODO:
 // - Run-time lexing modifications: harmony number literals, keywords depending
@@ -71,30 +74,6 @@ enum Condition {
   kConditionMultiLineComment,
   kConditionHtmlComment
 };
-
-#if defined(WIN32)
-
-  typedef signed char   int8_t;
-  typedef signed short  int16_t;
-  typedef signed int   int32_t;
-
-  typedef unsigned char  uint8_t;
-  typedef unsigned short uint16_t;
-  typedef unsigned int  uint32_t;
-
-#else
-
-#include <stdint.h>
-#include <unistd.h>
-
-#ifndef O_BINARY
-  #define O_BINARY 0
-#endif
-
-#endif //  defined(WIN32)
-
-#include "experimental-scanner.h"
-#include "lexer.h"
 
 using namespace v8::internal;
 
@@ -115,8 +94,6 @@ inline int HexValue(uc32 c) {
 #define PUSH_EOF_AND_RETURN() { send(Token::EOS); eof_ = true; return 1;}
 #define PUSH_LINE_TERMINATOR() { just_seen_line_terminator_ = true; SKIP(); }
 #define TERMINATE_ILLEGAL() { send(Token::ILLEGAL); send(Token::EOS); return 1; }
-
-#define YYCTYPE uint8_t
 
 PushScanner::PushScanner(ExperimentalScanner* sink, UnicodeCache* unicode_cache)
 : unicode_cache_(unicode_cache),
@@ -170,7 +147,7 @@ void PushScanner::send(Token::Value token) {
   int end = (cursor_ - buffer_) + real_start_;
   if (FLAG_trace_lexer) {
     printf("got %s at (%d, %d): ", Token::Name(token), beg, end);
-    for (uint8_t* s = start_; s != cursor_; s++) printf("%c", (char)*s);
+    for (YYCTYPE* s = start_; s != cursor_; s++) printf("%c", (char)*s);
     printf(".\n");
   }
   just_seen_line_terminator_ = false;
@@ -192,7 +169,7 @@ uint32_t PushScanner::push(const void *input, int input_size) {
   //  its thing. Practically though, max_fill is never bigger than
   //  the longest keyword, so given our grammar, 32 is a safe bet.
 
-  uint8_t null[64];
+  YYCTYPE null[64];
   const int max_fill = 32;
   if (input_size < max_fill) { // FIXME: do something about this!!!
     eof_ = true;
@@ -221,7 +198,7 @@ uint32_t PushScanner::push(const void *input, int input_size) {
     size_t marker__offset = marker_ - buffer_;
     size_t cursor__offset = cursor_ - buffer_;
 
-    buffer_ = (uint8_t*)realloc(buffer_, needed);
+    buffer_ = (YYCTYPE*)realloc(buffer_, needed);
     buffer_end_ = needed + buffer_;
 
     marker_ = marker__offset + buffer_;
