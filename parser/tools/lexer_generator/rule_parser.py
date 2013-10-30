@@ -36,23 +36,22 @@ class RuleParser:
   transitions = dict()
 
   def p_statement_alias(self, p):
-    'statement : ALIAS'
-    name = self.lexer.lexer.lexmatch.group('name')
+    'statement : ALIAS EQUALS REGEX'
     regex = self.lexer.lexer.lexmatch.group('regex')
-    self.aliases[name] = regex
+    self.aliases[p[1]] = regex
 
   def p_statement_condition_transition(self, p):
-    'statement : CONDITION_TRANSITION'
-    old_condition = self.lexer.lexer.lexmatch.group('old')
+    'statement : CONDITION_BEGIN CONDITION CONDITION_END REGEX_AND_TRANSITION'
+    old_condition = p[2]
     regex = self.lexer.lexer.lexmatch.group('regex')
     new_condition = self.lexer.lexer.lexmatch.group('new')
     if old_condition not in self.transitions:
       self.transitions[old_condition] = []
     self.transitions[old_condition].append((regex, new_condition))
 
-  def p_statement_condition(self, p):
-    'statement : CONDITION'
-    old_condition = self.lexer.lexer.lexmatch.group('old')
+  def p_statement_condition_body(self, p):
+    'statement : CONDITION_BEGIN CONDITION CONDITION_END REGEX_AND_BODY'
+    old_condition = p[2]
     regex = self.lexer.lexer.lexmatch.group('regex')
     body = self.lexer.lexer.lexmatch.group('body')
     if old_condition not in self.transitions:

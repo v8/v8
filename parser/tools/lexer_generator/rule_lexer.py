@@ -31,22 +31,62 @@ class RuleLexer:
 
   tokens = (
       'ALIAS',
-      'CONDITION_TRANSITION',
-      'CONDITION'
+      'EQUALS',
+      'REGEX',
+      'CONDITION',
+      'CONDITION_BEGIN',
+      'CONDITION_END',
+      'REGEX_AND_TRANSITION',
+      'REGEX_AND_BODY',
       )
 
-  t_ignore = " \t\n"
+  t_ANY_ignore = " \t\n"
+
+  states = (
+    ('afterAlias', 'exclusive'),
+    ('afterAliasEquals', 'exclusive'),
+    ('inCondition', 'exclusive'),
+    ('seenCondition', 'exclusive'),
+    ('afterCondition', 'exclusive'))
 
   def t_ALIAS(self, t):
-    r'\s*(?P<name>[a-zA-Z0-9_]+)\s*=\s*(?P<regex>.+)\s*;\s*'
+    r'[a-zA-Z0-9_]+'
+    self.lexer.begin('afterAlias')
     return t
 
-  def t_CONDITION_TRANSITION(self, t):
-    r'\s*<(?P<old>[a-zA-Z]+)>\s*(?P<regex>.+)\s*:=>\s*(?P<new>.+)\s*'
+  def t_afterAlias_EQUALS(self, t):
+    r'='
+    self.lexer.begin('afterAliasEquals')
     return t
 
-  def t_CONDITION(self, t):
-    r'\s*<(?P<old>[a-zA-Z]+)>\s*(?P<regex>.+)\s*{(?P<body>.+)}\s*'
+  def t_afterAliasEquals_REGEX(self, t):
+    r'(?P<regex>.+)\s*;'
+    self.lexer.begin('INITIAL')
+    return t
+
+  def t_CONDITION_BEGIN(self, t):
+    r'<'
+    self.lexer.begin('inCondition')
+    return t
+
+  def t_inCondition_CONDITION(self, t):
+    r'[a-zA-Z0-9_]+'
+    self.lexer.begin('seenCondition')
+    return t
+
+  def t_seenCondition_CONDITION_END(self, t):
+    r'>'
+    self.lexer.begin('afterCondition')
+    return t
+
+  def t_afterCondition_REGEX_AND_TRANSITION(self, t):
+    r'(?P<regex>.+)\s*:=>\s*(?P<new>.+)\s*'
+    self.lexer.begin('INITIAL')
+    return t
+
+  def t_afterCondition_REGEX_AND_BODY(self, t):
+    r'(?P<regex>.+)\s*{\s*(?P<body>.+)\s*}\s*'
+    self.lexer.begin('INITIAL')
     return t
 
   def t_error(self, t):
