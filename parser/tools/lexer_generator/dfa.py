@@ -47,7 +47,6 @@ class DfaState:
   def transitions(self):
     return self.__transitions
 
-
 class Dfa:
 
   def __init__(self, start_name, mapping, end_names):
@@ -73,9 +72,9 @@ class Dfa:
     while edge:
       next_edge = set()
       for node in edge:
-        next_edge = next_edge | set(node.transitions().values())
+        next_edge |= set(node.transitions().values())
         state = function(node, state)
-      visited = visited | edge
+      visited |= edge
       edge = next_edge - visited
     return state
 
@@ -103,5 +102,7 @@ digraph finite_state_machine {
   node [shape = circle];
 %s
 }
-    ''' % (start_shape, start_number, " ".join(terminals), "\n".join(node_content))
-
+    ''' % (start_shape,
+           start_number,
+           " ".join(terminals),
+           "\n".join(node_content))

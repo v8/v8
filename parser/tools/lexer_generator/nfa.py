@@ -26,21 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from types import TupleType
+from transition_keys import TransitionKey
 from inspect import getmembers
 
-
 class NfaState:
-
-  __epsilon_key = "epsilon"
-  __any_key = "any"
-
-  @staticmethod
-  def epsilon_key():
-    return NfaState.__epsilon_key
-
-  @staticmethod
-  def any_key():
-    return NfaState.__any_key
 
   def __init__(self, node_number):
     self.__transitions = {}
@@ -63,7 +52,8 @@ class NfaState:
     assert self.is_closed()
     return self.__transitions
 
-  def get_transition_set(self, key):
+  def get_epsilon_transitions(self):
+    key = TransitionKey.epsilon();
     if not self.__transitions.has_key(key): return frozenset()
     return frozenset(self.__transitions[key])
 
@@ -76,18 +66,13 @@ class NfaState:
       self.__transitions[key] = set()
     self.__transitions[key].add(value)
 
-  def add_character_transition(self, char):
-    self.__add_transition(char, None)
-
-  def add_any_transition(self):
-    self.__add_transition(self.__any_key, None)
-
-  def add_class_transition(self, class_data, inverted):
-    self.__add_transition('class_data', None)
+  def add_unclosed_transition(self, key):
+    assert key != TransitionKey.epsilon()
+    self.__add_transition(key, None)
 
   def add_epsilon_transition(self, state):
     assert state != None
-    self.__add_transition(self.__epsilon_key, state)
+    self.__add_transition(TransitionKey.epsilon(), state)
 
   def is_closed(self):
     return self.__unclosed == None
@@ -103,20 +88,25 @@ class NfaState:
         self.add_epsilon_transition(end)
     self.__unclosed = None
 
-  def matches(self, char):
-    matches = self.get_transition_set(char)
-    matches = matches.union(self.get_transition_set(self.__any_key))
-    # TODO class matches
+  def __matches(self, match_func, value):
+    matches = set()
+    for key, values in self.__transitions.items():
+      if match_func(key, value):
+        matches |= values
     return matches
+
+  def char_matches(self, value):
+    return self.__matches((lambda k, v : k.matches_char(v)), value)
+
+  def key_matches(self, value):
+    return self.__matches((lambda k, v : k.matches_key(v)), value)
 
   @staticmethod
   def gather_transition_keys(state_set):
     keys = set()
     for state in state_set:
-      for key, values in state.transitions().items():
-        if key == NfaState.__epsilon_key: continue
-        keys.add(key)
-    return keys
+      keys  |= set(state.__transitions.keys())
+    return TransitionKey.merge_key_set(keys)
 
 class NfaBuilder:
 
@@ -163,26 +153,22 @@ class NfaBuilder:
     self.__patch_ends(left[1], right[0])
     return (left[0], right[1])
 
-  def __literal(self, graph):
-    contents = graph[1]
+  def __key_state(self, key):
     state =  self.__new_state()
-    state.add_character_transition(contents)
+    state.add_unclosed_transition(key)
     return (state, [state])
+
+  def __literal(self, graph):
+    return self.__key_state(TransitionKey.single_char(graph[1]))
 
   def __class(self, graph):
-    state =  self.__new_state()
-    state.add_class_transition(graph[1], False)
-    return (state, [state])
+    return self.__key_state(TransitionKey.character_class(False, graph[1]))
 
   def __not_class(self, graph):
-    state =  self.__new_state()
-    state.add_class_transition(graph[1], True)
-    return (state, [state])
+    return self.__key_state(TransitionKey.character_class(True, graph[1]))
 
   def __any(self, graph):
-    state =  self.__new_state()
-    state.add_any_transition()
-    return (state, [state])
+    return self.__key_state(TransitionKey.any())
 
   def __process(self, graph):
     assert type(graph) == TupleType
@@ -205,7 +191,6 @@ class NfaBuilder:
     end.close(None)
     return Nfa(start, end, self.node_number)
 
-
 class Nfa:
 
   def __init__(self, start, end, nodes_created):
@@ -215,34 +200,25 @@ class Nfa:
     self.__verify(nodes_created)
 
   @staticmethod
-  def __visit_edges(start, include_start, just_epsilon, function, state):
-
-    def compute_next_edge(node, next_edge):
-      if just_epsilon:
-        return next_edge.union(node.get_transition_set(node.epsilon_key()))
-      else:
-        for key, values in node.transitions().items():
-          next_edge = next_edge.union(values)
-      return next_edge
-
-    edge = set()
-    if include_start:
-      edge.add(start)
-    else:
-      edge = compute_next_edge(start, edge)
-
+  def __visit_edges(edge, compute_next_edge, visitor, state):
     visited = set()
     while edge:
       next_edge = set()
       for node in edge:
-        next_edge = compute_next_edge(node, next_edge)
-        state = function(node, state)
-      visited = visited.union(edge)
-      edge = next_edge.difference(visited)
+        next_edge |= compute_next_edge(node)
+        state = visitor(node, state)
+      visited |= edge
+      edge = next_edge - visited
     return state
 
   def __visit_all_edges(self, function, state):
-    return Nfa.__visit_edges(self.__start, True, False, function, state)
+    edge = set([self.__start])
+    def next_edge(node):
+      next = set()
+      for values in node.transitions().values():
+        next |= values
+      return next
+    return Nfa.__visit_edges(edge, next_edge, function, state)
 
   def __verify(self, nodes_created):
     def f(node, node_list):
@@ -260,15 +236,18 @@ class Nfa:
       def inner(node, closure):
         closure.add(node)
         return closure
-      closure = Nfa.__visit_edges(node, False, True, inner, set())
+      next_edge = lambda node : node.get_epsilon_transitions()
+      edge = next_edge(node)
+      closure = Nfa.__visit_edges(edge, next_edge, inner, set())
       node.set_epsilon_closure(closure)
     self.__visit_all_edges(outer, None)
 
   @staticmethod
   def __close(states):
+    closure = set(states)
     for node in states:
-      states = states.union(node.epsilon_closure())
-    return states
+      closure |= node.epsilon_closure()
+    return closure
 
   def matches(self, string):
     self.__compute_epsilon_closures()
@@ -276,7 +255,7 @@ class Nfa:
     for c in string:
       next_valid_states = set()
       for valid_state in valid_states:
-        next_valid_states = next_valid_states.union(valid_state.matches(c))
+        next_valid_states |= valid_state.char_matches(c)
       valid_states = Nfa.__close(next_valid_states)
       if not valid_states:
         return False
@@ -294,7 +273,7 @@ class Nfa:
     for key in NfaState.gather_transition_keys(nfa_state_set):
       reachable_set = set()
       for nfa_state in nfa_state_set:
-        reachable_set = reachable_set | nfa_state.matches(key)
+        reachable_set |= nfa_state.key_matches(key)
       dfa_node[key] = Nfa.__to_dfa(reachable_set, dfa_builder)
     if end_node in nfa_state_set:
       end_nodes.add(name)
@@ -312,9 +291,8 @@ class Nfa:
 
     def f(node, node_content):
       for key, values in node.transitions().items():
-        if key == node.epsilon_key(): key = "&epsilon;"
-        if key != node.epsilon_key() and len(key) == 1:
-          key = "'%s'" % key
+        if key == TransitionKey.epsilon():
+          key = "&epsilon;"
         for value in values:
           node_content.append(
             "  S_%d -> S_%d [ label = \"%s\" ];" %
@@ -331,5 +309,6 @@ digraph finite_state_machine {
   node [shape = circle];
 %s
 }
-    ''' % (self.__start.node_number(), self.__end.node_number(), "\n".join(node_content))
-
+    ''' % (self.__start.node_number(),
+           self.__end.node_number(),
+           "\n".join(node_content))
