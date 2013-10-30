@@ -86,7 +86,7 @@ class RegexLexer:
   t_class_NOT = '\^'
 
   def t_class_ESCAPED_CLASS_LITERAL(self, t):
-    r'\\\^|\\-'
+    r'\\\^|\\-|\\\[|\\\]'
     t.type = 'CLASS_LITERAL'
     t.value = t.value[1:]
     return t
