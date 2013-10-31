@@ -259,6 +259,9 @@
 
   # Skip long running test that times out in debug mode and goes OOM on NaCl.
   'regress/regress-crbug-160010': [SKIP],
+
+  # Bug(v8:2978).
+  'lithium/MathExp': [PASS, FAIL],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################
