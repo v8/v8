@@ -51,6 +51,7 @@ class TransitionKeyTestCase(unittest.TestCase):
       ("1-2", "12", "ab"),
       ("a-zA-Z", "abyzABYZ" , "123"),
       ("a-zA-Z0g" , "abyzABYZ0" , "123"),
+      ("a-z:ws::lit:" , "abc" , "123"),
     ]
     for (string, match, no_match) in data:
       for invert in [False, True]:

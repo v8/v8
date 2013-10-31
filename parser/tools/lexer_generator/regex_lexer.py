@@ -48,6 +48,7 @@ class RegexLexer:
     'RANGE',
     'NOT',
     'CLASS_LITERAL',
+    'CHARACTER_CLASS',
   )
 
   states = (
@@ -84,9 +85,10 @@ class RegexLexer:
 
   t_class_RANGE = '-'
   t_class_NOT = '\^'
+  t_class_CHARACTER_CLASS = ':ws:|:lit:'
 
   def t_class_ESCAPED_CLASS_LITERAL(self, t):
-    r'\\\^|\\-|\\\[|\\\]'
+    r'\\\^|\\-|\\\[|\\\]\\:'
     t.type = 'CLASS_LITERAL'
     t.value = t.value[1:]
     return t

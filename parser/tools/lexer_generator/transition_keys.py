@@ -97,6 +97,13 @@ class TransitionKey:
       ranges.append((ord(graph[1]), ord(graph[2])))
     elif key == 'LITERAL':
       ranges.append((ord(graph[1]), ord(graph[1])))
+    elif key == 'CHARACTER_CLASS':
+      if graph[1] == 'ws':
+        ranges.append(TransitionKey.__unicode_whitespace_bounds)
+      elif graph[1] == 'lit':
+        ranges.append(TransitionKey.__unicode_literal_bounds)
+      else:
+        assert "unknown character class %s" % graph[1]
     elif key == 'CAT':
       for x in [graph[1], graph[2]]:
         TransitionKey.__process_graph(x, ranges)

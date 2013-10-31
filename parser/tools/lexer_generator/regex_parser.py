@@ -100,11 +100,15 @@ class RegexParser:
   def p_class_content(self, p):
     '''class_content : CLASS_LITERAL RANGE CLASS_LITERAL maybe_class_content
                      | CLASS_LITERAL maybe_class_content
+                     | CHARACTER_CLASS maybe_class_content
     '''
     if len(p) == 5:
       left = ("RANGE", p[1], p[3])
     else:
-      left = ('LITERAL', p[1])
+      if len(p[1]) == 1:
+        left = ('LITERAL', p[1])
+      else:
+        left = ('CHARACTER_CLASS', p[1:-1])
     p[0] = self.__cat(left, p[len(p)-1])
 
   def p_maybe_class_content(self, p):
