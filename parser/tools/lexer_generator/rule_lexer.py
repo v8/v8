@@ -36,8 +36,9 @@ class RuleLexer:
       'CONDITION',
       'CONDITION_BEGIN',
       'CONDITION_END',
-      'REGEX_AND_TRANSITION',
-      'REGEX_AND_BODY',
+      'REGEX_TRANSITION_BODY',
+      'REGEX_TRANSITION',
+      'REGEX_BODY',
       )
 
   t_ANY_ignore = " \t\n"
@@ -75,21 +76,26 @@ class RuleLexer:
     return t
 
   def t_seenCondition_CONDITION_END(self, t):
-    r'>'
+    r'>\s*'
     self.lexer.begin('afterCondition')
     return t
 
-  def t_afterCondition_REGEX_AND_TRANSITION(self, t):
+  def t_afterCondition_REGEX_TRANSITION_BODY(self, t):
+    r'(?P<regex>.+)\s*=>\s*(?P<new>.+)\s*{\s*(?P<body>.+)\s*}\s*'
+    self.lexer.begin('INITIAL')
+    return t
+
+  def t_afterCondition_REGEX_TRANSITION(self, t):
     r'(?P<regex>.+)\s*:=>\s*(?P<new>.+)\s*'
     self.lexer.begin('INITIAL')
     return t
 
-  def t_afterCondition_REGEX_AND_BODY(self, t):
-    r'(?P<regex>.+)\s*{\s*(?P<body>.+)\s*}\s*'
+  def t_afterCondition_REGEX_BODY(self, t):
+    r'(?P<regex>.+?)\s+{\s*(?P<body>.+)\s*}\s*'
     self.lexer.begin('INITIAL')
     return t
 
-  def t_error(self, t):
+  def t_ANY_error(self, t):
     raise Exception("Illegal character '%s'" % t.value[0])
 
   def build(self, **kwargs):

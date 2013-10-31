@@ -32,8 +32,9 @@ class RuleParser:
 
   tokens = RuleLexer.tokens
 
-  aliases = dict()
-  transitions = dict()
+  def __init__(self):
+    self.aliases = dict()
+    self.transitions = dict()
 
   def p_statement_alias(self, p):
     'statement : ALIAS EQUALS REGEX'
@@ -41,25 +42,33 @@ class RuleParser:
     self.aliases[p[1]] = regex
 
   def p_statement_condition_transition(self, p):
-    'statement : CONDITION_BEGIN CONDITION CONDITION_END REGEX_AND_TRANSITION'
+    'statement : CONDITION_BEGIN CONDITION CONDITION_END REGEX_TRANSITION'
     old_condition = p[2]
-    regex = self.lexer.lexer.lexmatch.group('regex')
+    regex = self.lexer.lexer.lexmatch.group('regex').strip()
     new_condition = self.lexer.lexer.lexmatch.group('new')
     if old_condition not in self.transitions:
-      self.transitions[old_condition] = []
-    self.transitions[old_condition].append((regex, new_condition))
+      self.transitions[old_condition] = dict()
+    self.transitions[old_condition][regex] = ('condition', new_condition)
 
   def p_statement_condition_body(self, p):
-    'statement : CONDITION_BEGIN CONDITION CONDITION_END REGEX_AND_BODY'
+    'statement : CONDITION_BEGIN CONDITION CONDITION_END REGEX_BODY'
     old_condition = p[2]
-    regex = self.lexer.lexer.lexmatch.group('regex')
-    body = self.lexer.lexer.lexmatch.group('body')
+    regex = self.lexer.lexer.lexmatch.group('regex').strip()
+    body = self.lexer.lexer.lexmatch.group('body').strip()
     if old_condition not in self.transitions:
-      self.transitions[old_condition] = []
-    self.transitions[old_condition].append((regex, body))
+      self.transitions[old_condition] = dict()
+    self.transitions[old_condition][regex] = ('body', body)
 
-  def p_empty(self, p):
-    'empty :'
+  def p_statement_condition_transition_body(self, p):
+    'statement : CONDITION_BEGIN CONDITION CONDITION_END REGEX_TRANSITION_BODY'
+    old_condition = p[2]
+    regex = self.lexer.lexer.lexmatch.group('regex').strip()
+    new_condition = self.lexer.lexer.lexmatch.group('new').strip()
+    body = self.lexer.lexer.lexmatch.group('body').strip()
+    if old_condition not in self.transitions:
+      self.transitions[old_condition] = dict()
+    self.transitions[old_condition][regex] = (
+        'condition_and_body', new_condition, body)
 
   def p_error(self, p):
     raise Exception("Syntax error in input '%s'" % p)
