@@ -24,6 +24,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from string import printable
 
 class TransitionKey:
 
@@ -48,7 +49,7 @@ class TransitionKey:
   def __create(ranges):
     TransitionKey.__verify_ranges(ranges)
     key = TransitionKey()
-    key.__ranges = ranges
+    key.__ranges = tuple(ranges) # immutable
     key.__cached_hash = None
     return key
 
@@ -97,6 +98,7 @@ class TransitionKey:
     subkey = key.__ranges[0]
     for k in self.__ranges:
       if k[0] <= subkey[0] and k[1] >= subkey[1]: return True
+    # TODO assert disjoint
     return False
 
   def __hash__(self):
@@ -109,20 +111,25 @@ class TransitionKey:
   def __eq__(self, other):
     return isinstance(other, self.__class__) and self.__ranges == other.__ranges
 
+  __printable_cache = {}
+
   @staticmethod
   def __print_range(r):
     def to_str(x):
       if x <= TransitionKey.__latin_1_upper_bound:
-        return chr(x)
+        if not x in TransitionKey.__printable_cache:
+          res = "'%s'" % chr(x) if chr(x) in printable else str(x)
+          TransitionKey.__printable_cache[x] = res
+        return TransitionKey.__printable_cache[x]
       if x == TransitionKey.__unicode_literal_bounds[0]:
         return "literal"
       if x == TransitionKey.__unicode_whitespace_bounds[0]:
         return "whitespace"
       assert False
     if r[0] == r[1]:
-      return "'%s'" % to_str(r[0])
+      return "%s" % to_str(r[0])
     else:
-      return "['%s'-'%s']" % (to_str(r[0]), to_str(r[1]))
+      return "[%s-%s]" % (to_str(r[0]), to_str(r[1]))
 
   def __str__(self):
     if self == self.epsilon():
@@ -133,17 +140,30 @@ class TransitionKey:
 
   @staticmethod
   def disjoint_keys(key_set):
-    ranges = sorted(reduce(lambda acc, x : acc + x.__ranges, key_set, []))
-    for i in range(0, len(ranges)):
-      right = ranges[i][1]
-      limit = i
-      for j in range(i + 1, len(ranges)):
-        if ranges[j][0] > right:
-          break
-        assert ranges[j][0] >= ranges[i][0]
-        limit = j
-      if limit == i: continue
-      for j in range(i + 1, limit + 1):
-        ranges[j] = (right, ranges[j][1])
+    range_map = {}
+    for x in key_set:
+      for r in x.__ranges:
+        if not r[0] in range_map:
+          range_map[r[0]] = []
+        range_map[r[0]].append(r[1])
+    sort = lambda x : sorted(set(x))
+    range_map = sorted(map(lambda (k, v): (k, sort(v)), range_map.items()))
+    ranges = []
+    upper_bound = TransitionKey.__upper_bound + 1
+    for i in range(len(range_map)):
+      (left, left_values) = range_map[i]
+      next = range_map[i + 1][0] if i != len(range_map) - 1 else upper_bound
+      to_push = []
+      for v in left_values:
+        if v >= next:
+          if not to_push:
+            ranges.append((left, next - 1))
+          to_push.append(v)
+        else:
+          ranges.append((left, v))
+          left = v + 1
+      if to_push:
+        current = range_map[i + 1]
+        range_map[i + 1] = (current[0], sort(current[1] + to_push))
     TransitionKey.__verify_ranges(ranges)
     return map(lambda x : TransitionKey.__create([x]), ranges)

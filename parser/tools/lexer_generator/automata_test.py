@@ -52,8 +52,8 @@ class AutomataTestCase(unittest.TestCase):
       (".", ["a", "b"], ["", "aa"]),
       (".*", ["", "a", "abcaabbcc"], []),
       ("a.b", ["aab", "abb", "acb"], ["ab", ""]),
-      # ("a.?b", ["aab", "abb", "acb", "ab"], ["aaab", ""]),
-      # ("a.+b", ["aab", "abb", "acb", "ab"], ["aaab", ""]),
+      ("a.?b", ["aab", "abb", "acb", "ab"], ["aaab", ""]),
+      ("a.+b", ["aab", "abb", "acb"], ["aaac", "ab", ""]),
       (".|.", ["a", "b"], ["aa", ""]),
     ]
 
