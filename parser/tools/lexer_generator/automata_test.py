@@ -31,9 +31,7 @@ from nfa import NfaBuilder
 from dfa import Dfa
 
 def build_automata(string):
-  parser = RegexParser()
-  parser.build()
-  graph = parser.parse(string)
+  graph = RegexParser.parse(string)
   nfa = NfaBuilder().nfa(graph)
   (start_name, dfa_nodes, end_nodes) = nfa.compute_dfa()
   dfa = Dfa(start_name, dfa_nodes, end_nodes)

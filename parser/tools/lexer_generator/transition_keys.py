@@ -24,6 +24,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 from string import printable
 
 class TransitionKey:
@@ -35,19 +36,26 @@ class TransitionKey:
   __upper_bound = 257
 
   @staticmethod
-  def __verify_ranges(ranges):
-    last = (TransitionKey.__lower_bound - 1, TransitionKey.__lower_bound - 1)
+  def __verify_ranges(ranges, check_merged):
+    assert ranges
+    last = None
     for r in ranges:
       assert TransitionKey.__lower_bound <= r[0]
       assert r[1] <= TransitionKey.__upper_bound
       assert r[0] <= r[1]
-      assert last[1] < r[0]
-      # TODO check classes are always disjoint points
+      r_is_class = (
+        r == TransitionKey.__unicode_whitespace_bounds or
+        r == TransitionKey.__unicode_literal_bounds)
+      if last != None and check_merged:
+        assert last[1] + 1 < r[0] or r_is_class
+      if (r[0] > TransitionKey.__latin_1_upper_bound or
+          r[1] > TransitionKey.__latin_1_upper_bound):
+        assert r_is_class
       last = r
 
   @staticmethod
   def __create(ranges):
-    TransitionKey.__verify_ranges(ranges)
+    TransitionKey.__verify_ranges(ranges, True)
     key = TransitionKey()
     key.__ranges = tuple(ranges) # immutable
     key.__cached_hash = None
@@ -57,7 +65,10 @@ class TransitionKey:
   @staticmethod
   def epsilon():
     if (TransitionKey.__cached_epsilon == None):
-      TransitionKey.__cached_epsilon = TransitionKey.__create([])
+      key = TransitionKey()
+      key.__ranges = tuple([])
+      key.__cached_hash = None
+      TransitionKey.__cached_epsilon = key
     return TransitionKey.__cached_epsilon
 
   __cached_any = None
@@ -80,9 +91,23 @@ class TransitionKey:
     return TransitionKey.__create([(char, char)])
 
   @staticmethod
+  def __process_graph(graph, ranges):
+    key = graph[0]
+    if key == 'RANGE':
+      ranges.append((ord(graph[1]), ord(graph[2])))
+    elif key == 'LITERAL':
+      ranges.append((ord(graph[1]), ord(graph[1])))
+    elif key == 'CAT':
+      for x in [graph[1], graph[2]]:
+        TransitionKey.__process_graph(x, ranges)
+    else:
+      assert False, "bad key %s" % key
+
+  @staticmethod
   def character_class(invert, graph):
-    # TODO
-    return TransitionKey.__create([(129, 129)])
+    ranges = []
+    TransitionKey.__process_graph(graph, ranges)
+    return TransitionKey.__key_from_ranges(invert, ranges)
 
   def matches_char(self, char):
     char = ord(char)
@@ -139,13 +164,7 @@ class TransitionKey:
     return ", ".join(TransitionKey.__print_range(x) for x in self.__ranges)
 
   @staticmethod
-  def disjoint_keys(key_set):
-    range_map = {}
-    for x in key_set:
-      for r in x.__ranges:
-        if not r[0] in range_map:
-          range_map[r[0]] = []
-        range_map[r[0]].append(r[1])
+  def __disjoint_keys(range_map):
     sort = lambda x : sorted(set(x))
     range_map = sorted(map(lambda (k, v): (k, sort(v)), range_map.items()))
     ranges = []
@@ -165,5 +184,76 @@ class TransitionKey:
       if to_push:
         current = range_map[i + 1]
         range_map[i + 1] = (current[0], sort(current[1] + to_push))
-    TransitionKey.__verify_ranges(ranges)
+    return ranges
+
+  @staticmethod
+  def disjoint_keys(key_set):
+    if not key_set:
+      return []
+    range_map = {}
+    for x in key_set:
+      for r in x.__ranges:
+        if not r[0] in range_map:
+          range_map[r[0]] = []
+        range_map[r[0]].append(r[1])
+    ranges = TransitionKey.__disjoint_keys(range_map)
+    TransitionKey.__verify_ranges(ranges, False)
     return map(lambda x : TransitionKey.__create([x]), ranges)
+
+  @staticmethod
+  def __key_from_ranges(invert, ranges):
+    range_map = {}
+    for r in ranges:
+      if not r[0] in range_map:
+        range_map[r[0]] = []
+      range_map[r[0]].append(r[1])
+    ranges = TransitionKey.__disjoint_keys(range_map)
+    ranges = TransitionKey.__merge_ranges(ranges)
+    if invert:
+      ranges = TransitionKey.__invert_ranges(ranges)
+    return TransitionKey.__create(ranges)
+
+  @staticmethod
+  def __merge_ranges(ranges):
+    merged = []
+    last = None
+    for r in ranges:
+      if last == None:
+        last = r
+      elif (last[1] + 1 == r[0] and
+            r != TransitionKey.__unicode_whitespace_bounds and
+            r != TransitionKey.__unicode_literal_bounds):
+        last = (last[0], r[1])
+      else:
+        merged.append(last)
+        last = r
+    if last != None:
+      merged.append(last)
+    return merged
+
+  @staticmethod
+  def __invert_ranges(ranges):
+    inverted = []
+    last = None
+    contains_whitespace = False
+    contains_literal = False
+    for r in ranges:
+      if r == TransitionKey.__unicode_whitespace_bounds:
+        contains_whitespace = True
+        continue
+      if r == TransitionKey.__unicode_literal_bounds:
+        contains_literal = True
+        continue
+      if last == None:
+        if r[0] != TransitionKey.__lower_bound:
+          inverted.append((TransitionKey.__lower_bound, r[0] - 1))
+      elif last[1] + 1 < r[0]:
+        inverted.append((last[1] + 1, r[0] - 1))
+      last = r
+    if last != None and last[1] < TransitionKey.__latin_1_upper_bound:
+      inverted.append((last[1] + 1, TransitionKey.__latin_1_upper_bound))
+    if not contains_whitespace:
+      inverted.append(TransitionKey.__unicode_whitespace_bounds)
+    if not contains_literal:
+      inverted.append(TransitionKey.__unicode_literal_bounds)
+    return inverted

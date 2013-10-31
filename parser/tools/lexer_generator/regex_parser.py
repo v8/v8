@@ -129,6 +129,8 @@ class RegexParser:
     self.lexer = RegexLexer()
     self.lexer.build(**kwargs)
 
-  def parse(self, data):
-    return self.parser.parse(data, lexer=self.lexer.lexer)
-
+  @staticmethod
+  def parse(data):
+    parser = RegexParser()
+    parser.build()
+    return parser.parser.parse(data, lexer=parser.lexer.lexer)

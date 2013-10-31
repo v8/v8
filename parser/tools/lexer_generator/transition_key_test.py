@@ -27,6 +27,7 @@
 
 import unittest
 from transition_keys import TransitionKey
+from regex_parser import RegexParser
 
 class TransitionKeyTestCase(unittest.TestCase):
 
@@ -43,6 +44,29 @@ class TransitionKeyTestCase(unittest.TestCase):
   def test_hash(self):
     for (left, right) in self.__equal_pairs:
       self.assertEqual(hash(left), hash(right))
+
+  def test_classes(self):
+    # class regex, should match, should not match
+    data = [
+      ("1-2", "12", "ab"),
+      ("a-zA-Z", "abyzABYZ" , "123"),
+      ("a-zA-Z0g" , "abyzABYZ0" , "123"),
+    ]
+    for (string, match, no_match) in data:
+      for invert in [False, True]:
+        if invert:
+          regex = "[^%s]" % string
+          token = "NOT_CLASS"
+        else:
+          regex = "[%s]" % string
+          token = "CLASS"
+        graph = RegexParser.parse(regex)
+        assert graph[0] == token
+        key = TransitionKey.character_class(invert, graph[1])
+        for c in match:
+          self.assertEqual(invert, not key.matches_char(c))
+        for c in no_match:
+          self.assertEqual(invert, key.matches_char(c))
 
 if __name__ == '__main__':
     unittest.main()
