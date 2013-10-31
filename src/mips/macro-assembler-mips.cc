@@ -35,6 +35,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -4596,7 +4597,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       nop(Assembler::CODE_AGE_MARKER_NOP);

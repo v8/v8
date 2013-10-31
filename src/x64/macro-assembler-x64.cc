@@ -37,6 +37,7 @@
 #include "serialize.h"
 #include "debug.h"
 #include "heap.h"
+#include "isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -3659,7 +3660,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(this,
         kNoCodeAgeSequenceLength);
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
         // Pre-age the code.
       Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
            RelocInfo::CODE_AGE_SEQUENCE);

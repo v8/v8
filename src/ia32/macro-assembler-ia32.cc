@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 #include "serialize.h"
 
@@ -1022,7 +1023,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(this,
         kNoCodeAgeSequenceLength);
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
         // Pre-age the code.
       call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
           RelocInfo::CODE_AGE_SEQUENCE);
