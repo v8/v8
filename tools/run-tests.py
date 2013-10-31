@@ -125,6 +125,9 @@ def BuildOptions():
   result.add_option("--no-stress", "--nostress",
                     help="Don't run crankshaft --always-opt --stress-op test",
                     default=False, dest="no_stress", action="store_true")
+  result.add_option("--no-variants", "--novariants",
+                    help="Don't run any testing variants",
+                    default=False, dest="no_variants", action="store_true")
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("-p", "--progress",
@@ -197,8 +200,18 @@ def ProcessOptions(options):
   options.extra_flags = shlex.split(options.extra_flags)
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
+
+  def excl(*args):
+    """Returns true if zero or one of multiple arguments are true."""
+    return reduce(lambda x, y: x + y, args) <= 1
+
+  if not excl(options.no_stress, options.stress_only, options.no_variants):
+    print "Use only one of --no-stress, --stress-only or --no-variants."
+    return False
   if options.no_stress:
     VARIANT_FLAGS = [[], ["--nocrankshaft"]]
+  if options.no_variants:
+    VARIANT_FLAGS = [[]]
   if not options.shell_dir:
     if options.shell:
       print "Warning: --shell is deprecated, use --shell-dir instead."

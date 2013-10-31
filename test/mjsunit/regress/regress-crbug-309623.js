@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,60 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ISOLATE_INL_H_
-#define V8_ISOLATE_INL_H_
+// Flags: --allow-natives-syntax
 
-#include "debug.h"
-#include "isolate.h"
-#include "utils/random-number-generator.h"
+var u = new Uint32Array(2);
+u[0] = 1;
+u[1] = 0xEE6B2800;
 
-namespace v8 {
-namespace internal {
+var a = [0, 1, 2];
+a[0] = 0;  // Kill the COW.
+assertTrue(%HasFastSmiElements(a));
 
-
-SaveContext::SaveContext(Isolate* isolate)
-  : isolate_(isolate),
-    prev_(isolate->save_context()) {
-  if (isolate->context() != NULL) {
-    context_ = Handle<Context>(isolate->context());
-  }
-  isolate->set_save_context(this);
-
-  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
+function foo(i) {
+  a[0] = u[i];
+  return a[0];
 }
 
-
-bool Isolate::IsCodePreAgingActive() {
-  return FLAG_optimize_for_size && FLAG_age_code && !IsDebuggerActive();
-}
-
-
-bool Isolate::IsDebuggerActive() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (!NoBarrier_Load(&debugger_initialized_)) return false;
-  return debugger()->IsDebuggerActive();
-#else
-  return false;
-#endif
-}
-
-
-bool Isolate::DebuggerHasBreakPoints() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  return debug()->has_break_points();
-#else
-  return false;
-#endif
-}
-
-
-RandomNumberGenerator* Isolate::random_number_generator() {
-  if (random_number_generator_ == NULL) {
-    random_number_generator_ = new RandomNumberGenerator;
-  }
-  return random_number_generator_;
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_ISOLATE_INL_H_
+assertEquals(u[0], foo(0));
+assertEquals(u[0], foo(0));
+%OptimizeFunctionOnNextCall(foo);
+assertEquals(u[1], foo(1));

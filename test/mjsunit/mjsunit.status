@@ -34,6 +34,13 @@
   'regress/regress-2185-2': [SKIP],
 
   ##############################################################################
+  # Flaky tests.
+  # BUG(v8:2921): Flaky on ia32 nosnap, arm and nacl.
+  'debug-step-4-in-frame': [PASS, [('system == linux and arch == ia32 or '
+                                    'arch == arm or arch == nacl_ia32 or '
+                                    'arch == nacl_x64'), FLAKY]],
+
+  ##############################################################################
   # Fails.
   'regress/regress-1119': [FAIL],
 
@@ -252,6 +259,9 @@
 
   # Skip long running test that times out in debug mode and goes OOM on NaCl.
   'regress/regress-crbug-160010': [SKIP],
+
+  # Bug(v8:2978).
+  'lithium/MathExp': [PASS, FAIL],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################

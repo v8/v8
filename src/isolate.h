@@ -994,6 +994,8 @@ class Isolate {
   void PreallocatedStorageDelete(void* p);
   void PreallocatedStorageInit(size_t size);
 
+  inline bool IsCodePreAgingActive();
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger() {
     if (!NoBarrier_Load(&debugger_initialized_)) InitializeDebugger();
