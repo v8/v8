@@ -56,7 +56,7 @@ class Dfa:
     for name in mapping.keys():
       dfa_state = DfaState(name, offset)
       name_map[name] = dfa_state
-      offset = offset + 1
+      offset += 1
       if name in end_names:
         self.__terminal_set.add(dfa_state)
     for name, values in mapping.items():
@@ -66,14 +66,14 @@ class Dfa:
     assert self.__terminal_set
 
   @staticmethod
-  def __visit_edges(start, function, state):
+  def __visit_edges(start, visitor, state):
     edge = set([start])
     visited = set()
     while edge:
-      next_edge = set()
-      for node in edge:
-        next_edge |= set(node.transitions().values())
-        state = function(node, state)
+      f = lambda (next_edge, state), node: (
+        next_edge | set(node.transitions().values()),
+        visitor(node, state))
+      (next_edge, state) = reduce(f, edge, (set(), state))
       visited |= edge
       edge = next_edge - visited
     return state

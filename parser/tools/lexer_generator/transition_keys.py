@@ -25,79 +25,86 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 class TransitionKey:
 
-  __single_char_type = 0
-  __epsilon_type = 1
-  __any_type = 2
-  __class_type = 3
+  __lower_bound = 0
+  __latin_1_upper_bound = 255
+  __unicode_whitespace_bounds = (256, 256)
+  __unicode_literal_bounds = (257, 257)
+  __upper_bound = 257
 
   @staticmethod
-  def __create(key_type, value):
+  def __create(ranges):
+    # TODO - verify ranges
     key = TransitionKey()
-    key.__type = key_type
-    key.__value = value
+    key.__ranges = ranges
+    key.__cached_hash = None
     return key
 
+  __cached_epsilon = None
   @staticmethod
   def epsilon():
-    return TransitionKey.__create(TransitionKey.__epsilon_type, None)
+    if (TransitionKey.__cached_epsilon == None):
+      TransitionKey.__cached_epsilon = TransitionKey.__create([])
+    return TransitionKey.__cached_epsilon
 
+  __cached_any = None
   @staticmethod
   def any():
-    return TransitionKey.__create(TransitionKey.__any_type, None)
+    if (TransitionKey.__cached_any == None):
+      bounds = [(TransitionKey.__lower_bound, TransitionKey.__upper_bound)]
+      TransitionKey.__cached_any = TransitionKey.__create(bounds)
+    return TransitionKey.__cached_any
 
   @staticmethod
   def single_char(char):
-    return TransitionKey.__create(TransitionKey.__single_char_type, char)
+    char = ord(char)
+    assert (TransitionKey.__lower_bound <= char and
+            char <= TransitionKey.__latin_1_upper_bound)
+    return TransitionKey.__create([(char, char)])
 
   @staticmethod
   def character_class(invert, graph):
     # TODO
-    return TransitionKey.__create(TransitionKey.__class_type, (invert, graph))
-
-  @staticmethod
-  def __class_match(class_graph, char):
-    assert False
-
-  __char_matchers = {
-    __single_char_type: (lambda x, y : x == y),
-    __epsilon_type: (lambda x, y : False),
-    __any_type: (lambda x, y : True),
-    __class_type: __class_match,
-  }
+    return TransitionKey.__create([(129, 129)])
 
   def matches_char(self, char):
-    return TransitionKey.__char_matchers[self.__type](self.__value, char)
+    for r in self.__ranges:
+      if r[0] <= char and char <= r[1]: return True
+    return False
 
   def matches_key(self, key):
+    assert isinstance(key, self.__class__)
     assert key != TransitionKey.epsilon()
-    assert self != TransitionKey.epsilon()
-    if (key == self): return True
-    # TODO need to test intersection/symmetric diff
-    assert self != TransitionKey.any()
+    if self == key: return True
+    if self == TransitionKey.epsilon(): return False
+    # TODO
     return False
 
   def __hash__(self):
-    if self.__value == None:
-      return hash(self.__type)
-    return hash(self.__type) ^ hash(self.__value)
+    if self.__cached_hash == None:
+      initial_hash = hash((-1, TransitionKey.__upper_bound + 1))
+      f = lambda acc, r: acc ^ hash(r)
+      self.__cached_hash = reduce(f, self.__ranges, initial_hash)
+    return self.__cached_hash
 
   def __eq__(self, other):
-    return (
-      isinstance(other, self.__class__) and
-      self.__type == other.__type and
-      self.__value == other.__value)
+    return isinstance(other, self.__class__) and self.__ranges == other.__ranges
+
+  @staticmethod
+  def __print_range(r):
+    if r[0] == r[1]:
+      return "'%s'" % chr(r[0])
+    else:
+      return "['%s'-'%s']" % (chr(r[0]), chr(r[1]))
 
   def __str__(self):
-    if self.__type == self.__single_char_type:
-      return "'%s'" % self.__value
-    if self.__type == self.__epsilon_type:
+    if self == self.epsilon():
       return "epsilon"
-    if self.__type == self.__any_type:
+    if self == self.any():
       return "any"
-    # TODO
-    return "class"
+    return ", ".join(TransitionKey.__print_range(x) for x in self.__ranges)
 
   @staticmethod
   def merge_key_set(key_set):

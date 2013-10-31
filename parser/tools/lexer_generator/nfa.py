@@ -54,7 +54,7 @@ class NfaState:
 
   def get_epsilon_transitions(self):
     key = TransitionKey.epsilon();
-    if not self.__transitions.has_key(key): return frozenset()
+    if not key in self.__transitions: return frozenset()
     return frozenset(self.__transitions[key])
 
   def __add_transition(self, key, value):
@@ -62,7 +62,7 @@ class NfaState:
       assert not self.is_closed(), "already closed"
       self.__unclosed.add(key)
       return
-    if not self.__transitions.has_key(key):
+    if not key in self.__transitions:
       self.__transitions[key] = set()
     self.__transitions[key].add(value)
 
@@ -89,11 +89,8 @@ class NfaState:
     self.__unclosed = None
 
   def __matches(self, match_func, value):
-    matches = set()
-    for key, values in self.__transitions.items():
-      if match_func(key, value):
-        matches |= values
-    return matches
+    f = lambda acc, (k, vs): acc | vs if match_func(k, value) else acc
+    return reduce(f, self.__transitions.items(), set())
 
   def char_matches(self, value):
     return self.__matches((lambda k, v : k.matches_char(v)), value)
@@ -103,10 +100,8 @@ class NfaState:
 
   @staticmethod
   def gather_transition_keys(state_set):
-    keys = set()
-    for state in state_set:
-      keys  |= set(state.__transitions.keys())
-    return TransitionKey.merge_key_set(keys)
+    f = lambda acc, state: acc | set(state.__transitions.keys())
+    return TransitionKey.merge_key_set(reduce(f, state_set, set()))
 
 class NfaBuilder:
 
@@ -173,10 +168,10 @@ class NfaBuilder:
   def __process(self, graph):
     assert type(graph) == TupleType
     method = "_NfaBuilder__" + graph[0].lower()
-    if (not self.__operation_map.has_key(method)):
-      matches = [func for (name, func) in self.__members if name == method]
+    if not method in self.__operation_map:
+      matches = filter((lambda (name, func): name == method), self.__members)
       assert len(matches) == 1
-      self.__operation_map[method] = matches[0]
+      self.__operation_map[method] = matches[0][1]
     return self.__operation_map[method](graph)
 
   def __patch_ends(self, ends, new_end):
@@ -203,22 +198,20 @@ class Nfa:
   def __visit_edges(edge, compute_next_edge, visitor, state):
     visited = set()
     while edge:
-      next_edge = set()
-      for node in edge:
-        next_edge |= compute_next_edge(node)
-        state = visitor(node, state)
+      f = lambda (next_edge, state), node: (
+        next_edge | compute_next_edge(node),
+        visitor(node, state))
+      (next_edge, state) = reduce(f, edge, (set(), state))
       visited |= edge
       edge = next_edge - visited
     return state
 
-  def __visit_all_edges(self, function, state):
+  def __visit_all_edges(self, visitor, state):
     edge = set([self.__start])
     def next_edge(node):
-      next = set()
-      for values in node.transitions().values():
-        next |= values
-      return next
-    return Nfa.__visit_edges(edge, next_edge, function, state)
+      f = lambda acc, values: acc | values
+      return reduce(f, node.transitions().values(), set())
+    return Nfa.__visit_edges(edge, next_edge, visitor, state)
 
   def __verify(self, nodes_created):
     def f(node, node_list):
@@ -244,37 +237,31 @@ class Nfa:
 
   @staticmethod
   def __close(states):
-    closure = set(states)
-    for node in states:
-      closure |= node.epsilon_closure()
-    return closure
+    f = lambda acc, node: acc | node.epsilon_closure()
+    return reduce(f, states, set(states))
 
   def matches(self, string):
     self.__compute_epsilon_closures()
     valid_states = Nfa.__close(set([self.__start]))
     for c in string:
-      next_valid_states = set()
-      for valid_state in valid_states:
-        next_valid_states |= valid_state.char_matches(c)
-      valid_states = Nfa.__close(next_valid_states)
+      f = lambda acc, state: acc | state.char_matches(c)
+      valid_states = Nfa.__close(reduce(valid_states, f, set()))
       if not valid_states:
         return False
     return self.__end in valid_states
 
   @staticmethod
-  def __to_dfa(nfa_state_set, dfa_builder):
+  def __to_dfa(nfa_state_set, builder):
     nfa_state_set = Nfa.__close(nfa_state_set)
     name = str([x.node_number() for x in nfa_state_set])
-    (dfa_nodes, end_nodes, end_node) = dfa_builder
-    if dfa_nodes.has_key(name):
+    (dfa_nodes, end_nodes, end_node) = builder
+    if name in dfa_nodes:
       return name
     dfa_node = {}
     dfa_nodes[name] = dfa_node
     for key in NfaState.gather_transition_keys(nfa_state_set):
-      reachable_set = set()
-      for nfa_state in nfa_state_set:
-        reachable_set |= nfa_state.key_matches(key)
-      dfa_node[key] = Nfa.__to_dfa(reachable_set, dfa_builder)
+      f = lambda acc, state: acc | state.key_matches(key)
+      dfa_node[key] = Nfa.__to_dfa(reduce(f, nfa_state_set, set()), builder)
     if end_node in nfa_state_set:
       end_nodes.add(name)
     return name
