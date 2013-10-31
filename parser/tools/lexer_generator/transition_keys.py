@@ -70,6 +70,7 @@ class TransitionKey:
     return TransitionKey.__create([(129, 129)])
 
   def matches_char(self, char):
+    char = ord(char)
     for r in self.__ranges:
       if r[0] <= char and char <= r[1]: return True
     return False

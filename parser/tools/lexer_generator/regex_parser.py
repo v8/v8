@@ -125,7 +125,7 @@ class RegexParser:
     return ('CAT', left, right)
 
   def build(self, **kwargs):
-    self.parser = yacc.yacc(module=self, **kwargs)
+    self.parser = yacc.yacc(module=self, debug=0, write_tables=0, **kwargs)
     self.lexer = RegexLexer()
     self.lexer.build(**kwargs)
 

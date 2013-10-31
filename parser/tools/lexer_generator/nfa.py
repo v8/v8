@@ -245,7 +245,7 @@ class Nfa:
     valid_states = Nfa.__close(set([self.__start]))
     for c in string:
       f = lambda acc, state: acc | state.char_matches(c)
-      valid_states = Nfa.__close(reduce(valid_states, f, set()))
+      valid_states = Nfa.__close(reduce(f, valid_states, set()))
       if not valid_states:
         return False
     return self.__end in valid_states

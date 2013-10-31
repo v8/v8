@@ -78,6 +78,19 @@ class Dfa:
       edge = next_edge - visited
     return state
 
+  def matches(self, string):
+    state = self.__start
+    for c in string:
+      next_state = None
+      for key, transition_state in state.transitions().items():
+        if key.matches_char(c):
+          next_state = transition_state
+          break
+      if not next_state:
+        return False
+      state = next_state
+    return state in self.__terminal_set
+
   def to_dot(self):
 
     def f(node, node_content):
