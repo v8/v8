@@ -25,7 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 class TransitionKey:
 
   __lower_bound = 0
@@ -35,8 +34,19 @@ class TransitionKey:
   __upper_bound = 257
 
   @staticmethod
+  def __verify_ranges(ranges):
+    last = (TransitionKey.__lower_bound - 1, TransitionKey.__lower_bound - 1)
+    for r in ranges:
+      assert TransitionKey.__lower_bound <= r[0]
+      assert r[1] <= TransitionKey.__upper_bound
+      assert r[0] <= r[1]
+      assert last[1] < r[0]
+      # TODO check classes are always disjoint points
+      last = r
+
+  @staticmethod
   def __create(ranges):
-    # TODO - verify ranges
+    TransitionKey.__verify_ranges(ranges)
     key = TransitionKey()
     key.__ranges = ranges
     key.__cached_hash = None
@@ -53,7 +63,11 @@ class TransitionKey:
   @staticmethod
   def any():
     if (TransitionKey.__cached_any == None):
-      bounds = [(TransitionKey.__lower_bound, TransitionKey.__upper_bound)]
+      bounds = [
+        (TransitionKey.__lower_bound, TransitionKey.__latin_1_upper_bound),
+        TransitionKey.__unicode_whitespace_bounds,
+        TransitionKey.__unicode_literal_bounds,
+      ]
       TransitionKey.__cached_any = TransitionKey.__create(bounds)
     return TransitionKey.__cached_any
 
@@ -71,6 +85,7 @@ class TransitionKey:
 
   def matches_char(self, char):
     char = ord(char)
+    # TODO class checks
     for r in self.__ranges:
       if r[0] <= char and char <= r[1]: return True
     return False
@@ -78,9 +93,10 @@ class TransitionKey:
   def matches_key(self, key):
     assert isinstance(key, self.__class__)
     assert key != TransitionKey.epsilon()
-    if self == key: return True
-    if self == TransitionKey.epsilon(): return False
-    # TODO
+    assert len(key.__ranges) == 1
+    subkey = key.__ranges[0]
+    for k in self.__ranges:
+      if k[0] <= subkey[0] and k[1] >= subkey[1]: return True
     return False
 
   def __hash__(self):
@@ -95,10 +111,18 @@ class TransitionKey:
 
   @staticmethod
   def __print_range(r):
+    def to_str(x):
+      if x <= TransitionKey.__latin_1_upper_bound:
+        return chr(x)
+      if x == TransitionKey.__unicode_literal_bounds[0]:
+        return "literal"
+      if x == TransitionKey.__unicode_whitespace_bounds[0]:
+        return "whitespace"
+      assert False
     if r[0] == r[1]:
-      return "'%s'" % chr(r[0])
+      return "'%s'" % to_str(r[0])
     else:
-      return "['%s'-'%s']" % (chr(r[0]), chr(r[1]))
+      return "['%s'-'%s']" % (to_str(r[0]), to_str(r[1]))
 
   def __str__(self):
     if self == self.epsilon():
@@ -108,7 +132,18 @@ class TransitionKey:
     return ", ".join(TransitionKey.__print_range(x) for x in self.__ranges)
 
   @staticmethod
-  def merge_key_set(key_set):
-    key_set -= set([TransitionKey.epsilon()])
-    # TODO need intersections and symmetric differences
-    return key_set
+  def disjoint_keys(key_set):
+    ranges = sorted(reduce(lambda acc, x : acc + x.__ranges, key_set, []))
+    for i in range(0, len(ranges)):
+      right = ranges[i][1]
+      limit = i
+      for j in range(i + 1, len(ranges)):
+        if ranges[j][0] > right:
+          break
+        assert ranges[j][0] >= ranges[i][0]
+        limit = j
+      if limit == i: continue
+      for j in range(i + 1, limit + 1):
+        ranges[j] = (right, ranges[j][1])
+    TransitionKey.__verify_ranges(ranges)
+    return map(lambda x : TransitionKey.__create([x]), ranges)

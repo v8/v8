@@ -26,52 +26,23 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from regex_parser import RegexParser
-from nfa import NfaBuilder
-from dfa import Dfa
+from transition_keys import TransitionKey
 
-def build_automata(string):
-  parser = RegexParser()
-  parser.build()
-  graph = parser.parse(string)
-  nfa = NfaBuilder().nfa(graph)
-  (start_name, dfa_nodes, end_nodes) = nfa.compute_dfa()
-  dfa = Dfa(start_name, dfa_nodes, end_nodes)
-  return (nfa, dfa)
+class TransitionKeyTestCase(unittest.TestCase):
 
-class AutomataTestCase(unittest.TestCase):
+  __equal_pairs = [
+    (TransitionKey.epsilon(), TransitionKey.epsilon()),
+    (TransitionKey.any(), TransitionKey.any()),
+    (TransitionKey.single_char('a'), TransitionKey.single_char('a')),
+  ]
 
-    # (pattern, should match, shouldn't match)
-    __test_data = [
-      ("a", ["a"], ["b", ""]),
-      ("ab", ["ab"], ["bb", ""]),
-      ("a+b", ["ab", "aab", "aaab"], ["a", "b", ""]),
-      ("a?b", ["ab", "b"], ["a", "c", ""]),
-      ("a*b", ["ab", "aaab", "b"], ["a", "c", ""]),
-      ("a|b", ["a", "b"], ["ab", "c", ""]),
-      (".", ["a", "b"], ["", "aa"]),
-      (".*", ["", "a", "abcaabbcc"], []),
-      ("a.b", ["aab", "abb", "acb"], ["ab", ""]),
-      # ("a.?b", ["aab", "abb", "acb", "ab"], ["aaab", ""]),
-      # ("a.+b", ["aab", "abb", "acb", "ab"], ["aaab", ""]),
-      (".|.", ["a", "b"], ["aa", ""]),
-    ]
+  def test_eq(self):
+    for (left, right) in self.__equal_pairs:
+      self.assertEqual(left, right)
 
-    def test_matches(self):
-      for (regex, matches, not_matches) in self.__test_data:
-        (nfa, dfa) = build_automata(regex)
-        for string in matches:
-          self.assertTrue(nfa.matches(string))
-          self.assertTrue(dfa.matches(string))
-        for string in not_matches:
-          self.assertFalse(nfa.matches(string))
-          self.assertFalse(dfa.matches(string))
-
-    def test_can_construct_dot(self):
-      for (regex, matches, not_matches) in self.__test_data:
-        (nfa, dfa) = build_automata(regex)
-        nfa.to_dot()
-        dfa.to_dot()
+  def test_hash(self):
+    for (left, right) in self.__equal_pairs:
+      self.assertEqual(hash(left), hash(right))
 
 if __name__ == '__main__':
     unittest.main()

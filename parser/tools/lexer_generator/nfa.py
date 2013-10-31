@@ -93,15 +93,15 @@ class NfaState:
     return reduce(f, self.__transitions.items(), set())
 
   def char_matches(self, value):
-    return self.__matches((lambda k, v : k.matches_char(v)), value)
+    return self.__matches(lambda k, v : k.matches_char(v), value)
 
   def key_matches(self, value):
-    return self.__matches((lambda k, v : k.matches_key(v)), value)
+    return self.__matches(lambda k, v : k.matches_key(v), value)
 
   @staticmethod
   def gather_transition_keys(state_set):
     f = lambda acc, state: acc | set(state.__transitions.keys())
-    return TransitionKey.merge_key_set(reduce(f, state_set, set()))
+    return TransitionKey.disjoint_keys(reduce(f, state_set, set()))
 
 class NfaBuilder:
 
@@ -169,7 +169,7 @@ class NfaBuilder:
     assert type(graph) == TupleType
     method = "_NfaBuilder__" + graph[0].lower()
     if not method in self.__operation_map:
-      matches = filter((lambda (name, func): name == method), self.__members)
+      matches = filter(lambda (name, func): name == method, self.__members)
       assert len(matches) == 1
       self.__operation_map[method] = matches[0][1]
     return self.__operation_map[method](graph)
@@ -253,6 +253,7 @@ class Nfa:
   @staticmethod
   def __to_dfa(nfa_state_set, builder):
     nfa_state_set = Nfa.__close(nfa_state_set)
+    assert nfa_state_set
     name = str([x.node_number() for x in nfa_state_set])
     (dfa_nodes, end_nodes, end_node) = builder
     if name in dfa_nodes:
