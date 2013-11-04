@@ -77,7 +77,10 @@ const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
 
 class BaselineScanner {
  public:
-  BaselineScanner(const char* fname, Isolate* isolate, Encoding encoding) {
+  BaselineScanner(const char* fname,
+                  Isolate* isolate,
+                  Encoding encoding,
+                  ElapsedTimer* timer) {
     int length = 0;
     source_ = ReadFile(fname, isolate, &length);
     unicode_cache_ = new UnicodeCache();
@@ -106,6 +109,7 @@ class BaselineScanner {
       default:
         break;
     }
+    timer->Start();
     scanner_->Initialize(stream_);
   }
 
@@ -136,6 +140,8 @@ int main(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = ASCII;
   bool print_baseline = false;
+  bool run_baseline = true;
+  bool run_experimental = true;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
       encoding = LATIN1;
@@ -147,6 +153,10 @@ int main(int argc, char* argv[]) {
       encoding = ASCII;
     } else if (strcmp(argv[i], "--print-baseline") == 0) {
       print_baseline = true;
+    } else if (strcmp(argv[i], "--no-baseline") == 0) {
+      run_baseline = false;
+    } else if (strcmp(argv[i], "--no-experimental") == 0) {
+      run_experimental = false;
     }
   }
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -159,8 +169,6 @@ int main(int argc, char* argv[]) {
       v8::Context::Scope scope(context);
       Isolate* isolate = Isolate::Current();
       HandleScope handle_scope(isolate);
-      BaselineScanner baseline(argv[1], isolate, encoding);
-      ExperimentalScanner experimental(argv[1], true, isolate);
 
       std::vector<Token::Value> baseline_tokens, experimental_tokens;
       std::vector<size_t> baseline_beg, baseline_end, experimental_beg,
@@ -170,8 +178,8 @@ int main(int argc, char* argv[]) {
 
       TimeDelta baseline_time, experimental_time;
       ElapsedTimer timer;
-      {
-        timer.Start();
+      if (run_baseline) {
+        BaselineScanner baseline(argv[1], isolate, encoding, &timer);
         do {
           token = baseline.Next(&beg, &end);
           baseline_tokens.push_back(token);
@@ -181,7 +189,8 @@ int main(int argc, char* argv[]) {
         baseline_time = timer.Elapsed();
       }
 
-      {
+      if (run_experimental) {
+        ExperimentalScanner experimental(argv[1], true, isolate);
         timer.Start();
         do {
           token = experimental.Next();
@@ -204,24 +213,26 @@ int main(int argc, char* argv[]) {
         printf("(Mis)matches:\n");
       }
 
-      for (size_t i = 0; i < experimental_tokens.size(); ++i) {
-        printf("=> %11s at (%d, %d)\n",
-               Token::Name(experimental_tokens[i]),
-               static_cast<int>(experimental_beg[i]),
-               static_cast<int>(experimental_end[i]));
-        if (experimental_tokens[i] != baseline_tokens[i] ||
-            experimental_beg[i] != baseline_beg[i] ||
-            experimental_end[i] != baseline_end[i]) {
-          printf("MISMATCH:\n");
-          printf("Expected: %s at (%d, %d)\n",
-                 Token::Name(baseline_tokens[i]),
-                 static_cast<int>(baseline_beg[i]),
-                 static_cast<int>(baseline_end[i]));
-          printf("Actual:   %s at (%d, %d)\n",
+      if (run_baseline && run_experimental) {
+        for (size_t i = 0; i < experimental_tokens.size(); ++i) {
+          printf("=> %11s at (%d, %d)\n",
                  Token::Name(experimental_tokens[i]),
                  static_cast<int>(experimental_beg[i]),
                  static_cast<int>(experimental_end[i]));
-          return 1;
+          if (experimental_tokens[i] != baseline_tokens[i] ||
+              experimental_beg[i] != baseline_beg[i] ||
+              experimental_end[i] != baseline_end[i]) {
+            printf("MISMATCH:\n");
+            printf("Expected: %s at (%d, %d)\n",
+                   Token::Name(baseline_tokens[i]),
+                   static_cast<int>(baseline_beg[i]),
+                   static_cast<int>(baseline_end[i]));
+            printf("Actual:   %s at (%d, %d)\n",
+                   Token::Name(experimental_tokens[i]),
+                   static_cast<int>(experimental_beg[i]),
+                   static_cast<int>(experimental_end[i]));
+            return 1;
+          }
         }
       }
       printf("No of tokens: %d\n",
