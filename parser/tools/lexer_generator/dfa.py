@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from nfa import Nfa
+from transition_keys import TransitionKey
 
 class DfaState:
 
@@ -40,28 +41,45 @@ class DfaState:
   def node_number(self):
     return self.__node_number
 
-  def add_transition(self, key, state):
+  def add_transition(self, key, action, state):
     assert not self.__transitions.has_key(key)
-    self.__transitions[key] = state
+    self.__transitions[key] = (state, action)
+
+  def set_action(self, action):
+    assert self.__action == None
+    self.__action = action
 
   def transitions(self):
     return self.__transitions
 
 class Dfa:
 
-  def __init__(self, start_name, mapping, end_names):
-    name_map = {}
-    offset = 0
+  def __init__(self, start_name, mapping):
     self.__terminal_set = set()
-    for name in mapping.keys():
-      dfa_state = DfaState(name, offset)
-      name_map[name] = dfa_state
-      offset += 1
-      if name in end_names:
-        self.__terminal_set.add(dfa_state)
-    for name, values in mapping.items():
-      for key, value in values.items():
-        name_map[name].add_transition(key, name_map[value])
+    name_map = {}
+    action_map = {}
+    for i, name in enumerate(mapping.keys()):
+      name_map[name] = DfaState(name, i)
+    for name, node_data in mapping.items():
+      node = name_map[name]
+      if node_data['terminal']:
+        self.__terminal_set.add(node)
+      inversion = {}
+      for key, (state, action) in node_data['transitions'].items():
+        if not state in inversion:
+          inversion[state] = {}
+        # TODO fix this
+        action_key = str(action)
+        if not action_key in action_map:
+          action_map[action_key] = action
+        if not action_key in inversion[state]:
+          inversion[state][action_key] = []
+        inversion[state][action_key].append(key)
+      for state, values in inversion.items():
+        for action_key, keys in values.items():
+          merged_key = TransitionKey.merged_key(keys)
+          action = action_map[action_key]
+          node.add_transition(merged_key, action, name_map[state])
     self.__start = name_map[start_name]
     assert self.__terminal_set
 
@@ -69,35 +87,43 @@ class Dfa:
   def __visit_edges(start, visitor, state):
     edge = set([start])
     visited = set()
+    first = lambda v: [x[0] for x in v]
     while edge:
       f = lambda (next_edge, state), node: (
-        next_edge | set(node.transitions().values()),
+        next_edge | set(first(node.transitions().values())),
         visitor(node, state))
       (next_edge, state) = reduce(f, edge, (set(), state))
       visited |= edge
       edge = next_edge - visited
     return state
 
-  def matches(self, string):
+  def collect_actions(self, string):
     state = self.__start
     for c in string:
-      next_state = None
-      for key, transition_state in state.transitions().items():
-        if key.matches_char(c):
-          next_state = transition_state
-          break
-      if not next_state:
-        return False
-      state = next_state
-    return state in self.__terminal_set
+      next = [s for k, s in state.transitions().items() if k.matches_char(c)]
+      if not next:
+        yield ('MISS',)
+        return
+      assert len(next) == 1
+      (state, action) = next[0]
+      if action:
+        yield action
+    if state in self.__terminal_set:
+      yield ('TERMINATE', )
+    else:
+      yield ('MISS',)
+
+  def matches(self, string):
+    actions = list(self.collect_actions(string))
+    return actions and actions[-1][0] == 'TERMINATE'
 
   def to_dot(self):
 
     def f(node, node_content):
-      for key, value in node.transitions().items():
+      for key, (state, action) in node.transitions().items():
         node_content.append(
           "  S_%s -> S_%s [ label = \"%s\" ];" %
-            (node.node_number(), value.node_number(), key))
+            (node.node_number(), state.node_number(), key))
       return node_content
 
     node_content = self.__visit_edges(self.__start, f, [])

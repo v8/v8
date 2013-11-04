@@ -30,16 +30,17 @@ from regex_parser import RegexParser
 from nfa import NfaBuilder
 from dfa import Dfa
 
+def dfa_from_nfa(nfa):
+  (start_name, dfa_nodes) = nfa.compute_dfa()
+  return Dfa(start_name, dfa_nodes)
+
 def build_automata(string):
-  graph = RegexParser.parse(string)
-  nfa = NfaBuilder().nfa(graph)
-  (start_name, dfa_nodes, end_nodes) = nfa.compute_dfa()
-  dfa = Dfa(start_name, dfa_nodes, end_nodes)
-  return (nfa, dfa)
+  nfa = NfaBuilder().nfa(RegexParser.parse(string))
+  return (nfa, dfa_from_nfa(nfa))
 
 class AutomataTestCase(unittest.TestCase):
 
-    # (pattern, should match, shouldn't match)
+    # (pattern, should match, should not match)
     __test_data = [
       ("a", ["a"], ["b", ""]),
       ("ab", ["ab"], ["bb", ""]),
@@ -71,5 +72,30 @@ class AutomataTestCase(unittest.TestCase):
         nfa.to_dot()
         dfa.to_dot()
 
+    def test_actions(self):
+      left_action = ("LEFT_ACTION",)
+      right_action = ("RIGHT_ACTION",)
+      left = RegexParser.parse("left")
+      right = RegexParser.parse("right")
+      left = NfaBuilder.add_action(left, left_action)
+      right = NfaBuilder.add_action(right, right_action)
+      composite = ('ONE_OR_MORE', NfaBuilder.or_graphs([left, right]))
+      nfa = NfaBuilder().nfa(composite)
+      dfa = dfa_from_nfa(nfa)
+      def verify(string, expected):
+        actions = list(dfa.collect_actions(string))
+        assertEqual(len(expected), len(actions))
+        for i, action in enumerate(actions):
+          assertEqual(action[i], expected[i])
+      def verify_miss(string, expected):
+        verify(string, expected + [('MISS',)])
+      def verify_hit(string, expected):
+        verify(string, expected + [('TERMINATE',)])
+      (l, r) = left_action, right_action
+      verify_hit("left", [l])
+      verify_miss("lefta", [l])
+      verify_hit("leftrightleftright", [l, r, l, r])
+      verify_miss("leftrightleftrightx", [l, r, l, r])
+
 if __name__ == '__main__':
-    unittest.main()
+   unittest.main()

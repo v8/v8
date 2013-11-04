@@ -239,6 +239,11 @@ class TransitionKey:
     return merged
 
   @staticmethod
+  def merged_key(keys):
+    f = lambda acc, key: acc + list(key.__ranges)
+    return TransitionKey.__key_from_ranges(False, reduce(f, keys, []))
+
+  @staticmethod
   def __invert_ranges(ranges):
     inverted = []
     last = None
