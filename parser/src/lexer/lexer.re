@@ -396,8 +396,6 @@ start_:
     <IdentifierIllegal> identifier_char\identifier_start  { marker_ = cursor_; goto yyc_IdentifierIllegal; }
     <IdentifierIllegal> "\\u" [0-9a-fA-F]{4} { if (ValidIdentifierStart()) { cursor_ -= 6; PUSH_TOKEN(Token::ILLEGAL); } marker_ = cursor_; PUSH_TOKEN(Token::ILLEGAL); }
     <IdentifierIllegal> "\\"+             { marker_ = cursor_; goto yyc_IdentifierIllegal; }
-    <IdentifierIllegal> number not_identifier_char { YYCTYPE* temp = cursor_; cursor_ = marker_; send(Token::ILLEGAL); cursor_ = temp; YYSETCONDITION(kConditionNormal); PUSH_TOKEN_LOOKAHEAD(Token::NUMBER); }
-    <IdentifierIllegal> number "\\u" [0-9a-fA-F]{4} { YYCTYPE* temp = cursor_; cursor_ = marker_; send(Token::ILLEGAL); cursor_ = temp; send(Token::ILLEGAL); start_ = cursor_; goto yyc_IdentifierIllegal; }
     <IdentifierIllegal> any               { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 
     <SingleLineComment> line_terminator { PUSH_LINE_TERMINATOR();}
