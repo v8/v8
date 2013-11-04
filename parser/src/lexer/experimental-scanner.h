@@ -79,6 +79,7 @@ class ExperimentalScanner {
   FILE* file_;
   PushScanner* scanner_;
   bool read_all_at_once_;
+  bool already_pushed_;
   const v8::internal::byte* source_;
   int length_;
 };

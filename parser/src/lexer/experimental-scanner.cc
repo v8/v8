@@ -68,6 +68,7 @@ ExperimentalScanner::ExperimentalScanner(const char* fname,
     : current_(0),
       fetched_(0),
       read_all_at_once_(read_all_at_once),
+      already_pushed_(false),
       source_(0),
       length_(0) {
   file_ = fopen(fname, "rb");
@@ -91,7 +92,12 @@ void ExperimentalScanner::FillTokens() {
   current_ = 0;
   fetched_ = 0;
   if (read_all_at_once_) {
-    scanner_->push(source_, length_ + 1);
+    if (!already_pushed_) {
+      scanner_->push(source_, length_ + 1);
+      already_pushed_ = true;
+    } else {
+      scanner_->push(0, 0);
+    }
   } else {
     uint8_t chars[BUFFER_SIZE];
     int n = static_cast<int>(fread(&chars, 1, BUFFER_SIZE, file_));
