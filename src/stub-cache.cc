@@ -1208,6 +1208,40 @@ Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<JSObject> object,
 }
 
 
+void LoadStubCompiler::NonexistentHandlerFrontend(
+    Handle<JSObject> object,
+    Handle<JSObject> last,
+    Handle<Name> name,
+    Label* success,
+    Handle<GlobalObject> global) {
+  Label miss;
+
+  Register holder =
+      HandlerFrontendHeader(object, receiver(), last, name, &miss);
+
+  if (!last->HasFastProperties() &&
+      !last->IsJSGlobalObject() &&
+      !last->IsJSGlobalProxy()) {
+    if (!name->IsUniqueName()) {
+      ASSERT(name->IsString());
+      name = factory()->InternalizeString(Handle<String>::cast(name));
+    }
+    ASSERT(last->property_dictionary()->FindEntry(*name) ==
+        NameDictionary::kNotFound);
+    GenerateDictionaryNegativeLookup(masm(), &miss, holder, name,
+                                     scratch2(), scratch3());
+  }
+
+  // If the last object in the prototype chain is a global object,
+  // check that the global property cell is empty.
+  if (!global.is_null()) {
+    GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
+  }
+
+  HandlerFrontendFooter(name, success, &miss);
+}
+
+
 Handle<Code> LoadStubCompiler::CompileLoadField(
     Handle<JSObject> object,
     Handle<JSObject> holder,
