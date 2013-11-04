@@ -4966,10 +4966,10 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
       if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
           sorted_index < map()->NumberOfOwnDescriptors()) {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
-        MaybeObject* maybe_value = this->FastPropertyAt(
-            descriptors->GetDetails(sorted_index).representation(),
+        ASSERT(descriptors->GetDetails(sorted_index).representation().
+               IsCompatibleForLoad(Representation::Tagged()));
+        inline_value = this->RawFastPropertyAt(
             descriptors->GetFieldIndex(sorted_index));
-        if (!maybe_value->To(&inline_value)) return maybe_value;
       } else {
         inline_value = GetHeap()->undefined_value();
       }
