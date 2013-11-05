@@ -29,7 +29,6 @@
 
 #include "heap-snapshot-generator-inl.h"
 
-#include "allocation-tracker.h"
 #include "code-stubs.h"
 #include "heap-profiler.h"
 #include "debug.h"
@@ -749,8 +748,7 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
       names_(heap),
-      ids_(heap),
-      allocation_tracker_(NULL) {
+      ids_(heap) {
 }
 
 
@@ -760,26 +758,7 @@ static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
 
 
 HeapSnapshotsCollection::~HeapSnapshotsCollection() {
-  delete allocation_tracker_;
   snapshots_.Iterate(DeleteHeapSnapshot);
-}
-
-
-void HeapSnapshotsCollection::StartHeapObjectsTracking() {
-  ids_.UpdateHeapObjectsMap();
-  if (allocation_tracker_ == NULL) {
-    allocation_tracker_ = new AllocationTracker(&ids_, names());
-  }
-  is_tracking_objects_ = true;
-}
-
-
-void HeapSnapshotsCollection::StopHeapObjectsTracking() {
-  ids_.StopHeapObjectsTracking();
-  if (allocation_tracker_ != NULL) {
-    delete allocation_tracker_;
-    allocation_tracker_ = NULL;
-  }
 }
 
 
@@ -823,15 +802,6 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
     }
   }
   return object != NULL ? Handle<HeapObject>(object) : Handle<HeapObject>();
-}
-
-
-void HeapSnapshotsCollection::NewObjectEvent(Address addr, int size) {
-  DisallowHeapAllocation no_allocation;
-  ids_.NewObject(addr, size);
-  if (allocation_tracker_ != NULL) {
-    allocation_tracker_->NewObjectEvent(addr, size);
-  }
 }
 
 
@@ -2675,10 +2645,6 @@ const int HeapSnapshotJSONSerializer::kEdgeFieldsCount = 3;
 const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 5;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
-  if (AllocationTracker* allocation_tracker =
-      snapshot_->collection()->allocation_tracker()) {
-    allocation_tracker->PrepareForSerialization();
-  }
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
   SerializeImpl();
@@ -2702,16 +2668,6 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
   SerializeEdges();
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
-
-  writer_->AddString("\"trace_function_infos\":[");
-  SerializeTraceNodeInfos();
-  if (writer_->aborted()) return;
-  writer_->AddString("],\n");
-  writer_->AddString("\"trace_tree\":[");
-  SerializeTraceTree();
-  if (writer_->aborted()) return;
-  writer_->AddString("],\n");
-
   writer_->AddString("\"strings\":[");
   SerializeStrings();
   if (writer_->aborted()) return;
@@ -2872,20 +2828,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("shortcut") ","
             JSON_S("weak")) ","
         JSON_S("string_or_number") ","
-        JSON_S("node")) ","
-    JSON_S("trace_function_info_fields") ":" JSON_A(
-        JSON_S("function_id") ","
-        JSON_S("name") ","
-        JSON_S("script_name") ","
-        JSON_S("script_id") ","
-        JSON_S("line") ","
-        JSON_S("column")) ","
-    JSON_S("trace_node_fields") ":" JSON_A(
-        JSON_S("id") ","
-        JSON_S("function_id") ","
-        JSON_S("count") ","
-        JSON_S("size") ","
-        JSON_S("children"))));
+        JSON_S("node"))));
 #undef JSON_S
 #undef JSON_O
 #undef JSON_A
@@ -2893,13 +2836,6 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddNumber(snapshot_->entries().length());
   writer_->AddString(",\"edge_count\":");
   writer_->AddNumber(snapshot_->edges().length());
-  writer_->AddString(",\"trace_function_count\":");
-  uint32_t count = 0;
-  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
-  if (tracker) {
-    count = tracker->id_to_function_info()->occupancy();
-  }
-  writer_->AddNumber(count);
 }
 
 
@@ -2910,100 +2846,6 @@ static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   w->AddCharacter(hex_chars[(u >> 8) & 0xf]);
   w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
   w->AddCharacter(hex_chars[u & 0xf]);
-}
-
-
-void HeapSnapshotJSONSerializer::SerializeTraceTree() {
-  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
-  if (!tracker) return;
-  AllocationTraceTree* traces = tracker->trace_tree();
-  SerializeTraceNode(traces->root());
-}
-
-
-void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
-  // The buffer needs space for 4 unsigned ints, 4 commas, [ and \0
-  const int kBufferSize =
-      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 4 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
-  int buffer_pos = 0;
-  buffer_pos = utoa(node->id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->function_id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->allocation_count(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->allocation_size(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer[buffer_pos++] = '[';
-  buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.start());
-
-  Vector<AllocationTraceNode*> children = node->children();
-  for (int i = 0; i < children.length(); i++) {
-    if (i > 0) {
-      writer_->AddCharacter(',');
-    }
-    SerializeTraceNode(children[i]);
-  }
-  writer_->AddCharacter(']');
-}
-
-
-// 0-based position is converted to 1-based during the serialization.
-static int SerializePosition(int position, const Vector<char>& buffer,
-                             int buffer_pos) {
-  if (position == -1) {
-    buffer[buffer_pos++] = '0';
-  } else {
-    ASSERT(position >= 0);
-    buffer_pos = utoa(static_cast<unsigned>(position + 1), buffer, buffer_pos);
-  }
-  return buffer_pos;
-}
-
-
-void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
-  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
-  if (!tracker) return;
-  // The buffer needs space for 6 unsigned ints, 6 commas, \n and \0
-  const int kBufferSize =
-      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 6 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
-  HashMap* id_to_function_info = tracker->id_to_function_info();
-  bool first_entry = true;
-  for (HashMap::Entry* p = id_to_function_info->Start();
-       p != NULL;
-       p = id_to_function_info->Next(p)) {
-    SnapshotObjectId id =
-        static_cast<SnapshotObjectId>(reinterpret_cast<intptr_t>(p->key));
-    AllocationTracker::FunctionInfo* info =
-        reinterpret_cast<AllocationTracker::FunctionInfo* >(p->value);
-    int buffer_pos = 0;
-    if (first_entry) {
-      first_entry = false;
-    } else {
-      buffer[buffer_pos++] = ',';
-    }
-    buffer_pos = utoa(id, buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = utoa(GetStringId(info->name), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = utoa(GetStringId(info->script_name), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    // The cast is safe because script id is a non-negative Smi.
-    buffer_pos = utoa(static_cast<unsigned>(info->script_id), buffer,
-        buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(info->line, buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(info->column, buffer, buffer_pos);
-    buffer[buffer_pos++] = '\n';
-    buffer[buffer_pos++] = '\0';
-    writer_->AddString(buffer.start());
-  }
 }
 
 
