@@ -1247,23 +1247,24 @@ var visited_errors = new InternalArray();
 var cyclic_error_marker = new $Object();
 
 function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
+  var current = error;
   // Climb the prototype chain until we find the holder.
-  while (error && !%HasLocalProperty(error, name)) {
-    error = %GetPrototype(error);
+  while (current && !%HasLocalProperty(current, name)) {
+    current = %GetPrototype(current);
   }
-  if (IS_NULL(error)) return UNDEFINED;
-  if (!IS_OBJECT(error)) return error[name];
+  if (IS_NULL(current)) return UNDEFINED;
+  if (!IS_OBJECT(current)) return error[name];
   // If the property is an accessor on one of the predefined errors that can be
   // generated statically by the compiler, don't touch it. This is to address
   // http://code.google.com/p/chromium/issues/detail?id=69187
-  var desc = %GetOwnProperty(error, name);
+  var desc = %GetOwnProperty(current, name);
   if (desc && desc[IS_ACCESSOR_INDEX]) {
     var isName = name === "name";
-    if (error === $ReferenceError.prototype)
+    if (current === $ReferenceError.prototype)
       return isName ? "ReferenceError" : UNDEFINED;
-    if (error === $SyntaxError.prototype)
+    if (current === $SyntaxError.prototype)
       return isName ? "SyntaxError" : UNDEFINED;
-    if (error === $TypeError.prototype)
+    if (current === $TypeError.prototype)
       return isName ? "TypeError" : UNDEFINED;
   }
   // Otherwise, read normally.
