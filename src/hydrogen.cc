@@ -844,12 +844,12 @@ void HGraphBuilder::IfBuilder::CaptureContinuation(
 void HGraphBuilder::IfBuilder::JoinContinuation(HIfContinuation* continuation) {
   ASSERT(!finished_);
   ASSERT(!captured_);
+  ASSERT(did_then_);
+  if (!did_else_) Else();
   HBasicBlock* true_block = last_true_block_ == NULL
       ? first_true_block_
       : last_true_block_;
-  HBasicBlock* false_block = did_else_ && (first_false_block_ != NULL)
-      ? builder_->current_block()
-      : first_false_block_;
+  HBasicBlock* false_block = builder_->current_block();
   if (true_block != NULL && !true_block->IsFinished()) {
     ASSERT(continuation->IsTrueReachable());
     builder_->GotoNoSimulate(true_block, continuation->true_branch());
