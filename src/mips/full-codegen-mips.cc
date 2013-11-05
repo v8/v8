@@ -180,8 +180,20 @@ void FullCodeGenerator::Generate() {
     ASSERT(!info->function()->is_generator() || locals_count == 0);
     if (locals_count > 0) {
       __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-      for (int i = 0; i < locals_count; i++) {
-        __ push(at);
+      // Emit a loop to initialize stack cells for locals when optimizing for
+      // size. Otherwise, unroll the loop for maximum performance.
+      __ LoadRoot(t5, Heap::kUndefinedValueRootIndex);
+      if (FLAG_optimize_for_size && locals_count > 4) {
+        Label loop;
+        __ li(a2, Operand(locals_count));
+        __ bind(&loop);
+        __ Subu(a2, a2, 1);
+        __ push(t5);
+        __ Branch(&loop, gt, a2, Operand(zero_reg));
+      } else {
+        for (int i = 0; i < locals_count; i++) {
+          __ push(t5);
+        }
       }
     }
   }
