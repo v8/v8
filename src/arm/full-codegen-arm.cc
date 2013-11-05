@@ -168,9 +168,20 @@ void FullCodeGenerator::Generate() {
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
     if (locals_count > 0) {
-      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-      for (int i = 0; i < locals_count; i++) {
-        __ push(ip);
+      // Emit a loop to initialize stack cells for locals when optimizing for
+      // size. Otherwise, unroll the loop for maximum performance.
+      __ LoadRoot(r9, Heap::kUndefinedValueRootIndex);
+      if (FLAG_optimize_for_size && locals_count > 4) {
+        Label loop;
+        __ mov(r2, Operand(locals_count));
+        __ bind(&loop);
+        __ sub(r2, r2, Operand(1), SetCC);
+        __ push(r9);
+        __ b(&loop, ne);
+      } else {
+        for (int i = 0; i < locals_count; i++) {
+          __ push(r9);
+        }
       }
     }
   }
