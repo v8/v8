@@ -91,29 +91,34 @@ class TransitionKey:
     return TransitionKey.__create([(char, char)])
 
   @staticmethod
-  def __process_graph(graph, ranges):
+  def __process_graph(graph, ranges, key_map):
     key = graph[0]
     if key == 'RANGE':
       ranges.append((ord(graph[1]), ord(graph[2])))
     elif key == 'LITERAL':
       ranges.append((ord(graph[1]), ord(graph[1])))
-    elif key == 'CHARACTER_CLASS':
-      if graph[1] == 'ws':
-        ranges.append(TransitionKey.__unicode_whitespace_bounds)
-      elif graph[1] == 'lit':
-        ranges.append(TransitionKey.__unicode_literal_bounds)
-      else:
-        raise Exception("unknown character class [%s]" % graph[1])
     elif key == 'CAT':
       for x in [graph[1], graph[2]]:
-        TransitionKey.__process_graph(x, ranges)
+        TransitionKey.__process_graph(x, ranges, key_map)
+    elif key == 'CHARACTER_CLASS':
+      class_name = graph[1]
+      if class_name == 'ws':
+        ranges.append(TransitionKey.__unicode_whitespace_bounds)
+      elif class_name == 'lit':
+        ranges.append(TransitionKey.__unicode_literal_bounds)
+      elif class_name in key_map:
+        ranges += key_map[class_name].__ranges
+      else:
+        raise Exception("unknown character class [%s]" % graph[1])
     else:
       raise Exception("bad key [%s]" % key)
 
   @staticmethod
-  def character_class(invert, graph):
+  def character_class(graph, key_map):
     ranges = []
-    TransitionKey.__process_graph(graph, ranges)
+    assert graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS'
+    invert = graph[0] == 'NOT_CLASS'
+    TransitionKey.__process_graph(graph[1], ranges, key_map)
     return TransitionKey.__key_from_ranges(invert, ranges)
 
   def matches_char(self, char):

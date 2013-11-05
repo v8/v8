@@ -29,6 +29,7 @@ import ply.yacc as yacc
 from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa import NfaBuilder
+from transition_keys import TransitionKey
 
 class RuleParser:
 
@@ -39,6 +40,7 @@ class RuleParser:
       'eof' : RegexParser.parse("eof"), #RegexParser.parse("[\0]"),
       'any' : RegexParser.parse("."),
     }
+    self.character_classes = {}
     self.current_transition = None
     self.rules = {}
 
@@ -56,7 +58,12 @@ class RuleParser:
   def p_alias_rule(self, p):
     'alias_rule : IDENTIFIER EQUALS composite_regex SEMICOLON'
     assert not p[1] in self.aliases
+    graph = p[3]
     self.aliases[p[1]] = p[3]
+    if graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS':
+      classes = self.character_classes
+      assert not p[1] in classes
+      classes[p[1]] = TransitionKey.character_class(graph, classes)
 
   def p_transition_rule(self, p):
     '''transition_rule : transition composite_regex code
@@ -91,7 +98,9 @@ class RuleParser:
       p[0] = p[1]
     else:
       p[0] = NfaBuilder.or_graphs([p[1], p[3]])
-    # NfaBuilder().nfa(p[0])
+    # builder = NfaBuilder()
+    # builder.set_character_classes(self.character_classes)
+    # builder.nfa(p[0])
 
   def p_regex_parts(self, p):
     '''regex_parts : regex_part

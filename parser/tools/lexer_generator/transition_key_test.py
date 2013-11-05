@@ -53,6 +53,7 @@ class TransitionKeyTestCase(unittest.TestCase):
       ("a-zA-Z0g" , "abyzABYZ0" , "123"),
       ("a-z:ws::lit:" , "abc" , "123"),
     ]
+    classes = {}
     for (string, match, no_match) in data:
       for invert in [False, True]:
         if invert:
@@ -63,11 +64,19 @@ class TransitionKeyTestCase(unittest.TestCase):
           token = "CLASS"
         graph = RegexParser.parse(regex)
         assert graph[0] == token
-        key = TransitionKey.character_class(invert, graph[1])
+        key = TransitionKey.character_class(graph, classes)
         for c in match:
           self.assertEqual(invert, not key.matches_char(c))
         for c in no_match:
           self.assertEqual(invert, key.matches_char(c))
+
+  def test_self_defined_classes(self):
+    graph = RegexParser.parse("[a-z]")
+    classes = {
+      'self_defined' : TransitionKey.character_class(graph, {})}
+    graph = RegexParser.parse("[^:self_defined:]")
+    key = TransitionKey.character_class(graph, classes)
+    self.assertTrue(key.matches_char('A'))
 
 if __name__ == '__main__':
     unittest.main()

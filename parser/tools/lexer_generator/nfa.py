@@ -122,6 +122,10 @@ class NfaBuilder:
     self.__node_number = 0
     self.__operation_map = {}
     self.__members = getmembers(self)
+    self.__character_classes = {}
+
+  def set_character_classes(self, classes):
+    self.__character_classes = classes
 
   def __new_state(self):
     self.__node_number += 1
@@ -192,10 +196,12 @@ class NfaBuilder:
     return self.__key_state(TransitionKey.single_char(graph[1]))
 
   def __class(self, graph):
-    return self.__key_state(TransitionKey.character_class(False, graph[1]))
+    return self.__key_state(
+      TransitionKey.character_class(graph, self.__character_classes))
 
   def __not_class(self, graph):
-    return self.__key_state(TransitionKey.character_class(True, graph[1]))
+    return self.__key_state(
+      TransitionKey.character_class(graph, self.__character_classes))
 
   def __any(self, graph):
     return self.__key_state(TransitionKey.any())
