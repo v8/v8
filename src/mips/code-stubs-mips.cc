@@ -5156,8 +5156,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
         ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(a1, a0);
-    __ push(ra);
-    __ Push(a1, a0);
+    __ Push(ra, a1, a0);
     __ li(t0, Operand(Smi::FromInt(op_)));
     __ addiu(sp, sp, -kPointerSize);
     __ CallExternalReference(miss, 3, USE_DELAY_SLOT);
