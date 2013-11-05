@@ -108,7 +108,7 @@ class RegexParser:
       if len(p[1]) == 1:
         left = ('LITERAL', p[1])
       else:
-        left = ('CHARACTER_CLASS', p[1:-1])
+        left = ('CHARACTER_CLASS', p[1][1:-1])
     p[0] = self.__cat(left, p[len(p)-1])
 
   def p_maybe_class_content(self, p):

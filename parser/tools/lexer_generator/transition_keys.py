@@ -103,12 +103,12 @@ class TransitionKey:
       elif graph[1] == 'lit':
         ranges.append(TransitionKey.__unicode_literal_bounds)
       else:
-        assert "unknown character class %s" % graph[1]
+        raise Exception("unknown character class [%s]" % graph[1])
     elif key == 'CAT':
       for x in [graph[1], graph[2]]:
         TransitionKey.__process_graph(x, ranges)
     else:
-      assert False, "bad key %s" % key
+      raise Exception("bad key [%s]" % key)
 
   @staticmethod
   def character_class(invert, graph):

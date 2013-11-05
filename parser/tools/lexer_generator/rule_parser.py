@@ -28,6 +28,7 @@
 import ply.yacc as yacc
 from rule_lexer import RuleLexer
 from regex_parser import RegexParser
+from nfa import NfaBuilder
 
 class RuleParser:
 
@@ -35,8 +36,8 @@ class RuleParser:
 
   def __init__(self):
     self.aliases = {
-      'eof' : "eof rule",
-      'any' : "any rule",
+      'eof' : RegexParser.parse("eof"), #RegexParser.parse("[\0]"),
+      'any' : RegexParser.parse("."),
     }
     self.current_transition = None
     self.rules = {}
@@ -86,15 +87,16 @@ class RuleParser:
   def p_composite_regex(self, p):
     '''composite_regex : regex_parts OR regex_parts
                        | regex_parts'''
-    if p[len(p)-1]:
-      p[0] = p[1:]
+    if len(p) == 2:
+      p[0] = p[1]
     else:
-      p[0] = p[1:-1]
+      p[0] = NfaBuilder.or_graphs([p[1], p[3]])
+    # NfaBuilder().nfa(p[0])
 
   def p_regex_parts(self, p):
     '''regex_parts : regex_part
                    | regex_part regex_parts'''
-    p[0] = p[1:]
+    p[0] = NfaBuilder.cat_graphs(p[1:])
 
   def p_regex_part(self, p):
     '''regex_part : LEFT_PARENTHESIS composite_regex RIGHT_PARENTHESIS modifier
@@ -102,15 +104,17 @@ class RuleParser:
                   | regex_class modifier
                   | regex modifier
                   | regex_alias modifier'''
-    if p[len(p)-1]:
-      p[0] = p[1:]
+    modifier = p[len(p)-1]
+    graph = p[2] if len(p) == 5 else p[1]
+    if modifier:
+      p[0] = NfaBuilder.apply_modifier(modifier, graph)
     else:
-      p[0] = p[1:-1]
+      p[0] = graph
 
   def p_regex_string_literal(self, p):
     'regex_string_literal : STRING'
     string = p[1][1:-1]
-    for c in "\+?|*[]()":
+    for c in "\+?*|.[](){}":
       string = string.replace(c, "\\" + c)
     p[0] = RegexParser.parse(string)
 

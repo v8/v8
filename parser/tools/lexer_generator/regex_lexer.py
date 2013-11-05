@@ -93,7 +93,7 @@ class RegexLexer:
     t.value = t.value[1:]
     return t
 
-  t_class_CLASS_LITERAL = r'[\w $_:+]' # fix this
+  t_class_CLASS_LITERAL = r'[\w $_+]' # fix this
 
   t_ANY_ignore  = '\n'
 

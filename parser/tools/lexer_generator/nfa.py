@@ -214,6 +214,16 @@ class NfaBuilder:
   def cat_graphs(graphs):
     return reduce(lambda acc, g: ('CAT', acc, g), graphs)
 
+  __modifer_map = {
+    '+': 'ONE_OR_MORE',
+    '?': 'ZERO_OR_ONE',
+    '*': 'ZERO_OR_MORE',
+  }
+
+  @staticmethod
+  def apply_modifier(modifier, graph):
+    return (NfaBuilder.__modifer_map[modifier], graph)
+
 class Nfa:
 
   def __init__(self, start, end, nodes_created):
