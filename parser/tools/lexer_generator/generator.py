@@ -25,87 +25,36 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import ply.lex as lex
+from nfa import Nfa
+from dfa import Dfa
+from rule_lexer import RuleLexer
+from rule_parser import RuleParser
+from regex_parser import RegexParser
 
-class RuleLexer:
+def lex_file(file_name):
+  lexer = RuleLexer()
+  lexer.build()
+  with open(file_name, 'r') as f:
+    lexer.lexer.input(f.read())
+    while True:
+        tok = lexer.lexer.token()
+        if not tok: break      # No more input
+        print tok
 
-  tokens = (
-    'IDENTIFIER',
-    'STRING_REGEX',
-    'CHARACTER_CLASS_REGEX',
-    'TRANSITION',
-    'TRANSITION_WITH_CODE',
+def parse_file(file_name):
+  rule_parser = RuleParser()
+  rule_parser.build()
+  with open(file_name, 'r') as f:
+    rule_parser.parse(f.read())
+  print "aliases"
+  for k, v in rule_parser.aliases.items():
+    print "\t%s : %s" % (k, v)
+  print "rules"
+  for k, v in rule_parser.rules.items():
+    print "\t%s" % k
+    for t in v:
+      print "\t\t%s" % str(t)
 
-    'PLUS',
-    'QUESTION_MARK',
-    'EQUALS',
-    'OR',
-    'STAR',
-    'LEFT_PARENTHESIS',
-    'RIGHT_PARENTHESIS',
-    'LESS_THAN',
-    'GREATER_THAN',
-    'SEMICOLON',
-
-    'LEFT_BRACKET',
-    'RIGHT_BRACKET',
-
-    'CODE_FRAGMENT',
-  )
-
-  states = (
-    ('code','exclusive'),
-  )
-
-  t_ignore = " \t\n\r"
-  t_code_ignore = ""
-
-  def t_COMMENT(self, t):
-    r'\#.*[\n\r]+'
-    pass
-
-  t_IDENTIFIER = r'[a-zA-Z0-9_]+'
-  t_STRING_REGEX = r'"((\\("|\w|\\))|[^\\"])+"'
-  t_CHARACTER_CLASS_REGEX = r'\[([^\]]|\\\])+\]'
-  t_TRANSITION = r':=>'
-  t_TRANSITION_WITH_CODE = r'=>'
-
-  t_PLUS = r'\+'
-  t_QUESTION_MARK = r'\?'
-  t_STAR = r'\*'
-  t_OR = r'\|'
-  t_EQUALS = r'='
-  t_LEFT_PARENTHESIS = r'\('
-  t_RIGHT_PARENTHESIS = r'\)'
-  t_LESS_THAN = r'<'
-  t_GREATER_THAN = r'>'
-  t_SEMICOLON = r';'
-
-  def t_LEFT_BRACKET(self, t):
-    r'{'
-    self.lexer.push_state('code')
-    self.nesting = 1
-    return t
-
-  t_code_CODE_FRAGMENT = r'[^{}]+'
-
-  def t_code_LEFT_BRACKET(self, t):
-    r'{'
-    self.nesting += 1
-    t.type = 'CODE_FRAGMENT'
-    return t
-
-  def t_code_RIGHT_BRACKET(self, t):
-    r'}'
-    self.nesting -= 1
-    if self.nesting:
-      t.type = 'CODE_FRAGMENT'
-    else:
-      self.lexer.pop_state()
-    return t
-
-  def t_ANY_error(self, t):
-    raise Exception("Illegal character '%s'" % t.value[0])
-
-  def build(self, **kwargs):
-    self.lexer = lex.lex(module=self, **kwargs)
+if __name__ == '__main__':
+  # lex_file('src/lexer/lexer_py.re')
+  parse_file('src/lexer/lexer_py.re')
