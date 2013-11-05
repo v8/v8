@@ -53,6 +53,7 @@ class RegexLexer:
     'RANGE',
     'NOT',
     'CLASS_LITERAL',
+    'CLASS_LITERAL_AS_OCTAL',
     'CHARACTER_CLASS',
   )
 
@@ -93,13 +94,17 @@ class RegexLexer:
   t_class_NOT = '\^'
   t_class_CHARACTER_CLASS = r':\w+:'
 
+  def t_class_CLASS_LITERAL_AS_OCTAL(self, t):
+    r'\\\d+'
+    return t
+
   def t_class_ESCAPED_CLASS_LITERAL(self, t):
     r'\\\^|\\-|\\\[|\\\]|\\\:|\\\w'
     t.type = 'CLASS_LITERAL'
     t.value = t.value[1:]
     return t
 
-  t_class_CLASS_LITERAL = r'[\w $_+]' # fix this
+  t_class_CLASS_LITERAL = r'[\w $_+]'
 
   def t_REPEAT_BEGIN(self, t):
     r'\{'

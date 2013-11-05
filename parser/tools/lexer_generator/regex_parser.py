@@ -113,12 +113,15 @@ class RegexParser:
     '''class_content : CLASS_LITERAL RANGE CLASS_LITERAL maybe_class_content
                      | CLASS_LITERAL maybe_class_content
                      | CHARACTER_CLASS maybe_class_content
+                     | CLASS_LITERAL_AS_OCTAL maybe_class_content
     '''
     if len(p) == 5:
       left = ("RANGE", p[1], p[3])
     else:
       if len(p[1]) == 1:
         left = ('LITERAL', p[1])
+      elif p[1][0] == '\\':
+        left = ('LITERAL', chr(int(p[1][1:], 8)))
       else:
         left = ('CHARACTER_CLASS', p[1][1:-1])
     p[0] = self.__cat(left, p[len(p)-1])

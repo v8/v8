@@ -37,7 +37,7 @@ class RuleParser:
 
   def __init__(self):
     self.aliases = {
-      'eof' : RegexParser.parse("eof"), #RegexParser.parse("[\0]"),
+      'eof' : RegexParser.parse("[\\0]"),
       'any' : RegexParser.parse("."),
     }
     self.character_classes = {}
