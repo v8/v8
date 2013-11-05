@@ -1020,6 +1020,7 @@ class Assembler : public AssemblerBase {
   // SSE instructions
   void andps(XMMRegister dst, XMMRegister src);
   void xorps(XMMRegister dst, XMMRegister src);
+  void orps(XMMRegister dst, XMMRegister src);
 
   // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);

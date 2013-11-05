@@ -1958,7 +1958,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
           XMMRegister xmm_scratch = double_scratch0();
           __ Set(temp, Immediate(lower));
           __ movd(xmm_scratch, Operand(temp));
-          __ por(res, xmm_scratch);
+          __ orps(res, xmm_scratch);
         }
       }
     }
@@ -2184,7 +2184,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ ucomisd(left_reg, left_reg);  // NaN check.
     __ j(parity_even, &return_left, Label::kNear);  // left == NaN.
     __ bind(&return_right);
-    __ movsd(left_reg, right_reg);
+    __ movaps(left_reg, right_reg);
 
     __ bind(&return_left);
   }
@@ -3995,7 +3995,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
   // compare and compensate.
-  __ movsd(input_temp, input_reg);  // Do not alter input_reg.
+  __ movaps(input_temp, input_reg);  // Do not alter input_reg.
   __ subsd(input_temp, xmm_scratch);
   __ cvttsd2si(output_reg, Operand(input_temp));
   // Catch minint due to overflow, and to prevent overflow when compensating.

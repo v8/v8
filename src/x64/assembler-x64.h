@@ -1355,8 +1355,9 @@ class Assembler : public AssemblerBase {
   void cvttss2si(Register dst, XMMRegister src);
   void cvtlsi2ss(XMMRegister dst, Register src);
 
-  void xorps(XMMRegister dst, XMMRegister src);
   void andps(XMMRegister dst, XMMRegister src);
+  void orps(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
 
   void movmskps(Register dst, XMMRegister src);
 

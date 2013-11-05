@@ -2487,6 +2487,24 @@ void Assembler::andps(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::orps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x56);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::xorps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
 // SSE 2 operations.
 
 void Assembler::movd(XMMRegister dst, Register src) {
@@ -2911,15 +2929,6 @@ void Assembler::orpd(XMMRegister dst, XMMRegister src) {
 void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x57);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::xorps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x57);

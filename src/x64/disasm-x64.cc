@@ -1261,10 +1261,17 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintOperands(idesc.mnem, idesc.op_order_, current);
 
   } else if (opcode == 0x54) {
-    // xorps xmm, xmm/m128
+    // andps xmm, xmm/m128
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("andps %s,", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
+
+  } else if (opcode == 0x56) {
+    // orps xmm, xmm/m128
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("orps %s,", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
 
   } else if (opcode == 0x57) {
