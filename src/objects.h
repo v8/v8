@@ -8513,6 +8513,11 @@ class String: public Name {
   // ASCII and two byte string types.
   bool MarkAsUndetectable();
 
+  // Return a substring.
+  MUST_USE_RESULT MaybeObject* SubString(int from,
+                                         int to,
+                                         PretenureFlag pretenure = NOT_TENURED);
+
   // String equality operations.
   inline bool Equals(String* other);
   bool IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match = false);

@@ -9280,6 +9280,14 @@ uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
 }
 
 
+MaybeObject* String::SubString(int start, int end, PretenureFlag pretenure) {
+  Heap* heap = GetHeap();
+  if (start == 0 && end == length()) return this;
+  MaybeObject* result = heap->AllocateSubString(this, start, end, pretenure);
+  return result;
+}
+
+
 void String::PrintOn(FILE* file) {
   int length = this->length();
   for (int i = 0; i < length; i++) {
