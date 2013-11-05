@@ -4606,14 +4606,14 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       nop(Assembler::CODE_AGE_MARKER_NOP);
       // Save the function's original return address
-      // (it will be clobbered by Call(t9))
+      // (it will be clobbered by Call(t9)).
       mov(at, ra);
-      // Load the stub address to t9 and call it
+      // Load the stub address to t9 and call it.
       li(t9,
          Operand(reinterpret_cast<uint32_t>(stub->instruction_start())));
       Call(t9);
-      // Record the stub address in the empty space for GetCodeAgeAndParity()
-      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+      // Record the stub address in the empty space for GetCodeAgeAndParity().
+      emit_code_stub_address(stub);
     } else {
       Push(ra, fp, cp, a1);
       nop(Assembler::CODE_AGE_SEQUENCE_NOP);

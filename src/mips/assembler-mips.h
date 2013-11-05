@@ -896,6 +896,9 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
 
+  // Emits the address of the code stub's first instruction.
+  void emit_code_stub_address(Code* stub);
+
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Postpone the generation of the trampoline pool for the specified number of
