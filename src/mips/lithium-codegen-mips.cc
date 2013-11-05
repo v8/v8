@@ -4584,9 +4584,7 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 
 void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
   LOperand* input = instr->value();
-  ASSERT(input->IsRegister());
   LOperand* output = instr->result();
-  ASSERT(output->IsRegister());
   Register scratch = scratch0();
 
   __ SmiTagCheckOverflow(ToRegister(output), ToRegister(input), scratch);
@@ -4604,6 +4602,19 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   FPURegister dbl_scratch = double_scratch0();
   __ mtc1(ToRegister(input), dbl_scratch);
   __ Cvt_d_uw(ToDoubleRegister(output), dbl_scratch, f22);
+}
+
+
+void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
+  LOperand* input = instr->value();
+  LOperand* output = instr->result();
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    Register scratch = scratch0();
+    __ And(scratch, ToRegister(input), Operand(0xc0000000));
+    DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
+  }
+  __ SmiTag(ToRegister(output), ToRegister(input));
 }
 
 
