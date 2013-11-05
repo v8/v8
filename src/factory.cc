@@ -583,6 +583,12 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
+Handle<Map> Factory::NewInitialMap(Handle<JSFunction> function) {
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateInitialMap(*function), Map);
+}
+
+
 Handle<Map> Factory::CopyWithPreallocatedFieldDescriptors(Handle<Map> src) {
   CALL_HEAP_FUNCTION(
       isolate(), src->CopyWithPreallocatedFieldDescriptors(), Map);
@@ -1050,6 +1056,7 @@ Handle<String> Factory::InternalizedStringFromString(Handle<String> value) {
 
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure) {
+  JSFunction::EnsureHasInitialMap(constructor);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*constructor, pretenure), JSObject);
@@ -1193,6 +1200,19 @@ void Factory::SetContent(Handle<JSArray> array,
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
       array->SetContent(*elements));
+}
+
+
+Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
+    Handle<JSFunction> function) {
+  ASSERT(function->shared()->is_generator());
+  JSFunction::EnsureHasInitialMap(function);
+  Handle<Map> map(function->initial_map());
+  ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSObjectFromMap(*map),
+      JSGeneratorObject);
 }
 
 

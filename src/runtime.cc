@@ -2974,30 +2974,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 0);
 
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  JSFunction* function = frame->function();
+  Handle<JSFunction> function(frame->function());
   RUNTIME_ASSERT(function->shared()->is_generator());
 
-  JSGeneratorObject* generator;
+  Handle<JSGeneratorObject> generator;
   if (frame->IsConstructor()) {
-    generator = JSGeneratorObject::cast(frame->receiver());
+    generator = handle(JSGeneratorObject::cast(frame->receiver()));
   } else {
-    MaybeObject* maybe_generator =
-        isolate->heap()->AllocateJSGeneratorObject(function);
-    if (!maybe_generator->To(&generator)) return maybe_generator;
+    generator = isolate->factory()->NewJSGeneratorObject(function);
   }
-  generator->set_function(function);
+  generator->set_function(*function);
   generator->set_context(Context::cast(frame->context()));
   generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
   generator->set_stack_handler_index(-1);
 
-  return generator;
+  return *generator;
 }
 
 

@@ -631,9 +631,6 @@ class Heap {
       JSFunction* constructor,
       Handle<AllocationSite> allocation_site);
 
-  MUST_USE_RESULT MaybeObject* AllocateJSGeneratorObject(
-      JSFunction* function);
-
   MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
                                                 ScopeInfo* scope_info);
 

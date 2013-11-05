@@ -263,6 +263,8 @@ class Factory {
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
+  Handle<Map> NewInitialMap(Handle<JSFunction> function);
+
   Handle<Map> CopyWithPreallocatedFieldDescriptors(Handle<Map> map);
 
   // Copy the map adding more inobject properties if possible without
@@ -342,6 +344,8 @@ class Factory {
                                     int length);
 
   void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
+
+  Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer();
 

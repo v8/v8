@@ -4640,15 +4640,7 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(
 
 MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
                                     PretenureFlag pretenure) {
-  // Allocate the initial map if absent.
-  if (!constructor->has_initial_map()) {
-    Object* initial_map;
-    { MaybeObject* maybe_initial_map = AllocateInitialMap(constructor);
-      if (!maybe_initial_map->ToObject(&initial_map)) return maybe_initial_map;
-    }
-    constructor->set_initial_map(Map::cast(initial_map));
-    Map::cast(initial_map)->set_constructor(constructor);
-  }
+  ASSERT(constructor->has_initial_map());
   // Allocate the object based on the constructors initial map.
   MaybeObject* result = AllocateJSObjectFromMap(
       constructor->initial_map(), pretenure);
@@ -4663,15 +4655,7 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 
 MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
     Handle<AllocationSite> allocation_site) {
-  // Allocate the initial map if absent.
-  if (!constructor->has_initial_map()) {
-    Object* initial_map;
-    { MaybeObject* maybe_initial_map = AllocateInitialMap(constructor);
-      if (!maybe_initial_map->ToObject(&initial_map)) return maybe_initial_map;
-    }
-    constructor->set_initial_map(Map::cast(initial_map));
-    Map::cast(initial_map)->set_constructor(constructor);
-  }
+  ASSERT(constructor->has_initial_map());
   // Allocate the object based on the constructors initial map, or the payload
   // advice
   Map* initial_map = constructor->initial_map();
@@ -4700,23 +4684,6 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
   return result;
-}
-
-
-MaybeObject* Heap::AllocateJSGeneratorObject(JSFunction *function) {
-  ASSERT(function->shared()->is_generator());
-  Map *map;
-  if (function->has_initial_map()) {
-    map = function->initial_map();
-  } else {
-    // Allocate the initial map if absent.
-    MaybeObject* maybe_map = AllocateInitialMap(function);
-    if (!maybe_map->To(&map)) return maybe_map;
-    function->set_initial_map(map);
-    map->set_constructor(function);
-  }
-  ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
-  return AllocateJSObjectFromMap(map);
 }
 
 

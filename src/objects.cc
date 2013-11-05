@@ -9885,6 +9885,15 @@ void JSFunction::RemovePrototype() {
 }
 
 
+void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
+  if (function->has_initial_map()) return;
+  Isolate* isolate = function->GetIsolate();
+  Handle<Map> initial_map = isolate->factory()->NewInitialMap(function);
+  function->set_initial_map(*initial_map);
+  initial_map->set_constructor(*function);
+}
+
+
 void JSFunction::SetInstanceClassName(String* name) {
   shared()->set_instance_class_name(name);
 }

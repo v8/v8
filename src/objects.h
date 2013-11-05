@@ -7279,6 +7279,7 @@ class JSFunction: public JSObject {
   inline Map* initial_map();
   inline void set_initial_map(Map* value);
   inline bool has_initial_map();
+  static void EnsureHasInitialMap(Handle<JSFunction> function);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
