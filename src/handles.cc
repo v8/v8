@@ -229,11 +229,12 @@ Handle<Object> GetProperty(Isolate* isolate,
 }
 
 
-Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
+Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index) {
   CALL_HEAP_FUNCTION(
       isolate,
-      isolate->heap()->LookupSingleCharacterStringFromCode(index), Object);
+      isolate->heap()->LookupSingleCharacterStringFromCode(index),
+      String);
 }
 
 

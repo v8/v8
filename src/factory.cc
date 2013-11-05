@@ -287,11 +287,43 @@ Handle<SeqTwoByteString> Factory::NewRawTwoByteString(int length,
 }
 
 
-Handle<String> Factory::NewConsString(Handle<String> first,
-                                      Handle<String> second) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateConsString(*first, *second),
-                     String);
+// Returns true for a character in a range.  Both limits are inclusive.
+static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
+  // This makes uses of the the unsigned wraparound.
+  return character - from <= to - from;
+}
+
+
+static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
+                                                          uint16_t c1,
+                                                          uint16_t c2) {
+  // Numeric strings have a different hash algorithm not known by
+  // LookupTwoCharsStringIfExists, so we skip this step for such strings.
+  if (!Between(c1, '0', '9') || !Between(c2, '0', '9')) {
+    String* result;
+    StringTable* table = isolate->heap()->string_table();
+    if (table->LookupTwoCharsStringIfExists(c1, c2, &result)) {
+      return handle(result);
+    }
+  }
+
+  // Now we know the length is 2, we might as well make use of that fact
+  // when building the new string.
+  if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
+    // We can do this.
+    ASSERT(IsPowerOf2(String::kMaxOneByteCharCodeU + 1));  // because of this.
+    Handle<SeqOneByteString> str = isolate->factory()->NewRawOneByteString(2);
+    uint8_t* dest = str->GetChars();
+    dest[0] = static_cast<uint8_t>(c1);
+    dest[1] = static_cast<uint8_t>(c2);
+    return str;
+  } else {
+    Handle<SeqTwoByteString> str = isolate->factory()->NewRawTwoByteString(2);
+    uc16* dest = str->GetChars();
+    dest[0] = c1;
+    dest[1] = c2;
+    return str;
+  }
 }
 
 
@@ -303,6 +335,99 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
   SinkChar* sink = result->GetChars();
   String::WriteToFlat(*first, sink, 0, first->length());
   String::WriteToFlat(*second, sink + first->length(), 0, second->length());
+  return result;
+}
+
+
+Handle<ConsString> Factory::NewRawConsString(String::Encoding encoding) {
+  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
+      ? cons_ascii_string_map() : cons_string_map();
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->Allocate(*map, NEW_SPACE),
+                     ConsString);
+}
+
+
+Handle<String> Factory::NewConsString(Handle<String> left,
+                                      Handle<String> right) {
+  int left_length = left->length();
+  if (left_length == 0) return right;
+  int right_length = right->length();
+  if (right_length == 0) return left;
+
+  int length = left_length + right_length;
+
+  if (length == 2) {
+    uint16_t c1 = left->Get(0);
+    uint16_t c2 = right->Get(0);
+    return MakeOrFindTwoCharacterString(isolate(), c1, c2);
+  }
+
+  // Make sure that an out of memory exception is thrown if the length
+  // of the new cons string is too large.
+  if (length > String::kMaxLength || length < 0) {
+    isolate()->context()->mark_out_of_memory();
+    V8::FatalProcessOutOfMemory("String concatenation result too large.");
+    UNREACHABLE();
+    return Handle<String>::null();
+  }
+
+  bool left_is_one_byte = left->IsOneByteRepresentation();
+  bool right_is_one_byte = right->IsOneByteRepresentation();
+  bool is_one_byte = left_is_one_byte && right_is_one_byte;
+  bool is_one_byte_data_in_two_byte_string = false;
+  if (!is_one_byte) {
+    // At least one of the strings uses two-byte representation so we
+    // can't use the fast case code for short ASCII strings below, but
+    // we can try to save memory if all chars actually fit in ASCII.
+    is_one_byte_data_in_two_byte_string =
+        left->HasOnlyOneByteChars() && right->HasOnlyOneByteChars();
+    if (is_one_byte_data_in_two_byte_string) {
+      isolate()->counters()->string_add_runtime_ext_to_ascii()->Increment();
+    }
+  }
+
+  // If the resulting string is small make a flat string.
+  if (length < ConsString::kMinLength) {
+    // Note that neither of the two inputs can be a slice because:
+    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
+    ASSERT(left->IsFlat());
+    ASSERT(right->IsFlat());
+
+    if (is_one_byte) {
+      Handle<SeqOneByteString> result = NewRawOneByteString(length);
+      DisallowHeapAllocation no_gc;
+      uint8_t* dest = result->GetChars();
+      // Copy left part.
+      const uint8_t* src = left->IsExternalString()
+          ? Handle<ExternalAsciiString>::cast(left)->GetChars()
+          : Handle<SeqOneByteString>::cast(left)->GetChars();
+      for (int i = 0; i < left_length; i++) *dest++ = src[i];
+      // Copy right part.
+      src = right->IsExternalString()
+          ? Handle<ExternalAsciiString>::cast(right)->GetChars()
+          : Handle<SeqOneByteString>::cast(right)->GetChars();
+      for (int i = 0; i < right_length; i++) *dest++ = src[i];
+      return result;
+    }
+
+    return (is_one_byte_data_in_two_byte_string)
+        ? ConcatStringContent<uint8_t>(NewRawOneByteString(length), left, right)
+        : ConcatStringContent<uc16>(NewRawTwoByteString(length), left, right);
+  }
+
+  Handle<ConsString> result = NewRawConsString(
+      (is_one_byte || is_one_byte_data_in_two_byte_string)
+          ? String::ONE_BYTE_ENCODING
+          : String::TWO_BYTE_ENCODING);
+
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+
+  result->set_hash_field(String::kEmptyHashField);
+  result->set_length(length);
+  result->set_first(*left, mode);
+  result->set_second(*right, mode);
   return result;
 }
 
@@ -321,22 +446,89 @@ Handle<String> Factory::NewFlatConcatString(Handle<String> first,
 }
 
 
-Handle<String> Factory::NewSubString(Handle<String> str,
-                                     int begin,
-                                     int end) {
+Handle<SlicedString> Factory::NewRawSlicedString(String::Encoding encoding) {
+  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
+      ? sliced_ascii_string_map() : sliced_string_map();
   CALL_HEAP_FUNCTION(isolate(),
-                     str->SubString(begin, end),
-                     String);
+                     isolate()->heap()->Allocate(*map, NEW_SPACE),
+                     SlicedString);
 }
 
 
 Handle<String> Factory::NewProperSubString(Handle<String> str,
                                            int begin,
                                            int end) {
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) str->StringVerify();
+#endif
   ASSERT(begin > 0 || end < str->length());
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateSubString(*str, begin, end),
-                     String);
+
+  int length = end - begin;
+  if (length <= 0) return empty_string();
+  if (length == 1) {
+    return LookupSingleCharacterStringFromCode(isolate(), str->Get(begin));
+  }
+  if (length == 2) {
+    // Optimization for 2-byte strings often used as keys in a decompression
+    // dictionary.  Check whether we already have the string in the string
+    // table to prevent creation of many unnecessary strings.
+    uint16_t c1 = str->Get(begin);
+    uint16_t c2 = str->Get(begin + 1);
+    return MakeOrFindTwoCharacterString(isolate(), c1, c2);
+  }
+
+  if (!FLAG_string_slices || length < SlicedString::kMinLength) {
+    if (str->IsOneByteRepresentation()) {
+      Handle<SeqOneByteString> result = NewRawOneByteString(length);
+      uint8_t* dest = result->GetChars();
+      DisallowHeapAllocation no_gc;
+      String::WriteToFlat(*str, dest, begin, end);
+      return result;
+    } else {
+      Handle<SeqTwoByteString> result = NewRawTwoByteString(length);
+      uc16* dest = result->GetChars();
+      DisallowHeapAllocation no_gc;
+      String::WriteToFlat(*str, dest, begin, end);
+      return result;
+    }
+  }
+
+  int offset = begin;
+
+  while (str->IsConsString()) {
+    Handle<ConsString> cons = Handle<ConsString>::cast(str);
+    int split = cons->first()->length();
+    if (split <= offset) {
+      // Slice is fully contained in the second part.
+      str = Handle<String>(cons->second(), isolate());
+      offset -= split;  // Adjust for offset.
+      continue;
+    } else if (offset + length <= split) {
+      // Slice is fully contained in the first part.
+      str = Handle<String>(cons->first(), isolate());
+      continue;
+    }
+    break;
+  }
+
+  if (str->IsSlicedString()) {
+    Handle<SlicedString> slice = Handle<SlicedString>::cast(str);
+    str = Handle<String>(slice->parent(), isolate());
+    offset += slice->offset();
+  } else {
+    str = FlattenGetString(str);
+  }
+
+  ASSERT(str->IsSeqString() || str->IsExternalString());
+  Handle<SlicedString> slice = NewRawSlicedString(
+      str->IsOneByteRepresentation() ? String::ONE_BYTE_ENCODING
+                                     : String::TWO_BYTE_ENCODING);
+
+  slice->set_hash_field(String::kEmptyHashField);
+  slice->set_length(length);
+  slice->set_parent(*str);
+  slice->set_offset(offset);
+  return slice;
 }
 
 

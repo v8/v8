@@ -4387,10 +4387,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLocaleCompare) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
-  CONVERT_ARG_CHECKED(String, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   int start, end;
   // We have a fast integer-only case here to avoid a conversion to double in
   // the common case where from and to are Smis.
@@ -4407,13 +4407,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
   }
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
-  RUNTIME_ASSERT(end <= value->length());
+  RUNTIME_ASSERT(end <= string->length());
   isolate->counters()->sub_string_runtime()->Increment();
-  if (end - start == 1) {
-     return isolate->heap()->LookupSingleCharacterStringFromCode(
-         value->Get(start));
-  }
-  return value->SubString(start, end);
+
+  return *isolate->factory()->NewSubString(string, start, end);
 }
 
 
@@ -6500,30 +6497,31 @@ static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
-  CONVERT_ARG_CHECKED(String, s, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(trimLeft, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(trimRight, 2);
 
-  s->TryFlatten();
-  int length = s->length();
+  string = FlattenGetString(string);
+  int length = string->length();
 
   int left = 0;
   if (trimLeft) {
-    while (left < length && IsTrimWhiteSpace(s->Get(left))) {
+    while (left < length && IsTrimWhiteSpace(string->Get(left))) {
       left++;
     }
   }
 
   int right = length;
   if (trimRight) {
-    while (right > left && IsTrimWhiteSpace(s->Get(right - 1))) {
+    while (right > left && IsTrimWhiteSpace(string->Get(right - 1))) {
       right--;
     }
   }
-  return s->SubString(left, right);
+
+  return *isolate->factory()->NewSubString(string, left, right);
 }
 
 
@@ -6926,12 +6924,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberImul) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringAdd) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(String, str1, 0);
-  CONVERT_ARG_CHECKED(String, str2, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
   isolate->counters()->string_add_runtime()->Increment();
-  return isolate->heap()->AllocateConsString(str1, str2);
+  return *isolate->factory()->NewConsString(str1, str2);
 }
 
 
