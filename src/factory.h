@@ -263,8 +263,6 @@ class Factory {
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
-  Handle<Map> NewInitialMap(Handle<JSFunction> function);
-
   Handle<Map> CopyWithPreallocatedFieldDescriptors(Handle<Map> map);
 
   // Copy the map adding more inobject properties if possible without

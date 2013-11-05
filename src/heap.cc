@@ -4492,48 +4492,6 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
 }
 
 
-MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
-  ASSERT(!fun->has_initial_map());
-
-  // First create a new map with the size and number of in-object properties
-  // suggested by the function.
-  InstanceType instance_type;
-  int instance_size;
-  int in_object_properties;
-  if (fun->shared()->is_generator()) {
-    instance_type = JS_GENERATOR_OBJECT_TYPE;
-    instance_size = JSGeneratorObject::kSize;
-    in_object_properties = 0;
-  } else {
-    instance_type = JS_OBJECT_TYPE;
-    instance_size = fun->shared()->CalculateInstanceSize();
-    in_object_properties = fun->shared()->CalculateInObjectProperties();
-  }
-  Map* map;
-  MaybeObject* maybe_map = AllocateMap(instance_type, instance_size);
-  if (!maybe_map->To(&map)) return maybe_map;
-
-  // Fetch or allocate prototype.
-  Object* prototype;
-  if (fun->has_instance_prototype()) {
-    prototype = fun->instance_prototype();
-  } else {
-    MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
-    if (!maybe_prototype->To(&prototype)) return maybe_prototype;
-  }
-  map->set_inobject_properties(in_object_properties);
-  map->set_unused_property_fields(in_object_properties);
-  map->set_prototype(prototype);
-  ASSERT(map->has_fast_object_elements());
-
-  if (!fun->shared()->is_generator()) {
-    fun->shared()->StartInobjectSlackTracking(map);
-  }
-
-  return map;
-}
-
-
 void Heap::InitializeJSObjectFromMap(JSObject* obj,
                                      FixedArray* properties,
                                      Map* map) {

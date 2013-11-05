@@ -9899,9 +9899,42 @@ void JSFunction::RemovePrototype() {
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
-  Handle<Map> initial_map = isolate->factory()->NewInitialMap(function);
-  function->set_initial_map(*initial_map);
-  initial_map->set_constructor(*function);
+
+  // First create a new map with the size and number of in-object properties
+  // suggested by the function.
+  InstanceType instance_type;
+  int instance_size;
+  int in_object_properties;
+  if (function->shared()->is_generator()) {
+    instance_type = JS_GENERATOR_OBJECT_TYPE;
+    instance_size = JSGeneratorObject::kSize;
+    in_object_properties = 0;
+  } else {
+    instance_type = JS_OBJECT_TYPE;
+    instance_size = function->shared()->CalculateInstanceSize();
+    in_object_properties = function->shared()->CalculateInObjectProperties();
+  }
+  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
+
+  // Fetch or allocate prototype.
+  Handle<Object> prototype;
+  if (function->has_instance_prototype()) {
+    prototype = handle(function->instance_prototype(), isolate);
+  } else {
+    prototype = isolate->factory()->NewFunctionPrototype(function);
+  }
+  map->set_inobject_properties(in_object_properties);
+  map->set_unused_property_fields(in_object_properties);
+  map->set_prototype(*prototype);
+  ASSERT(map->has_fast_object_elements());
+
+  if (!function->shared()->is_generator()) {
+    function->shared()->StartInobjectSlackTracking(*map);
+  }
+
+  // Finally link initial map and constructor function.
+  function->set_initial_map(*map);
+  map->set_constructor(*function);
 }
 
 

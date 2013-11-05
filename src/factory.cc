@@ -583,12 +583,6 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> Factory::NewInitialMap(Handle<JSFunction> function) {
-  CALL_HEAP_FUNCTION(
-      isolate(), isolate()->heap()->AllocateInitialMap(*function), Map);
-}
-
-
 Handle<Map> Factory::CopyWithPreallocatedFieldDescriptors(Handle<Map> src) {
   CALL_HEAP_FUNCTION(
       isolate(), src->CopyWithPreallocatedFieldDescriptors(), Map);
