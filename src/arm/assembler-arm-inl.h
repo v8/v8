@@ -104,7 +104,7 @@ Address RelocInfo::target_address_address() {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address>(Assembler::target_pointer_address_at(pc_));
+  return Assembler::target_pointer_address_at(pc_);
 }
 
 
@@ -392,29 +392,8 @@ void Assembler::emit(Instr x) {
 
 
 Address Assembler::target_pointer_address_at(Address pc) {
-  Address target_pc = pc;
-  Instr instr = Memory::int32_at(target_pc);
-  // If we have a bx instruction, the instruction before the bx is
-  // what we need to patch.
-  static const int32_t kBxInstMask = 0x0ffffff0;
-  static const int32_t kBxInstPattern = 0x012fff10;
-  if ((instr & kBxInstMask) == kBxInstPattern) {
-    target_pc -= kInstrSize;
-    instr = Memory::int32_at(target_pc);
-  }
-
-  // With a blx instruction, the instruction before is what needs to be patched.
-  if ((instr & kBlxRegMask) == kBlxRegPattern) {
-    target_pc -= kInstrSize;
-    instr = Memory::int32_at(target_pc);
-  }
-
-  ASSERT(IsLdrPcImmediateOffset(instr));
-  int offset = instr & 0xfff;  // offset_12 is unsigned
-  if ((instr & (1 << 23)) == 0) offset = -offset;  // U bit defines offset sign
-  // Verify that the constant pool comes after the instruction referencing it.
-  ASSERT(offset >= -4);
-  return target_pc + offset + 8;
+  Instr instr = Memory::int32_at(pc);
+  return pc + GetLdrRegisterImmediateOffset(instr) + kPcLoadDelta;
 }
 
 
@@ -427,6 +406,7 @@ Address Assembler::target_pointer_at(Address pc) {
         (next_instr->ImmedMovwMovtValue() << 16) |
         instr->ImmedMovwMovtValue());
   }
+  ASSERT(IsLdrPcImmediateOffset(Memory::int32_at(pc)));
   return Memory::Address_at(target_pointer_address_at(pc));
 }
 
