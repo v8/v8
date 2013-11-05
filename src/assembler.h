@@ -390,7 +390,6 @@ class RelocInfo BASE_EMBEDDED {
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
   INLINE(Object* target_object());
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
-  INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
   INLINE(Address target_runtime_entry(Assembler* origin));
@@ -486,12 +485,6 @@ class RelocInfo BASE_EMBEDDED {
     double data64_;
   };
   Code* host_;
-  // Code and Embedded Object pointers on some platforms are stored split
-  // across two consecutive 32-bit instructions. Heap management
-  // routines expect to access these pointers indirectly. The following
-  // location provides a place for these pointers to exist naturally
-  // when accessed via the Iterator.
-  Object* reconstructed_obj_ptr_;
   // External-reference pointers are also split across instruction-pairs
   // on some platforms, but are accessed via indirect pointers. This location
   // provides a place for that pointer to exist naturally. Its address

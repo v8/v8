@@ -1668,12 +1668,12 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
 
 
 void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
-  Object** current = rinfo->target_object_address();
+  Object* current = rinfo->target_object();
 
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode representation = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  serializer_->SerializeObject(*current, representation, kStartOfObject, skip);
+  serializer_->SerializeObject(current, representation, kStartOfObject, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 

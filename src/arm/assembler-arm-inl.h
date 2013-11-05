@@ -137,16 +137,6 @@ Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
 }
 
 
-Object** RelocInfo::target_object_address() {
-  // Provide a "natural pointer" to the embedded object,
-  // which can be de-referenced during heap iteration.
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  reconstructed_obj_ptr_ =
-      reinterpret_cast<Object*>(Assembler::target_pointer_at(pc_));
-  return &reconstructed_obj_ptr_;
-}
-
-
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());

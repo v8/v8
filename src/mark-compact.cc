@@ -93,7 +93,8 @@ class VerifyMarkingVisitor: public ObjectVisitor {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(),
                                     rinfo->target_object())) {
-      VisitPointer(rinfo->target_object_address());
+      Object* p = rinfo->target_object();
+      VisitPointer(&p);
     }
   }
 

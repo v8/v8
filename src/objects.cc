@@ -10317,7 +10317,8 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
 
 void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-  VisitPointer(rinfo->target_object_address());
+  Object* p = rinfo->target_object();
+  VisitPointer(&p);
 }
 
 
