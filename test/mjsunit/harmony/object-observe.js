@@ -434,12 +434,10 @@ Thingy.prototype = {
     notifier.performChange(Thingy.INCREMENT, function() {
       self.a += amount;
       self.b += amount;
-    });
 
-    notifier.notify({
-      object: this,
-      type: Thingy.INCREMENT,
-      incremented: amount
+      return {
+        incremented: amount
+      };  // implicit notify
     });
   },
 
@@ -450,12 +448,10 @@ Thingy.prototype = {
     notifier.performChange(Thingy.MULTIPLY, function() {
       self.a *= amount;
       self.b *= amount;
-    });
 
-    notifier.notify({
-      object: this,
-      type: Thingy.MULTIPLY,
-      multiplied: amount
+      return {
+        multiplied: amount
+      };  // implicit notify
     });
   },
 
@@ -466,13 +462,11 @@ Thingy.prototype = {
     notifier.performChange(Thingy.INCREMENT_AND_MULTIPLY, function() {
       self.increment(incAmount);
       self.multiply(multAmount);
-    });
 
-    notifier.notify({
-      object: this,
-      type: Thingy.INCREMENT_AND_MULTIPLY,
-      incremented: incAmount,
-      multiplied: multAmount
+      return {
+        incremented: incAmount,
+        multiplied: multAmount
+      };  // implicit notify
     });
   }
 }
@@ -545,7 +539,6 @@ RecursiveThingy.prototype = {
     });
 
     notifier.notify({
-      object: this,
       type: RecursiveThingy.MULTIPLY_FIRST_N,
       multiplied: amount,
       n: n
@@ -606,7 +599,6 @@ DeckSuit.prototype = {
     });
 
     notifier.notify({
-      object: this,
       type: DeckSuit.SHUFFLE
     });
   },
