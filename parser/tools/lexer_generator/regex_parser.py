@@ -64,7 +64,10 @@ class RegexParser:
                 | any maybe_modifier
     '''
     if p[2] != None:
-      p[0] = (p[2], p[1])
+      if isinstance(p[2], tuple) and p[2][0] == 'REPEAT':
+        p[0] = (p[2][0], p[2][1], p[2][2], p[1])
+      else:
+        p[0] = (p[2], p[1])
     else:
       p[0] = p[1]
 
@@ -72,10 +75,19 @@ class RegexParser:
     '''maybe_modifier : ONE_OR_MORE
                       | ZERO_OR_ONE
                       | ZERO_OR_MORE
+                      | repetition
                       | empty'''
     p[0] = p[1]
-    if p[1] != None:
+    if p[1] in self.token_map:
       p[0] = self.token_map[p[1]]
+
+  def p_repetition(self, p):
+    '''repetition : REPEAT_BEGIN NUMBER REPEAT_END
+                  | REPEAT_BEGIN NUMBER COMMA NUMBER REPEAT_END'''
+    if len(p) == 4:
+      p[0] = ("REPEAT", p[2], p[2])
+    else:
+      p[0] = ("REPEAT", p[2], p[4])
 
   def p_literal(self, p):
     '''literal : LITERAL'''

@@ -55,6 +55,11 @@ class AutomataTestCase(unittest.TestCase):
       ("a.+b", ["aab", "abb", "acb"], ["aaac", "ab", ""]),
       (".|.", ["a", "b"], ["aa", ""]),
       ("//.", ["//a"], ["aa", ""]),
+      ("[ab]{2}", ["aa", "ab", "ba", "bb"], ["", "a", "b", "aaa", "bbb"]),
+      ("[ab]{2,3}", ["aa", "ab", "ba", "bb", "aab", "baa", "bbb"],
+       ["", "a", "b", "aaaa", "bbba"]),
+      ("[ab]{2,4}", ["aa", "ab", "ba", "bb", "aab", "baa", "bbb", "abab"],
+       ["", "a", "b", "aaaba", "bbbaa"])
     ]
 
     def test_matches(self):

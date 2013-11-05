@@ -195,6 +195,7 @@ class TransitionKey:
 
   @staticmethod
   def disjoint_keys(key_set):
+    key_set.discard(TransitionKey.epsilon())
     if not key_set:
       return []
     range_map = {}

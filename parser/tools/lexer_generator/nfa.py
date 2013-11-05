@@ -108,6 +108,9 @@ class NfaState:
   def key_matches(self, value):
     return self.__matches(lambda k, v : k.matches_key(v), value)
 
+  def __str__(self):
+    return "NfaState(" + str(self.__node_number) + ")"
+
   @staticmethod
   def gather_transition_keys(state_set):
     f = lambda acc, state: acc | set(state.__transitions.keys())
@@ -152,6 +155,28 @@ class NfaBuilder:
     start =  self.__new_state()
     start.add_epsilon_transition(node)
     return (start, ends + [start])
+
+  def __repeat(self, graph):
+    param_min = int(graph[1])
+    param_max = int(graph[2])
+    subgraph = graph[3]
+    (start, ends) = self.__process(subgraph)
+    for i in xrange(1, param_min):
+      (start2, ends2) = self.__process(subgraph)
+      self.__patch_ends(ends, start2)
+      ends = ends2
+    if param_min == param_max:
+      return (start, ends)
+
+    midpoints = []
+    for i in xrange(param_min, param_max):
+      midpoint =  self.__new_state()
+      self.__patch_ends(ends, midpoint)
+      (start2, ends) = self.__process(subgraph)
+      midpoint.add_epsilon_transition(start2)
+      midpoints.append(midpoint)
+
+    return (start, ends + midpoints)
 
   def __cat(self, graph):
     (left, right) = (self.__process(graph[1]), self.__process(graph[2]))

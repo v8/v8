@@ -43,6 +43,11 @@ class RegexLexer:
     'ZERO_OR_ONE',
     'ANY',
 
+    'REPEAT_BEGIN',
+    'REPEAT_END',
+
+    'NUMBER',
+    'COMMA',
     'LITERAL',
 
     'RANGE',
@@ -64,10 +69,16 @@ class RegexLexer:
   t_GROUP_BEGIN = r'\('
   t_GROUP_END = r'\)'
 
+  t_REPEAT_BEGIN = r'\{'
+  t_REPEAT_END = r'\}'
+
   t_OR = r'\|'
   t_ONE_OR_MORE = r'\+'
   t_ZERO_OR_MORE = r'\*'
   t_ZERO_OR_ONE = r'\?'
+
+  t_NUMBER = r'[0-9]+'
+  t_COMMA = r','
 
   t_ANY = r'\.'
 
