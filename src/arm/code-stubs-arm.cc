@@ -77,7 +77,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteral)->entry;
 }
 
 

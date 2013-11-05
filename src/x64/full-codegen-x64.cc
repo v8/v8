@@ -1751,19 +1751,14 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         DONT_TRACK_ALLOCATION_SITE,
         length);
     __ CallStub(&stub);
-  } else if (expr->depth() > 1) {
+  } else if (expr->depth() > 1 ||
+             Serializer::enabled() ||
+             length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
     __ Push(Smi::FromInt(expr->literal_index()));
     __ Push(constant_elements);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else if (Serializer::enabled() ||
-      length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
-    __ Push(Smi::FromInt(expr->literal_index()));
-    __ Push(constant_elements);
-    __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);

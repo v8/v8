@@ -300,7 +300,6 @@ namespace internal {
   F(MaterializeRegExpLiteral, 4, 1)\
   F(CreateObjectLiteral, 4, 1) \
   F(CreateArrayLiteral, 3, 1) \
-  F(CreateArrayLiteralShallow, 3, 1) \
   \
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \

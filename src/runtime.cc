@@ -575,32 +575,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
-
-  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
-      literals_index, elements);
-  RETURN_IF_EMPTY_HANDLE(isolate, site);
-
-  JSObject* boilerplate = JSObject::cast(site->transition_info());
-  if (boilerplate->elements()->map() ==
-      isolate->heap()->fixed_cow_array_map()) {
-    isolate->counters()->cow_arrays_created_runtime()->Increment();
-  }
-
-  if (AllocationSite::GetMode(boilerplate->GetElementsKind()) ==
-      TRACK_ALLOCATION_SITE) {
-    return isolate->heap()->CopyJSObject(boilerplate, *site);
-  }
-
-  return isolate->heap()->CopyJSObject(boilerplate);
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);

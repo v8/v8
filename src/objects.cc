@@ -5837,7 +5837,9 @@ Handle<JSObject> JSObjectWalkVisitor::StructureWalk(Handle<JSObject> object) {
     case FAST_HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
       if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
-        isolate->counters()->cow_arrays_created_runtime()->Increment();
+        if (copying) {
+          isolate->counters()->cow_arrays_created_runtime()->Increment();
+        }
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
           ASSERT(!elements->get(i)->IsJSObject());

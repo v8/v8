@@ -1793,13 +1793,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
         1, a1, a2);
-  } else if (expr->depth() > 1) {
+  } else if (expr->depth() > 1 ||
+             Serializer::enabled() ||
+             length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ Push(a3, a2, a1);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else if (Serializer::enabled() ||
-      length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Push(a3, a2, a1);
-    __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);

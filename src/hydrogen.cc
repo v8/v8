@@ -4498,8 +4498,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // TODO(mvstanton): Consider a flag to turn off creation of any
     // AllocationMementos for this call: we are in crankshaft and should have
     // learned enough about transition behavior to stop emitting mementos.
-    Runtime::FunctionId function_id = (expr->depth() > 1)
-        ? Runtime::kCreateArrayLiteral : Runtime::kCreateArrayLiteralShallow;
+    Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
                                 3);
