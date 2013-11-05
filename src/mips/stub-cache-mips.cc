@@ -461,7 +461,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
   if (details.type() == CONSTANT) {
     Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
-    __ LoadObject(scratch1, constant);
+    __ li(scratch1, constant);
     __ Branch(miss_label, ne, value_reg, Operand(scratch1));
   } else if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
@@ -837,7 +837,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   __ sw(cp, MemOperand(sp, FCA::kContextSaveIndex * kPointerSize));
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
-  __ LoadHeapObject(t1, function);
+  __ li(t1, function);
   __ lw(cp, FieldMemOperand(t1, JSFunction::kContextOffset));
   __ sw(t1, MemOperand(sp, FCA::kCalleeIndex * kPointerSize));
 
@@ -1376,7 +1376,7 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
 
 void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
-  __ LoadObject(v0, value);
+  __ li(v0, value);
   __ Ret();
 }
 

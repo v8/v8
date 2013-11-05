@@ -83,19 +83,6 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    li(result, Operand(cell));
-    lw(result, FieldMemOperand(result, Cell::kValueOffset));
-  } else {
-    li(result, Operand(object));
-  }
-}
-
-
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of kNumSafepointRegisters values on the
@@ -767,6 +754,23 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
 
 
 //------------Pseudo-instructions-------------
+
+void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
+  AllowDeferredHandleDereference smi_check;
+  if (value->IsSmi()) {
+    li(dst, Operand(value), mode);
+  } else {
+    ASSERT(value->IsHeapObject());
+    if (isolate()->heap()->InNewSpace(*value)) {
+      Handle<Cell> cell = isolate()->factory()->NewCell(value);
+      li(dst, Operand(cell));
+      lw(dst, FieldMemOperand(dst, Cell::kValueOffset));
+    } else {
+      li(dst, Operand(value));
+    }
+  }
+}
+
 
 void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   ASSERT(!j.is_reg());
@@ -3697,7 +3701,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(a1, function);
+  li(a1, function);
   lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
