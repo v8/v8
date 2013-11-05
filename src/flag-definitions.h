@@ -502,6 +502,9 @@ DEFINE_bool(trace_gc_ignore_scavenger, false,
             "do not print trace line after scavenger collection")
 DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
+DEFINE_bool(print_max_heap_committed, false,
+            "print statistics of the maximum memory committed for the heap "
+            "in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(trace_fragmentation, false,

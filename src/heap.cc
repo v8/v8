@@ -79,6 +79,7 @@ Heap::Heap()
 // ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
 // Will be 4 * reserved_semispace_size_ to ensure that young
 // generation can be aligned to its size.
+      maximum_committed_(0),
       survived_since_last_expansion_(0),
       sweep_generation_(0),
       always_allocate_scope_depth_(0),
@@ -229,6 +230,16 @@ intptr_t Heap::CommittedMemoryExecutable() {
   if (!HasBeenSetUp()) return 0;
 
   return isolate()->memory_allocator()->SizeExecutable();
+}
+
+
+void Heap::UpdateMaximumCommitted() {
+  if (!HasBeenSetUp()) return;
+
+  intptr_t current_committed_memory = CommittedMemory();
+  if (current_committed_memory > maximum_committed_) {
+    maximum_committed_ = current_committed_memory;
+  }
 }
 
 
@@ -441,6 +452,8 @@ void Heap::GarbageCollectionPrologue() {
 #endif
   }
 
+  UpdateMaximumCommitted();
+
 #ifdef DEBUG
   ASSERT(!AllowHeapAllocation::IsAllowed() && gc_state_ == NOT_IN_GC);
 
@@ -506,6 +519,8 @@ void Heap::GarbageCollectionEpilogue() {
     }
   }
 
+  UpdateMaximumCommitted();
+
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
 
@@ -567,6 +582,9 @@ void Heap::GarbageCollectionEpilogue() {
                 property_cell_space()->CommittedMemory() / KB));
     isolate_->counters()->heap_sample_code_space_committed()->AddSample(
         static_cast<int>(code_space()->CommittedMemory() / KB));
+
+    isolate_->counters()->heap_sample_maximum_committed()->AddSample(
+        static_cast<int>(MaximumCommittedMemory() / KB));
   }
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
@@ -6812,6 +6830,8 @@ void Heap::TearDown() {
   }
 #endif
 
+  UpdateMaximumCommitted();
+
   if (FLAG_print_cumulative_gc_stat) {
     PrintF("\n");
     PrintF("gc_count=%d ", gc_count_);
@@ -6823,6 +6843,31 @@ void Heap::TearDown() {
            get_max_alive_after_gc());
     PrintF("total_marking_time=%.1f ", marking_time());
     PrintF("total_sweeping_time=%.1f ", sweeping_time());
+    PrintF("\n\n");
+  }
+
+  if (FLAG_print_max_heap_committed) {
+    PrintF("\n");
+    PrintF("maximum_committed_by_heap=%" V8_PTR_PREFIX "d ",
+      MaximumCommittedMemory());
+    PrintF("maximum_committed_by_new_space=%" V8_PTR_PREFIX "d ",
+      new_space_.MaximumCommittedMemory());
+    PrintF("maximum_committed_by_old_pointer_space=%" V8_PTR_PREFIX "d ",
+      old_data_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_old_data_space=%" V8_PTR_PREFIX "d ",
+      old_pointer_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_old_data_space=%" V8_PTR_PREFIX "d ",
+      old_pointer_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_code_space=%" V8_PTR_PREFIX "d ",
+      code_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_map_space=%" V8_PTR_PREFIX "d ",
+      map_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_cell_space=%" V8_PTR_PREFIX "d ",
+      cell_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_property_space=%" V8_PTR_PREFIX "d ",
+      property_cell_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_lo_space=%" V8_PTR_PREFIX "d ",
+      lo_space_->MaximumCommittedMemory());
     PrintF("\n\n");
   }
 

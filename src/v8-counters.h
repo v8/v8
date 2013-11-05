@@ -101,6 +101,8 @@ namespace internal {
      V8.MemoryHeapSamplePropertyCellSpaceCommitted)                   \
   HM(heap_sample_code_space_committed,                                \
      V8.MemoryHeapSampleCodeSpaceCommitted)                           \
+  HM(heap_sample_maximum_committed,                                   \
+     V8.MemoryHeapSampleMaximumCommitted)                             \
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC

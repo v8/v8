@@ -533,6 +533,13 @@ class Heap {
   // Returns the amount of phyical memory currently committed for the heap.
   size_t CommittedPhysicalMemory();
 
+  // Returns the maximum amount of memory ever committed for the heap.
+  intptr_t MaximumCommittedMemory() { return maximum_committed_; }
+
+  // Updates the maximum committed memory for the heap. Should be called
+  // whenever a space grows.
+  void UpdateMaximumCommitted();
+
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
   // all available bytes. Check MaxHeapObjectSize() instead.
@@ -1888,6 +1895,7 @@ class Heap {
   int initial_semispace_size_;
   intptr_t max_old_generation_size_;
   intptr_t max_executable_size_;
+  intptr_t maximum_committed_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.

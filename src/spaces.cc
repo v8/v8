@@ -1122,6 +1122,11 @@ void PagedSpace::ResetFreeListStatistics() {
 }
 
 
+void PagedSpace::IncreaseCapacity(int size) {
+  accounting_stats_.ExpandSpace(size);
+}
+
+
 void PagedSpace::ReleasePage(Page* page, bool unlink) {
   ASSERT(page->LiveBytes() == 0);
   ASSERT(AreaSize() == page->area_size());
@@ -1511,6 +1516,7 @@ void SemiSpace::SetUp(Address start,
   initial_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   capacity_ = initial_capacity;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
+  maximum_committed_ = 0;
   committed_ = false;
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
@@ -1543,6 +1549,7 @@ bool SemiSpace::Commit() {
     current = new_page;
   }
 
+  SetCapacity(capacity_);
   committed_ = true;
   Reset();
   return true;
@@ -1591,7 +1598,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
       start_ + capacity_, delta, executable())) {
     return false;
   }
-  capacity_ = new_capacity;
+  SetCapacity(new_capacity);
   NewSpacePage* last_page = anchor()->prev_page();
   ASSERT(last_page != anchor());
   for (int i = pages_before; i < pages_after; i++) {
@@ -1631,7 +1638,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
     ASSERT((current_page_ >= first_page()) && (current_page_ <= new_last_page));
   }
 
-  capacity_ = new_capacity;
+  SetCapacity(new_capacity);
 
   return true;
 }
@@ -1691,6 +1698,14 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   to->FlipPages(flags, NewSpacePage::kCopyOnFlipFlagsMask);
 
   from->FlipPages(0, 0);
+}
+
+
+void SemiSpace::SetCapacity(int new_capacity) {
+  capacity_ = new_capacity;
+  if (capacity_ > maximum_committed_) {
+    maximum_committed_ = capacity_;
+  }
 }
 
 
@@ -2938,6 +2953,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap,
 bool LargeObjectSpace::SetUp() {
   first_page_ = NULL;
   size_ = 0;
+  maximum_committed_ = 0;
   page_count_ = 0;
   objects_size_ = 0;
   chunk_map_.Clear();
@@ -2983,6 +2999,10 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   page_count_++;
   page->set_next_page(first_page_);
   first_page_ = page;
+
+  if (size_ > maximum_committed_) {
+    maximum_committed_ = size_;
+  }
 
   // Register all MemoryChunk::kAlignment-aligned chunks covered by
   // this large page in the chunk map.
