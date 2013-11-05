@@ -767,31 +767,6 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
-Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
-                                       Handle<Object> key) {
-  CALL_HEAP_FUNCTION(table->GetIsolate(),
-                     table->Add(*key),
-                     ObjectHashSet);
-}
-
-
-Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
-                                          Handle<Object> key) {
-  CALL_HEAP_FUNCTION(table->GetIsolate(),
-                     table->Remove(*key),
-                     ObjectHashSet);
-}
-
-
-Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<Object> key,
-                                               Handle<Object> value) {
-  CALL_HEAP_FUNCTION(table->GetIsolate(),
-                     table->Put(*key, *value),
-                     ObjectHashTable);
-}
-
-
 DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
   impl_->BeginDeferredScope();

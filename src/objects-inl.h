@@ -5851,10 +5851,17 @@ Object* JSObject::BypassGlobalProxy() {
 }
 
 
-MaybeObject* JSReceiver::GetIdentityHash(CreationFlag flag) {
+Handle<Object> JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver> object) {
+  return object->IsJSProxy()
+      ? JSProxy::GetOrCreateIdentityHash(Handle<JSProxy>::cast(object))
+      : JSObject::GetOrCreateIdentityHash(Handle<JSObject>::cast(object));
+}
+
+
+Object* JSReceiver::GetIdentityHash() {
   return IsJSProxy()
-      ? JSProxy::cast(this)->GetIdentityHash(flag)
-      : JSObject::cast(this)->GetIdentityHash(flag);
+      ? JSProxy::cast(this)->GetIdentityHash()
+      : JSObject::cast(this)->GetIdentityHash();
 }
 
 
@@ -6054,16 +6061,14 @@ bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
 
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
-  MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+  return Smi::cast(key->GetHash())->value();
 }
 
 
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
                                                         Object* other) {
-  MaybeObject* maybe_hash = other->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+  return Smi::cast(other->GetHash())->value();
 }
 
 

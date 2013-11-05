@@ -1387,7 +1387,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAdd) {
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<Object> key(args[1], isolate);
   Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
-  table = ObjectHashSetAdd(table, key);
+  table = ObjectHashSet::Add(table, key);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -1409,7 +1409,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<Object> key(args[1], isolate);
   Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
-  table = ObjectHashSetRemove(table, key);
+  table = ObjectHashSet::Remove(table, key);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -1464,7 +1464,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapDelete) {
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   Handle<ObjectHashTable> new_table =
-      PutIntoObjectHashTable(table, key, isolate->factory()->the_hole_value());
+      ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
   holder->set_table(*new_table);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
@@ -1477,7 +1477,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
-  Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
+  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
   holder->set_table(*new_table);
   return isolate->heap()->undefined_value();
 }
@@ -1543,7 +1543,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionDelete) {
       weak_collection->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   Handle<ObjectHashTable> new_table =
-      PutIntoObjectHashTable(table, key, isolate->factory()->the_hole_value());
+      ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
   weak_collection->set_table(*new_table);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
@@ -1557,7 +1557,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionSet) {
   Handle<Object> value(args[2], isolate);
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
+  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
   weak_collection->set_table(*new_table);
   return isolate->heap()->undefined_value();
 }

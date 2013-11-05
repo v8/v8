@@ -2759,7 +2759,7 @@ TEST(Regress2211) {
     // In the first iteration, set hidden value first and identity hash second.
     // In the second iteration, reverse the order.
     if (i == 0) obj->SetHiddenValue(v8_str("key string"), value);
-    JSObject::SetIdentityHash(internal_obj, hash);
+    JSObject::SetIdentityHash(internal_obj, handle(hash, CcTest::i_isolate()));
     if (i == 1) obj->SetHiddenValue(v8_str("key string"), value);
 
     // Check values.

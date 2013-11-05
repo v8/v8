@@ -74,7 +74,9 @@ class Factory {
 
   Handle<ObjectHashSet> NewObjectHashSet(int at_least_space_for);
 
-  Handle<ObjectHashTable> NewObjectHashTable(int at_least_space_for);
+  Handle<ObjectHashTable> NewObjectHashTable(
+      int at_least_space_for,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
   Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
 

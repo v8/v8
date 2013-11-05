@@ -132,11 +132,14 @@ Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
 }
 
 
-Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
+Handle<ObjectHashTable> Factory::NewObjectHashTable(
+    int at_least_space_for,
+    MinimumCapacity capacity_option) {
   ASSERT(0 <= at_least_space_for);
   CALL_HEAP_FUNCTION(isolate(),
                      ObjectHashTable::Allocate(isolate()->heap(),
-                                               at_least_space_for),
+                                               at_least_space_for,
+                                               capacity_option),
                      ObjectHashTable);
 }
 
@@ -147,7 +150,7 @@ Handle<WeakHashTable> Factory::NewWeakHashTable(int at_least_space_for) {
       isolate(),
       WeakHashTable::Allocate(isolate()->heap(),
                               at_least_space_for,
-                              WeakHashTable::USE_DEFAULT_MINIMUM_CAPACITY,
+                              USE_DEFAULT_MINIMUM_CAPACITY,
                               TENURED),
       WeakHashTable);
 }

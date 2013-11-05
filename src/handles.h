@@ -303,16 +303,6 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
     Handle<JSGlobalProxy> global);
 
-Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
-                                       Handle<Object> key);
-
-Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
-                                          Handle<Object> key);
-
-Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<Object> key,
-                                               Handle<Object> value);
-
 void AddWeakObjectToCodeDependency(Heap* heap,
                                    Handle<Object> object,
                                    Handle<Code> code);

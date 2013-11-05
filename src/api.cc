@@ -3689,7 +3689,8 @@ int v8::Object::GetIdentityHash() {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSObject::GetIdentityHash(self);
+  return i::Handle<i::Smi>::cast(
+      i::JSReceiver::GetOrCreateIdentityHash(self))->value();
 }
 
 
