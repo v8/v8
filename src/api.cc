@@ -574,8 +574,7 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
   int max_executable_size = constraints->max_executable_size();
   if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0) {
     // After initialization it's too late to change Heap constraints.
-    // TODO(rmcilroy): fix this assert.
-    // ASSERT(!isolate->IsInitialized());
+    ASSERT(!isolate->IsInitialized());
     bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
                                                  old_gen_size,
                                                  max_executable_size);
