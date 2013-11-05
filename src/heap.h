@@ -672,12 +672,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
                                             AllocationSite* site = NULL);
 
-  // Allocates the function prototype.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateFunctionPrototype(JSFunction* function);
-
   // Allocates a JS ArrayBuffer object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.

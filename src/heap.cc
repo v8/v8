@@ -4388,39 +4388,6 @@ void Heap::InitializeFunction(JSFunction* function,
 }
 
 
-MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
-  // Make sure to use globals from the function's context, since the function
-  // can be from a different context.
-  Context* native_context = function->context()->native_context();
-  Map* new_map;
-  if (function->shared()->is_generator()) {
-    // Generator prototypes can share maps since they don't have "constructor"
-    // properties.
-    new_map = native_context->generator_object_prototype_map();
-  } else {
-    // Each function prototype gets a fresh map to avoid unwanted sharing of
-    // maps between prototypes of different constructors.
-    JSFunction* object_function = native_context->object_function();
-    ASSERT(object_function->has_initial_map());
-    MaybeObject* maybe_map = object_function->initial_map()->Copy();
-    if (!maybe_map->To(&new_map)) return maybe_map;
-  }
-
-  Object* prototype;
-  MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
-  if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-
-  if (!function->shared()->is_generator()) {
-    MaybeObject* maybe_failure =
-        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributesTrampoline(
-            constructor_string(), function, DONT_ENUM);
-    if (maybe_failure->IsFailure()) return maybe_failure;
-  }
-
-  return prototype;
-}
-
-
 MaybeObject* Heap::AllocateFunction(Map* function_map,
                                     SharedFunctionInfo* shared,
                                     Object* prototype,

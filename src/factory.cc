@@ -576,10 +576,32 @@ Handle<Map> Factory::NewMap(InstanceType type,
 
 
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFunctionPrototype(*function),
-      JSObject);
+  // Make sure to use globals from the function's context, since the function
+  // can be from a different context.
+  Handle<Context> native_context(function->context()->native_context());
+  Handle<Map> new_map;
+  if (function->shared()->is_generator()) {
+    // Generator prototypes can share maps since they don't have "constructor"
+    // properties.
+    new_map = handle(native_context->generator_object_prototype_map());
+  } else {
+    // Each function prototype gets a fresh map to avoid unwanted sharing of
+    // maps between prototypes of different constructors.
+    Handle<JSFunction> object_function(native_context->object_function());
+    ASSERT(object_function->has_initial_map());
+    new_map = Map::Copy(handle(object_function->initial_map()));
+  }
+
+  Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
+
+  if (!function->shared()->is_generator()) {
+    JSObject::SetLocalPropertyIgnoreAttributes(prototype,
+                                               constructor_string(),
+                                               function,
+                                               DONT_ENUM);
+  }
+
+  return prototype;
 }
 
 
