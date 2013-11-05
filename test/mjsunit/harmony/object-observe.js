@@ -300,8 +300,103 @@ observer.assertCallbackRecords([
   { object: obj, type: 'deleted', name: '', oldValue: ' ' },
 ]);
 
+// Object.preventExtensions
+reset();
+var obj = { foo: 'bar'};
+Object.observe(obj, observer.callback);
+obj.baz = 'bat';
+Object.preventExtensions(obj);
+
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'new', name: 'baz' },
+  { object: obj, type: 'preventExtensions' },
+]);
+
+reset();
+var obj = { foo: 'bar'};
+Object.preventExtensions(obj);
+Object.observe(obj, observer.callback);
+Object.preventExtensions(obj);
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();
+
+// Object.freeze
+reset();
+var obj = { a: 'a' };
+Object.defineProperty(obj, 'b', {
+  writable: false,
+  configurable: true,
+  value: 'b'
+});
+Object.defineProperty(obj, 'c', {
+  writable: true,
+  configurable: false,
+  value: 'c'
+});
+Object.defineProperty(obj, 'd', {
+  writable: false,
+  configurable: false,
+  value: 'd'
+});
+Object.observe(obj, observer.callback);
+Object.freeze(obj);
+
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'reconfigured', name: 'a' },
+  { object: obj, type: 'reconfigured', name: 'b' },
+  { object: obj, type: 'reconfigured', name: 'c' },
+  { object: obj, type: 'preventExtensions' },
+]);
+
+reset();
+var obj = { foo: 'bar'};
+Object.freeze(obj);
+Object.observe(obj, observer.callback);
+Object.freeze(obj);
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();
+
+// Object.seal
+reset();
+var obj = { a: 'a' };
+Object.defineProperty(obj, 'b', {
+  writable: false,
+  configurable: true,
+  value: 'b'
+});
+Object.defineProperty(obj, 'c', {
+  writable: true,
+  configurable: false,
+  value: 'c'
+});
+Object.defineProperty(obj, 'd', {
+  writable: false,
+  configurable: false,
+  value: 'd'
+});
+Object.observe(obj, observer.callback);
+Object.seal(obj);
+
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'reconfigured', name: 'a' },
+  { object: obj, type: 'reconfigured', name: 'b' },
+  { object: obj, type: 'preventExtensions' },
+]);
+
+reset();
+var obj = { foo: 'bar'};
+Object.seal(obj);
+Object.observe(obj, observer.callback);
+Object.seal(obj);
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();
+
 // Observing a continuous stream of changes, while itermittantly unobserving.
 reset();
+var obj = {};
 Object.observe(obj, observer.callback);
 Object.getNotifier(obj).notify({
   type: 'updated',

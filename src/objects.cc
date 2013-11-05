@@ -2175,11 +2175,13 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
     object = handle(JSGlobalObject::cast(*object)->global_receiver(), isolate);
   }
   Handle<Object> args[] = { type, object, name, old_value };
+  int argc = name.is_null() ? 2 : old_value->IsTheHole() ? 3 : 4;
   bool threw;
+
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_notify_change()),
                   isolate->factory()->undefined_value(),
-                  old_value->IsTheHole() ? 3 : 4, args,
+                  argc, args,
                   &threw);
   ASSERT(!threw);
 }
@@ -5442,6 +5444,9 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
+
+  if (!object->map()->is_extensible()) return object;
+
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(*object,
                                isolate->heap()->undefined_value(),
@@ -5484,6 +5489,11 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   new_map->set_is_extensible(false);
   object->set_map(*new_map);
   ASSERT(!object->map()->is_extensible());
+
+  if (FLAG_harmony_observation && object->map()->is_observed()) {
+    EnqueueChangeRecord(object, "preventExtensions", Handle<Name>(),
+                        isolate->factory()->the_hole_value());
+  }
   return object;
 }
 
@@ -5512,6 +5522,7 @@ static void FreezeDictionary(Dictionary* dictionary) {
 Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
   // Freezing non-strict arguments should be handled elsewhere.
   ASSERT(!object->HasNonStrictArgumentsElements());
+  ASSERT(!object->map()->is_observed());
 
   if (object->map()->is_frozen()) return object;
 

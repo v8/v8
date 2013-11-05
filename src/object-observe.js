@@ -132,7 +132,8 @@ var defaultAcceptTypes = TypeMapCreateFromList([
   'updated',
   'deleted',
   'prototype',
-  'reconfigured'
+  'reconfigured',
+  'preventExtensions'
 ]);
 
 // An Observer is a registration to observe an object by a callback with
@@ -463,9 +464,20 @@ function NotifyChange(type, object, name, oldValue) {
   if (!ObjectInfoHasActiveObservers(objectInfo))
     return;
 
-  var changeRecord = (arguments.length < 4) ?
-      { type: type, object: object, name: name } :
-      { type: type, object: object, name: name, oldValue: oldValue };
+  var changeRecord;
+  if (arguments.length == 2) {
+    changeRecord = { type: type, object: object };
+  } else if (arguments.length == 3) {
+    changeRecord = { type: type, object: object, name: name };
+  } else {
+    changeRecord = {
+      type: type,
+      object: object,
+      name: name,
+      oldValue: oldValue
+    };
+  }
+
   ObjectFreeze(changeRecord);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
