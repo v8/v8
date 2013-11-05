@@ -485,7 +485,7 @@ class StubCompiler BASE_EMBEDDED {
   // the property cell at compilation time if no cell exists for the
   // property.
   static void GenerateCheckPropertyCell(MacroAssembler* masm,
-                                        Handle<GlobalObject> global,
+                                        Handle<JSGlobalObject> global,
                                         Handle<Name> name,
                                         Register scratch,
                                         Label* miss);
@@ -703,7 +703,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   Handle<Code> CompileLoadNonexistent(Handle<JSObject> object,
                                       Handle<JSObject> last,
                                       Handle<Name> name,
-                                      Handle<GlobalObject> global);
+                                      Handle<JSGlobalObject> global);
 
   Handle<Code> CompileLoadGlobal(Handle<JSObject> object,
                                  Handle<GlobalObject> holder,
@@ -734,7 +734,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                   Handle<JSObject> last,
                                   Handle<Name> name,
                                   Label* success,
-                                  Handle<GlobalObject> global);
+                                  Handle<JSGlobalObject> global);
 
   void GenerateLoadField(Register reg,
                          Handle<JSObject> holder,

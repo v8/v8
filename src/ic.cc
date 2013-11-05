@@ -370,18 +370,6 @@ void IC::TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name) {
 
 void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   if (!name->IsString()) return;
-
-  // The builtins object is special.  It only changes when JavaScript
-  // builtins are loaded lazily.  It is important to keep inline
-  // caches for the builtins object monomorphic.  Therefore, if we get
-  // an inline cache miss for the builtins object after lazily loading
-  // JavaScript builtins, we return uninitialized as the state to
-  // force the inline cache back to monomorphic state.
-  if (receiver->IsJSBuiltinsObject()) {
-    state_ = UNINITIALIZED;
-    return;
-  }
-
   if (state() != MONOMORPHIC) {
     if (state() == POLYMORPHIC && receiver->IsHeapObject()) {
       TryRemoveInvalidHandlers(
@@ -399,6 +387,14 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
           receiver, Handle<String>::cast(name))) {
     return MarkMonomorphicPrototypeFailure();
   }
+
+  // The builtins object is special.  It only changes when JavaScript
+  // builtins are loaded lazily.  It is important to keep inline
+  // caches for the builtins object monomorphic.  Therefore, if we get
+  // an inline cache miss for the builtins object after lazily loading
+  // JavaScript builtins, we return uninitialized as the state to
+  // force the inline cache back to monomorphic state.
+  if (receiver->IsJSBuiltinsObject()) state_ = UNINITIALIZED;
 }
 
 

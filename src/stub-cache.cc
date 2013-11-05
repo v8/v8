@@ -177,12 +177,12 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   Handle<Name> cache_name = factory()->empty_string();
   Handle<JSObject> current;
   Handle<Object> next = receiver;
-  Handle<GlobalObject> global;
+  Handle<JSGlobalObject> global;
   do {
     current = Handle<JSObject>::cast(next);
     next = Handle<Object>(current->GetPrototype(), isolate_);
-    if (current->IsGlobalObject()) {
-      global = Handle<GlobalObject>::cast(current);
+    if (current->IsJSGlobalObject()) {
+      global = Handle<JSGlobalObject>::cast(current);
       cache_name = name;
     } else if (!current->HasFastProperties()) {
       cache_name = name;
@@ -1213,7 +1213,7 @@ void LoadStubCompiler::NonexistentHandlerFrontend(
     Handle<JSObject> last,
     Handle<Name> name,
     Label* success,
-    Handle<GlobalObject> global) {
+    Handle<JSGlobalObject> global) {
   Label miss;
 
   Register holder =
