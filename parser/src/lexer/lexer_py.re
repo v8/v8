@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-whitespace_char = [ \t\v\f\r\240:ws:];
+whitespace_char = [ \t\v\f\r:ws:]; # TODO put back \240
 whitespace = whitespace_char+;
 identifier_start = [$_a-zA-Z:lit:];
 identifier_char = [$_a-zA-Z0-9:lit:];
@@ -33,7 +33,7 @@ not_identifier_char = [^:identifier_char:];
 line_terminator = [\n\r]+;
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
-maybe_exponent = ("e" [-+]? digit+)?;
+maybe_exponent = ("e" [\-+]? digit+)?;
 number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)? maybe_exponent));
 
 <Normal> "break" not_identifier_char      { PUSH_TOKEN_LOOKAHEAD(Token::BREAK); }
@@ -151,7 +151,7 @@ number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)
 <Normal> "'"           :=> SingleQuoteString
 
 <Normal> identifier_start     :=> Identifier
-<Normal> "\\u[0-9a-fA-F]{4}" { if (ValidIdentifierStart()) { YYSETCONDITION(kConditionIdentifier); goto yyc_Identifier; } send(Token::ILLEGAL); start_ = cursor_; goto yyc_Normal; }
+<Normal> /\\u[0-9a-fA-F]{4}/ { if (ValidIdentifierStart()) { YYSETCONDITION(kConditionIdentifier); goto yyc_Identifier; } send(Token::ILLEGAL); start_ = cursor_; goto yyc_Normal; }
 <Normal> "\\"                 { PUSH_TOKEN(Token::ILLEGAL); }
 
 <Normal> eof           { PUSH_EOF_AND_RETURN();}
@@ -160,25 +160,25 @@ number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)
 <DoubleQuoteString> "\\\\"  { goto yyc_DoubleQuoteString; }
 <DoubleQuoteString> "\\\""  { goto yyc_DoubleQuoteString; }
 <DoubleQuoteString> "\""     { PUSH_TOKEN(Token::STRING);}
-<DoubleQuoteString> "\\\n\r?" { goto yyc_DoubleQuoteString; }
-<DoubleQuoteString> "\\\r\n?" { goto yyc_DoubleQuoteString; }
+<DoubleQuoteString> /\\\n\r?/ { goto yyc_DoubleQuoteString; }
+<DoubleQuoteString> /\\\r\n?/ { goto yyc_DoubleQuoteString; }
 <DoubleQuoteString> "\n"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 <DoubleQuoteString> "\r"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 <DoubleQuoteString> eof     { TERMINATE_ILLEGAL(); }
 <DoubleQuoteString> any     { goto yyc_DoubleQuoteString; }
 
-<SingleQuoteString> "\\\\"  { goto yyc_SingleQuoteString; }
+<SingleQuoteString> "\\"  { goto yyc_SingleQuoteString; }
 <SingleQuoteString> "\\'"   { goto yyc_SingleQuoteString; }
-<SingleQuoteString> "'"     { PUSH_TOKEN(Token::STRING);}
-<SingleQuoteString> "\\\n\r?" { goto yyc_SingleQuoteString; }
-<SingleQuoteString> "\\\r\n?" { goto yyc_SingleQuoteString; }
+<SingleQuoteString> "'"     { PUSH_TOKEN(Token::STRING); }
+<SingleQuoteString> /\\\n\r?/ { goto yyc_SingleQuoteString; }
+<SingleQuoteString> /\\\r\n?/ { goto yyc_SingleQuoteString; }
 <SingleQuoteString> "\n"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 <SingleQuoteString> "\r"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 <SingleQuoteString> eof     { TERMINATE_ILLEGAL(); }
 <SingleQuoteString> any     { goto yyc_SingleQuoteString; }
 
 <Identifier> identifier_char+  { goto yyc_Identifier; }
-<Identifier> "\\u[0-9a-fA-F]{4}" { if (ValidIdentifierPart()) { goto yyc_Identifier; } YYSETCONDITION(kConditionNormal); send(Token::ILLEGAL); start_ = cursor_; goto yyc_Normal; }
+<Identifier> /\\u[0-9a-fA-F]{4}/ { if (ValidIdentifierPart()) { goto yyc_Identifier; } YYSETCONDITION(kConditionNormal); send(Token::ILLEGAL); start_ = cursor_; goto yyc_Normal; }
 <Identifier> "\\"              { PUSH_TOKEN(Token::ILLEGAL); }
 <Identifier> any               { PUSH_TOKEN_LOOKAHEAD(Token::IDENTIFIER); }
 
@@ -186,11 +186,11 @@ number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)
 <SingleLineComment> eof             { start_ = cursor_ - 1; PUSH_TOKEN(Token::EOS); }
 <SingleLineComment> any             { goto yyc_SingleLineComment; }
 
-<MultiLineComment> "*//"  { PUSH_LINE_TERMINATOR();}
+<MultiLineComment> "*/"  { PUSH_LINE_TERMINATOR();}
 <MultiLineComment> eof      { start_ = cursor_ - 1; PUSH_TOKEN(Token::EOS); }
 <MultiLineComment> any      { goto yyc_MultiLineComment; }
 
-<HtmlComment> eof        { start_ = cursor_ - 1; PUSH_TOKEN(Token::EOS); }
 <HtmlComment> "-->"      { PUSH_LINE_TERMINATOR();}
 <HtmlComment> line_terminator+ { PUSH_LINE_TERMINATOR();}
+<HtmlComment> eof        { start_ = cursor_ - 1; PUSH_TOKEN(Token::EOS); }
 <HtmlComment> any        { goto yyc_HtmlComment; }

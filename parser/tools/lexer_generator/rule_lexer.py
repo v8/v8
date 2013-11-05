@@ -31,7 +31,8 @@ class RuleLexer:
 
   tokens = (
     'IDENTIFIER',
-    'STRING_REGEX',
+    'STRING',
+    'REGEX',
     'CHARACTER_CLASS_REGEX',
     'TRANSITION',
     'TRANSITION_WITH_CODE',
@@ -65,7 +66,8 @@ class RuleLexer:
     pass
 
   t_IDENTIFIER = r'[a-zA-Z0-9_]+'
-  t_STRING_REGEX = r'"((\\("|\w|\\))|[^\\"])+"'
+  t_STRING = r'"((\\("|\w|\\))|[^\\"])+"'
+  t_REGEX = r'/[^\/]+/'
   t_CHARACTER_CLASS_REGEX = r'\[([^\]]|\\\])+\]'
   t_TRANSITION = r':=>'
   t_TRANSITION_WITH_CODE = r'=>'

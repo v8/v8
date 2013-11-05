@@ -85,15 +85,15 @@ class RegexLexer:
 
   t_class_RANGE = '-'
   t_class_NOT = '\^'
-  t_class_CHARACTER_CLASS = ':ws:|:lit:'
+  t_class_CHARACTER_CLASS = r':\w+:'
 
   def t_class_ESCAPED_CLASS_LITERAL(self, t):
-    r'\\\^|\\-|\\\[|\\\]\\:'
+    r'\\\^|\\-|\\\[|\\\]|\\\:|\\\w'
     t.type = 'CLASS_LITERAL'
     t.value = t.value[1:]
     return t
 
-  t_class_CLASS_LITERAL = r'[a-zA-Z0-9]' # fix this
+  t_class_CLASS_LITERAL = r'[\w $_:+]' # fix this
 
   t_ANY_ignore  = '\n'
 

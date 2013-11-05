@@ -54,6 +54,7 @@ class AutomataTestCase(unittest.TestCase):
       ("a.?b", ["aab", "abb", "acb", "ab"], ["aaab", ""]),
       ("a.+b", ["aab", "abb", "acb"], ["aaac", "ab", ""]),
       (".|.", ["a", "b"], ["aa", ""]),
+      ("//.", ["//a"], ["aa", ""]),
     ]
 
     def test_matches(self):
@@ -84,9 +85,9 @@ class AutomataTestCase(unittest.TestCase):
       dfa = dfa_from_nfa(nfa)
       def verify(string, expected):
         actions = list(dfa.collect_actions(string))
-        assertEqual(len(expected), len(actions))
+        self.assertEqual(len(expected), len(actions))
         for i, action in enumerate(actions):
-          assertEqual(action[i], expected[i])
+          self.assertEqual(action[i], expected[i])
       def verify_miss(string, expected):
         verify(string, expected + [('MISS',)])
       def verify_hit(string, expected):

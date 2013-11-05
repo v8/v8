@@ -27,13 +27,17 @@
 
 import ply.yacc as yacc
 from rule_lexer import RuleLexer
+from regex_parser import RegexParser
 
 class RuleParser:
 
   tokens = RuleLexer.tokens
 
   def __init__(self):
-    self.aliases = {}
+    self.aliases = {
+      'eof' : "eof rule",
+      'any' : "any rule",
+    }
     self.current_transition = None
     self.rules = {}
 
@@ -80,27 +84,47 @@ class RuleParser:
     p[0] = self.current_transition
 
   def p_composite_regex(self, p):
-    '''composite_regex : regex_part OR regex_part maybe_regex_parts
-                       | regex_part maybe_regex_parts'''
+    '''composite_regex : regex_parts OR regex_parts
+                       | regex_parts'''
     if p[len(p)-1]:
       p[0] = p[1:]
     else:
       p[0] = p[1:-1]
 
-  def p_maybe_regex_part(self, p):
-    '''maybe_regex_parts : composite_regex
-                         | empty'''
-    p[0] = p[1]
+  def p_regex_parts(self, p):
+    '''regex_parts : regex_part
+                   | regex_part regex_parts'''
+    p[0] = p[1:]
 
   def p_regex_part(self, p):
     '''regex_part : LEFT_PARENTHESIS composite_regex RIGHT_PARENTHESIS modifier
-                  | STRING_REGEX modifier
-                  | CHARACTER_CLASS_REGEX modifier
-                  | IDENTIFIER modifier'''
+                  | regex_string_literal modifier
+                  | regex_class modifier
+                  | regex modifier
+                  | regex_alias modifier'''
     if p[len(p)-1]:
       p[0] = p[1:]
     else:
       p[0] = p[1:-1]
+
+  def p_regex_string_literal(self, p):
+    'regex_string_literal : STRING'
+    string = p[1][1:-1]
+    for c in "\+?|*[]()":
+      string = string.replace(c, "\\" + c)
+    p[0] = RegexParser.parse(string)
+
+  def p_regex(self, p):
+    'regex : REGEX'
+    p[0] = RegexParser.parse(p[1][1:-1])
+
+  def p_regex_class(self, p):
+    'regex_class : CHARACTER_CLASS_REGEX'
+    p[0] = RegexParser.parse(p[1])
+
+  def p_regex_alias(self, p):
+    'regex_alias : IDENTIFIER'
+    p[0] = self.aliases[p[1]]
 
   def p_modifier(self, p):
     '''modifier : PLUS
