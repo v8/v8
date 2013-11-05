@@ -58,10 +58,11 @@ class RegexLexer:
 
   states = (
     ('class','exclusive'),
+    ('repeat','exclusive'),
   )
 
   def t_ESCAPED_LITERAL(self, t):
-    r'\\\(|\\\)|\\\[|\\\]|\\\||\\\+|\\\*|\\\?|\\\.|\\\\'
+    r'\\\(|\\\)|\\\[|\\\]|\\\||\\\+|\\\*|\\\?|\\\.|\\\\|\\\{|\\\}'
     t.type = 'LITERAL'
     t.value = t.value[1:]
     return t
@@ -69,16 +70,10 @@ class RegexLexer:
   t_GROUP_BEGIN = r'\('
   t_GROUP_END = r'\)'
 
-  t_REPEAT_BEGIN = r'\{'
-  t_REPEAT_END = r'\}'
-
   t_OR = r'\|'
   t_ONE_OR_MORE = r'\+'
   t_ZERO_OR_MORE = r'\*'
   t_ZERO_OR_ONE = r'\?'
-
-  t_NUMBER = r'[0-9]+'
-  t_COMMA = r','
 
   t_ANY = r'\.'
 
@@ -105,6 +100,19 @@ class RegexLexer:
     return t
 
   t_class_CLASS_LITERAL = r'[\w $_+]' # fix this
+
+  def t_REPEAT_BEGIN(self, t):
+    r'\{'
+    self.lexer.push_state('repeat')
+    return t
+
+  def t_repeat_REPEAT_END(self, t):
+    r'\}'
+    self.lexer.pop_state()
+    return t
+
+  t_repeat_NUMBER = r'[0-9]+'
+  t_repeat_COMMA = r','
 
   t_ANY_ignore  = '\n'
 
