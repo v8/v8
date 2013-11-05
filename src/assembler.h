@@ -425,7 +425,7 @@ class RelocInfo BASE_EMBEDDED {
 
   // Read/modify the reference in the instruction this relocation
   // applies to; can only be called if rmode_ is external_reference
-  INLINE(Address* target_reference_address());
+  INLINE(Address target_reference());
 
   // Read/modify the address of a call instruction. This is used to relocate
   // the break points where straight-line code is patched with a call

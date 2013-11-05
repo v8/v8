@@ -1694,12 +1694,12 @@ void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
   Address references_start = rinfo->target_address_address();
   int skip = OutputRawData(references_start, kCanReturnSkipInsteadOfSkipping);
 
-  Address* current = rinfo->target_reference_address();
+  Address current = rinfo->target_reference();
   int representation = rinfo->IsCodedSpecially() ?
                        kFromCode + kStartOfObject : kPlain + kStartOfObject;
   sink_->Put(kExternalReference + representation, "ExternalRef");
   sink_->PutInt(skip, "SkipB4ExternalRef");
-  int reference_id = serializer_->EncodeExternalReference(*current);
+  int reference_id = serializer_->EncodeExternalReference(current);
   sink_->PutInt(reference_id, "reference id");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }

@@ -160,10 +160,9 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 }
 
 
-Address* RelocInfo::target_reference_address() {
+Address RelocInfo::target_reference() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  reconstructed_adr_ptr_ = Assembler::target_address_at(pc_);
-  return &reconstructed_adr_ptr_;
+  return Assembler::target_address_at(pc_);
 }
 
 
