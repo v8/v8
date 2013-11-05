@@ -624,12 +624,11 @@ void FullCodeGenerator::StackValueContext::Plug(
   Label done;
   __ bind(materialize_true);
   __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ push(ip);
   __ jmp(&done);
   __ bind(materialize_false);
   __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  __ push(ip);
   __ bind(&done);
+  __ push(ip);
 }
 
 
@@ -1608,9 +1607,8 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ jmp(&allocated);
 
   __ bind(&runtime_allocate);
-  __ push(r5);
   __ mov(r0, Operand(Smi::FromInt(size)));
-  __ push(r0);
+  __ Push(r5, r0);
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ pop(r5);
 
@@ -2047,8 +2045,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
       __ LoadRoot(r2, Heap::kthrow_stringRootIndex);     // "throw"
       __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
-      __ push(r3);                                       // iter
-      __ push(r0);                                       // exception
+      __ Push(r3, r0);                                   // iter, exception
       __ jmp(&l_call);
 
       // try { received = %yield result }
@@ -2084,8 +2081,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_next);
       __ LoadRoot(r2, Heap::knext_stringRootIndex);      // "next"
       __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
-      __ push(r3);                                       // iter
-      __ push(r0);                                       // received
+      __ Push(r3, r0);                                   // iter, received
 
       // result = receiver[f](arg);
       __ bind(&l_call);
@@ -2161,11 +2157,13 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ bl(&resume_frame);
   __ jmp(&done);
   __ bind(&resume_frame);
-  __ push(lr);  // Return address.
-  __ push(fp);  // Caller's frame pointer.
-  __ mov(fp, sp);
-  __ push(cp);  // Callee's context.
-  __ push(r4);  // Callee's JS Function.
+  // lr = return address.
+  // fp = caller's frame pointer.
+  // cp = callee's context,
+  // r4 = callee's JS function.
+  __ Push(lr, fp, cp, r4);
+  // Adjust FP to point to saved FP.
+  __ add(fp, sp, Operand(2 * kPointerSize));
 
   // Load the operand stack size.
   __ ldr(r3, FieldMemOperand(r1, JSGeneratorObject::kOperandStackOffset));
@@ -2197,8 +2195,8 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ push(r2);
   __ b(&push_operand_holes);
   __ bind(&call_resume);
-  __ push(r1);
-  __ push(result_register());
+  ASSERT(!result_register().is(r1));
+  __ Push(r1, result_register());
   __ Push(Smi::FromInt(resume_mode));
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
@@ -2420,8 +2418,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
       __ mov(r1, r0);
-      __ pop(r2);
-      __ pop(r0);  // Restore value.
+      __ Pop(r0, r2);  // r0 = restored value.
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
@@ -2555,8 +2552,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  __ pop(r1);  // Key.
-  __ pop(r2);
+  __ Pop(r2, r1);  // r1 = key.
 
   Handle<Code> ic = is_classic_mode()
       ? isolate()->builtins()->KeyedStoreIC_Initialize()
@@ -2685,27 +2681,25 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
 
 
 void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
-  // Push copy of the first argument or undefined if it doesn't exist.
+  // r4: copy of the first argument or undefined if it doesn't exist.
   if (arg_count > 0) {
-    __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
+    __ ldr(r4, MemOperand(sp, arg_count * kPointerSize));
   } else {
-    __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
   }
-  __ push(r1);
 
-  // Push the receiver of the enclosing function.
+  // r3: the receiver of the enclosing function.
   int receiver_offset = 2 + info_->scope()->num_parameters();
-  __ ldr(r1, MemOperand(fp, receiver_offset * kPointerSize));
-  __ push(r1);
-  // Push the language mode.
-  __ mov(r1, Operand(Smi::FromInt(language_mode())));
-  __ push(r1);
+  __ ldr(r3, MemOperand(fp, receiver_offset * kPointerSize));
 
-  // Push the start position of the scope the calls resides in.
+  // r2: the language mode.
+  __ mov(r2, Operand(Smi::FromInt(language_mode())));
+
+  // r1: the start position of the scope the calls resides in.
   __ mov(r1, Operand(Smi::FromInt(scope()->start_position())));
-  __ push(r1);
 
   // Do the runtime call.
+  __ Push(r4, r3, r2, r1);
   __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
 }
 
@@ -2779,9 +2773,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ bind(&slow);
     // Call the runtime to find the function to call (returned in r0)
     // and the object holding it (returned in edx).
-    __ push(context_register());
+    ASSERT(!context_register().is(r2));
     __ mov(r2, Operand(proxy->name()));
-    __ push(r2);
+    __ Push(context_register(), r2);
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
     __ Push(r0, r1);  // Function, receiver.
 
@@ -3498,8 +3492,7 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(value);
-  __ pop(index);
+  __ Pop(index, value);
   VisitForAccumulatorValue(args->at(0));  // string
 
   if (FLAG_debug_code) {
@@ -3526,8 +3519,7 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(value);
-  __ pop(index);
+  __ Pop(index, value);
   VisitForAccumulatorValue(args->at(0));  // string
 
   if (FLAG_debug_code) {
@@ -4271,9 +4263,9 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         } else {
           // Non-global variable.  Call the runtime to try to delete from the
           // context where the variable was introduced.
-          __ push(context_register());
+          ASSERT(!context_register().is(r2));
           __ mov(r2, Operand(var->name()));
-          __ push(r2);
+          __ Push(context_register(), r2);
           __ CallRuntime(Runtime::kDeleteContextSlot, 2);
           context()->Plug(r0);
         }
@@ -4503,8 +4495,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case KEYED_PROPERTY: {
-      __ pop(r1);  // Key.
-      __ pop(r2);  // Receiver.
+      __ Pop(r2, r1);  // r1 = key. r2 = receiver.
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
