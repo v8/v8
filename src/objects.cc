@@ -4122,29 +4122,6 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::SetLocalPropertyIgnoreAttributesTrampoline(
-    Name* key,
-    Object* value,
-    PropertyAttributes attributes,
-    ValueType value_type,
-    StoreMode mode,
-    ExtensibilityCheck extensibility_check) {
-  // TODO(mstarzinger): The trampoline is a giant hack, don't use it anywhere
-  // else or handlification people will start hating you for all eternity.
-  HandleScope scope(GetIsolate());
-  IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
-  return trampoline.CallWithReturnValue(
-      &JSObject::SetLocalPropertyIgnoreAttributes,
-      Handle<JSObject>(this),
-      Handle<Name>(key),
-      Handle<Object>(value, GetIsolate()),
-      attributes,
-      value_type,
-      mode,
-      extensibility_check);
-}
-
-
 // Set a real local property, even if it is READ_ONLY.  If the property is not
 // present, add it with attributes NONE.  This code is an exact clone of
 // SetProperty, with the check for IsReadOnly and the check for a

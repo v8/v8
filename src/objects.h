@@ -2193,15 +2193,6 @@ class JSObject: public JSReceiver {
   // or returns an empty handle if such a map is not yet available.
   static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
 
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
-
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
   Object* GetNormalizedProperty(LookupResult* result);
