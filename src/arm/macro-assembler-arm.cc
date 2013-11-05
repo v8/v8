@@ -932,7 +932,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       add(r0, pc, Operand(-8));
       ldr(pc, MemOperand(pc, -4));
-      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+      emit_code_stub_address(stub);
     } else {
       stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
       nop(ip.code());
