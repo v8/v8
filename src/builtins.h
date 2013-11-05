@@ -364,6 +364,11 @@ class Builtins {
   }
 
   static const char* GetName(JavaScript id) { return javascript_names_[id]; }
+  const char* name(int index) {
+    ASSERT(index >= 0);
+    ASSERT(index < builtin_count);
+    return names_[index];
+  }
   static int GetArgumentsCount(JavaScript id) { return javascript_argc_[id]; }
   Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }

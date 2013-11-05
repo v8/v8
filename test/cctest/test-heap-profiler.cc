@@ -2177,3 +2177,56 @@ TEST(TrackHeapAllocations) {
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
   heap_profiler->StopRecordingHeapAllocations();
 }
+
+
+static const v8::HeapGraphNode* GetNodeByPath(const v8::HeapSnapshot* snapshot,
+                                              const char* path[],
+                                              int depth) {
+  const v8::HeapGraphNode* node = snapshot->GetRoot();
+  for (int current_depth = 0; current_depth < depth; ++current_depth) {
+    int i, count = node->GetChildrenCount();
+    for (i = 0; i < count; ++i) {
+      const v8::HeapGraphEdge* edge = node->GetChild(i);
+      const v8::HeapGraphNode* to_node = edge->GetToNode();
+      v8::String::Utf8Value edge_name(edge->GetName());
+      v8::String::Utf8Value node_name(to_node->GetName());
+      i::EmbeddedVector<char, 100> name;
+      i::OS::SNPrintF(name, "%s::%s", *edge_name, *node_name);
+      if (strstr(name.start(), path[current_depth])) {
+        node = to_node;
+        break;
+      }
+    }
+    if (i == count) return NULL;
+  }
+  return node;
+}
+
+
+TEST(CheckCodeNames) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun("var a = 1.1;");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("CheckCodeNames"));
+  CHECK(ValidateSnapshot(snapshot));
+
+  const char* stub_path[] = {
+    "::(GC roots)",
+    "::(Strong roots)",
+    "code_stubs::",
+    "::(ArraySingleArgumentConstructorStub code)"
+  };
+  const v8::HeapGraphNode* node = GetNodeByPath(snapshot,
+      stub_path, ARRAY_SIZE(stub_path));
+  CHECK_NE(NULL, node);
+
+  const char* builtin_path[] = {
+    "::(GC roots)",
+    "::(Builtins)",
+    "::(KeyedLoadIC_Generic code)"
+  };
+  node = GetNodeByPath(snapshot, builtin_path, ARRAY_SIZE(builtin_path));
+  CHECK_NE(NULL, node);
+}

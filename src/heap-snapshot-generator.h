@@ -447,6 +447,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   int EstimateObjectsCount(HeapIterator* iterator);
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
+  void TagCodeObject(Code* code);
+  void TagCodeObject(Code* code, const char* external_name);
 
   static String* GetConstructorName(JSObject* object);
 
