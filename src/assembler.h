@@ -435,6 +435,10 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(void set_call_object(Object* target));
   INLINE(Object** call_object_address());
 
+  // Wipe out a relocation to a fixed value, used for making snapshots
+  // reproducible.
+  INLINE(void WipeOut());
+
   template<typename StaticVisitor> inline void Visit(Heap* heap);
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
 

@@ -364,6 +364,18 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
+void RelocInfo::WipeOut() {
+  if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_)) {
+    Memory::Address_at(pc_) = NULL;
+  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+    // Effectively write zero into the relocation.
+    Assembler::set_target_address_at(pc_, pc_ + sizeof(int32_t));
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 bool RelocInfo::IsPatchedReturnSequence() {
   // The recognized call sequence is:
   //  movq(kScratchRegister, address); call(kScratchRegister);

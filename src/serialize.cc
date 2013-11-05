@@ -1776,10 +1776,29 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
 }
 
 
+static Code* CloneCodeObject(HeapObject* code) {
+  Address copy = new byte[code->Size()];
+  OS::MemCopy(copy, code->address(), code->Size());
+  return Code::cast(HeapObject::FromAddress(copy));
+}
+
+
+static void WipeOutRelocations(Code* code) {
+  int mode_mask =
+      RelocInfo::kCodeTargetMask |
+      RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+      RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+      RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+  for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+    it.rinfo()->WipeOut();
+  }
+}
+
+
 int Serializer::ObjectSerializer::OutputRawData(
     Address up_to, Serializer::ObjectSerializer::ReturnSkip return_skip) {
   Address object_start = object_->address();
-  Address base = object_start + bytes_processed_so_far_;
+  int base = bytes_processed_so_far_;
   int up_to_offset = static_cast<int>(up_to - object_start);
   int to_skip = up_to_offset - bytes_processed_so_far_;
   int bytes_to_output = to_skip;
@@ -1809,10 +1828,22 @@ int Serializer::ObjectSerializer::OutputRawData(
       sink_->Put(kRawData, "RawData");
       sink_->PutInt(bytes_to_output, "length");
     }
-    for (int i = 0; i < bytes_to_output; i++) {
-      unsigned int data = base[i];
-      sink_->PutSection(data, "Byte");
+
+    // To make snapshots reproducible, we need to wipe out all pointers in code.
+    if (code_object_) {
+      Code* code = CloneCodeObject(object_);
+      WipeOutRelocations(code);
+      // We need to wipe out the header fields *after* wiping out the
+      // relocations, because some of these fields are needed for the latter.
+      code->WipeOutHeader();
+      object_start = code->address();
     }
+
+    const char* description = code_object_ ? "Code" : "Byte";
+    for (int i = 0; i < bytes_to_output; i++) {
+      sink_->PutSection(object_start[base + i], description);
+    }
+    if (code_object_) delete[] object_start;
   }
   if (to_skip != 0 && return_skip == kIgnoringReturn) {
     sink_->Put(kSkip, "Skip");

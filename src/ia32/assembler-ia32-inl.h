@@ -243,6 +243,18 @@ Object** RelocInfo::call_object_address() {
 }
 
 
+void RelocInfo::WipeOut() {
+  if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_)) {
+    Memory::Address_at(pc_) = NULL;
+  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+    // Effectively write zero into the relocation.
+    Assembler::set_target_address_at(pc_, pc_ + sizeof(int32_t));
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 bool RelocInfo::IsPatchedReturnSequence() {
   return *pc_ == kCallOpcode;
 }

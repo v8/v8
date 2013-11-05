@@ -258,6 +258,15 @@ Object** RelocInfo::call_object_address() {
 }
 
 
+void RelocInfo::WipeOut() {
+  ASSERT(IsEmbeddedObject(rmode_) ||
+         IsCodeTarget(rmode_) ||
+         IsRuntimeEntry(rmode_) ||
+         IsExternalReference(rmode_));
+  Assembler::set_target_pointer_at(pc_, NULL);
+}
+
+
 bool RelocInfo::IsPatchedReturnSequence() {
   Instr current_instr = Assembler::instr_at(pc_);
   Instr next_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize);
