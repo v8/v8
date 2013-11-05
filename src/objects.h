@@ -5015,13 +5015,15 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_info]: This field stores various things, depending on the
-  // kind of the code object.
+  // [raw_type_feedback_info]: This field stores various things, depending on
+  // the kind of the code object.
   //   FUNCTION           => type feedback information.
   //   STUB               => various things, e.g. a SMI
   //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
-  DECL_ACCESSORS(type_feedback_info, Object)
-  inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
+  DECL_ACCESSORS(raw_type_feedback_info, Object)
+  inline Object* type_feedback_info();
+  inline void set_type_feedback_info(
+      Object* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline int stub_info();
   inline void set_stub_info(int info);
 
