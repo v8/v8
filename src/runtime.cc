@@ -14033,6 +14033,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalCompare) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_StringNormalize) {
+  HandleScope scope(isolate);
+  static const UNormalizationMode normalizationForms[] =
+      { UNORM_NFC, UNORM_NFD, UNORM_NFKC, UNORM_NFKD };
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, stringValue, 0);
+  CONVERT_NUMBER_CHECKED(int, form_id, Int32, args[1]);
+
+  v8::String::Value string_value(v8::Utils::ToLocal(stringValue));
+  const UChar* u_value = reinterpret_cast<const UChar*>(*string_value);
+
+  // TODO(mnita): check Normalizer2 (not available in ICU 46)
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString result;
+  icu::Normalizer::normalize(u_value, normalizationForms[form_id], 0,
+      result, status);
+  if (U_FAILURE(status)) {
+    return isolate->heap()->undefined_value();
+  }
+
+  return *isolate->factory()->NewStringFromTwoByte(
+      Vector<const uint16_t>(
+          reinterpret_cast<const uint16_t*>(result.getBuffer()),
+          result.length()));
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateBreakIterator) {
   HandleScope scope(isolate);
 
