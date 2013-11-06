@@ -35,10 +35,8 @@
 
   ##############################################################################
   # Flaky tests.
-  # BUG(v8:2921): Flaky on ia32 nosnap, arm and nacl.
-  'debug-step-4-in-frame': [PASS, [('system == linux and arch == ia32 or '
-                                    'arch == arm or arch == nacl_ia32 or '
-                                    'arch == nacl_x64'), FLAKY]],
+  # BUG(v8:2921).
+  'debug-step-4-in-frame': [PASS, FLAKY],
 
   ##############################################################################
   # Fails.

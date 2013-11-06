@@ -19815,6 +19815,34 @@ TEST(PrimaryStubCache) {
 }
 
 
+static int cow_arrays_created_runtime = 0;
+
+
+static int* LookupCounterCOWArrays(const char* name) {
+  if (strcmp(name, "c:V8.COWArraysCreatedRuntime") == 0) {
+    return &cow_arrays_created_runtime;
+  }
+  return NULL;
+}
+
+
+TEST(CheckCOWArraysCreatedRuntimeCounter) {
+  V8::SetCounterFunction(LookupCounterCOWArrays);
+#ifdef DEBUG
+  i::FLAG_native_code_counters = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  int initial_cow_arrays = cow_arrays_created_runtime;
+  CompileRun("var o = [1, 2, 3];");
+  CHECK_EQ(1, cow_arrays_created_runtime - initial_cow_arrays);
+  CompileRun("var o = {foo: [4, 5, 6], bar: [3, 0]};");
+  CHECK_EQ(3, cow_arrays_created_runtime - initial_cow_arrays);
+  CompileRun("var o = {foo: [1, 2, 3, [4, 5, 6]], bar: 'hi'};");
+  CHECK_EQ(4, cow_arrays_created_runtime - initial_cow_arrays);
+#endif
+}
+
+
 TEST(StaticGetters) {
   LocalContext context;
   i::Factory* factory = CcTest::i_isolate()->factory();

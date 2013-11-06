@@ -896,7 +896,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
     patcher.masm()->add(r0, pc, Operand(-8));
     patcher.masm()->ldr(pc, MemOperand(pc, -4));
-    patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    patcher.masm()->emit_code_stub_address(stub);
   }
 }
 

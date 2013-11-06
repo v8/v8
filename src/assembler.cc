@@ -819,8 +819,8 @@ void RelocInfo::Print(Isolate* isolate, FILE* out) {
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
     PrintF(out, " (%s)  (%p)",
-           ref_encoder.NameOfAddress(*target_reference_address()),
-           *target_reference_address());
+           ref_encoder.NameOfAddress(target_reference()),
+           target_reference());
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),

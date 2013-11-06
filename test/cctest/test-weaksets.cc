@@ -56,7 +56,7 @@ static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
 static void PutIntoWeakSet(Handle<JSWeakSet> weakset,
                            Handle<JSObject> key,
                            Handle<Object> value) {
-  Handle<ObjectHashTable> table = PutIntoObjectHashTable(
+  Handle<ObjectHashTable> table = ObjectHashTable::Put(
       Handle<ObjectHashTable>(ObjectHashTable::cast(weakset->table())),
       Handle<JSObject>(JSObject::cast(*key)),
       value);

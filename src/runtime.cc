@@ -575,32 +575,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
-
-  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
-      literals_index, elements);
-  RETURN_IF_EMPTY_HANDLE(isolate, site);
-
-  JSObject* boilerplate = JSObject::cast(site->transition_info());
-  if (boilerplate->elements()->map() ==
-      isolate->heap()->fixed_cow_array_map()) {
-    isolate->counters()->cow_arrays_created_runtime()->Increment();
-  }
-
-  if (AllocationSite::GetMode(boilerplate->GetElementsKind()) ==
-      TRACK_ALLOCATION_SITE) {
-    return isolate->heap()->CopyJSObject(boilerplate, *site);
-  }
-
-  return isolate->heap()->CopyJSObject(boilerplate);
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -1413,7 +1387,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAdd) {
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<Object> key(args[1], isolate);
   Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
-  table = ObjectHashSetAdd(table, key);
+  table = ObjectHashSet::Add(table, key);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -1435,7 +1409,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<Object> key(args[1], isolate);
   Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
-  table = ObjectHashSetRemove(table, key);
+  table = ObjectHashSet::Remove(table, key);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -1490,7 +1464,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapDelete) {
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   Handle<ObjectHashTable> new_table =
-      PutIntoObjectHashTable(table, key, isolate->factory()->the_hole_value());
+      ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
   holder->set_table(*new_table);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
@@ -1503,7 +1477,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
-  Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
+  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
   holder->set_table(*new_table);
   return isolate->heap()->undefined_value();
 }
@@ -1569,7 +1543,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionDelete) {
       weak_collection->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   Handle<ObjectHashTable> new_table =
-      PutIntoObjectHashTable(table, key, isolate->factory()->the_hole_value());
+      ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
   weak_collection->set_table(*new_table);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
@@ -1583,7 +1557,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionSet) {
   Handle<Object> value(args[2], isolate);
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
+  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
   weak_collection->set_table(*new_table);
   return isolate->heap()->undefined_value();
 }
@@ -3000,30 +2974,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 0);
 
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  JSFunction* function = frame->function();
+  Handle<JSFunction> function(frame->function());
   RUNTIME_ASSERT(function->shared()->is_generator());
 
-  JSGeneratorObject* generator;
+  Handle<JSGeneratorObject> generator;
   if (frame->IsConstructor()) {
-    generator = JSGeneratorObject::cast(frame->receiver());
+    generator = handle(JSGeneratorObject::cast(frame->receiver()));
   } else {
-    MaybeObject* maybe_generator =
-        isolate->heap()->AllocateJSGeneratorObject(function);
-    if (!maybe_generator->To(&generator)) return maybe_generator;
+    generator = isolate->factory()->NewJSGeneratorObject(function);
   }
-  generator->set_function(function);
+  generator->set_function(*function);
   generator->set_context(Context::cast(frame->context()));
   generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
   generator->set_stack_handler_index(-1);
 
-  return generator;
+  return *generator;
 }
 
 

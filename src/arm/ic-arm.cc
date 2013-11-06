@@ -577,8 +577,8 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1, r0, r3);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(r2);  // save the key
-    __ Push(r1, r2);  // pass the receiver and the key
+    __ Push(r2, r1);  // save the key and the receiver
+    __ push(r2);  // pass the receiver and the key
     __ CallRuntime(Runtime::kKeyedGetProperty, 2);
     __ pop(r2);  // restore the key
   }

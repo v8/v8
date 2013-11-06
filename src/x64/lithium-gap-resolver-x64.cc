@@ -305,7 +305,7 @@ void LGapResolver::EmitSwap(int index) {
     Operand other_operand = cgen_->ToOperand(other);
     __ movsd(xmm0, other_operand);
     __ movsd(other_operand, reg);
-    __ movsd(reg, xmm0);
+    __ movaps(reg, xmm0);
 
   } else {
     // No other combinations are possible.

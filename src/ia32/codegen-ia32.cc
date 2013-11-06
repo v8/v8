@@ -1110,7 +1110,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ pshufd(input, input, static_cast<uint8_t>(0xe1));  // Order: 11 10 00 01
   __ movsd(double_scratch, Operand::StaticArray(
       temp2, times_8, ExternalReference::math_exp_log_table()));
-  __ por(input, double_scratch);
+  __ orps(input, double_scratch);
   __ mulsd(result, input);
   __ bind(&done);
 }

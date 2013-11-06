@@ -1,3 +1,17 @@
+2013-11-06: Version 3.23.0
+
+        Fixed loading message from an Error object.  (Chromium issue 306220)
+
+        Made Object.freeze/seal/preventExtensions observable. (issue 2975, 2941)
+
+        Made snapshots reproducible. (issue 2885)
+
+        Added missing negative dictionary lookup to NonexistentHandlerFrontend.
+        (issue 2980)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-31: Version 3.22.24
 
         Fixed uint32-to-smi conversion in Lithium.

@@ -844,12 +844,12 @@ void HGraphBuilder::IfBuilder::CaptureContinuation(
 void HGraphBuilder::IfBuilder::JoinContinuation(HIfContinuation* continuation) {
   ASSERT(!finished_);
   ASSERT(!captured_);
+  ASSERT(did_then_);
+  if (!did_else_) Else();
   HBasicBlock* true_block = last_true_block_ == NULL
       ? first_true_block_
       : last_true_block_;
-  HBasicBlock* false_block = did_else_ && (first_false_block_ != NULL)
-      ? builder_->current_block()
-      : first_false_block_;
+  HBasicBlock* false_block = builder_->current_block();
   if (true_block != NULL && !true_block->IsFinished()) {
     ASSERT(continuation->IsTrueReachable());
     builder_->GotoNoSimulate(true_block, continuation->true_branch());
@@ -4498,8 +4498,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // TODO(mvstanton): Consider a flag to turn off creation of any
     // AllocationMementos for this call: we are in crankshaft and should have
     // learned enough about transition behavior to stop emitting mementos.
-    Runtime::FunctionId function_id = (expr->depth() > 1)
-        ? Runtime::kCreateArrayLiteral : Runtime::kCreateArrayLiteralShallow;
+    Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
                                 3);

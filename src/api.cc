@@ -568,14 +568,20 @@ ResourceConstraints::ResourceConstraints()
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
   i::Isolate* isolate = EnterIsolateIfNeeded();
+  return SetResourceConstraints(reinterpret_cast<Isolate*>(isolate),
+                                constraints);
+}
 
+
+bool SetResourceConstraints(Isolate* v8_isolate,
+                            ResourceConstraints* constraints) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
   if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0) {
     // After initialization it's too late to change Heap constraints.
-    // TODO(rmcilroy): fix this assert.
-    // ASSERT(!isolate->IsInitialized());
+    ASSERT(!isolate->IsInitialized());
     bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
                                                  old_gen_size,
                                                  max_executable_size);
@@ -3689,7 +3695,8 @@ int v8::Object::GetIdentityHash() {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSObject::GetIdentityHash(self);
+  return i::Handle<i::Smi>::cast(
+      i::JSReceiver::GetOrCreateIdentityHash(self))->value();
 }
 
 

@@ -300,8 +300,103 @@ observer.assertCallbackRecords([
   { object: obj, type: 'deleted', name: '', oldValue: ' ' },
 ]);
 
+// Object.preventExtensions
+reset();
+var obj = { foo: 'bar'};
+Object.observe(obj, observer.callback);
+obj.baz = 'bat';
+Object.preventExtensions(obj);
+
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'new', name: 'baz' },
+  { object: obj, type: 'preventExtensions' },
+]);
+
+reset();
+var obj = { foo: 'bar'};
+Object.preventExtensions(obj);
+Object.observe(obj, observer.callback);
+Object.preventExtensions(obj);
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();
+
+// Object.freeze
+reset();
+var obj = { a: 'a' };
+Object.defineProperty(obj, 'b', {
+  writable: false,
+  configurable: true,
+  value: 'b'
+});
+Object.defineProperty(obj, 'c', {
+  writable: true,
+  configurable: false,
+  value: 'c'
+});
+Object.defineProperty(obj, 'd', {
+  writable: false,
+  configurable: false,
+  value: 'd'
+});
+Object.observe(obj, observer.callback);
+Object.freeze(obj);
+
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'reconfigured', name: 'a' },
+  { object: obj, type: 'reconfigured', name: 'b' },
+  { object: obj, type: 'reconfigured', name: 'c' },
+  { object: obj, type: 'preventExtensions' },
+]);
+
+reset();
+var obj = { foo: 'bar'};
+Object.freeze(obj);
+Object.observe(obj, observer.callback);
+Object.freeze(obj);
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();
+
+// Object.seal
+reset();
+var obj = { a: 'a' };
+Object.defineProperty(obj, 'b', {
+  writable: false,
+  configurable: true,
+  value: 'b'
+});
+Object.defineProperty(obj, 'c', {
+  writable: true,
+  configurable: false,
+  value: 'c'
+});
+Object.defineProperty(obj, 'd', {
+  writable: false,
+  configurable: false,
+  value: 'd'
+});
+Object.observe(obj, observer.callback);
+Object.seal(obj);
+
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'reconfigured', name: 'a' },
+  { object: obj, type: 'reconfigured', name: 'b' },
+  { object: obj, type: 'preventExtensions' },
+]);
+
+reset();
+var obj = { foo: 'bar'};
+Object.seal(obj);
+Object.observe(obj, observer.callback);
+Object.seal(obj);
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();
+
 // Observing a continuous stream of changes, while itermittantly unobserving.
 reset();
+var obj = {};
 Object.observe(obj, observer.callback);
 Object.getNotifier(obj).notify({
   type: 'updated',
@@ -434,12 +529,10 @@ Thingy.prototype = {
     notifier.performChange(Thingy.INCREMENT, function() {
       self.a += amount;
       self.b += amount;
-    });
 
-    notifier.notify({
-      object: this,
-      type: Thingy.INCREMENT,
-      incremented: amount
+      return {
+        incremented: amount
+      };  // implicit notify
     });
   },
 
@@ -450,12 +543,10 @@ Thingy.prototype = {
     notifier.performChange(Thingy.MULTIPLY, function() {
       self.a *= amount;
       self.b *= amount;
-    });
 
-    notifier.notify({
-      object: this,
-      type: Thingy.MULTIPLY,
-      multiplied: amount
+      return {
+        multiplied: amount
+      };  // implicit notify
     });
   },
 
@@ -466,13 +557,11 @@ Thingy.prototype = {
     notifier.performChange(Thingy.INCREMENT_AND_MULTIPLY, function() {
       self.increment(incAmount);
       self.multiply(multAmount);
-    });
 
-    notifier.notify({
-      object: this,
-      type: Thingy.INCREMENT_AND_MULTIPLY,
-      incremented: incAmount,
-      multiplied: multAmount
+      return {
+        incremented: incAmount,
+        multiplied: multAmount
+      };  // implicit notify
     });
   }
 }
@@ -545,7 +634,6 @@ RecursiveThingy.prototype = {
     });
 
     notifier.notify({
-      object: this,
       type: RecursiveThingy.MULTIPLY_FIRST_N,
       multiplied: amount,
       n: n
@@ -606,7 +694,6 @@ DeckSuit.prototype = {
     });
 
     notifier.notify({
-      object: this,
       type: DeckSuit.SHUFFLE
     });
   },

@@ -255,13 +255,6 @@ enum NormalizedMapSharingMode {
 };
 
 
-// Indicates whether a get method should implicitly create the object looked up.
-enum CreationFlag {
-  ALLOW_CREATION,
-  OMIT_CREATION
-};
-
-
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
@@ -1509,10 +1502,17 @@ class Object : public MaybeObject {
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
 
+  // Returns the permanent hash code associated with this object. May return
+  // undefined if not yet created.
+  Object* GetHash();
+
   // Returns the permanent hash code associated with this object depending on
-  // the actual object type.  Might return a failure in case no hash was
-  // created yet or GC was caused by creation.
-  MUST_USE_RESULT MaybeObject* GetHash(CreationFlag flag);
+  // the actual object type. May create and store a hash code if needed and none
+  // exists.
+  // TODO(rafaelw): Remove isolate parameter when objects.cc is fully
+  // handlified.
+  static Handle<Object> GetOrCreateHash(Handle<Object> object,
+                                        Isolate* isolate);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
@@ -2003,8 +2003,13 @@ class JSReceiver: public HeapObject {
   inline Object* GetConstructor();
 
   // Retrieves a permanent object identity hash code. The undefined value might
-  // be returned in case no hash was created yet and OMIT_CREATION was used.
-  inline MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  // be returned in case no hash was created yet.
+  inline Object* GetIdentityHash();
+
+  // Retrieves a permanent object identity hash code. May create and store a
+  // hash code if needed and none exists.
+  inline static Handle<Object> GetOrCreateIdentityHash(
+      Handle<JSReceiver> object);
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
@@ -2035,6 +2040,9 @@ class JSReceiver: public HeapObject {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
+
+// Forward declaration for JSObject::GetOrCreateHiddenPropertiesHashTable.
+class ObjectHashTable;
 
 // The JSObject describes real heap allocated JavaScript objects with
 // properties.
@@ -2185,15 +2193,6 @@ class JSObject: public JSReceiver {
   // or returns an empty handle if such a map is not yet available.
   static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
 
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
-
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
   Object* GetNormalizedProperty(LookupResult* result);
@@ -2287,11 +2286,9 @@ class JSObject: public JSReceiver {
 
   // Sets a hidden property on this object. Returns this object if successful,
   // undefined if called on a detached proxy.
-  static Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+  static Handle<Object> SetHiddenProperty(Handle<JSObject> object,
                                           Handle<Name> key,
                                           Handle<Object> value);
-  // Returns a failure if a GC is required.
-  MUST_USE_RESULT MaybeObject* SetHiddenProperty(Name* key, Object* value);
   // Gets the value of a hidden property with the given key. Returns the hole
   // if the property doesn't exist (or if called on a detached proxy),
   // otherwise returns the value set for the key.
@@ -2303,8 +2300,7 @@ class JSObject: public JSReceiver {
   // Returns true if the object has a property with the hidden string as name.
   bool HasHiddenProperties();
 
-  static int GetIdentityHash(Handle<JSObject> object);
-  static void SetIdentityHash(Handle<JSObject> object, Smi* hash);
+  static void SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash);
 
   inline void ValidateElements();
 
@@ -2858,23 +2854,25 @@ class JSObject: public JSReceiver {
                                  Handle<Object> accessor,
                                  PropertyAttributes attributes);
 
-  enum InitializeHiddenProperties {
-    CREATE_NEW_IF_ABSENT,
-    ONLY_RETURN_INLINE_VALUE
-  };
 
-  // If create_if_absent is true, return the hash table backing store
-  // for hidden properties.  If there is no backing store, allocate one.
-  // If create_if_absent is false, return the hash table backing store
-  // or the inline stored identity hash, whatever is found.
-  MUST_USE_RESULT MaybeObject* GetHiddenPropertiesHashTable(
-      InitializeHiddenProperties init_option);
+  // Return the hash table backing store or the inline stored identity hash,
+  // whatever is found.
+  MUST_USE_RESULT Object* GetHiddenPropertiesHashTable();
+
+  // Return the hash table backing store for hidden properties.  If there is no
+  // backing store, allocate one.
+  static Handle<ObjectHashTable> GetOrCreateHiddenPropertiesHashtable(
+      Handle<JSObject> object);
+
   // Set the hidden property backing store to either a hash table or
   // the inline-stored identity hash.
-  MUST_USE_RESULT MaybeObject* SetHiddenPropertiesHashTable(
-      Object* value);
+  static Handle<Object> SetHiddenPropertiesHashTable(
+      Handle<JSObject> object,
+      Handle<Object> value);
 
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  MUST_USE_RESULT Object* GetIdentityHash();
+
+  static Handle<Object> GetOrCreateIdentityHash(Handle<JSObject> object);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -3484,11 +3482,6 @@ class BaseShape {
 template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
-  enum MinimumCapacity {
-    USE_DEFAULT_MINIMUM_CAPACITY,
-    USE_CUSTOM_MINIMUM_CAPACITY
-  };
-
   // Wrapper methods
   inline uint32_t Hash(Key key) {
     if (Shape::UsesSeed) {
@@ -3599,6 +3592,9 @@ class HashTable: public FixedArray {
   void Rehash(Key key);
 
  protected:
+  friend class ObjectHashSet;
+  friend class ObjectHashTable;
+
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
   uint32_t FindInsertionEntry(uint32_t hash);
@@ -4062,11 +4058,23 @@ class ObjectHashSet: public HashTable<ObjectHashTableShape<1>, Object*> {
   // Looks up whether the given key is part of this hash set.
   bool Contains(Object* key);
 
+  static Handle<ObjectHashSet> EnsureCapacity(
+      Handle<ObjectHashSet> table,
+      int n,
+      Handle<Object> key,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Attempt to shrink hash table after removal of key.
+  static Handle<ObjectHashSet> Shrink(Handle<ObjectHashSet> table,
+                                      Handle<Object> key);
+
   // Adds the given key to this hash set.
-  MUST_USE_RESULT MaybeObject* Add(Object* key);
+  static Handle<ObjectHashSet> Add(Handle<ObjectHashSet> table,
+                                   Handle<Object> key);
 
   // Removes the given key from this hash set.
-  MUST_USE_RESULT MaybeObject* Remove(Object* key);
+  static Handle<ObjectHashSet> Remove(Handle<ObjectHashSet> table,
+                                      Handle<Object> key);
 };
 
 
@@ -4079,13 +4087,25 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
     return reinterpret_cast<ObjectHashTable*>(obj);
   }
 
+  static Handle<ObjectHashTable> EnsureCapacity(
+      Handle<ObjectHashTable> table,
+      int n,
+      Handle<Object> key,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Attempt to shrink hash table after removal of key.
+  static Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
+                                        Handle<Object> key);
+
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
   Object* Lookup(Object* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
-  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+  static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
+                                     Handle<Object> key,
+                                     Handle<Object> value);
 
  private:
   friend class MarkCompactCollector;
@@ -5015,13 +5035,15 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_info]: This field stores various things, depending on the
-  // kind of the code object.
+  // [raw_type_feedback_info]: This field stores various things, depending on
+  // the kind of the code object.
   //   FUNCTION           => type feedback information.
   //   STUB               => various things, e.g. a SMI
   //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
-  DECL_ACCESSORS(type_feedback_info, Object)
-  inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
+  DECL_ACCESSORS(raw_type_feedback_info, Object)
+  inline Object* type_feedback_info();
+  inline void set_type_feedback_info(
+      Object* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline int stub_info();
   inline void set_stub_info(int info);
 
@@ -5196,6 +5218,15 @@ class Code: public HeapObject {
 
   void ReplaceNthCell(int n, Cell* replace_with);
 
+  // The entire code object including its header is copied verbatim to the
+  // snapshot so that it can be written in one, fast, memcpy during
+  // deserialization. The deserializer will overwrite some pointers, rather
+  // like a runtime linker, but the random allocation addresses used in the
+  // mksnapshot process would still be present in the unlinked snapshot data,
+  // which would make snapshot production non-reproducible. This method wipes
+  // out the to-be-overwritten header data for reproducible snapshots.
+  inline void WipeOutHeader();
+
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
@@ -5317,8 +5348,9 @@ class Code: public HeapObject {
     kNoAgeCodeAge = 0,
     CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
     kAfterLastCodeAge,
+    kFirstCodeAge = kNotExecutedCodeAge,
     kLastCodeAge = kAfterLastCodeAge - 1,
-    kCodeAgeCount = kAfterLastCodeAge - 1,
+    kCodeAgeCount = kAfterLastCodeAge - kNotExecutedCodeAge - 1,
     kIsOldCodeAge = kSexagenarianCodeAge,
     kPreAgedCodeAge = kIsOldCodeAge - 1
   };
@@ -5334,6 +5366,9 @@ class Code: public HeapObject {
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
   Age GetAge();
+  // Gets the raw code age, including psuedo code-age values such as
+  // kNotExecutedCodeAge and kExecutedOnceCodeAge.
+  Age GetRawAge();
   static inline Code* GetPreAgedCodeAgeStub(Isolate* isolate) {
     return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
   }
@@ -7239,6 +7274,7 @@ class JSFunction: public JSObject {
   inline Map* initial_map();
   inline void set_initial_map(Map* value);
   inline bool has_initial_map();
+  static void EnsureHasInitialMap(Handle<JSFunction> function);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
@@ -7389,10 +7425,6 @@ class GlobalObject: public JSObject {
     return answer;
   }
 
-  // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
-                                                 Handle<Name> name);
-
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 
@@ -7413,6 +7445,10 @@ class JSGlobalObject: public GlobalObject {
  public:
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
+
+  // Ensure that the global object has a cell for the given property name.
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<JSGlobalObject> global,
+                                                 Handle<Name> name);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalObject)
@@ -9357,9 +9393,9 @@ class JSProxy: public JSReceiver {
                                                  uint32_t index,
                                                  DeleteMode mode);
 
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
-  static Handle<Object> GetIdentityHash(Handle<JSProxy> proxy,
-                                        CreationFlag flag);
+  MUST_USE_RESULT Object* GetIdentityHash();
+
+  static Handle<Object> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };

@@ -79,6 +79,7 @@ Heap::Heap()
 // ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
 // Will be 4 * reserved_semispace_size_ to ensure that young
 // generation can be aligned to its size.
+      maximum_committed_(0),
       survived_since_last_expansion_(0),
       sweep_generation_(0),
       always_allocate_scope_depth_(0),
@@ -229,6 +230,16 @@ intptr_t Heap::CommittedMemoryExecutable() {
   if (!HasBeenSetUp()) return 0;
 
   return isolate()->memory_allocator()->SizeExecutable();
+}
+
+
+void Heap::UpdateMaximumCommitted() {
+  if (!HasBeenSetUp()) return;
+
+  intptr_t current_committed_memory = CommittedMemory();
+  if (current_committed_memory > maximum_committed_) {
+    maximum_committed_ = current_committed_memory;
+  }
 }
 
 
@@ -441,6 +452,8 @@ void Heap::GarbageCollectionPrologue() {
 #endif
   }
 
+  UpdateMaximumCommitted();
+
 #ifdef DEBUG
   ASSERT(!AllowHeapAllocation::IsAllowed() && gc_state_ == NOT_IN_GC);
 
@@ -506,6 +519,8 @@ void Heap::GarbageCollectionEpilogue() {
     }
   }
 
+  UpdateMaximumCommitted();
+
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
 
@@ -567,6 +582,9 @@ void Heap::GarbageCollectionEpilogue() {
                 property_cell_space()->CommittedMemory() / KB));
     isolate_->counters()->heap_sample_code_space_committed()->AddSample(
         static_cast<int>(code_space()->CommittedMemory() / KB));
+
+    isolate_->counters()->heap_sample_maximum_committed()->AddSample(
+        static_cast<int>(MaximumCommittedMemory() / KB));
   }
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
@@ -4194,7 +4212,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   }
   code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->InitializeTypeFeedbackInfoNoWriteBarrier(undefined_value());
+  code->set_raw_type_feedback_info(undefined_value());
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
@@ -4370,39 +4388,6 @@ void Heap::InitializeFunction(JSFunction* function,
 }
 
 
-MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
-  // Make sure to use globals from the function's context, since the function
-  // can be from a different context.
-  Context* native_context = function->context()->native_context();
-  Map* new_map;
-  if (function->shared()->is_generator()) {
-    // Generator prototypes can share maps since they don't have "constructor"
-    // properties.
-    new_map = native_context->generator_object_prototype_map();
-  } else {
-    // Each function prototype gets a fresh map to avoid unwanted sharing of
-    // maps between prototypes of different constructors.
-    JSFunction* object_function = native_context->object_function();
-    ASSERT(object_function->has_initial_map());
-    MaybeObject* maybe_map = object_function->initial_map()->Copy();
-    if (!maybe_map->To(&new_map)) return maybe_map;
-  }
-
-  Object* prototype;
-  MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
-  if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-
-  if (!function->shared()->is_generator()) {
-    MaybeObject* maybe_failure =
-        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributesTrampoline(
-            constructor_string(), function, DONT_ENUM);
-    if (maybe_failure->IsFailure()) return maybe_failure;
-  }
-
-  return prototype;
-}
-
-
 MaybeObject* Heap::AllocateFunction(Map* function_map,
                                     SharedFunctionInfo* shared,
                                     Object* prototype,
@@ -4471,48 +4456,6 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   ASSERT(JSObject::cast(result)->HasFastObjectElements());
 
   return result;
-}
-
-
-MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
-  ASSERT(!fun->has_initial_map());
-
-  // First create a new map with the size and number of in-object properties
-  // suggested by the function.
-  InstanceType instance_type;
-  int instance_size;
-  int in_object_properties;
-  if (fun->shared()->is_generator()) {
-    instance_type = JS_GENERATOR_OBJECT_TYPE;
-    instance_size = JSGeneratorObject::kSize;
-    in_object_properties = 0;
-  } else {
-    instance_type = JS_OBJECT_TYPE;
-    instance_size = fun->shared()->CalculateInstanceSize();
-    in_object_properties = fun->shared()->CalculateInObjectProperties();
-  }
-  Map* map;
-  MaybeObject* maybe_map = AllocateMap(instance_type, instance_size);
-  if (!maybe_map->To(&map)) return maybe_map;
-
-  // Fetch or allocate prototype.
-  Object* prototype;
-  if (fun->has_instance_prototype()) {
-    prototype = fun->instance_prototype();
-  } else {
-    MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
-    if (!maybe_prototype->To(&prototype)) return maybe_prototype;
-  }
-  map->set_inobject_properties(in_object_properties);
-  map->set_unused_property_fields(in_object_properties);
-  map->set_prototype(prototype);
-  ASSERT(map->has_fast_object_elements());
-
-  if (!fun->shared()->is_generator()) {
-    fun->shared()->StartInobjectSlackTracking(map);
-  }
-
-  return map;
 }
 
 
@@ -4622,15 +4565,7 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(
 
 MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
                                     PretenureFlag pretenure) {
-  // Allocate the initial map if absent.
-  if (!constructor->has_initial_map()) {
-    Object* initial_map;
-    { MaybeObject* maybe_initial_map = AllocateInitialMap(constructor);
-      if (!maybe_initial_map->ToObject(&initial_map)) return maybe_initial_map;
-    }
-    constructor->set_initial_map(Map::cast(initial_map));
-    Map::cast(initial_map)->set_constructor(constructor);
-  }
+  ASSERT(constructor->has_initial_map());
   // Allocate the object based on the constructors initial map.
   MaybeObject* result = AllocateJSObjectFromMap(
       constructor->initial_map(), pretenure);
@@ -4645,15 +4580,7 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 
 MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
     Handle<AllocationSite> allocation_site) {
-  // Allocate the initial map if absent.
-  if (!constructor->has_initial_map()) {
-    Object* initial_map;
-    { MaybeObject* maybe_initial_map = AllocateInitialMap(constructor);
-      if (!maybe_initial_map->ToObject(&initial_map)) return maybe_initial_map;
-    }
-    constructor->set_initial_map(Map::cast(initial_map));
-    Map::cast(initial_map)->set_constructor(constructor);
-  }
+  ASSERT(constructor->has_initial_map());
   // Allocate the object based on the constructors initial map, or the payload
   // advice
   Map* initial_map = constructor->initial_map();
@@ -4682,23 +4609,6 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
   return result;
-}
-
-
-MaybeObject* Heap::AllocateJSGeneratorObject(JSFunction *function) {
-  ASSERT(function->shared()->is_generator());
-  Map *map;
-  if (function->has_initial_map()) {
-    map = function->initial_map();
-  } else {
-    // Allocate the initial map if absent.
-    MaybeObject* maybe_map = AllocateInitialMap(function);
-    if (!maybe_map->To(&map)) return maybe_map;
-    function->set_initial_map(map);
-    map->set_constructor(function);
-  }
-  ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
-  return AllocateJSObjectFromMap(map);
 }
 
 
@@ -6812,6 +6722,8 @@ void Heap::TearDown() {
   }
 #endif
 
+  UpdateMaximumCommitted();
+
   if (FLAG_print_cumulative_gc_stat) {
     PrintF("\n");
     PrintF("gc_count=%d ", gc_count_);
@@ -6823,6 +6735,31 @@ void Heap::TearDown() {
            get_max_alive_after_gc());
     PrintF("total_marking_time=%.1f ", marking_time());
     PrintF("total_sweeping_time=%.1f ", sweeping_time());
+    PrintF("\n\n");
+  }
+
+  if (FLAG_print_max_heap_committed) {
+    PrintF("\n");
+    PrintF("maximum_committed_by_heap=%" V8_PTR_PREFIX "d ",
+      MaximumCommittedMemory());
+    PrintF("maximum_committed_by_new_space=%" V8_PTR_PREFIX "d ",
+      new_space_.MaximumCommittedMemory());
+    PrintF("maximum_committed_by_old_pointer_space=%" V8_PTR_PREFIX "d ",
+      old_data_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_old_data_space=%" V8_PTR_PREFIX "d ",
+      old_pointer_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_old_data_space=%" V8_PTR_PREFIX "d ",
+      old_pointer_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_code_space=%" V8_PTR_PREFIX "d ",
+      code_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_map_space=%" V8_PTR_PREFIX "d ",
+      map_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_cell_space=%" V8_PTR_PREFIX "d ",
+      cell_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_property_space=%" V8_PTR_PREFIX "d ",
+      property_cell_space_->MaximumCommittedMemory());
+    PrintF("maximum_committed_by_lo_space=%" V8_PTR_PREFIX "d ",
+      lo_space_->MaximumCommittedMemory());
     PrintF("\n\n");
   }
 
@@ -7944,17 +7881,18 @@ void Heap::CheckpointObjectStats() {
       static_cast<int>(object_sizes_last_time_[index]));
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                 \
-  index = FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge; \
-  counters->count_of_CODE_AGE_##name()->Increment(          \
-      static_cast<int>(object_counts_[index]));             \
-  counters->count_of_CODE_AGE_##name()->Decrement(          \
-      static_cast<int>(object_counts_last_time_[index]));   \
-  counters->size_of_CODE_AGE_##name()->Increment(           \
-      static_cast<int>(object_sizes_[index]));              \
-  counters->size_of_CODE_AGE_##name()->Decrement(          \
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                                   \
+  index =                                                                     \
+      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge; \
+  counters->count_of_CODE_AGE_##name()->Increment(                            \
+      static_cast<int>(object_counts_[index]));                               \
+  counters->count_of_CODE_AGE_##name()->Decrement(                            \
+      static_cast<int>(object_counts_last_time_[index]));                     \
+  counters->size_of_CODE_AGE_##name()->Increment(                             \
+      static_cast<int>(object_sizes_[index]));                                \
+  counters->size_of_CODE_AGE_##name()->Decrement(                             \
       static_cast<int>(object_sizes_last_time_[index]));
-  CODE_AGE_LIST_WITH_NO_AGE(ADJUST_LAST_TIME_OBJECT_COUNT)
+  CODE_AGE_LIST_COMPLETE(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
   OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));

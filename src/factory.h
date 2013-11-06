@@ -74,7 +74,9 @@ class Factory {
 
   Handle<ObjectHashSet> NewObjectHashSet(int at_least_space_for);
 
-  Handle<ObjectHashTable> NewObjectHashTable(int at_least_space_for);
+  Handle<ObjectHashTable> NewObjectHashTable(
+      int at_least_space_for,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
   Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
 
@@ -341,6 +343,8 @@ class Factory {
 
   void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
 
+  Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
+
   Handle<JSArrayBuffer> NewJSArrayBuffer();
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
@@ -582,101 +586,6 @@ Handle<Object> Factory::NewNumberFromSize(size_t value,
     return NewNumber(static_cast<double>(value), pretenure);
   }
 }
-
-
-// Used to "safely" transition from pointer-based runtime code to Handle-based
-// runtime code. When a GC happens during the called Handle-based code, a
-// failure object is returned to the pointer-based code to cause it abort and
-// re-trigger a gc of it's own. Since this double-gc will cause the Handle-based
-// code to be called twice, it must be idempotent.
-class IdempotentPointerToHandleCodeTrampoline {
- public:
-  explicit IdempotentPointerToHandleCodeTrampoline(Isolate* isolate)
-      : isolate_(isolate) {}
-
-  template<typename R>
-  MUST_USE_RESULT MaybeObject* Call(R (*function)()) {
-    int collections = isolate_->heap()->gc_count();
-    (*function)();
-    return (collections == isolate_->heap()->gc_count())
-        ? isolate_->heap()->true_value()
-        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
-  }
-
-  template<typename R>
-  MUST_USE_RESULT MaybeObject* CallWithReturnValue(R (*function)()) {
-    int collections = isolate_->heap()->gc_count();
-    Object* result = (*function)();
-    return (collections == isolate_->heap()->gc_count())
-        ? result
-        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
-  }
-
-  template<typename R, typename P1>
-  MUST_USE_RESULT MaybeObject* Call(R (*function)(P1), P1 p1) {
-    int collections = isolate_->heap()->gc_count();
-    (*function)(p1);
-    return (collections == isolate_->heap()->gc_count())
-        ? isolate_->heap()->true_value()
-        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
-  }
-
-  template<typename R, typename P1>
-  MUST_USE_RESULT MaybeObject* CallWithReturnValue(
-      R (*function)(P1),
-      P1 p1) {
-    int collections = isolate_->heap()->gc_count();
-    Object* result = (*function)(p1);
-    return (collections == isolate_->heap()->gc_count())
-        ? result
-        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
-  }
-
-  template<typename R, typename P1, typename P2>
-  MUST_USE_RESULT MaybeObject* Call(
-      R (*function)(P1, P2),
-      P1 p1,
-      P2 p2) {
-    int collections = isolate_->heap()->gc_count();
-    (*function)(p1, p2);
-    return (collections == isolate_->heap()->gc_count())
-        ? isolate_->heap()->true_value()
-        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
-  }
-
-  template<typename R, typename P1, typename P2>
-  MUST_USE_RESULT MaybeObject* CallWithReturnValue(
-      R (*function)(P1, P2),
-      P1 p1,
-      P2 p2) {
-    int collections = isolate_->heap()->gc_count();
-    Object* result = (*function)(p1, p2);
-    return (collections == isolate_->heap()->gc_count())
-        ? result
-        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
-  }
-
-  template<typename R, typename P1, typename P2, typename P3, typename P4,
-           typename P5, typename P6, typename P7>
-  MUST_USE_RESULT MaybeObject* CallWithReturnValue(
-      R (*function)(P1, P2, P3, P4, P5, P6, P7),
-      P1 p1,
-      P2 p2,
-      P3 p3,
-      P4 p4,
-      P5 p5,
-      P6 p6,
-      P7 p7) {
-    int collections = isolate_->heap()->gc_count();
-    Handle<Object> result = (*function)(p1, p2, p3, p4, p5, p6, p7);
-    return (collections == isolate_->heap()->gc_count())
-        ? *result
-        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
-  }
-
- private:
-  Isolate* isolate_;
-};
 
 
 } }  // namespace v8::internal

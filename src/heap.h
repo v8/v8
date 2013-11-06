@@ -533,6 +533,13 @@ class Heap {
   // Returns the amount of phyical memory currently committed for the heap.
   size_t CommittedPhysicalMemory();
 
+  // Returns the maximum amount of memory ever committed for the heap.
+  intptr_t MaximumCommittedMemory() { return maximum_committed_; }
+
+  // Updates the maximum committed memory for the heap. Should be called
+  // whenever a space grows.
+  void UpdateMaximumCommitted();
+
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
   // all available bytes. Check MaxHeapObjectSize() instead.
@@ -624,9 +631,6 @@ class Heap {
       JSFunction* constructor,
       Handle<AllocationSite> allocation_site);
 
-  MUST_USE_RESULT MaybeObject* AllocateJSGeneratorObject(
-      JSFunction* function);
-
   MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
                                                 ScopeInfo* scope_info);
 
@@ -667,12 +671,6 @@ class Heap {
   // Optionally takes an AllocationSite to be appended in an AllocationMemento.
   MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
                                             AllocationSite* site = NULL);
-
-  // Allocates the function prototype.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateFunctionPrototype(JSFunction* function);
 
   // Allocates a JS ArrayBuffer object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -739,9 +737,6 @@ class Heap {
   // Allocates a partial map for bootstrapping.
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
                                                   int instance_size);
-
-  // Allocate a map for the specified function
-  MUST_USE_RESULT MaybeObject* AllocateInitialMap(JSFunction* fun);
 
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
@@ -1812,7 +1807,7 @@ class Heap {
         FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
     FIRST_CODE_AGE_SUB_TYPE =
         FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kLastCodeAge + 1
+    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kCodeAgeCount + 1
   };
 
   void RecordObjectStats(InstanceType type, size_t size) {
@@ -1822,12 +1817,17 @@ class Heap {
   }
 
   void RecordCodeSubTypeStats(int code_sub_type, int code_age, size_t size) {
-    ASSERT(code_sub_type < Code::NUMBER_OF_KINDS);
-    ASSERT(code_age < Code::kLastCodeAge);
-    object_counts_[FIRST_CODE_KIND_SUB_TYPE + code_sub_type]++;
-    object_sizes_[FIRST_CODE_KIND_SUB_TYPE + code_sub_type] += size;
-    object_counts_[FIRST_CODE_AGE_SUB_TYPE + code_age]++;
-    object_sizes_[FIRST_CODE_AGE_SUB_TYPE + code_age] += size;
+    int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
+    int code_age_index =
+        FIRST_CODE_AGE_SUB_TYPE + code_age - Code::kFirstCodeAge;
+    ASSERT(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
+           code_sub_type_index < FIRST_CODE_AGE_SUB_TYPE);
+    ASSERT(code_age_index >= FIRST_CODE_AGE_SUB_TYPE &&
+           code_age_index < OBJECT_STATS_COUNT);
+    object_counts_[code_sub_type_index]++;
+    object_sizes_[code_sub_type_index] += size;
+    object_counts_[code_age_index]++;
+    object_sizes_[code_age_index] += size;
   }
 
   void RecordFixedArraySubTypeStats(int array_sub_type, size_t size) {
@@ -1888,6 +1888,7 @@ class Heap {
   int initial_semispace_size_;
   intptr_t max_old_generation_size_;
   intptr_t max_executable_size_;
+  intptr_t maximum_committed_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.

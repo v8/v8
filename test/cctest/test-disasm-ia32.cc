@@ -371,6 +371,7 @@ TEST(DisasmIa320) {
       __ cmpltsd(xmm0, xmm1);
 
       __ andps(xmm0, xmm1);
+      __ orps(xmm0, xmm1);
       __ andpd(xmm0, xmm1);
       __ psllq(xmm0, 17);
       __ psllq(xmm0, xmm1);

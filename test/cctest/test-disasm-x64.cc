@@ -343,6 +343,8 @@ TEST(DisasmX64) {
     __ movaps(xmm0, xmm1);
 
     __ andps(xmm0, xmm1);
+    __ orps(xmm0, xmm1);
+    __ xorps(xmm0, xmm1);
   }
   // SSE 2 instructions
   {

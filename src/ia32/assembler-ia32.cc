@@ -2059,6 +2059,22 @@ void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::andps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::orps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x56);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::xorps(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
@@ -2341,14 +2357,6 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(0x17);
   emit_sse_operand(src, dst);
   EMIT(imm8);
-}
-
-
-void Assembler::andps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x54);
-  emit_sse_operand(dst, src);
 }
 
 

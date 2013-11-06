@@ -1771,7 +1771,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
     // At this point, both left and right are either 0 or -0.
     if (operation == HMathMinMax::kMathMin) {
-      __ orpd(left_reg, right_reg);
+      __ orps(left_reg, right_reg);
     } else {
       // Since we operate on +0 and/or -0, addsd and andsd have the same effect.
       __ addsd(left_reg, right_reg);
@@ -1782,7 +1782,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ ucomisd(left_reg, left_reg);  // NaN check.
     __ j(parity_even, &return_left, Label::kNear);
     __ bind(&return_right);
-    __ movsd(left_reg, right_reg);
+    __ movaps(left_reg, right_reg);
 
     __ bind(&return_left);
   }

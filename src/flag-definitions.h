@@ -311,7 +311,7 @@ DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
-DEFINE_int(escape_analysis_iterations, 1,
+DEFINE_int(escape_analysis_iterations, 2,
            "maximum number of escape analysis fix-point iterations")
 
 DEFINE_bool(optimize_for_in, true,
@@ -502,6 +502,9 @@ DEFINE_bool(trace_gc_ignore_scavenger, false,
             "do not print trace line after scavenger collection")
 DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
+DEFINE_bool(print_max_heap_committed, false,
+            "print statistics of the maximum memory committed for the heap "
+            "in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(trace_fragmentation, false,

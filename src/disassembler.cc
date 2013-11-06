@@ -227,7 +227,7 @@ static int DecodeIt(Isolate* isolate,
         out.AddFormatted("    ;; object: %s", *obj_name);
       } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
         const char* reference_name =
-            ref_encoder.NameOfAddress(*relocinfo.target_reference_address());
+            ref_encoder.NameOfAddress(relocinfo.target_reference());
         out.AddFormatted("    ;; external reference (%s)", reference_name);
       } else if (RelocInfo::IsCodeTarget(rmode)) {
         out.AddFormatted("    ;; code:");
