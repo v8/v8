@@ -45,10 +45,6 @@ class DfaState:
     assert not self.__transitions.has_key(key)
     self.__transitions[key] = (state, action)
 
-  def set_action(self, action):
-    assert self.__action == None
-    self.__action = action
-
   def transitions(self):
     return self.__transitions
 
@@ -121,9 +117,15 @@ class Dfa:
 
     def f(node, node_content):
       for key, (state, action) in node.transitions().items():
-        node_content.append(
-          "  S_%s -> S_%s [ label = \"%s\" ];" %
-            (node.node_number(), state.node_number(), key))
+        if action:
+          node_content.append(
+              "  S_%s -> S_%s [ label = \"%s {%s} -> %s\" ];" %
+              (node.node_number(), state.node_number(), key, action[0],
+               action[1]))
+        else:
+          node_content.append(
+              "  S_%s -> S_%s [ label = \"%s\" ];" %
+              (node.node_number(), state.node_number(), key))
       return node_content
 
     node_content = self.__visit_edges(self.__start, f, [])

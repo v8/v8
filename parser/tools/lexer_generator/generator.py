@@ -36,7 +36,7 @@ def process_rules(parser_state):
   for k, v in parser_state.rules.items():
     graphs = []
     for (rule_type, graph, identifier, action) in v:
-      graphs.append(graph)
+      graphs.append(NfaBuilder.add_action(graph, (action, identifier)))
     rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))
   for rule_name, nfa in rule_map.items():
     # print "Rule %s" % rule_name

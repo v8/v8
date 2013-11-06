@@ -358,9 +358,15 @@ class Nfa:
         if key == TransitionKey.epsilon():
           key = "&epsilon;"
         for value in values:
-          node_content.append(
-            "  S_%d -> S_%d [ label = \"%s\" ];" %
-              (node.node_number(), value[0].node_number(), key))
+          if value[1]:
+            node_content.append(
+                "  S_%d -> S_%d [ label = \"%s {%s} -> %s\" ];" %
+                (node.node_number(), value[0].node_number(), key, value[1][0],
+                 value[1][1]))
+          else:
+            node_content.append(
+                "  S_%d -> S_%d [ label = \"%s\" ];" %
+                (node.node_number(), value[0].node_number(), key))
       return node_content
 
     node_content = self.__visit_all_edges(f, [])

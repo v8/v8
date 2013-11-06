@@ -80,8 +80,8 @@ class AutomataTestCase(unittest.TestCase):
         dfa.to_dot()
 
     def test_actions(self):
-      left_action = ("LEFT_ACTION",)
-      right_action = ("RIGHT_ACTION",)
+      left_action = ("LEFT_ACTION", "LEFT_CONDITION")
+      right_action = ("RIGHT_ACTION", "RIGHT_CONDITION")
       left = RegexParser.parse("left")
       right = RegexParser.parse("right")
       left = NfaBuilder.add_action(left, left_action)
@@ -93,7 +93,7 @@ class AutomataTestCase(unittest.TestCase):
         actions = list(dfa.collect_actions(string))
         self.assertEqual(len(expected), len(actions))
         for i, action in enumerate(actions):
-          self.assertEqual(action[i], expected[i])
+          self.assertEqual(action, expected[i])
       def verify_miss(string, expected):
         verify(string, expected + [('MISS',)])
       def verify_hit(string, expected):
