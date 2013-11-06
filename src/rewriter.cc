@@ -263,7 +263,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
     Variable* result = scope->NewTemporary(
-        info->isolate()->factory()->result_string());
+        info->isolate()->factory()->dot_result_string());
     Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;

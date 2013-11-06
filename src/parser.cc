@@ -2623,13 +2623,10 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
 
   if (for_of != NULL) {
     Factory* heap_factory = isolate()->factory();
-    Handle<String> iterator_str = heap_factory->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR(".iterator"));
-    Handle<String> result_str = heap_factory->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR(".result"));
-    Variable* iterator =
-        top_scope_->DeclarationScope()->NewTemporary(iterator_str);
-    Variable* result = top_scope_->DeclarationScope()->NewTemporary(result_str);
+    Variable* iterator = top_scope_->DeclarationScope()->NewTemporary(
+        heap_factory->dot_iterator_string());
+    Variable* result = top_scope_->DeclarationScope()->NewTemporary(
+        heap_factory->dot_result_string());
 
     Expression* assign_iterator;
     Expression* next_result;
@@ -4252,9 +4249,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // in a temporary variable, a definition that is used by "yield"
       // expressions.  Presence of a variable for the generator object in the
       // FunctionState indicates that this function is a generator.
-      Handle<String> tempname = isolate()->factory()->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR(".generator_object"));
-      Variable* temp = top_scope_->DeclarationScope()->NewTemporary(tempname);
+      Variable* temp = top_scope_->DeclarationScope()->NewTemporary(
+          isolate()->factory()->dot_generator_object_string());
       function_state.set_generator_object_variable(temp);
     }
 

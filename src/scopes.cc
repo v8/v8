@@ -1302,7 +1302,7 @@ void Scope::AllocateParameterLocals() {
 
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
-  ASSERT(!var->IsVariable(isolate_->factory()->result_string()) ||
+  ASSERT(!var->IsVariable(isolate_->factory()->dot_result_string()) ||
          !var->IsStackLocal());
   if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
