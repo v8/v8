@@ -357,6 +357,7 @@ class Nfa:
       for key, values in node.transitions().items():
         if key == TransitionKey.epsilon():
           key = "&epsilon;"
+        key = str(key).replace('\\', '\\\\')
         for value in values:
           if value[1]:
             node_content.append(

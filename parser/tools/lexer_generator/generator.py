@@ -76,7 +76,7 @@ def process_rules(parser_state):
   builder.set_character_classes(parser_state.character_classes)
   for k, v in parser_state.rules.items():
     graphs = []
-    for (rule_type, graph, identifier, action) in v:
+    for (graph, code, action) in v['regex']:
       # graphs.append(NfaBuilder.add_action(graph, (action, identifier)))
       graphs.append(graph)
     rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))

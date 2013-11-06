@@ -36,10 +36,9 @@ class RuleParserState:
   def __init__(self):
     self.aliases = {
       'eof' : RegexParser.parse("[\\0]"),
-      'any' : RegexParser.parse("."),
     }
     self.character_classes = {}
-    self.current_transition = None
+    self.current_state = None
     self.rules = {}
 
   def parse(self, string):
@@ -53,15 +52,11 @@ class RuleParser:
     self.__state = None
 
   def p_statements(self, p):
-    'statements : statement maybe_statements'
+    'statements : aliases rules'
 
-  def p_maybe_statement(self, p):
-    '''maybe_statements : statements
-                        | empty'''
-
-  def p_statement(self, p):
-    '''statement : alias_rule
-                 | transition_rule'''
+  def p_aliases(self, p):
+    '''aliases : alias_rule aliases
+               | empty'''
 
   def p_alias_rule(self, p):
     'alias_rule : IDENTIFIER EQUALS composite_regex SEMICOLON'
@@ -74,32 +69,47 @@ class RuleParser:
       assert not p[1] in classes
       classes[p[1]] = TransitionKey.character_class(graph, classes)
 
-  def p_transition_rule(self, p):
-    '''transition_rule : transition composite_regex code
-         | transition composite_regex TRANSITION IDENTIFIER
-         | transition composite_regex TRANSITION_WITH_CODE IDENTIFIER code'''
-    transition = p[0]
-    regex = p[2]
-    rules = self.__state.rules[self.__state.current_transition]
-    if len(p) == 4:
-      rules.append(('simple', regex, None, p[3]))
-    elif len(p) == 5:
-      rules.append(('transition', regex, p[4], None))
-    elif len(p) == 6:
-      rules.append(('transition_with_code', regex, p[4], p[5]))
-    else:
-      raise Exception()
+  def p_rules(self, p):
+    '''rules : state_change transition_rules rules
+             | empty'''
 
-  def p_transition(self, p):
-    '''transition : LESS_THAN IDENTIFIER GREATER_THAN'''
-                  # | empty''' TODO skipping transition without sr conflict
+  def p_state_change(self, p):
+    '''state_change : LESS_THAN IDENTIFIER GREATER_THAN
+                    | LESS_THAN DEFAULT GREATER_THAN'''
     state = self.__state
-    if p[1]:
-      state.current_transition = p[2]
-    assert state.current_transition
-    if not state.current_transition in state.rules:
-      state.rules[state.current_transition] = []
-    p[0] = state.current_transition
+    state.current_state = p[2]
+    assert state.current_state
+    if not state.current_state in state.rules:
+      state.rules[state.current_state] = {
+        'default': None,
+        'regex' : []
+      }
+    p[0] = state.current_state
+
+  def p_transition_rules(self, p):
+    '''transition_rules : transition_rule transition_rules
+                        | empty'''
+
+  def p_transition_rule(self, p):
+    '''transition_rule : composite_regex_or_default code action
+                       | composite_regex_or_default empty action
+                       | composite_regex_or_default code empty'''
+    rules = self.__state.rules[self.__state.current_state]
+    rule = (p[1], p[2], p[3])
+    if p[1] == 'default':
+      assert not rules['default']
+      rules['default'] = rule
+    else:
+      rules['regex'].append(rule)
+
+  def p_action(self, p):
+    'action : ACTION_OPEN IDENTIFIER ACTION_CLOSE'
+    p[0] = p[2]
+
+  def p_composite_regex_or_default(self, p):
+    '''composite_regex_or_default : DEFAULT
+                                  | composite_regex'''
+    p[0] = p[1]
 
   def p_composite_regex(self, p):
     '''composite_regex : regex_parts OR regex_parts

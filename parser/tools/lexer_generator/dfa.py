@@ -117,6 +117,7 @@ class Dfa:
 
     def f(node, node_content):
       for key, (state, action) in node.transitions().items():
+        key = str(key).replace('\\', '\\\\')
         if action:
           node_content.append(
               "  S_%s -> S_%s [ label = \"%s {%s} -> %s\" ];" %

@@ -30,12 +30,11 @@ import ply.lex as lex
 class RuleLexer:
 
   tokens = (
+    'DEFAULT',
     'IDENTIFIER',
     'STRING',
     'REGEX',
     'CHARACTER_CLASS_REGEX',
-    'TRANSITION',
-    'TRANSITION_WITH_CODE',
 
     'PLUS',
     'QUESTION_MARK',
@@ -47,6 +46,8 @@ class RuleLexer:
     'LESS_THAN',
     'GREATER_THAN',
     'SEMICOLON',
+    'ACTION_OPEN',
+    'ACTION_CLOSE',
 
     'LEFT_BRACKET',
     'RIGHT_BRACKET',
@@ -65,23 +66,28 @@ class RuleLexer:
     r'\#.*[\n\r]+'
     pass
 
-  t_IDENTIFIER = r'[a-zA-Z0-9_]+'
+  def t_IDENTIFIER(self, t):
+    r'[a-zA-Z][a-zA-Z0-9_]*'
+    if t.value == 'default':
+      t.type = 'DEFAULT'
+    return t
+
   t_STRING = r'"((\\("|\w|\\))|[^\\"])+"'
   t_REGEX = r'/[^\/]+/'
   t_CHARACTER_CLASS_REGEX = r'\[([^\]]|\\\])+\]'
-  t_TRANSITION = r':=>'
-  t_TRANSITION_WITH_CODE = r'=>'
 
   t_PLUS = r'\+'
   t_QUESTION_MARK = r'\?'
   t_STAR = r'\*'
   t_OR = r'\|'
-  t_EQUALS = r'='
+  t_EQUALS = '='
   t_LEFT_PARENTHESIS = r'\('
   t_RIGHT_PARENTHESIS = r'\)'
-  t_LESS_THAN = r'<'
-  t_GREATER_THAN = r'>'
-  t_SEMICOLON = r';'
+  t_LESS_THAN = '<'
+  t_GREATER_THAN = '>'
+  t_SEMICOLON = ';'
+  t_ACTION_OPEN = '<<'
+  t_ACTION_CLOSE = '>>'
 
   def t_LEFT_BRACKET(self, t):
     r'{'
