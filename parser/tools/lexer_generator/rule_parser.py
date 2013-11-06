@@ -31,9 +31,7 @@ from regex_parser import RegexParser
 from nfa import NfaBuilder
 from transition_keys import TransitionKey
 
-class RuleParser:
-
-  tokens = RuleLexer.tokens
+class RuleParserState:
 
   def __init__(self):
     self.aliases = {
@@ -43,6 +41,16 @@ class RuleParser:
     self.character_classes = {}
     self.current_transition = None
     self.rules = {}
+
+  def parse(self, string):
+    return RuleParser.parse(string, self)
+
+class RuleParser:
+
+  tokens = RuleLexer.tokens
+
+  def __init__(self):
+    self.__state = None
 
   def p_statements(self, p):
     'statements : statement maybe_statements'
@@ -57,11 +65,12 @@ class RuleParser:
 
   def p_alias_rule(self, p):
     'alias_rule : IDENTIFIER EQUALS composite_regex SEMICOLON'
-    assert not p[1] in self.aliases
+    state = self.__state
+    assert not p[1] in state.aliases
     graph = p[3]
-    self.aliases[p[1]] = p[3]
+    state.aliases[p[1]] = graph
     if graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS':
-      classes = self.character_classes
+      classes = state.character_classes
       assert not p[1] in classes
       classes[p[1]] = TransitionKey.character_class(graph, classes)
 
@@ -71,11 +80,11 @@ class RuleParser:
          | transition composite_regex TRANSITION_WITH_CODE IDENTIFIER code'''
     transition = p[0]
     regex = p[2]
-    rules = self.rules[self.current_transition]
+    rules = self.__state.rules[self.__state.current_transition]
     if len(p) == 4:
-      rules.append(('simple', regex, p[3]))
+      rules.append(('simple', regex, None, p[3]))
     elif len(p) == 5:
-      rules.append(('transition', regex, p[4]))
+      rules.append(('transition', regex, p[4], None))
     elif len(p) == 6:
       rules.append(('transition_with_code', regex, p[4], p[5]))
     else:
@@ -84,12 +93,13 @@ class RuleParser:
   def p_transition(self, p):
     '''transition : LESS_THAN IDENTIFIER GREATER_THAN'''
                   # | empty''' TODO skipping transition without sr conflict
+    state = self.__state
     if p[1]:
-      self.current_transition = p[2]
-    assert self.current_transition
-    if not self.current_transition in self.rules:
-      self.rules[self.current_transition] = []
-    p[0] = self.current_transition
+      state.current_transition = p[2]
+    assert state.current_transition
+    if not state.current_transition in state.rules:
+      state.rules[state.current_transition] = []
+    p[0] = state.current_transition
 
   def p_composite_regex(self, p):
     '''composite_regex : regex_parts OR regex_parts
@@ -98,9 +108,6 @@ class RuleParser:
       p[0] = p[1]
     else:
       p[0] = NfaBuilder.or_graphs([p[1], p[3]])
-    # builder = NfaBuilder()
-    # builder.set_character_classes(self.character_classes)
-    # builder.nfa(p[0])
 
   def p_regex_parts(self, p):
     '''regex_parts : regex_part
@@ -122,9 +129,8 @@ class RuleParser:
 
   def p_regex_string_literal(self, p):
     'regex_string_literal : STRING'
-    string = p[1][1:-1]
-    for c in "\+?*|.[](){}":
-      string = string.replace(c, "\\" + c)
+    escape_char = lambda string, char: string.replace(char, "\\" + char)
+    string = reduce(escape_char, "\+?*|.[](){}", p[1][1:-1])
     p[0] = RegexParser.parse(string)
 
   def p_regex(self, p):
@@ -137,7 +143,7 @@ class RuleParser:
 
   def p_regex_alias(self, p):
     'regex_alias : IDENTIFIER'
-    p[0] = self.aliases[p[1]]
+    p[0] = self.__state.aliases[p[1]]
 
   def p_modifier(self, p):
     '''modifier : PLUS
@@ -168,5 +174,22 @@ class RuleParser:
     self.lexer = RuleLexer()
     self.lexer.build(**kwargs)
 
-  def parse(self, data):
-    return self.parser.parse(data, lexer=self.lexer.lexer)
+  __static_instance = None
+  @staticmethod
+  def parse(data, parser_state):
+    if not RuleParser.__static_instance:
+      RuleParser.__static_instance = RuleParser()
+      RuleParser.__static_instance.build()
+    parser = RuleParser.__static_instance
+    parser.__state = parser_state
+    parser.parser.parse(data, lexer=parser.lexer.lexer)
+    parser.__state = None
+    rule_map = {}
+    builder = NfaBuilder()
+    builder.set_character_classes(parser_state.character_classes)
+    for k, v in parser_state.rules.items():
+      graphs = []
+      for (rule_type, graph, identifier, action) in v:
+        graphs.append(graph)
+      rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))
+    return rule_map

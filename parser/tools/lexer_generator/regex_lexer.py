@@ -98,10 +98,15 @@ class RegexLexer:
     r'\\\d+'
     return t
 
+  escaped_class_literals = {
+    '\\t' : '\t', '\\r' : '\r', '\\n' : '\n', '\\v' : '\v', '\\f' : '\f',
+    '\\^' : '^', '\\[' : '[', '\\]' : ']', '\\-' : '-', '\\:' : ':',
+  }
+
   def t_class_ESCAPED_CLASS_LITERAL(self, t):
     r'\\\^|\\-|\\\[|\\\]|\\\:|\\\w'
     t.type = 'CLASS_LITERAL'
-    t.value = t.value[1:]
+    t.value = RegexLexer.escaped_class_literals[t.value]
     return t
 
   t_class_CLASS_LITERAL = r'[\w $_+]'

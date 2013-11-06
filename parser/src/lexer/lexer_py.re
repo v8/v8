@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-whitespace_char = [ \t\v\f\r:ws:]; # TODO put back \240
+whitespace_char = [ \t\v\f\r:ws:\240];
 whitespace = whitespace_char+;
 identifier_start = [$_a-zA-Z:lit:];
 identifier_char = [$_a-zA-Z0-9:lit:];
@@ -162,8 +162,8 @@ number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)
 <DoubleQuoteString> "\""     { PUSH_TOKEN(Token::STRING);}
 <DoubleQuoteString> /\\\n\r?/ { goto yyc_DoubleQuoteString; }
 <DoubleQuoteString> /\\\r\n?/ { goto yyc_DoubleQuoteString; }
-<DoubleQuoteString> "\n"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
-<DoubleQuoteString> "\r"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
+<DoubleQuoteString> /\n/    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
+<DoubleQuoteString> /\r/    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 <DoubleQuoteString> eof     { TERMINATE_ILLEGAL(); }
 <DoubleQuoteString> any     { goto yyc_DoubleQuoteString; }
 
@@ -172,8 +172,8 @@ number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)
 <SingleQuoteString> "'"     { PUSH_TOKEN(Token::STRING); }
 <SingleQuoteString> /\\\n\r?/ { goto yyc_SingleQuoteString; }
 <SingleQuoteString> /\\\r\n?/ { goto yyc_SingleQuoteString; }
-<SingleQuoteString> "\n"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
-<SingleQuoteString> "\r"    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
+<SingleQuoteString> /\n/    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
+<SingleQuoteString> /\r/    => Normal { PUSH_TOKEN_LOOKAHEAD(Token::ILLEGAL); }
 <SingleQuoteString> eof     { TERMINATE_ILLEGAL(); }
 <SingleQuoteString> any     { goto yyc_SingleQuoteString; }
 

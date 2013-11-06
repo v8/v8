@@ -148,7 +148,11 @@ class TransitionKey:
   def __eq__(self, other):
     return isinstance(other, self.__class__) and self.__ranges == other.__ranges
 
-  __printable_cache = {}
+  __printable_cache = {
+    ord('\t') : '\\t',
+    ord('\n') : '\\n',
+    ord('\r') : '\\r',
+  }
 
   @staticmethod
   def __print_range(r):
@@ -186,8 +190,9 @@ class TransitionKey:
       next = range_map[i + 1][0] if i != len(range_map) - 1 else upper_bound
       to_push = []
       for v in left_values:
+        assert left <= next
         if v >= next:
-          if not to_push:
+          if not to_push and left < next:
             ranges.append((left, next - 1))
           to_push.append(v)
         else:

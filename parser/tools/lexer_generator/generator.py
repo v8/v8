@@ -27,34 +27,18 @@
 
 from nfa import Nfa
 from dfa import Dfa
-from rule_lexer import RuleLexer
-from rule_parser import RuleParser
-from regex_parser import RegexParser
-
-def lex_file(file_name):
-  lexer = RuleLexer()
-  lexer.build()
-  with open(file_name, 'r') as f:
-    lexer.lexer.input(f.read())
-    while True:
-        tok = lexer.lexer.token()
-        if not tok: break      # No more input
-        print tok
+from rule_parser import RuleParser, RuleParserState
 
 def parse_file(file_name):
-  rule_parser = RuleParser()
-  rule_parser.build()
+  parser_state = RuleParserState()
   with open(file_name, 'r') as f:
-    rule_parser.parse(f.read())
-  print "aliases"
-  for k, v in rule_parser.aliases.items():
-    print "\t%s : %s" % (k, v)
-  print "rules"
-  for k, v in rule_parser.rules.items():
-    print "\t%s" % k
-    for t in v:
-      print "\t\t%s" % str(t)
+    rule_map = RuleParser.parse(f.read(), parser_state)
+  for rule_name, nfa in rule_map.items():
+    # print "Rule %s" % rule_name
+    (start, dfa_nodes) = nfa.compute_dfa()
+    dfa = Dfa(start, dfa_nodes)
+    # print nfa.to_dot()
+    # print dfa.to_dot()
 
 if __name__ == '__main__':
-  # lex_file('src/lexer/lexer_py.re')
   parse_file('src/lexer/lexer_py.re')
