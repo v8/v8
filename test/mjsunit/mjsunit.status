@@ -30,9 +30,6 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
-  # TODO(mvstanton) Re-enable when the performance is bearable again.
-  'regress/regress-2185-2': [SKIP],
-
   ##############################################################################
   # Flaky tests.
   # BUG(v8:2921).

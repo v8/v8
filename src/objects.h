@@ -5337,6 +5337,8 @@ class Code: public HeapObject {
   DECLARE_VERIFIER(Code)
 
   void ClearInlineCaches();
+  void ClearInlineCaches(Kind kind);
+
   void ClearTypeFeedbackCells(Heap* heap);
 
   BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
@@ -5508,6 +5510,8 @@ class Code: public HeapObject {
 
  private:
   friend class RelocIterator;
+
+  void ClearInlineCaches(Kind* kind);
 
   // Code aging
   byte* FindCodeAgeSequence();
@@ -5799,6 +5803,10 @@ class Map: public HeapObject {
 
   static bool IsValidElementsTransition(ElementsKind from_kind,
                                         ElementsKind to_kind);
+
+  // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
+  // map with DICTIONARY_ELEMENTS was found in the prototype chain.
+  bool DictionaryElementsInPrototypeChainOnly();
 
   inline bool HasTransitionArray();
   inline bool HasElementsTransition();

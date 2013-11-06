@@ -762,6 +762,9 @@ class Heap {
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 
+  // Iterates the whole code space to clear all ICs of the given kind.
+  void ClearAllICsByKind(Code::Kind kind);
+
   // For use during bootup.
   void RepairFreeListsAfterBoot();
 

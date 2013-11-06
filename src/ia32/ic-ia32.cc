@@ -733,6 +733,19 @@ static void KeyedStoreGenerateGenericHelper(
     __ cmp(edi, masm->isolate()->factory()->fixed_array_map());
     __ j(not_equal, fast_double);
   }
+
+  // HOLECHECK: guards "A[i] = V"
+  // We have to go to the runtime if the current value is the hole because
+  // there may be a callback on the element
+  Label holecheck_passed1;
+  __ cmp(CodeGenerator::FixedArrayElementOperand(ebx, ecx),
+         masm->isolate()->factory()->the_hole_value());
+  __ j(not_equal, &holecheck_passed1);
+  __ JumpIfDictionaryInPrototypeChain(edx, ebx, edi, slow);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+
+  __ bind(&holecheck_passed1);
+
   // Smi stores don't require further checks.
   Label non_smi_value;
   __ JumpIfNotSmi(eax, &non_smi_value);
@@ -773,6 +786,16 @@ static void KeyedStoreGenerateGenericHelper(
     // If the value is a number, store it as a double in the FastDoubleElements
     // array.
   }
+
+  // HOLECHECK: guards "A[i] double hole?"
+  // We have to see if the double version of the hole is present. If so
+  // go to the runtime.
+  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
+  __ cmp(FieldOperand(ebx, ecx, times_4, offset), Immediate(kHoleNanUpper32));
+  __ j(not_equal, &fast_double_without_map_check);
+  __ JumpIfDictionaryInPrototypeChain(edx, ebx, edi, slow);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(eax, ebx, ecx, edi, xmm0,
                                  &transition_double_elements, false);

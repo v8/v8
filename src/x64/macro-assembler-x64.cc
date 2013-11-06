@@ -4969,6 +4969,32 @@ void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
 }
 
 
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!(scratch0.is(kScratchRegister) && scratch1.is(kScratchRegister)));
+  ASSERT(!scratch1.is(scratch0));
+  Register current = scratch0;
+  Label loop_again;
+
+  movq(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  movq(current, FieldOperand(current, HeapObject::kMapOffset));
+  movq(scratch1, FieldOperand(current, Map::kBitField2Offset));
+  and_(scratch1, Immediate(Map::kElementsKindMask));
+  shr(scratch1, Immediate(Map::kElementsKindShift));
+  cmpq(scratch1, Immediate(DICTIONARY_ELEMENTS));
+  j(equal, found);
+  movq(current, FieldOperand(current, Map::kPrototypeOffset));
+  CompareRoot(current, Heap::kNullValueRootIndex);
+  j(not_equal, &loop_again);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

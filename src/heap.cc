@@ -480,6 +480,20 @@ intptr_t Heap::SizeOfObjects() {
 }
 
 
+void Heap::ClearAllICsByKind(Code::Kind kind) {
+  HeapObjectIterator it(code_space());
+
+  for (Object* object = it.Next(); object != NULL; object = it.Next()) {
+    Code* code = Code::cast(object);
+    Code::Kind current_kind = code->kind();
+    if (current_kind == Code::FUNCTION ||
+        current_kind == Code::OPTIMIZED_FUNCTION) {
+      code->ClearInlineCaches(kind);
+    }
+  }
+}
+
+
 void Heap::RepairFreeListsAfterBoot() {
   PagedSpaces spaces(this);
   for (PagedSpace* space = spaces.next();

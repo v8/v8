@@ -5576,6 +5576,21 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     checked_object->ClearGVNFlag(kDependsOnElementsKind);
   }
 
+  if (is_store && map->prototype()->IsJSObject()) {
+    // monomorphic stores need a prototype chain check because shape
+    // changes could allow callbacks on elements in the chain that
+    // aren't compatible with monomorphic keyed stores.
+    Handle<JSObject> prototype(JSObject::cast(map->prototype()));
+    Object* holder = map->prototype();
+    while (holder->GetPrototype(isolate())->IsJSObject()) {
+      holder = holder->GetPrototype(isolate());
+    }
+    ASSERT(holder->GetPrototype(isolate())->IsNull());
+
+    BuildCheckPrototypeMaps(prototype,
+                            Handle<JSObject>(JSObject::cast(holder)));
+  }
+
   LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
   return BuildUncheckedMonomorphicElementAccess(
       checked_object, key, val,
@@ -5789,6 +5804,22 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   SmallMapList* types;
   bool monomorphic = ComputeReceiverTypes(expr, obj, &types);
 
+  bool force_generic = false;
+  if (is_store && (monomorphic || (types != NULL && !types->is_empty()))) {
+    // Stores can't be mono/polymorphic if their prototype chain has dictionary
+    // elements. However a receiver map that has dictionary elements itself
+    // should be left to normal mono/poly behavior (the other maps may benefit
+    // from highly optimized stores).
+    for (int i = 0; i < types->length(); i++) {
+      Handle<Map> current_map = types->at(i);
+      if (current_map->DictionaryElementsInPrototypeChainOnly()) {
+        force_generic = true;
+        monomorphic = false;
+        break;
+      }
+    }
+  }
+
   if (monomorphic) {
     Handle<Map> map = types->first();
     if (map->has_slow_elements_kind()) {
@@ -5800,7 +5831,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
       instr = BuildMonomorphicElementAccess(
           obj, key, val, NULL, map, is_store, expr->GetStoreMode());
     }
-  } else if (types != NULL && !types->is_empty()) {
+  } else if (!force_generic && (types != NULL && !types->is_empty())) {
     return HandlePolymorphicElementAccess(
         obj, key, val, types, is_store,
         expr->GetStoreMode(), has_side_effects);
