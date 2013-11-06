@@ -2059,32 +2059,62 @@ void LCodeGen::DoDateField(LDateField* instr) {
 }
 
 
+Operand LCodeGen::BuildSeqStringOperand(Register string,
+                                        LOperand* index,
+                                        String::Encoding encoding) {
+  if (index->IsConstantOperand()) {
+    int offset = ToRepresentation(LConstantOperand::cast(index),
+                                  Representation::Integer32());
+    if (encoding == String::TWO_BYTE_ENCODING) {
+      offset *= kUC16Size;
+    }
+    STATIC_ASSERT(kCharSize == 1);
+    return FieldOperand(string, SeqString::kHeaderSize + offset);
+  }
+  return FieldOperand(
+      string, ToRegister(index),
+      encoding == String::ONE_BYTE_ENCODING ? times_1 : times_2,
+      SeqString::kHeaderSize);
+}
+
+
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
-  Register value = ToRegister(instr->value());
-  String::Encoding encoding = instr->encoding();
 
   if (FLAG_debug_code) {
-    __ push(value);
-    __ mov(value, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzx_b(value, FieldOperand(value, Map::kInstanceTypeOffset));
+    __ push(string);
+    __ mov(string, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzx_b(string, FieldOperand(string, Map::kInstanceTypeOffset));
 
-    __ and_(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    __ and_(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(value, Immediate(encoding == String::ONE_BYTE_ENCODING
-                                ? one_byte_seq_type : two_byte_seq_type));
+    __ cmp(string, Immediate(encoding == String::ONE_BYTE_ENCODING
+                             ? one_byte_seq_type : two_byte_seq_type));
     __ Check(equal, kUnexpectedStringType);
-    __ pop(value);
+    __ pop(string);
   }
 
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ mov_b(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
-             value);
+  Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (instr->value()->IsConstantOperand()) {
+    int value = ToRepresentation(LConstantOperand::cast(instr->value()),
+                                 Representation::Integer32());
+    ASSERT_LE(0, value);
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      ASSERT_LE(value, String::kMaxOneByteCharCode);
+      __ mov_b(operand, static_cast<int8_t>(value));
+    } else {
+      ASSERT_LE(value, String::kMaxUtf16CodeUnit);
+      __ mov_w(operand, static_cast<int16_t>(value));
+    }
   } else {
-    __ mov_w(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
-             value);
+    Register value = ToRegister(instr->value());
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ mov_b(operand, value);
+    } else {
+      __ mov_w(operand, value);
+    }
   }
 }
 

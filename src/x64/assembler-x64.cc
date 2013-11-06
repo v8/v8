@@ -1357,12 +1357,32 @@ void Assembler::movb(const Operand& dst, Register src) {
 }
 
 
+void Assembler::movb(const Operand& dst, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst);
+  emit(0xC6);
+  emit_operand(0x0, dst);
+  emit(static_cast<byte>(imm.value_));
+}
+
+
 void Assembler::movw(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(src, dst);
   emit(0x89);
   emit_operand(src, dst);
+}
+
+
+void Assembler::movw(const Operand& dst, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit_operand(0x0, dst);
+  emit(static_cast<byte>(imm.value_ & 0xff));
+  emit(static_cast<byte>(imm.value_ >> 8));
 }
 
 

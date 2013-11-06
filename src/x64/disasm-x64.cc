@@ -1565,9 +1565,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else {
           AppendToBuffer("mov%c ", operand_size_code());
           data += PrintRightOperand(data);
-          int32_t imm = *reinterpret_cast<int32_t*>(data);
-          AppendToBuffer(",0x%x", imm);
-          data += 4;
+          if (operand_size() == OPERAND_WORD_SIZE) {
+            int16_t imm = *reinterpret_cast<int16_t*>(data);
+            AppendToBuffer(",0x%x", imm);
+            data += 2;
+          } else {
+            int32_t imm = *reinterpret_cast<int32_t*>(data);
+            AppendToBuffer(",0x%x", imm);
+            data += 4;
+          }
         }
       }
         break;

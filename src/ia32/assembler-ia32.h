@@ -735,6 +735,7 @@ class Assembler : public AssemblerBase {
 
   void mov_w(Register dst, const Operand& src);
   void mov_w(const Operand& dst, Register src);
+  void mov_w(const Operand& dst, int16_t imm16);
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
