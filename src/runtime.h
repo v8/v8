@@ -564,9 +564,6 @@ namespace internal {
   F(CreateCollator, 3, 1) \
   F(InternalCompare, 3, 1) \
   \
-  /* String.prototype.normalize. */ \
-  F(StringNormalize, 2, 1) \
-  \
   /* Break iterator. */ \
   F(CreateBreakIterator, 3, 1) \
   F(BreakIteratorAdoptText, 2, 1) \
