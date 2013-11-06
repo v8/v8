@@ -1807,7 +1807,7 @@ class Heap {
         FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
     FIRST_CODE_AGE_SUB_TYPE =
         FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kLastCodeAge + 1
+    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kCodeAgeCount + 1
   };
 
   void RecordObjectStats(InstanceType type, size_t size) {
@@ -1817,12 +1817,17 @@ class Heap {
   }
 
   void RecordCodeSubTypeStats(int code_sub_type, int code_age, size_t size) {
-    ASSERT(code_sub_type < Code::NUMBER_OF_KINDS);
-    ASSERT(code_age < Code::kLastCodeAge);
-    object_counts_[FIRST_CODE_KIND_SUB_TYPE + code_sub_type]++;
-    object_sizes_[FIRST_CODE_KIND_SUB_TYPE + code_sub_type] += size;
-    object_counts_[FIRST_CODE_AGE_SUB_TYPE + code_age]++;
-    object_sizes_[FIRST_CODE_AGE_SUB_TYPE + code_age] += size;
+    int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
+    int code_age_index =
+        FIRST_CODE_AGE_SUB_TYPE + code_age - Code::kFirstCodeAge;
+    ASSERT(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
+           code_sub_type_index < FIRST_CODE_AGE_SUB_TYPE);
+    ASSERT(code_age_index >= FIRST_CODE_AGE_SUB_TYPE &&
+           code_age_index < OBJECT_STATS_COUNT);
+    object_counts_[code_sub_type_index]++;
+    object_sizes_[code_sub_type_index] += size;
+    object_counts_[code_age_index]++;
+    object_sizes_[code_age_index] += size;
   }
 
   void RecordFixedArraySubTypeStats(int array_sub_type, size_t size) {

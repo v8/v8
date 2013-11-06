@@ -10663,12 +10663,25 @@ void Code::MarkCodeAsExecuted(byte* sequence, Isolate* isolate) {
 }
 
 
+static Code::Age EffectiveAge(Code::Age age) {
+  if (age == Code::kNotExecutedCodeAge) {
+    // Treat that's never been executed as old immediately.
+    age = Code::kIsOldCodeAge;
+  } else if (age == Code::kExecutedOnceCodeAge) {
+    // Pre-age code that has only been executed once.
+    age = Code::kPreAgedCodeAge;
+  }
+  return age;
+}
+
+
 void Code::MakeOlder(MarkingParity current_parity) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
     Age age;
     MarkingParity code_parity;
     GetCodeAgeAndParity(sequence, &age, &code_parity);
+    age = EffectiveAge(age);
     if (age != kLastCodeAge && code_parity != current_parity) {
       PatchPlatformCodeAge(GetIsolate(),
                            sequence,
@@ -10680,8 +10693,7 @@ void Code::MakeOlder(MarkingParity current_parity) {
 
 
 bool Code::IsOld() {
-  Age age = GetAge();
-  return age >= kIsOldCodeAge;
+  return GetAge() >= kIsOldCodeAge;
 }
 
 
@@ -10696,9 +10708,14 @@ byte* Code::FindCodeAgeSequence() {
 
 
 Code::Age Code::GetAge() {
+  return EffectiveAge(GetRawAge());
+}
+
+
+Code::Age Code::GetRawAge() {
   byte* sequence = FindCodeAgeSequence();
   if (sequence == NULL) {
-    return Code::kNoAgeCodeAge;
+    return kNoAgeCodeAge;
   }
   Age age;
   MarkingParity parity;
@@ -10729,15 +10746,13 @@ void Code::GetCodeAgeAndParity(Code* code, Age* age,
 #undef HANDLE_CODE_AGE
   stub = *builtins->MarkCodeAsExecutedOnce();
   if (code == stub) {
-    // Treat that's never been executed as old immediatly.
-    *age = kIsOldCodeAge;
+    *age = kNotExecutedCodeAge;
     *parity = NO_MARKING_PARITY;
     return;
   }
   stub = *builtins->MarkCodeAsExecutedTwice();
   if (code == stub) {
-    // Pre-age code that has only been executed once.
-    *age = kPreAgedCodeAge;
+    *age = kExecutedOnceCodeAge;
     *parity = NO_MARKING_PARITY;
     return;
   }

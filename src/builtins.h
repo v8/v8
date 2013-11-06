@@ -50,7 +50,9 @@ enum BuiltinExtraArguments {
 #define CODE_AGE_LIST(V) \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
-#define CODE_AGE_LIST_WITH_NO_AGE(V)               \
+#define CODE_AGE_LIST_COMPLETE(V)                  \
+  V(NotExecuted)                                   \
+  V(ExecutedOnce)                                  \
   V(NoAge)                                         \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 

@@ -1650,7 +1650,7 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     int object_size = obj->Size();
     ASSERT(map->instance_type() == CODE_TYPE);
     Code* code_obj = Code::cast(obj);
-    heap->RecordCodeSubTypeStats(code_obj->kind(), code_obj->GetAge(),
+    heap->RecordCodeSubTypeStats(code_obj->kind(), code_obj->GetRawAge(),
                                  object_size);
     ObjectStatsVisitBase(kVisitCode, map, obj);
   }

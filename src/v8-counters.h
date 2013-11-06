@@ -343,7 +343,7 @@ class Counters {
     { return &count_of_CODE_AGE_##name##_; } \
   StatsCounter* size_of_CODE_AGE_##name() \
     { return &size_of_CODE_AGE_##name##_; }
-  CODE_AGE_LIST_WITH_NO_AGE(SC)
+  CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 
   enum Id {
@@ -373,7 +373,7 @@ class Counters {
 #undef COUNTER_ID
 #define COUNTER_ID(name) kCountOfCODE_AGE__##name, \
     kSizeOfCODE_AGE__##name,
-    CODE_AGE_LIST_WITH_NO_AGE(COUNTER_ID)
+    CODE_AGE_LIST_COMPLETE(COUNTER_ID)
 #undef COUNTER_ID
     stats_counter_count
   };
@@ -423,7 +423,7 @@ class Counters {
 #define SC(name) \
   StatsCounter size_of_CODE_AGE_##name##_; \
   StatsCounter count_of_CODE_AGE_##name##_;
-  CODE_AGE_LIST_WITH_NO_AGE(SC)
+  CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 
   friend class Isolate;
