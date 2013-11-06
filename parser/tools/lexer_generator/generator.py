@@ -29,6 +29,47 @@ from nfa import Nfa, NfaBuilder
 from dfa import Dfa
 from rule_parser import RuleParser, RuleParserState
 
+file_template = '''
+<html>
+  <head>
+    <script src="viz.js"></script>
+    <script>
+      function draw(name, id) {
+        code = document.getElementById(id).innerHTML
+        document.body.innerHTML += "<h1>" + name + "</h1>";
+        document.body.innerHTML += Viz(code, 'svg');
+      }
+    </script>
+  </head>
+  <body>
+%s
+  </body>
+</html>'''
+
+script_template = '''    <script type="text/vnd.graphviz" id="%s">
+%s
+    </script>
+'''
+
+load_template = '''      draw('%s', '%s');'''
+
+load_outer_template = '''    <script>
+%s
+    </script>'''
+
+def generate_html(data):
+  scripts = []
+  loads = []
+  for i, (name, nfa, dfa) in enumerate(data):
+    if name == 'Normal': continue
+    (nfa_i, dfa_i) = ("nfa_%d" % i, "dfa_%d" % i)
+    scripts.append(script_template % (nfa_i, nfa.to_dot()))
+    scripts.append(script_template % (dfa_i, dfa.to_dot()))
+    loads.append(load_template % ("nfa [%s]" % name, nfa_i))
+    loads.append(load_template % ("dfa [%s]" % name, dfa_i))
+  body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
+  return file_template % body
+
 def process_rules(parser_state):
   rule_map = {}
   builder = NfaBuilder()
@@ -36,14 +77,15 @@ def process_rules(parser_state):
   for k, v in parser_state.rules.items():
     graphs = []
     for (rule_type, graph, identifier, action) in v:
-      graphs.append(NfaBuilder.add_action(graph, (action, identifier)))
+      # graphs.append(NfaBuilder.add_action(graph, (action, identifier)))
+      graphs.append(graph)
     rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))
+  html_data = []
   for rule_name, nfa in rule_map.items():
-    # print "Rule %s" % rule_name
     (start, dfa_nodes) = nfa.compute_dfa()
     dfa = Dfa(start, dfa_nodes)
-    # print nfa.to_dot()
-    # print dfa.to_dot()
+    html_data.append((rule_name, nfa, dfa))
+  print generate_html(html_data)
 
 def parse_file(file_name):
   parser_state = RuleParserState()
