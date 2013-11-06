@@ -77,6 +77,3 @@ class TransitionKeyTestCase(unittest.TestCase):
     graph = RegexParser.parse("[^:self_defined:]")
     key = TransitionKey.character_class(graph, classes)
     self.assertTrue(key.matches_char('A'))
-
-if __name__ == '__main__':
-    unittest.main()

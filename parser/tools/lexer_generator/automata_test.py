@@ -103,6 +103,3 @@ class AutomataTestCase(unittest.TestCase):
       verify_miss("lefta", [l])
       verify_hit("leftrightleftright", [l, r, l, r])
       verify_miss("leftrightleftrightx", [l, r, l, r])
-
-if __name__ == '__main__':
-   unittest.main()
