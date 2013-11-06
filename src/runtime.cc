@@ -1620,7 +1620,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
     Handle<Object> new_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
     if (!new_value->SameValue(*old_value)) {
-      JSObject::EnqueueChangeRecord(obj, "prototype",
+      JSObject::EnqueueChangeRecord(obj, "setPrototype",
                                     isolate->factory()->proto_string(),
                                     old_value);
     }

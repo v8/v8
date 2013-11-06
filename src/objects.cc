@@ -2157,7 +2157,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
       object->map()->is_observed() &&
       *name != isolate->heap()->hidden_string()) {
     Handle<Object> old_value = isolate->factory()->the_hole_value();
-    EnqueueChangeRecord(object, "new", name, old_value);
+    EnqueueChangeRecord(object, "add", name, old_value);
   }
 
   return value;
@@ -4105,14 +4105,14 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   if (is_observed) {
     if (lookup->IsTransition()) {
-      EnqueueChangeRecord(object, "new", name, old_value);
+      EnqueueChangeRecord(object, "add", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
         Handle<Object> new_value = Object::GetProperty(object, name);
         if (!new_value->SameValue(*old_value)) {
-          EnqueueChangeRecord(object, "updated", name, old_value);
+          EnqueueChangeRecord(object, "update", name, old_value);
         }
       }
     }
@@ -4222,9 +4222,9 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   if (is_observed) {
     if (lookup.IsTransition()) {
-      EnqueueChangeRecord(object, "new", name, old_value);
+      EnqueueChangeRecord(object, "add", name, old_value);
     } else if (old_value->IsTheHole()) {
-      EnqueueChangeRecord(object, "reconfigured", name, old_value);
+      EnqueueChangeRecord(object, "reconfigure", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
@@ -4235,9 +4235,9 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       }
       if (new_lookup.GetAttributes() != old_attributes) {
         if (!value_changed) old_value = isolate->factory()->the_hole_value();
-        EnqueueChangeRecord(object, "reconfigured", name, old_value);
+        EnqueueChangeRecord(object, "reconfigure", name, old_value);
       } else if (value_changed) {
-        EnqueueChangeRecord(object, "updated", name, old_value);
+        EnqueueChangeRecord(object, "update", name, old_value);
       }
     }
   }
@@ -5183,7 +5183,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   if (should_enqueue_change_record && !HasLocalElement(object, index)) {
     Handle<String> name = factory->Uint32ToString(index);
-    EnqueueChangeRecord(object, "deleted", name, old_value);
+    EnqueueChangeRecord(object, "delete", name, old_value);
   }
 
   return result;
@@ -5259,7 +5259,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   if (is_observed && !HasLocalProperty(object, name)) {
-    EnqueueChangeRecord(object, "deleted", name, old_value);
+    EnqueueChangeRecord(object, "delete", name, old_value);
   }
 
   return result;
@@ -6349,7 +6349,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   if (is_observed) {
-    const char* type = preexists ? "reconfigured" : "new";
+    const char* type = preexists ? "reconfigure" : "add";
     EnqueueChangeRecord(object, type, name, old_value);
   }
 }
@@ -11453,11 +11453,11 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 
   for (int i = 0; i < indices.length(); ++i) {
     JSObject::EnqueueChangeRecord(
-        self, "deleted", isolate->factory()->Uint32ToString(indices[i]),
+        self, "delete", isolate->factory()->Uint32ToString(indices[i]),
         old_values[i]);
   }
   JSObject::EnqueueChangeRecord(
-      self, "updated", isolate->factory()->length_string(),
+      self, "update", isolate->factory()->length_string(),
       old_length_handle);
 
   EndPerformSplice(self);
@@ -12603,26 +12603,26 @@ MaybeObject* JSObject::SetElement(uint32_t index,
       CHECK(new_length_handle->ToArrayIndex(&new_length));
 
       BeginPerformSplice(Handle<JSArray>::cast(self));
-      EnqueueChangeRecord(self, "new", name, old_value);
-      EnqueueChangeRecord(self, "updated", isolate->factory()->length_string(),
+      EnqueueChangeRecord(self, "add", name, old_value);
+      EnqueueChangeRecord(self, "update", isolate->factory()->length_string(),
                           old_length_handle);
       EndPerformSplice(Handle<JSArray>::cast(self));
       Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
       EnqueueSpliceRecord(Handle<JSArray>::cast(self), old_length, deleted,
                           new_length - old_length);
     } else {
-      EnqueueChangeRecord(self, "new", name, old_value);
+      EnqueueChangeRecord(self, "add", name, old_value);
     }
   } else if (old_value->IsTheHole()) {
-    EnqueueChangeRecord(self, "reconfigured", name, old_value);
+    EnqueueChangeRecord(self, "reconfigure", name, old_value);
   } else {
     Handle<Object> new_value = Object::GetElement(isolate, self, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
-      EnqueueChangeRecord(self, "reconfigured", name, old_value);
+      EnqueueChangeRecord(self, "reconfigure", name, old_value);
     } else if (value_changed) {
-      EnqueueChangeRecord(self, "updated", name, old_value);
+      EnqueueChangeRecord(self, "update", name, old_value);
     }
   }
 
