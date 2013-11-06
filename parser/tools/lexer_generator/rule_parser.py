@@ -184,12 +184,3 @@ class RuleParser:
     parser.__state = parser_state
     parser.parser.parse(data, lexer=parser.lexer.lexer)
     parser.__state = None
-    rule_map = {}
-    builder = NfaBuilder()
-    builder.set_character_classes(parser_state.character_classes)
-    for k, v in parser_state.rules.items():
-      graphs = []
-      for (rule_type, graph, identifier, action) in v:
-        graphs.append(graph)
-      rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))
-    return rule_map

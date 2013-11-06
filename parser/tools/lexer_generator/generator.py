@@ -25,20 +25,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from nfa import Nfa
+from nfa import Nfa, NfaBuilder
 from dfa import Dfa
 from rule_parser import RuleParser, RuleParserState
 
-def parse_file(file_name):
-  parser_state = RuleParserState()
-  with open(file_name, 'r') as f:
-    rule_map = RuleParser.parse(f.read(), parser_state)
+def process_rules(parser_state):
+  rule_map = {}
+  builder = NfaBuilder()
+  builder.set_character_classes(parser_state.character_classes)
+  for k, v in parser_state.rules.items():
+    graphs = []
+    for (rule_type, graph, identifier, action) in v:
+      graphs.append(graph)
+    rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))
   for rule_name, nfa in rule_map.items():
     # print "Rule %s" % rule_name
     (start, dfa_nodes) = nfa.compute_dfa()
     dfa = Dfa(start, dfa_nodes)
     # print nfa.to_dot()
     # print dfa.to_dot()
+
+def parse_file(file_name):
+  parser_state = RuleParserState()
+  with open(file_name, 'r') as f:
+    RuleParser.parse(f.read(), parser_state)
+  process_rules(parser_state)
 
 if __name__ == '__main__':
   parse_file('src/lexer/lexer_py.re')
