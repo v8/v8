@@ -1083,7 +1083,7 @@ class EnumSet {
     // The strange typing in ASSERT is necessary to avoid stupid warnings, see:
     // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43680
     ASSERT(static_cast<int>(element) < static_cast<int>(sizeof(T) * CHAR_BIT));
-    return 1 << element;
+    return static_cast<T>(1) << element;
   }
 
   T bits_;
