@@ -792,7 +792,7 @@ class Runtime : public AllStatic {
       PropertyAttributes attr,
       StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
+  static Handle<Object> ForceSetObjectProperty(
       Isolate* isolate,
       Handle<JSObject> object,
       Handle<Object> key,

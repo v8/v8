@@ -12545,6 +12545,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     Handle<Object> value,
                                     PropertyAttributes attr,
                                     StrictModeFlag strict_mode,
+                                    bool check_prototype,
                                     SetPropertyMode set_mode) {
   if (object->HasExternalArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
@@ -12557,7 +12558,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
   CALL_HEAP_FUNCTION(
       object->GetIsolate(),
-      object->SetElement(index, *value, attr, strict_mode, true, set_mode),
+      object->SetElement(index, *value, attr, strict_mode, check_prototype,
+                         set_mode),
       Object);
 }
 

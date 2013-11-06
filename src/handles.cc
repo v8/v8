@@ -178,12 +178,8 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
                                 Handle<Object> value,
                                 PropertyAttributes attributes) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(
-      isolate,
-      Runtime::ForceSetObjectProperty(
-          isolate, object, key, value, attributes),
-      Object);
+  return Runtime::ForceSetObjectProperty(object->GetIsolate(), object, key,
+                                        value, attributes);
 }
 
 

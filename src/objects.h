@@ -2376,6 +2376,7 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attr,
       StrictModeFlag strict_mode,
+      bool check_prototype = true,
       SetPropertyMode set_mode = SET_PROPERTY);
 
   // A Failure object is returned if GC is needed.

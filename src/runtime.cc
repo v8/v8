@@ -5031,12 +5031,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  LookupResult result(isolate);
-  js_object->LocalLookupRealNamedProperty(*name, &result);
+  LookupResult lookup(isolate);
+  js_object->LocalLookupRealNamedProperty(*name, &lookup);
 
   // Special case for callback properties.
-  if (result.IsPropertyCallbacks()) {
-    Object* callback = result.GetCallbackObject();
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetCallbackObject(), isolate);
     // To be compatible with Safari we do not change the value on API objects
     // in Object.defineProperty(). Firefox disagrees here, and actually changes
     // the value.
@@ -5047,13 +5047,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     // setter to update the value instead.
     // TODO(mstarzinger): So far this only works if property attributes don't
     // change, this should be fixed once we cleanup the underlying code.
-    if (callback->IsForeign() && result.GetAttributes() == attr) {
+    if (callback->IsForeign() && lookup.GetAttributes() == attr) {
       Handle<Object> result_object =
           JSObject::SetPropertyWithCallback(js_object,
-                                            handle(callback, isolate),
+                                            callback,
                                             name,
                                             obj_value,
-                                            handle(result.holder()),
+                                            handle(lookup.holder()),
                                             kStrictMode);
       RETURN_IF_EMPTY_HANDLE(isolate, result_object);
       return *result_object;
@@ -5066,8 +5066,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   // map. The current version of SetObjectProperty does not handle attributes
   // correctly in the case where a property is a field and is reset with
   // new attributes.
-  if (result.IsFound() &&
-      (attr != result.GetAttributes() || result.IsPropertyCallbacks())) {
+  if (lookup.IsFound() &&
+      (attr != lookup.GetAttributes() || lookup.IsPropertyCallbacks())) {
     // New attributes - normalize to avoid writing to instance descriptor
     if (js_object->IsJSGlobalProxy()) {
       // Since the result is a property, the prototype will exist so
@@ -5083,11 +5083,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     return *result;
   }
 
-  return Runtime::ForceSetObjectProperty(isolate,
-                                         js_object,
-                                         name,
-                                         obj_value,
-                                         attr);
+  Handle<Object> result = Runtime::ForceSetObjectProperty(isolate, js_object,
+                                                          name,
+                                                          obj_value,
+                                                          attr);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -5241,13 +5242,11 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
-                                             Handle<JSObject> js_object,
-                                             Handle<Object> key,
-                                             Handle<Object> value,
-                                             PropertyAttributes attr) {
-  HandleScope scope(isolate);
-
+Handle<Object> Runtime::ForceSetObjectProperty(Isolate* isolate,
+                                               Handle<JSObject> js_object,
+                                               Handle<Object> key,
+                                               Handle<Object> value,
+                                               PropertyAttributes attr) {
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
@@ -5259,24 +5258,24 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
     // string does nothing with the assignment then we can ignore such
     // assignments.
     if (js_object->IsStringObjectWithCharacterAt(index)) {
-      return *value;
+      return value;
     }
 
-    return js_object->SetElement(
-        index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, attr, kNonStrictMode,
+                                false,
+                                DEFINE_PROPERTY);
   }
 
   if (key->IsName()) {
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
-      return js_object->SetElement(
-          index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
+      return JSObject::SetElement(js_object, index, value, attr, kNonStrictMode,
+                                  false,
+                                  DEFINE_PROPERTY);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-          js_object, name, value, attr);
-      RETURN_IF_EMPTY_HANDLE(isolate, result);
-      return *result;
+      return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name,
+                                                        value, attr);
     }
   }
 
@@ -5284,17 +5283,16 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
   bool has_pending_exception = false;
   Handle<Object> converted =
       Execution::ToString(isolate, key, &has_pending_exception);
-  if (has_pending_exception) return Failure::Exception();
+  if (has_pending_exception) return Handle<Object>();  // exception
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(
-        index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, attr, kNonStrictMode,
+                                false,
+                                DEFINE_PROPERTY);
   } else {
-    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-        js_object, name, value, attr);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name, value,
+                                                      attr);
   }
 }
 
