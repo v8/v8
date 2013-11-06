@@ -9588,7 +9588,7 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
-    // Crate 3 entries per context {context, code, literals}.
+    // Create 3 entries per context {context, code, literals}.
     MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
     if (!maybe->To(&new_code_map)) return maybe;
     new_code_map->set(kEntriesStart + 0, native_context);
