@@ -37,7 +37,11 @@ file_template = '''
       function draw(name, id) {
         code = document.getElementById(id).innerHTML
         document.body.innerHTML += "<h1>" + name + "</h1>";
-        document.body.innerHTML += Viz(code, 'svg');
+        try {
+          document.body.innerHTML += Viz(code, 'svg');
+        } catch(e) {
+          document.body.innerHTML += "<h3>error</h3>";
+        }
       }
     </script>
   </head>
@@ -85,7 +89,8 @@ def process_rules(parser_state):
     (start, dfa_nodes) = nfa.compute_dfa()
     dfa = Dfa(start, dfa_nodes)
     html_data.append((rule_name, nfa, dfa))
-  print generate_html(html_data)
+  html = generate_html(html_data)
+  # print html
 
 def parse_file(file_name):
   parser_state = RuleParserState()
