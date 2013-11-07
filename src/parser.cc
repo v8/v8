@@ -3660,61 +3660,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   // Update the scope information before the pre-parsing bailout.
   int literal_index = current_function_state_->NextMaterializedLiteralIndex();
 
-  // Allocate a fixed array to hold all the object literals.
-  Handle<JSArray> array =
-      isolate()->factory()->NewJSArray(0, FAST_HOLEY_SMI_ELEMENTS);
-  isolate()->factory()->SetElementsCapacityAndLength(
-      array, values->length(), values->length());
-
-  // Fill in the literals.
-  Heap* heap = isolate()->heap();
-  bool is_simple = true;
-  int depth = 1;
-  bool is_holey = false;
-  for (int i = 0, n = values->length(); i < n; i++) {
-    MaterializedLiteral* m_literal = values->at(i)->AsMaterializedLiteral();
-    if (m_literal != NULL && m_literal->depth() + 1 > depth) {
-      depth = m_literal->depth() + 1;
-    }
-    Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
-    if (boilerplate_value->IsTheHole()) {
-      is_holey = true;
-    } else if (boilerplate_value->IsUninitialized()) {
-      is_simple = false;
-      JSObject::SetOwnElement(
-          array, i, handle(Smi::FromInt(0), isolate()), kNonStrictMode);
-    } else {
-      JSObject::SetOwnElement(array, i, boilerplate_value, kNonStrictMode);
-    }
-  }
-
-  Handle<FixedArrayBase> element_values(array->elements());
-
-  // Simple and shallow arrays can be lazily copied, we transform the
-  // elements array to a copy-on-write array.
-  if (is_simple && depth == 1 && values->length() > 0 &&
-      array->HasFastSmiOrObjectElements()) {
-    element_values->set_map(heap->fixed_cow_array_map());
-  }
-
-  // Remember both the literal's constant values as well as the ElementsKind
-  // in a 2-element FixedArray.
-  Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(2, TENURED);
-
-  ElementsKind kind = array->GetElementsKind();
-  kind = is_holey ? GetHoleyElementsKind(kind) : GetPackedElementsKind(kind);
-
-  literals->set(0, Smi::FromInt(kind));
-  literals->set(1, *element_values);
-
-  return factory()->NewArrayLiteral(
-      literals, values, literal_index, is_simple, depth, pos);
-}
-
-
-bool Parser::IsBoilerplateProperty(ObjectLiteral::Property* property) {
-  return property != NULL &&
-         property->kind() != ObjectLiteral::Property::PROTOTYPE;
+  return factory()->NewArrayLiteral(values, literal_index, pos);
 }
 
 
@@ -3758,89 +3704,6 @@ CompileTimeValue::LiteralType CompileTimeValue::GetLiteralType(
 
 Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
   return Handle<FixedArray>(FixedArray::cast(value->get(kElementsSlot)));
-}
-
-
-Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
-  if (expression->AsLiteral() != NULL) {
-    return expression->AsLiteral()->value();
-  }
-  if (CompileTimeValue::IsCompileTimeValue(expression)) {
-    return CompileTimeValue::GetValue(isolate(), expression);
-  }
-  return isolate()->factory()->uninitialized_value();
-}
-
-
-void Parser::BuildObjectLiteralConstantProperties(
-    ZoneList<ObjectLiteral::Property*>* properties,
-    Handle<FixedArray> constant_properties,
-    bool* is_simple,
-    bool* fast_elements,
-    int* depth,
-    bool* may_store_doubles) {
-  int position = 0;
-  // Accumulate the value in local variables and store it at the end.
-  bool is_simple_acc = true;
-  int depth_acc = 1;
-  uint32_t max_element_index = 0;
-  uint32_t elements = 0;
-  for (int i = 0; i < properties->length(); i++) {
-    ObjectLiteral::Property* property = properties->at(i);
-    if (!IsBoilerplateProperty(property)) {
-      is_simple_acc = false;
-      continue;
-    }
-    MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
-    if (m_literal != NULL && m_literal->depth() >= depth_acc) {
-      depth_acc = m_literal->depth() + 1;
-    }
-
-    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
-    // value for COMPUTED properties, the real value is filled in at
-    // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->value();
-    Handle<Object> value = GetBoilerplateValue(property->value());
-
-    // Ensure objects that may, at any point in time, contain fields with double
-    // representation are always treated as nested objects. This is true for
-    // computed fields (value is undefined), and smi and double literals
-    // (value->IsNumber()).
-    // TODO(verwaest): Remove once we can store them inline.
-    if (FLAG_track_double_fields &&
-        (value->IsNumber() || value->IsUninitialized())) {
-      *may_store_doubles = true;
-    }
-
-    is_simple_acc = is_simple_acc && !value->IsUninitialized();
-
-    // Keep track of the number of elements in the object literal and
-    // the largest element index.  If the largest element index is
-    // much larger than the number of elements, creating an object
-    // literal with fast elements will be a waste of space.
-    uint32_t element_index = 0;
-    if (key->IsString()
-        && Handle<String>::cast(key)->AsArrayIndex(&element_index)
-        && element_index > max_element_index) {
-      max_element_index = element_index;
-      elements++;
-    } else if (key->IsSmi()) {
-      int key_value = Smi::cast(*key)->value();
-      if (key_value > 0
-          && static_cast<uint32_t>(key_value) > max_element_index) {
-        max_element_index = key_value;
-      }
-      elements++;
-    }
-
-    // Add name, value pair to the fixed array.
-    constant_properties->set(position++, *key);
-    constant_properties->set(position++, *value);
-  }
-  *fast_elements =
-      (max_element_index <= 32) || ((2 * elements) >= max_element_index);
-  *is_simple = is_simple_acc;
-  *depth = depth_acc;
 }
 
 
@@ -3912,7 +3775,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           // Specification only allows zero parameters for get and one for set.
           ObjectLiteral::Property* property =
               factory()->NewObjectLiteralProperty(is_getter, value, next_pos);
-          if (IsBoilerplateProperty(property)) {
+          if (ObjectLiteral::IsBoilerplateProperty(property)) {
             number_of_boilerplate_properties++;
           }
           properties->Add(property, zone());
@@ -3984,7 +3847,9 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     }
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
-    if (IsBoilerplateProperty(property)) number_of_boilerplate_properties++;
+    if (ObjectLiteral::IsBoilerplateProperty(property)) {
+      number_of_boilerplate_properties++;
+    }
     properties->Add(property, zone());
 
     // TODO(1240767): Consider allowing trailing comma.
@@ -4000,26 +3865,9 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   // Computation of literal_index must happen before pre parse bailout.
   int literal_index = current_function_state_->NextMaterializedLiteralIndex();
 
-  Handle<FixedArray> constant_properties = isolate()->factory()->NewFixedArray(
-      number_of_boilerplate_properties * 2, TENURED);
-
-  bool is_simple = true;
-  bool fast_elements = true;
-  int depth = 1;
-  bool may_store_doubles = false;
-  BuildObjectLiteralConstantProperties(properties,
-                                       constant_properties,
-                                       &is_simple,
-                                       &fast_elements,
-                                       &depth,
-                                       &may_store_doubles);
-  return factory()->NewObjectLiteral(constant_properties,
-                                     properties,
+  return factory()->NewObjectLiteral(properties,
                                      literal_index,
-                                     is_simple,
-                                     fast_elements,
-                                     depth,
-                                     may_store_doubles,
+                                     number_of_boilerplate_properties,
                                      has_function,
                                      pos);
 }

@@ -256,6 +256,169 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
 }
 
 
+bool ObjectLiteral::IsBoilerplateProperty(ObjectLiteral::Property* property) {
+  return property != NULL &&
+         property->kind() != ObjectLiteral::Property::PROTOTYPE;
+}
+
+
+void ObjectLiteral::BuildConstantProperties(Isolate* isolate, int* depth) {
+  if (!constant_properties_.is_null()) return;
+
+  // Allocate a fixed array to hold all the constant properties.
+  Handle<FixedArray> constant_properties = isolate->factory()->NewFixedArray(
+      boilerplate_properties_ * 2, TENURED);
+
+  int position = 0;
+  // Accumulate the value in local variables and store it at the end.
+  bool is_simple = true;
+  int depth_acc = 1;
+  uint32_t max_element_index = 0;
+  uint32_t elements = 0;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    if (!IsBoilerplateProperty(property)) {
+      is_simple = false;
+      continue;
+    }
+    MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
+    if (m_literal != NULL) {
+      int inner_depth = 1;
+      m_literal->BuildConstants(isolate, &inner_depth);
+      if (inner_depth >= depth_acc) depth_acc = inner_depth + 1;
+    }
+
+    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
+    // value for COMPUTED properties, the real value is filled in at
+    // runtime. The enumeration order is maintained.
+    Handle<Object> key = property->key()->value();
+    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
+
+    // Ensure objects that may, at any point in time, contain fields with double
+    // representation are always treated as nested objects. This is true for
+    // computed fields (value is undefined), and smi and double literals
+    // (value->IsNumber()).
+    // TODO(verwaest): Remove once we can store them inline.
+    if (FLAG_track_double_fields &&
+        (value->IsNumber() || value->IsUninitialized())) {
+      may_store_doubles_ = true;
+    }
+
+    is_simple = is_simple && !value->IsUninitialized();
+
+    // Keep track of the number of elements in the object literal and
+    // the largest element index.  If the largest element index is
+    // much larger than the number of elements, creating an object
+    // literal with fast elements will be a waste of space.
+    uint32_t element_index = 0;
+    if (key->IsString()
+        && Handle<String>::cast(key)->AsArrayIndex(&element_index)
+        && element_index > max_element_index) {
+      max_element_index = element_index;
+      elements++;
+    } else if (key->IsSmi()) {
+      int key_value = Smi::cast(*key)->value();
+      if (key_value > 0
+          && static_cast<uint32_t>(key_value) > max_element_index) {
+        max_element_index = key_value;
+      }
+      elements++;
+    }
+
+    // Add name, value pair to the fixed array.
+    constant_properties->set(position++, *key);
+    constant_properties->set(position++, *value);
+  }
+
+  constant_properties_ = constant_properties;
+  fast_elements_ =
+      (max_element_index <= 32) || ((2 * elements) >= max_element_index);
+  set_is_simple(is_simple);
+  if (depth != NULL) *depth = depth_acc;
+}
+
+
+void ArrayLiteral::BuildConstantElements(Isolate* isolate, int* depth) {
+  if (!constant_elements_.is_null()) return;
+
+  // Allocate a fixed array to hold all the object literals.
+  Handle<JSArray> array =
+      isolate->factory()->NewJSArray(0, FAST_HOLEY_SMI_ELEMENTS);
+  isolate->factory()->SetElementsCapacityAndLength(
+      array, values()->length(), values()->length());
+
+  // Fill in the literals.
+  bool is_simple = true;
+  int depth_acc = 1;
+  bool is_holey = false;
+  for (int i = 0, n = values()->length(); i < n; i++) {
+    Expression* element = values()->at(i);
+    MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
+    if (m_literal != NULL) {
+      int inner_depth = 1;
+      m_literal->BuildConstants(isolate, &inner_depth);
+      if (inner_depth + 1 > depth_acc) depth_acc = inner_depth + 1;
+    }
+    Handle<Object> boilerplate_value = GetBoilerplateValue(element, isolate);
+    if (boilerplate_value->IsTheHole()) {
+      is_holey = true;
+    } else if (boilerplate_value->IsUninitialized()) {
+      is_simple = false;
+      JSObject::SetOwnElement(
+          array, i, handle(Smi::FromInt(0), isolate), kNonStrictMode);
+    } else {
+      JSObject::SetOwnElement(array, i, boilerplate_value, kNonStrictMode);
+    }
+  }
+
+  Handle<FixedArrayBase> element_values(array->elements());
+
+  // Simple and shallow arrays can be lazily copied, we transform the
+  // elements array to a copy-on-write array.
+  if (is_simple && depth_acc == 1 && values()->length() > 0 &&
+      array->HasFastSmiOrObjectElements()) {
+    element_values->set_map(isolate->heap()->fixed_cow_array_map());
+  }
+
+  // Remember both the literal's constant values as well as the ElementsKind
+  // in a 2-element FixedArray.
+  Handle<FixedArray> literals = isolate->factory()->NewFixedArray(2, TENURED);
+
+  ElementsKind kind = array->GetElementsKind();
+  kind = is_holey ? GetHoleyElementsKind(kind) : GetPackedElementsKind(kind);
+
+  literals->set(0, Smi::FromInt(kind));
+  literals->set(1, *element_values);
+
+  constant_elements_ = literals;
+  set_is_simple(is_simple);
+  if (depth != NULL) *depth = depth_acc;
+}
+
+
+Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
+                                                        Isolate* isolate) {
+  if (expression->AsLiteral() != NULL) {
+    return expression->AsLiteral()->value();
+  }
+  if (CompileTimeValue::IsCompileTimeValue(expression)) {
+    return CompileTimeValue::GetValue(isolate, expression);
+  }
+  return isolate->factory()->uninitialized_value();
+}
+
+
+void MaterializedLiteral::BuildConstants(Isolate* isolate, int* depth) {
+  if (IsArrayLiteral()) {
+    return AsArrayLiteral()->BuildConstantElements(isolate, depth);
+  }
+  if (IsObjectLiteral()) {
+    return AsObjectLiteral()->BuildConstantProperties(isolate, depth);
+  }
+  ASSERT(IsRegExpLiteral());
+}
+
+
 void TargetCollector::AddTarget(Label* target, Zone* zone) {
   // Add the label to the collector, but discard duplicates.
   int length = targets_.length();
