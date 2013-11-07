@@ -209,5 +209,5 @@ class RuleParser:
     except Exception:
       RuleParser.__static_instance = None
       raise
-    assert parser_state.transitions <= set(parser_state.rules.keys())
     parser.__state = None
+    assert parser_state.transitions <= set(parser_state.rules.keys())

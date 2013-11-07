@@ -210,6 +210,16 @@ class NfaBuilder:
       end.set_transition_action(graph[2])
     return result
 
+  def __continue(self, graph):
+    (start, ends) = self.__process(graph[1])
+    if not self.__start_node:
+      self.__start_node = self.__new_state()
+    end = self.__new_state()
+    self.__patch_ends(ends, end)
+    ends = [end]
+    end.add_epsilon_transition(self.__start_node)
+    return (start, ends)
+
   def __process(self, graph):
     assert type(graph) == TupleType
     method = "_NfaBuilder__" + graph[0].lower()
@@ -224,8 +234,12 @@ class NfaBuilder:
       end.close(new_end)
 
   def nfa(self, graph):
+    self.__start_node = None
     start_node_number = self.__node_number
     (start, ends) = self.__process(graph)
+    if self.__start_node:
+      self.__start_node.close(start)
+      start = self.__start_node
     end =  self.__new_state()
     self.__patch_ends(ends, end)
     end.close(None)
@@ -234,6 +248,10 @@ class NfaBuilder:
   @staticmethod
   def add_action(graph, action):
     return ('ACTION', graph, action)
+
+  @staticmethod
+  def add_continue(graph):
+    return ('CONTINUE', graph)
 
   @staticmethod
   def or_graphs(graphs):

@@ -103,3 +103,14 @@ class AutomataTestCase(unittest.TestCase):
       verify_miss("lefta", [l])
       verify_hit("leftrightleftright", [l, r, l, r])
       verify_miss("leftrightleftrightx", [l, r, l, r])
+
+    def test_continue(self):
+      graph = NfaBuilder.cat_graphs([
+        NfaBuilder.cat_graphs([
+          RegexParser.parse("ab"),
+          NfaBuilder.add_continue(RegexParser.parse("cd"))]),
+        RegexParser.parse("ef")])
+      nfa = NfaBuilder().nfa(graph)
+      self.assertFalse(nfa.matches(""))
+      self.assertTrue(nfa.matches("abcdef"))
+      self.assertTrue(nfa.matches("abcdabcdef"))
