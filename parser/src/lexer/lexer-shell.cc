@@ -135,13 +135,86 @@ class BaselineScanner {
 };
 
 
+struct TokenWithLocation {
+  Token::Value value;
+  size_t beg;
+  size_t end;
+  TokenWithLocation() : value(Token::ILLEGAL), beg(0), end(0) { }
+  TokenWithLocation(Token::Value value, size_t beg, size_t end) :
+      value(value), beg(beg), end(end) { }
+  bool operator==(const TokenWithLocation& other) {
+    return value == other.value && beg == other.beg && end == other.end;
+  }
+  bool operator!=(const TokenWithLocation& other) {
+    return !(*this == other);
+  }
+  void Print(const char* prefix) const {
+    printf("%s %11s at (%d, %d)\n",
+           prefix, Token::Name(value),
+           static_cast<int>(beg), static_cast<int>(end));
+  }
+};
+
+
+TimeDelta RunBaselineScanner(const char* fname,
+                             Isolate* isolate,
+                             Encoding encoding,
+                             bool dump_tokens,
+                             std::vector<TokenWithLocation>* tokens) {
+  ElapsedTimer timer;
+  BaselineScanner scanner(fname, isolate, encoding, &timer);
+  Token::Value token;
+  int beg, end;
+  do {
+    token = scanner.Next(&beg, &end);
+    if (dump_tokens) {
+      tokens->push_back(TokenWithLocation(token, beg, end));
+    }
+  } while (token != Token::EOS);
+  return timer.Elapsed();
+}
+
+
+TimeDelta RunExperimentalScanner(const char* fname,
+                                 Isolate* isolate,
+                                 Encoding encoding,
+                                 bool dump_tokens,
+                                 std::vector<TokenWithLocation>* tokens) {
+  ElapsedTimer timer;
+  timer.Start();
+  ExperimentalScanner scanner(fname, true, isolate);
+  Token::Value token;
+  do {
+    token = scanner.Next();
+    ExperimentalScanner::Location location = scanner.location();
+    if (dump_tokens) {
+      tokens->push_back(
+          TokenWithLocation(token, location.beg_pos, location.end_pos));
+    }
+  } while (token != Token::EOS);
+  return timer.Elapsed();
+}
+
+
+void PrintTokens(const char* name,
+                 const std::vector<TokenWithLocation>& tokens) {
+  printf("No of tokens: %d\n",
+         static_cast<int>(tokens.size()));
+  printf("%s:\n", name);
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    tokens[i].Print("=>");
+  }
+}
+
+
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = ASCII;
-  bool print_baseline = false;
+  bool print_tokens = false;
   bool run_baseline = true;
   bool run_experimental = true;
+  char* fname = argv[1];
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
       encoding = LATIN1;
@@ -151,12 +224,14 @@ int main(int argc, char* argv[]) {
       encoding = UTF16;
     } else if (strcmp(argv[i], "--ascii") == 0) {
       encoding = ASCII;
-    } else if (strcmp(argv[i], "--print-baseline") == 0) {
-      print_baseline = true;
+    } else if (strcmp(argv[i], "--print-tokens") == 0) {
+      print_tokens = true;
     } else if (strcmp(argv[i], "--no-baseline") == 0) {
       run_baseline = false;
     } else if (strcmp(argv[i], "--no-experimental") == 0) {
       run_experimental = false;
+    } else if (argv[i][0] != '-') {
+      fname = argv[i];
     }
   }
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -170,76 +245,44 @@ int main(int argc, char* argv[]) {
       Isolate* isolate = Isolate::Current();
       HandleScope handle_scope(isolate);
 
-      std::vector<Token::Value> baseline_tokens, experimental_tokens;
-      std::vector<size_t> baseline_beg, baseline_end, experimental_beg,
-          experimental_end;
-      Token::Value token;
-      int beg, end;
-
+      std::vector<TokenWithLocation> baseline_tokens, experimental_tokens;
       TimeDelta baseline_time, experimental_time;
-      ElapsedTimer timer;
       if (run_baseline) {
-        BaselineScanner baseline(argv[1], isolate, encoding, &timer);
-        do {
-          token = baseline.Next(&beg, &end);
-          baseline_tokens.push_back(token);
-          baseline_beg.push_back(beg);
-          baseline_end.push_back(end);
-        } while (token != Token::EOS);
-        baseline_time = timer.Elapsed();
+        baseline_time = RunBaselineScanner(
+            fname, isolate, encoding, print_tokens, &baseline_tokens);
       }
-
       if (run_experimental) {
-        ExperimentalScanner experimental(argv[1], true, isolate);
-        timer.Start();
-        do {
-          token = experimental.Next();
-          experimental_tokens.push_back(token);
-          ExperimentalScanner::Location location = experimental.location();
-          experimental_beg.push_back(location.beg_pos);
-          experimental_end.push_back(location.end_pos);
-        } while (token != Token::EOS);
-        experimental_time = timer.Elapsed();
+        experimental_time = RunExperimentalScanner(
+            fname, isolate, encoding, print_tokens, &experimental_tokens);
       }
-
-      if (print_baseline) {
-        printf("Baseline:\n");
-        for (size_t i = 0; i < baseline_tokens.size(); ++i) {
-          printf("=> %11s at (%d, %d)\n",
-                 Token::Name(baseline_tokens[i]),
-                 static_cast<int>(baseline_beg[i]),
-                 static_cast<int>(baseline_end[i]));
-        }
-        printf("(Mis)matches:\n");
+      if (print_tokens && !run_experimental) {
+        PrintTokens("Baseline", baseline_tokens);
       }
-
-      if (run_baseline && run_experimental) {
+      if (print_tokens && !run_baseline) {
+        PrintTokens("Experimental", experimental_tokens);
+      }
+      if (print_tokens && run_baseline && run_experimental) {
+        printf("No of tokens in Baseline:     %d\n",
+               static_cast<int>(baseline_tokens.size()));
+        printf("No of tokens in Experimental: %d\n",
+               static_cast<int>(experimental_tokens.size()));
+        printf("Baseline and Experimental:\n");
         for (size_t i = 0; i < experimental_tokens.size(); ++i) {
-          printf("=> %11s at (%d, %d)\n",
-                 Token::Name(experimental_tokens[i]),
-                 static_cast<int>(experimental_beg[i]),
-                 static_cast<int>(experimental_end[i]));
-          if (experimental_tokens[i] != baseline_tokens[i] ||
-              experimental_beg[i] != baseline_beg[i] ||
-              experimental_end[i] != baseline_end[i]) {
+          experimental_tokens[i].Print("=>");
+          if (experimental_tokens[i] != baseline_tokens[i]) {
             printf("MISMATCH:\n");
-            printf("Expected: %s at (%d, %d)\n",
-                   Token::Name(baseline_tokens[i]),
-                   static_cast<int>(baseline_beg[i]),
-                   static_cast<int>(baseline_end[i]));
-            printf("Actual:   %s at (%d, %d)\n",
-                   Token::Name(experimental_tokens[i]),
-                   static_cast<int>(experimental_beg[i]),
-                   static_cast<int>(experimental_end[i]));
+            baseline_tokens[i].Print("Expected: ");
+            experimental_tokens[i].Print("Actual:   ");
             return 1;
           }
         }
       }
-      printf("No of tokens: %d\n",
-             static_cast<int>(experimental_tokens.size()));
-      printf("Baseline: %f ms\nExperimental %f ms\n",
-             baseline_time.InMillisecondsF(),
-             experimental_time.InMillisecondsF());
+      if (run_baseline) {
+        printf("Baseline    : %.3f ms\n", baseline_time.InMillisecondsF());
+      }
+      if (run_experimental) {
+        printf("Experimental: %.3f ms\n", experimental_time.InMillisecondsF());
+      }
     }
   }
   v8::V8::Dispose();
