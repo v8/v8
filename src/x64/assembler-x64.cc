@@ -1366,6 +1366,15 @@ void Assembler::movb(const Operand& dst, Immediate imm) {
 }
 
 
+void Assembler::movw(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x8B);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::movw(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   emit(0x66);

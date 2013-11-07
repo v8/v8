@@ -1670,6 +1670,34 @@ Operand LCodeGen::BuildSeqStringOperand(Register string,
 }
 
 
+void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
+  Register result = ToRegister(instr->result());
+  Register string = ToRegister(instr->string());
+
+  if (FLAG_debug_code) {
+    __ push(string);
+    __ movq(string, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzxbq(string, FieldOperand(string, Map::kInstanceTypeOffset));
+
+    __ andb(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmpq(string, Immediate(encoding == String::ONE_BYTE_ENCODING
+                              ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(equal, kUnexpectedStringType);
+    __ pop(string);
+  }
+
+  Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ movzxbl(result, operand);
+  } else {
+    __ movzxwl(result, operand);
+  }
+}
+
+
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());

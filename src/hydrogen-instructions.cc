@@ -3991,6 +3991,26 @@ HInstruction* HShr::New(
 }
 
 
+HInstruction* HSeqStringGetChar::New(Zone* zone,
+                                     HValue* context,
+                                     String::Encoding encoding,
+                                     HValue* string,
+                                     HValue* index) {
+  if (FLAG_fold_constants && string->IsConstant() && index->IsConstant()) {
+    HConstant* c_string = HConstant::cast(string);
+    HConstant* c_index = HConstant::cast(index);
+    if (c_string->HasStringValue() && c_index->HasInteger32Value()) {
+      Handle<String> s = c_string->StringValue();
+      int32_t i = c_index->Integer32Value();
+      ASSERT_LE(0, i);
+      ASSERT_LT(i, s->length());
+      return H_CONSTANT_INT(s->Get(i));
+    }
+  }
+  return new(zone) HSeqStringGetChar(encoding, string, index);
+}
+
+
 #undef H_CONSTANT_INT
 #undef H_CONSTANT_DOUBLE
 
