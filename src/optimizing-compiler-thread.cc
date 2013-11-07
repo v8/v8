@@ -346,23 +346,23 @@ bool OptimizingCompilerThread::IsQueuedForOSR(JSFunction* function) {
 void OptimizingCompilerThread::AddToOsrBuffer(RecompileJob* job) {
   ASSERT(!IsOptimizerThread());
   // Find the next slot that is empty or has a stale job.
+  RecompileJob* stale = NULL;
   while (true) {
-    RecompileJob* stale = osr_buffer_[osr_buffer_cursor_];
+    stale = osr_buffer_[osr_buffer_cursor_];
     if (stale == NULL || stale->IsWaitingForInstall()) break;
     osr_buffer_cursor_ = (osr_buffer_cursor_ + 1) % osr_buffer_capacity_;
   }
 
   // Add to found slot and dispose the evicted job.
-  RecompileJob* evicted = osr_buffer_[osr_buffer_cursor_];
-  if (evicted != NULL) {
-    ASSERT(evicted->IsWaitingForInstall());
-    CompilationInfo* info = evicted->info();
+  if (stale != NULL) {
+    ASSERT(stale->IsWaitingForInstall());
+    CompilationInfo* info = stale->info();
     if (FLAG_trace_osr) {
       PrintF("[COSR - Discarded ");
       info->closure()->PrintName();
       PrintF(", AST id %d]\n", info->osr_ast_id().ToInt());
     }
-    DisposeRecompileJob(evicted, false);
+    DisposeRecompileJob(stale, false);
   }
   osr_buffer_[osr_buffer_cursor_] = job;
   osr_buffer_cursor_ = (osr_buffer_cursor_ + 1) % osr_buffer_capacity_;
