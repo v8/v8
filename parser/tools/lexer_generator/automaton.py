@@ -61,6 +61,7 @@ class Automaton(object):
       v = str(v).replace('\t', '\\\\t')
       v = str(v).replace('\n', '\\\\n')
       v = str(v).replace('\\', '\\\\')
+      v = str(v).replace('\"', '\\\"')
       return v
 
     def f(node, node_content):
