@@ -49,15 +49,20 @@ endmacro
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
-    var offset = ToPositiveInteger(byteOffset, "invalid_typed_array_length")
-
-    if (offset % ELEMENT_SIZE !== 0) {
-      throw MakeRangeError("invalid_typed_array_alignment",
-          "start offset", "NAME", ELEMENT_SIZE);
-    }
     var bufferByteLength = buffer.byteLength;
-    if (offset > bufferByteLength) {
-      throw MakeRangeError("invalid_typed_array_offset");
+    var offset;
+    if (IS_UNDEFINED(byteOffset)) {
+      offset = 0;
+    } else {
+      offset = ToPositiveInteger(byteOffset, "invalid_typed_array_length");
+
+      if (offset % ELEMENT_SIZE !== 0) {
+        throw MakeRangeError("invalid_typed_array_alignment",
+            "start offset", "NAME", ELEMENT_SIZE);
+      }
+      if (offset > bufferByteLength) {
+        throw MakeRangeError("invalid_typed_array_offset");
+      }
     }
 
     var newByteLength;
@@ -80,7 +85,8 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   }
 
   function NAMEConstructByLength(obj, length) {
-    var l = ToPositiveInteger(length, "invalid_typed_array_length");
+    var l = IS_UNDEFINED(length) ?
+      0 : ToPositiveInteger(length, "invalid_typed_array_length");
     var byteLength = l * ELEMENT_SIZE;
     var buffer = new $ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
@@ -301,7 +307,8 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
       throw MakeTypeError('data_view_not_array_buffer', []);
     }
     var bufferByteLength = %ArrayBufferGetByteLength(buffer);
-    var offset = ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
+    var offset = IS_UNDEFINED(byteOffset) ?
+      0 : ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
     if (offset > bufferByteLength) {
       throw MakeRangeError('invalid_data_view_offset');
     }
