@@ -4394,14 +4394,44 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     PrepareForBailoutForId(prop->LoadId(), TOS_REG);
   }
 
-  // Call ToNumber only if operand is not a smi.
-  Label no_conversion;
+  // Inline smi case if we are in a loop.
+  Label stub_call, done;
+  JumpPatchSite patch_site(masm_);
+
+  int count_value = expr->op() == Token::INC ? 1 : -1;
   if (ShouldInlineSmiCase(expr->op())) {
-    __ JumpIfSmi(r0, &no_conversion);
+    Label slow;
+    patch_site.EmitJumpIfNotSmi(r0, &slow);
+
+    // Save result for postfix expressions.
+    if (expr->is_postfix()) {
+      if (!context()->IsEffect()) {
+        // Save the result on the stack. If we have a named or keyed property
+        // we store the result under the receiver that is currently on top
+        // of the stack.
+        switch (assign_type) {
+          case VARIABLE:
+            __ push(r0);
+            break;
+          case NAMED_PROPERTY:
+            __ str(r0, MemOperand(sp, kPointerSize));
+            break;
+          case KEYED_PROPERTY:
+            __ str(r0, MemOperand(sp, 2 * kPointerSize));
+            break;
+        }
+      }
+    }
+
+    __ add(r0, r0, Operand(Smi::FromInt(count_value)), SetCC);
+    __ b(vc, &done);
+    // Call stub. Undo operation first.
+    __ sub(r0, r0, Operand(Smi::FromInt(count_value)));
+    __ jmp(&stub_call);
+    __ bind(&slow);
   }
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
-  __ bind(&no_conversion);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -4424,22 +4454,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
 
-  // Inline smi case if we are in a loop.
-  Label stub_call, done;
-  JumpPatchSite patch_site(masm_);
-
-  int count_value = expr->op() == Token::INC ? 1 : -1;
-  if (ShouldInlineSmiCase(expr->op())) {
-    __ add(r0, r0, Operand(Smi::FromInt(count_value)), SetCC);
-    __ b(vs, &stub_call);
-    // We could eliminate this smi check if we split the code at
-    // the first smi check before calling ToNumber.
-    patch_site.EmitJumpIfSmi(r0, &done);
-
-    __ bind(&stub_call);
-    // Call stub. Undo operation first.
-    __ sub(r0, r0, Operand(Smi::FromInt(count_value)));
-  }
+  __ bind(&stub_call);
   __ mov(r1, r0);
   __ mov(r0, Operand(Smi::FromInt(count_value)));
 

@@ -4377,14 +4377,47 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     PrepareForBailoutForId(prop->LoadId(), TOS_REG);
   }
 
-  // Call ToNumber only if operand is not a smi.
-  Label no_conversion;
+  // Inline smi case if we are in a loop.
+  Label done, stub_call;
+  JumpPatchSite patch_site(masm_);
   if (ShouldInlineSmiCase(expr->op())) {
-    __ JumpIfSmi(rax, &no_conversion, Label::kNear);
+    Label slow;
+    patch_site.EmitJumpIfNotSmi(rax, &slow, Label::kNear);
+
+    // Save result for postfix expressions.
+    if (expr->is_postfix()) {
+      if (!context()->IsEffect()) {
+        // Save the result on the stack. If we have a named or keyed property
+        // we store the result under the receiver that is currently on top
+        // of the stack.
+        switch (assign_type) {
+          case VARIABLE:
+            __ push(rax);
+            break;
+          case NAMED_PROPERTY:
+            __ movq(Operand(rsp, kPointerSize), rax);
+            break;
+          case KEYED_PROPERTY:
+            __ movq(Operand(rsp, 2 * kPointerSize), rax);
+            break;
+        }
+      }
+    }
+
+    SmiOperationExecutionMode mode;
+    mode.Add(PRESERVE_SOURCE_REGISTER);
+    mode.Add(BAILOUT_ON_NO_OVERFLOW);
+    if (expr->op() == Token::INC) {
+      __ SmiAddConstant(rax, rax, Smi::FromInt(1), mode, &done, Label::kNear);
+    } else {
+      __ SmiSubConstant(rax, rax, Smi::FromInt(1), mode, &done, Label::kNear);
+    }
+    __ jmp(&stub_call, Label::kNear);
+    __ bind(&slow);
   }
+
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
-  __ bind(&no_conversion);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -4406,34 +4439,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Inline smi case if we are in a loop.
-  Label done, stub_call;
-  JumpPatchSite patch_site(masm_);
-
-  if (ShouldInlineSmiCase(expr->op())) {
-    if (expr->op() == Token::INC) {
-      __ SmiAddConstant(rax, rax, Smi::FromInt(1));
-    } else {
-      __ SmiSubConstant(rax, rax, Smi::FromInt(1));
-    }
-    __ j(overflow, &stub_call, Label::kNear);
-    // We could eliminate this smi check if we split the code at
-    // the first smi check before calling ToNumber.
-    patch_site.EmitJumpIfSmi(rax, &done, Label::kNear);
-
-    __ bind(&stub_call);
-    // Call stub. Undo operation first.
-    if (expr->op() == Token::INC) {
-      __ SmiSubConstant(rax, rax, Smi::FromInt(1));
-    } else {
-      __ SmiAddConstant(rax, rax, Smi::FromInt(1));
-    }
-  }
-
   // Record position before stub call.
   SetSourcePosition(expr->position());
 
   // Call stub for +1/-1.
+  __ bind(&stub_call);
   __ movq(rdx, rax);
   __ Move(rax, Smi::FromInt(1));
   BinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);

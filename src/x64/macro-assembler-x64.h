@@ -53,6 +53,22 @@ typedef Operand MemOperand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
+enum SmiOperationConstraint {
+  PRESERVE_SOURCE_REGISTER,
+  BAILOUT_ON_NO_OVERFLOW,
+  BAILOUT_ON_OVERFLOW,
+  NUMBER_OF_CONSTRAINTS
+};
+
+STATIC_ASSERT(NUMBER_OF_CONSTRAINTS <= 8);
+
+class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
+ public:
+  SmiOperationExecutionMode() : EnumSet<SmiOperationConstraint, byte>(0) { }
+  explicit SmiOperationExecutionMode(byte bits)
+      : EnumSet<SmiOperationConstraint, byte>(bits) { }
+};
+
 bool AreAliased(Register r1, Register r2, Register r3, Register r4);
 
 // Forward declaration.
@@ -547,7 +563,8 @@ class MacroAssembler: public Assembler {
   void SmiAddConstant(Register dst,
                       Register src,
                       Smi* constant,
-                      Label* on_not_smi_result,
+                      SmiOperationExecutionMode mode,
+                      Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
@@ -560,7 +577,8 @@ class MacroAssembler: public Assembler {
   void SmiSubConstant(Register dst,
                       Register src,
                       Smi* constant,
-                      Label* on_not_smi_result,
+                      SmiOperationExecutionMode mode,
+                      Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Negating a smi can give a negative zero or too large positive value.

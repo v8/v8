@@ -35,51 +35,53 @@
 #include "serialize.h"
 #include "cctest.h"
 
-using v8::internal::Assembler;
-using v8::internal::CodeDesc;
-using v8::internal::Condition;
-using v8::internal::FUNCTION_CAST;
-using v8::internal::HandleScope;
-using v8::internal::Immediate;
-using v8::internal::Isolate;
-using v8::internal::Label;
-using v8::internal::MacroAssembler;
-using v8::internal::OS;
-using v8::internal::Operand;
-using v8::internal::RelocInfo;
-using v8::internal::Representation;
-using v8::internal::Smi;
-using v8::internal::SmiIndex;
-using v8::internal::byte;
-using v8::internal::carry;
-using v8::internal::greater;
-using v8::internal::greater_equal;
-using v8::internal::kIntSize;
-using v8::internal::kPointerSize;
-using v8::internal::kSmiTagMask;
-using v8::internal::kSmiValueSize;
-using v8::internal::less_equal;
-using v8::internal::negative;
-using v8::internal::not_carry;
-using v8::internal::not_equal;
-using v8::internal::not_zero;
-using v8::internal::positive;
-using v8::internal::r11;
-using v8::internal::r13;
-using v8::internal::r14;
-using v8::internal::r15;
-using v8::internal::r8;
-using v8::internal::r9;
-using v8::internal::rax;
-using v8::internal::rbp;
-using v8::internal::rbx;
-using v8::internal::rcx;
-using v8::internal::rdi;
-using v8::internal::rdx;
-using v8::internal::rsi;
-using v8::internal::rsp;
-using v8::internal::times_pointer_size;
-using v8::internal::Address;
+namespace i = v8::internal;
+using i::Address;
+using i::Assembler;
+using i::CodeDesc;
+using i::Condition;
+using i::FUNCTION_CAST;
+using i::HandleScope;
+using i::Immediate;
+using i::Isolate;
+using i::Label;
+using i::MacroAssembler;
+using i::OS;
+using i::Operand;
+using i::RelocInfo;
+using i::Representation;
+using i::Smi;
+using i::SmiIndex;
+using i::byte;
+using i::carry;
+using i::greater;
+using i::greater_equal;
+using i::kIntSize;
+using i::kPointerSize;
+using i::kSmiTagMask;
+using i::kSmiValueSize;
+using i::less_equal;
+using i::negative;
+using i::not_carry;
+using i::not_equal;
+using i::equal;
+using i::not_zero;
+using i::positive;
+using i::r11;
+using i::r13;
+using i::r14;
+using i::r15;
+using i::r8;
+using i::r9;
+using i::rax;
+using i::rbp;
+using i::rbx;
+using i::rcx;
+using i::rdi;
+using i::rdx;
+using i::rsi;
+using i::rsp;
+using i::times_pointer_size;
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -97,8 +99,8 @@ typedef int (*F0)();
 
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
-  __ push(v8::internal::kSmiConstantRegister);
-  __ push(v8::internal::kRootRegister);
+  __ push(i::kSmiConstantRegister);
+  __ push(i::kRootRegister);
   __ InitializeSmiConstantRegister();
   __ InitializeRootRegister();
 }
@@ -107,11 +109,11 @@ static void EntryCode(MacroAssembler* masm) {
 static void ExitCode(MacroAssembler* masm) {
   // Return -1 if kSmiConstantRegister was clobbered during the test.
   __ Move(rdx, Smi::FromInt(1));
-  __ cmpq(rdx, v8::internal::kSmiConstantRegister);
+  __ cmpq(rdx, i::kSmiConstantRegister);
   __ movq(rdx, Immediate(-1));
   __ cmovq(not_equal, rax, rdx);
-  __ pop(v8::internal::kRootRegister);
-  __ pop(v8::internal::kSmiConstantRegister);
+  __ pop(i::kRootRegister);
+  __ pop(i::kSmiConstantRegister);
 }
 
 
@@ -152,7 +154,7 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi* value) {
 
 // Test that we can move a Smi value literally into a register.
 TEST(SmiMove) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
@@ -240,7 +242,7 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 // Test that we can compare smis for equality (and more).
 TEST(SmiCompare) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -292,7 +294,7 @@ TEST(SmiCompare) {
 
 
 TEST(Integer32ToSmi) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
@@ -421,7 +423,7 @@ void TestI64PlusConstantToSmi(MacroAssembler* masm,
 
 
 TEST(Integer64PlusConstantToSmi) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
@@ -466,7 +468,7 @@ TEST(Integer64PlusConstantToSmi) {
 
 
 TEST(SmiCheck) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
@@ -714,7 +716,7 @@ void TestSmiNeg(MacroAssembler* masm, Label* exit, int id, int x) {
 
 
 TEST(SmiNeg) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -771,7 +773,7 @@ static void SmiAddTest(MacroAssembler* masm,
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiAdd(rcx, rcx, rdx, exit);                              \
+  __ SmiAdd(rcx, rcx, rdx, exit);
   __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 
@@ -790,13 +792,30 @@ static void SmiAddTest(MacroAssembler* masm,
   __ movl(rcx, Immediate(first));
   __ Integer32ToSmi(rcx, rcx);
 
+  i::SmiOperationExecutionMode mode;
+  mode.Add(i::PRESERVE_SOURCE_REGISTER);
+  mode.Add(i::BAILOUT_ON_OVERFLOW);
   __ incq(rax);
-  __ SmiAddConstant(r9, rcx, Smi::FromInt(second), exit);
+  __ SmiAddConstant(r9, rcx, Smi::FromInt(second), mode, exit);
   __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiAddConstant(rcx, rcx, Smi::FromInt(second), exit);
+  __ SmiAddConstant(rcx, rcx, Smi::FromInt(second), mode, exit);
+  __ cmpq(rcx, r8);
+  __ j(not_equal, exit);
+
+  __ movl(rcx, Immediate(first));
+  __ Integer32ToSmi(rcx, rcx);
+
+  mode.RemoveAll();
+  mode.Add(i::PRESERVE_SOURCE_REGISTER);
+  mode.Add(i::BAILOUT_ON_NO_OVERFLOW);
+  Label done;
+  __ incq(rax);
+  __ SmiAddConstant(rcx, rcx, Smi::FromInt(second), mode, &done);
+  __ jmp(exit);
+  __ bind(&done);
   __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 }
@@ -836,11 +855,14 @@ static void SmiAddOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
+  i::SmiOperationExecutionMode mode;
+  mode.Add(i::PRESERVE_SOURCE_REGISTER);
+  mode.Add(i::BAILOUT_ON_OVERFLOW);
   __ movq(rcx, r11);
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_min), &overflow_ok);
+    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_min), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
@@ -851,7 +873,7 @@ static void SmiAddOverflowTest(MacroAssembler* masm,
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_min), &overflow_ok);
+    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_min), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
@@ -887,7 +909,7 @@ static void SmiAddOverflowTest(MacroAssembler* masm,
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_max), &overflow_ok);
+    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_max), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
@@ -895,21 +917,23 @@ static void SmiAddOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
+  mode.RemoveAll();
+  mode.Add(i::BAILOUT_ON_OVERFLOW);
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_max), &overflow_ok);
+    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_max), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
     __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
+    __ j(equal, exit);
   }
 }
 
 
 TEST(SmiAdd) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -988,15 +1012,30 @@ static void SmiSubTest(MacroAssembler* masm,
   __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 
+  i::SmiOperationExecutionMode mode;
+  mode.Add(i::PRESERVE_SOURCE_REGISTER);
+  mode.Add(i::BAILOUT_ON_OVERFLOW);
   __ Move(rcx, Smi::FromInt(first));
-
   __ incq(rax);  // Test 4.
-  __ SmiSubConstant(r9, rcx, Smi::FromInt(second), exit);
+  __ SmiSubConstant(rcx, rcx, Smi::FromInt(second), mode, exit);
+  __ cmpq(rcx, r8);
+  __ j(not_equal, exit);
+
+  __ Move(rcx, Smi::FromInt(first));
+  __ incq(rax);  // Test 5.
+  __ SmiSubConstant(r9, rcx, Smi::FromInt(second), mode, exit);
   __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
-  __ incq(rax);  // Test 5.
-  __ SmiSubConstant(rcx, rcx, Smi::FromInt(second), exit);
+  mode.RemoveAll();
+  mode.Add(i::PRESERVE_SOURCE_REGISTER);
+  mode.Add(i::BAILOUT_ON_NO_OVERFLOW);
+  __ Move(rcx, Smi::FromInt(first));
+  Label done;
+  __ incq(rax);  // Test 6.
+  __ SmiSubConstant(rcx, rcx, Smi::FromInt(second), mode, &done);
+  __ jmp(exit);
+  __ bind(&done);
   __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 }
@@ -1036,11 +1075,15 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
+  i::SmiOperationExecutionMode mode;
+  mode.Add(i::PRESERVE_SOURCE_REGISTER);
+  mode.Add(i::BAILOUT_ON_OVERFLOW);
+
   __ movq(rcx, r11);
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiSubConstant(r9, rcx, Smi::FromInt(y_min), &overflow_ok);
+    __ SmiSubConstant(r9, rcx, Smi::FromInt(y_min), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
@@ -1051,7 +1094,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_min), &overflow_ok);
+    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_min), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
@@ -1087,7 +1130,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiSubConstant(r9, rcx, Smi::FromInt(y_max), &overflow_ok);
+    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_max), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
@@ -1095,21 +1138,24 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
+  mode.RemoveAll();
+  mode.Add(i::BAILOUT_ON_OVERFLOW);
+  __ movq(rcx, r11);
   {
     Label overflow_ok;
     __ incq(rax);
-    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_max), &overflow_ok);
+    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_max), mode, &overflow_ok);
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
     __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
+    __ j(equal, exit);
   }
 }
 
 
 TEST(SmiSub) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1201,7 +1247,7 @@ void TestSmiMul(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 
 TEST(SmiMul) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
@@ -1307,7 +1353,7 @@ void TestSmiDiv(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 
 TEST(SmiDiv) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1418,7 +1464,7 @@ void TestSmiMod(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 
 TEST(SmiMod) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1516,7 +1562,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 
 
 TEST(SmiIndex) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1586,7 +1632,7 @@ void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 
 TEST(SmiSelectNonSmi) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1666,7 +1712,7 @@ void TestSmiAnd(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 
 TEST(SmiAnd) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1748,7 +1794,7 @@ void TestSmiOr(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 
 TEST(SmiOr) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1832,7 +1878,7 @@ void TestSmiXor(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 
 TEST(SmiXor) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1900,7 +1946,7 @@ void TestSmiNot(MacroAssembler* masm, Label* exit, int id, int x) {
 
 
 TEST(SmiNot) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -1997,7 +2043,7 @@ void TestSmiShiftLeft(MacroAssembler* masm, Label* exit, int id, int x) {
 
 
 TEST(SmiShiftLeft) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -2104,7 +2150,7 @@ void TestSmiShiftLogicalRight(MacroAssembler* masm,
 
 
 TEST(SmiShiftLogicalRight) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -2174,7 +2220,7 @@ void TestSmiShiftArithmeticRight(MacroAssembler* masm,
 
 
 TEST(SmiShiftArithmeticRight) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -2239,7 +2285,7 @@ void TestPositiveSmiPowerUp(MacroAssembler* masm, Label* exit, int id, int x) {
 
 
 TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
@@ -2280,7 +2326,7 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
 
 
 TEST(OperandOffset) {
-  v8::internal::V8::Initialize(NULL);
+  i::V8::Initialize(NULL);
   int data[256];
   for (int i = 0; i < 256; i++) { data[i] = i * 0x01010101; }
 
