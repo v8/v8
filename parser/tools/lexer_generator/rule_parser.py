@@ -179,7 +179,7 @@ class RuleParser:
     'empty :'
 
   def p_error(self, p):
-    raise Exception("Syntax error in input '%s'" % p)
+    raise Exception("Syntax error in input '%s'" % str(p))
 
   def build(self, **kwargs):
     self.parser = yacc.yacc(module=self, debug=0, write_tables=0, **kwargs)
@@ -189,10 +189,15 @@ class RuleParser:
   __static_instance = None
   @staticmethod
   def parse(data, parser_state):
-    if not RuleParser.__static_instance:
-      RuleParser.__static_instance = RuleParser()
-      RuleParser.__static_instance.build()
     parser = RuleParser.__static_instance
+    if not parser:
+      parser = RuleParser()
+      parser.build()
+      RuleParser.__static_instance = parser
     parser.__state = parser_state
-    parser.parser.parse(data, lexer=parser.lexer.lexer)
+    try:
+      parser.parser.parse(data, lexer=parser.lexer.lexer)
+    except Exception as e:
+      RuleParser.__static_instance = None
+      raise e
     parser.__state = None

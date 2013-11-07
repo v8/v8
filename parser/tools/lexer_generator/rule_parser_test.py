@@ -40,12 +40,12 @@ class RuleParserTestCase(unittest.TestCase):
    def test_basic(self):
      self.parse('''
 alias = /regex/;
-<cond1> /regex/ :=> cond2
-<cond1> alias :=> cond2
+<cond1> /regex/ <<cond2>>
+<cond1> alias <<cond2>>
 <cond2> /regex/ {body}
 <cond2> alias {body}
-<cond3> /regex/ => cond4 {body}
-<cond3> alias => cond4 {body}''')
+<cond3> /regex/ {body} <<cond4>>
+<cond3> alias {body} <<cond4>>''')
 
      self.assertTrue(len(self.state.aliases), 1)
      self.assertTrue('alias' in self.state.aliases)

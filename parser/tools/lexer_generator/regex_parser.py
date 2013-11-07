@@ -135,7 +135,7 @@ class RegexParser:
     'empty :'
 
   def p_error(self, p):
-    raise Exception("Syntax error in input '%s'" % p)
+    raise Exception("Syntax error in input '%s'" % str(p))
 
   @staticmethod
   def __cat(left, right):
@@ -156,4 +156,8 @@ class RegexParser:
       parser = RegexParser()
       parser.build()
       RegexParser.__static_instance = parser
-    return parser.parser.parse(data, lexer=parser.lexer.lexer)
+    try:
+      return parser.parser.parse(data, lexer=parser.lexer.lexer)
+    except Exception as e:
+      RegexParser.__static_instance = None
+      raise e
