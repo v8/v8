@@ -56,24 +56,32 @@ class Automaton(object):
   @staticmethod
   def generate_dot(start_node, terminal_set, edge_iterator):
 
+    def escape(v):
+      v = str(v).replace('\r', '\\\\r')
+      v = str(v).replace('\t', '\\\\t')
+      v = str(v).replace('\n', '\\\\n')
+      v = str(v).replace('\\', '\\\\')
+      return v
+
     def f(node, node_content):
       for key, values in node.transitions().items():
         if key == TransitionKey.epsilon():
           key = "&epsilon;"
-        key = str(key).replace('\\', '\\\\')
         # TODO pass this action as parameter
         if type(values) == TupleType:
           values = [values]
         for (state, action) in values:
           if action:
-            node_content.append(
-                "  S_%s -> S_%s [ label = \"%s {%s} -> %s\" ];" %
-                (node.node_number(), state.node_number(), key, action[1],
-                 action[2]))
+            content = "  S_%s -> S_%s [ label = \"%s {%s} -> %s\" ];" % (
+                node.node_number(),
+                state.node_number(),
+                escape(key),
+                escape(action[1]),
+                escape(action[2]))
           else:
-            node_content.append(
-                "  S_%s -> S_%s [ label = \"%s\" ];" %
-                (node.node_number(), state.node_number(), key))
+            content = "  S_%s -> S_%s [ label = \"%s\" ];" % (
+                node.node_number(), state.node_number(), escape(key))
+          node_content.append(content)
       return node_content
 
     node_content = edge_iterator(f, [])

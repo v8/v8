@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import argparse
 from nfa import Nfa, NfaBuilder
 from dfa import Dfa
 from rule_parser import RuleParser, RuleParserState
@@ -88,14 +89,24 @@ def process_rules(parser_state):
     (start, dfa_nodes) = nfa.compute_dfa()
     dfa = Dfa(start, dfa_nodes)
     html_data.append((rule_name, nfa, dfa))
-  html = generate_html(html_data)
-  # print html
-
-def parse_file(file_name):
-  parser_state = RuleParserState()
-  with open(file_name, 'r') as f:
-    RuleParser.parse(f.read(), parser_state)
-  process_rules(parser_state)
+  return html_data
 
 if __name__ == '__main__':
-  parse_file('src/lexer/lexer_py.re')
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--html')
+  args = parser.parse_args()
+
+  re_file = 'src/lexer/lexer_py.re'
+
+  parser_state = RuleParserState()
+  with open(re_file, 'r') as f:
+    RuleParser.parse(f.read(), parser_state)
+  html_data = process_rules(parser_state)
+
+  html_file = args.html
+  if html_file:
+    html = generate_html(html_data)
+    with open(args.html, 'w') as f:
+      f.write(html)
+      print "wrote html to %s" % html_file
