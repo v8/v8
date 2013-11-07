@@ -2834,7 +2834,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Return result in single register (rax).
     __ movq(rcx, r14);  // argc.
     __ movq(rdx, r15);  // argv.
-    __ movq(r8, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(r8, ExternalReference::isolate_address(masm->isolate()));
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
@@ -2842,7 +2842,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Pass a pointer to the Arguments object as the second argument.
     __ movq(rdx, r14);  // argc.
     __ movq(r8, r15);   // argv.
-    __ movq(r9, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(r9, ExternalReference::isolate_address(masm->isolate()));
   }
 
 #else  // _WIN64
