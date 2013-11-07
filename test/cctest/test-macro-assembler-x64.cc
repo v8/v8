@@ -79,6 +79,7 @@ using v8::internal::rdx;
 using v8::internal::rsi;
 using v8::internal::rsp;
 using v8::internal::times_pointer_size;
+using v8::internal::Address;
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -402,7 +403,7 @@ void TestI64PlusConstantToSmi(MacroAssembler* masm,
   ASSERT(Smi::IsValid(result));
   __ movl(rax, Immediate(id));
   __ Move(r8, Smi::FromInt(static_cast<int>(result)));
-  __ movq(rcx, x, RelocInfo::NONE64);
+  __ movq(rcx, x);
   __ movq(r11, rcx);
   __ Integer64PlusConstantToSmi(rdx, rcx, y);
   __ cmpq(rdx, r8);
@@ -2322,7 +2323,7 @@ TEST(OperandOffset) {
   __ lea(r13, Operand(rbp, -3 * kPointerSize));
   __ lea(rbx, Operand(rbp, -5 * kPointerSize));
   __ movl(rcx, Immediate(2));
-  __ movq(r8, reinterpret_cast<uintptr_t>(&data[128]), RelocInfo::NONE64);
+  __ movq(r8, reinterpret_cast<Address>(&data[128]), RelocInfo::NONE64);
   __ movl(rax, Immediate(1));
 
   Operand sp0 = Operand(rsp, 0);

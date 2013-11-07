@@ -2293,7 +2293,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   Label already_round;
   __ bind(&conversion_failure);
   int64_t kTwoMantissaBits= V8_INT64_C(0x4330000000000000);
-  __ movq(rbx, kTwoMantissaBits, RelocInfo::NONE64);
+  __ movq(rbx, kTwoMantissaBits);
   __ movq(xmm1, rbx);
   __ ucomisd(xmm0, xmm1);
   __ j(above_equal, &already_round);
@@ -2314,7 +2314,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   // Subtract 1 if the argument was less than the tentative result.
   int64_t kOne = V8_INT64_C(0x3ff0000000000000);
-  __ movq(rbx, kOne, RelocInfo::NONE64);
+  __ movq(rbx, kOne);
   __ movq(xmm1, rbx);
   __ andpd(xmm1, xmm2);
   __ subsd(xmm0, xmm1);
@@ -2418,8 +2418,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   Label negative_sign;
   const int sign_mask_shift =
       (HeapNumber::kExponentOffset - HeapNumber::kValueOffset) * kBitsPerByte;
-  __ movq(rdi, static_cast<int64_t>(HeapNumber::kSignMask) << sign_mask_shift,
-          RelocInfo::NONE64);
+  __ Set(rdi, static_cast<int64_t>(HeapNumber::kSignMask) << sign_mask_shift);
   __ testq(rbx, rdi);
   __ j(not_zero, &negative_sign);
   __ ret(2 * kPointerSize);

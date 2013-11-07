@@ -315,9 +315,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     reset_value = Smi::kMaxValue;
   }
   __ movq(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
-  __ movq(kScratchRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(reset_value)),
-          RelocInfo::NONE64);
+  __ Move(kScratchRegister, Smi::FromInt(reset_value));
   __ movq(FieldOperand(rbx, Cell::kValueOffset), kScratchRegister);
 }
 

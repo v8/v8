@@ -721,10 +721,10 @@ class Assembler : public AssemblerBase {
 
   // Move sign extended immediate to memory location.
   void movq(const Operand& dst, Immediate value);
-  // Instructions to load a 64-bit immediate into a register.
-  // All 64-bit immediates must have a relocation mode.
+  // Loads a pointer into a register with a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
-  void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
+  // Loads a 64-bit immediate into a register.
+  void movq(Register dst, int64_t value);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
   void movsxbq(Register dst, const Operand& src);

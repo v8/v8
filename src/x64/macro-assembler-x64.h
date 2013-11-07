@@ -384,8 +384,7 @@ class MacroAssembler: public Assembler {
   void SafePush(Smi* src);
 
   void InitializeSmiConstantRegister() {
-    movq(kSmiConstantRegister,
-         reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
+    movq(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
          RelocInfo::NONE64);
   }
 

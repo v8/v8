@@ -1476,28 +1476,22 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
   // This method must not be used with heap object references. The stored
   // address is not GC safe. Use the handle version instead.
   ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
-  EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  emitp(value, rmode);
-}
-
-
-void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
-  // Non-relocatable values might not need a 64-bit representation.
-  ASSERT(RelocInfo::IsNone(rmode));
-  if (is_uint32(value)) {
-    movl(dst, Immediate(static_cast<int32_t>(value)));
-  } else if (is_int32(value)) {
-    movq(dst, Immediate(static_cast<int32_t>(value)));
+  if (RelocInfo::IsNone(rmode)) {
+    movq(dst, reinterpret_cast<int64_t>(value));
   } else {
-    // Value cannot be represented by 32 bits, so do a full 64 bit immediate
-    // value.
     EnsureSpace ensure_space(this);
     emit_rex_64(dst);
     emit(0xB8 | dst.low_bits());
-    emitq(value);
+    emitp(value, rmode);
   }
+}
+
+
+void Assembler::movq(Register dst, int64_t value) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst);
+  emit(0xB8 | dst.low_bits());
+  emitq(value);
 }
 
 
@@ -1535,21 +1529,13 @@ void Assembler::movl(const Operand& dst, Label* src) {
 
 void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   AllowDeferredHandleDereference using_raw_address;
-  // If there is no relocation info, emit the value of the handle efficiently
-  // (possibly using less that 8 bytes for the value).
-  if (RelocInfo::IsNone(mode)) {
-    // There is no possible reason to store a heap pointer without relocation
-    // info, so it must be a smi.
-    ASSERT(value->IsSmi());
-    movq(dst, reinterpret_cast<int64_t>(*value), RelocInfo::NONE64);
-  } else {
-    EnsureSpace ensure_space(this);
-    ASSERT(value->IsHeapObject());
-    ASSERT(!isolate()->heap()->InNewSpace(*value));
-    emit_rex_64(dst);
-    emit(0xB8 | dst.low_bits());
-    emitp(value.location(), mode);
-  }
+  ASSERT(!RelocInfo::IsNone(mode));
+  EnsureSpace ensure_space(this);
+  ASSERT(value->IsHeapObject());
+  ASSERT(!isolate()->heap()->InNewSpace(*value));
+  emit_rex_64(dst);
+  emit(0xB8 | dst.low_bits());
+  emitp(value.location(), mode);
 }
 
 

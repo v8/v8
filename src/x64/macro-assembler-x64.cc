@@ -164,7 +164,7 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   int64_t address = reinterpret_cast<int64_t>(source.address());
   if (is_int32(address) && !Serializer::enabled()) {
     if (emit_debug_code()) {
-      movq(kScratchRegister, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
+      movq(kScratchRegister, kZapValue, RelocInfo::NONE64);
     }
     push(Immediate(static_cast<int32_t>(address)));
     return;
@@ -289,7 +289,8 @@ void MacroAssembler::InNewSpace(Register object,
     ASSERT(is_int32(static_cast<int64_t>(isolate()->heap()->NewSpaceMask())));
     intptr_t new_space_start =
         reinterpret_cast<intptr_t>(isolate()->heap()->NewSpaceStart());
-    movq(kScratchRegister, -new_space_start, RelocInfo::NONE64);
+    movq(kScratchRegister, reinterpret_cast<Address>(-new_space_start),
+         RelocInfo::NONE64);
     if (scratch.is(object)) {
       addq(scratch, kScratchRegister);
     } else {
@@ -345,8 +346,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
-    movq(dst, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
+    movq(value, kZapValue, RelocInfo::NONE64);
+    movq(dst, kZapValue, RelocInfo::NONE64);
   }
 }
 
@@ -379,8 +380,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
-    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
+    movq(value, kZapValue, RelocInfo::NONE64);
+    movq(index, kZapValue, RelocInfo::NONE64);
   }
 }
 
@@ -445,8 +446,8 @@ void MacroAssembler::RecordWrite(Register object,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(address, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
-    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
+    movq(address, kZapValue, RelocInfo::NONE64);
+    movq(value, kZapValue, RelocInfo::NONE64);
   }
 }
 
@@ -534,10 +535,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
 #endif
 
   push(rax);
-  movq(kScratchRegister, p0, RelocInfo::NONE64);
+  movq(kScratchRegister, reinterpret_cast<Smi*>(p0), RelocInfo::NONE64);
   push(kScratchRegister);
-  movq(kScratchRegister,
-       reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(p1 - p0))),
+  movq(kScratchRegister, Smi::FromInt(static_cast<int>(p1 - p0)),
        RelocInfo::NONE64);
   push(kScratchRegister);
 
@@ -980,7 +980,7 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   } else if (is_int32(x)) {
     movq(dst, Immediate(static_cast<int32_t>(x)));
   } else {
-    movq(dst, x, RelocInfo::NONE64);
+    movq(dst, x);
   }
 }
 
@@ -1045,9 +1045,7 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   if (emit_debug_code()) {
-    movq(dst,
-         reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-         RelocInfo::NONE64);
+    movq(dst, Smi::FromInt(kSmiConstantRegisterValue), RelocInfo::NONE64);
     cmpq(dst, kSmiConstantRegister);
     if (allow_stub_calls()) {
       Assert(equal, kUninitializedKSmiConstantRegister);
@@ -1094,7 +1092,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
       UNREACHABLE();
       return;
     default:
-      movq(dst, reinterpret_cast<uint64_t>(source), RelocInfo::NONE64);
+      movq(dst, source, RelocInfo::NONE64);
       return;
   }
   if (negative) {
@@ -3120,9 +3118,7 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
                                        XMMRegister input_reg) {
   Label done;
   cvttsd2siq(result_reg, input_reg);
-  movq(kScratchRegister,
-      V8_INT64_C(0x8000000000000000),
-      RelocInfo::NONE64);
+  movq(kScratchRegister, V8_INT64_C(0x8000000000000000));
   cmpq(result_reg, kScratchRegister);
   j(not_equal, &done, Label::kNear);
 
@@ -3272,7 +3268,7 @@ void MacroAssembler::AssertSmi(const Operand& object) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (emit_debug_code()) {
     ASSERT(!int32_register.is(kScratchRegister));
-    movq(kScratchRegister, 0x100000000l, RelocInfo::NONE64);
+    movq(kScratchRegister, V8_INT64_C(0x0000000100000000));
     cmpq(kScratchRegister, int32_register);
     Check(above_equal, k32BitValueInRegisterIsNotZeroExtended);
   }
