@@ -333,14 +333,24 @@ class Nfa:
       f = lambda acc, state: acc | state.key_matches(key)
       transitions = reduce(f, nfa_state_set, set())
       match_states = set()
-      actions = set()
+      actions = []
       for (state, action) in transitions:
         match_states.add(state)
         if action:
-          actions.add(action)
+          actions.append(action)
+
+        # Pull in actions which can be taken with an epsilon transition from the
+        # match state.
+        e = TransitionKey.epsilon()
+        if e in state.transitions():
+          for e_trans in state.transitions()[e]:
+            if e_trans[1]:
+              actions.append(e_trans[1])
+
       assert len(match_states) == len(transitions)
-      assert not actions or len(actions) == 1
-      action = iter(actions).next() if actions else None
+
+      actions.sort()
+      action = actions[0] if actions else None
       transition_state = Nfa.__to_dfa(match_states, dfa_nodes, end_node)
       dfa_nodes[name]['transitions'][key] = (transition_state, action)
     return name

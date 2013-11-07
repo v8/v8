@@ -47,6 +47,7 @@ class RuleParserState:
 class RuleParser:
 
   tokens = RuleLexer.tokens
+  __rule_precedence_counter = 0
 
   def __init__(self):
     self.__state = None
@@ -95,7 +96,8 @@ class RuleParser:
                        | composite_regex_or_default empty action
                        | composite_regex_or_default code empty'''
     rules = self.__state.rules[self.__state.current_state]
-    rule = (p[1], p[2], p[3])
+    rule = (p[1], RuleParser.__rule_precedence_counter, p[2], p[3])
+    RuleParser.__rule_precedence_counter += 1
     if p[1] == 'default':
       assert not rules['default']
       rules['default'] = rule

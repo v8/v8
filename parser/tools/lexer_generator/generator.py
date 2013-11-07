@@ -80,9 +80,8 @@ def process_rules(parser_state):
   builder.set_character_classes(parser_state.character_classes)
   for k, v in parser_state.rules.items():
     graphs = []
-    for (graph, code, action) in v['regex']:
-      # graphs.append(NfaBuilder.add_action(graph, (action, identifier)))
-      graphs.append(graph)
+    for (graph, code, action, precedence) in v['regex']:
+      graphs.append(NfaBuilder.add_action(graph, (code, action, precedence)))
     rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))
   html_data = []
   for rule_name, nfa in rule_map.items():
