@@ -270,8 +270,6 @@ bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
 
 bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                 Handle<String> name) {
-  DisallowHeapAllocation no_gc;
-
   if (target()->is_call_stub()) {
     LookupResult lookup(isolate());
     LookupForRead(receiver, name, &lookup);
@@ -961,32 +959,30 @@ bool IC::UpdatePolymorphicIC(Handle<HeapObject> receiver,
   int number_of_valid_maps;
   int handler_to_overwrite = -1;
   Handle<Map> new_receiver_map(receiver->map());
-  {
-    DisallowHeapAllocation no_gc;
-    target()->FindAllMaps(&receiver_maps);
-    int number_of_maps = receiver_maps.length();
-    number_of_valid_maps = number_of_maps;
 
-    for (int i = 0; i < number_of_maps; i++) {
-      Handle<Map> map = receiver_maps.at(i);
-      // Filter out deprecated maps to ensure its instances get migrated.
-      if (map->is_deprecated()) {
-        number_of_valid_maps--;
-      // If the receiver map is already in the polymorphic IC, this indicates
-      // there was a prototoype chain failure. In that case, just overwrite the
-      // handler.
-      } else if (map.is_identical_to(new_receiver_map)) {
-        number_of_valid_maps--;
-        handler_to_overwrite = i;
-      }
+  target()->FindAllMaps(&receiver_maps);
+  int number_of_maps = receiver_maps.length();
+  number_of_valid_maps = number_of_maps;
+
+  for (int i = 0; i < number_of_maps; i++) {
+    Handle<Map> map = receiver_maps.at(i);
+    // Filter out deprecated maps to ensure its instances get migrated.
+    if (map->is_deprecated()) {
+      number_of_valid_maps--;
+    // If the receiver map is already in the polymorphic IC, this indicates
+    // there was a prototoype chain failure. In that case, just overwrite the
+    // handler.
+    } else if (map.is_identical_to(new_receiver_map)) {
+      number_of_valid_maps--;
+      handler_to_overwrite = i;
     }
+  }
 
-    if (number_of_valid_maps >= 4) return false;
-    if (number_of_maps == 0) return false;
+  if (number_of_valid_maps >= 4) return false;
+  if (number_of_maps == 0) return false;
 
-    if (!target()->FindHandlers(&handlers, receiver_maps.length())) {
-      return false;
-    }
+  if (!target()->FindHandlers(&handlers, receiver_maps.length())) {
+    return false;
   }
 
   number_of_valid_maps++;
@@ -1017,11 +1013,8 @@ void IC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
 void IC::CopyICToMegamorphicCache(Handle<String> name) {
   MapHandleList receiver_maps;
   CodeHandleList handlers;
-  {
-    DisallowHeapAllocation no_gc;
-    target()->FindAllMaps(&receiver_maps);
-    if (!target()->FindHandlers(&handlers, receiver_maps.length())) return;
-  }
+  target()->FindAllMaps(&receiver_maps);
+  if (!target()->FindHandlers(&handlers, receiver_maps.length())) return;
   for (int i = 0; i < receiver_maps.length(); i++) {
     UpdateMegamorphicCache(*receiver_maps.at(i), *name, *handlers.at(i));
   }
@@ -1029,8 +1022,6 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 
 
 bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
-  DisallowHeapAllocation no_allocation;
-
   Map* current_map = target()->FindFirstMap();
   ElementsKind receiver_elements_kind = receiver_map->elements_kind();
   bool more_general_transition =
@@ -1061,42 +1052,25 @@ void IC::PatchCache(Handle<HeapObject> receiver,
              !target().is_identical_to(code));
       if (!target()->is_keyed_stub()) {
         bool is_same_handler = false;
-        {
-          DisallowHeapAllocation no_allocation;
-          Code* old_handler = target()->FindFirstHandler();
-          is_same_handler = old_handler == *code;
-        }
-        if (is_same_handler
-            && IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
+        Code* old_handler = target()->FindFirstHandler();
+        is_same_handler = old_handler == *code;
+
+        if (is_same_handler &&
+            IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
           UpdateMonomorphicIC(receiver, code, name);
           break;
         }
-        if (UpdatePolymorphicIC(receiver, name, code)) {
-          break;
-        }
-
+      }
+      // Fall through.
+    case POLYMORPHIC:
+      if (!target()->is_keyed_stub()) {
+        if (UpdatePolymorphicIC(receiver, name, code)) break;
         CopyICToMegamorphicCache(name);
       }
-
-      UpdateMegamorphicCache(receiver->map(), *name, *code);
       set_target(*megamorphic_stub());
-      break;
+      // Fall through.
     case MEGAMORPHIC:
       UpdateMegamorphicCache(receiver->map(), *name, *code);
-      break;
-    case POLYMORPHIC:
-      if (target()->is_keyed_stub()) {
-        // When trying to patch a polymorphic keyed stub with anything other
-        // than another polymorphic stub, go generic.
-        set_target(*generic_stub());
-      } else {
-        if (UpdatePolymorphicIC(receiver, name, code)) {
-          break;
-        }
-        CopyICToMegamorphicCache(name);
-        UpdateMegamorphicCache(receiver->map(), *name, *code);
-        set_target(*megamorphic_stub());
-      }
       break;
     case DEBUG_STUB:
       break;
