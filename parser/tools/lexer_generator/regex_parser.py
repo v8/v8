@@ -158,6 +158,6 @@ class RegexParser:
       RegexParser.__static_instance = parser
     try:
       return parser.parser.parse(data, lexer=parser.lexer.lexer)
-    except Exception as e:
+    except Exception:
       RegexParser.__static_instance = None
-      raise e
+      raise

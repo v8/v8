@@ -44,8 +44,8 @@ alias = /regex/;
 <cond1> alias <<cond2>>
 <cond2> /regex/ {body}
 <cond2> alias {body}
-<cond3> /regex/ {body} <<cond4>>
-<cond3> alias {body} <<cond4>>''')
+<cond3> /regex/ {body} <<cond1>>
+<cond3> alias {body} <<cond1>>''')
 
      self.assertTrue(len(self.state.aliases), 1)
      self.assertTrue('alias' in self.state.aliases)

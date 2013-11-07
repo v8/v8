@@ -39,8 +39,8 @@ def process_rules(parser_state):
   builder = NfaBuilder()
   for k, v in parser_state.rules.items():
     graphs = []
-    for (graph, precedence, code, condition) in v['regex']:
-      graphs.append(NfaBuilder.add_action(graph, (precedence, code, condition)))
+    for (graph, action) in v['regex']:
+      graphs.append(NfaBuilder.add_action(graph, action))
     nfa = builder.nfa(NfaBuilder.or_graphs(graphs))
     dfa = dfa_from_nfa(nfa)
     rule_map[k] = (nfa, dfa)

@@ -79,13 +79,16 @@ def process_rules(parser_state):
   rule_map = {}
   builder = NfaBuilder()
   builder.set_character_classes(parser_state.character_classes)
+  assert 'default' in parser_state.rules
   for k, v in parser_state.rules.items():
+    assert 'default' in v
     graphs = []
-    for (graph, precedence, code, action) in v['regex']:
-      graphs.append(NfaBuilder.add_action(graph, (precedence, code, action)))
-    rule_map[k] = builder.nfa(NfaBuilder.or_graphs(graphs))
+    for (graph, action) in v['regex']:
+      graphs.append(NfaBuilder.add_action(graph, action))
+    rule_map[k] = NfaBuilder.or_graphs(graphs)
   html_data = []
-  for rule_name, nfa in rule_map.items():
+  for rule_name, graph in rule_map.items():
+    nfa = builder.nfa(graph)
     (start, dfa_nodes) = nfa.compute_dfa()
     dfa = Dfa(start, dfa_nodes)
     html_data.append((rule_name, nfa, dfa))
