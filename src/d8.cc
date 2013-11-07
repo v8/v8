@@ -1585,6 +1585,7 @@ static void SetStandaloneFlagsViaCommandLine() {
   char **fake_argv = new char*[2];
   fake_argv[0] = NULL;
   fake_argv[1] = strdup("--trace-hydrogen-file=hydrogen.cfg");
+  fake_argv[2] = strdup("--redirect-code-traces-to=code.asm");
   v8::V8::SetFlagsFromCommandLine(&fake_argc, fake_argv, false);
   free(fake_argv[1]);
   delete[] fake_argv;
@@ -1674,6 +1675,7 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
 #ifndef V8_SHARED
   i::FLAG_trace_hydrogen_file = "hydrogen.cfg";
+  i::FLAG_redirect_code_traces_to = "code.asm";
 #else
   SetStandaloneFlagsViaCommandLine();
 #endif

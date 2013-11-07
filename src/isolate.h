@@ -55,6 +55,7 @@ class Bootstrapper;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
+class CodeTracer;
 class CompilationCache;
 class ContextSlotCache;
 class ContextSwitcher;
@@ -377,6 +378,7 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(bool, observer_delivery_pending, false)                                    \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
+  V(CodeTracer*, code_tracer, NULL)                                            \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {
@@ -1126,6 +1128,7 @@ class Isolate {
 
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
+  CodeTracer* GetCodeTracer();
 
   FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
   void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
@@ -1507,6 +1510,73 @@ inline void Context::mark_out_of_memory() {
   native_context()->set_out_of_memory(GetIsolate()->heap()->true_value());
 }
 
+class CodeTracer V8_FINAL : public Malloced {
+ public:
+  explicit CodeTracer(int isolate_id)
+      : file_(NULL),
+        scope_depth_(0) {
+    if (!ShouldRedirect()) {
+      file_ = stdout;
+      return;
+    }
+
+    if (FLAG_redirect_code_traces_to == NULL) {
+      OS::SNPrintF(filename_,
+                   "code-%d-%d.asm",
+                   OS::GetCurrentProcessId(),
+                   isolate_id);
+    } else {
+      OS::StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
+    }
+
+    WriteChars(filename_.start(), "", 0, false);
+  }
+
+  class Scope {
+   public:
+    explicit Scope(CodeTracer* tracer) : tracer_(tracer) { tracer->OpenFile(); }
+    ~Scope() { tracer_->CloseFile();  }
+
+    FILE* file() const { return tracer_->file(); }
+
+   private:
+    CodeTracer* tracer_;
+  };
+
+  void OpenFile() {
+    if (!ShouldRedirect()) {
+      return;
+    }
+
+    if (file_ == NULL) {
+      file_ = OS::FOpen(filename_.start(), "a");
+    }
+
+    scope_depth_++;
+  }
+
+  void CloseFile() {
+    if (!ShouldRedirect()) {
+      return;
+    }
+
+    if (--scope_depth_ == 0) {
+      fclose(file_);
+      file_ = NULL;
+    }
+  }
+
+  FILE* file() const { return file_; }
+
+ private:
+  static bool ShouldRedirect() {
+    return FLAG_redirect_code_traces;
+  }
+
+  EmbeddedVector<char, 128> filename_;
+  FILE* file_;
+  int scope_depth_;
+};
 
 } }  // namespace v8::internal
 

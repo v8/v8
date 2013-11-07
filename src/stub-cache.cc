@@ -1096,7 +1096,10 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
   masm_.GetCode(&desc);
   Handle<Code> code = factory()->NewCode(desc, flags, masm_.CodeObject());
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code_stubs) code->Disassemble(name);
+  if (FLAG_print_code_stubs) {
+    CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
+    code->Disassemble(name, trace_scope.file());
+  }
 #endif
   return code;
 }

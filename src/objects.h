@@ -5376,7 +5376,7 @@ class Code: public HeapObject {
     return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
   }
 
-  void PrintDeoptLocation(int bailout_id);
+  void PrintDeoptLocation(FILE* out, int bailout_id);
   bool CanDeoptAt(Address pc);
 
 #ifdef VERIFY_HEAP

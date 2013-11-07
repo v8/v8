@@ -160,8 +160,9 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
 
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
-      new_object->Disassemble(*GetName());
-      PrintF("\n");
+      CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+      new_object->Disassemble(*GetName(), trace_scope.file());
+      PrintF(trace_scope.file(), "\n");
     }
 #endif
 

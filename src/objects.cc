@@ -10831,7 +10831,7 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 }
 
 
-void Code::PrintDeoptLocation(int bailout_id) {
+void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
   const char* last_comment = NULL;
   int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
       | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
@@ -10845,7 +10845,7 @@ void Code::PrintDeoptLocation(int bailout_id) {
           (bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-        PrintF("            %s\n", last_comment);
+        PrintF(out, "            %s\n", last_comment);
         return;
       }
     }
@@ -11047,10 +11047,10 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
          this->DeoptPoints());
   if (this->DeoptPoints() == 0) return;
 
-  PrintF("%6s  %8s  %s\n", "ast id", "pc", "state");
+  PrintF(out, "%6s  %8s  %s\n", "ast id", "pc", "state");
   for (int i = 0; i < this->DeoptPoints(); i++) {
     int pc_and_state = this->PcAndState(i)->value();
-    PrintF("%6d  %8d  %s\n",
+    PrintF(out, "%6d  %8d  %s\n",
            this->AstId(i).ToInt(),
            FullCodeGenerator::PcField::decode(pc_and_state),
            FullCodeGenerator::State2String(
@@ -11161,7 +11161,7 @@ void Code::Disassemble(const char* name, FILE* out) {
         DeoptimizationInputData::cast(this->deoptimization_data());
     data->DeoptimizationInputDataPrint(out);
   }
-  PrintF("\n");
+  PrintF(out, "\n");
 
   if (is_crankshafted()) {
     SafepointTable table(this);
@@ -11169,7 +11169,7 @@ void Code::Disassemble(const char* name, FILE* out) {
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
       PrintF(out, "%p  %4d  ", (instruction_start() + pc_offset), pc_offset);
-      table.PrintEntry(i);
+      table.PrintEntry(i, out);
       PrintF(out, " (sp -> fp)");
       SafepointEntry entry = table.GetEntry(i);
       if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
@@ -11210,7 +11210,7 @@ void Code::Disassemble(const char* name, FILE* out) {
 #endif
   }
 
-  PrintF("RelocInfo (size = %d)\n", relocation_size());
+  PrintF(out, "RelocInfo (size = %d)\n", relocation_size());
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Print(GetIsolate(), out);
   }

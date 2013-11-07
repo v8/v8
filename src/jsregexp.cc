@@ -1150,7 +1150,9 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   work_list_ = NULL;
 #ifdef DEBUG
   if (FLAG_print_code) {
-    Handle<Code>::cast(code)->Disassemble(*pattern->ToCString());
+    CodeTracer::Scope trace_scope(heap->isolate()->GetCodeTracer());
+    Handle<Code>::cast(code)->Disassemble(*pattern->ToCString(),
+                                          trace_scope.file());
   }
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;
