@@ -121,8 +121,8 @@ class Dfa:
         if action:
           node_content.append(
               "  S_%s -> S_%s [ label = \"%s {%s} -> %s\" ];" %
-              (node.node_number(), state.node_number(), key, action[0],
-               action[1]))
+              (node.node_number(), state.node_number(), key, action[1],
+               action[2]))
         else:
           node_content.append(
               "  S_%s -> S_%s [ label = \"%s\" ];" %

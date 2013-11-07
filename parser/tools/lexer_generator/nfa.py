@@ -372,8 +372,8 @@ class Nfa:
           if value[1]:
             node_content.append(
                 "  S_%d -> S_%d [ label = \"%s {%s} -> %s\" ];" %
-                (node.node_number(), value[0].node_number(), key, value[1][0],
-                 value[1][1]))
+                (node.node_number(), value[0].node_number(), key, value[1][1],
+                 value[1][2]))
           else:
             node_content.append(
                 "  S_%d -> S_%d [ label = \"%s\" ];" %
