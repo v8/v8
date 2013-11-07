@@ -649,7 +649,27 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     return;
   }
 
-  ASSERT(FLAG_deopt_every_n_times == 0);  // Not yet implemented on x64.
+  if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
+    Label no_deopt;
+    __ pushfq();
+    __ push(rax);
+    Operand count_operand = masm()->ExternalOperand(count, kScratchRegister);
+    __ movl(rax, count_operand);
+    __ subl(rax, Immediate(1));
+    __ j(not_zero, &no_deopt, Label::kNear);
+    if (FLAG_trap_on_deopt) __ int3();
+    __ movl(rax, Immediate(FLAG_deopt_every_n_times));
+    __ movl(count_operand, rax);
+    __ pop(rax);
+    __ popfq();
+    ASSERT(frame_is_built_);
+    __ call(entry, RelocInfo::RUNTIME_ENTRY);
+    __ bind(&no_deopt);
+    __ movl(count_operand, rax);
+    __ pop(rax);
+    __ popfq();
+  }
 
   if (info()->ShouldTrapOnDeopt()) {
     Label done;
