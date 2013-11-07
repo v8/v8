@@ -156,7 +156,6 @@ class LCodeGen;
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
-  V(SeqStringGetChar)                           \
   V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
   V(SmiTag)                                     \
@@ -1335,21 +1334,6 @@ class LDateField V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 
  private:
   Smi* index_;
-};
-
-
-class LSeqStringGetChar V8_FINAL : public LTemplateInstruction<1, 2, 0> {
- public:
-  LSeqStringGetChar(LOperand* string, LOperand* index) {
-    inputs_[0] = string;
-    inputs_[1] = index;
-  }
-
-  LOperand* string() const { return inputs_[0]; }
-  LOperand* index() const { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(SeqStringGetChar, "seq-string-get-char")
-  DECLARE_HYDROGEN_ACCESSOR(SeqStringGetChar)
 };
 
 

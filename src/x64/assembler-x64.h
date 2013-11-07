@@ -698,7 +698,6 @@ class Assembler : public AssemblerBase {
 
   // Move the low 16 bits of a 64-bit register value to a 16-bit
   // memory location.
-  void movw(Register dst, const Operand& src);
   void movw(const Operand& dst, Register src);
   void movw(const Operand& dst, Immediate imm);
 

@@ -1948,34 +1948,6 @@ MemOperand LCodeGen::BuildSeqStringOperand(Register string,
 }
 
 
-void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
-  String::Encoding encoding = instr->hydrogen()->encoding();
-  Register string = ToRegister(instr->string());
-  Register result = ToRegister(instr->result());
-
-  if (FLAG_debug_code) {
-    Register scratch = scratch0();
-    __ ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-
-    __ and_(scratch, scratch,
-            Operand(kStringRepresentationMask | kStringEncodingMask));
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(scratch, Operand(encoding == String::ONE_BYTE_ENCODING
-                            ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(eq, kUnexpectedStringType);
-  }
-
-  MemOperand operand = BuildSeqStringOperand(string, instr->index(), encoding);
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ ldrb(result, operand);
-  } else {
-    __ ldrh(result, operand);
-  }
-}
-
-
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());

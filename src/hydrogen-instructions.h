@@ -159,7 +159,6 @@ class LChunkBuilder;
   V(Return)                                    \
   V(Ror)                                       \
   V(Sar)                                       \
-  V(SeqStringGetChar)                          \
   V(SeqStringSetChar)                          \
   V(Shl)                                       \
   V(Shr)                                       \
@@ -7021,56 +7020,6 @@ class HDateField V8_FINAL : public HUnaryOperation {
   }
 
   Smi* index_;
-};
-
-
-class HSeqStringGetChar V8_FINAL : public HTemplateInstruction<2> {
- public:
-  static HInstruction* New(Zone* zone,
-                           HValue* context,
-                           String::Encoding encoding,
-                           HValue* string,
-                           HValue* index);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return (index == 0) ? Representation::Tagged()
-                        : Representation::Integer32();
-  }
-
-  String::Encoding encoding() const { return encoding_; }
-  HValue* string() const { return OperandAt(0); }
-  HValue* index() const { return OperandAt(1); }
-
-  DECLARE_CONCRETE_INSTRUCTION(SeqStringGetChar)
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    return encoding() == HSeqStringGetChar::cast(other)->encoding();
-  }
-
-  virtual Range* InferRange(Zone* zone) V8_OVERRIDE {
-    if (encoding() == String::ONE_BYTE_ENCODING) {
-      return new(zone) Range(0, String::kMaxOneByteCharCode);
-    } else {
-      ASSERT_EQ(String::TWO_BYTE_ENCODING, encoding());
-      return  new(zone) Range(0, String::kMaxUtf16CodeUnit);
-    }
-  }
-
- private:
-  HSeqStringGetChar(String::Encoding encoding,
-                    HValue* string,
-                    HValue* index) : encoding_(encoding) {
-    SetOperandAt(0, string);
-    SetOperandAt(1, index);
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnStringChars);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-
-  String::Encoding encoding_;
 };
 
 

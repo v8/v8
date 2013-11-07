@@ -2078,34 +2078,6 @@ Operand LCodeGen::BuildSeqStringOperand(Register string,
 }
 
 
-void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
-  String::Encoding encoding = instr->hydrogen()->encoding();
-  Register result = ToRegister(instr->result());
-  Register string = ToRegister(instr->string());
-
-  if (FLAG_debug_code) {
-    __ push(string);
-    __ mov(string, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzx_b(string, FieldOperand(string, Map::kInstanceTypeOffset));
-
-    __ and_(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(string, Immediate(encoding == String::ONE_BYTE_ENCODING
-                             ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, kUnexpectedStringType);
-    __ pop(string);
-  }
-
-  Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ movzx_b(result, operand);
-  } else {
-    __ mov_w(result, operand);
-  }
-}
-
-
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());
