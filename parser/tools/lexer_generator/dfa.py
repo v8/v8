@@ -25,21 +25,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from automaton import *
 from nfa import Nfa
 from transition_keys import TransitionKey
 
-class DfaState:
+class DfaState(AutomatonState):
 
   def __init__(self, name, node_number):
+    super(DfaState, self).__init__(node_number)
     self.__name = name
-    self.__node_number = node_number
     self.__transitions = {}
 
   def name(self):
     return self.__name
-
-  def node_number(self):
-    return self.__node_number
 
   def add_transition(self, key, action, state):
     assert not self.__transitions.has_key(key)
@@ -48,9 +46,10 @@ class DfaState:
   def transitions(self):
     return self.__transitions
 
-class Dfa:
+class Dfa(Automaton):
 
   def __init__(self, start_name, mapping):
+    super(Dfa, self).__init__()
     self.__terminal_set = set()
     name_map = {}
     action_map = {}
@@ -79,20 +78,6 @@ class Dfa:
     self.__start = name_map[start_name]
     assert self.__terminal_set
 
-  @staticmethod
-  def __visit_edges(start, visitor, state):
-    edge = set([start])
-    visited = set()
-    first = lambda v: [x[0] for x in v]
-    while edge:
-      f = lambda (next_edge, state), node: (
-        next_edge | set(first(node.transitions().values())),
-        visitor(node, state))
-      (next_edge, state) = reduce(f, edge, (set(), state))
-      visited |= edge
-      edge = next_edge - visited
-    return state
-
   def collect_actions(self, string):
     state = self.__start
     for c in string:
@@ -113,38 +98,12 @@ class Dfa:
     actions = list(self.collect_actions(string))
     return actions and actions[-1][0] == 'TERMINATE'
 
+  def __visit_all_edges(self, visitor, state):
+    edge = set([self.__start])
+    first = lambda v: set([x[0] for x in v])
+    next_edge = lambda node: first(node.transitions().values())
+    return self.visit_edges(edge, next_edge, visitor, state)
+
   def to_dot(self):
-
-    def f(node, node_content):
-      for key, (state, action) in node.transitions().items():
-        key = str(key).replace('\\', '\\\\')
-        if action:
-          node_content.append(
-              "  S_%s -> S_%s [ label = \"%s {%s} -> %s\" ];" %
-              (node.node_number(), state.node_number(), key, action[1],
-               action[2]))
-        else:
-          node_content.append(
-              "  S_%s -> S_%s [ label = \"%s\" ];" %
-              (node.node_number(), state.node_number(), key))
-      return node_content
-
-    node_content = self.__visit_edges(self.__start, f, [])
-    terminals = ["S_%d;" % x.node_number() for x in self.__terminal_set]
-    start_number = self.__start.node_number()
-    start_shape = "circle"
-    if self.__start in self.__terminal_set:
-      start_shape = "doublecircle"
-
-    return '''
-digraph finite_state_machine {
-  rankdir=LR;
-  node [shape = %s, style=filled, bgcolor=lightgrey]; S_%s
-  node [shape = doublecircle, style=unfilled]; %s
-  node [shape = circle];
-%s
-}
-    ''' % (start_shape,
-           start_number,
-           " ".join(terminals),
-           "\n".join(node_content))
+    iterator = lambda visitor, state: self.__visit_all_edges(visitor, state)
+    return self.generate_dot(self.__start, self.__terminal_set, iterator)

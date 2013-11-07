@@ -27,19 +27,17 @@
 
 from types import TupleType
 from transition_keys import TransitionKey
+from automaton import *
 from inspect import getmembers
 
-class NfaState:
+class NfaState(AutomatonState):
 
   def __init__(self, node_number):
+    super(NfaState, self).__init__(node_number)
     self.__transitions = {}
     self.__unclosed = set()
-    self.__node_number = node_number
     self.__epsilon_closure = None
     self.__transition_action = None
-
-  def node_number(self):
-    return self.__node_number
 
   def epsilon_closure(self):
     return self.__epsilon_closure
@@ -109,7 +107,7 @@ class NfaState:
     return self.__matches(lambda k, v : k.matches_key(v), value)
 
   def __str__(self):
-    return "NfaState(" + str(self.__node_number) + ")"
+    return "NfaState(" + str(self.node_number()) + ")"
 
   @staticmethod
   def gather_transition_keys(state_set):
@@ -255,30 +253,19 @@ class NfaBuilder:
   def apply_modifier(modifier, graph):
     return (NfaBuilder.__modifer_map[modifier], graph)
 
-class Nfa:
+class Nfa(Automaton):
 
   def __init__(self, start, end, nodes_created):
+    super(Nfa, self).__init__()
     self.__start = start
     self.__end = end
     self.__epsilon_closure_computed = False
     self.__verify(nodes_created)
 
-  @staticmethod
-  def __visit_edges(edge, compute_next_edge, visitor, state):
-    visited = set()
-    while edge:
-      f = lambda (next_edge, state), node: (
-        next_edge | compute_next_edge(node),
-        visitor(node, state))
-      (next_edge, state) = reduce(f, edge, (set(), state))
-      visited |= edge
-      edge = next_edge - visited
-    return state
-
   def __visit_all_edges(self, visitor, state):
     edge = set([self.__start])
     next_edge = lambda node: node.next_states(lambda x : True)
-    return Nfa.__visit_edges(edge, next_edge, visitor, state)
+    return self.visit_edges(edge, next_edge, visitor, state)
 
   def __verify(self, nodes_created):
     def f(node, node_list):
@@ -299,7 +286,7 @@ class Nfa:
       is_epsilon = lambda k: k == TransitionKey.epsilon()
       next_edge = lambda node : node.next_states(is_epsilon)
       edge = next_edge(node)
-      closure = Nfa.__visit_edges(edge, next_edge, inner, set())
+      closure = self.visit_edges(edge, next_edge, inner, set())
       node.set_epsilon_closure(closure)
     self.__visit_all_edges(outer, None)
 
@@ -362,34 +349,5 @@ class Nfa:
     return (start_name, dfa_nodes)
 
   def to_dot(self):
-
-    def f(node, node_content):
-      for key, values in node.transitions().items():
-        if key == TransitionKey.epsilon():
-          key = "&epsilon;"
-        key = str(key).replace('\\', '\\\\')
-        for value in values:
-          if value[1]:
-            node_content.append(
-                "  S_%d -> S_%d [ label = \"%s {%s} -> %s\" ];" %
-                (node.node_number(), value[0].node_number(), key, value[1][1],
-                 value[1][2]))
-          else:
-            node_content.append(
-                "  S_%d -> S_%d [ label = \"%s\" ];" %
-                (node.node_number(), value[0].node_number(), key))
-      return node_content
-
-    node_content = self.__visit_all_edges(f, [])
-
-    return '''
-digraph finite_state_machine {
-  rankdir=LR;
-  node [shape = circle, style=filled, bgcolor=lightgrey]; S_%s
-  node [shape = doublecircle, style=unfilled]; S_%s
-  node [shape = circle];
-%s
-}
-    ''' % (self.__start.node_number(),
-           self.__end.node_number(),
-           "\n".join(node_content))
+    iterator = lambda visitor, state: self.__visit_all_edges(visitor, state)
+    return self.generate_dot(self.__start, set([self.__end]), iterator)
