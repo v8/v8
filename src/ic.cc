@@ -1093,6 +1093,7 @@ Handle<Code> LoadIC::SimpleFieldLoad(int offset,
   }
 }
 
+
 void LoadIC::UpdateCaches(LookupResult* lookup,
                           Handle<Object> object,
                           Handle<String> name) {

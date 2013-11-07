@@ -107,33 +107,6 @@ class StubCache {
 
   // ---
 
-  Handle<Code> ComputeKeyedLoadField(Handle<Name> name,
-                                     Handle<JSObject> object,
-                                     Handle<JSObject> holder,
-                                     PropertyIndex field_index,
-                                     Representation representation);
-
-  Handle<Code> ComputeKeyedLoadCallback(
-      Handle<Name> name,
-      Handle<JSObject> object,
-      Handle<JSObject> holder,
-      Handle<ExecutableAccessorInfo> callback);
-
-  Handle<Code> ComputeKeyedLoadCallback(
-      Handle<Name> name,
-      Handle<JSObject> object,
-      Handle<JSObject> holder,
-      const CallOptimization& call_optimization);
-
-  Handle<Code> ComputeKeyedLoadConstant(Handle<Name> name,
-                                        Handle<JSObject> object,
-                                        Handle<JSObject> holder,
-                                        Handle<Object> value);
-
-  Handle<Code> ComputeKeyedLoadInterceptor(Handle<Name> name,
-                                           Handle<JSObject> object,
-                                           Handle<JSObject> holder);
-
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
   Handle<Code> ComputeKeyedStoreElement(Handle<Map> receiver_map,
