@@ -768,12 +768,13 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
-  // Compute the number of arguments.
-  Handle<Code> code;
-  code = state() == UNINITIALIZED
-      ? pre_monomorphic_stub()
-      : ComputeMonomorphicStub(lookup, object, name);
+  if (state() == UNINITIALIZED) {
+    set_target(*pre_monomorphic_stub());
+    TRACE_IC("CallIC", name);
+    return;
+  }
 
+  Handle<Code> code = ComputeMonomorphicStub(lookup, object, name);
   // If there's no appropriate stub we simply avoid updating the caches.
   // TODO(verwaest): Install a slow fallback in this case to avoid not learning,
   // and deopting Crankshaft code.
@@ -954,7 +955,6 @@ bool IC::UpdatePolymorphicIC(Handle<HeapObject> receiver,
                              Handle<String> name,
                              Handle<Code> code) {
   if (!code->is_handler()) return false;
-
   MapHandleList receiver_maps;
   CodeHandleList handlers;
 
@@ -1133,7 +1133,9 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    code = pre_monomorphic_stub();
+    set_target(*pre_monomorphic_stub());
+    TRACE_IC("LoadIC", name);
+    return;
   } else if (!lookup->IsCacheable()) {
     // Bail out if the result is not cacheable.
     code = slow_stub();
@@ -1175,8 +1177,9 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
   if (!code.is_null()) return code;
 
   code = CompileHandler(lookup, receiver, name, value);
+  ASSERT(code->is_handler());
 
-  if (code->is_handler() && code->type() != Code::NORMAL) {
+  if (code->type() != Code::NORMAL) {
     HeapObject::UpdateMapCodeCache(receiver, name, code);
   }
 
@@ -1215,9 +1218,11 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
         Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
-        // TODO(verwaest): Turn into a handler.
-        return isolate()->stub_cache()->ComputeLoadGlobal(
-            name, receiver, global, cell, lookup->IsDontDelete());
+        Handle<Code> code = compiler.CompileLoadGlobal(
+            receiver, global, cell, name, lookup->IsDontDelete());
+        // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+        HeapObject::UpdateMapCodeCache(receiver, name, code);
+        return code;
       }
       // There is only one shared stub for loading normalized
       // properties. It does not traverse the prototype chain, so the
@@ -1632,11 +1637,15 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         // from the property cell. So the property must be directly on the
         // global object.
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-        Handle<PropertyCell> cell(
-            global->GetPropertyCell(lookup), isolate());
-        // TODO(verwaest): Turn into a handler.
-        return isolate()->stub_cache()->ComputeStoreGlobal(
-            name, global, cell, value, strict_mode());
+        Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
+        Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
+        StoreGlobalStub stub(strict_mode(), union_type->IsConstant());
+
+        Handle<Code> code = stub.GetCodeCopyFromTemplate(
+            isolate(), receiver->map(), *cell);
+        // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+        HeapObject::UpdateMapCodeCache(receiver, name, code);
+        return code;
       }
       ASSERT(holder.is_identical_to(receiver));
       return strict_mode() == kStrictMode

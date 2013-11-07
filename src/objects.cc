@@ -10543,7 +10543,7 @@ Map* Code::FindFirstMap() {
 void Code::ReplaceNthObject(int n,
                             Map* match_map,
                             Object* replace_with) {
-  ASSERT(is_inline_cache_stub());
+  ASSERT(is_inline_cache_stub() || is_handler());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {

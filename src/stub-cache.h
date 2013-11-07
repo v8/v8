@@ -105,12 +105,6 @@ class StubCache {
   Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
                                       Handle<JSObject> object);
 
-  Handle<Code> ComputeLoadGlobal(Handle<Name> name,
-                                 Handle<JSObject> object,
-                                 Handle<GlobalObject> holder,
-                                 Handle<PropertyCell> cell,
-                                 bool is_dont_delete);
-
   // ---
 
   Handle<Code> ComputeKeyedLoadField(Handle<Name> name,
@@ -139,12 +133,6 @@ class StubCache {
   Handle<Code> ComputeKeyedLoadInterceptor(Handle<Name> name,
                                            Handle<JSObject> object,
                                            Handle<JSObject> holder);
-
-  Handle<Code> ComputeStoreGlobal(Handle<Name> name,
-                                  Handle<GlobalObject> object,
-                                  Handle<PropertyCell> cell,
-                                  Handle<Object> value,
-                                  StrictModeFlag strict_mode);
 
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 

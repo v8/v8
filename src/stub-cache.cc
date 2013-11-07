@@ -202,22 +202,6 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
 }
 
 
-Handle<Code> StubCache::ComputeLoadGlobal(Handle<Name> name,
-                                          Handle<JSObject> receiver,
-                                          Handle<GlobalObject> holder,
-                                          Handle<PropertyCell> cell,
-                                          bool is_dont_delete) {
-  Handle<Code> stub = FindIC(name, receiver, Code::LOAD_IC);
-  if (!stub.is_null()) return stub;
-
-  LoadStubCompiler compiler(isolate_);
-  Handle<Code> ic =
-      compiler.CompileLoadGlobal(receiver, holder, cell, name, is_dont_delete);
-  HeapObject::UpdateMapCodeCache(receiver, name, ic);
-  return ic;
-}
-
-
 Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC);
   Handle<Name> name =
@@ -258,35 +242,6 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
 
   Map::UpdateCodeCache(receiver_map, name, code);
   ASSERT(Code::GetKeyedAccessStoreMode(code->extra_ic_state()) == store_mode);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
-                                           Handle<GlobalObject> receiver,
-                                           Handle<PropertyCell> cell,
-                                           Handle<Object> value,
-                                           StrictModeFlag strict_mode) {
-  Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
-  bool is_constant = union_type->IsConstant();
-  StoreGlobalStub stub(strict_mode, is_constant);
-
-  Handle<Code> code = FindIC(
-      name, Handle<JSObject>::cast(receiver),
-      Code::STORE_IC, stub.GetExtraICState());
-  if (!code.is_null()) return code;
-
-  // Replace the placeholder cell and global object map with the actual global
-  // cell and receiver map.
-  Handle<Map> meta_map(isolate_->heap()->meta_map());
-  Handle<Object> receiver_map(receiver->map(), isolate_);
-  code = stub.GetCodeCopyFromTemplate(isolate_);
-  code->ReplaceNthObject(1, *meta_map, *receiver_map);
-  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
-  code->ReplaceNthObject(1, *cell_map, *cell);
-
-  HeapObject::UpdateMapCodeCache(receiver, name, code);
-
   return code;
 }
 
@@ -1596,7 +1551,6 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
 Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
                                                 Code::StubType type,
                                                 Handle<Name> name) {
-  ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeFlags(
       Code::HANDLER, MONOMORPHIC, extra_state(), type, kind);
   Handle<Code> code = GetCodeWithFlags(flags, name);

@@ -3036,10 +3036,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   // TODO(verwaest): Directly store to rax. Currently we cannot do this, since
   // rax is used as receiver(), which we would otherwise clobber before a
   // potential miss.
-
-  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss, DO_SMI_CHECK);
-  HandlerFrontendHeader(
-      object, receiver(), Handle<JSObject>::cast(global), name, &miss);
+  HandlerFrontendHeader(object, receiver(), global, name, &miss);
 
   // Get the value from the cell.
   __ Move(rbx, cell);
@@ -3063,7 +3060,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   __ ret(0);
 
   // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, name);
+  return GetCode(kind(), Code::NORMAL, name);
 }
 
 
