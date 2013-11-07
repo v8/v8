@@ -4111,13 +4111,12 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     return result;
   }
 
-  Object* result;
+  SeqTwoByteString* result;
   { MaybeObject* maybe_result = AllocateRawTwoByteString(1);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->To<SeqTwoByteString>(&result)) return maybe_result;
   }
-  String* answer = String::cast(result);
-  answer->Set(0, code);
-  return answer;
+  result->SeqTwoByteStringSet(0, code);
+  return result;
 }
 
 
