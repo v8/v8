@@ -80,7 +80,7 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
       return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
   }
-  movq(scratch, target);
+  Move(scratch, target);
   return Operand(scratch, 0);
 }
 
@@ -98,7 +98,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (destination.is(rax)) {
     load_rax(source);
   } else {
-    movq(kScratchRegister, source);
+    Move(kScratchRegister, source);
     movq(destination, Operand(kScratchRegister, 0));
   }
 }
@@ -117,7 +117,7 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (source.is(rax)) {
     store_rax(destination);
   } else {
-    movq(kScratchRegister, destination);
+    Move(kScratchRegister, destination);
     movq(Operand(kScratchRegister, 0), source);
   }
 }
@@ -134,7 +134,7 @@ void MacroAssembler::LoadAddress(Register destination,
     }
   }
   // Safe code.
-  movq(destination, source);
+  Move(destination, source);
 }
 
 
@@ -276,13 +276,13 @@ void MacroAssembler::InNewSpace(Register object,
     // case the size of the new space is different between the snapshot maker
     // and the running system.
     if (scratch.is(object)) {
-      movq(kScratchRegister, ExternalReference::new_space_mask(isolate()));
+      Move(kScratchRegister, ExternalReference::new_space_mask(isolate()));
       and_(scratch, kScratchRegister);
     } else {
-      movq(scratch, ExternalReference::new_space_mask(isolate()));
+      Move(scratch, ExternalReference::new_space_mask(isolate()));
       and_(scratch, object);
     }
-    movq(kScratchRegister, ExternalReference::new_space_start(isolate()));
+    Move(kScratchRegister, ExternalReference::new_space_start(isolate()));
     cmpq(scratch, kScratchRegister);
     j(cc, branch, distance);
   } else {
@@ -710,7 +710,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
   Register base_reg = r15;
-  movq(base_reg, next_address);
+  Move(base_reg, next_address);
   movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
   movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
   addl(Operand(base_reg, kLevelOffset), Immediate(1));
@@ -771,7 +771,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bind(&leave_exit_frame);
 
   // Check if the function scheduled an exception.
-  movq(rsi, scheduled_exception_address);
+  Move(rsi, scheduled_exception_address);
   Cmp(Operand(rsi, 0), factory->the_hole_value());
   j(not_equal, &promote_scheduled_exception);
   bind(&exception_handled);
@@ -4927,7 +4927,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
 
   lea(scratch_reg, Operand(receiver_reg,
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
-  movq(kScratchRegister, new_space_start);
+  Move(kScratchRegister, new_space_start);
   cmpq(scratch_reg, kScratchRegister);
   j(less, no_memento_found);
   cmpq(scratch_reg, ExternalOperand(new_space_allocation_top));

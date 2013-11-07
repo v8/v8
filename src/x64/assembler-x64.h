@@ -725,8 +725,6 @@ class Assembler : public AssemblerBase {
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
-  // Moves the address of the external reference into the register.
-  void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
   void movsxbq(Register dst, const Operand& src);

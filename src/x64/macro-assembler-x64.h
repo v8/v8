@@ -319,7 +319,7 @@ class MacroAssembler: public Assembler {
   void InitializeRootRegister() {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
-    movq(kRootRegister, roots_array_start);
+    Move(kRootRegister, roots_array_start);
     addq(kRootRegister, Immediate(kRootRegisterBias));
   }
 
@@ -831,6 +831,10 @@ class MacroAssembler: public Assembler {
   void PopReturnAddressTo(Register dst) { pop(dst); }
   void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
   void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
+  void Move(Register dst, ExternalReference ext) {
+    movq(dst, reinterpret_cast<Address>(ext.address()),
+         RelocInfo::EXTERNAL_REFERENCE);
+  }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);

@@ -473,7 +473,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   } else {
     __ Move(args.GetArgumentOperand(offset - FCA::kDataIndex), call_data);
   }
-  __ movq(kScratchRegister,
+  __ Move(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
   __ movq(args.GetArgumentOperand(offset - FCA::kIsolateIndex),
           kScratchRegister);

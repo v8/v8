@@ -1501,12 +1501,6 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::movq(Register dst, ExternalReference ref) {
-  Address value = reinterpret_cast<Address>(ref.address());
-  movq(dst, value, RelocInfo::EXTERNAL_REFERENCE);
-}
-
-
 void Assembler::movq(const Operand& dst, Immediate value) {
   EnsureSpace ensure_space(this);
   emit_rex_64(dst);
