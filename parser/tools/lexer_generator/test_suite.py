@@ -27,9 +27,10 @@
 
 from unittest import TestLoader, TextTestRunner, TestSuite
 
-from transition_key_test import *
+from action_test import *
 from automata_test import *
 from rule_parser_test import *
+from transition_key_test import *
 
 if __name__ == "__main__":
   loader = TestLoader()
@@ -37,6 +38,7 @@ if __name__ == "__main__":
     loader.loadTestsFromTestCase(TransitionKeyTestCase),
     loader.loadTestsFromTestCase(AutomataTestCase),
     loader.loadTestsFromTestCase(RuleParserTestCase),
+    loader.loadTestsFromTestCase(ActionTestCase),
   ))
   runner = TextTestRunner(verbosity = 2)
   runner.run(suite)
