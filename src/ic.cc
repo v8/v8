@@ -1920,8 +1920,13 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                  Handle<Object> value,
                                  ICMissMode miss_mode) {
   if (MigrateDeprecated(object)) {
-    return Runtime::SetObjectPropertyOrFail(
-        isolate(), object , key, value, NONE, strict_mode());
+    Handle<Object> result = Runtime::SetObjectProperty(isolate(), object,
+                                                       key,
+                                                       value,
+                                                       NONE,
+                                                       strict_mode());
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   // Check for values that can be converted into an internalized string directly
@@ -1986,8 +1991,12 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
   }
 
   if (maybe_object) return maybe_object;
-  return Runtime::SetObjectPropertyOrFail(
-      isolate(), object , key, value, NONE, strict_mode());
+  Handle<Object> result = Runtime::SetObjectProperty(isolate(), object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode());
+  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  return *result;
 }
 
 
@@ -2218,12 +2227,12 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
   StrictModeFlag strict_mode = ic.strict_mode();
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    NONE,
-                                    strict_mode);
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -2235,12 +2244,12 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
   StrictModeFlag strict_mode = ic.strict_mode();
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    NONE,
-                                    strict_mode);
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -2268,12 +2277,12 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());
   }
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    NONE,
-                                    strict_mode);
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 

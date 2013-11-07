@@ -5122,49 +5122,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
 }
 
 
-MaybeObject* Runtime::SetObjectPropertyOrFail(
-    Isolate* isolate,
-    Handle<Object> object,
-    Handle<Object> key,
-    Handle<Object> value,
-    PropertyAttributes attr,
-    StrictModeFlag strict_mode) {
-  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
-      SetObjectProperty(isolate, object, key, value, attr, strict_mode));
-}
-
-
-MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
-                                        Handle<Object> object,
-                                        Handle<Object> key,
-                                        Handle<Object> value,
-                                        PropertyAttributes attr,
-                                        StrictModeFlag strict_mode) {
+Handle<Object> Runtime::SetObjectProperty(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Object> key,
+                                          Handle<Object> value,
+                                          PropertyAttributes attr,
+                                          StrictModeFlag strict_mode) {
   SetPropertyMode set_mode = attr == NONE ? SET_PROPERTY : DEFINE_PROPERTY;
-  HandleScope scope(isolate);
 
   if (object->IsUndefined() || object->IsNull()) {
     Handle<Object> args[2] = { key, object };
     Handle<Object> error =
         isolate->factory()->NewTypeError("non_object_property_store",
                                          HandleVector(args, 2));
-    return isolate->Throw(*error);
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
   if (object->IsJSProxy()) {
     bool has_pending_exception = false;
     Handle<Object> name_object = key->IsSymbol()
         ? key : Execution::ToString(isolate, key, &has_pending_exception);
-    if (has_pending_exception) return Failure::Exception();
+    if (has_pending_exception) return Handle<Object>();  // exception
     Handle<Name> name = Handle<Name>::cast(name_object);
-    Handle<Object> result = JSReceiver::SetProperty(
-        Handle<JSProxy>::cast(object), name, value, attr, strict_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return JSReceiver::SetProperty(Handle<JSProxy>::cast(object), name, value,
+                                   attr,
+                                   strict_mode);
   }
 
   // If the object isn't a JavaScript object, we ignore the store.
-  if (!object->IsJSObject()) return *value;
+  if (!object->IsJSObject()) return value;
 
   Handle<JSObject> js_object = Handle<JSObject>::cast(object);
 
@@ -5179,7 +5166,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     // string does nothing with the assignment then we can ignore such
     // assignments.
     if (js_object->IsStringObjectWithCharacterAt(index)) {
-      return *value;
+      return value;
     }
 
     js_object->ValidateElements();
@@ -5188,15 +5175,16 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
         bool has_exception;
         Handle<Object> number =
             Execution::ToNumber(isolate, value, &has_exception);
-        if (has_exception) return Failure::Exception();
+        if (has_exception) return Handle<Object>();  // exception
         value = number;
       }
     }
-    MaybeObject* result = js_object->SetElement(
-        index, *value, attr, strict_mode, true, set_mode);
+    Handle<Object> result = JSObject::SetElement(js_object, index, value, attr,
+                                                 strict_mode,
+                                                 true,
+                                                 set_mode);
     js_object->ValidateElements();
-    if (result->IsFailure()) return result;
-    return *value;
+    return result.is_null() ? result : value;
   }
 
   if (key->IsName()) {
@@ -5207,37 +5195,32 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
           bool has_exception;
           Handle<Object> number =
               Execution::ToNumber(isolate, value, &has_exception);
-          if (has_exception) return Failure::Exception();
+          if (has_exception) return Handle<Object>();  // exception
           value = number;
         }
       }
-      MaybeObject* result = js_object->SetElement(
-          index, *value, attr, strict_mode, true, set_mode);
-      if (result->IsFailure()) return result;
+      return JSObject::SetElement(js_object, index, value, attr, strict_mode,
+                                  true,
+                                  set_mode);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      Handle<Object> result =
-          JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
-      RETURN_IF_EMPTY_HANDLE(isolate, result);
+      return JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
     }
-    return *value;
   }
 
   // Call-back into JavaScript to convert the key to a string.
   bool has_pending_exception = false;
   Handle<Object> converted =
       Execution::ToString(isolate, key, &has_pending_exception);
-  if (has_pending_exception) return Failure::Exception();
+  if (has_pending_exception) return Handle<Object>();  // exception
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(
-        index, *value, attr, strict_mode, true, set_mode);
+    return JSObject::SetElement(js_object, index, value, attr, strict_mode,
+                                true,
+                                set_mode);
   } else {
-    Handle<Object> result =
-        JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
   }
 }
 
@@ -5341,12 +5324,12 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);
 
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> value = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
   RUNTIME_ASSERT(
       (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
@@ -5360,12 +5343,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
     strict_mode = strict_mode_flag;
   }
 
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    attributes,
-                                    strict_mode);
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     attributes,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -5386,10 +5369,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
 
-  Handle<Object> object = args.at<Object>(0);
+  CONVERT_ARG_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(*object);
+    JSFunction* func = JSFunction::cast(object);
     func->shared()->set_native(true);
   }
   return isolate->heap()->undefined_value();
@@ -11348,12 +11331,12 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        SetProperty(isolate,
-                    target,
-                    Handle<String>(scope_info->ParameterName(i)),
-                    value,
-                    NONE,
-                    kNonStrictMode),
+        Runtime::SetObjectProperty(isolate,
+                                   target,
+                                   Handle<String>(scope_info->ParameterName(i)),
+                                   value,
+                                   NONE,
+                                   kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -11364,12 +11347,13 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        SetProperty(isolate,
-                    target,
-                    Handle<String>(scope_info->StackLocalName(i)),
-                    value,
-                    NONE,
-                    kNonStrictMode),
+        Runtime::SetObjectProperty(
+            isolate,
+            target,
+            Handle<String>(scope_info->StackLocalName(i)),
+            value,
+            NONE,
+            kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -11447,12 +11431,12 @@ static Handle<JSObject> MaterializeLocalContext(Isolate* isolate,
         Handle<String> key(String::cast(keys->get(i)));
         RETURN_IF_EMPTY_HANDLE_VALUE(
             isolate,
-            SetProperty(isolate,
-                        target,
-                        key,
-                        GetProperty(isolate, ext, key),
-                        NONE,
-                        kNonStrictMode),
+            Runtime::SetObjectProperty(isolate,
+                                       target,
+                                       key,
+                                       GetProperty(isolate, ext, key),
+                                       NONE,
+                                       kNonStrictMode),
             Handle<JSObject>());
       }
     }
@@ -11552,12 +11536,9 @@ static bool SetLocalVariableValue(Isolate* isolate,
         if (JSReceiver::HasProperty(ext, variable_name)) {
           // We don't expect this to do anything except replacing
           // property value.
-          SetProperty(isolate,
-                      ext,
-                      variable_name,
-                      new_value,
-                      NONE,
-                      kNonStrictMode);
+          Runtime::SetObjectProperty(isolate, ext, variable_name, new_value,
+                                     NONE,
+                                     kNonStrictMode);
           return true;
         }
       }
@@ -11603,12 +11584,10 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
       Handle<String> key(String::cast(keys->get(i)));
        RETURN_IF_EMPTY_HANDLE_VALUE(
           isolate,
-          SetProperty(isolate,
-                      closure_scope,
-                      key,
-                      GetProperty(isolate, ext, key),
-                      NONE,
-                      kNonStrictMode),
+          Runtime::SetObjectProperty(isolate, closure_scope, key,
+                                     GetProperty(isolate, ext, key),
+                                     NONE,
+                                     kNonStrictMode),
           Handle<JSObject>());
     }
   }
@@ -11639,12 +11618,9 @@ static bool SetClosureVariableValue(Isolate* isolate,
     Handle<JSObject> ext(JSObject::cast(context->extension()));
     if (JSReceiver::HasProperty(ext, variable_name)) {
       // We don't expect this to do anything except replacing property value.
-      SetProperty(isolate,
-                  ext,
-                  variable_name,
-                  new_value,
-                  NONE,
-                  kNonStrictMode);
+      Runtime::SetObjectProperty(isolate, ext, variable_name, new_value,
+                                 NONE,
+                                 kNonStrictMode);
       return true;
     }
   }
@@ -11665,12 +11641,9 @@ static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
       isolate->factory()->NewJSObject(isolate->object_function());
   RETURN_IF_EMPTY_HANDLE_VALUE(
       isolate,
-      SetProperty(isolate,
-                  catch_scope,
-                  name,
-                  thrown_object,
-                  NONE,
-                  kNonStrictMode),
+      Runtime::SetObjectProperty(isolate, catch_scope, name, thrown_object,
+                                 NONE,
+                                 kNonStrictMode),
       Handle<JSObject>());
   return catch_scope;
 }
@@ -12688,12 +12661,11 @@ static Handle<JSObject> MaterializeArgumentsObject(
   // FunctionGetArguments can't throw an exception.
   Handle<JSObject> arguments = Handle<JSObject>::cast(
       Accessors::FunctionGetArguments(function));
-  SetProperty(isolate,
-              target,
-              isolate->factory()->arguments_string(),
-              arguments,
-              ::NONE,
-              kNonStrictMode);
+  Runtime::SetObjectProperty(isolate, target,
+                             isolate->factory()->arguments_string(),
+                             arguments,
+                             ::NONE,
+                             kNonStrictMode);
   return target;
 }
 

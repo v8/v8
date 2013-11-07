@@ -228,13 +228,6 @@ void FlattenString(Handle<String> str);
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
 
-Handle<Object> SetProperty(Isolate* isolate,
-                           Handle<Object> object,
-                           Handle<Object> key,
-                           Handle<Object> value,
-                           PropertyAttributes attributes,
-                           StrictModeFlag strict_mode);
-
 Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
                                 Handle<Object> value,
