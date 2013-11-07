@@ -98,6 +98,39 @@ class Dfa(Automaton):
     actions = list(self.collect_actions(string))
     return actions and actions[-1][0] == 'TERMINATE'
 
+  def lex(self, string):
+    state = self.__start
+    stored_action = None
+    pos = 0
+    while pos < len(string):
+      c = string[pos]
+      next = [s for k, s in state.transitions().items() if k.matches_char(c)]
+      if not next:
+        # Maybe we have a stored action before. Take it and backtrack to the
+        # position where that action was.
+        if stored_action:
+          yield stored_action
+          return
+        # FIXME: Otherwise, use the default rule if this happens at the start
+        # state of the automaton.
+
+      assert len(next) == 1
+      (state, action) = next[0]
+
+      # Special actions: terminate
+      if action and action[2] == 'terminate':
+        if stored_action:
+          yield stored_action
+        yield (action, pos)
+        return
+
+      # Normally we don't know yet whether to take the action - it depends on
+      # what comes next.
+      if action:
+        stored_action = (action, pos)
+
+      pos += 1
+
   def __visit_all_edges(self, visitor, state):
     edge = set([self.__start])
     first = lambda v: set([x[0] for x in v])

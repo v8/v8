@@ -25,22 +25,43 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from unittest import TestLoader, TextTestRunner, TestSuite
+import unittest
+from lexer import Lexer
 
-from action_test import *
-from automata_test import *
-from lexer_test import *
-from rule_parser_test import *
-from transition_key_test import *
+class LexerTestCase(unittest.TestCase):
 
-if __name__ == "__main__":
-  loader = TestLoader()
-  suite = TestSuite((
-    loader.loadTestsFromTestCase(TransitionKeyTestCase),
-    loader.loadTestsFromTestCase(AutomataTestCase),
-    loader.loadTestsFromTestCase(RuleParserTestCase),
-    loader.loadTestsFromTestCase(ActionTestCase),
-    loader.loadTestsFromTestCase(LexerTestCase),
-  ))
-  runner = TextTestRunner(verbosity = 2)
-  runner.run(suite)
+  def __verify_action_stream(self, stream, expected_stream):
+    for (ix, item) in enumerate(expected_stream):
+      self.assertEquals(stream[ix][0], item[0])
+      self.assertEquals(stream[ix][4], item[1])
+
+  def test_simple(self):
+    rules = '''
+    <default>
+    "("           { LBRACE }
+    ")"           { RBRACE }
+
+    "foo"         { FOO }
+    eof           <<terminate>>'''
+
+    lexer = Lexer(rules)
+
+    string = 'foo()\0'
+    self.__verify_action_stream(
+        lexer.lex(string),
+        [('FOO', 'foo'), ('LBRACE', '('), ('RBRACE', ')')])
+
+  def test_maximal_matching(self):
+    rules = '''
+    <default>
+    "<"           { LT }
+    "<<"          { SHL }
+    " "           { SPACE }
+    eof           <<terminate>>'''
+
+    lexer = Lexer(rules)
+
+    string = '<< <\0'
+    self.__verify_action_stream(
+        lexer.lex(string),
+        [('SHL', '<<'), ('SPACE', ' '), ('LT', '<')])
