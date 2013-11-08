@@ -279,6 +279,9 @@ class MacroAssembler: public Assembler {
     Branch(L);
   }
 
+  void Load(Register dst, const MemOperand& src, Representation r);
+  void Store(Register src, const MemOperand& dst, Representation r);
+
   // Load an object from the root table.
   void LoadRoot(Register destination,
                 Heap::RootListIndex index);
