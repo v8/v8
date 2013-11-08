@@ -88,8 +88,7 @@ class NfaState(AutomatonState):
     unclosed, self.__unclosed = self.__unclosed, None
     action, self.__transition_action = self.__transition_action, None
     if end == None:
-      assert not unclosed
-      assert not action
+      assert not unclosed and not action
       return
     for key in unclosed:
       self.__add_transition(key, action, end)
@@ -121,6 +120,7 @@ class NfaBuilder:
     self.__operation_map = {}
     self.__members = getmembers(self)
     self.__character_classes = {}
+    self.__states = []
 
   def set_character_classes(self, classes):
     self.__character_classes = classes
@@ -205,20 +205,41 @@ class NfaBuilder:
     return self.__key_state(TransitionKey.any())
 
   def __action(self, graph):
-    result = self.__process(graph[1])
-    for end in result[1]:
-      end.set_transition_action(graph[2])
-    return result
+    incoming = graph[3]
+    (start, ends) = self.__process(graph[1])
+    action = graph[2]
+    if incoming:
+      new_start = self.__new_state()
+      new_start.set_transition_action(action)
+      new_start.close(start)
+      start = new_start
+    else:
+      for end in ends:
+        end.set_transition_action(action)
+    return (start, ends)
 
   def __continue(self, graph):
     (start, ends) = self.__process(graph[1])
-    if not self.__start_node:
-      self.__start_node = self.__new_state()
+    state = self.__peek_state()
+    if not state['start_node']:
+      state['start_node'] = self.__new_state()
     end = self.__new_state()
     self.__patch_ends(ends, end)
     ends = [end]
-    end.add_epsilon_transition(self.__start_node)
+    end.add_epsilon_transition(state['start_node'])
     return (start, ends)
+
+  def __join(self, graph):
+    (graph, name, subgraph) = graph[1:]
+    subgraphs = self.__peek_state()['subgraphs']
+    if not name in subgraphs:
+      subgraphs[name] = self.__nfa(subgraph)
+    (subgraph_start, subgraph_end, nodes_in_subgraph) = subgraphs[name]
+    (start, ends) = self.__process(graph)
+    self.__patch_ends(ends, subgraph_start)
+    end = self.__new_state()
+    subgraph_end.add_epsilon_transition(end)
+    return (start, [end])
 
   def __process(self, graph):
     assert type(graph) == TupleType
@@ -233,25 +254,52 @@ class NfaBuilder:
     for end in ends:
       end.close(new_end)
 
-  def nfa(self, graph):
-    self.__start_node = None
+  def __push_state(self):
+    self.__states.append({
+      'start_node' : None,
+      'subgraphs' : {},
+    })
+
+  def __pop_state(self):
+    return self.__states.pop()
+
+  def __peek_state(self):
+    return self.__states[len(self.__states) - 1]
+
+  def __nfa(self, graph):
     start_node_number = self.__node_number
+    self.__push_state()
     (start, ends) = self.__process(graph)
-    if self.__start_node:
-      self.__start_node.close(start)
-      start = self.__start_node
+    state = self.__pop_state()
+    if state['start_node']:
+      state['start_node'].close(start)
+      start = state['start_node']
+    for k, subgraph in state['subgraphs'].items():
+      subgraph[1].close(None)
     end =  self.__new_state()
     self.__patch_ends(ends, end)
+    return (start, end, self.__node_number - start_node_number)
+
+  def nfa(self, graph):
+    (start, end, nodes_created) = self.__nfa(graph)
     end.close(None)
-    return Nfa(start, end, self.__node_number - start_node_number)
+    return Nfa(start, end, nodes_created)
 
   @staticmethod
   def add_action(graph, action):
-    return ('ACTION', graph, action)
+    return ('ACTION', graph, action, False)
+
+  @staticmethod
+  def add_incoming_action(graph, action):
+    return ('ACTION', graph, action, True)
 
   @staticmethod
   def add_continue(graph):
     return ('CONTINUE', graph)
+
+  @staticmethod
+  def join_subgraph(graph, name, subgraph):
+    return ('JOIN', graph, name, subgraph)
 
   @staticmethod
   def or_graphs(graphs):

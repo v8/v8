@@ -80,12 +80,34 @@ def process_rules(parser_state):
   builder = NfaBuilder()
   builder.set_character_classes(parser_state.character_classes)
   assert 'default' in parser_state.rules
-  for k, v in parser_state.rules.items():
+  def process(k, v):
     assert 'default' in v
     graphs = []
     for (graph, action) in v['regex']:
-      graphs.append(NfaBuilder.add_action(graph, action))
-    rule_map[k] = NfaBuilder.or_graphs(graphs)
+      (precedence, code, transition) = action
+      if code:
+        graph = NfaBuilder.add_action(graph, (precedence, code, None))
+      if transition == 'continue':
+        graph = NfaBuilder.add_continue(graph)
+      elif (transition == 'break' or
+            transition == 'terminate' or
+            transition == 'terminate_illegal'):
+        pass
+      else:
+        assert k == 'default'
+        graph = NfaBuilder.join_subgraph(graph, transition, rule_map[transition])
+      graphs.append(graph)
+    graph = NfaBuilder.or_graphs(graphs)
+    # merge default action
+    (precedence, code, transition) = v['default'][1]
+    assert transition == 'continue' or transition == 'break'
+    if code:
+      graph = NfaBuilder.add_incoming_action(graph, (precedence, code, None))
+    rule_map[k] = graph
+  for k, v in parser_state.rules.items():
+    if k == 'default': continue
+    process(k, v)
+  process('default', parser_state.rules['default'])
   html_data = []
   for rule_name, graph in rule_map.items():
     nfa = builder.nfa(graph)
@@ -98,11 +120,12 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--html')
+  parser.add_argument('--re', default='src/lexer/lexer_py.re')
   args = parser.parse_args()
 
-  re_file = 'src/lexer/lexer_py.re'
-
+  re_file = args.re
   parser_state = RuleParserState()
+  print "parsing %s" % re_file
   with open(re_file, 'r') as f:
     RuleParser.parse(f.read(), parser_state)
   html_data = process_rules(parser_state)
