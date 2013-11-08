@@ -738,13 +738,23 @@ void LCodeGen::DeoptimizeIf(Condition condition,
     return;
   }
 
-  ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on MIPS.
-  if (FLAG_deopt_every_n_times == 1 &&
-      !info()->IsStub() &&
-      info()->opt_count() == id) {
-    ASSERT(frame_is_built_);
+  if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
+    Register scratch = scratch0();
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
+    Label no_deopt;
+    __ Push(a1, scratch);
+    __ li(scratch, Operand(count));
+    __ lw(a1, MemOperand(scratch));
+    __ Subu(a1, a1, Operand(1));
+    __ Branch(&no_deopt, ne, a1, Operand(zero_reg));
+    __ li(a1, Operand(FLAG_deopt_every_n_times));
+    __ sw(a1, MemOperand(scratch));
+    __ Pop(a1, scratch);
+
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    return;
+    __ bind(&no_deopt);
+    __ sw(a1, MemOperand(scratch));
+    __ Pop(a1, scratch);
   }
 
   if (info()->ShouldTrapOnDeopt()) {
