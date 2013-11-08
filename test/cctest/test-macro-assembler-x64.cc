@@ -2704,12 +2704,12 @@ TEST(LoadAndStoreWithRepresentation) {
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
   __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::UInteger8());
+  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Byte());
   __ movq(rcx, Operand(rsp, 0 * kPointerSize));
   __ movl(rdx, Immediate(255));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::UInteger8());
+  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Byte());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
@@ -2775,47 +2775,6 @@ TEST(LoadAndStoreWithRepresentation) {
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
   __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::External());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 7.
-  __ movq(rax, Immediate(7));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Integer8());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
-  __ movl(rdx, Immediate(255));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Integer8());
-  __ movq(rcx, Immediate(-1));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 8.
-  __ movq(rax, Immediate(8));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Integer16());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
-  __ movl(rdx, Immediate(65535));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Integer16());
-  __ movq(rcx, Immediate(-1));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 9.
-  __ movq(rax, Immediate(9));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::UInteger16());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
-  __ movl(rdx, Immediate(65535));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::UInteger16());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 

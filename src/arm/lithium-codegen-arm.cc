@@ -3080,7 +3080,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   if (access.IsExternalMemory()) {
     Register result = ToRegister(instr->result());
     MemOperand operand = MemOperand(object, offset);
-    __ Load(result, operand, access.representation());
+    if (access.representation().IsByte()) {
+      __ ldrb(result, operand);
+    } else {
+      __ ldr(result, operand);
+    }
     return;
   }
 
@@ -3096,7 +3100,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     object = result;
   }
   MemOperand operand = FieldMemOperand(object, offset);
-  __ Load(result, operand, access.representation());
+  if (access.representation().IsByte()) {
+    __ ldrb(result, operand);
+  } else {
+    __ ldr(result, operand);
+  }
 }
 
 
@@ -4199,7 +4207,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (access.IsExternalMemory()) {
     Register value = ToRegister(instr->value());
     MemOperand operand = MemOperand(object, offset);
-    __ Store(value, operand, representation);
+    if (representation.IsByte()) {
+      __ strb(value, operand);
+    } else {
+      __ str(value, operand);
+    }
     return;
   }
 
@@ -4245,7 +4257,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (access.IsInobject()) {
     MemOperand operand = FieldMemOperand(object, offset);
-    __ Store(value, operand, representation);
+    if (representation.IsByte()) {
+      __ strb(value, operand);
+    } else {
+      __ str(value, operand);
+    }
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the object for in-object properties.
       __ RecordWriteField(object,
@@ -4260,7 +4276,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   } else {
     __ ldr(scratch, FieldMemOperand(object, JSObject::kPropertiesOffset));
     MemOperand operand = FieldMemOperand(scratch, offset);
-    __ Store(value, operand, representation);
+    if (representation.IsByte()) {
+      __ strb(value, operand);
+    } else {
+      __ str(value, operand);
+    }
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.

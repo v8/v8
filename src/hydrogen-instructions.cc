@@ -2856,17 +2856,8 @@ Range* HShl::InferRange(Zone* zone) {
 
 
 Range* HLoadNamedField::InferRange(Zone* zone) {
-  if (access().representation().IsInteger8()) {
-    return new(zone) Range(kMinInt8, kMaxInt8);
-  }
-  if (access().representation().IsUInteger8()) {
-    return new(zone) Range(kMinUInt8, kMaxUInt8);
-  }
-  if (access().representation().IsInteger16()) {
-    return new(zone) Range(kMinInt16, kMaxInt16);
-  }
-  if (access().representation().IsUInteger16()) {
-    return new(zone) Range(kMinUInt16, kMaxUInt16);
+  if (access().representation().IsByte()) {
+    return new(zone) Range(0, 255);
   }
   if (access().IsStringLength()) {
     return new(zone) Range(0, String::kMaxLength);
@@ -2877,15 +2868,16 @@ Range* HLoadNamedField::InferRange(Zone* zone) {
 
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
-    case EXTERNAL_BYTE_ELEMENTS:
-      return new(zone) Range(kMinInt8, kMaxInt8);
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
-      return new(zone) Range(kMinUInt8, kMaxUInt8);
+      return new(zone) Range(0, 255);
+    case EXTERNAL_BYTE_ELEMENTS:
+      return new(zone) Range(-128, 127);
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      return new(zone) Range(0, 255);
     case EXTERNAL_SHORT_ELEMENTS:
-      return new(zone) Range(kMinInt16, kMaxInt16);
+      return new(zone) Range(-32768, 32767);
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return new(zone) Range(kMinUInt16, kMaxUInt16);
+      return new(zone) Range(0, 65535);
     default:
       return HValue::InferRange(zone);
   }

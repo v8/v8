@@ -82,10 +82,7 @@ class Representation {
  public:
   enum Kind {
     kNone,
-    kInteger8,
-    kUInteger8,
-    kInteger16,
-    kUInteger16,
+    kByte,
     kSmi,
     kInteger32,
     kDouble,
@@ -99,12 +96,7 @@ class Representation {
 
   static Representation None() { return Representation(kNone); }
   static Representation Tagged() { return Representation(kTagged); }
-  static Representation Integer8() { return Representation(kInteger8); }
-  static Representation UInteger8() { return Representation(kUInteger8); }
-  static Representation Integer16() { return Representation(kInteger16); }
-  static Representation UInteger16() {
-    return Representation(kUInteger16);
-  }
+  static Representation Byte() { return Representation(kByte); }
   static Representation Smi() { return Representation(kSmi); }
   static Representation Integer32() { return Representation(kInteger32); }
   static Representation Double() { return Representation(kDouble); }
@@ -134,8 +126,6 @@ class Representation {
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
     if (IsHeapObject()) return other.IsDouble() || other.IsNone();
-    if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
-    if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;
     return kind_ > other.kind_;
   }
 
@@ -149,26 +139,9 @@ class Representation {
     return Representation::Tagged();
   }
 
-  int size() const {
-    ASSERT(!IsNone());
-    if (IsInteger8() || IsUInteger8()) {
-      return sizeof(uint8_t);
-    }
-    if (IsInteger16() || IsUInteger16()) {
-      return sizeof(uint16_t);
-    }
-    if (IsInteger32()) {
-      return sizeof(uint32_t);
-    }
-    return kPointerSize;
-  }
-
   Kind kind() const { return static_cast<Kind>(kind_); }
   bool IsNone() const { return kind_ == kNone; }
-  bool IsInteger8() const { return kind_ == kInteger8; }
-  bool IsUInteger8() const { return kind_ == kUInteger8; }
-  bool IsInteger16() const { return kind_ == kInteger16; }
-  bool IsUInteger16() const { return kind_ == kUInteger16; }
+  bool IsByte() const { return kind_ == kByte; }
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsSmi() const { return kind_ == kSmi; }
   bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
@@ -178,9 +151,7 @@ class Representation {
   bool IsHeapObject() const { return kind_ == kHeapObject; }
   bool IsExternal() const { return kind_ == kExternal; }
   bool IsSpecialization() const {
-    return IsInteger8() || IsUInteger8() ||
-      IsInteger16() || IsUInteger16() ||
-      IsSmi() || IsInteger32() || IsDouble();
+    return IsByte() || IsSmi() || IsInteger32() || IsDouble();
   }
   const char* Mnemonic() const;
 
@@ -285,8 +256,8 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Bit fields for fast objects.
   class DescriptorPointer:        public BitField<uint32_t,           6, 11> {};
-  class RepresentationField:      public BitField<uint32_t,          17,  4> {};
-  class FieldIndexField:          public BitField<uint32_t,          21, 10> {};
+  class RepresentationField:      public BitField<uint32_t,          17,  3> {};
+  class FieldIndexField:          public BitField<uint32_t,          20, 11> {};
 
   static const int kInitialIndex = 1;
 

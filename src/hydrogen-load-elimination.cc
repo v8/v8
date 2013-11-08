@@ -272,7 +272,9 @@ class HLoadEliminationTable : public ZoneObject {
         KillFieldInternal(object, field, NULL);
 
         // Kill the next field in case of overlap.
-        int size = access.representation().size();
+        int size = kPointerSize;
+        if (access.representation().IsByte()) size = 1;
+        else if (access.representation().IsInteger32()) size = 4;
         int next_field = (offset + size - 1) / kPointerSize;
         if (next_field != field) KillFieldInternal(object, next_field, NULL);
       }

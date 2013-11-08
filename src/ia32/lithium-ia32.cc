@@ -2432,8 +2432,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
       !(FLAG_track_double_fields && instr->field_representation().IsDouble());
 
   LOperand* val;
-  if (instr->field_representation().IsInteger8() ||
-      instr->field_representation().IsUInteger8()) {
+  if (instr->field_representation().IsByte()) {
     // mov_b requires a byte register (i.e. any of eax, ebx, ecx, edx).
     // Just force the value to be in eax and we're safe here.
     val = UseFixed(instr->value(), eax);
