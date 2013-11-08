@@ -297,11 +297,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
-  Add(ExternalReference::fill_heap_number_with_random_function(
-          isolate).address(),
-      RUNTIME_ENTRY,
-      2,
-      "V8::FillHeapNumberWithRandom");
   Add(ExternalReference::random_uint32_function(isolate).address(),
       RUNTIME_ENTRY,
       3,

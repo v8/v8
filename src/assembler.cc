@@ -1053,14 +1053,6 @@ ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::fill_heap_number_with_random_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(V8::FillHeapNumberWithRandom)));
-}
-
-
 ExternalReference ExternalReference::delete_handle_scope_extensions(
     Isolate* isolate) {
   return ExternalReference(Redirect(
