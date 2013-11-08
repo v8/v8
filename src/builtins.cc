@@ -311,7 +311,6 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
     Heap* heap, Object* receiver, Arguments* args, int first_added_arg) {
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
-  if (array->map()->is_observed()) return NULL;
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
