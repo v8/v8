@@ -29,66 +29,93 @@ from string import printable
 
 class TransitionKey:
 
+  __class_bounds = {
+    "latin_1" : (0, 255),
+    "whitespace" : (256, 256),
+    "literal" : (257, 257),
+  }
   __lower_bound = 0
-  __latin_1_upper_bound = 255
-  __unicode_whitespace_bounds = (256, 256)
-  __unicode_literal_bounds = (257, 257)
-  __upper_bound = 257
+  __upper_bound = reduce(lambda acc, (k, v): max(acc, v[1]), __class_bounds.items(), 0)
+
+  __cached_keys = {}
+
+  __unique_key_counter = -1
+
+  @staticmethod
+  def __in_latin_1(char):
+    bound = TransitionKey.__class_bounds["latin_1"]
+    return (bound[0] <= char and char <= bound[1])
+
+  @staticmethod
+  def __is_class_range(r):
+    return r[0] == r[1] and not TransitionKey.__in_latin_1(r[0])
+
+  @staticmethod
+  def __is_unique_range(r):
+    return r[0] == r[1] and r[0] < TransitionKey.__lower_bound
 
   @staticmethod
   def __verify_ranges(ranges, check_merged):
     assert ranges
+    if len(ranges) == 1 and TransitionKey.__is_class_range(ranges[0]):
+      return
     last = None
     for r in ranges:
       assert TransitionKey.__lower_bound <= r[0]
       assert r[1] <= TransitionKey.__upper_bound
       assert r[0] <= r[1]
-      r_is_class = (
-        r == TransitionKey.__unicode_whitespace_bounds or
-        r == TransitionKey.__unicode_literal_bounds)
+      r_is_class = TransitionKey.__is_class_range(r)
       if last != None and check_merged:
         assert last[1] + 1 < r[0] or r_is_class
-      if (r[0] > TransitionKey.__latin_1_upper_bound or
-          r[1] > TransitionKey.__latin_1_upper_bound):
+      if not TransitionKey.__in_latin_1(r[0]):
+        assert r_is_class
+      if not TransitionKey.__in_latin_1(r[1]):
         assert r_is_class
       last = r
 
   @staticmethod
-  def __create(ranges):
-    TransitionKey.__verify_ranges(ranges, True)
+  def __create(ranges, name = None):
+    if not ranges:
+      assert name == 'epsilon'
+      assert not name in TransitionKey.__cached_keys
+    else:
+      TransitionKey.__verify_ranges(ranges, True)
     key = TransitionKey()
     key.__ranges = tuple(ranges) # immutable
+    key.__name = name
     key.__cached_hash = None
     return key
 
-  __cached_epsilon = None
+  @staticmethod
+  def __cached_key(name, bounds_getter):
+    if not name in TransitionKey.__cached_keys:
+      bounds = bounds_getter(name)
+      TransitionKey.__cached_keys[name] = TransitionKey.__create(bounds, name)
+    return TransitionKey.__cached_keys[name]
+
   @staticmethod
   def epsilon():
-    if (TransitionKey.__cached_epsilon == None):
-      key = TransitionKey()
-      key.__ranges = tuple([])
-      key.__cached_hash = None
-      TransitionKey.__cached_epsilon = key
-    return TransitionKey.__cached_epsilon
+    return TransitionKey.__cached_key("epsilon", lambda name : [])
 
-  __cached_any = None
   @staticmethod
   def any():
-    if (TransitionKey.__cached_any == None):
-      bounds = [
-        (TransitionKey.__lower_bound, TransitionKey.__latin_1_upper_bound),
-        TransitionKey.__unicode_whitespace_bounds,
-        TransitionKey.__unicode_literal_bounds,
-      ]
-      TransitionKey.__cached_any = TransitionKey.__create(bounds)
-    return TransitionKey.__cached_any
+    return TransitionKey.__cached_key("any",
+      lambda name : TransitionKey.__class_bounds.values())
 
   @staticmethod
   def single_char(char):
     char = ord(char)
-    assert (TransitionKey.__lower_bound <= char and
-            char <= TransitionKey.__latin_1_upper_bound)
+    assert TransitionKey.__in_latin_1(char)
     return TransitionKey.__create([(char, char)])
+
+  @staticmethod
+  def unique_key(name):
+    def get_bounds(name):
+      bound = TransitionKey.__unique_key_counter
+      TransitionKey.__unique_key_counter -= 1
+      return [(bound, bound)]
+    name = "__" + name
+    return TransitionKey.__cached_key(name, get_bounds)
 
   @staticmethod
   def __process_graph(graph, ranges, key_map):
@@ -103,9 +130,9 @@ class TransitionKey:
     elif key == 'CHARACTER_CLASS':
       class_name = graph[1]
       if class_name == 'ws':
-        ranges.append(TransitionKey.__unicode_whitespace_bounds)
+        ranges.append(TransitionKey.__class_bounds["whitespace"])
       elif class_name == 'lit':
-        ranges.append(TransitionKey.__unicode_literal_bounds)
+        ranges.append(TransitionKey.__class_bounds["literal"])
       elif class_name in key_map:
         ranges += key_map[class_name].__ranges
       else:
@@ -155,29 +182,26 @@ class TransitionKey:
   }
 
   @staticmethod
-  def __print_range(r):
-    def to_str(x):
-      if x <= TransitionKey.__latin_1_upper_bound:
-        if not x in TransitionKey.__printable_cache:
-          res = "'%s'" % chr(x) if chr(x) in printable else str(x)
-          TransitionKey.__printable_cache[x] = res
-        return TransitionKey.__printable_cache[x]
-      if x == TransitionKey.__unicode_literal_bounds[0]:
-        return "literal"
-      if x == TransitionKey.__unicode_whitespace_bounds[0]:
-        return "whitespace"
+  def __range_str(r):
+    if TransitionKey.__is_class_range(r):
+      for name, v in TransitionKey.__class_bounds.items():
+        if r == v: return name
       assert False
+    def to_str(x):
+      assert TransitionKey.__in_latin_1(x)
+      if not x in TransitionKey.__printable_cache:
+        res = "'%s'" % chr(x) if chr(x) in printable else str(x)
+        TransitionKey.__printable_cache[x] = res
+      return TransitionKey.__printable_cache[x]
     if r[0] == r[1]:
       return "%s" % to_str(r[0])
     else:
       return "[%s-%s]" % (to_str(r[0]), to_str(r[1]))
 
   def __str__(self):
-    if self == self.epsilon():
-      return "epsilon"
-    if self == self.any():
-      return "any"
-    return ", ".join(TransitionKey.__print_range(x) for x in self.__ranges)
+    if self.__name:
+      return self.__name
+    return ", ".join(TransitionKey.__range_str(x) for x in self.__ranges)
 
   @staticmethod
   def __disjoint_keys(range_map):
@@ -236,11 +260,10 @@ class TransitionKey:
     merged = []
     last = None
     for r in ranges:
+      assert not TransitionKey.__is_unique_range(r)
       if last == None:
         last = r
-      elif (last[1] + 1 == r[0] and
-            r != TransitionKey.__unicode_whitespace_bounds and
-            r != TransitionKey.__unicode_literal_bounds):
+      elif (last[1] + 1 == r[0] and not TransitionKey.__is_class_range(r)):
         last = (last[0], r[1])
       else:
         merged.append(last)
@@ -258,14 +281,12 @@ class TransitionKey:
   def __invert_ranges(ranges):
     inverted = []
     last = None
-    contains_whitespace = False
-    contains_literal = False
+    classes = set(TransitionKey.__class_bounds.values())
+    classes.remove(TransitionKey.__class_bounds["latin_1"])
     for r in ranges:
-      if r == TransitionKey.__unicode_whitespace_bounds:
-        contains_whitespace = True
-        continue
-      if r == TransitionKey.__unicode_literal_bounds:
-        contains_literal = True
+      assert not TransitionKey.__is_unique_range(r)
+      if TransitionKey.__is_class_range(r):
+        classes.remove(r)
         continue
       if last == None:
         if r[0] != TransitionKey.__lower_bound:
@@ -273,10 +294,8 @@ class TransitionKey:
       elif last[1] + 1 < r[0]:
         inverted.append((last[1] + 1, r[0] - 1))
       last = r
-    if last != None and last[1] < TransitionKey.__latin_1_upper_bound:
-      inverted.append((last[1] + 1, TransitionKey.__latin_1_upper_bound))
-    if not contains_whitespace:
-      inverted.append(TransitionKey.__unicode_whitespace_bounds)
-    if not contains_literal:
-      inverted.append(TransitionKey.__unicode_literal_bounds)
+    upper_bound = TransitionKey.__class_bounds["latin_1"][1]
+    if last != None and last[1] < upper_bound:
+      inverted.append((last[1] + 1, upper_bound))
+    inverted += list(classes)
     return inverted
