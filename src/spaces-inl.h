@@ -349,11 +349,6 @@ MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
   allocation_info_.set_top(allocation_info_.top() + size_in_bytes);
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
-  if (profiler != NULL && profiler->is_tracking_allocations()) {
-    profiler->NewObjectEvent(obj->address(), size_in_bytes);
-  }
-
   return obj;
 }
 
