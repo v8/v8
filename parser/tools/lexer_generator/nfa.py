@@ -214,8 +214,11 @@ class NfaBuilder:
       new_start.close(start)
       start = new_start
     else:
+      new_end = self.__new_state()
       for end in ends:
         end.set_transition_action(action)
+      self.__patch_ends(ends, new_end)
+      ends = [new_end]
     return (start, ends)
 
   def __continue(self, graph):

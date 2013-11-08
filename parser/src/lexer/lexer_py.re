@@ -101,68 +101,9 @@ number        { PUSH_TOKEN(NUMBER); }
 line_terminator+  { PUSH_LINE_TERMINATOR(); }
 whitespace     <<continue>>
 
-"\""           <<DoubleQuoteString>> # TODO mark these transitions as ignoring this character
+"\""           <<DoubleQuoteString>>
 "'"            <<SingleQuoteString>>
 
-identifier_start     <<Identifier>>  # TODO merge identifier dfa...
-/\\u[0-9a-fA-F]{4}/ {
-  if (V8_LIKELY(ValidIdentifierStart())) {
-    JUMP(Identifier);
-  }
-  PUSH_TOKEN(ILLEGAL);
-}
-
-eof           <<terminate>>
-default       { PUSH_TOKEN(ILLEGAL); }
-
-<DoubleQuoteString>
-"\\"      <<continue>>
-"\\\""    <<continue>>
-"\""      { PUSH_TOKEN(STRING); } <<break>>
-/\\\n\r?/ <<continue>>
-/\\\r\n?/ <<continue>>
-/\n\r/    { PUSH_TOKEN(ILLEGAL); } <<break>>
-eof       <<terminate_illegal>>
-default   <<continue>>
-
-<SingleQuoteString>
-"\\"      <<continue>>
-"\\'"     <<continue>>
-"'"       { PUSH_TOKEN(STRING); } <<break>>
-/\\\n\r?/ <<continue>>
-/\\\r\n?/ <<continue>>
-/\n\r/    { PUSH_TOKEN(ILLEGAL); } <<break>>
-eof       <<terminate_illegal>>
-default   <<continue>>
-
-<Identifier>
-identifier_char+    <<continue>>
-/\\u[0-9a-fA-F]{4}/ {
-  if (V8_UNLIKELY(!ValidIdentifierStart())) {
-    PUSH_TOKEN(ILLEGAL);
-    JUMP(Normal);
-  }
-}
-default             { PUSH_TOKEN(IDENTIFIER); }  <<break>>
-
-<SingleLineComment>
-line_terminator  { PUSH_LINE_TERMINATOR(); } <<break>>
-eof              <<terminate>>
-default          <<continue>>
-
-<MultiLineComment>
-"*/"             <<break>>
-line_terminator+ { PUSH_LINE_TERMINATOR(); }
-eof              <<terminate>>
-default          <<continue>>
-
-<HtmlComment>
-"-->"            <<break>>
-line_terminator+ { PUSH_LINE_TERMINATOR(); }
-eof              <<terminate>>
-default          <<continue>>
-
-<default>
 # all keywords
 "break"       { PUSH_TOKEN(BREAK); } <<break>>
 "case"        { PUSH_TOKEN(CASE); } <<break>>
@@ -209,3 +150,61 @@ default          <<continue>>
 "while"       { PUSH_TOKEN(WHILE); } <<break>>
 "with"        { PUSH_TOKEN(WITH); } <<break>>
 "yield"       { PUSH_TOKEN(YIELD); } <<break>>
+
+identifier_start     <<Identifier>>
+/\\u[0-9a-fA-F]{4}/ {
+  if (V8_LIKELY(ValidIdentifierStart())) {
+    JUMP(Identifier);
+  }
+  PUSH_TOKEN(ILLEGAL);
+} <<Identifier>>
+
+eof           <<terminate>>
+default       { PUSH_TOKEN(ILLEGAL); }
+
+<DoubleQuoteString>
+"\\"      <<continue>>
+"\\\""    <<continue>>
+"\""      { PUSH_TOKEN(STRING); } <<break>>
+/\\\n\r?/ <<continue>>
+/\\\r\n?/ <<continue>>
+/\n|\r/    { PUSH_TOKEN(ILLEGAL); } <<break>>
+eof       <<terminate_illegal>>
+default   <<continue>>
+
+<SingleQuoteString>
+"\\"      <<continue>>
+"\\'"     <<continue>>
+"'"       { PUSH_TOKEN(STRING); } <<break>>
+/\\\n\r?/ <<continue>>
+/\\\r\n?/ <<continue>>
+/\n|\r/    { PUSH_TOKEN(ILLEGAL); } <<break>>
+eof       <<terminate_illegal>>
+default   <<continue>>
+
+<Identifier>
+identifier_char+    <<continue>>
+/\\u[0-9a-fA-F]{4}/ {
+  if (V8_UNLIKELY(!ValidIdentifierStart())) {
+    PUSH_TOKEN(ILLEGAL);
+    JUMP(Normal);
+  }
+}
+default             { PUSH_TOKEN(IDENTIFIER); }  <<break>>
+
+<SingleLineComment>
+line_terminator  { PUSH_LINE_TERMINATOR(); } <<break>>
+eof              <<terminate>>
+default          <<continue>>
+
+<MultiLineComment>
+"*/"             <<break>>
+line_terminator+ { PUSH_LINE_TERMINATOR(); }
+eof              <<terminate>>
+default          <<continue>>
+
+<HtmlComment>
+"-->"            <<break>>
+line_terminator+ { PUSH_LINE_TERMINATOR(); }
+eof              <<terminate>>
+default          <<continue>>

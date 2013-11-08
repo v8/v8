@@ -90,10 +90,12 @@ def process_rules(parser_state):
       if transition == 'continue':
         if not v['default'][1][2] == 'continue':
           graph = NfaBuilder.add_continue(graph)
+        else:
+          pass # TODO null key
       elif (transition == 'break' or
             transition == 'terminate' or
             transition == 'terminate_illegal'):
-        NfaBuilder.add_action(graph, (-1, transition, None))
+        graph = NfaBuilder.add_action(graph, (10000, transition, None))
       else:
         assert k == 'default'
         graph = NfaBuilder.join_subgraph(graph, transition, rule_map[transition])
@@ -104,7 +106,7 @@ def process_rules(parser_state):
     assert transition == 'continue' or transition == 'break'
     if transition == 'continue':
       assert k != 'default'
-      # graph = NfaBuilder.apply_modifier('*', graph)
+      graph = NfaBuilder.add_incoming_action(graph, (10000, k, None))
     if code:
       graph = NfaBuilder.add_incoming_action(graph, (precedence, code, None))
     rule_map[k] = graph
