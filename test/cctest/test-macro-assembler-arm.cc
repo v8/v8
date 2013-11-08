@@ -132,5 +132,99 @@ TEST(CopyBytes) {
 }
 
 
+typedef int (*F0)();
+
+
+TEST(LoadAndStoreWithRepresentation) {
+  v8::internal::V8::Initialize(NULL);
+
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
+  masm->set_allow_stub_calls(false);
+  __ sub(sp, sp, Operand(1 * kPointerSize));
+  Label exit;
+
+  // Test 1.
+  __ mov(r0, Operand(1));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::UInteger8());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(255));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(255));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::UInteger8());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  // Test 2.
+  __ mov(r0, Operand(2));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::Integer8());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(255));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(-1));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::Integer8());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  // Test 3.
+  __ mov(r0, Operand(3));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::UInteger16());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(65535));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(65535));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::UInteger16());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  // Test 4.
+  __ mov(r0, Operand(4));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::Integer16());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(65535));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(-1));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::Integer16());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  __ mov(r0, Operand(0));  // Success.
+  __ bind(&exit);
+  __ add(sp, sp, Operand(1 * kPointerSize));
+  __ bx(lr);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  // Call the function from C++.
+
+  F0 f = FUNCTION_CAST<F0>(buffer);
+  int32_t result = Simulator::current(Isolate::Current())->Call(
+      FUNCTION_ADDR(f), 4, 0, 0, 0, 0);
+  CHECK_EQ(0, result);
+}
 
 #undef __

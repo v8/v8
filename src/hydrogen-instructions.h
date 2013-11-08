@@ -5860,7 +5860,7 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForMapInstanceSize() {
     return HObjectAccess(kInobject,
                          Map::kInstanceSizeOffset,
-                         Representation::Byte());
+                         Representation::UInteger8());
   }
 
   static HObjectAccess ForPropertyCellValue() {
@@ -5938,8 +5938,8 @@ class HObjectAccess V8_FINAL {
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
-  class RepresentationField : public BitField<Representation::Kind, 3, 3> {};
-  class OffsetField : public BitField<int, 6, 26> {};
+  class RepresentationField : public BitField<Representation::Kind, 3, 4> {};
+  class OffsetField : public BitField<int, 7, 25> {};
 
   uint32_t value_;  // encodes portion, representation, and offset
   Handle<String> name_;
@@ -5992,7 +5992,10 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
     SetOperandAt(0, object);
 
     Representation representation = access.representation();
-    if (representation.IsByte()) {
+    if (representation.IsInteger8() ||
+        representation.IsUInteger8() ||
+        representation.IsInteger16() ||
+        representation.IsUInteger16()) {
       set_representation(Representation::Integer32());
     } else if (representation.IsSmi()) {
       set_type(HType::Smi());
@@ -6302,7 +6305,10 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
       // object must be external in case of external memory access
       return Representation::External();
     } else if (index == 1) {
-      if (field_representation().IsByte() ||
+      if (field_representation().IsInteger8() ||
+          field_representation().IsUInteger8() ||
+          field_representation().IsInteger16() ||
+          field_representation().IsUInteger16() ||
           field_representation().IsInteger32()) {
         return Representation::Integer32();
       } else if (field_representation().IsDouble() ||

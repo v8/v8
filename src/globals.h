@@ -226,6 +226,14 @@ const int MB = KB * KB;
 const int GB = KB * KB * KB;
 const int kMaxInt = 0x7FFFFFFF;
 const int kMinInt = -kMaxInt - 1;
+const int kMaxInt8 = (1 << 7) - 1;
+const int kMinInt8 = -(1 << 7);
+const int kMaxUInt8 = (1 << 8) - 1;
+const int kMinUInt8 = 0;
+const int kMaxInt16 = (1 << 15) - 1;
+const int kMinInt16 = -(1 << 15);
+const int kMaxUInt16 = (1 << 16) - 1;
+const int kMinUInt16 = 0;
 
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 

@@ -94,6 +94,7 @@
         'test-random-number-generator.cc',
         'test-regexp.cc',
         'test-reloc-info.cc',
+        'test-representation.cc',
         'test-semaphore.cc',
         'test-serialize.cc',
         'test-socket.cc',
@@ -121,6 +122,7 @@
             'test-code-stubs-ia32.cc',
             'test-cpu-ia32.cc',
             'test-disasm-ia32.cc',
+            'test-macro-assembler-ia32.cc',
             'test-log-stack-tracer.cc'
           ],
         }],
