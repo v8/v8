@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from lexer import Lexer
+from generator import Generator
 
 class LexerTestCase(unittest.TestCase):
 
@@ -38,32 +38,34 @@ class LexerTestCase(unittest.TestCase):
   def test_simple(self):
     rules = '''
     <default>
-    "("           { LBRACE }
-    ")"           { RBRACE }
+    "("           { LBRACE } <<continue>>
+    ")"           { RBRACE } <<continue>>
 
-    "foo"         { FOO }
-    eof           <<terminate>>'''
+    "foo"         { FOO } <<continue>>
+    eof           <<terminate>>
+    default       <<break>>'''
 
-    lexer = Lexer(rules)
+    generator = Generator(rules)
 
     string = 'foo()\0'
     self.__verify_action_stream(
-        lexer.lex(string),
+        generator.lex(string),
         [('FOO', 'foo'), ('LBRACE', '('), ('RBRACE', ')')])
 
   def test_maximal_matching(self):
     rules = '''
     <default>
-    "<"           { LT }
-    "<<"          { SHL }
-    " "           { SPACE }
-    eof           <<terminate>>'''
+    "<"           { LT } <<continue>>
+    "<<"          { SHL } <<continue>>
+    " "           { SPACE } <<continue>>
+    eof           <<terminate>>
+    default       <<break>>'''
 
-    lexer = Lexer(rules)
+    generator = Generator(rules)
 
     string = '<< <\0'
     self.__verify_action_stream(
-        lexer.lex(string),
+        generator.lex(string),
         [('SHL', '<<'), ('SPACE', ' '), ('LT', '<')])
 
 
@@ -75,12 +77,13 @@ class LexerTestCase(unittest.TestCase):
     digit = [0-9];
     number = (digit+ ("." digit+)?);
     <default>
-    number        { NUMBER }
-    eof           <<terminate>>'''
+    number        { NUMBER } <<continue>>
+    eof           <<terminate>>
+    default       <<break>>'''
 
-    lexer = Lexer(rules)
+    generator = Generator(rules)
 
     string = '555\0'
     self.__verify_action_stream(
-        lexer.lex(string),
+        generator.lex(string),
         [('NUMBER', '555')])
