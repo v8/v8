@@ -708,6 +708,21 @@ DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
 
 #undef DEFINE_GET_CONSTANT
 
+#define DEFINE_IS_CONSTANT(Name, name)                                         \
+bool HGraph::IsConstant##Name(HConstant* constant) {                           \
+  return constant_##name##_.is_set() && constant == constant_##name##_.get();  \
+}
+DEFINE_IS_CONSTANT(Undefined, undefined)
+DEFINE_IS_CONSTANT(0, 0)
+DEFINE_IS_CONSTANT(1, 1)
+DEFINE_IS_CONSTANT(Minus1, minus1)
+DEFINE_IS_CONSTANT(True, true)
+DEFINE_IS_CONSTANT(False, false)
+DEFINE_IS_CONSTANT(Hole, the_hole)
+DEFINE_IS_CONSTANT(Null, null)
+
+#undef DEFINE_IS_CONSTANT
+
 
 HConstant* HGraph::GetInvalidContext() {
   return GetConstant(&constant_invalid_context_, 0xFFFFC0C7);
@@ -715,14 +730,14 @@ HConstant* HGraph::GetInvalidContext() {
 
 
 bool HGraph::IsStandardConstant(HConstant* constant) {
-  if (constant == GetConstantUndefined()) return true;
-  if (constant == GetConstant0()) return true;
-  if (constant == GetConstant1()) return true;
-  if (constant == GetConstantMinus1()) return true;
-  if (constant == GetConstantTrue()) return true;
-  if (constant == GetConstantFalse()) return true;
-  if (constant == GetConstantHole()) return true;
-  if (constant == GetConstantNull()) return true;
+  if (IsConstantUndefined(constant)) return true;
+  if (IsConstant0(constant)) return true;
+  if (IsConstant1(constant)) return true;
+  if (IsConstantMinus1(constant)) return true;
+  if (IsConstantTrue(constant)) return true;
+  if (IsConstantFalse(constant)) return true;
+  if (IsConstantHole(constant)) return true;
+  if (IsConstantNull(constant)) return true;
   return false;
 }
 
@@ -2281,7 +2296,8 @@ HGraph::HGraph(CompilationInfo* info)
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
       maximum_environment_size_(0),
-      no_side_effects_scope_count_(0) {
+      no_side_effects_scope_count_(0),
+      disallow_adding_new_values_(false) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
     CodeStubInterfaceDescriptor* descriptor =

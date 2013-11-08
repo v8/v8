@@ -92,6 +92,7 @@ class LCodeGen;
   V(DoubleToSmi)                                \
   V(Drop)                                       \
   V(DummyUse)                                   \
+  V(Dummy)                                      \
   V(ElementsKind)                               \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
@@ -420,6 +421,13 @@ class LLazyBailout V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 
  private:
   int gap_instructions_size_;
+};
+
+
+class LDummy V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+ public:
+  explicit LDummy() { }
+  DECLARE_CONCRETE_INSTRUCTION(Dummy, "dummy")
 };
 
 
