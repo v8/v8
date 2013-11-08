@@ -1,3 +1,14 @@
+2013-11-08: Version 3.23.1
+
+        Made HCapturedObjects non-deletable for DCE. (issue 2987)
+
+        Use a fixed random seed per default. (issue 1880, 2885)
+
+        Fixed y-umlaut to uppercase. (issue 2984)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-06: Version 3.23.0
 
         Fixed loading message from an Error object.  (Chromium issue 306220)
