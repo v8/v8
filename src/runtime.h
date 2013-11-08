@@ -106,7 +106,6 @@ namespace internal {
   F(AllocateInOldPointerSpace, 1, 1) \
   F(AllocateInOldDataSpace, 1, 1) \
   F(SetNativeFlag, 1, 1) \
-  F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
@@ -190,7 +189,6 @@ namespace internal {
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
-  F(PopulateTrigonometricTable, 3, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -627,9 +625,11 @@ namespace internal {
   F(IsSpecObject, 1, 1)                                                      \
   F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(MathPow, 2, 1)                                                           \
+  F(MathSin, 1, 1)                                                           \
+  F(MathCos, 1, 1)                                                           \
+  F(MathTan, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
-  F(MathFloor, 1, 1)                                                         \
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \

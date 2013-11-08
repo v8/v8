@@ -4807,8 +4807,6 @@ bool SharedFunctionInfo::is_classic_mode() {
 BOOL_GETTER(SharedFunctionInfo, compiler_hints, is_extended_mode,
             kExtendedModeFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
-               kInlineBuiltin)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,
                kNameShouldPrintAsAnonymous)
@@ -4869,7 +4867,6 @@ Code* SharedFunctionInfo::code() {
 
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
-  ASSERT(value->kind() != Code::OPTIMIZED_FUNCTION);
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
 }
