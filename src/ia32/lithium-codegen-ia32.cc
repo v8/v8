@@ -3273,12 +3273,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
         ? MemOperand::StaticVariable(ToExternalReference(
                 LConstantOperand::cast(instr->object())))
         : MemOperand(ToRegister(instr->object()), offset);
-    if (access.representation().IsByte()) {
-      ASSERT(instr->hydrogen()->representation().IsInteger32());
-      __ movzx_b(result, operand);
-    } else {
-      __ mov(result, operand);
-    }
+    __ Load(result, operand, access.representation());
     return;
   }
 
@@ -3300,12 +3295,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
     object = result;
   }
-  if (access.representation().IsByte()) {
-    ASSERT(instr->hydrogen()->representation().IsInteger32());
-    __ movzx_b(result, FieldOperand(object, offset));
-  } else {
-    __ mov(result, FieldOperand(object, offset));
-  }
+  __ Load(result, FieldOperand(object, offset), access.representation());
 }
 
 
@@ -4478,16 +4468,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
             ToExternalReference(LConstantOperand::cast(instr->object())))
         : MemOperand(ToRegister(instr->object()), offset);
     if (instr->value()->IsConstantOperand()) {
-      ASSERT(!representation.IsByte());
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
       __ mov(operand, Immediate(ToInteger32(operand_value)));
     } else {
       Register value = ToRegister(instr->value());
-      if (representation.IsByte()) {
-        __ mov_b(operand, value);
-      } else {
-        __ mov(operand, value);
-      }
+      __ Store(value, operand, representation);
     }
     return;
   }
@@ -4565,11 +4550,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (operand_value->IsRegister()) {
       Register value = ToRegister(operand_value);
-      if (representation.IsByte()) {
-        __ mov_b(operand, value);
-      } else {
-        __ mov(operand, value);
-      }
+      __ Store(value, operand, representation);
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
@@ -4577,11 +4558,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     }
   } else {
     Register value = ToRegister(instr->value());
-    if (representation.IsByte()) {
-      __ mov_b(operand, value);
-    } else {
-      __ mov(operand, value);
-    }
+    __ Store(value, operand, representation);
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {

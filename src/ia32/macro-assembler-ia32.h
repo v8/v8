@@ -61,6 +61,9 @@ class MacroAssembler: public Assembler {
   // macro assembler.
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
+  void Load(Register dst, const Operand& src, Representation r);
+  void Store(Register src, const Operand& dst, Representation r);
+
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
   void StoreRoot(Register source, Register scratch, Heap::RootListIndex index);
