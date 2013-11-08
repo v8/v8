@@ -366,6 +366,9 @@ void Map::MapVerify() {
     SLOW_ASSERT(transitions()->IsSortedNoDuplicates());
     SLOW_ASSERT(transitions()->IsConsistentWithBackPointers(this));
   }
+  ASSERT(!is_observed() || instance_type() < FIRST_JS_OBJECT_TYPE ||
+         instance_type() > LAST_JS_OBJECT_TYPE ||
+         has_slow_elements_kind() || has_external_array_elements());
 }
 
 
