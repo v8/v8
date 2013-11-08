@@ -154,6 +154,7 @@ class LCodeGen;
   V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
+  V(SeqStringGetChar)                           \
   V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
   V(SmiTag)                                     \
@@ -1281,27 +1282,37 @@ class LDateField V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LSeqStringGetChar V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LSeqStringGetChar(LOperand* string, LOperand* index) {
+    inputs_[0] = string;
+    inputs_[1] = index;
+  }
+
+  LOperand* string() const { return inputs_[0]; }
+  LOperand* index() const { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(SeqStringGetChar, "seq-string-get-char")
+  DECLARE_HYDROGEN_ACCESSOR(SeqStringGetChar)
+};
+
+
 class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LSeqStringSetChar(String::Encoding encoding,
-                    LOperand* string,
+  LSeqStringSetChar(LOperand* string,
                     LOperand* index,
-                    LOperand* value) : encoding_(encoding) {
+                    LOperand* value) {
     inputs_[0] = string;
     inputs_[1] = index;
     inputs_[2] = value;
   }
 
-  String::Encoding encoding() { return encoding_; }
   LOperand* string() { return inputs_[0]; }
   LOperand* index() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
   DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
-
- private:
-  String::Encoding encoding_;
 };
 
 

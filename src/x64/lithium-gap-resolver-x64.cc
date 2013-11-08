@@ -209,7 +209,7 @@ void LGapResolver::EmitMove(int index) {
       if (int_val == 0) {
         __ xorps(dst, dst);
       } else {
-        __ movq(kScratchRegister, int_val, RelocInfo::NONE64);
+        __ Set(kScratchRegister, int_val);
         __ movq(dst, kScratchRegister);
       }
     } else {

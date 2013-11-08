@@ -631,7 +631,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // rcx = TranscendentalCache::hash(double value).
   ExternalReference cache_array =
       ExternalReference::transcendental_cache_array_address(masm->isolate());
-  __ movq(rax, cache_array);
+  __ Move(rax, cache_array);
   int cache_array_index =
       type_ * sizeof(masm->isolate()->transcendental_cache()->caches_[0]);
   __ movq(rax, Operand(rax, cache_array_index));
@@ -959,7 +959,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       Label continue_sqrt, continue_rsqrt, not_plus_half;
       // Test for 0.5.
       // Load double_scratch with 0.5.
-      __ movq(scratch, V8_UINT64_C(0x3FE0000000000000), RelocInfo::NONE64);
+      __ movq(scratch, V8_UINT64_C(0x3FE0000000000000));
       __ movq(double_scratch, scratch);
       // Already ruled out NaNs for exponent.
       __ ucomisd(double_scratch, double_exponent);
@@ -969,7 +969,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
-      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE64);
+      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
       __ movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -1001,7 +1001,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // case of Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
-      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE64);
+      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
       __ movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -1873,9 +1873,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
           Immediate(1));
 
   // Argument 7: Start (high end) of backtracking stack memory area.
-  __ movq(kScratchRegister, address_of_regexp_stack_memory_address);
+  __ Move(kScratchRegister, address_of_regexp_stack_memory_address);
   __ movq(r9, Operand(kScratchRegister, 0));
-  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
+  __ Move(kScratchRegister, address_of_regexp_stack_memory_size);
   __ addq(r9, Operand(kScratchRegister, 0));
   __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r9);
 
@@ -2810,9 +2810,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
     // stack is known to be aligned. This function takes one argument which is
     // passed in register.
-    __ movq(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
     __ movq(arg_reg_1, rax);
-    __ movq(kScratchRegister,
+    __ Move(kScratchRegister,
             ExternalReference::perform_gc_function(masm->isolate()));
     __ call(kScratchRegister);
   }
@@ -2834,7 +2834,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Return result in single register (rax).
     __ movq(rcx, r14);  // argc.
     __ movq(rdx, r15);  // argv.
-    __ movq(r8, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(r8, ExternalReference::isolate_address(masm->isolate()));
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
@@ -2842,14 +2842,14 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Pass a pointer to the Arguments object as the second argument.
     __ movq(rdx, r14);  // argc.
     __ movq(r8, r15);   // argv.
-    __ movq(r9, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(r9, ExternalReference::isolate_address(masm->isolate()));
   }
 
 #else  // _WIN64
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
   __ movq(rsi, r15);  // argv.
-  __ movq(rdx, ExternalReference::isolate_address(masm->isolate()));
+  __ Move(rdx, ExternalReference::isolate_address(masm->isolate()));
 #endif
   __ call(rbx);
   // Result is in rax - do not destroy this register!
@@ -3030,9 +3030,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // Scratch register is neither callee-save, nor an argument register on any
     // platform. It's free to use at this point.
     // Cannot use smi-register for loading yet.
-    __ movq(kScratchRegister,
-            reinterpret_cast<uint64_t>(Smi::FromInt(marker)),
-            RelocInfo::NONE64);
+    __ movq(kScratchRegister, Smi::FromInt(marker), RelocInfo::NONE64);
     __ push(kScratchRegister);  // context slot
     __ push(kScratchRegister);  // function slot
     // Save callee-saved registers (X64/Win64 calling conventions).
@@ -3139,7 +3137,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(rbx);
   __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
-  __ movq(kScratchRegister, js_entry_sp);
+  __ Move(kScratchRegister, js_entry_sp);
   __ movq(Operand(kScratchRegister, 0), Immediate(0));
   __ bind(&not_outermost_js_2);
 

@@ -128,11 +128,11 @@ function TypeMapIsDisjointFrom(typeMap1, typeMap2) {
 }
 
 var defaultAcceptTypes = TypeMapCreateFromList([
-  'new',
-  'updated',
-  'deleted',
-  'prototype',
-  'reconfigured',
+  'add',
+  'update',
+  'delete',
+  'setPrototype',
+  'reconfigure',
   'preventExtensions'
 ]);
 
@@ -353,9 +353,9 @@ function ObjectUnobserve(object, callback) {
 }
 
 function ArrayObserve(object, callback) {
-  return ObjectObserve(object, callback, ['new',
-                                          'updated',
-                                          'deleted',
+  return ObjectObserve(object, callback, ['add',
+                                          'update',
+                                          'delete',
                                           'splice']);
 }
 

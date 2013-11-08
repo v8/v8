@@ -159,6 +159,7 @@ class LChunkBuilder;
   V(Return)                                    \
   V(Ror)                                       \
   V(Sar)                                       \
+  V(SeqStringGetChar)                          \
   V(SeqStringSetChar)                          \
   V(Shl)                                       \
   V(Shr)                                       \
@@ -208,7 +209,8 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(InobjectFields)                            \
   V(OsrEntries)                                \
-  V(ExternalMemory)
+  V(ExternalMemory)                            \
+  V(StringChars)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)                              \
@@ -542,7 +544,7 @@ class DecompositionResult V8_FINAL BASE_EMBEDDED {
 };
 
 
-typedef EnumSet<GVNFlag> GVNFlagSet;
+typedef EnumSet<GVNFlag, int64_t> GVNFlagSet;
 
 
 class HValue : public ZoneObject {
@@ -3257,9 +3259,6 @@ class HDematerializedObject : public HInstruction {
 
   // List of values tracked by this marker.
   ZoneList<HValue*> values_;
-
- private:
-  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return true; }
 };
 
 
@@ -3287,6 +3286,8 @@ class HArgumentsObject V8_FINAL : public HDematerializedObject {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+
+  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return true; }
 };
 
 
@@ -3323,6 +3324,11 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
 
  private:
   int capture_id_;
+
+  // Note that we cannot DCE captured objects as they are used to replay
+  // the environment. This method is here as an explicit reminder.
+  // TODO(mstarzinger): Turn HSimulates into full snapshots maybe?
+  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return false; }
 };
 
 
@@ -6750,6 +6756,7 @@ class HStringCharCodeAt V8_FINAL : public HTemplateInstruction<3> {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnStringChars);
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
@@ -7021,6 +7028,56 @@ class HDateField V8_FINAL : public HUnaryOperation {
 };
 
 
+class HSeqStringGetChar V8_FINAL : public HTemplateInstruction<2> {
+ public:
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           String::Encoding encoding,
+                           HValue* string,
+                           HValue* index);
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return (index == 0) ? Representation::Tagged()
+                        : Representation::Integer32();
+  }
+
+  String::Encoding encoding() const { return encoding_; }
+  HValue* string() const { return OperandAt(0); }
+  HValue* index() const { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(SeqStringGetChar)
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    return encoding() == HSeqStringGetChar::cast(other)->encoding();
+  }
+
+  virtual Range* InferRange(Zone* zone) V8_OVERRIDE {
+    if (encoding() == String::ONE_BYTE_ENCODING) {
+      return new(zone) Range(0, String::kMaxOneByteCharCode);
+    } else {
+      ASSERT_EQ(String::TWO_BYTE_ENCODING, encoding());
+      return  new(zone) Range(0, String::kMaxUtf16CodeUnit);
+    }
+  }
+
+ private:
+  HSeqStringGetChar(String::Encoding encoding,
+                    HValue* string,
+                    HValue* index) : encoding_(encoding) {
+    SetOperandAt(0, string);
+    SetOperandAt(1, index);
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnStringChars);
+  }
+
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+
+  String::Encoding encoding_;
+};
+
+
 class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P4(HSeqStringSetChar, String::Encoding,
@@ -7047,6 +7104,7 @@ class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<3> {
     SetOperandAt(1, index);
     SetOperandAt(2, value);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesStringChars);
   }
 
   String::Encoding encoding_;

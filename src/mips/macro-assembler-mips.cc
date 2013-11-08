@@ -5654,6 +5654,30 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
 }
 
 
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // Scratch contained elements pointer.
+  Move(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  lw(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  lb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
+  Ext(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  Branch(found, eq, scratch1, Operand(DICTIONARY_ELEMENTS));
+  lw(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  Branch(&loop_again, ne, current, Operand(factory->null_value()));
+}
+
+
 bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
   if (r1.is(r2)) return true;
   if (r1.is(r3)) return true;

@@ -206,6 +206,7 @@ void V8::InitializeOncePerProcessImpl() {
   if (FLAG_concurrent_recompilation &&
       (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs)) {
     FLAG_concurrent_recompilation = false;
+    FLAG_concurrent_osr = false;
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   }
 
@@ -229,8 +230,9 @@ void V8::InitializeOncePerProcessImpl() {
 
   if (FLAG_concurrent_recompilation &&
       SystemThreadManager::NumberOfParallelSystemThreads(
-          SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
+          SystemThreadManager::CONCURRENT_RECOMPILATION) == 0) {
     FLAG_concurrent_recompilation = false;
+    FLAG_concurrent_osr = false;
   }
 
   Sampler::SetUp();

@@ -3551,6 +3551,32 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
 }
 
 
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // scratch contained elements pointer.
+  mov(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  mov(current, FieldOperand(current, HeapObject::kMapOffset));
+  mov(scratch1, FieldOperand(current, Map::kBitField2Offset));
+  and_(scratch1, Map::kElementsKindMask);
+  shr(scratch1, Map::kElementsKindShift);
+  cmp(scratch1, Immediate(DICTIONARY_ELEMENTS));
+  j(equal, found);
+  mov(current, FieldOperand(current, Map::kPrototypeOffset));
+  cmp(current, Immediate(factory->null_value()));
+  j(not_equal, &loop_again);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_IA32

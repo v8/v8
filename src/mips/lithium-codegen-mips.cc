@@ -738,13 +738,23 @@ void LCodeGen::DeoptimizeIf(Condition condition,
     return;
   }
 
-  ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on MIPS.
-  if (FLAG_deopt_every_n_times == 1 &&
-      !info()->IsStub() &&
-      info()->opt_count() == id) {
-    ASSERT(frame_is_built_);
+  if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
+    Register scratch = scratch0();
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
+    Label no_deopt;
+    __ Push(a1, scratch);
+    __ li(scratch, Operand(count));
+    __ lw(a1, MemOperand(scratch));
+    __ Subu(a1, a1, Operand(1));
+    __ Branch(&no_deopt, ne, a1, Operand(zero_reg));
+    __ li(a1, Operand(FLAG_deopt_every_n_times));
+    __ sw(a1, MemOperand(scratch));
+    __ Pop(a1, scratch);
+
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    return;
+    __ bind(&no_deopt);
+    __ sw(a1, MemOperand(scratch));
+    __ Pop(a1, scratch);
   }
 
   if (info()->ShouldTrapOnDeopt()) {
@@ -1731,14 +1741,38 @@ void LCodeGen::DoDateField(LDateField* instr) {
 }
 
 
-void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  Register string = ToRegister(instr->string());
-  LOperand* index_op = instr->index();
-  Register value = ToRegister(instr->value());
+MemOperand LCodeGen::BuildSeqStringOperand(Register string,
+                                           LOperand* index,
+                                           String::Encoding encoding) {
+  if (index->IsConstantOperand()) {
+    int offset = ToInteger32(LConstantOperand::cast(index));
+    if (encoding == String::TWO_BYTE_ENCODING) {
+      offset *= kUC16Size;
+    }
+    STATIC_ASSERT(kCharSize == 1);
+    return FieldMemOperand(string, SeqString::kHeaderSize + offset);
+  }
   Register scratch = scratch0();
-  String::Encoding encoding = instr->encoding();
+  ASSERT(!scratch.is(string));
+  ASSERT(!scratch.is(ToRegister(index)));
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ Addu(scratch, string, ToRegister(index));
+  } else {
+    STATIC_ASSERT(kUC16Size == 2);
+    __ sll(scratch, ToRegister(index), 1);
+    __ Addu(scratch, string, scratch);
+  }
+  return FieldMemOperand(scratch, SeqString::kHeaderSize);
+}
+
+
+void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
+  Register string = ToRegister(instr->string());
+  Register result = ToRegister(instr->result());
 
   if (FLAG_debug_code) {
+    Register scratch = scratch0();
     __ lw(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
     __ lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
 
@@ -1751,25 +1785,39 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     __ Check(eq, kUnexpectedStringType, at, Operand(zero_reg));
   }
 
-  if (index_op->IsConstantOperand()) {
-    int constant_index = ToInteger32(LConstantOperand::cast(index_op));
-    if (encoding == String::ONE_BYTE_ENCODING) {
-      __ sb(value,
-          FieldMemOperand(string, SeqString::kHeaderSize + constant_index));
-    } else {
-      __ sh(value,
-          FieldMemOperand(string, SeqString::kHeaderSize + constant_index * 2));
-    }
+  MemOperand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ lbu(result, operand);
   } else {
-    Register index = ToRegister(index_op);
-    if (encoding == String::ONE_BYTE_ENCODING) {
-      __ Addu(scratch, string, Operand(index));
-      __ sb(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
-    } else {
-      __ sll(scratch, index, 1);
-      __ Addu(scratch, string, scratch);
-      __ sh(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
-    }
+    __ lhu(result, operand);
+  }
+}
+
+
+void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
+  Register string = ToRegister(instr->string());
+  Register value = ToRegister(instr->value());
+
+  if (FLAG_debug_code) {
+    Register scratch = scratch0();
+    __ lw(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+
+    __ And(scratch, scratch,
+           Operand(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ Subu(at, scratch, Operand(encoding == String::ONE_BYTE_ENCODING
+                                ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, kUnexpectedStringType, at, Operand(zero_reg));
+  }
+
+  MemOperand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ sb(value, operand);
+  } else {
+    __ sh(value, operand);
   }
 }
 

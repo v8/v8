@@ -1268,6 +1268,21 @@ static void KeyedStoreGenerateGenericHelper(
            Operand(masm->isolate()->factory()->fixed_array_map()));
     __ b(ne, fast_double);
   }
+
+  // HOLECHECK: guards "A[i] = V"
+  // We have to go to the runtime if the current value is the hole because
+  // there may be a callback on the element
+  Label holecheck_passed1;
+  __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ ldr(scratch_value,
+         MemOperand::PointerAddressFromSmiKey(address, key, PreIndex));
+  __ cmp(scratch_value, Operand(masm->isolate()->factory()->the_hole_value()));
+  __ b(ne, &holecheck_passed1);
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
+                                      slow);
+
+  __ bind(&holecheck_passed1);
+
   // Smi stores don't require further checks.
   Label non_smi_value;
   __ JumpIfNotSmi(value, &non_smi_value);
@@ -1315,6 +1330,20 @@ static void KeyedStoreGenerateGenericHelper(
     __ CompareRoot(elements_map, Heap::kFixedDoubleArrayMapRootIndex);
     __ b(ne, slow);
   }
+
+  // HOLECHECK: guards "A[i] double hole?"
+  // We have to see if the double version of the hole is present. If so
+  // go to the runtime.
+  __ add(address, elements,
+         Operand((FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32))
+                 - kHeapObjectTag));
+  __ ldr(scratch_value,
+         MemOperand(address, key, LSL, kPointerSizeLog2, PreIndex));
+  __ cmp(scratch_value, Operand(kHoleNanUpper32));
+  __ b(ne, &fast_double_without_map_check);
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
+                                      slow);
+
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(value, key, elements, r3, d0,
                                  &transition_double_elements);

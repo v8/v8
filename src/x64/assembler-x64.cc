@@ -1357,12 +1357,41 @@ void Assembler::movb(const Operand& dst, Register src) {
 }
 
 
+void Assembler::movb(const Operand& dst, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst);
+  emit(0xC6);
+  emit_operand(0x0, dst);
+  emit(static_cast<byte>(imm.value_));
+}
+
+
+void Assembler::movw(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x8B);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::movw(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(src, dst);
   emit(0x89);
   emit_operand(src, dst);
+}
+
+
+void Assembler::movw(const Operand& dst, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit_operand(0x0, dst);
+  emit(static_cast<byte>(imm.value_ & 0xff));
+  emit(static_cast<byte>(imm.value_ >> 8));
 }
 
 
@@ -1456,34 +1485,22 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
   // This method must not be used with heap object references. The stored
   // address is not GC safe. Use the handle version instead.
   ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
-  EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  emitp(value, rmode);
-}
-
-
-void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
-  // Non-relocatable values might not need a 64-bit representation.
-  ASSERT(RelocInfo::IsNone(rmode));
-  if (is_uint32(value)) {
-    movl(dst, Immediate(static_cast<int32_t>(value)));
-  } else if (is_int32(value)) {
-    movq(dst, Immediate(static_cast<int32_t>(value)));
+  if (RelocInfo::IsNone(rmode)) {
+    movq(dst, reinterpret_cast<int64_t>(value));
   } else {
-    // Value cannot be represented by 32 bits, so do a full 64 bit immediate
-    // value.
     EnsureSpace ensure_space(this);
     emit_rex_64(dst);
     emit(0xB8 | dst.low_bits());
-    emitq(value);
+    emitp(value, rmode);
   }
 }
 
 
-void Assembler::movq(Register dst, ExternalReference ref) {
-  Address value = reinterpret_cast<Address>(ref.address());
-  movq(dst, value, RelocInfo::EXTERNAL_REFERENCE);
+void Assembler::movq(Register dst, int64_t value) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst);
+  emit(0xB8 | dst.low_bits());
+  emitq(value);
 }
 
 
@@ -1521,21 +1538,13 @@ void Assembler::movl(const Operand& dst, Label* src) {
 
 void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   AllowDeferredHandleDereference using_raw_address;
-  // If there is no relocation info, emit the value of the handle efficiently
-  // (possibly using less that 8 bytes for the value).
-  if (RelocInfo::IsNone(mode)) {
-    // There is no possible reason to store a heap pointer without relocation
-    // info, so it must be a smi.
-    ASSERT(value->IsSmi());
-    movq(dst, reinterpret_cast<int64_t>(*value), RelocInfo::NONE64);
-  } else {
-    EnsureSpace ensure_space(this);
-    ASSERT(value->IsHeapObject());
-    ASSERT(!isolate()->heap()->InNewSpace(*value));
-    emit_rex_64(dst);
-    emit(0xB8 | dst.low_bits());
-    emitp(value.location(), mode);
-  }
+  ASSERT(!RelocInfo::IsNone(mode));
+  EnsureSpace ensure_space(this);
+  ASSERT(value->IsHeapObject());
+  ASSERT(!isolate()->heap()->InNewSpace(*value));
+  emit_rex_64(dst);
+  emit(0xB8 | dst.low_bits());
+  emitp(value.location(), mode);
 }
 
 

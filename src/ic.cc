@@ -270,8 +270,6 @@ bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
 
 bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                 Handle<String> name) {
-  DisallowHeapAllocation no_gc;
-
   if (target()->is_call_stub()) {
     LookupResult lookup(isolate());
     LookupForRead(receiver, name, &lookup);
@@ -768,12 +766,13 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
-  // Compute the number of arguments.
-  Handle<Code> code;
-  code = state() == UNINITIALIZED
-      ? pre_monomorphic_stub()
-      : ComputeMonomorphicStub(lookup, object, name);
+  if (state() == UNINITIALIZED) {
+    set_target(*pre_monomorphic_stub());
+    TRACE_IC("CallIC", name);
+    return;
+  }
 
+  Handle<Code> code = ComputeMonomorphicStub(lookup, object, name);
   // If there's no appropriate stub we simply avoid updating the caches.
   // TODO(verwaest): Install a slow fallback in this case to avoid not learning,
   // and deopting Crankshaft code.
@@ -954,39 +953,36 @@ bool IC::UpdatePolymorphicIC(Handle<HeapObject> receiver,
                              Handle<String> name,
                              Handle<Code> code) {
   if (!code->is_handler()) return false;
-
   MapHandleList receiver_maps;
   CodeHandleList handlers;
 
   int number_of_valid_maps;
   int handler_to_overwrite = -1;
   Handle<Map> new_receiver_map(receiver->map());
-  {
-    DisallowHeapAllocation no_gc;
-    target()->FindAllMaps(&receiver_maps);
-    int number_of_maps = receiver_maps.length();
-    number_of_valid_maps = number_of_maps;
 
-    for (int i = 0; i < number_of_maps; i++) {
-      Handle<Map> map = receiver_maps.at(i);
-      // Filter out deprecated maps to ensure its instances get migrated.
-      if (map->is_deprecated()) {
-        number_of_valid_maps--;
-      // If the receiver map is already in the polymorphic IC, this indicates
-      // there was a prototoype chain failure. In that case, just overwrite the
-      // handler.
-      } else if (map.is_identical_to(new_receiver_map)) {
-        number_of_valid_maps--;
-        handler_to_overwrite = i;
-      }
+  target()->FindAllMaps(&receiver_maps);
+  int number_of_maps = receiver_maps.length();
+  number_of_valid_maps = number_of_maps;
+
+  for (int i = 0; i < number_of_maps; i++) {
+    Handle<Map> map = receiver_maps.at(i);
+    // Filter out deprecated maps to ensure its instances get migrated.
+    if (map->is_deprecated()) {
+      number_of_valid_maps--;
+    // If the receiver map is already in the polymorphic IC, this indicates
+    // there was a prototoype chain failure. In that case, just overwrite the
+    // handler.
+    } else if (map.is_identical_to(new_receiver_map)) {
+      number_of_valid_maps--;
+      handler_to_overwrite = i;
     }
+  }
 
-    if (number_of_valid_maps >= 4) return false;
-    if (number_of_maps == 0) return false;
+  if (number_of_valid_maps >= 4) return false;
+  if (number_of_maps == 0) return false;
 
-    if (!target()->FindHandlers(&handlers, receiver_maps.length())) {
-      return false;
-    }
+  if (!target()->FindHandlers(&handlers, receiver_maps.length())) {
+    return false;
   }
 
   number_of_valid_maps++;
@@ -1017,11 +1013,8 @@ void IC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
 void IC::CopyICToMegamorphicCache(Handle<String> name) {
   MapHandleList receiver_maps;
   CodeHandleList handlers;
-  {
-    DisallowHeapAllocation no_gc;
-    target()->FindAllMaps(&receiver_maps);
-    if (!target()->FindHandlers(&handlers, receiver_maps.length())) return;
-  }
+  target()->FindAllMaps(&receiver_maps);
+  if (!target()->FindHandlers(&handlers, receiver_maps.length())) return;
   for (int i = 0; i < receiver_maps.length(); i++) {
     UpdateMegamorphicCache(*receiver_maps.at(i), *name, *handlers.at(i));
   }
@@ -1029,8 +1022,6 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 
 
 bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
-  DisallowHeapAllocation no_allocation;
-
   Map* current_map = target()->FindFirstMap();
   ElementsKind receiver_elements_kind = receiver_map->elements_kind();
   bool more_general_transition =
@@ -1061,42 +1052,25 @@ void IC::PatchCache(Handle<HeapObject> receiver,
              !target().is_identical_to(code));
       if (!target()->is_keyed_stub()) {
         bool is_same_handler = false;
-        {
-          DisallowHeapAllocation no_allocation;
-          Code* old_handler = target()->FindFirstHandler();
-          is_same_handler = old_handler == *code;
-        }
-        if (is_same_handler
-            && IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
+        Code* old_handler = target()->FindFirstHandler();
+        is_same_handler = old_handler == *code;
+
+        if (is_same_handler &&
+            IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
           UpdateMonomorphicIC(receiver, code, name);
           break;
         }
-        if (UpdatePolymorphicIC(receiver, name, code)) {
-          break;
-        }
-
+      }
+      // Fall through.
+    case POLYMORPHIC:
+      if (!target()->is_keyed_stub()) {
+        if (UpdatePolymorphicIC(receiver, name, code)) break;
         CopyICToMegamorphicCache(name);
       }
-
-      UpdateMegamorphicCache(receiver->map(), *name, *code);
       set_target(*megamorphic_stub());
-      break;
+      // Fall through.
     case MEGAMORPHIC:
       UpdateMegamorphicCache(receiver->map(), *name, *code);
-      break;
-    case POLYMORPHIC:
-      if (target()->is_keyed_stub()) {
-        // When trying to patch a polymorphic keyed stub with anything other
-        // than another polymorphic stub, go generic.
-        set_target(*generic_stub());
-      } else {
-        if (UpdatePolymorphicIC(receiver, name, code)) {
-          break;
-        }
-        CopyICToMegamorphicCache(name);
-        UpdateMegamorphicCache(receiver->map(), *name, *code);
-        set_target(*megamorphic_stub());
-      }
       break;
     case DEBUG_STUB:
       break;
@@ -1119,6 +1093,7 @@ Handle<Code> LoadIC::SimpleFieldLoad(int offset,
   }
 }
 
+
 void LoadIC::UpdateCaches(LookupResult* lookup,
                           Handle<Object> object,
                           Handle<String> name) {
@@ -1133,7 +1108,9 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    code = pre_monomorphic_stub();
+    set_target(*pre_monomorphic_stub());
+    TRACE_IC("LoadIC", name);
+    return;
   } else if (!lookup->IsCacheable()) {
     // Bail out if the result is not cacheable.
     code = slow_stub();
@@ -1175,8 +1152,9 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
   if (!code.is_null()) return code;
 
   code = CompileHandler(lookup, receiver, name, value);
+  ASSERT(code->is_handler());
 
-  if (code->is_handler() && code->type() != Code::NORMAL) {
+  if (code->type() != Code::NORMAL) {
     HeapObject::UpdateMapCodeCache(receiver, name, code);
   }
 
@@ -1215,9 +1193,11 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
         Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
-        // TODO(verwaest): Turn into a handler.
-        return isolate()->stub_cache()->ComputeLoadGlobal(
-            name, receiver, global, cell, lookup->IsDontDelete());
+        Handle<Code> code = compiler.CompileLoadGlobal(
+            receiver, global, cell, name, lookup->IsDontDelete());
+        // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+        HeapObject::UpdateMapCodeCache(receiver, name, code);
+        return code;
       }
       // There is only one shared stub for loading normalized
       // properties. It does not traverse the prototype chain, so the
@@ -1632,11 +1612,15 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         // from the property cell. So the property must be directly on the
         // global object.
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-        Handle<PropertyCell> cell(
-            global->GetPropertyCell(lookup), isolate());
-        // TODO(verwaest): Turn into a handler.
-        return isolate()->stub_cache()->ComputeStoreGlobal(
-            name, global, cell, value, strict_mode());
+        Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
+        Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
+        StoreGlobalStub stub(strict_mode(), union_type->IsConstant());
+
+        Handle<Code> code = stub.GetCodeCopyFromTemplate(
+            isolate(), receiver->map(), *cell);
+        // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+        HeapObject::UpdateMapCodeCache(receiver, name, code);
+        return code;
       }
       ASSERT(holder.is_identical_to(receiver));
       return strict_mode() == kStrictMode
@@ -1936,8 +1920,13 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                  Handle<Object> value,
                                  ICMissMode miss_mode) {
   if (MigrateDeprecated(object)) {
-    return Runtime::SetObjectPropertyOrFail(
-        isolate(), object , key, value, NONE, strict_mode());
+    Handle<Object> result = Runtime::SetObjectProperty(isolate(), object,
+                                                       key,
+                                                       value,
+                                                       NONE,
+                                                       strict_mode());
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   // Check for values that can be converted into an internalized string directly
@@ -1976,10 +1965,16 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
               isolate()->heap()->non_strict_arguments_elements_map()) {
             stub = non_strict_arguments_stub();
           } else if (key_is_smi_like &&
-                     (!target().is_identical_to(non_strict_arguments_stub()))) {
-            KeyedAccessStoreMode store_mode =
-                GetStoreMode(receiver, key, value);
-            stub = StoreElementStub(receiver, store_mode);
+                     !(target().is_identical_to(non_strict_arguments_stub()))) {
+            // We should go generic if receiver isn't a dictionary, but our
+            // prototype chain does have dictionary elements. This ensures that
+            // other non-dictionary receivers in the polymorphic case benefit
+            // from fast path keyed stores.
+            if (!(receiver->map()->DictionaryElementsInPrototypeChainOnly())) {
+              KeyedAccessStoreMode store_mode =
+                  GetStoreMode(receiver, key, value);
+              stub = StoreElementStub(receiver, store_mode);
+            }
           }
         }
       }
@@ -1996,8 +1991,12 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
   }
 
   if (maybe_object) return maybe_object;
-  return Runtime::SetObjectPropertyOrFail(
-      isolate(), object , key, value, NONE, strict_mode());
+  Handle<Object> result = Runtime::SetObjectProperty(isolate(), object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode());
+  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  return *result;
 }
 
 
@@ -2228,12 +2227,12 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
   StrictModeFlag strict_mode = ic.strict_mode();
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    NONE,
-                                    strict_mode);
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -2245,12 +2244,12 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
   StrictModeFlag strict_mode = ic.strict_mode();
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    NONE,
-                                    strict_mode);
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -2270,15 +2269,20 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
   ASSERT(args.length() == 4);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Handle<Object> value = args.at<Object>(0);
+  Handle<Map> map = args.at<Map>(1);
   Handle<Object> key = args.at<Object>(2);
   Handle<Object> object = args.at<Object>(3);
   StrictModeFlag strict_mode = ic.strict_mode();
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    NONE,
-                                    strict_mode);
+  if (object->IsJSObject()) {
+    JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
+                                     map->elements_kind());
+  }
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 

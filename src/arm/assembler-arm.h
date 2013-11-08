@@ -785,10 +785,6 @@ class Assembler : public AssemblerBase {
   // the branch/call instruction at pc, or the object in a mov.
   INLINE(static Address target_pointer_address_at(Address pc));
 
-  // Read/Modify the pointer in the branch/call/move instruction at pc.
-  INLINE(static Address target_pointer_at(Address pc));
-  INLINE(static void set_target_pointer_at(Address pc, Address target));
-
   // Read/Modify the code target address in the branch/call instruction at pc.
   INLINE(static Address target_address_at(Address pc));
   INLINE(static void set_target_address_at(Address pc, Address target));

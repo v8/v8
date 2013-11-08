@@ -826,7 +826,7 @@ void RelocInfo::Print(Isolate* isolate, FILE* out) {
     PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),
            target_address());
     if (rmode_ == CODE_TARGET_WITH_ID) {
-      PrintF(" (id=%d)", static_cast<int>(data_));
+      PrintF(out, " (id=%d)", static_cast<int>(data_));
     }
   } else if (IsPosition(rmode_)) {
     PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());

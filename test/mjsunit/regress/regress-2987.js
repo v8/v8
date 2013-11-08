@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,56 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax
+// Flags: --allow-natives-syntax --dead-code-elimination
 
-function test() {
-  var s1 = %NewString(26, true);
-  for (i = 0; i < 26; i++) %_OneByteSeqStringSetChar(s1, i, 65);
-  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAA", s1);
-  %_OneByteSeqStringSetChar(s1, 25, 66);
-  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAB", s1);
-  for (i = 0; i < 26; i++) %_OneByteSeqStringSetChar(s1, i, i+65);
-  assertEquals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", s1);
-  s1 = %TruncateString(s1, 13);
-  assertEquals("ABCDEFGHIJKLM", s1);
+// This tests that stores on captured objects are correctly tracked even
+// when DCE is enabled. We cannot delete simulations of captured objects
+// that are still needed to replay the environment correctly.
 
-  var s2 = %NewString(26, false);
-  for (i = 0; i < 26; i++) %_TwoByteSeqStringSetChar(s2, i, 65);
-  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAA", s2);
-  %_TwoByteSeqStringSetChar(s2, 25, 66);
-  assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAB", s2);
-  for (i = 0; i < 26; i++) %_TwoByteSeqStringSetChar(s2, i, i+65);
-  assertEquals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", s2);
-  s2 = %TruncateString(s2, 13);
-  assertEquals("ABCDEFGHIJKLM", s2);
-
-  var s3 = %NewString(26, false);
-  for (i = 0; i < 26; i++) %_TwoByteSeqStringSetChar(s3, i, i+1000);
-  for (i = 0; i < 26; i++) assertEquals(s3[i], String.fromCharCode(i+1000));
-
-  var a = [];
-  for (var i = 0; i < 1000; i++) {
-    var s = %NewString(10000, i % 2 == 1);
-    a.push(s);
-  }
-
-  gc();
-
-  for (var i = 0; i < 1000; i++) {
-    assertEquals(10000, a[i].length);
-    a[i] = %TruncateString(a[i], 5000);
-  }
-
-  gc();
-
-  for (var i = 0; i < 1000; i++) {
-    assertEquals(5000, a[i].length);
-  }
+function constructor() {
+  this.x = 0;
 }
 
+var deopt = { deopt:false };
+function boogeyman(mode, value) {
+  var object = new constructor();
+  if (mode) {
+    object.x = 1;
+  } else {
+    object.x = 2;
+  }
+  deopt.deopt;
+  assertEquals(value, object.x);
+}
 
-test();
-test();
-%OptimizeFunctionOnNextCall(test);
-test();
-
+boogeyman(true, 1);
+boogeyman(true, 1);
+boogeyman(false, 2);
+boogeyman(false, 2);
+%OptimizeFunctionOnNextCall(boogeyman);
+boogeyman(false, 2);
+delete deopt.deopt;
+boogeyman(false, 2);

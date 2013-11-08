@@ -315,9 +315,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     reset_value = Smi::kMaxValue;
   }
   __ movq(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
-  __ movq(kScratchRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(reset_value)),
-          RelocInfo::NONE64);
+  __ Move(kScratchRegister, Smi::FromInt(reset_value));
   __ movq(FieldOperand(rbx, Cell::kValueOffset), kScratchRegister);
 }
 
@@ -1597,6 +1595,9 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
+
+  int depth = 1;
+  expr->BuildConstantProperties(isolate(), &depth);
   Handle<FixedArray> constant_properties = expr->constant_properties();
   int flags = expr->fast_elements()
       ? ObjectLiteral::kFastElements
@@ -1606,7 +1607,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1 || Serializer::enabled() ||
+      depth > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1725,6 +1726,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
+  int depth = 1;
+  expr->BuildConstantElements(isolate(), &depth);
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1751,8 +1754,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         DONT_TRACK_ALLOCATION_SITE,
         length);
     __ CallStub(&stub);
-  } else if (expr->depth() > 1 ||
-             Serializer::enabled() ||
+  } else if (depth > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
@@ -4379,14 +4381,47 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     PrepareForBailoutForId(prop->LoadId(), TOS_REG);
   }
 
-  // Call ToNumber only if operand is not a smi.
-  Label no_conversion;
+  // Inline smi case if we are in a loop.
+  Label done, stub_call;
+  JumpPatchSite patch_site(masm_);
   if (ShouldInlineSmiCase(expr->op())) {
-    __ JumpIfSmi(rax, &no_conversion, Label::kNear);
+    Label slow;
+    patch_site.EmitJumpIfNotSmi(rax, &slow, Label::kNear);
+
+    // Save result for postfix expressions.
+    if (expr->is_postfix()) {
+      if (!context()->IsEffect()) {
+        // Save the result on the stack. If we have a named or keyed property
+        // we store the result under the receiver that is currently on top
+        // of the stack.
+        switch (assign_type) {
+          case VARIABLE:
+            __ push(rax);
+            break;
+          case NAMED_PROPERTY:
+            __ movq(Operand(rsp, kPointerSize), rax);
+            break;
+          case KEYED_PROPERTY:
+            __ movq(Operand(rsp, 2 * kPointerSize), rax);
+            break;
+        }
+      }
+    }
+
+    SmiOperationExecutionMode mode;
+    mode.Add(PRESERVE_SOURCE_REGISTER);
+    mode.Add(BAILOUT_ON_NO_OVERFLOW);
+    if (expr->op() == Token::INC) {
+      __ SmiAddConstant(rax, rax, Smi::FromInt(1), mode, &done, Label::kNear);
+    } else {
+      __ SmiSubConstant(rax, rax, Smi::FromInt(1), mode, &done, Label::kNear);
+    }
+    __ jmp(&stub_call, Label::kNear);
+    __ bind(&slow);
   }
+
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
-  __ bind(&no_conversion);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -4408,34 +4443,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Inline smi case if we are in a loop.
-  Label done, stub_call;
-  JumpPatchSite patch_site(masm_);
-
-  if (ShouldInlineSmiCase(expr->op())) {
-    if (expr->op() == Token::INC) {
-      __ SmiAddConstant(rax, rax, Smi::FromInt(1));
-    } else {
-      __ SmiSubConstant(rax, rax, Smi::FromInt(1));
-    }
-    __ j(overflow, &stub_call, Label::kNear);
-    // We could eliminate this smi check if we split the code at
-    // the first smi check before calling ToNumber.
-    patch_site.EmitJumpIfSmi(rax, &done, Label::kNear);
-
-    __ bind(&stub_call);
-    // Call stub. Undo operation first.
-    if (expr->op() == Token::INC) {
-      __ SmiSubConstant(rax, rax, Smi::FromInt(1));
-    } else {
-      __ SmiAddConstant(rax, rax, Smi::FromInt(1));
-    }
-  }
-
   // Record position before stub call.
   SetSourcePosition(expr->position());
 
   // Call stub for +1/-1.
+  __ bind(&stub_call);
   __ movq(rdx, rax);
   __ Move(rax, Smi::FromInt(1));
   BinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);

@@ -580,6 +580,14 @@ LOperand* LChunkBuilder::UseOrConstantAtStart(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseFixedOrConstant(HValue* value,
+                                            Register fixed_register) {
+  return CanBeImmediateConstant(value)
+      ? chunk_->DefineConstantOperand(HConstant::cast(value))
+      : UseFixed(value, fixed_register);
+}
+
+
 LOperand* LChunkBuilder::UseRegisterOrConstant(HValue* value) {
   return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
@@ -1865,14 +1873,20 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  return DefineAsRegister(new(zone()) LSeqStringGetChar(string, index));
+}
+
+
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
-  LOperand* string = UseRegister(instr->string());
-  LOperand* index = UseRegister(instr->index());
-  ASSERT(ecx.is_byte_register());
-  LOperand* value = UseFixed(instr->value(), ecx);
-  LSeqStringSetChar* result =
-      new(zone()) LSeqStringSetChar(instr->encoding(), string, index, value);
-  return DefineSameAsFirst(result);
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  LOperand* value = (instr->encoding() == String::ONE_BYTE_ENCODING)
+      ? UseFixedOrConstant(instr->value(), eax)
+      : UseRegisterOrConstantAtStart(instr->value());
+  return new(zone()) LSeqStringSetChar(string, index, value);
 }
 
 

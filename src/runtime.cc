@@ -1620,7 +1620,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
     Handle<Object> new_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
     if (!new_value->SameValue(*old_value)) {
-      JSObject::EnqueueChangeRecord(obj, "prototype",
+      JSObject::EnqueueChangeRecord(obj, "setPrototype",
                                     isolate->factory()->proto_string(),
                                     old_value);
     }
@@ -5031,12 +5031,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  LookupResult result(isolate);
-  js_object->LocalLookupRealNamedProperty(*name, &result);
+  LookupResult lookup(isolate);
+  js_object->LocalLookupRealNamedProperty(*name, &lookup);
 
   // Special case for callback properties.
-  if (result.IsPropertyCallbacks()) {
-    Object* callback = result.GetCallbackObject();
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetCallbackObject(), isolate);
     // To be compatible with Safari we do not change the value on API objects
     // in Object.defineProperty(). Firefox disagrees here, and actually changes
     // the value.
@@ -5047,13 +5047,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     // setter to update the value instead.
     // TODO(mstarzinger): So far this only works if property attributes don't
     // change, this should be fixed once we cleanup the underlying code.
-    if (callback->IsForeign() && result.GetAttributes() == attr) {
+    if (callback->IsForeign() && lookup.GetAttributes() == attr) {
       Handle<Object> result_object =
           JSObject::SetPropertyWithCallback(js_object,
-                                            handle(callback, isolate),
+                                            callback,
                                             name,
                                             obj_value,
-                                            handle(result.holder()),
+                                            handle(lookup.holder()),
                                             kStrictMode);
       RETURN_IF_EMPTY_HANDLE(isolate, result_object);
       return *result_object;
@@ -5066,8 +5066,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   // map. The current version of SetObjectProperty does not handle attributes
   // correctly in the case where a property is a field and is reset with
   // new attributes.
-  if (result.IsFound() &&
-      (attr != result.GetAttributes() || result.IsPropertyCallbacks())) {
+  if (lookup.IsFound() &&
+      (attr != lookup.GetAttributes() || lookup.IsPropertyCallbacks())) {
     // New attributes - normalize to avoid writing to instance descriptor
     if (js_object->IsJSGlobalProxy()) {
       // Since the result is a property, the prototype will exist so
@@ -5083,11 +5083,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     return *result;
   }
 
-  return Runtime::ForceSetObjectProperty(isolate,
-                                         js_object,
-                                         name,
-                                         obj_value,
-                                         attr);
+  Handle<Object> result = Runtime::ForceSetObjectProperty(isolate, js_object,
+                                                          name,
+                                                          obj_value,
+                                                          attr);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -5121,49 +5122,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
 }
 
 
-MaybeObject* Runtime::SetObjectPropertyOrFail(
-    Isolate* isolate,
-    Handle<Object> object,
-    Handle<Object> key,
-    Handle<Object> value,
-    PropertyAttributes attr,
-    StrictModeFlag strict_mode) {
-  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
-      SetObjectProperty(isolate, object, key, value, attr, strict_mode));
-}
-
-
-MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
-                                        Handle<Object> object,
-                                        Handle<Object> key,
-                                        Handle<Object> value,
-                                        PropertyAttributes attr,
-                                        StrictModeFlag strict_mode) {
+Handle<Object> Runtime::SetObjectProperty(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Object> key,
+                                          Handle<Object> value,
+                                          PropertyAttributes attr,
+                                          StrictModeFlag strict_mode) {
   SetPropertyMode set_mode = attr == NONE ? SET_PROPERTY : DEFINE_PROPERTY;
-  HandleScope scope(isolate);
 
   if (object->IsUndefined() || object->IsNull()) {
     Handle<Object> args[2] = { key, object };
     Handle<Object> error =
         isolate->factory()->NewTypeError("non_object_property_store",
                                          HandleVector(args, 2));
-    return isolate->Throw(*error);
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
   if (object->IsJSProxy()) {
     bool has_pending_exception = false;
     Handle<Object> name_object = key->IsSymbol()
         ? key : Execution::ToString(isolate, key, &has_pending_exception);
-    if (has_pending_exception) return Failure::Exception();
+    if (has_pending_exception) return Handle<Object>();  // exception
     Handle<Name> name = Handle<Name>::cast(name_object);
-    Handle<Object> result = JSReceiver::SetProperty(
-        Handle<JSProxy>::cast(object), name, value, attr, strict_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return JSReceiver::SetProperty(Handle<JSProxy>::cast(object), name, value,
+                                   attr,
+                                   strict_mode);
   }
 
   // If the object isn't a JavaScript object, we ignore the store.
-  if (!object->IsJSObject()) return *value;
+  if (!object->IsJSObject()) return value;
 
   Handle<JSObject> js_object = Handle<JSObject>::cast(object);
 
@@ -5178,7 +5166,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     // string does nothing with the assignment then we can ignore such
     // assignments.
     if (js_object->IsStringObjectWithCharacterAt(index)) {
-      return *value;
+      return value;
     }
 
     js_object->ValidateElements();
@@ -5187,15 +5175,16 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
         bool has_exception;
         Handle<Object> number =
             Execution::ToNumber(isolate, value, &has_exception);
-        if (has_exception) return Failure::Exception();
+        if (has_exception) return Handle<Object>();  // exception
         value = number;
       }
     }
-    MaybeObject* result = js_object->SetElement(
-        index, *value, attr, strict_mode, true, set_mode);
+    Handle<Object> result = JSObject::SetElement(js_object, index, value, attr,
+                                                 strict_mode,
+                                                 true,
+                                                 set_mode);
     js_object->ValidateElements();
-    if (result->IsFailure()) return result;
-    return *value;
+    return result.is_null() ? result : value;
   }
 
   if (key->IsName()) {
@@ -5206,48 +5195,41 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
           bool has_exception;
           Handle<Object> number =
               Execution::ToNumber(isolate, value, &has_exception);
-          if (has_exception) return Failure::Exception();
+          if (has_exception) return Handle<Object>();  // exception
           value = number;
         }
       }
-      MaybeObject* result = js_object->SetElement(
-          index, *value, attr, strict_mode, true, set_mode);
-      if (result->IsFailure()) return result;
+      return JSObject::SetElement(js_object, index, value, attr, strict_mode,
+                                  true,
+                                  set_mode);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      Handle<Object> result =
-          JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
-      RETURN_IF_EMPTY_HANDLE(isolate, result);
+      return JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
     }
-    return *value;
   }
 
   // Call-back into JavaScript to convert the key to a string.
   bool has_pending_exception = false;
   Handle<Object> converted =
       Execution::ToString(isolate, key, &has_pending_exception);
-  if (has_pending_exception) return Failure::Exception();
+  if (has_pending_exception) return Handle<Object>();  // exception
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(
-        index, *value, attr, strict_mode, true, set_mode);
+    return JSObject::SetElement(js_object, index, value, attr, strict_mode,
+                                true,
+                                set_mode);
   } else {
-    Handle<Object> result =
-        JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
   }
 }
 
 
-MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
-                                             Handle<JSObject> js_object,
-                                             Handle<Object> key,
-                                             Handle<Object> value,
-                                             PropertyAttributes attr) {
-  HandleScope scope(isolate);
-
+Handle<Object> Runtime::ForceSetObjectProperty(Isolate* isolate,
+                                               Handle<JSObject> js_object,
+                                               Handle<Object> key,
+                                               Handle<Object> value,
+                                               PropertyAttributes attr) {
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
@@ -5259,24 +5241,24 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
     // string does nothing with the assignment then we can ignore such
     // assignments.
     if (js_object->IsStringObjectWithCharacterAt(index)) {
-      return *value;
+      return value;
     }
 
-    return js_object->SetElement(
-        index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, attr, kNonStrictMode,
+                                false,
+                                DEFINE_PROPERTY);
   }
 
   if (key->IsName()) {
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
-      return js_object->SetElement(
-          index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
+      return JSObject::SetElement(js_object, index, value, attr, kNonStrictMode,
+                                  false,
+                                  DEFINE_PROPERTY);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-          js_object, name, value, attr);
-      RETURN_IF_EMPTY_HANDLE(isolate, result);
-      return *result;
+      return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name,
+                                                        value, attr);
     }
   }
 
@@ -5284,17 +5266,16 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
   bool has_pending_exception = false;
   Handle<Object> converted =
       Execution::ToString(isolate, key, &has_pending_exception);
-  if (has_pending_exception) return Failure::Exception();
+  if (has_pending_exception) return Handle<Object>();  // exception
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(
-        index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, attr, kNonStrictMode,
+                                false,
+                                DEFINE_PROPERTY);
   } else {
-    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(
-        js_object, name, value, attr);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name, value,
+                                                      attr);
   }
 }
 
@@ -5343,12 +5324,12 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);
 
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> value = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
   RUNTIME_ASSERT(
       (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
@@ -5362,12 +5343,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
     strict_mode = strict_mode_flag;
   }
 
-  return Runtime::SetObjectProperty(isolate,
-                                    object,
-                                    key,
-                                    value,
-                                    attributes,
-                                    strict_mode);
+  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
+                                                     value,
+                                                     attributes,
+                                                     strict_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -5388,10 +5369,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
 
-  Handle<Object> object = args.at<Object>(0);
+  CONVERT_ARG_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(*object);
+    JSFunction* func = JSFunction::cast(object);
     func->shared()->set_native(true);
   }
   return isolate->heap()->undefined_value();
@@ -6194,6 +6175,7 @@ template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     Isolate* isolate,
     String* s,
+    String::Encoding result_encoding,
     int length,
     int input_string_length,
     unibrow::Mapping<Converter, 128>* mapping) {
@@ -6209,13 +6191,15 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   Object* o;
-  { MaybeObject* maybe_o = s->IsOneByteRepresentation()
+  { MaybeObject* maybe_o = result_encoding == String::ONE_BYTE_ENCODING
         ? isolate->heap()->AllocateRawOneByteString(length)
         : isolate->heap()->AllocateRawTwoByteString(length);
     if (!maybe_o->ToObject(&o)) return maybe_o;
   }
   String* result = String::cast(o);
   bool has_changed_character = false;
+
+  DisallowHeapAllocation no_gc;
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
@@ -6225,6 +6209,10 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
+  // y with umlauts is the only character that stops fitting into one-byte
+  // when converting to uppercase.
+  static const uc32 yuml_code = 0xff;
+  bool ignore_yuml = result->IsSeqTwoByteString() || Converter::kIsToLower;
   for (int i = 0; i < length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
@@ -6233,13 +6221,14 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       // The case conversion of this character is the character itself.
       result->Set(i, current);
       i++;
-    } else if (char_length == 1) {
+    } else if (char_length == 1 && (ignore_yuml || current != yuml_code)) {
       // Common case: converting the letter resulted in one character.
       ASSERT(static_cast<uc32>(chars[0]) != current);
       result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
     } else if (length == input_string_length) {
+      bool found_yuml = (current == yuml_code);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
       // characters.  No matter, we calculate the exact length
@@ -6259,6 +6248,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       int current_length = i + char_length + next_length;
       while (stream.HasMore()) {
         current = stream.GetNext();
+        found_yuml |= (current == yuml_code);
         // NOTE: we use 0 as the next character here because, while
         // the next character may affect what a character converts to,
         // it does not in any case affect the length of what it convert
@@ -6271,8 +6261,10 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
           return Failure::OutOfMemoryException(0x13);
         }
       }
-      // Try again with the real length.
-      return Smi::FromInt(current_length);
+      // Try again with the real length.  Return signed if we need
+      // to allocate a two-byte string for y-umlaut to uppercase.
+      return (found_yuml && !ignore_yuml) ? Smi::FromInt(-current_length)
+                                          : Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
         result->Set(i, chars[j]);
@@ -6318,121 +6310,108 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
 }
 
 
-enum AsciiCaseConversion {
-  ASCII_TO_LOWER,
-  ASCII_TO_UPPER
-};
+#ifdef DEBUG
+static bool CheckFastAsciiConvert(char* dst,
+                                  char* src,
+                                  int length,
+                                  bool changed,
+                                  bool is_to_lower) {
+  bool expected_changed = false;
+  for (int i = 0; i < length; i++) {
+    if (dst[i] == src[i]) continue;
+    expected_changed = true;
+    if (is_to_lower) {
+      ASSERT('A' <= src[i] && src[i] <= 'Z');
+      ASSERT(dst[i] == src[i] + ('a' - 'A'));
+    } else {
+      ASSERT('a' <= src[i] && src[i] <= 'z');
+      ASSERT(dst[i] == src[i] - ('a' - 'A'));
+    }
+  }
+  return (expected_changed == changed);
+}
+#endif
 
 
-template <AsciiCaseConversion dir>
-struct FastAsciiConverter {
-  static bool Convert(char* dst, char* src, int length, bool* changed_out) {
+template<class Converter>
+static bool FastAsciiConvert(char* dst,
+                             char* src,
+                             int length,
+                             bool* changed_out) {
 #ifdef DEBUG
     char* saved_dst = dst;
     char* saved_src = src;
 #endif
-    // We rely on the distance between upper and lower case letters
-    // being a known power of 2.
-    ASSERT('a' - 'A' == (1 << 5));
-    // Boundaries for the range of input characters than require conversion.
-    const char lo = (dir == ASCII_TO_LOWER) ? 'A' - 1 : 'a' - 1;
-    const char hi = (dir == ASCII_TO_LOWER) ? 'Z' + 1 : 'z' + 1;
-    bool changed = false;
-    uintptr_t or_acc = 0;
-    char* const limit = src + length;
+  DisallowHeapAllocation no_gc;
+  // We rely on the distance between upper and lower case letters
+  // being a known power of 2.
+  ASSERT('a' - 'A' == (1 << 5));
+  // Boundaries for the range of input characters than require conversion.
+  static const char lo = Converter::kIsToLower ? 'A' - 1 : 'a' - 1;
+  static const char hi = Converter::kIsToLower ? 'Z' + 1 : 'z' + 1;
+  bool changed = false;
+  uintptr_t or_acc = 0;
+  char* const limit = src + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
-    // Process the prefix of the input that requires no conversion one
-    // (machine) word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
-      or_acc |= w;
-      if (AsciiRangeMask(w, lo, hi) != 0) {
-        changed = true;
-        break;
-      }
-      *reinterpret_cast<uintptr_t*>(dst) = w;
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
+  // Process the prefix of the input that requires no conversion one
+  // (machine) word at a time.
+  while (src <= limit - sizeof(uintptr_t)) {
+    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    or_acc |= w;
+    if (AsciiRangeMask(w, lo, hi) != 0) {
+      changed = true;
+      break;
     }
-    // Process the remainder of the input performing conversion when
-    // required one word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
-      or_acc |= w;
-      uintptr_t m = AsciiRangeMask(w, lo, hi);
-      // The mask has high (7th) bit set in every byte that needs
-      // conversion and we know that the distance between cases is
-      // 1 << 5.
-      *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
-    }
-#endif
-    // Process the last few bytes of the input (or the whole input if
-    // unaligned access is not supported).
-    while (src < limit) {
-      char c = *src;
-      or_acc |= c;
-      if (lo < c && c < hi) {
-        c ^= (1 << 5);
-        changed = true;
-      }
-      *dst = c;
-      ++src;
-      ++dst;
-    }
-    if ((or_acc & kAsciiMask) != 0) {
-      return false;
-    }
-#ifdef DEBUG
-    CheckConvert(saved_dst, saved_src, length, changed);
-#endif
-    *changed_out = changed;
-    return true;
+    *reinterpret_cast<uintptr_t*>(dst) = w;
+    src += sizeof(uintptr_t);
+    dst += sizeof(uintptr_t);
   }
-
-#ifdef DEBUG
-  static void CheckConvert(char* dst, char* src, int length, bool changed) {
-    bool expected_changed = false;
-    for (int i = 0; i < length; i++) {
-      if (dst[i] == src[i]) continue;
-      expected_changed = true;
-      if (dir == ASCII_TO_LOWER) {
-        ASSERT('A' <= src[i] && src[i] <= 'Z');
-        ASSERT(dst[i] == src[i] + ('a' - 'A'));
-      } else {
-        ASSERT(dir == ASCII_TO_UPPER);
-        ASSERT('a' <= src[i] && src[i] <= 'z');
-        ASSERT(dst[i] == src[i] - ('a' - 'A'));
-      }
-    }
-    ASSERT(expected_changed == changed);
+  // Process the remainder of the input performing conversion when
+  // required one word at a time.
+  while (src <= limit - sizeof(uintptr_t)) {
+    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    or_acc |= w;
+    uintptr_t m = AsciiRangeMask(w, lo, hi);
+    // The mask has high (7th) bit set in every byte that needs
+    // conversion and we know that the distance between cases is
+    // 1 << 5.
+    *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
+    src += sizeof(uintptr_t);
+    dst += sizeof(uintptr_t);
   }
 #endif
-};
+  // Process the last few bytes of the input (or the whole input if
+  // unaligned access is not supported).
+  while (src < limit) {
+    char c = *src;
+    or_acc |= c;
+    if (lo < c && c < hi) {
+      c ^= (1 << 5);
+      changed = true;
+    }
+    *dst = c;
+    ++src;
+    ++dst;
+  }
+  if ((or_acc & kAsciiMask) != 0) {
+    return false;
+  }
 
+  ASSERT(CheckFastAsciiConvert(
+             saved_dst, saved_src, length, changed, Converter::kIsToLower));
 
-struct ToLowerTraits {
-  typedef unibrow::ToLowercase UnibrowConverter;
-
-  typedef FastAsciiConverter<ASCII_TO_LOWER> AsciiConverter;
-};
-
-
-struct ToUpperTraits {
-  typedef unibrow::ToUppercase UnibrowConverter;
-
-  typedef FastAsciiConverter<ASCII_TO_UPPER> AsciiConverter;
-};
+  *changed_out = changed;
+  return true;
+}
 
 }  // namespace
 
 
-template <typename ConvertTraits>
+template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCase(
     Arguments args,
     Isolate* isolate,
-    unibrow::Mapping<typename ConvertTraits::UnibrowConverter, 128>* mapping) {
+    unibrow::Mapping<Converter, 128>* mapping) {
   SealHandleScope shs(isolate);
   CONVERT_ARG_CHECKED(String, s, 0);
   s = s->TryFlattenGetString();
@@ -6454,7 +6433,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
     bool has_changed_character;
-    bool is_ascii = ConvertTraits::AsciiConverter::Convert(
+    bool is_ascii = FastAsciiConvert<Converter>(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
         length,
@@ -6465,31 +6444,35 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     }
   }
 
+  String::Encoding result_encoding = s->IsOneByteRepresentationUnderneath()
+      ? String::ONE_BYTE_ENCODING : String::TWO_BYTE_ENCODING;
   Object* answer;
-  { MaybeObject* maybe_answer =
-        ConvertCaseHelper(isolate, s, length, length, mapping);
+  { MaybeObject* maybe_answer = ConvertCaseHelper(
+        isolate, s, result_encoding, length, length, mapping);
     if (!maybe_answer->ToObject(&answer)) return maybe_answer;
   }
   if (answer->IsSmi()) {
-    // Retry with correct length.
-    { MaybeObject* maybe_answer =
-          ConvertCaseHelper(isolate,
-                            s, Smi::cast(answer)->value(), length, mapping);
-      if (!maybe_answer->ToObject(&answer)) return maybe_answer;
+    int new_length = Smi::cast(answer)->value();
+    if (new_length < 0) {
+      result_encoding = String::TWO_BYTE_ENCODING;
+      new_length = -new_length;
     }
+    MaybeObject* maybe_answer = ConvertCaseHelper(
+        isolate, s, result_encoding, new_length, length, mapping);
+    if (!maybe_answer->ToObject(&answer)) return maybe_answer;
   }
   return answer;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToLowerCase) {
-  return ConvertCase<ToLowerTraits>(
+  return ConvertCase(
       args, isolate, isolate->runtime_state()->to_lower_mapping());
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToUpperCase) {
-  return ConvertCase<ToUpperTraits>(
+  return ConvertCase(
       args, isolate, isolate->runtime_state()->to_upper_mapping());
 }
 
@@ -11349,12 +11332,12 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        SetProperty(isolate,
-                    target,
-                    Handle<String>(scope_info->ParameterName(i)),
-                    value,
-                    NONE,
-                    kNonStrictMode),
+        Runtime::SetObjectProperty(isolate,
+                                   target,
+                                   Handle<String>(scope_info->ParameterName(i)),
+                                   value,
+                                   NONE,
+                                   kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -11365,12 +11348,13 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        SetProperty(isolate,
-                    target,
-                    Handle<String>(scope_info->StackLocalName(i)),
-                    value,
-                    NONE,
-                    kNonStrictMode),
+        Runtime::SetObjectProperty(
+            isolate,
+            target,
+            Handle<String>(scope_info->StackLocalName(i)),
+            value,
+            NONE,
+            kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -11448,12 +11432,12 @@ static Handle<JSObject> MaterializeLocalContext(Isolate* isolate,
         Handle<String> key(String::cast(keys->get(i)));
         RETURN_IF_EMPTY_HANDLE_VALUE(
             isolate,
-            SetProperty(isolate,
-                        target,
-                        key,
-                        GetProperty(isolate, ext, key),
-                        NONE,
-                        kNonStrictMode),
+            Runtime::SetObjectProperty(isolate,
+                                       target,
+                                       key,
+                                       GetProperty(isolate, ext, key),
+                                       NONE,
+                                       kNonStrictMode),
             Handle<JSObject>());
       }
     }
@@ -11553,12 +11537,9 @@ static bool SetLocalVariableValue(Isolate* isolate,
         if (JSReceiver::HasProperty(ext, variable_name)) {
           // We don't expect this to do anything except replacing
           // property value.
-          SetProperty(isolate,
-                      ext,
-                      variable_name,
-                      new_value,
-                      NONE,
-                      kNonStrictMode);
+          Runtime::SetObjectProperty(isolate, ext, variable_name, new_value,
+                                     NONE,
+                                     kNonStrictMode);
           return true;
         }
       }
@@ -11604,12 +11585,10 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
       Handle<String> key(String::cast(keys->get(i)));
        RETURN_IF_EMPTY_HANDLE_VALUE(
           isolate,
-          SetProperty(isolate,
-                      closure_scope,
-                      key,
-                      GetProperty(isolate, ext, key),
-                      NONE,
-                      kNonStrictMode),
+          Runtime::SetObjectProperty(isolate, closure_scope, key,
+                                     GetProperty(isolate, ext, key),
+                                     NONE,
+                                     kNonStrictMode),
           Handle<JSObject>());
     }
   }
@@ -11640,12 +11619,9 @@ static bool SetClosureVariableValue(Isolate* isolate,
     Handle<JSObject> ext(JSObject::cast(context->extension()));
     if (JSReceiver::HasProperty(ext, variable_name)) {
       // We don't expect this to do anything except replacing property value.
-      SetProperty(isolate,
-                  ext,
-                  variable_name,
-                  new_value,
-                  NONE,
-                  kNonStrictMode);
+      Runtime::SetObjectProperty(isolate, ext, variable_name, new_value,
+                                 NONE,
+                                 kNonStrictMode);
       return true;
     }
   }
@@ -11666,12 +11642,9 @@ static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
       isolate->factory()->NewJSObject(isolate->object_function());
   RETURN_IF_EMPTY_HANDLE_VALUE(
       isolate,
-      SetProperty(isolate,
-                  catch_scope,
-                  name,
-                  thrown_object,
-                  NONE,
-                  kNonStrictMode),
+      Runtime::SetObjectProperty(isolate, catch_scope, name, thrown_object,
+                                 NONE,
+                                 kNonStrictMode),
       Handle<JSObject>());
   return catch_scope;
 }
@@ -12689,12 +12662,11 @@ static Handle<JSObject> MaterializeArgumentsObject(
   // FunctionGetArguments can't throw an exception.
   Handle<JSObject> arguments = Handle<JSObject>::cast(
       Accessors::FunctionGetArguments(function));
-  SetProperty(isolate,
-              target,
-              isolate->factory()->arguments_string(),
-              arguments,
-              ::NONE,
-              kNonStrictMode);
+  Runtime::SetObjectProperty(isolate, target,
+                             isolate->factory()->arguments_string(),
+                             arguments,
+                             ::NONE,
+                             kNonStrictMode);
   return target;
 }
 

@@ -209,8 +209,10 @@ namespace internal {
   V(Boolean_string, "Boolean")                                           \
   V(callee_string, "callee")                                             \
   V(constructor_string, "constructor")                                   \
-  V(result_string, ".result")                                            \
+  V(dot_result_string, ".result")                                        \
   V(dot_for_string, ".for.")                                             \
+  V(dot_iterator_string, ".iterator")                                    \
+  V(dot_generator_object_string, ".generator_object")                    \
   V(eval_string, "eval")                                                 \
   V(empty_string, "")                                                    \
   V(function_string, "function")                                         \
@@ -761,6 +763,9 @@ class Heap {
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
+
+  // Iterates the whole code space to clear all ICs of the given kind.
+  void ClearAllICsByKind(Code::Kind kind);
 
   // For use during bootup.
   void RepairFreeListsAfterBoot();

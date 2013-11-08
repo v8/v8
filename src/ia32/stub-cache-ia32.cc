@@ -3125,9 +3125,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     bool is_dont_delete) {
   Label success, miss;
 
-  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss, DO_SMI_CHECK);
-  HandlerFrontendHeader(
-      object, receiver(), Handle<JSObject>::cast(global), name, &miss);
+  HandlerFrontendHeader(object, receiver(), global, name, &miss);
   // Get the value from the cell.
   if (Serializer::enabled()) {
     __ mov(eax, Immediate(cell));
@@ -3154,7 +3152,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   __ ret(0);
 
   // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, name);
+  return GetCode(kind(), Code::NORMAL, name);
 }
 
 

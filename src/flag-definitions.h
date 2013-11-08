@@ -795,6 +795,12 @@ DEFINE_bool(log_timer_events, false,
 DEFINE_implication(log_timer_events, log_internal_timer_events)
 DEFINE_implication(log_internal_timer_events, prof)
 
+DEFINE_bool(redirect_code_traces, false,
+            "output deopt information and disassembly into file "
+            "code-<pid>-<isolate id>.asm")
+DEFINE_string(redirect_code_traces_to, NULL,
+            "output deopt information and disassembly into the given file")
+
 //
 // Disassembler only flags
 //

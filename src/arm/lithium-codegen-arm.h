@@ -273,6 +273,10 @@ class LCodeGen: public LCodeGenBase {
   Register ToRegister(int index) const;
   DwVfpRegister ToDoubleRegister(int index) const;
 
+  MemOperand BuildSeqStringOperand(Register string,
+                                   LOperand* index,
+                                   String::Encoding encoding);
+
   void EmitIntegerMathAbs(LMathAbs* instr);
 
   // Support for recording safepoint and position information.

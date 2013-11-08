@@ -157,7 +157,7 @@ bool LCodeGen::GeneratePrologue() {
 #endif
       __ push(rax);
       __ Set(rax, slots);
-      __ movq(kScratchRegister, kSlotsZapValue, RelocInfo::NONE64);
+      __ movq(kScratchRegister, kSlotsZapValue);
       Label loop;
       __ bind(&loop);
       __ movq(MemOperand(rsp, rax, times_pointer_size, 0),
@@ -261,7 +261,7 @@ bool LCodeGen::GenerateJumpTable() {
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     }
     if (jump_table_[i].needs_frame) {
-      __ movq(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
+      __ Move(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
       if (needs_frame.is_bound()) {
         __ jmp(&needs_frame);
       } else {
@@ -649,7 +649,27 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     return;
   }
 
-  ASSERT(FLAG_deopt_every_n_times == 0);  // Not yet implemented on x64.
+  if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
+    Label no_deopt;
+    __ pushfq();
+    __ push(rax);
+    Operand count_operand = masm()->ExternalOperand(count, kScratchRegister);
+    __ movl(rax, count_operand);
+    __ subl(rax, Immediate(1));
+    __ j(not_zero, &no_deopt, Label::kNear);
+    if (FLAG_trap_on_deopt) __ int3();
+    __ movl(rax, Immediate(FLAG_deopt_every_n_times));
+    __ movl(count_operand, rax);
+    __ pop(rax);
+    __ popfq();
+    ASSERT(frame_is_built_);
+    __ call(entry, RelocInfo::RUNTIME_ENTRY);
+    __ bind(&no_deopt);
+    __ movl(count_operand, rax);
+    __ pop(rax);
+    __ popfq();
+  }
 
   if (info()->ShouldTrapOnDeopt()) {
     Label done;
@@ -1123,7 +1143,7 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
       __ neg(reg1);
       DeoptimizeIf(zero, instr->environment());
     }
-    __ movq(reg2, multiplier, RelocInfo::NONE64);
+    __ Set(reg2, multiplier);
     // Result just fit in r64, because it's int32 * uint32.
     __ imul(reg2, reg1);
 
@@ -1632,32 +1652,88 @@ void LCodeGen::DoDateField(LDateField* instr) {
 }
 
 
-void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+Operand LCodeGen::BuildSeqStringOperand(Register string,
+                                        LOperand* index,
+                                        String::Encoding encoding) {
+  if (index->IsConstantOperand()) {
+    int offset = ToInteger32(LConstantOperand::cast(index));
+    if (encoding == String::TWO_BYTE_ENCODING) {
+      offset *= kUC16Size;
+    }
+    STATIC_ASSERT(kCharSize == 1);
+    return FieldOperand(string, SeqString::kHeaderSize + offset);
+  }
+  return FieldOperand(
+      string, ToRegister(index),
+      encoding == String::ONE_BYTE_ENCODING ? times_1 : times_2,
+      SeqString::kHeaderSize);
+}
+
+
+void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
+  Register result = ToRegister(instr->result());
   Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
-  Register value = ToRegister(instr->value());
-  String::Encoding encoding = instr->encoding();
 
   if (FLAG_debug_code) {
-    __ push(value);
-    __ movq(value, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzxbq(value, FieldOperand(value, Map::kInstanceTypeOffset));
+    __ push(string);
+    __ movq(string, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzxbq(string, FieldOperand(string, Map::kInstanceTypeOffset));
 
-    __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    __ andb(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmpq(value, Immediate(encoding == String::ONE_BYTE_ENCODING
-                                 ? one_byte_seq_type : two_byte_seq_type));
+    __ cmpq(string, Immediate(encoding == String::ONE_BYTE_ENCODING
+                              ? one_byte_seq_type : two_byte_seq_type));
     __ Check(equal, kUnexpectedStringType);
-    __ pop(value);
+    __ pop(string);
   }
 
+  Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
   if (encoding == String::ONE_BYTE_ENCODING) {
-    __ movb(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
-            value);
+    __ movzxbl(result, operand);
   } else {
-    __ movw(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
-            value);
+    __ movzxwl(result, operand);
+  }
+}
+
+
+void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
+  Register string = ToRegister(instr->string());
+
+  if (FLAG_debug_code) {
+    __ push(string);
+    __ movq(string, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzxbq(string, FieldOperand(string, Map::kInstanceTypeOffset));
+
+    __ andb(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmpq(string, Immediate(encoding == String::ONE_BYTE_ENCODING
+                              ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(equal, kUnexpectedStringType);
+    __ pop(string);
+  }
+
+  Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (instr->value()->IsConstantOperand()) {
+    int value = ToInteger32(LConstantOperand::cast(instr->value()));
+    ASSERT_LE(0, value);
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      ASSERT_LE(value, String::kMaxOneByteCharCode);
+      __ movb(operand, Immediate(value));
+    } else {
+      ASSERT_LE(value, String::kMaxUtf16CodeUnit);
+      __ movw(operand, Immediate(value));
+    }
+  } else {
+    Register value = ToRegister(instr->value());
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ movb(operand, value);
+    } else {
+      __ movw(operand, value);
+    }
   }
 }
 
@@ -3453,7 +3529,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   static int64_t minus_one_half = V8_INT64_C(0xBFE0000000000000);  // -0.5
 
   Label done, round_to_zero, below_one_half, do_not_compensate, restore;
-  __ movq(kScratchRegister, one_half, RelocInfo::NONE64);
+  __ movq(kScratchRegister, one_half);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_one_half);
@@ -3468,7 +3544,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ jmp(&done);
 
   __ bind(&below_one_half);
-  __ movq(kScratchRegister, minus_one_half, RelocInfo::NONE64);
+  __ movq(kScratchRegister, minus_one_half);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(below_equal, &round_to_zero);
@@ -3524,7 +3600,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   Label done, sqrt;
   // Check base for -Infinity.  According to IEEE-754, double-precision
   // -Infinity has the highest 12 bits set and the lowest 52 bits cleared.
-  __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000), RelocInfo::NONE64);
+  __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000));
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -3632,8 +3708,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   XMMRegister result = ToDoubleRegister(instr->result());
   XMMRegister scratch4 = double_scratch0();
-  __ movq(scratch3, V8_INT64_C(0x4130000000000000),
-          RelocInfo::NONE64);  // 1.0 x 2^20 as double
+  __ movq(scratch3, V8_INT64_C(0x4130000000000000));  // 1.0 x 2^20 as double
   __ movq(scratch4, scratch3);
   __ movd(result, random);
   __ xorps(result, scratch4);

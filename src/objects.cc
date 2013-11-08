@@ -2157,7 +2157,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
       object->map()->is_observed() &&
       *name != isolate->heap()->hidden_string()) {
     Handle<Object> old_value = isolate->factory()->the_hole_value();
-    EnqueueChangeRecord(object, "new", name, old_value);
+    EnqueueChangeRecord(object, "add", name, old_value);
   }
 
   return value;
@@ -4105,14 +4105,14 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   if (is_observed) {
     if (lookup->IsTransition()) {
-      EnqueueChangeRecord(object, "new", name, old_value);
+      EnqueueChangeRecord(object, "add", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
         Handle<Object> new_value = Object::GetProperty(object, name);
         if (!new_value->SameValue(*old_value)) {
-          EnqueueChangeRecord(object, "updated", name, old_value);
+          EnqueueChangeRecord(object, "update", name, old_value);
         }
       }
     }
@@ -4222,9 +4222,9 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   if (is_observed) {
     if (lookup.IsTransition()) {
-      EnqueueChangeRecord(object, "new", name, old_value);
+      EnqueueChangeRecord(object, "add", name, old_value);
     } else if (old_value->IsTheHole()) {
-      EnqueueChangeRecord(object, "reconfigured", name, old_value);
+      EnqueueChangeRecord(object, "reconfigure", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
@@ -4235,9 +4235,9 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       }
       if (new_lookup.GetAttributes() != old_attributes) {
         if (!value_changed) old_value = isolate->factory()->the_hole_value();
-        EnqueueChangeRecord(object, "reconfigured", name, old_value);
+        EnqueueChangeRecord(object, "reconfigure", name, old_value);
       } else if (value_changed) {
-        EnqueueChangeRecord(object, "updated", name, old_value);
+        EnqueueChangeRecord(object, "update", name, old_value);
       }
     }
   }
@@ -5183,7 +5183,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   if (should_enqueue_change_record && !HasLocalElement(object, index)) {
     Handle<String> name = factory->Uint32ToString(index);
-    EnqueueChangeRecord(object, "deleted", name, old_value);
+    EnqueueChangeRecord(object, "delete", name, old_value);
   }
 
   return result;
@@ -5259,7 +5259,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   if (is_observed && !HasLocalProperty(object, name)) {
-    EnqueueChangeRecord(object, "deleted", name, old_value);
+    EnqueueChangeRecord(object, "delete", name, old_value);
   }
 
   return result;
@@ -6219,6 +6219,31 @@ bool JSObject::CanSetCallback(Name* name) {
 }
 
 
+bool Map::DictionaryElementsInPrototypeChainOnly() {
+  Heap* heap = GetHeap();
+
+  if (IsDictionaryElementsKind(elements_kind())) {
+    return false;
+  }
+
+  for (Object* prototype = this->prototype();
+       prototype != heap->null_value();
+       prototype = prototype->GetPrototype(GetIsolate())) {
+    if (prototype->IsJSProxy()) {
+      // Be conservative, don't walk into proxies.
+      return true;
+    }
+
+    if (IsDictionaryElementsKind(
+            JSObject::cast(prototype)->map()->elements_kind())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 void JSObject::SetElementCallback(Handle<JSObject> object,
                                   uint32_t index,
                                   Handle<Object> structure,
@@ -6227,6 +6252,7 @@ void JSObject::SetElementCallback(Handle<JSObject> object,
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
 
   // Normalize elements to make this operation simple.
+  bool had_dictionary_elements = object->HasDictionaryElements();
   Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
   ASSERT(object->HasDictionaryElements() ||
          object->HasDictionaryArgumentsElements());
@@ -6250,6 +6276,11 @@ void JSObject::SetElementCallback(Handle<JSObject> object,
     parameter_map->set(1, *dictionary);
   } else {
     object->set_elements(*dictionary);
+
+    if (!had_dictionary_elements) {
+      // KeyedStoreICs (at least the non-generic ones) need a reset.
+      heap->ClearAllICsByKind(Code::KEYED_STORE_IC);
+    }
   }
 }
 
@@ -6349,7 +6380,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   if (is_observed) {
-    const char* type = preexists ? "reconfigured" : "new";
+    const char* type = preexists ? "reconfigure" : "add";
     EnqueueChangeRecord(object, type, name, old_value);
   }
 }
@@ -9557,7 +9588,7 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
-    // Crate 3 entries per context {context, code, literals}.
+    // Create 3 entries per context {context, code, literals}.
     MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
     if (!maybe->To(&new_code_map)) return maybe;
     new_code_map->set(kEntriesStart + 0, native_context);
@@ -10512,7 +10543,7 @@ Map* Code::FindFirstMap() {
 void Code::ReplaceNthObject(int n,
                             Map* match_map,
                             Object* replace_with) {
-  ASSERT(is_inline_cache_stub());
+  ASSERT(is_inline_cache_stub() || is_handler());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
@@ -10609,6 +10640,16 @@ void Code::ReplaceNthCell(int n, Cell* replace_with) {
 
 
 void Code::ClearInlineCaches() {
+  ClearInlineCaches(NULL);
+}
+
+
+void Code::ClearInlineCaches(Code::Kind kind) {
+  ClearInlineCaches(&kind);
+}
+
+
+void Code::ClearInlineCaches(Code::Kind* kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
              RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
@@ -10617,7 +10658,9 @@ void Code::ClearInlineCaches() {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
-      IC::Clear(this->GetIsolate(), info->pc());
+      if (kind == NULL || *kind == target->kind()) {
+        IC::Clear(this->GetIsolate(), info->pc());
+      }
     }
   }
 }
@@ -10788,7 +10831,7 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 }
 
 
-void Code::PrintDeoptLocation(int bailout_id) {
+void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
   const char* last_comment = NULL;
   int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
       | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
@@ -10802,7 +10845,7 @@ void Code::PrintDeoptLocation(int bailout_id) {
           (bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-        PrintF("            %s\n", last_comment);
+        PrintF(out, "            %s\n", last_comment);
         return;
       }
     }
@@ -11004,10 +11047,10 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
          this->DeoptPoints());
   if (this->DeoptPoints() == 0) return;
 
-  PrintF("%6s  %8s  %s\n", "ast id", "pc", "state");
+  PrintF(out, "%6s  %8s  %s\n", "ast id", "pc", "state");
   for (int i = 0; i < this->DeoptPoints(); i++) {
     int pc_and_state = this->PcAndState(i)->value();
-    PrintF("%6d  %8d  %s\n",
+    PrintF(out, "%6d  %8d  %s\n",
            this->AstId(i).ToInt(),
            FullCodeGenerator::PcField::decode(pc_and_state),
            FullCodeGenerator::State2String(
@@ -11118,7 +11161,7 @@ void Code::Disassemble(const char* name, FILE* out) {
         DeoptimizationInputData::cast(this->deoptimization_data());
     data->DeoptimizationInputDataPrint(out);
   }
-  PrintF("\n");
+  PrintF(out, "\n");
 
   if (is_crankshafted()) {
     SafepointTable table(this);
@@ -11126,7 +11169,7 @@ void Code::Disassemble(const char* name, FILE* out) {
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
       PrintF(out, "%p  %4d  ", (instruction_start() + pc_offset), pc_offset);
-      table.PrintEntry(i);
+      table.PrintEntry(i, out);
       PrintF(out, " (sp -> fp)");
       SafepointEntry entry = table.GetEntry(i);
       if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
@@ -11167,7 +11210,7 @@ void Code::Disassemble(const char* name, FILE* out) {
 #endif
   }
 
-  PrintF("RelocInfo (size = %d)\n", relocation_size());
+  PrintF(out, "RelocInfo (size = %d)\n", relocation_size());
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Print(GetIsolate(), out);
   }
@@ -11453,11 +11496,11 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 
   for (int i = 0; i < indices.length(); ++i) {
     JSObject::EnqueueChangeRecord(
-        self, "deleted", isolate->factory()->Uint32ToString(indices[i]),
+        self, "delete", isolate->factory()->Uint32ToString(indices[i]),
         old_values[i]);
   }
   JSObject::EnqueueChangeRecord(
-      self, "updated", isolate->factory()->length_string(),
+      self, "update", isolate->factory()->length_string(),
       old_length_handle);
 
   EndPerformSplice(self);
@@ -11805,6 +11848,8 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     }
   }
 
+  bool dictionary_elements_in_chain =
+      object->map()->DictionaryElementsInPrototypeChainOnly();
   Handle<JSObject> real_receiver = object;
 
   if (skip_hidden_prototypes) {
@@ -11836,6 +11881,14 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   }
   ASSERT(new_map->prototype() == *value);
   real_receiver->set_map(*new_map);
+
+  if (!dictionary_elements_in_chain &&
+      new_map->DictionaryElementsInPrototypeChainOnly()) {
+    // If the prototype chain didn't previously have element callbacks, then
+    // KeyedStoreICs need to be cleared to ensure any that involve this
+    // map go generic.
+    object->GetHeap()->ClearAllICsByKind(Code::KEYED_STORE_IC);
+  }
 
   heap->ClearInstanceofCache();
   ASSERT(size == object->Size());
@@ -12492,6 +12545,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     Handle<Object> value,
                                     PropertyAttributes attr,
                                     StrictModeFlag strict_mode,
+                                    bool check_prototype,
                                     SetPropertyMode set_mode) {
   if (object->HasExternalArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
@@ -12504,7 +12558,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
   CALL_HEAP_FUNCTION(
       object->GetIsolate(),
-      object->SetElement(index, *value, attr, strict_mode, true, set_mode),
+      object->SetElement(index, *value, attr, strict_mode, check_prototype,
+                         set_mode),
       Object);
 }
 
@@ -12603,26 +12658,26 @@ MaybeObject* JSObject::SetElement(uint32_t index,
       CHECK(new_length_handle->ToArrayIndex(&new_length));
 
       BeginPerformSplice(Handle<JSArray>::cast(self));
-      EnqueueChangeRecord(self, "new", name, old_value);
-      EnqueueChangeRecord(self, "updated", isolate->factory()->length_string(),
+      EnqueueChangeRecord(self, "add", name, old_value);
+      EnqueueChangeRecord(self, "update", isolate->factory()->length_string(),
                           old_length_handle);
       EndPerformSplice(Handle<JSArray>::cast(self));
       Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
       EnqueueSpliceRecord(Handle<JSArray>::cast(self), old_length, deleted,
                           new_length - old_length);
     } else {
-      EnqueueChangeRecord(self, "new", name, old_value);
+      EnqueueChangeRecord(self, "add", name, old_value);
     }
   } else if (old_value->IsTheHole()) {
-    EnqueueChangeRecord(self, "reconfigured", name, old_value);
+    EnqueueChangeRecord(self, "reconfigure", name, old_value);
   } else {
     Handle<Object> new_value = Object::GetElement(isolate, self, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
-      EnqueueChangeRecord(self, "reconfigured", name, old_value);
+      EnqueueChangeRecord(self, "reconfigure", name, old_value);
     } else if (value_changed) {
-      EnqueueChangeRecord(self, "updated", name, old_value);
+      EnqueueChangeRecord(self, "update", name, old_value);
     }
   }
 
@@ -12825,9 +12880,11 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   }
 
   if (from_kind == to_kind) return this;
-
-  MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
-  if (maybe_failure->IsFailure()) return maybe_failure;
+  // Don't update the site if to_kind isn't fast
+  if (IsFastElementsKind(to_kind)) {
+    MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
+    if (maybe_failure->IsFailure()) return maybe_failure;
+  }
 
   Isolate* isolate = GetIsolate();
   if (elements() == isolate->heap()->empty_fixed_array() ||

@@ -617,7 +617,7 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
 
   if (is_observed && !old_value->SameValue(*value)) {
     JSObject::EnqueueChangeRecord(
-        function, "updated", isolate->factory()->prototype_string(), old_value);
+        function, "update", isolate->factory()->prototype_string(), old_value);
   }
 
   return *function;

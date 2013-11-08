@@ -869,14 +869,6 @@ class ObjectVisitor;
 class StringStream;
 class Type;
 
-struct ValueInfo : public Malloced {
-  ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
-  InstanceType type;
-  Object* ptr;
-  const char* str;
-  double number;
-};
-
 
 // A template-ized version of the IsXXX functions.
 template <class C> inline bool Is(Object* obj);
@@ -2376,6 +2368,7 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attr,
       StrictModeFlag strict_mode,
+      bool check_prototype = true,
       SetPropertyMode set_mode = SET_PROPERTY);
 
   // A Failure object is returned if GC is needed.
@@ -5337,6 +5330,8 @@ class Code: public HeapObject {
   DECLARE_VERIFIER(Code)
 
   void ClearInlineCaches();
+  void ClearInlineCaches(Kind kind);
+
   void ClearTypeFeedbackCells(Heap* heap);
 
   BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
@@ -5373,7 +5368,7 @@ class Code: public HeapObject {
     return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
   }
 
-  void PrintDeoptLocation(int bailout_id);
+  void PrintDeoptLocation(FILE* out, int bailout_id);
   bool CanDeoptAt(Address pc);
 
 #ifdef VERIFY_HEAP
@@ -5508,6 +5503,8 @@ class Code: public HeapObject {
 
  private:
   friend class RelocIterator;
+
+  void ClearInlineCaches(Kind* kind);
 
   // Code aging
   byte* FindCodeAgeSequence();
@@ -5799,6 +5796,10 @@ class Map: public HeapObject {
 
   static bool IsValidElementsTransition(ElementsKind from_kind,
                                         ElementsKind to_kind);
+
+  // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
+  // map with DICTIONARY_ELEMENTS was found in the prototype chain.
+  bool DictionaryElementsInPrototypeChainOnly();
 
   inline bool HasTransitionArray();
   inline bool HasElementsTransition();

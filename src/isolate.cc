@@ -2465,6 +2465,12 @@ HTracer* Isolate::GetHTracer() {
 }
 
 
+CodeTracer* Isolate::GetCodeTracer() {
+  if (code_tracer() == NULL) set_code_tracer(new CodeTracer(id()));
+  return code_tracer();
+}
+
+
 Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   Context* native_context = context()->native_context();
   Object* maybe_map_array = native_context->js_array_maps();
