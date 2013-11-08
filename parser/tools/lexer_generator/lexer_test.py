@@ -65,3 +65,22 @@ class LexerTestCase(unittest.TestCase):
     self.__verify_action_stream(
         lexer.lex(string),
         [('SHL', '<<'), ('SPACE', ' '), ('LT', '<')])
+
+
+  def test_consecutive_epsilon_transitions(self):
+    # This rule set will create a NFA where we first have an epsilon transition,
+    # then following that, an epsilon transition with an action. This will test
+    # that the action is correctly pulled forward when creating the dfa.
+    rules = '''
+    digit = [0-9];
+    number = (digit+ ("." digit+)?);
+    <default>
+    number        { NUMBER }
+    eof           <<terminate>>'''
+
+    lexer = Lexer(rules)
+
+    string = '555\0'
+    self.__verify_action_stream(
+        lexer.lex(string),
+        [('NUMBER', '555')])

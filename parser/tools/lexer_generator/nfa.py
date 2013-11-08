@@ -399,6 +399,11 @@ class Nfa(Automaton):
           for e_trans in state.transitions()[e]:
             if e_trans[1]:
               actions.append(e_trans[1])
+        for s in state.epsilon_closure():
+          if e in s.transitions():
+            for e_trans in s.transitions()[e]:
+              if e_trans[1]:
+                actions.append(e_trans[1])
 
       assert len(match_states) == len(transitions)
 
