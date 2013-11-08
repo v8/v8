@@ -46,6 +46,9 @@ class DfaState(AutomatonState):
   def transitions(self):
     return self.__transitions
 
+  def __str__(self):
+    return str(self.node_number())
+
 class Dfa(Automaton):
 
   def __init__(self, start_name, mapping):
