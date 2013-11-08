@@ -4823,7 +4823,8 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
     { int adjusted_object_size = site != NULL
           ? object_size + AllocationMemento::kSize
           : object_size;
-      MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
+      MaybeObject* maybe_clone =
+          AllocateRaw(adjusted_object_size, NEW_SPACE, NEW_SPACE);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     SLOW_ASSERT(InNewSpace(clone));

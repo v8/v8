@@ -9710,30 +9710,25 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
 }
 
 
+// Allocate a block of memory in the given space (filled with a filler).
+// Used as a fall-back for generated code when the space is full.
 static MaybeObject* Allocate(Isolate* isolate,
                              int size,
                              AllocationSpace space) {
-  // Allocate a block of memory in the given space (filled with a filler).
-  // Use as fallback for allocation in generated code when the space
-  // is full.
-  SealHandleScope shs(isolate);
+  Heap* heap = isolate->heap();
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
   RUNTIME_ASSERT(size > 0);
-  Heap* heap = isolate->heap();
   RUNTIME_ASSERT(size <= heap->MaxRegularSpaceAllocationSize());
-  Object* allocation;
-  { MaybeObject* maybe_allocation;
-    if (space == NEW_SPACE) {
-      maybe_allocation = heap->new_space()->AllocateRaw(size);
-    } else {
-      ASSERT(space == OLD_POINTER_SPACE || space == OLD_DATA_SPACE);
-      maybe_allocation = heap->paged_space(space)->AllocateRaw(size);
-    }
-    if (maybe_allocation->ToObject(&allocation)) {
-      heap->CreateFillerObjectAt(HeapObject::cast(allocation)->address(), size);
-    }
-    return maybe_allocation;
+  HeapObject* allocation;
+  { MaybeObject* maybe_allocation = heap->AllocateRaw(size, space, space);
+    if (!maybe_allocation->To(&allocation)) return maybe_allocation;
   }
+#ifdef DEBUG
+  MemoryChunk* chunk = MemoryChunk::FromAddress(allocation->address());
+  ASSERT(chunk->owner()->identity() == space);
+#endif
+  heap->CreateFillerObjectAt(allocation->address(), size);
+  return allocation;
 }
 
 

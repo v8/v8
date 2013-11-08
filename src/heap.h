@@ -2475,6 +2475,7 @@ class AlwaysAllocateScope {
   DisallowAllocationFailure disallow_allocation_failure_;
 };
 
+
 #ifdef VERIFY_HEAP
 class NoWeakObjectVerificationScope {
  public:
