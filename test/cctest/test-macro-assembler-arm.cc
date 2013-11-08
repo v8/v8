@@ -223,7 +223,7 @@ TEST(LoadAndStoreWithRepresentation) {
 
   F0 f = FUNCTION_CAST<F0>(buffer);
   intptr_t result = reinterpret_cast<intptr_t>(
-      CALL_GENERATED_CODE(FUNCTION_ADDR(f), 4, 0, 0, 0, 0));
+      CALL_GENERATED_CODE(f, 4, 0, 0, 0, 0));
 
   CHECK_EQ(0, result);
 }
