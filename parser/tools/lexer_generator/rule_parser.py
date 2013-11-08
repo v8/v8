@@ -150,8 +150,9 @@ class RuleParser:
 
   def p_regex_string_literal(self, p):
     'regex_string_literal : STRING'
+    string = p[1][1:-1]
     escape_char = lambda string, char: string.replace(char, "\\" + char)
-    string = reduce(escape_char, "\+?*|.[](){}", p[1][1:-1])
+    string = reduce(escape_char, "+?*|.[](){}", string).replace("\\\"", "\"")
     p[0] = RegexParser.parse(string)
 
   def p_regex(self, p):

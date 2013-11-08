@@ -27,6 +27,13 @@
 
 import ply.lex as lex
 
+def build_escape_map(chars):
+  def add_escape(d, char):
+    d['\\' + char] = char
+    return d
+  return reduce(add_escape, chars,
+    {'\\t' : '\t', '\\r' : '\r', '\\n' : '\n', '\\v' : '\v', '\\f' : '\f'})
+
 class RegexLexer:
 
   tokens = (
@@ -62,10 +69,12 @@ class RegexLexer:
     ('repeat','exclusive'),
   )
 
+  __escaped_literals = build_escape_map("(){}[]?+.*|\\")
+
   def t_ESCAPED_LITERAL(self, t):
-    r'\\\(|\\\)|\\\[|\\\]|\\\||\\\+|\\\*|\\\?|\\\.|\\\\|\\\{|\\\}'
+    r'\\.'
     t.type = 'LITERAL'
-    t.value = t.value[1:]
+    t.value = RegexLexer.__escaped_literals[t.value]
     return t
 
   t_GROUP_BEGIN = r'\('
@@ -98,15 +107,12 @@ class RegexLexer:
     r'\\\d+'
     return t
 
-  escaped_class_literals = {
-    '\\t' : '\t', '\\r' : '\r', '\\n' : '\n', '\\v' : '\v', '\\f' : '\f',
-    '\\^' : '^', '\\[' : '[', '\\]' : ']', '\\-' : '-', '\\:' : ':',
-  }
+  __escaped_class_literals = build_escape_map("^[]-:")
 
   def t_class_ESCAPED_CLASS_LITERAL(self, t):
-    r'\\\^|\\-|\\\[|\\\]|\\\:|\\\w'
+    r'\\.'
     t.type = 'CLASS_LITERAL'
-    t.value = RegexLexer.escaped_class_literals[t.value]
+    t.value = RegexLexer.__escaped_class_literals[t.value]
     return t
 
   t_class_CLASS_LITERAL = r'[\w $_+]'
