@@ -3035,9 +3035,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
 }
 
 
-void MacroAssembler::CompareMap(Register obj,
-                                Handle<Map> map,
-                                Label* early_success) {
+void MacroAssembler::CompareMap(Register obj, Handle<Map> map) {
   Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
 }
 
@@ -3050,10 +3048,8 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
 
-  Label success;
-  CompareMap(obj, map, &success);
+  CompareMap(obj, map);
   j(not_equal, fail);
-  bind(&success);
 }
 
 
