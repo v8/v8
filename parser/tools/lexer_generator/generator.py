@@ -82,7 +82,7 @@ class Generator(object):
       loads.append(load_template % ("nfa [%s]" % name, nfa_i))
       loads.append(load_template % ("dfa [%s]" % name, dfa_i))
       body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
-      return file_template % body
+    return file_template % body
 
   def process_rules(self, parser_state):
     rule_map = {}
