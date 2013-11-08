@@ -6781,6 +6781,9 @@ class SharedFunctionInfo: public HeapObject {
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
 
+  // Indicate that this builtin needs to be inlined in crankshaft.
+  DECL_BOOLEAN_ACCESSORS(inline_builtin)
+
   // Indicates that the function was created by the Function function.
   // Though it's anonymous, toString should treat it as if it had the name
   // "anonymous".  We don't set the name itself so that the system does not
@@ -6869,6 +6872,9 @@ class SharedFunctionInfo: public HeapObject {
     set_bailout_reason(reason);
     set_dont_optimize(reason != kNoReason);
   }
+
+  // Check whether or not this function is inlineable.
+  bool IsInlineable();
 
   // Source size of this function.
   int SourceSize();
@@ -7020,6 +7026,7 @@ class SharedFunctionInfo: public HeapObject {
     kUsesArguments,
     kHasDuplicateParameters,
     kNative,
+    kInlineBuiltin,
     kBoundFunction,
     kIsAnonymous,
     kNameShouldPrintAsAnonymous,
@@ -7245,9 +7252,6 @@ class JSFunction: public JSObject {
 
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInRecompileQueue();
-
-  // Check whether or not this function is inlineable.
-  bool IsInlineable();
 
   // [literals_or_bindings]: Fixed array holding either
   // the materialized literals or the bindings of a bound function.

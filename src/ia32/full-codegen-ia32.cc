@@ -3693,42 +3693,6 @@ void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitMathSin(CallRuntime* expr) {
-  // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::SIN,
-                               TranscendentalCacheStub::TAGGED);
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitMathCos(CallRuntime* expr) {
-  // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::COS,
-                               TranscendentalCacheStub::TAGGED);
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitMathTan(CallRuntime* expr) {
-  // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::TAN,
-                               TranscendentalCacheStub::TAGGED);
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitMathLog(CallRuntime* expr) {
   // Load the argument on the stack and call the stub.
   TranscendentalCacheStub stub(TranscendentalCache::LOG,
@@ -3747,6 +3711,16 @@ void FullCodeGenerator::EmitMathSqrt(CallRuntime* expr) {
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallRuntime(Runtime::kMath_sqrt, 1);
+  context()->Plug(eax);
+}
+
+
+void FullCodeGenerator::EmitMathFloor(CallRuntime* expr) {
+  // Load the argument on the stack and call the runtime function.
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  __ CallRuntime(Runtime::kMath_floor, 1);
   context()->Plug(eax);
 }
 
