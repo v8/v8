@@ -869,14 +869,6 @@ class ObjectVisitor;
 class StringStream;
 class Type;
 
-struct ValueInfo : public Malloced {
-  ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
-  InstanceType type;
-  Object* ptr;
-  const char* str;
-  double number;
-};
-
 
 // A template-ized version of the IsXXX functions.
 template <class C> inline bool Is(Object* obj);
