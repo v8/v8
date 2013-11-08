@@ -5664,7 +5664,7 @@ class Map: public HeapObject {
   class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
   class DictionaryMap:              public BitField<bool, 24,  1> {};
   class OwnsDescriptors:            public BitField<bool, 25,  1> {};
-  class IsObserved:                 public BitField<bool, 26,  1> {};
+  class HasInstanceCallHandler:     public BitField<bool, 26,  1> {};
   class Deprecated:                 public BitField<bool, 27,  1> {};
   class IsFrozen:                   public BitField<bool, 28,  1> {};
   class IsUnstable:                 public BitField<bool, 29,  1> {};
@@ -5727,12 +5727,12 @@ class Map: public HeapObject {
   }
 
   // Tells whether the instance has a call-as-function handler.
-  inline void set_has_instance_call_handler() {
-    set_bit_field(bit_field() | (1 << kHasInstanceCallHandler));
+  inline void set_is_observed() {
+    set_bit_field(bit_field() | (1 << kIsObserved));
   }
 
-  inline bool has_instance_call_handler() {
-    return ((1 << kHasInstanceCallHandler) & bit_field()) != 0;
+  inline bool is_observed() {
+    return ((1 << kIsObserved) & bit_field()) != 0;
   }
 
   inline void set_is_extensible(bool value);
@@ -5741,10 +5741,6 @@ class Map: public HeapObject {
   inline void set_elements_kind(ElementsKind elements_kind) {
     ASSERT(elements_kind < kElementsKindCount);
     ASSERT(kElementsKindCount <= (1 << kElementsKindBitCount));
-    ASSERT(!is_observed() ||
-           elements_kind == DICTIONARY_ELEMENTS ||
-           elements_kind == NON_STRICT_ARGUMENTS_ELEMENTS ||
-           IsExternalArrayElementsKind(elements_kind));
     set_bit_field2((bit_field2() & ~kElementsKindMask) |
         (elements_kind << kElementsKindShift));
     ASSERT(this->elements_kind() == elements_kind);
@@ -5997,8 +5993,8 @@ class Map: public HeapObject {
 
   inline bool owns_descriptors();
   inline void set_owns_descriptors(bool is_shared);
-  inline bool is_observed();
-  inline void set_is_observed(bool is_observed);
+  inline bool has_instance_call_handler();
+  inline void set_has_instance_call_handler();
   inline void freeze();
   inline bool is_frozen();
   inline void mark_unstable();
@@ -6257,7 +6253,7 @@ class Map: public HeapObject {
   static const int kHasNamedInterceptor = 3;
   static const int kHasIndexedInterceptor = 4;
   static const int kIsUndetectable = 5;
-  static const int kHasInstanceCallHandler = 6;
+  static const int kIsObserved = 6;
   static const int kIsAccessCheckNeeded = 7;
 
   // Bit positions for bit field 2
