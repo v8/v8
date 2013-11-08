@@ -1136,8 +1136,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     }
     // Return value is in xmm0.
     __ movsd(double_result, xmm0);
-    // Restore context register.
-    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
     __ bind(&done);
     __ IncrementCounter(counters->math_pow(), 1);

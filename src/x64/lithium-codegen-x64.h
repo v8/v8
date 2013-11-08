@@ -193,7 +193,10 @@ class LCodeGen: public LCodeGenBase {
 
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
-                               LInstruction* instr);
+                               LInstruction* instr,
+                               LOperand* context);
+
+  void LoadContextFromDeferred(LOperand* context);
 
   enum RDIState {
     RDI_UNINITIALIZED,

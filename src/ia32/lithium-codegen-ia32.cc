@@ -4445,6 +4445,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
   CallRuntime(instr->function(), instr->arity(), instr, instr->save_doubles());
 }
 
@@ -5018,6 +5019,7 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
 
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
   EmitPushTaggedOperand(instr->left());
   EmitPushTaggedOperand(instr->right());
   StringAddStub stub(instr->hydrogen()->flags());
@@ -6122,6 +6124,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
 
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
   LOperand* input = instr->value();
   EmitPushTaggedOperand(input);
   CallRuntime(Runtime::kTypeof, 1, instr);
@@ -6366,6 +6369,7 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 
 
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
   __ cmp(eax, isolate()->factory()->undefined_value());
   DeoptimizeIf(equal, instr->environment());
 

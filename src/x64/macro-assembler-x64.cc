@@ -311,11 +311,6 @@ void MacroAssembler::RecordWriteField(
     SaveFPRegsMode save_fp,
     RememberedSetAction remembered_set_action,
     SmiCheck smi_check) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are rsi.
-  ASSERT(!value.is(rsi) && !dst.is(rsi));
-
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -392,11 +387,6 @@ void MacroAssembler::RecordWrite(Register object,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are rsi.
-  ASSERT(!value.is(rsi) && !address.is(rsi));
-
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
   ASSERT(!value.is(address));

@@ -742,15 +742,13 @@ class LMathFloor V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathRound V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
-  LMathRound(LOperand* context, LOperand* value, LOperand* temp) {
-    inputs_[1] = context;
+  LMathRound(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
 
-  LOperand* context() { return inputs_[1]; }
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
@@ -853,15 +851,13 @@ class LMathSqrt V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathPowHalf V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LMathPowHalf V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
-  LMathPowHalf(LOperand* context, LOperand* value, LOperand* temp) {
-    inputs_[1] = context;
+  LMathPowHalf(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
 
-  LOperand* context() { return inputs_[1]; }
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
@@ -970,6 +966,7 @@ class LStringCompareAndBranch V8_FINAL : public LControlInstruction<3, 0> {
     inputs_[2] = right;
   }
 
+  LOperand* context() { return inputs_[1]; }
   LOperand* left() { return inputs_[1]; }
   LOperand* right() { return inputs_[2]; }
 
@@ -1074,6 +1071,7 @@ class LCmpT V8_FINAL : public LTemplateInstruction<1, 3, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpT, "cmp-t")
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
 
+  LOperand* context() { return inputs_[0]; }
   Token::Value op() const { return hydrogen()->token(); }
 };
 
@@ -1100,6 +1098,7 @@ class LInstanceOfKnownGlobal V8_FINAL : public LTemplateInstruction<1, 2, 1> {
     temps_[0] = temp;
   }
 
+  LOperand* context() { return inputs_[0]; }
   LOperand* value() { return inputs_[1]; }
   LOperand* temp() { return temps_[0]; }
 
@@ -1513,7 +1512,8 @@ class LArithmeticT V8_FINAL : public LTemplateInstruction<1, 3, 0> {
 
 class LReturn V8_FINAL : public LTemplateInstruction<0, 3, 0> {
  public:
-  explicit LReturn(LOperand* value, LOperand* context,
+  explicit LReturn(LOperand* value,
+                   LOperand* context,
                    LOperand* parameter_count) {
     inputs_[0] = value;
     inputs_[1] = context;

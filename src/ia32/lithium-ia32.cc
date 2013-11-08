@@ -1290,10 +1290,9 @@ LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
-  LOperand* context = UseAny(instr->context());
   LOperand* input = UseRegister(instr->value());
   LOperand* temp = FixedTemp(xmm4);
-  LMathRound* result = new(zone()) LMathRound(context, input, temp);
+  LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
 }
 
@@ -1355,10 +1354,9 @@ LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathPowHalf(HUnaryMathOperation* instr) {
-  LOperand* context = UseAny(instr->context());
   LOperand* input = UseRegisterAtStart(instr->value());
   LOperand* temp = TempRegister();
-  LMathPowHalf* result = new(zone()) LMathPowHalf(context, input, temp);
+  LMathPowHalf* result = new(zone()) LMathPowHalf(input, temp);
   return DefineSameAsFirst(result);
 }
 
@@ -2116,12 +2114,10 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 
 
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
-  LOperand* context = info()->IsStub()
-      ? UseFixed(instr->context(), esi)
-      : NULL;
+  LOperand* context = info()->IsStub() ? UseFixed(instr->context(), esi) : NULL;
   LOperand* parameter_count = UseRegisterOrConstant(instr->parameter_count());
-  return new(zone()) LReturn(UseFixed(instr->value(), eax), context,
-                             parameter_count);
+  return new(zone()) LReturn(
+      UseFixed(instr->value(), eax), context, parameter_count);
 }
 
 
