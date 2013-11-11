@@ -31,23 +31,27 @@ from transition_keys import TransitionKey
 
 class DfaState(AutomatonState):
 
-  def __init__(self, name, node_number):
+  def __init__(self, name, node_number, actions):
     super(DfaState, self).__init__(node_number)
     self.__name = name
     self.__transitions = {}
+    self.__actions = actions
 
   def name(self):
     return self.__name
 
-  def add_transition(self, key, action, state):
+  def action(self):
+    return self.__actions[0] if self.__actions else None
+
+  def actions(self):
+    return self.__actions
+
+  def add_transition(self, key, state):
     assert not self.__transitions.has_key(key)
-    self.__transitions[key] = (state, action)
+    self.__transitions[key] = state
 
   def transitions(self):
     return self.__transitions
-
-  def __str__(self):
-    return str(self.node_number())
 
 class Dfa(Automaton):
 
@@ -55,43 +59,40 @@ class Dfa(Automaton):
     super(Dfa, self).__init__()
     self.__terminal_set = set()
     name_map = {}
-    action_map = {}
-    for i, name in enumerate(mapping.keys()):
-      name_map[name] = DfaState(name, i)
-    for name, node_data in mapping.items():
-      node = name_map[name]
+    for i, (name, node_data) in enumerate(mapping.items()):
+      node = DfaState(name, i, node_data['actions'])
+      name_map[name] = node
       if node_data['terminal']:
         self.__terminal_set.add(node)
+    for name, node_data in mapping.items():
+      node = name_map[name]
       inversion = {}
-      for key, (state, action) in node_data['transitions'].items():
+      for key, state in node_data['transitions'].items():
         if not state in inversion:
-          inversion[state] = {}
-        # TODO fix this
-        action_key = str(action)
-        if not action_key in action_map:
-          action_map[action_key] = action
-        if not action_key in inversion[state]:
-          inversion[state][action_key] = []
-        inversion[state][action_key].append(key)
-      for state, values in inversion.items():
-        for action_key, keys in values.items():
-          merged_key = TransitionKey.merged_key(keys)
-          action = action_map[action_key]
-          node.add_transition(merged_key, action, name_map[state])
+          inversion[state] = []
+        inversion[state].append(key)
+      for state, keys in inversion.items():
+        merged_key = TransitionKey.merged_key(keys)
+        node.add_transition(merged_key, name_map[state])
     self.__start = name_map[start_name]
     assert self.__terminal_set
+
+  @staticmethod
+  def __match_char(state, char):
+    match = [s for k, s in state.transitions().items() if k.matches_char(char)]
+    if not match: return None
+    assert len(match) == 1
+    return match[0]
 
   def collect_actions(self, string):
     state = self.__start
     for c in string:
-      next = [s for k, s in state.transitions().items() if k.matches_char(c)]
-      if not next:
+      state = Dfa.__match_char(state, c)
+      if not state:
         yield ('MISS',)
         return
-      assert len(next) == 1
-      (state, action) = next[0]
-      if action:
-        yield action
+      if state.action():
+        yield state.action()
     if state in self.__terminal_set:
       yield ('TERMINATE', )
     else:
@@ -103,43 +104,26 @@ class Dfa(Automaton):
 
   def lex(self, string):
     state = self.__start
-    stored_action = None
-    pos = 0
-    while pos < len(string):
-      c = string[pos]
-      next = [s for k, s in state.transitions().items() if k.matches_char(c)]
+    last_position = 0
+    for pos, c in enumerate(string):
+      next = Dfa.__match_char(state, c)
       if not next:
-        # Maybe we have a stored action before. Take it and backtrack to the
-        # position where that action was.
-        if stored_action:
-          yield stored_action
-          return
-        # FIXME: Otherwise, use the default rule if this happens at the start
-        # state of the automaton.
-
-      assert len(next) == 1
-      (state, action) = next[0]
-
-      # Special actions: terminate
-      if action and action[2] == 'terminate':
-        if stored_action:
-          yield stored_action
-        yield (action, pos)
-        return
-
-      # Normally we don't know yet whether to take the action - it depends on
-      # what comes next.
-      if action:
-        stored_action = (action, pos)
-
-      pos += 1
+        assert state.action() # must invoke default action here
+        yield (state.action()[1], last_position, pos)
+        last_position = pos
+        # lex next token
+        next = Dfa.__match_char(self.__start, c)
+        assert next
+      state = next
+    assert state.action() # must invoke default action here
+    yield (state.action()[1], last_position, len(string))
 
   def __visit_all_edges(self, visitor, state):
     edge = set([self.__start])
-    first = lambda v: set([x[0] for x in v])
-    next_edge = lambda node: first(node.transitions().values())
+    next_edge = lambda node: set(node.transitions().values())
     return self.visit_edges(edge, next_edge, visitor, state)
 
   def to_dot(self):
     iterator = lambda visitor, state: self.__visit_all_edges(visitor, state)
-    return self.generate_dot(self.__start, self.__terminal_set, iterator)
+    state_iterator = lambda x : [x]
+    return self.generate_dot(self.__start, self.__terminal_set, iterator, state_iterator)

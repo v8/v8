@@ -31,6 +31,7 @@ class RuleLexer:
 
   tokens = (
     'DEFAULT',
+    'DEFAULT_ACTION',
     'IDENTIFIER',
     'STRING',
     'REGEX',
@@ -70,6 +71,8 @@ class RuleLexer:
     r'[a-zA-Z][a-zA-Z0-9_]*'
     if t.value == 'default':
       t.type = 'DEFAULT'
+    if t.value == 'default_action':
+      t.type = 'DEFAULT_ACTION'
     return t
 
   t_STRING = r'"((\\("|\w|\\))|[^\\"])+"'

@@ -30,60 +30,44 @@ from generator import Generator
 
 class LexerTestCase(unittest.TestCase):
 
-  def __verify_action_stream(self, stream, expected_stream):
-    for (ix, item) in enumerate(expected_stream):
-      self.assertEquals(stream[ix][0], item[0])
-      self.assertEquals(stream[ix][4], item[1])
+  def __verify_action_stream(self, rules, string, expected_stream):
+    expected_stream.append(('terminate', '\0'))
+    for i, (action, start, stop) in enumerate(Generator(rules).lex(string)):
+      self.assertEquals(expected_stream[i][0], action)
+      self.assertEquals(expected_stream[i][1], string[start : stop])
 
   def test_simple(self):
     rules = '''
     <default>
-    "("           { LBRACE } <<continue>>
-    ")"           { RBRACE } <<continue>>
+    "("           { LBRACE }
+    ")"           { RBRACE }
 
-    "foo"         { FOO } <<continue>>
-    eof           <<terminate>>
-    default       <<break>>'''
-
-    generator = Generator(rules)
+    "foo"         { FOO }
+    eof           <<terminate>>'''
 
     string = 'foo()\0'
-    self.__verify_action_stream(
-        generator.lex(string),
+    self.__verify_action_stream(rules, string,
         [('FOO', 'foo'), ('LBRACE', '('), ('RBRACE', ')')])
 
   def test_maximal_matching(self):
     rules = '''
     <default>
-    "<"           { LT } <<continue>>
-    "<<"          { SHL } <<continue>>
-    " "           { SPACE } <<continue>>
-    eof           <<terminate>>
-    default       <<break>>'''
-
-    generator = Generator(rules)
+    "<"           { LT }
+    "<<"          { SHL }
+    " "           { SPACE }
+    eof           <<terminate>>'''
 
     string = '<< <\0'
-    self.__verify_action_stream(
-        generator.lex(string),
+    self.__verify_action_stream(rules, string,
         [('SHL', '<<'), ('SPACE', ' '), ('LT', '<')])
 
-
   def test_consecutive_epsilon_transitions(self):
-    # This rule set will create a NFA where we first have an epsilon transition,
-    # then following that, an epsilon transition with an action. This will test
-    # that the action is correctly pulled forward when creating the dfa.
     rules = '''
     digit = [0-9];
     number = (digit+ ("." digit+)?);
     <default>
-    number        { NUMBER } <<continue>>
-    eof           <<terminate>>
-    default       <<break>>'''
-
-    generator = Generator(rules)
+    number        { NUMBER }
+    eof           <<terminate>>'''
 
     string = '555\0'
-    self.__verify_action_stream(
-        generator.lex(string),
-        [('NUMBER', '555')])
+    self.__verify_action_stream(rules, string, [('NUMBER', '555')])

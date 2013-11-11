@@ -90,39 +90,35 @@ class Generator(object):
     builder.set_character_classes(parser_state.character_classes)
     assert 'default' in parser_state.rules
     def process(k, v):
-      assert 'default' in v
       graphs = []
-      for (graph, action) in v['regex']:
-        (precedence, code, transition) = action
-        if code:
-          graph = NfaBuilder.add_action(graph, (precedence, code, None))
+      for (graph, (precedence, code, transition)) in v['regex']:
+        default_code = v['default_action']
+        action = code if code else default_code
+        if action:
+          graph = NfaBuilder.add_action(graph, (precedence, action))
         if transition == 'continue':
-          if not v['default'][1][2] == 'continue':
-            graph = NfaBuilder.add_continue(graph)
-          else:
-            pass # TODO null key
-        elif (transition == 'break' or
-              transition == 'terminate' or
+          assert not k == 'default'
+          graph = NfaBuilder.add_continue(graph)
+        elif transition == 'break':
+          pass
+        elif (transition == 'terminate' or
               transition == 'terminate_illegal'):
-          graph = NfaBuilder.add_action(graph, (10000, transition, None))
+          assert not code
+          graph = NfaBuilder.add_action(graph, (-1, transition))
         else:
           assert k == 'default'
-          graph = NfaBuilder.join_subgraph(graph, transition, rule_map[transition])
+          subgraph_modifier = '*' if code else None
+          graph = NfaBuilder.join_subgraph(
+            graph, transition, rule_map[transition], subgraph_modifier)
         graphs.append(graph)
       graph = NfaBuilder.or_graphs(graphs)
-      # merge default action
-      (precedence, code, transition) = v['default'][1]
-      assert transition == 'continue' or transition == 'break'
-      if transition == 'continue':
-        assert k != 'default'
-        graph = NfaBuilder.add_incoming_action(graph, (10000, k, None))
-      if code:
-        graph = NfaBuilder.add_incoming_action(graph, (precedence, code, None))
       rule_map[k] = graph
+    # process first the subgraphs, then the default graph
     for k, v in parser_state.rules.items():
       if k == 'default': continue
       process(k, v)
     process('default', parser_state.rules['default'])
+    # build the automata
     for rule_name, graph in rule_map.items():
       nfa = builder.nfa(graph)
       (start, dfa_nodes) = nfa.compute_dfa()
@@ -132,22 +128,8 @@ class Generator(object):
   # Lexes strings with the help of DFAs procuded by the grammar. For sanity
   # checking the automata.
   def lex(self, string):
-    (nfa, dfa) = self.__automata['default'] # FIXME
-
-    action_stream = []
-    terminate_seen = False
-    offset = 0
-    while not terminate_seen and string:
-      result = list(dfa.lex(string))
-      last_position = 0
-      for (action, position) in result:
-        action_stream.append((action[1], action[2], last_position + offset, position + 1 + offset, string[last_position:(position + 1)]))
-        last_position = position
-        if action[2] == 'terminate':
-          terminate_seen = True
-      string = string[(last_position + 1):]
-      offset += last_position
-    return action_stream
+    (nfa, dfa) = self.__automata['default']
+    return dfa.lex(string)
 
 if __name__ == '__main__':
 

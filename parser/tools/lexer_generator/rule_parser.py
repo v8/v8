@@ -85,7 +85,7 @@ class RuleParser:
     assert state.current_state
     if not state.current_state in state.rules:
       state.rules[state.current_state] = {
-        'default': None,
+        'default_action': None,
         'regex' : []
       }
     p[0] = state.current_state
@@ -95,32 +95,27 @@ class RuleParser:
                         | empty'''
 
   def p_transition_rule(self, p):
-    '''transition_rule : composite_regex_or_default code action
-                       | composite_regex_or_default empty action
-                       | composite_regex_or_default code empty'''
-    transition = p[3] if p[3] else 'continue'
-    if transition == 'continue' and self.__state.current_state == 'default':
-      transition = 'break'
+    '''transition_rule : composite_regex code action
+                       | composite_regex empty action
+                       | composite_regex code empty
+                       | DEFAULT_ACTION code empty'''
+    transition = p[3] if p[3] else 'break'
     if not transition in self.__keyword_transitions:
       assert not transition == 'default'
       self.__state.transitions.add(transition)
-    rule = (p[1], (RuleParser.__rule_precedence_counter, p[2], transition))
     RuleParser.__rule_precedence_counter += 1
     rules = self.__state.rules[self.__state.current_state]
-    if p[1] == 'default':
-      assert not rules['default']
-      rules['default'] = rule
+    code = p[2]
+    if p[1] == 'default_action':
+      assert not rules['default_action']
+      rules['default_action'] = code
     else:
+      rule = (p[1], (RuleParser.__rule_precedence_counter, code, transition))
       rules['regex'].append(rule)
 
   def p_action(self, p):
     'action : ACTION_OPEN IDENTIFIER ACTION_CLOSE'
     p[0] = p[2]
-
-  def p_composite_regex_or_default(self, p):
-    '''composite_regex_or_default : DEFAULT
-                                  | composite_regex'''
-    p[0] = p[1]
 
   def p_composite_regex(self, p):
     '''composite_regex : regex_parts OR regex_parts

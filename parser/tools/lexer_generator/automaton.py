@@ -39,6 +39,9 @@ class AutomatonState(object):
   def node_number(self):
     return self.__node_number
 
+  def __str__(self):
+    return "%s(%d)" % (type(self), self.node_number())
+
 class Automaton(object):
 
   @staticmethod
@@ -54,7 +57,7 @@ class Automaton(object):
     return state
 
   @staticmethod
-  def generate_dot(start_node, terminal_set, edge_iterator):
+  def generate_dot(start_node, terminal_set, edge_iterator, state_iterator):
 
     def escape(v):
       v = str(v).replace('\r', '\\\\r')
@@ -68,17 +71,15 @@ class Automaton(object):
       for key, values in node.transitions().items():
         if key == TransitionKey.epsilon():
           key = "&epsilon;"
-        # TODO pass this action as parameter
-        if type(values) == TupleType:
-          values = [values]
-        for (state, action) in values:
+        for state in state_iterator(values):
+          action = state.action()
           if action:
-            content = "  S_%s -> S_%s [ label = \"%s {%s} -> %s\" ];" % (
+            content = "  S_%s -> S_%s [ label = \"%s {%s}:%d\" ];" % (
                 node.node_number(),
                 state.node_number(),
                 escape(key),
                 escape(action[1]),
-                escape(action[2]))
+                action[0])
           else:
             content = "  S_%s -> S_%s [ label = \"%s\" ];" % (
                 node.node_number(), state.node_number(), escape(key))

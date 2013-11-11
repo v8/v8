@@ -37,7 +37,7 @@ class NfaState(AutomatonState):
     self.__transitions = {}
     self.__unclosed = set()
     self.__epsilon_closure = None
-    self.__transition_action = None
+    self.__action = None
 
   def epsilon_closure(self):
     return self.__epsilon_closure
@@ -47,10 +47,14 @@ class NfaState(AutomatonState):
     assert self.__epsilon_closure == None
     self.__epsilon_closure = frozenset(closure)
 
-  def set_transition_action(self, action):
+  def action(self):
+    assert self.is_closed()
+    return self.__action
+
+  def set_action(self, action):
     assert not self.is_closed()
-    assert self.__transition_action == None
-    self.__transition_action = action
+    assert not self.__action
+    self.__action = action
 
   def transitions(self):
     assert self.is_closed()
@@ -58,27 +62,25 @@ class NfaState(AutomatonState):
 
   def next_states(self, key_filter):
     assert self.is_closed()
-    first = lambda v: [x[0] for x in v]
-    f = lambda acc, (k, v) : acc if not key_filter(k) else acc | set(first(v))
+    f = lambda acc, (k, v) : acc if not key_filter(k) else acc | set(v)
     return reduce(f, self.__transitions.items(), set())
 
-  def __add_transition(self, key, action, next_state):
+  def __add_transition(self, key, next_state):
     if next_state == None:
-      assert not action
       assert not self.is_closed(), "already closed"
       self.__unclosed.add(key)
       return
     if not key in self.__transitions:
       self.__transitions[key] = set()
-    self.__transitions[key].add((next_state, action))
+    self.__transitions[key].add(next_state)
 
   def add_unclosed_transition(self, key):
     assert key != TransitionKey.epsilon()
-    self.__add_transition(key, None, None)
+    self.__add_transition(key, None)
 
   def add_epsilon_transition(self, state):
     assert state != None
-    self.__add_transition(TransitionKey.epsilon(), None, state)
+    self.__add_transition(TransitionKey.epsilon(), state)
 
   def is_closed(self):
     return self.__unclosed == None
@@ -86,14 +88,13 @@ class NfaState(AutomatonState):
   def close(self, end):
     assert not self.is_closed()
     unclosed, self.__unclosed = self.__unclosed, None
-    action, self.__transition_action = self.__transition_action, None
     if end == None:
-      assert not unclosed and not action
+      assert not unclosed
       return
     for key in unclosed:
-      self.__add_transition(key, action, end)
+      self.__add_transition(key, end)
     if not unclosed:
-      self.__add_transition(TransitionKey.epsilon(), action, end)
+      self.__add_transition(TransitionKey.epsilon(), end)
 
   def __matches(self, match_func, value):
     f = lambda acc, (k, vs): acc | vs if match_func(k, value) else acc
@@ -104,9 +105,6 @@ class NfaState(AutomatonState):
 
   def key_matches(self, value):
     return self.__matches(lambda k, v : k.matches_key(v), value)
-
-  def __str__(self):
-    return "NfaState(" + str(self.node_number()) + ")"
 
   @staticmethod
   def gather_transition_keys(state_set):
@@ -205,21 +203,12 @@ class NfaBuilder:
     return self.__key_state(TransitionKey.any())
 
   def __action(self, graph):
-    incoming = graph[3]
     (start, ends) = self.__process(graph[1])
     action = graph[2]
-    if incoming:
-      new_start = self.__new_state()
-      new_start.set_transition_action(action)
-      new_start.close(start)
-      start = new_start
-    else:
-      new_end = self.__new_state()
-      for end in ends:
-        end.set_transition_action(action)
-      self.__patch_ends(ends, new_end)
-      ends = [new_end]
-    return (start, ends)
+    end = self.__new_state()
+    self.__patch_ends(ends, end)
+    end.set_action(action)
+    return (start, [end])
 
   def __continue(self, graph):
     (start, ends) = self.__process(graph[1])
@@ -233,12 +222,16 @@ class NfaBuilder:
     return (start, ends)
 
   def __join(self, graph):
-    (graph, name, subgraph) = graph[1:]
+    (graph, name, subgraph, modifier) = graph[1:]
     subgraphs = self.__peek_state()['subgraphs']
     if not name in subgraphs:
       subgraphs[name] = self.__nfa(subgraph)
     (subgraph_start, subgraph_end, nodes_in_subgraph) = subgraphs[name]
     (start, ends) = self.__process(graph)
+    if modifier:
+      assert modifier == 'ZERO_OR_MORE'
+      for end in ends:
+        end.add_epsilon_transition(subgraph_end)
     self.__patch_ends(ends, subgraph_start)
     end = self.__new_state()
     subgraph_end.add_epsilon_transition(end)
@@ -290,19 +283,17 @@ class NfaBuilder:
 
   @staticmethod
   def add_action(graph, action):
-    return ('ACTION', graph, action, False)
-
-  @staticmethod
-  def add_incoming_action(graph, action):
-    return ('ACTION', graph, action, True)
+    return ('ACTION', graph, action)
 
   @staticmethod
   def add_continue(graph):
     return ('CONTINUE', graph)
 
   @staticmethod
-  def join_subgraph(graph, name, subgraph):
-    return ('JOIN', graph, name, subgraph)
+  def join_subgraph(graph, name, subgraph, modifier):
+    if modifier:
+      modifier = NfaBuilder.__modifer_map[modifier]
+    return ('JOIN', graph, name, subgraph, modifier)
 
   @staticmethod
   def or_graphs(graphs):
@@ -372,7 +363,7 @@ class Nfa(Automaton):
       transitions = reduce(f, valid_states, set())
       if not transitions:
         return False
-      valid_states = Nfa.__close(set([x[0] for x in transitions]))
+      valid_states = Nfa.__close(transitions)
     return self.__end in valid_states
 
   @staticmethod
@@ -382,38 +373,25 @@ class Nfa(Automaton):
     name = ".".join(str(x.node_number()) for x in sorted(nfa_state_set))
     if name in dfa_nodes:
       return name
+    def gather_actions(states):
+      actions = set()
+      for state in states:
+        if state.action():
+          actions.add(state.action())
+      actions = list(actions)
+      actions.sort()
+      return actions
     dfa_nodes[name] = {
       'transitions': {},
-      'terminal': end_node in nfa_state_set}
+      'terminal': end_node in nfa_state_set,
+      'actions' : gather_actions(nfa_state_set)}
     for key in NfaState.gather_transition_keys(nfa_state_set):
-      f = lambda acc, state: acc | state.key_matches(key)
-      transitions = reduce(f, nfa_state_set, set())
       match_states = set()
-      actions = []
-      for (state, action) in transitions:
+      f = lambda acc, state: acc | state.key_matches(key)
+      for state in reduce(f, nfa_state_set, set()):
         match_states.add(state)
-        if action:
-          actions.append(action)
-
-        # Pull in actions which can be taken with an epsilon transition from the
-        # match state.
-        e = TransitionKey.epsilon()
-        if e in state.transitions():
-          for e_trans in state.transitions()[e]:
-            if e_trans[1]:
-              actions.append(e_trans[1])
-        for s in state.epsilon_closure():
-          if e in s.transitions():
-            for e_trans in s.transitions()[e]:
-              if e_trans[1]:
-                actions.append(e_trans[1])
-
-      assert len(match_states) == len(transitions)
-
-      actions.sort()
-      action = actions[0] if actions else None
       transition_state = Nfa.__to_dfa(match_states, dfa_nodes, end_node)
-      dfa_nodes[name]['transitions'][key] = (transition_state, action)
+      dfa_nodes[name]['transitions'][key] = transition_state
     return name
 
   def compute_dfa(self):
@@ -424,4 +402,5 @@ class Nfa(Automaton):
 
   def to_dot(self):
     iterator = lambda visitor, state: self.__visit_all_edges(visitor, state)
-    return self.generate_dot(self.__start, set([self.__end]), iterator)
+    state_iterator = lambda x : x
+    return self.generate_dot(self.__start, set([self.__end]), iterator, state_iterator)

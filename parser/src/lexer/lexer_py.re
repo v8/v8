@@ -52,9 +52,10 @@ number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)
 "!="          { PUSH_TOKEN(NE); }
 "!"           { PUSH_TOKEN(NOT); }
 
-"//"          <<SingleLineComment>>   # TODO save offset?
+"//"          <<SingleLineComment>>
 "/*"          <<MultiLineComment>>
 "<!--"        <<HtmlComment>>
+
 #whitespace* "-->" { if (just_seen_line_terminator_) { YYSETCONDITION(kConditionSingleLineComment); goto yyc_SingleLineComment; } else { --cursor_; send(Token::DEC); start_ = cursor_; goto yyc_Normal; } }
 
 ">>>="        { PUSH_TOKEN(ASSIGN_SHR); }
@@ -99,112 +100,112 @@ number        { PUSH_TOKEN(NUMBER); }
 ","           { PUSH_TOKEN(COMMA); }
 
 line_terminator+  { PUSH_LINE_TERMINATOR(); }
-whitespace     <<continue>>
+whitespace     { SKIP } # TODO implement skip
 
 "\""           <<DoubleQuoteString>>
 "'"            <<SingleQuoteString>>
 
 # all keywords
-"break"       { PUSH_TOKEN(BREAK); } <<break>>
-"case"        { PUSH_TOKEN(CASE); } <<break>>
-"catch"       { PUSH_TOKEN(CATCH); } <<break>>
-"class"       { PUSH_TOKEN(FUTURE_RESERVED_WORD); } <<break>>
-"const"       { PUSH_TOKEN(CONST); } <<break>>
-"continue"    { PUSH_TOKEN(CONTINUE); } <<break>>
-"debugger"    { PUSH_TOKEN(DEBUGGER); } <<break>>
-"default"     { PUSH_TOKEN(DEFAULT); } <<break>>
-"delete"      { PUSH_TOKEN(DELETE); } <<break>>
-"do"          { PUSH_TOKEN(DO); } <<break>>
-"else"        { PUSH_TOKEN(ELSE); } <<break>>
-"enum"        { PUSH_TOKEN(FUTURE_RESERVED_WORD); } <<break>>
-"export"      { PUSH_TOKEN(FUTURE_RESERVED_WORD); } <<break>>
-"extends"     { PUSH_TOKEN(FUTURE_RESERVED_WORD); } <<break>>
-"false"       { PUSH_TOKEN(FALSE_LITERAL); } <<break>>
-"finally"     { PUSH_TOKEN(FINALLY); } <<break>>
-"for"         { PUSH_TOKEN(FOR); } <<break>>
-"function"    { PUSH_TOKEN(FUNCTION); } <<break>>
-"if"          { PUSH_TOKEN(IF); } <<break>>
-"implements"  { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"import"      { PUSH_TOKEN(FUTURE_RESERVED_WORD); } <<break>>
-"in"          { PUSH_TOKEN(IN); } <<break>>
-"instanceof"  { PUSH_TOKEN(INSTANCEOF); } <<break>>
-"interface"   { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"let"         { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"new"         { PUSH_TOKEN(NEW); } <<break>>
-"null"        { PUSH_TOKEN(NULL_LITERAL); } <<break>>
-"package"     { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"private"     { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"protected"   { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"public"      { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"return"      { PUSH_TOKEN(RETURN); } <<break>>
-"static"      { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); } <<break>>
-"super"       { PUSH_TOKEN(FUTURE_RESERVED_WORD); } <<break>>
-"switch"      { PUSH_TOKEN(SWITCH); } <<break>>
-"this"        { PUSH_TOKEN(THIS); } <<break>>
-"throw"       { PUSH_TOKEN(THROW); } <<break>>
-"true"        { PUSH_TOKEN(TRUE_LITERAL); } <<break>>
-"try"         { PUSH_TOKEN(TRY); } <<break>>
-"typeof"      { PUSH_TOKEN(TYPEOF); } <<break>>
-"var"         { PUSH_TOKEN(VAR); } <<break>>
-"void"        { PUSH_TOKEN(VOID); } <<break>>
-"while"       { PUSH_TOKEN(WHILE); } <<break>>
-"with"        { PUSH_TOKEN(WITH); } <<break>>
-"yield"       { PUSH_TOKEN(YIELD); } <<break>>
+"break"       { PUSH_TOKEN(BREAK); }
+"case"        { PUSH_TOKEN(CASE); }
+"catch"       { PUSH_TOKEN(CATCH); }
+"class"       { PUSH_TOKEN(FUTURE_RESERVED_WORD); }
+"const"       { PUSH_TOKEN(CONST); }
+"continue"    { PUSH_TOKEN(CONTINUE); }
+"debugger"    { PUSH_TOKEN(DEBUGGER); }
+"default"     { PUSH_TOKEN(DEFAULT); }
+"delete"      { PUSH_TOKEN(DELETE); }
+"do"          { PUSH_TOKEN(DO); }
+"else"        { PUSH_TOKEN(ELSE); }
+"enum"        { PUSH_TOKEN(FUTURE_RESERVED_WORD); }
+"export"      { PUSH_TOKEN(FUTURE_RESERVED_WORD); }
+"extends"     { PUSH_TOKEN(FUTURE_RESERVED_WORD); }
+"false"       { PUSH_TOKEN(FALSE_LITERAL); }
+"finally"     { PUSH_TOKEN(FINALLY); }
+"for"         { PUSH_TOKEN(FOR); }
+"function"    { PUSH_TOKEN(FUNCTION); }
+"if"          { PUSH_TOKEN(IF); }
+"implements"  { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"import"      { PUSH_TOKEN(FUTURE_RESERVED_WORD); }
+"in"          { PUSH_TOKEN(IN); }
+"instanceof"  { PUSH_TOKEN(INSTANCEOF); }
+"interface"   { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"let"         { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"new"         { PUSH_TOKEN(NEW); }
+"null"        { PUSH_TOKEN(NULL_LITERAL); }
+"package"     { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"private"     { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"protected"   { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"public"      { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"return"      { PUSH_TOKEN(RETURN); }
+"static"      { PUSH_TOKEN(FUTURE_STRICT_RESERVED_WORD); }
+"super"       { PUSH_TOKEN(FUTURE_RESERVED_WORD); }
+"switch"      { PUSH_TOKEN(SWITCH); }
+"this"        { PUSH_TOKEN(THIS); }
+"throw"       { PUSH_TOKEN(THROW); }
+"true"        { PUSH_TOKEN(TRUE_LITERAL); }
+"try"         { PUSH_TOKEN(TRY); }
+"typeof"      { PUSH_TOKEN(TYPEOF); }
+"var"         { PUSH_TOKEN(VAR); }
+"void"        { PUSH_TOKEN(VOID); }
+"while"       { PUSH_TOKEN(WHILE); }
+"with"        { PUSH_TOKEN(WITH); }
+"yield"       { PUSH_TOKEN(YIELD); }
 
-identifier_start     <<Identifier>>
+identifier_start { PUSH_TOKEN(IDENTIFIER); } <<Identifier>>
 /\\u[0-9a-fA-F]{4}/ {
-  if (V8_LIKELY(ValidIdentifierStart())) {
-    JUMP(Identifier);
+  if (V8_UNLIKELY(!ValidIdentifierStart())) {
+    PUSH_TOKEN(ILLEGAL);
   }
-  PUSH_TOKEN(ILLEGAL);
 } <<Identifier>>
 
-eof           <<terminate>>
-default       { PUSH_TOKEN(ILLEGAL); }
+eof             <<terminate>>
+default_action  { PUSH_TOKEN(ILLEGAL); }
 
 <DoubleQuoteString>
 "\\"      <<continue>>
 "\\\""    <<continue>>
-"\""      { PUSH_TOKEN(STRING); } <<break>>
+"\""      { PUSH_TOKEN(STRING); }
 /\\\n\r?/ <<continue>>
 /\\\r\n?/ <<continue>>
-/\n|\r/    { PUSH_TOKEN(ILLEGAL); } <<break>>
+/\n|\r/    { PUSH_TOKEN(ILLEGAL); }
 eof       <<terminate_illegal>>
-default   <<continue>>
+/./ <<continue>>
 
 <SingleQuoteString>
 "\\"      <<continue>>
 "\\'"     <<continue>>
-"'"       { PUSH_TOKEN(STRING); } <<break>>
+"'"       { PUSH_TOKEN(STRING); }
 /\\\n\r?/ <<continue>>
 /\\\r\n?/ <<continue>>
-/\n|\r/    { PUSH_TOKEN(ILLEGAL); } <<break>>
+/\n|\r/    { PUSH_TOKEN(ILLEGAL); }
 eof       <<terminate_illegal>>
-default   <<continue>>
+/./ <<continue>>
 
 <Identifier>
-identifier_char+    <<continue>>
+identifier_char    <<continue>>
 /\\u[0-9a-fA-F]{4}/ {
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
     PUSH_TOKEN(ILLEGAL);
-    JUMP(Normal);
   }
-}
-default             { PUSH_TOKEN(IDENTIFIER); }  <<break>>
+} <<continue>>
+default_action { PUSH_TOKEN(IDENTIFIER); }
 
 <SingleLineComment>
-line_terminator  { PUSH_LINE_TERMINATOR(); } <<break>>
+line_terminator  { PUSH_LINE_TERMINATOR(); }
 eof              <<terminate>>
-default          <<continue>>
+/./ <<continue>>
 
 <MultiLineComment>
-"*/"             <<break>>
-line_terminator+ { PUSH_LINE_TERMINATOR(); }
+"*/"             { SKIP }
+# need to force action
+line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
 eof              <<terminate>>
-default          <<continue>>
+/./ <<continue>>
 
 <HtmlComment>
-"-->"            <<break>>
-line_terminator+ { PUSH_LINE_TERMINATOR(); }
+"-->"            { SKIP }
+# need to force action
+line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
 eof              <<terminate>>
-default          <<continue>>
+/./ <<continue>>
