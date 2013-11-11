@@ -134,12 +134,17 @@ class Generator(object):
     (nfa, dfa) = self.__automata['default']
     return dfa.lex(string)
 
+  def generate_code(self):
+    (nfa, dfa) = self.__automata['default']
+    return dfa.to_code()
+
 if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--html')
   parser.add_argument('--re', default='src/lexer/lexer_py.re')
   parser.add_argument('--input')
+  parser.add_argument('--code')
   args = parser.parse_args()
 
   re_file = args.re
@@ -154,6 +159,13 @@ if __name__ == '__main__':
     with open(args.html, 'w') as f:
       f.write(html)
       print "wrote html to %s" % html_file
+
+  code_file = args.code
+  if code_file:
+    code = generator.generate_code()
+    with open(code_file, 'w') as f:
+      f.write(code)
+      print "wrote code to %s" % code_file
 
   input_file = args.input
   if input_file:

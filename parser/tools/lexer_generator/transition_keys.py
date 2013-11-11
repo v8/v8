@@ -175,6 +175,20 @@ class TransitionKey:
   def __eq__(self, other):
     return isinstance(other, self.__class__) and self.__ranges == other.__ranges
 
+  def to_code(self):
+    code = 'if ('
+    first = True
+    for r in self.__ranges:
+      if not first:
+        code += ' || '
+      if r[0] == r[1]:
+        code += 'c == %s' % r[0]
+      else:
+        code += '(c >= %s && c <= %s)' % (r[0], r[1])
+      first = False
+    code += ')'
+    return code
+
   __printable_cache = {
     ord('\t') : '\\t',
     ord('\n') : '\\n',

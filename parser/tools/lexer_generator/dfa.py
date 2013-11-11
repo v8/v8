@@ -53,19 +53,36 @@ class DfaState(AutomatonState):
   def transitions(self):
     return self.__transitions
 
+  def to_code(self):
+    # FIXME: add different check types (if, switch, lookup table)
+    # FIXME: add action + break / continue
+    # FIXME: add default action
+    code = '''
+code_%s:
+fprintf(stderr, "state %s, char at hand is %%c\\n", c);
+''' % (self.node_number(), self.node_number())
+
+    for key, state in self.__transitions.items():
+      code += key.to_code()
+      code += ''' {
+  c = *(++cursor);
+  goto code_%s;
+}''' % state.node_number()
+    return code
+
 class Dfa(Automaton):
 
   def __init__(self, start_name, mapping):
     super(Dfa, self).__init__()
     self.__terminal_set = set()
-    name_map = {}
+    self.__name_map = {}
     for i, (name, node_data) in enumerate(mapping.items()):
       node = DfaState(name, i, node_data['actions'])
-      name_map[name] = node
+      self.__name_map[name] = node
       if node_data['terminal']:
         self.__terminal_set.add(node)
     for name, node_data in mapping.items():
-      node = name_map[name]
+      node = self.__name_map[name]
       inversion = {}
       for key, state in node_data['transitions'].items():
         if not state in inversion:
@@ -73,8 +90,8 @@ class Dfa(Automaton):
         inversion[state].append(key)
       for state, keys in inversion.items():
         merged_key = TransitionKey.merged_key(keys)
-        node.add_transition(merged_key, name_map[state])
-    self.__start = name_map[start_name]
+        node.add_transition(merged_key, self.__name_map[state])
+    self.__start = self.__name_map[start_name]
     assert self.__terminal_set
 
   @staticmethod
@@ -127,3 +144,12 @@ class Dfa(Automaton):
     iterator = lambda visitor, state: self.__visit_all_edges(visitor, state)
     state_iterator = lambda x : [x]
     return self.generate_dot(self.__start, self.__terminal_set, iterator, state_iterator)
+
+  def to_code(self):
+    code = '''
+char c = *cursor;
+goto code_%s;
+''' % (self.__start.node_number())
+    for n in self.__name_map.values():
+      code += n.to_code()
+    return code
