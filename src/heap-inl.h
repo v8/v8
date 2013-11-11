@@ -259,6 +259,9 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
     result = map_space_->AllocateRaw(size_in_bytes);
   }
   if (result->IsFailure()) old_gen_exhausted_ = true;
+  if (profiler->is_tracking_allocations() && result->To(&object)) {
+    profiler->NewObjectEvent(object->address(), size_in_bytes);
+  }
   return result;
 }
 

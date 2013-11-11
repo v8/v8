@@ -4197,7 +4197,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (force_lo_space) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(obj_size);
+    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   }
   if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
 
@@ -4268,7 +4268,7 @@ MaybeObject* Heap::CopyCode(Code* code) {
   if (obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(obj_size);
+    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   }
 
   Object* result;
@@ -4311,7 +4311,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   if (new_obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(new_obj_size);
+    maybe_result = AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
   }
 
   Object* result;

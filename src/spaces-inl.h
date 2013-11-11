@@ -274,17 +274,11 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
 
 
 // Raw allocation.
-MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
-                                     AllocationType event) {
-  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
-
+MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
-    }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -298,9 +292,6 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
     }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
-    }
     return object;
   }
 
@@ -308,9 +299,6 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
-    }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }

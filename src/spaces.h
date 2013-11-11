@@ -1764,16 +1764,9 @@ class PagedSpace : public Space {
     return allocation_info_.limit_address();
   }
 
-  enum AllocationType {
-    NEW_OBJECT,
-    MOVE_OBJECT
-  };
-
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
-  MUST_USE_RESULT inline MaybeObject* AllocateRaw(
-      int size_in_bytes,
-      AllocationType event = NEW_OBJECT);
+  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes);
 
   virtual bool ReserveSpace(int bytes);
 
