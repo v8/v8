@@ -67,27 +67,24 @@ class Automaton(object):
       v = str(v).replace('\"', '\\\"')
       return v
 
-    def f(node, node_content):
+    def f(node, content):
+      (node_content, edge_content) = content
+      if node.action():
+        action_text = node.action()[1].split('\n')[0]
+        node_content.append('  S_l%s[shape = box, label="%s"];' %
+                            (node.node_number(), action_text))
+        node_content.append('  S_%s -> S_l%s [arrowhead = none];' %
+                            (node.node_number(), node.node_number()))
       for key, values in node.transitions().items():
         if key == TransitionKey.epsilon():
           key = "&epsilon;"
         for state in state_iterator(values):
-          action = state.action()
-          if action:
-            content = "  S_%s -> S_%s [ label = \"%s {%s}:%d\" ];" % (
-                node.node_number(),
-                state.node_number(),
-                escape(key),
-                escape(action[1]),
-                action[0])
-          else:
-            content = "  S_%s -> S_%s [ label = \"%s\" ];" % (
-                node.node_number(), state.node_number(), escape(key))
-          node_content.append(content)
-      return node_content
+          edge_content.append("  S_%s -> S_%s [ label = \"%s\" ];" % (
+              node.node_number(), state.node_number(), escape(key)))
+      return (node_content, edge_content)
 
-    node_content = edge_iterator(f, [])
     terminals = ["S_%d;" % x.node_number() for x in terminal_set]
+    (node_content, edge_content) = edge_iterator(f, ([], []))
     start_number = start_node.node_number()
     start_shape = "circle"
     if start_node in terminal_set:
@@ -100,8 +97,10 @@ digraph finite_state_machine {
   node [shape = doublecircle, style=unfilled]; %s
   node [shape = circle];
 %s
+%s
 }
     ''' % (start_shape,
            start_number,
            " ".join(terminals),
+           "\n".join(edge_content),
            "\n".join(node_content))
