@@ -6444,7 +6444,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     }
   }
 
-  String::Encoding result_encoding = s->IsOneByteRepresentationUnderneath()
+  String::Encoding result_encoding = s->IsOneByteRepresentation()
       ? String::ONE_BYTE_ENCODING : String::TWO_BYTE_ENCODING;
   Object* answer;
   { MaybeObject* maybe_answer = ConvertCaseHelper(
