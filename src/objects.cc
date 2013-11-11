@@ -8339,11 +8339,6 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
 }
 
 
-const uc16* String::GetTwoByteData() {
-  return GetTwoByteData(0);
-}
-
-
 const uc16* String::GetTwoByteData(unsigned start) {
   ASSERT(!IsOneByteRepresentationUnderneath());
   switch (StringShape(this).representation_tag()) {
