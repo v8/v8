@@ -47,24 +47,6 @@ class Target;
 template <typename T> class ZoneListWrapper;
 
 
-class ParserMessage : public Malloced {
- public:
-  ParserMessage(Scanner::Location loc, const char* message,
-                Vector<const char*> args)
-      : loc_(loc),
-        message_(message),
-        args_(args) { }
-  ~ParserMessage();
-  Scanner::Location location() { return loc_; }
-  const char* message() { return message_; }
-  Vector<const char*> args() { return args_; }
- private:
-  Scanner::Location loc_;
-  const char* message_;
-  Vector<const char*> args_;
-};
-
-
 class FunctionEntry BASE_EMBEDDED {
  public:
   enum {

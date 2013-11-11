@@ -5547,13 +5547,6 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 // ----------------------------------------------------------------------------
 // The Parser interface.
 
-ParserMessage::~ParserMessage() {
-  for (int i = 0; i < args().length(); i++)
-    DeleteArray(args()[i]);
-  DeleteArray(args().start());
-}
-
-
 ScriptDataImpl::~ScriptDataImpl() {
   if (owns_store_) store_.Dispose();
 }
