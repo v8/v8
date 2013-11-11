@@ -1335,14 +1335,6 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 }
 
 
-ExternalReference ExternalReference::record_object_allocation_function(
-  Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate,
-               FUNCTION_ADDR(HeapProfiler::RecordObjectAllocationFromMasm)));
-}
-
-
 ExternalReference ExternalReference::address_of_uint32_bias() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.uint32_bias));

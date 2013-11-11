@@ -725,9 +725,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference get_make_code_young_function(Isolate* isolate);
   static ExternalReference get_mark_code_as_executed_function(Isolate* isolate);
 
-  // New heap objects tracking support.
-  static ExternalReference record_object_allocation_function(Isolate* isolate);
-
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
   static ExternalReference compute_output_frames_function(Isolate* isolate);

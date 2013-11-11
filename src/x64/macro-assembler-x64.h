@@ -1116,15 +1116,6 @@ class MacroAssembler: public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  // Record a JS object allocation if allocations tracking mode is on.
-  void RecordObjectAllocation(Isolate* isolate,
-                              Register object,
-                              Register object_size);
-
-  void RecordObjectAllocation(Isolate* isolate,
-                              Register object,
-                              int object_size);
-
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. Make sure that no pointers are left to the
   // object(s) no longer allocated as they would be invalid when allocation is

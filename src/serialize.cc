@@ -568,17 +568,13 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       61,
       "Heap::allocation_sites_list_address()");
-  Add(ExternalReference::record_object_allocation_function(isolate).address(),
-      UNCLASSIFIED,
-      62,
-      "HeapProfiler::RecordObjectAllocationFromMasm");
   Add(ExternalReference::address_of_uint32_bias().address(),
       UNCLASSIFIED,
-      63,
+      62,
       "uint32_bias");
   Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
       UNCLASSIFIED,
-      64,
+      63,
       "Code::MarkCodeAsExecuted");
 
   // Add a small set of deopt entry addresses to encoder without generating the

@@ -4081,7 +4081,10 @@ void MacroAssembler::Allocate(int object_size,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
-  if (!FLAG_inline_new) {
+  if (!FLAG_inline_new ||
+      // TODO(mstarzinger): Implement more efficiently by keeping then
+      // bump-pointer allocation area empty instead of recompiling code.
+      isolate()->heap_profiler()->is_tracking_allocations()) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4099,10 +4102,6 @@ void MacroAssembler::Allocate(int object_size,
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
-
-  if (isolate()->heap_profiler()->is_tracking_allocations()) {
-    RecordObjectAllocation(isolate(), result, object_size);
-  }
 
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
@@ -4165,7 +4164,10 @@ void MacroAssembler::Allocate(Register object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  if (!FLAG_inline_new) {
+  if (!FLAG_inline_new ||
+      // TODO(mstarzinger): Implement more efficiently by keeping then
+      // bump-pointer allocation area empty instead of recompiling code.
+      isolate()->heap_profiler()->is_tracking_allocations()) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4182,10 +4184,6 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
-
-  if (isolate()->heap_profiler()->is_tracking_allocations()) {
-    RecordObjectAllocation(isolate(), result, object_size);
-  }
 
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
@@ -4944,38 +4942,6 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   j(greater, no_memento_found);
   CompareRoot(MemOperand(scratch_reg, -AllocationMemento::kSize),
               Heap::kAllocationMementoMapRootIndex);
-}
-
-
-void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
-                                            Register object,
-                                            Register object_size) {
-  FrameScope frame(this, StackFrame::EXIT);
-  PushSafepointRegisters();
-  PrepareCallCFunction(3);
-  // In case object is rdx
-  movq(kScratchRegister, object);
-  movq(arg_reg_3, object_size);
-  movq(arg_reg_2, kScratchRegister);
-  movq(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
-  CallCFunction(
-      ExternalReference::record_object_allocation_function(isolate), 3);
-  PopSafepointRegisters();
-}
-
-
-void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
-                                            Register object,
-                                            int object_size) {
-  FrameScope frame(this, StackFrame::EXIT);
-  PushSafepointRegisters();
-  PrepareCallCFunction(3);
-  movq(arg_reg_2, object);
-  movq(arg_reg_3, Immediate(object_size));
-  movq(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
-  CallCFunction(
-      ExternalReference::record_object_allocation_function(isolate), 3);
-  PopSafepointRegisters();
 }
 
 

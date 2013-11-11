@@ -840,9 +840,7 @@ static bool AbortIncrementalMarkingAndCollectGarbage(
 }
 
 
-void Heap::ReserveSpace(
-    int *sizes,
-    Address *locations_out) {
+void Heap::ReserveSpace(int *sizes, Address *locations_out) {
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
