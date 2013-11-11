@@ -310,8 +310,7 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
 Handle<String> Factory::NewFlatConcatString(Handle<String> first,
                                             Handle<String> second) {
   int total_length = first->length() + second->length();
-  if (first->IsOneByteRepresentationUnderneath() &&
-      second->IsOneByteRepresentationUnderneath()) {
+  if (first->IsOneByteRepresentation() && second->IsOneByteRepresentation()) {
     return ConcatStringContent<uint8_t>(
         NewRawOneByteString(total_length), first, second);
   } else {

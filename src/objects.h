@@ -8611,7 +8611,6 @@ class String: public Name {
   static const int kMaxShortPrintLength = 1024;
 
   // Support for regular expressions.
-  const uc16* GetTwoByteData();
   const uc16* GetTwoByteData(unsigned start);
 
   // Helper function for flattening strings.
