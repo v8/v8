@@ -43,15 +43,6 @@
 #include "win32-headers.h"
 #endif
 
-#if V8_OS_LINUX
-#if !defined(CLOCK_REALTIME_COARSE)
-#define CLOCK_REALTIME_COARSE 5   // 2.6.32 and up.
-#endif  // !defined(CLOCK_REALTIME_COARSE)
-#if !defined(CLOCK_MONOTONIC_COARSE)
-#define CLOCK_MONOTONIC_COARSE 6  // 2.6.32 and up.
-#endif  // !defined(CLOCK_MONOTONIC_COARSE)
-#endif  // V8_OS_LINUX
-
 namespace v8 {
 namespace internal {
 
@@ -280,29 +271,11 @@ FILETIME Time::ToFiletime() const {
 #elif V8_OS_POSIX
 
 Time Time::Now() {
-#if V8_OS_LINUX
-  // Use CLOCK_REALTIME_COARSE if it's available and has a precision of 1 ms
-  // or higher.  It's serviced from the vDSO with no system call overhead.
-  static clock_t clock_id = -1;
-  struct timespec ts;
-  if (clock_id == -1) {
-    if (clock_getres(CLOCK_REALTIME_COARSE, &ts) || ts.tv_nsec > 1000 * 1000) {
-      clock_id = CLOCK_REALTIME;
-    } else {
-      clock_id = CLOCK_REALTIME_COARSE;
-    }
-  }
-  int result = clock_gettime(clock_id, &ts);
-  ASSERT_EQ(0, result);
-  USE(result);
-  return FromTimespec(ts);
-#else  // V8_OS_LINUX
   struct timeval tv;
   int result = gettimeofday(&tv, NULL);
   ASSERT_EQ(0, result);
   USE(result);
   return FromTimeval(tv);
-#endif  // V8_OS_LINUX
 }
 
 
@@ -597,21 +570,7 @@ TimeTicks TimeTicks::HighResolutionNow() {
   ticks = (tv.tv_sec * Time::kMicrosecondsPerSecond + tv.tv_usec);
 #elif V8_OS_POSIX
   struct timespec ts;
-#if V8_OS_LINUX
-  // Use CLOCK_MONOTONIC_COARSE if it's available and has a precision of 1 ms
-  // or higher.  It's serviced from the vDSO with no system call overhead.
-  static clock_t clock_id = -1;
-  if (clock_id == -1) {
-    if (clock_getres(CLOCK_MONOTONIC_COARSE, &ts) || ts.tv_nsec > 1000 * 1000) {
-      clock_id = CLOCK_MONOTONIC;
-    } else {
-      clock_id = CLOCK_MONOTONIC_COARSE;
-    }
-  }
-  int result = clock_gettime(clock_id, &ts);
-#else
   int result = clock_gettime(CLOCK_MONOTONIC, &ts);
-#endif  // V8_OS_LINUX
   ASSERT_EQ(0, result);
   USE(result);
   ticks = (ts.tv_sec * Time::kMicrosecondsPerSecond +
