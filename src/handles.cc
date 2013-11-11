@@ -242,9 +242,9 @@ static void ClearWrapperCache(v8::Isolate* v8_isolate,
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   if (script->wrapper()->foreign_address() != NULL) {
-    // Return the script wrapper directly from the cache.
+    // Return a handle for the existing script wrapper from the cache.
     return Handle<JSValue>(
-        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
+        *reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
   Isolate* isolate = script->GetIsolate();
   // Construct a new script wrapper.
@@ -255,10 +255,10 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 
   // The allocation might have triggered a GC, which could have called this
   // function recursively, and a wrapper has already been created and cached.
-  // In that case, simply return the cached wrapper.
+  // In that case, simply return a handle for the cached wrapper.
   if (script->wrapper()->foreign_address() != NULL) {
     return Handle<JSValue>(
-        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
+        *reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
 
   result->set_value(*script);
