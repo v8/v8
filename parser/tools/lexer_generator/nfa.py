@@ -221,6 +221,14 @@ class NfaBuilder:
     end.add_epsilon_transition(state['start_node'])
     return (start, ends)
 
+  def __break(self, graph):
+    (start, ends) = self.__process(graph[1])
+    self.__peek_state()['unpatched_ends'] += ends
+    new_end = self.__new_state()
+    for end in ends:
+      end.add_epsilon_transition(new_end)
+    return (start, [new_end])
+
   def __join(self, graph):
     (graph, name, subgraph, modifier) = graph[1:]
     subgraphs = self.__peek_state()['subgraphs']
@@ -254,6 +262,7 @@ class NfaBuilder:
     self.__states.append({
       'start_node' : None,
       'subgraphs' : {},
+      'unpatched_ends' : [],
     })
 
   def __pop_state(self):
@@ -273,6 +282,10 @@ class NfaBuilder:
     for k, subgraph in state['subgraphs'].items():
       subgraph[1].close(None)
     end =  self.__new_state()
+    if self.__states:
+      self.__peek_state()['unpatched_ends'] += state['unpatched_ends']
+    else:
+      self.__patch_ends(state['unpatched_ends'], end)
     self.__patch_ends(ends, end)
     return (start, end, self.__node_number - start_node_number)
 
@@ -288,6 +301,10 @@ class NfaBuilder:
   @staticmethod
   def add_continue(graph):
     return ('CONTINUE', graph)
+
+  @staticmethod
+  def add_break(graph):
+    return ('BREAK', graph)
 
   @staticmethod
   def join_subgraph(graph, name, subgraph, modifier):

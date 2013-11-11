@@ -96,11 +96,14 @@ class Generator(object):
         action = code if code else default_code
         if action:
           graph = NfaBuilder.add_action(graph, (precedence, action))
-        if transition == 'continue':
+        if not transition:
+          pass
+        elif transition == 'continue':
           assert not k == 'default'
           graph = NfaBuilder.add_continue(graph)
         elif transition == 'break':
-          pass
+          assert code
+          graph = NfaBuilder.add_break(graph)
         elif (transition == 'terminate' or
               transition == 'terminate_illegal'):
           assert not code
