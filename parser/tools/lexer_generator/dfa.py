@@ -59,7 +59,7 @@ class DfaState(AutomatonState):
     # FIXME: add default action
     code = '''
 code_%s:
-fprintf(stderr, "state %s, char at hand is %%c\\n", c);
+fprintf(stderr, "state %s, char at hand is %%c (%%d)\\n", c, c);
 ''' % (self.node_number(), self.node_number())
 
     for key, state in self.__transitions.items():
@@ -67,7 +67,18 @@ fprintf(stderr, "state %s, char at hand is %%c\\n", c);
       code += ''' {
   c = *(++cursor);
   goto code_%s;
-}''' % state.node_number()
+}
+''' % state.node_number()
+
+    action = self.action()
+    if action:
+      if action[1] == 'terminate':
+        code += 'return 0;'
+      elif action[1] == 'terminate_illegal':
+        code += 'return 1;'
+      else:
+        code += self.action()[1];
+
     return code
 
 class Dfa(Automaton):

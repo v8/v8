@@ -100,7 +100,7 @@ number        { PUSH_TOKEN(NUMBER); }
 ","           { PUSH_TOKEN(COMMA); }
 
 line_terminator+  { PUSH_LINE_TERMINATOR(); }
-whitespace     { SKIP } # TODO implement skip
+whitespace     { SKIP(); } # TODO implement skip
 
 "\""           <<DoubleQuoteString>>
 "'"            <<SingleQuoteString>>
@@ -197,14 +197,14 @@ eof              <<terminate>>
 /./ <<continue>>
 
 <MultiLineComment>
-"*/"             { SKIP }
+"*/"             { SKIP(); }
 # need to force action
 line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
 eof              <<terminate>>
 /./ <<continue>>
 
 <HtmlComment>
-"-->"            { SKIP }
+"-->"            { SKIP(); }
 # need to force action
 line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
 eof              <<terminate>>
