@@ -5379,6 +5379,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetInlineBuiltinFlag) {
+  SealHandleScope shs(isolate);
+  RUNTIME_ASSERT(args.length() == 1);
+
+  Handle<Object> object = args.at<Object>(0);
+
+  if (object->IsJSFunction()) {
+    JSFunction* func = JSFunction::cast(*object);
+    func->shared()->set_inline_builtin(true);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 5);
@@ -7799,6 +7813,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::TAN, x);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PopulateTrigonometricTable) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sin_table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, cos_table, 1);
+  CONVERT_SMI_ARG_CHECKED(samples, 2);
+  RUNTIME_ASSERT(sin_table->type() == kExternalDoubleArray);
+  RUNTIME_ASSERT(cos_table->type() == kExternalDoubleArray);
+  double* sin_buffer = reinterpret_cast<double*>(
+      JSArrayBuffer::cast(sin_table->buffer())->backing_store());
+  double* cos_buffer = reinterpret_cast<double*>(
+      JSArrayBuffer::cast(cos_table->buffer())->backing_store());
+
+  static const double pi_half = 3.1415926535897932 / 2;
+  double interval = pi_half / samples;
+  for (int i = 0; i < samples + 1; i++) {
+    double sample = sin(i * interval);
+    sin_buffer[i] = sample;
+    cos_buffer[samples - i] = sample * interval;
+  }
+
+  // Fill this to catch out of bound accesses when calculating Math.sin(pi/2).
+  sin_buffer[samples + 1] = sin(pi_half + interval);
+  cos_buffer[samples + 1] = cos(pi_half + interval) * interval;
+
+  return isolate->heap()->undefined_value();
 }
 
 

@@ -9742,20 +9742,6 @@ bool JSFunction::EnsureCompiled(Handle<JSFunction> function,
 }
 
 
-bool JSFunction::IsInlineable() {
-  if (IsBuiltin()) return false;
-  SharedFunctionInfo* shared_info = shared();
-  // Check that the function has a script associated with it.
-  if (!shared_info->script()->IsScript()) return false;
-  if (shared_info->optimization_disabled()) return false;
-  Code* code = shared_info->code();
-  if (code->kind() == Code::OPTIMIZED_FUNCTION) return true;
-  // If we never ran this (unlikely) then lets try to optimize it.
-  if (code->kind() != Code::FUNCTION) return true;
-  return code->optimizable();
-}
-
-
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
   if (object->IsGlobalObject()) return;
 
@@ -10021,6 +10007,16 @@ Handle<Object> SharedFunctionInfo::GetSourceCode() {
   Handle<String> source(String::cast(Script::cast(script())->source()));
   return GetIsolate()->factory()->NewSubString(
       source, start_position(), end_position());
+}
+
+
+bool SharedFunctionInfo::IsInlineable() {
+  // Check that the function has a script associated with it.
+  if (!script()->IsScript()) return false;
+  if (optimization_disabled()) return false;
+  // If we never ran this (unlikely) then lets try to optimize it.
+  if (code()->kind() != Code::FUNCTION) return true;
+  return code()->optimizable();
 }
 
 

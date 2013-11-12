@@ -79,7 +79,7 @@ function MathCeil(x) {
 
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
-  return %_MathCos(TO_NUMBER_INLINE(x));
+  return MathCosImpl(x);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -179,7 +179,7 @@ function MathRound(x) {
 
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
-  return %_MathSin(TO_NUMBER_INLINE(x));
+  return MathSinImpl(x);
 }
 
 // ECMA 262 - 15.8.2.17
@@ -189,13 +189,99 @@ function MathSqrt(x) {
 
 // ECMA 262 - 15.8.2.18
 function MathTan(x) {
-  return %_MathTan(TO_NUMBER_INLINE(x));
+  return MathSinImpl(x) / MathCosImpl(x);
 }
 
 // Non-standard extension.
 function MathImul(x, y) {
   return %NumberImul(TO_NUMBER_INLINE(x), TO_NUMBER_INLINE(y));
 }
+
+
+var MathSinImpl = function(x) {
+  InitTrigonometricFunctions();
+  return MathSinImpl(x);
+}
+
+
+var MathCosImpl = function(x) {
+  InitTrigonometricFunctions();
+  return MathCosImpl(x);
+}
+
+
+var InitTrigonometricFunctions;
+
+
+// Define constants and interpolation functions.
+// Also define the initialization function that populates the lookup table
+// and then wires up the function definitions.
+function SetupTrigonometricFunctions() {
+  var samples = 2048;  // Table size.
+  var pi = 3.1415926535897932;
+  var pi_half = pi / 2;
+  var inverse_pi_half = 1 / pi_half;
+  var two_pi = pi * 2;
+  var interval = pi_half / samples;
+  var inverse_interval = samples / pi_half;
+  var table_sin;
+  var table_cos_interval;
+
+  // This implements sine using the following algorithm.
+  // 1) Multiplication takes care of to-number conversion.
+  // 2) Reduce x to the first quadrant [0, pi/2].
+  //    Conveniently enough, in case of +/-Infinity, we get NaN.
+  // 3) Replace x by (pi/2-x) if x was in the 2nd or 4th quadrant.
+  // 4) Do a table lookup for the closest samples to the left and right of x.
+  // 5) Find the derivatives at those sampling points by table lookup:
+  //    dsin(x)/dx = cos(x) = sin(pi/2-x) for x in [0, pi/2].
+  // 6) Use cubic spline interpolation to approximate sin(x).
+  // 7) Negate the result if x was in the 3rd or 4th quadrant.
+  // 8) Get rid of -0 by adding 0.
+  var Interpolation = function(x) {
+    var double_index = x * inverse_interval;
+    var index = double_index | 0;
+    var t1 = double_index - index;
+    var t2 = 1 - t1;
+    var y1 = table_sin[index];
+    var y2 = table_sin[index + 1];
+    var dy = y2 - y1;
+    return (t2 * y1 + t1 * y2 +
+                t1 * t2 * ((table_cos_interval[index] - dy) * t2 +
+                           (dy - table_cos_interval[index + 1]) * t1));
+  }
+
+  var MathSinInterpolation = function(x) {
+    var multiple = MathFloor(x * inverse_pi_half);
+    if (%_IsMinusZero(multiple)) return multiple;
+    x = (multiple & 1) * pi_half +
+        (1 - ((multiple & 1) << 1)) * (x - multiple * pi_half);
+    return Interpolation(x) * (1 - (multiple & 2)) + 0;
+  }
+
+  // Cosine is sine with a phase offset of pi/2.
+  var MathCosInterpolation = function(x) {
+    var multiple = MathFloor(x * inverse_pi_half);
+    var phase = multiple + 1;
+    x = (phase & 1) * pi_half +
+        (1 - ((phase & 1) << 1)) * (x - multiple * pi_half);
+    return Interpolation(x) * (1 - (phase & 2)) + 0;
+  };
+
+  %SetInlineBuiltinFlag(Interpolation);
+  %SetInlineBuiltinFlag(MathSinInterpolation);
+  %SetInlineBuiltinFlag(MathCosInterpolation);
+
+  InitTrigonometricFunctions = function() {
+    table_sin = new global.Float64Array(samples + 2);
+    table_cos_interval = new global.Float64Array(samples + 2);
+    %PopulateTrigonometricTable(table_sin, table_cos_interval, samples);
+    MathSinImpl = MathSinInterpolation;
+    MathCosImpl = MathCosInterpolation;
+  }
+}
+
+SetupTrigonometricFunctions();
 
 
 // -------------------------------------------------------------------
@@ -270,6 +356,10 @@ function SetUpMath() {
     "min", MathMin,
     "imul", MathImul
   ));
+
+  %SetInlineBuiltinFlag(MathSin);
+  %SetInlineBuiltinFlag(MathCos);
+  %SetInlineBuiltinFlag(MathTan);
 }
 
 SetUpMath();
