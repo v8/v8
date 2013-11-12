@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include "v8.h"
 
 #include "api.h"
@@ -107,8 +108,6 @@ class BaselineScanner {
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;
       }
-      default:
-        break;
     }
     timer->Start();
     scanner_->Initialize(stream_);
@@ -208,6 +207,53 @@ void PrintTokens(const char* name,
 }
 
 
+std::pair<TimeDelta, TimeDelta> ProcessFile(
+    const char* fname,
+    Encoding encoding,
+    Isolate* isolate,
+    bool run_baseline,
+    bool run_experimental,
+    bool print_tokens) {
+  if (print_tokens) {
+    printf("Processing file %s\n", fname);
+  }
+  HandleScope handle_scope(isolate);
+  std::vector<TokenWithLocation> baseline_tokens, experimental_tokens;
+  TimeDelta baseline_time, experimental_time;
+  if (run_baseline) {
+    baseline_time = RunBaselineScanner(
+        fname, isolate, encoding, print_tokens, &baseline_tokens);
+  }
+  if (run_experimental) {
+    experimental_time = RunExperimentalScanner(
+        fname, isolate, encoding, print_tokens, &experimental_tokens);
+  }
+  if (print_tokens && !run_experimental) {
+    PrintTokens("Baseline", baseline_tokens);
+  }
+  if (print_tokens && !run_baseline) {
+    PrintTokens("Experimental", experimental_tokens);
+  }
+  if (print_tokens && run_baseline && run_experimental) {
+    printf("No of tokens in Baseline:     %d\n",
+           static_cast<int>(baseline_tokens.size()));
+    printf("No of tokens in Experimental: %d\n",
+           static_cast<int>(experimental_tokens.size()));
+    printf("Baseline and Experimental:\n");
+    for (size_t i = 0; i < experimental_tokens.size(); ++i) {
+      experimental_tokens[i].Print("=>");
+      if (experimental_tokens[i] != baseline_tokens[i]) {
+        printf("MISMATCH:\n");
+        baseline_tokens[i].Print("Expected: ");
+        experimental_tokens[i].Print("Actual:   ");
+        exit(1);
+      }
+    }
+  }
+  return std::make_pair(baseline_time, experimental_time);
+}
+
+
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
@@ -215,7 +261,8 @@ int main(int argc, char* argv[]) {
   bool print_tokens = false;
   bool run_baseline = true;
   bool run_experimental = true;
-  char* fname = argv[1];
+  std::vector<std::string> fnames;
+  std::string benchmark;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
       encoding = LATIN1;
@@ -231,8 +278,10 @@ int main(int argc, char* argv[]) {
       run_baseline = false;
     } else if (strcmp(argv[i], "--no-experimental") == 0) {
       run_experimental = false;
-    } else if (argv[i][0] != '-') {
-      fname = argv[i];
+    } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
+      benchmark = std::string(argv[i]).substr(12);
+    } else if (i > 0 && argv[i][0] != '-') {
+      fnames.push_back(std::string(argv[i]));
     }
   }
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -244,45 +293,21 @@ int main(int argc, char* argv[]) {
     {
       v8::Context::Scope scope(context);
       Isolate* isolate = Isolate::Current();
-      HandleScope handle_scope(isolate);
-
-      std::vector<TokenWithLocation> baseline_tokens, experimental_tokens;
-      TimeDelta baseline_time, experimental_time;
-      if (run_baseline) {
-        baseline_time = RunBaselineScanner(
-            fname, isolate, encoding, print_tokens, &baseline_tokens);
-      }
-      if (run_experimental) {
-        experimental_time = RunExperimentalScanner(
-            fname, isolate, encoding, print_tokens, &experimental_tokens);
-      }
-      if (print_tokens && !run_experimental) {
-        PrintTokens("Baseline", baseline_tokens);
-      }
-      if (print_tokens && !run_baseline) {
-        PrintTokens("Experimental", experimental_tokens);
-      }
-      if (print_tokens && run_baseline && run_experimental) {
-        printf("No of tokens in Baseline:     %d\n",
-               static_cast<int>(baseline_tokens.size()));
-        printf("No of tokens in Experimental: %d\n",
-               static_cast<int>(experimental_tokens.size()));
-        printf("Baseline and Experimental:\n");
-        for (size_t i = 0; i < experimental_tokens.size(); ++i) {
-          experimental_tokens[i].Print("=>");
-          if (experimental_tokens[i] != baseline_tokens[i]) {
-            printf("MISMATCH:\n");
-            baseline_tokens[i].Print("Expected: ");
-            experimental_tokens[i].Print("Actual:   ");
-            return 1;
-          }
-        }
+      double baseline_total = 0, experimental_total = 0;
+      for (size_t i = 0; i < fnames.size(); i++) {
+        std::pair<TimeDelta, TimeDelta> times;
+        times = ProcessFile(fnames[i].c_str(), encoding, isolate,
+                            run_baseline, run_experimental, print_tokens);
+        baseline_total += times.first.InMillisecondsF();
+        experimental_total += times.second.InMillisecondsF();
       }
       if (run_baseline) {
-        printf("Baseline    : %.3f ms\n", baseline_time.InMillisecondsF());
+        printf("Baseline%s(RunTime): %.f ms\n", benchmark.c_str(),
+               baseline_total);
       }
       if (run_experimental) {
-        printf("Experimental: %.3f ms\n", experimental_time.InMillisecondsF());
+        printf("Experimental%s(RunTime): %.f ms\n", benchmark.c_str(),
+               experimental_total);
       }
     }
   }

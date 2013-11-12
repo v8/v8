@@ -217,6 +217,7 @@ uint32_t PushScanner::push(const void *input, int input_size) {
 
 #define YYGETCONDITION()      condition_
 #define YYSETCONDITION(x)     { condition_ = (x); }
+#define YYDEBUG(state, current) {printf("%d: |%c| (%d)\n", state, current, (int)(current));}
 
 start_:
   if (FLAG_trace_lexer) {
