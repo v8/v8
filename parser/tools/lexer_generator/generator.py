@@ -91,19 +91,18 @@ class Generator(object):
     assert 'default' in parser_state.rules
     def process(k, v):
       graphs = []
+      continues = 0
       for (graph, (precedence, code, transition)) in v['regex']:
         default_code = v['default_action']
         action = code if code else default_code
         if action:
           graph = NfaBuilder.add_action(graph, (precedence, action))
-        if not transition:
+        if not transition or transition == 'break':
           pass
         elif transition == 'continue':
           assert not k == 'default'
+          continues += 1
           graph = NfaBuilder.add_continue(graph)
-        elif transition == 'break':
-          assert code
-          graph = NfaBuilder.add_break(graph)
         elif (transition == 'terminate' or
               transition == 'terminate_illegal'):
           assert not code
@@ -114,6 +113,11 @@ class Generator(object):
           graph = NfaBuilder.join_subgraph(
             graph, transition, rule_map[transition], subgraph_modifier)
         graphs.append(graph)
+      if continues == len(graphs):
+        graphs.append(NfaBuilder.epsilon())
+      if v['catch_all']:
+        assert v['catch_all'] == 'continue'
+        graphs.append(NfaBuilder.add_continue(NfaBuilder.catch_all()))
       graph = NfaBuilder.or_graphs(graphs)
       rule_map[k] = graph
     # process first the subgraphs, then the default graph

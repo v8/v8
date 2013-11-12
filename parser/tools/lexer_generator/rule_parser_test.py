@@ -53,19 +53,19 @@ alias = /regex/;
 
      self.assertTrue(len(self.state.rules), 2)
      self.assertTrue('cond1' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond1']), 2)
+     self.assertEquals(len(self.state.rules['cond1']['regex']), 2)
      # self.assertTrue('regex2' in self.state.rules['cond1'])
      # self.assertEquals(self.state.rules['cond1']['regex2'],
      #                   ('condition', 'cond2'))
 
      self.assertTrue('cond2' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond2']), 2)
+     self.assertEquals(len(self.state.rules['cond2']['regex']), 2)
      # self.assertTrue('regex3' in self.state.rules['cond2'])
      # self.assertEquals(self.state.rules['cond2']['regex3'],
      #                   ('body', 'body'))
 
      self.assertTrue('cond3' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond3']), 2)
+     self.assertEquals(len(self.state.rules['cond3']['regex']), 2)
      # self.assertTrue('regex4' in self.state.rules['cond3'])
      # self.assertEquals(self.state.rules['cond3']['regex4'],
      #                   ('condition_and_body', 'cond4', 'body'))
@@ -79,7 +79,7 @@ alias = "regex;with;semicolon";
      self.assertEquals(self.state.aliases['alias'],
                        RegexParser.parse("regex;with;semicolon"))
      self.assertTrue('cond1' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond1']), 2)
+     self.assertEquals(len(self.state.rules['cond1']['regex']), 2)
 
      # self.assertEquals(
      #     self.parse['cond1']['regex4{with{braces}'],

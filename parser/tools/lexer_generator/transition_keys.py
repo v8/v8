@@ -42,6 +42,12 @@ class TransitionKey:
   __unique_key_counter = -1
 
   @staticmethod
+  def alphabet_iter():
+    for k, (lower, upper) in TransitionKey.__class_bounds.items():
+      for i in range(lower, upper + 1):
+        yield i
+
+  @staticmethod
   def __in_latin_1(char):
     bound = TransitionKey.__class_bounds["latin_1"]
     return (bound[0] <= char and char <= bound[1])
@@ -86,6 +92,9 @@ class TransitionKey:
     key.__cached_hash = None
     return key
 
+  def __is_unique(self):
+    return len(self.__ranges) == 1 and self.__is_unique_range(self.__ranges[0])
+
   @staticmethod
   def __cached_key(name, bounds_getter):
     if not name in TransitionKey.__cached_keys:
@@ -109,7 +118,7 @@ class TransitionKey:
     return TransitionKey.__create([(char, char)])
 
   @staticmethod
-  def unique_key(name):
+  def unique(name):
     def get_bounds(name):
       bound = TransitionKey.__unique_key_counter
       TransitionKey.__unique_key_counter -= 1
@@ -242,19 +251,33 @@ class TransitionKey:
     return ranges
 
   @staticmethod
-  def disjoint_keys(key_set):
-    key_set.discard(TransitionKey.epsilon())
+  def __disjoint_ranges_from_key_set(key_set):
     if not key_set:
       return []
     range_map = {}
     for x in key_set:
+      assert not x.__is_unique()
+      assert x != TransitionKey.epsilon
       for r in x.__ranges:
         if not r[0] in range_map:
           range_map[r[0]] = []
         range_map[r[0]].append(r[1])
     ranges = TransitionKey.__disjoint_keys(range_map)
     TransitionKey.__verify_ranges(ranges, False)
+    return ranges
+
+  @staticmethod
+  def disjoint_keys(key_set):
+    ranges = TransitionKey.__disjoint_ranges_from_key_set(key_set)
     return map(lambda x : TransitionKey.__create([x]), ranges)
+
+  @staticmethod
+  def inverse_key(key_set):
+    ranges = TransitionKey.__disjoint_ranges_from_key_set(key_set)
+    inverse = TransitionKey.__invert_ranges(ranges)
+    if not inverse:
+      return None
+    return TransitionKey.__create(inverse)
 
   @staticmethod
   def __key_from_ranges(invert, ranges):
@@ -296,7 +319,8 @@ class TransitionKey:
     inverted = []
     last = None
     classes = set(TransitionKey.__class_bounds.values())
-    classes.remove(TransitionKey.__class_bounds["latin_1"])
+    latin_1 = TransitionKey.__class_bounds["latin_1"]
+    classes.remove(latin_1)
     for r in ranges:
       assert not TransitionKey.__is_unique_range(r)
       if TransitionKey.__is_class_range(r):
@@ -308,8 +332,10 @@ class TransitionKey:
       elif last[1] + 1 < r[0]:
         inverted.append((last[1] + 1, r[0] - 1))
       last = r
-    upper_bound = TransitionKey.__class_bounds["latin_1"][1]
-    if last != None and last[1] < upper_bound:
+    upper_bound = latin_1[1]
+    if last == None:
+      inverted.append(latin_1)
+    elif last[1] < upper_bound:
       inverted.append((last[1] + 1, upper_bound))
     inverted += list(classes)
     return inverted

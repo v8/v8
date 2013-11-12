@@ -32,6 +32,8 @@ class RuleLexer:
   tokens = (
     'DEFAULT',
     'DEFAULT_ACTION',
+    'CATCH_ALL',
+
     'IDENTIFIER',
     'STRING',
     'REGEX',
@@ -67,12 +69,13 @@ class RuleLexer:
     r'\#.*[\n\r]+'
     pass
 
+  __special_identifiers = set(map(lambda s: s.lower(),
+    ['DEFAULT', 'DEFAULT_ACTION', 'CATCH_ALL',]))
+
   def t_IDENTIFIER(self, t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
-    if t.value == 'default':
-      t.type = 'DEFAULT'
-    if t.value == 'default_action':
-      t.type = 'DEFAULT_ACTION'
+    if t.value in self.__special_identifiers:
+      t.type = t.value.upper()
     return t
 
   t_STRING = r'"((\\("|\w|\\))|[^\\"])+"'

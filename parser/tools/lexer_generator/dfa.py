@@ -156,6 +156,9 @@ class Dfa(Automaton):
     state_iterator = lambda x : [x]
     return self.generate_dot(self.__start, self.__terminal_set, iterator, state_iterator)
 
+  def minimize(self):
+    pass
+
   def to_code(self):
     code = '''
 char c = *cursor;

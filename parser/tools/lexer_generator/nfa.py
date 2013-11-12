@@ -106,10 +106,27 @@ class NfaState(AutomatonState):
   def key_matches(self, value):
     return self.__matches(lambda k, v : k.matches_key(v), value)
 
+  def replace_catch_all(self):
+    catch_all = TransitionKey.unique('catch_all')
+    if not catch_all in self.__transitions:
+      return
+    f = lambda acc, state: acc | state.__epsilon_closure
+    reachable_states = reduce(f, self.__transitions[catch_all], set())
+    f = lambda acc, state: acc | set(state.__transitions.keys())
+    keys = reduce(f, reachable_states, set())
+    keys.discard(TransitionKey.epsilon())
+    keys.discard(catch_all)
+    inverse_key = TransitionKey.inverse_key(keys)
+    if inverse_key:
+      self.__transitions[inverse_key] = self.__transitions[catch_all]
+    del self.__transitions[catch_all]
+
   @staticmethod
   def gather_transition_keys(state_set):
     f = lambda acc, state: acc | set(state.__transitions.keys())
-    return TransitionKey.disjoint_keys(reduce(f, state_set, set()))
+    keys = reduce(f, state_set, set())
+    keys.discard(TransitionKey.epsilon())
+    return TransitionKey.disjoint_keys(keys)
 
 class NfaBuilder:
 
@@ -202,6 +219,12 @@ class NfaBuilder:
   def __any(self, graph):
     return self.__key_state(TransitionKey.any())
 
+  def __epsilon(self, graph):
+    start = self.__new_state()
+    end = self.__new_state()
+    start.close(end)
+    return (start, [end])
+
   def __action(self, graph):
     (start, ends) = self.__process(graph[1])
     action = graph[2]
@@ -215,19 +238,11 @@ class NfaBuilder:
     state = self.__peek_state()
     if not state['start_node']:
       state['start_node'] = self.__new_state()
-    end = self.__new_state()
-    self.__patch_ends(ends, end)
-    ends = [end]
-    end.add_epsilon_transition(state['start_node'])
-    return (start, ends)
+    self.__patch_ends(ends, state['start_node'])
+    return (start, [])
 
-  def __break(self, graph):
-    (start, ends) = self.__process(graph[1])
-    self.__peek_state()['unpatched_ends'] += ends
-    new_end = self.__new_state()
-    for end in ends:
-      end.add_epsilon_transition(new_end)
-    return (start, [new_end])
+  def __catch_all(self, graph):
+    return self.__key_state(TransitionKey.unique('catch_all'))
 
   def __join(self, graph):
     (graph, name, subgraph, modifier) = graph[1:]
@@ -303,8 +318,12 @@ class NfaBuilder:
     return ('CONTINUE', graph)
 
   @staticmethod
-  def add_break(graph):
-    return ('BREAK', graph)
+  def catch_all():
+    return ('CATCH_ALL',)
+
+  @staticmethod
+  def epsilon():
+    return ('EPSILON',)
 
   @staticmethod
   def join_subgraph(graph, name, subgraph, modifier):
@@ -413,6 +432,7 @@ class Nfa(Automaton):
 
   def compute_dfa(self):
     self.__compute_epsilon_closures()
+    self.__visit_all_edges(lambda node, state: node.replace_catch_all(), None)
     dfa_nodes = {}
     start_name = self.__to_dfa(set([self.__start]), dfa_nodes, self.__end)
     return (start_name, dfa_nodes)

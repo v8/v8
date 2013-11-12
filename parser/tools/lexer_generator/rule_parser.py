@@ -86,6 +86,7 @@ class RuleParser:
     if not state.current_state in state.rules:
       state.rules[state.current_state] = {
         'default_action': None,
+        'catch_all' : None,
         'regex' : []
       }
     p[0] = state.current_state
@@ -98,9 +99,10 @@ class RuleParser:
     '''transition_rule : composite_regex code action
                        | composite_regex empty action
                        | composite_regex code empty
-                       | DEFAULT_ACTION code empty'''
-    transition = p[3] if p[3] else 'break'
-    if not transition in self.__keyword_transitions:
+                       | DEFAULT_ACTION code empty
+                       | CATCH_ALL empty action'''
+    transition = p[3]
+    if transition and not transition in self.__keyword_transitions:
       assert not transition == 'default'
       self.__state.transitions.add(transition)
     RuleParser.__rule_precedence_counter += 1
@@ -109,6 +111,9 @@ class RuleParser:
     if p[1] == 'default_action':
       assert not rules['default_action']
       rules['default_action'] = code
+    elif p[1] == 'catch_all':
+      assert not rules['catch_all']
+      rules['catch_all'] = transition
     else:
       rule = (p[1], (RuleParser.__rule_precedence_counter, code, transition))
       rules['regex'].append(rule)

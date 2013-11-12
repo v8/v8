@@ -163,24 +163,22 @@ eof             <<terminate>>
 default_action  { PUSH_TOKEN(ILLEGAL); }
 
 <DoubleQuoteString>
-"\\"      <<continue>>
-"\\\""    <<continue>>
-"\""      { PUSH_TOKEN(STRING); }
 /\\\n\r?/ <<continue>>
 /\\\r\n?/ <<continue>>
-/\n|\r/    { PUSH_TOKEN(ILLEGAL); }
+/\\./     <<continue>>
+/\n|\r/   { PUSH_TOKEN(ILLEGAL); }
+"\""      { PUSH_TOKEN(STRING); }
 eof       <<terminate_illegal>>
-/./ <<continue>>
+catch_all <<continue>>
 
 <SingleQuoteString>
-"\\"      <<continue>>
-"\\'"     <<continue>>
-"'"       { PUSH_TOKEN(STRING); }
 /\\\n\r?/ <<continue>>
 /\\\r\n?/ <<continue>>
-/\n|\r/    { PUSH_TOKEN(ILLEGAL); }
+/\\./     <<continue>>
+/\n|\r/   { PUSH_TOKEN(ILLEGAL); }
+"'"       { PUSH_TOKEN(STRING); }
 eof       <<terminate_illegal>>
-/./ <<continue>>
+catch_all <<continue>>
 
 <Identifier>
 identifier_char    <<continue>>
@@ -194,18 +192,21 @@ default_action { PUSH_TOKEN(IDENTIFIER); }
 <SingleLineComment>
 line_terminator  { PUSH_LINE_TERMINATOR(); }
 eof              <<terminate>>
-/./ <<continue>>
+catch_all <<continue>>
 
 <MultiLineComment>
 "*/"             { SKIP(); }
+/\*./             <<continue>>
 # need to force action
 line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
 eof              <<terminate>>
-/./ <<continue>>
+catch_all <<continue>>
 
 <HtmlComment>
 "-->"            { SKIP(); }
+/--./            <<continue>>
+/-./             <<continue>>
 # need to force action
 line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
 eof              <<terminate>>
-/./ <<continue>>
+catch_all <<continue>>
