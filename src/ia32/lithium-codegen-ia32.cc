@@ -5012,6 +5012,17 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
 }
 
 
+void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
+  Register input = ToRegister(instr->value());
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    __ test(input, Immediate(0xc0000000));
+    DeoptimizeIf(not_zero, instr->environment());
+  }
+  __ SmiTag(input);
+}
+
+
 void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
   class DeferredNumberTagI V8_FINAL : public LDeferredCode {
    public:
