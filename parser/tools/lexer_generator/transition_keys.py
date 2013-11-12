@@ -190,25 +190,19 @@ class TransitionKey:
   def __eq__(self, other):
     return isinstance(other, self.__class__) and self.__ranges == other.__ranges
 
-  def to_code(self):
-    code = 'if ('
-    first = True
+  @staticmethod
+  def __class_name(r):
+    for name, v in TransitionKey.__class_bounds.items():
+      if r == v: return name
+    assert False
+
+  def range_iter(self):
+    assert not self == TransitionKey.epsilon() and not self.__is_unique()
     for r in self.__ranges:
-      if r[0] >= 256: # FIXME: add class checks
-        continue
-      if not first:
-        code += ' || '
-      if r[0] == r[1]:
-        code += 'yych == %s' % r[0]
-      elif r[0] == 0:
-        code += 'yych <= %s' % r[1]
-      elif r[1] == 255: # FIXME: this should depend on the char type maybe??
-        code += 'yych >= %s' % r[0]
+      if self.__is_class_range(r):
+        yield ('CLASS', TransitionKey.__class_name(r))
       else:
-        code += '(yych >= %s && yych <= %s)' % (r[0], r[1])
-      first = False
-    code += ')'
-    return code
+        yield ('LATIN_1', r)
 
   __printable_cache = {
     ord('\t') : '\\t',
@@ -219,9 +213,7 @@ class TransitionKey:
   @staticmethod
   def __range_str(r):
     if TransitionKey.__is_class_range(r):
-      for name, v in TransitionKey.__class_bounds.items():
-        if r == v: return name
-      assert False
+      return TransitionKey.__class_name(r)
     def to_str(x):
       assert TransitionKey.__in_latin_1(x)
       if not x in TransitionKey.__printable_cache:

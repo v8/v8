@@ -56,39 +56,6 @@ class DfaState(AutomatonState):
   def transitions(self):
     return self.__transitions
 
-  def to_code(self, start_node_number):
-    # FIXME: add different check types (if, switch, lookup table)
-    # FIXME: add action + break / continue
-    # FIXME: add default action
-    code = '''
-code_%s:
-    fprintf(stderr, "state %s\\n");''' % (self.node_number(), self.node_number())
-
-    action = self.action()
-    if action:
-      if action[1] == 'terminate':
-        code += 'return 0;'
-        return code
-      elif action[1] == 'terminate_illegal':
-        code += 'return 1;'
-        return code
-
-    code += '''
-    yych = *(++cursor_);
-    fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
-
-    for key, state in self.__transitions.items():
-      code += key.to_code()
-      code += ''' {
-        goto code_%s;
-    }
-''' % state.node_number()
-
-    if action:
-      code += '%s\nyych = *(--cursor_);\ngoto code_%s;\n' % (self.action()[1], start_node_number)
-
-    return code
-
 class Dfa(Automaton):
 
   def __init__(self, start_name, mapping):
@@ -113,11 +80,17 @@ class Dfa(Automaton):
     self.__start = self.__name_map[start_name]
     assert self.__terminal_set
 
+  def start_state(self):
+    return self.__start
+
   def start_set(self):
     return set([self.__start])
 
   def terminal_set(self):
     return set(self.__terminal_set)
+
+  def all_states_iter(self):
+    return iter(self.__name_map.values())
 
   @staticmethod
   def __match_char(state, char):
@@ -162,12 +135,3 @@ class Dfa(Automaton):
 
   def minimize(self):
     pass
-
-  def to_code(self):
-    code = '''
-YYCTYPE yych = *cursor_;
-goto code_%s;
-''' % (self.__start.node_number())
-    for n in self.__name_map.values():
-      code += n.to_code(self.__start.node_number())
-    return code

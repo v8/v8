@@ -30,6 +30,7 @@ from nfa import Nfa
 from nfa_builder import NfaBuilder
 from dfa import Dfa
 from rule_parser import RuleParser, RuleParserState
+from code_generator import CodeGenerator
 
 file_template = '''
 <html>
@@ -141,7 +142,7 @@ class Generator(object):
 
   def generate_code(self):
     (nfa, dfa) = self.__automata['default']
-    return dfa.to_code()
+    return CodeGenerator.dfa_to_code(dfa)
 
 if __name__ == '__main__':
 
