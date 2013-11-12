@@ -28,7 +28,7 @@
 import ply.yacc as yacc
 from rule_lexer import RuleLexer
 from regex_parser import RegexParser
-from nfa import NfaBuilder
+from nfa_builder import NfaBuilder
 from transition_keys import TransitionKey
 
 class RuleParserState:

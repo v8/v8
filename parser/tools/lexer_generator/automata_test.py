@@ -27,7 +27,7 @@
 
 import unittest
 from regex_parser import RegexParser
-from nfa import NfaBuilder
+from nfa_builder import NfaBuilder
 from dfa import Dfa
 
 def dfa_from_nfa(nfa):

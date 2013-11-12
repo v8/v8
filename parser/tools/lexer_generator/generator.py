@@ -26,7 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import argparse
-from nfa import Nfa, NfaBuilder
+from nfa import Nfa
+from nfa_builder import NfaBuilder
 from dfa import Dfa
 from rule_parser import RuleParser, RuleParserState
 
