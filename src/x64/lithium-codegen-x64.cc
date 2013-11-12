@@ -2263,7 +2263,7 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
   } else {
     Register value = ToRegister(instr->value());
     Handle<Map> map = masm()->isolate()->factory()->heap_number_map();
-    __ CheckMap(rax, map, &if_false, DO_SMI_CHECK);
+    __ CheckMap(value, map, &if_false, DO_SMI_CHECK);
     __ cmpl(FieldOperand(value, HeapNumber::kExponentOffset),
             Immediate(0x80000000));
     __ j(not_equal, &if_false);
