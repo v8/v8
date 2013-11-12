@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,18 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --no-inline-new --nouse-allocation-folding
+// Flags: --allow-natives-syntax --gc-global --throws
 
-%SetAllocationTimeout(20, 0);
-function f() {
-  return [[1, 2, 3], [1.1, 1.2, 1.3], [[], [], []]];
-}
+var f = eval("(function f() { throw 'kaboom'; })");
 
-f(); f(); f();
-%OptimizeFunctionOnNextCall(f);
-for (var i=0; i<50; i++) {
-  f();
-}
+// Prepare that next MessageHandler::MakeMessageObject will result in
+// reclamation of existing script wrapper while weak handle is used.
+%FunctionGetScript(f);
+%SetAllocationTimeout(1000, 2);
 
-
-
+// This call throws to the console but the --throws flag passed to this
+// test will make sure we don't count it as an actual failure.
+f();

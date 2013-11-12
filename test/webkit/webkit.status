@@ -26,6 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 [
+[ALWAYS, {
+  ##############################################################################
+  # Flaky tests.
+  # BUG(v8:2989).
+  'dfg-inline-arguments-become-int32': [PASS, FLAKY],
+  'dfg-inline-arguments-reset': [PASS, FLAKY],
+}],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
   'dfg-int-overflow-in-loop': [SKIP],

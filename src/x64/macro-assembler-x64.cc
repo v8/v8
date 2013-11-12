@@ -311,11 +311,6 @@ void MacroAssembler::RecordWriteField(
     SaveFPRegsMode save_fp,
     RememberedSetAction remembered_set_action,
     SmiCheck smi_check) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are rsi.
-  ASSERT(!value.is(rsi) && !dst.is(rsi));
-
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -392,11 +387,6 @@ void MacroAssembler::RecordWrite(Register object,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are rsi.
-  ASSERT(!value.is(rsi) && !address.is(rsi));
-
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
   ASSERT(!value.is(address));
@@ -950,8 +940,14 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
 
 void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
   ASSERT(!r.IsDouble());
-  if (r.IsByte()) {
+  if (r.IsInteger8()) {
+    movsxbq(dst, src);
+  } else if (r.IsUInteger8()) {
     movzxbl(dst, src);
+  } else if (r.IsInteger16()) {
+    movsxwq(dst, src);
+  } else if (r.IsUInteger16()) {
+    movzxwl(dst, src);
   } else if (r.IsInteger32()) {
     movl(dst, src);
   } else {
@@ -962,8 +958,10 @@ void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
 
 void MacroAssembler::Store(const Operand& dst, Register src, Representation r) {
   ASSERT(!r.IsDouble());
-  if (r.IsByte()) {
+  if (r.IsInteger8() || r.IsUInteger8()) {
     movb(dst, src);
+  } else if (r.IsInteger16() || r.IsUInteger16()) {
+    movw(dst, src);
   } else if (r.IsInteger32()) {
     movl(dst, src);
   } else {
@@ -3035,9 +3033,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
 }
 
 
-void MacroAssembler::CompareMap(Register obj,
-                                Handle<Map> map,
-                                Label* early_success) {
+void MacroAssembler::CompareMap(Register obj, Handle<Map> map) {
   Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
 }
 
@@ -3050,10 +3046,8 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
 
-  Label success;
-  CompareMap(obj, map, &success);
+  CompareMap(obj, map);
   j(not_equal, fail);
-  bind(&success);
 }
 
 
@@ -4087,7 +4081,10 @@ void MacroAssembler::Allocate(int object_size,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
-  if (!FLAG_inline_new) {
+  if (!FLAG_inline_new ||
+      // TODO(mstarzinger): Implement more efficiently by keeping then
+      // bump-pointer allocation area empty instead of recompiling code.
+      isolate()->heap_profiler()->is_tracking_allocations()) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4105,10 +4102,6 @@ void MacroAssembler::Allocate(int object_size,
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
-
-  if (isolate()->heap_profiler()->is_tracking_allocations()) {
-    RecordObjectAllocation(isolate(), result, object_size);
-  }
 
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
@@ -4171,7 +4164,10 @@ void MacroAssembler::Allocate(Register object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  if (!FLAG_inline_new) {
+  if (!FLAG_inline_new ||
+      // TODO(mstarzinger): Implement more efficiently by keeping then
+      // bump-pointer allocation area empty instead of recompiling code.
+      isolate()->heap_profiler()->is_tracking_allocations()) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4188,10 +4184,6 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
-
-  if (isolate()->heap_profiler()->is_tracking_allocations()) {
-    RecordObjectAllocation(isolate(), result, object_size);
-  }
 
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
@@ -4950,38 +4942,6 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   j(greater, no_memento_found);
   CompareRoot(MemOperand(scratch_reg, -AllocationMemento::kSize),
               Heap::kAllocationMementoMapRootIndex);
-}
-
-
-void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
-                                            Register object,
-                                            Register object_size) {
-  FrameScope frame(this, StackFrame::EXIT);
-  PushSafepointRegisters();
-  PrepareCallCFunction(3);
-  // In case object is rdx
-  movq(kScratchRegister, object);
-  movq(arg_reg_3, object_size);
-  movq(arg_reg_2, kScratchRegister);
-  movq(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
-  CallCFunction(
-      ExternalReference::record_object_allocation_function(isolate), 3);
-  PopSafepointRegisters();
-}
-
-
-void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
-                                            Register object,
-                                            int object_size) {
-  FrameScope frame(this, StackFrame::EXIT);
-  PushSafepointRegisters();
-  PrepareCallCFunction(3);
-  movq(arg_reg_2, object);
-  movq(arg_reg_3, Immediate(object_size));
-  movq(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
-  CallCFunction(
-      ExternalReference::record_object_allocation_function(isolate), 3);
-  PopSafepointRegisters();
 }
 
 

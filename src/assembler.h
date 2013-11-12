@@ -715,8 +715,6 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference flush_icache_function(Isolate* isolate);
   static ExternalReference perform_gc_function(Isolate* isolate);
-  static ExternalReference fill_heap_number_with_random_function(
-      Isolate* isolate);
   static ExternalReference random_uint32_function(Isolate* isolate);
   static ExternalReference transcendental_cache_array_address(Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
@@ -726,9 +724,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference get_make_code_young_function(Isolate* isolate);
   static ExternalReference get_mark_code_as_executed_function(Isolate* isolate);
-
-  // New heap objects tracking support.
-  static ExternalReference record_object_allocation_function(Isolate* isolate);
 
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);

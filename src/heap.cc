@@ -840,9 +840,7 @@ static bool AbortIncrementalMarkingAndCollectGarbage(
 }
 
 
-void Heap::ReserveSpace(
-    int *sizes,
-    Address *locations_out) {
+void Heap::ReserveSpace(int *sizes, Address *locations_out) {
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
@@ -4197,7 +4195,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (force_lo_space) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(obj_size);
+    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   }
   if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
 
@@ -4268,7 +4266,7 @@ MaybeObject* Heap::CopyCode(Code* code) {
   if (obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(obj_size);
+    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   }
 
   Object* result;
@@ -4311,7 +4309,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   if (new_obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(new_obj_size);
+    maybe_result = AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
   }
 
   Object* result;
@@ -4823,7 +4821,8 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
     { int adjusted_object_size = site != NULL
           ? object_size + AllocationMemento::kSize
           : object_size;
-      MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
+      MaybeObject* maybe_clone =
+          AllocateRaw(adjusted_object_size, NEW_SPACE, NEW_SPACE);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     SLOW_ASSERT(InNewSpace(clone));

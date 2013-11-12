@@ -361,7 +361,7 @@ function IN(x) {
 function INSTANCE_OF(F) {
   var V = this;
   if (!IS_SPEC_FUNCTION(F)) {
-    throw %MakeTypeError('instanceof_function_expected', [V]);
+    throw %MakeTypeError('instanceof_function_expected', [F]);
   }
 
   // If V is not an object, return false.

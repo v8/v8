@@ -171,13 +171,6 @@ void HeapProfiler::StopHeapAllocationsRecording() {
 }
 
 
-void HeapProfiler::RecordObjectAllocationFromMasm(Isolate* isolate,
-                                                  Address obj,
-                                                  int size) {
-  isolate->heap_profiler()->NewObjectEvent(obj, size);
-}
-
-
 void HeapProfiler::DropCompiledCode() {
   Isolate* isolate = heap()->isolate();
   HandleScope scope(isolate);

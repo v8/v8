@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,18 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --no-inline-new --nouse-allocation-folding
-
-%SetAllocationTimeout(20, 0);
-function f() {
-  return [[1, 2, 3], [1.1, 1.2, 1.3], [[], [], []]];
+function Cb(a) {
+  var f, g;
+  for(f = a.length; f--;) {
+    g = a.charCodeAt(f);
+    // This will fail after OSR if Runtime_StringCharCodeAt is modified
+    // to iterates optimized frames and visit safepoint pointers.
+  }
+  return g;
 }
 
-f(); f(); f();
-%OptimizeFunctionOnNextCall(f);
-for (var i=0; i<50; i++) {
-  f();
-}
-
-
-
+var s1 = "long string to make cons string 1";
+var s2 = "long string to make cons string 2";
+Cb(s1 + s2);
+Cb(s1);
+var s3 = "string for triggering osr in Cb";
+for (var i = 0; i < 16; i++) s3 = s3 + s3;
+Cb(s3);
+Cb(s1 + s2);

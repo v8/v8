@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,18 +25,4 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --no-inline-new --nouse-allocation-folding
-
-%SetAllocationTimeout(20, 0);
-function f() {
-  return [[1, 2, 3], [1.1, 1.2, 1.3], [[], [], []]];
-}
-
-f(); f(); f();
-%OptimizeFunctionOnNextCall(f);
-for (var i=0; i<50; i++) {
-  f();
-}
-
-
-
+1 instanceof 2;

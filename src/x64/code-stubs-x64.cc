@@ -1136,8 +1136,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     }
     // Return value is in xmm0.
     __ movsd(double_result, xmm0);
-    // Restore context register.
-    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
     __ bind(&done);
     __ IncrementCounter(counters->math_pow(), 1);
@@ -2222,7 +2220,7 @@ static void CheckInputType(MacroAssembler* masm,
     __ JumpIfNotSmi(input, fail);
   } else if (expected == CompareIC::NUMBER) {
     __ JumpIfSmi(input, &ok);
-    __ CompareMap(input, masm->isolate()->factory()->heap_number_map(), NULL);
+    __ CompareMap(input, masm->isolate()->factory()->heap_number_map());
     __ j(not_equal, fail);
   }
   // We could be strict about internalized/non-internalized here, but as long as
@@ -3206,7 +3204,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   //   __ j(not_equal, &cache_miss);
   //   __ LoadRoot(ToRegister(instr->result()), Heap::kTheHoleValueRootIndex);
   // before the offset of the hole value in the root array.
-  static const unsigned int kWordBeforeResultValue = 0x458B4909;
+  static const unsigned int kWordBeforeResultValue = 0x458B4906;
   // Only the inline check flag is supported on X64.
   ASSERT(flags_ == kNoFlags || HasCallSiteInlineCheck());
   int extra_argument_offset = HasCallSiteInlineCheck() ? 1 : 0;
@@ -4543,7 +4541,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   // Load left and right operand.
   Label done, left, left_smi, right_smi;
   __ JumpIfSmi(rax, &right_smi, Label::kNear);
-  __ CompareMap(rax, masm->isolate()->factory()->heap_number_map(), NULL);
+  __ CompareMap(rax, masm->isolate()->factory()->heap_number_map());
   __ j(not_equal, &maybe_undefined1, Label::kNear);
   __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
   __ jmp(&left, Label::kNear);
@@ -4553,7 +4551,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&left);
   __ JumpIfSmi(rdx, &left_smi, Label::kNear);
-  __ CompareMap(rdx, masm->isolate()->factory()->heap_number_map(), NULL);
+  __ CompareMap(rdx, masm->isolate()->factory()->heap_number_map());
   __ j(not_equal, &maybe_undefined2, Label::kNear);
   __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
   __ jmp(&done);

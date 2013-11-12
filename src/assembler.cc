@@ -1053,14 +1053,6 @@ ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::fill_heap_number_with_random_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(V8::FillHeapNumberWithRandom)));
-}
-
-
 ExternalReference ExternalReference::delete_handle_scope_extensions(
     Isolate* isolate) {
   return ExternalReference(Redirect(
@@ -1340,14 +1332,6 @@ ExternalReference ExternalReference::address_of_canonical_non_hole_nan() {
 ExternalReference ExternalReference::address_of_the_hole_nan() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.the_hole_nan));
-}
-
-
-ExternalReference ExternalReference::record_object_allocation_function(
-  Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate,
-               FUNCTION_ADDR(HeapProfiler::RecordObjectAllocationFromMasm)));
 }
 
 

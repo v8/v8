@@ -91,11 +91,10 @@ struct Register {
   // The non-allocatable registers are:
   //  rsp - stack pointer
   //  rbp - frame pointer
-  //  rsi - context register
   //  r10 - fixed scratch register
   //  r12 - smi constant register
   //  r13 - root register
-  static const int kMaxNumAllocatableRegisters = 10;
+  static const int kMaxNumAllocatableRegisters = 11;
   static int NumAllocatableRegisters() {
     return kMaxNumAllocatableRegisters;
   }
@@ -118,6 +117,7 @@ struct Register {
       "rbx",
       "rdx",
       "rcx",
+      "rsi",
       "rdi",
       "r8",
       "r9",
