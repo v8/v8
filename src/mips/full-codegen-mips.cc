@@ -3740,11 +3740,20 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
 void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
+  if (FLAG_new_string_add) {
+    VisitForStackValue(args->at(0));
+    VisitForAccumulatorValue(args->at(1));
 
-  StringAddStub stub(STRING_ADD_CHECK_BOTH);
-  __ CallStub(&stub);
+    __ pop(a1);
+    NewStringAddStub stub(STRING_ADD_CHECK_BOTH, NOT_TENURED);
+    __ CallStub(&stub);
+  } else {
+    VisitForStackValue(args->at(0));
+    VisitForStackValue(args->at(1));
+
+    StringAddStub stub(STRING_ADD_CHECK_BOTH);
+    __ CallStub(&stub);
+  }
   context()->Plug(v0);
 }
 
