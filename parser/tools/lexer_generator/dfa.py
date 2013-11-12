@@ -53,7 +53,7 @@ class DfaState(AutomatonState):
   def transitions(self):
     return self.__transitions
 
-  def to_code(self):
+  def to_code(self, start_node_number):
     # FIXME: add different check types (if, switch, lookup table)
     # FIXME: add action + break / continue
     # FIXME: add default action
@@ -78,6 +78,7 @@ fprintf(stderr, "state %s, char at hand is %%c (%%d)\\n", c, c);
         code += 'return 1;'
       else:
         code += self.action()[1];
+        code += 'goto code_%s;' % start_node_number
 
     return code
 
@@ -165,5 +166,5 @@ char c = *cursor;
 goto code_%s;
 ''' % (self.__start.node_number())
     for n in self.__name_map.values():
-      code += n.to_code()
+      code += n.to_code(self.__start.node_number())
     return code
