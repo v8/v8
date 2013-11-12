@@ -2670,6 +2670,39 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 }
 
 
+void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
+  Representation rep = instr->hydrogen()->value()->representation();
+  ASSERT(!rep.IsInteger32());
+  Label if_false;
+  Register scratch = ToRegister(instr->temp());
+
+  if (rep.IsDouble()) {
+    CpuFeatureScope use_sse2(masm(), SSE2);
+    XMMRegister value = ToDoubleRegister(instr->value());
+    XMMRegister xmm_scratch = double_scratch0();
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ ucomisd(xmm_scratch, value);
+    __ j(not_equal, &if_false);
+    __ movmskpd(scratch, value);
+    __ test(scratch, Immediate(1));
+    EmitBranch(instr, not_zero);
+  } else {
+    Register value = ToRegister(instr->value());
+    Handle<Map> map = masm()->isolate()->factory()->heap_number_map();
+    __ CheckMap(eax, map, &if_false, DO_SMI_CHECK);
+    __ cmp(FieldOperand(value, HeapNumber::kExponentOffset),
+           Immediate(0x80000000));
+    __ j(not_equal, &if_false);
+    __ cmp(FieldOperand(value, HeapNumber::kMantissaOffset),
+           Immediate(0x00000000));
+    EmitBranch(instr, equal);
+  }
+
+  __ bind(&if_false);
+  EmitFalseBranch(instr, no_condition);
+}
+
+
 Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
                                  Label* is_not_object,
