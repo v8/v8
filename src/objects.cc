@@ -14519,8 +14519,8 @@ static Handle<NameDictionary> NameDictionaryAdd(Handle<NameDictionary> dict,
 }
 
 
-Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
-    Handle<GlobalObject> global,
+Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
+    Handle<JSGlobalObject> global,
     Handle<Name> name) {
   ASSERT(!global->HasFastProperties());
   int entry = global->property_dictionary()->FindEntry(*name);

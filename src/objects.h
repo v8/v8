@@ -7201,10 +7201,6 @@ class GlobalObject: public JSObject {
     return answer;
   }
 
-  // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
-                                                 Handle<Name> name);
-
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 
@@ -7225,6 +7221,10 @@ class JSGlobalObject: public GlobalObject {
  public:
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
+
+  // Ensure that the global object has a cell for the given property name.
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<JSGlobalObject> global,
+                                                 Handle<Name> name);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalObject)

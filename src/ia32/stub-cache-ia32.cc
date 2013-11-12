@@ -137,38 +137,34 @@ static void ProbeTable(Isolate* isolate,
 }
 
 
-// Helper function used to check that the dictionary doesn't contain
-// the property. This function may return false negatives, so miss_label
-// must always call a backup property check that is complete.
-// This function is safe to call if the receiver has fast properties.
-// Name must be unique and receiver must be a heap object.
-static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
-                                             Label* miss_label,
-                                             Register receiver,
-                                             Handle<Name> name,
-                                             Register r0,
-                                             Register r1) {
+void StubCompiler::GenerateDictionaryNegativeLookup(MacroAssembler* masm,
+                                                    Label* miss_label,
+                                                    Register receiver,
+                                                    Handle<Name> name,
+                                                    Register scratch0,
+                                                    Register scratch1) {
   ASSERT(name->IsUniqueName());
+  ASSERT(!receiver.is(scratch0));
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1);
 
-  __ mov(r0, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ mov(scratch0, FieldOperand(receiver, HeapObject::kMapOffset));
 
   const int kInterceptorOrAccessCheckNeededMask =
       (1 << Map::kHasNamedInterceptor) | (1 << Map::kIsAccessCheckNeeded);
 
   // Bail out if the receiver has a named interceptor or requires access checks.
-  __ test_b(FieldOperand(r0, Map::kBitFieldOffset),
+  __ test_b(FieldOperand(scratch0, Map::kBitFieldOffset),
             kInterceptorOrAccessCheckNeededMask);
   __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
-  __ CmpInstanceType(r0, FIRST_SPEC_OBJECT_TYPE);
+  __ CmpInstanceType(scratch0, FIRST_SPEC_OBJECT_TYPE);
   __ j(below, miss_label);
 
   // Load properties array.
-  Register properties = r0;
+  Register properties = scratch0;
   __ mov(properties, FieldOperand(receiver, JSObject::kPropertiesOffset));
 
   // Check that the properties array is a dictionary.
@@ -182,7 +178,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                                    &done,
                                                    properties,
                                                    name,
-                                                   r1);
+                                                   scratch1);
   __ bind(&done);
   __ DecrementCounter(counters->negative_lookups_miss(), 1);
 }
@@ -789,13 +785,13 @@ void BaseStoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.
-static void GenerateCheckPropertyCell(MacroAssembler* masm,
-                                      Handle<GlobalObject> global,
-                                      Handle<Name> name,
-                                      Register scratch,
-                                      Label* miss) {
+void StubCompiler::GenerateCheckPropertyCell(MacroAssembler* masm,
+                                             Handle<JSGlobalObject> global,
+                                             Handle<Name> name,
+                                             Register scratch,
+                                             Label* miss) {
   Handle<PropertyCell> cell =
-      GlobalObject::EnsurePropertyCell(global, name);
+      JSGlobalObject::EnsurePropertyCell(global, name);
   ASSERT(cell->value()->IsTheHole());
   Handle<Oddball> the_hole = masm->isolate()->factory()->the_hole_value();
   if (Serializer::enabled()) {
@@ -817,7 +813,7 @@ void BaseStoreStubCompiler::GenerateNegativeHolderLookup(
     Label* miss) {
   if (holder->IsJSGlobalObject()) {
     GenerateCheckPropertyCell(
-        masm, Handle<GlobalObject>::cast(holder), name, scratch1(), miss);
+        masm, Handle<JSGlobalObject>::cast(holder), name, scratch1(), miss);
   } else if (!holder->HasFastProperties() && !holder->IsJSGlobalProxy()) {
     GenerateDictionaryNegativeLookup(
         masm, miss, holder_reg, name, scratch1(), scratch2());
@@ -1119,19 +1115,17 @@ void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
 }
 
 
-// Calls GenerateCheckPropertyCell for each global object in the prototype chain
-// from object to (but not including) holder.
-static void GenerateCheckPropertyCells(MacroAssembler* masm,
-                                       Handle<JSObject> object,
-                                       Handle<JSObject> holder,
-                                       Handle<Name> name,
-                                       Register scratch,
-                                       Label* miss) {
+void StubCompiler::GenerateCheckPropertyCells(MacroAssembler* masm,
+                                              Handle<JSObject> object,
+                                              Handle<JSObject> holder,
+                                              Handle<Name> name,
+                                              Register scratch,
+                                              Label* miss) {
   Handle<JSObject> current = object;
   while (!current.is_identical_to(holder)) {
-    if (current->IsGlobalObject()) {
+    if (current->IsJSGlobalObject()) {
       GenerateCheckPropertyCell(masm,
-                                Handle<GlobalObject>::cast(current),
+                                Handle<JSGlobalObject>::cast(current),
                                 name,
                                 scratch,
                                 miss);
@@ -1348,26 +1342,6 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
 
   HandlerFrontendFooter(name, success, &miss);
   return reg;
-}
-
-
-void BaseLoadStubCompiler::NonexistentHandlerFrontend(
-    Handle<JSObject> object,
-    Handle<JSObject> last,
-    Handle<Name> name,
-    Label* success,
-    Handle<GlobalObject> global) {
-  Label miss;
-
-  HandlerFrontendHeader(object, receiver(), last, name, &miss);
-
-  // If the last object in the prototype chain is a global object,
-  // check that the global property cell is empty.
-  if (!global.is_null()) {
-    GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
-  }
-
-  HandlerFrontendFooter(name, success, &miss);
 }
 
 
@@ -3046,7 +3020,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
     Handle<JSObject> object,
     Handle<JSObject> last,
     Handle<Name> name,
-    Handle<GlobalObject> global) {
+    Handle<JSGlobalObject> global) {
   Label success;
 
   NonexistentHandlerFrontend(object, last, name, &success, global);
