@@ -2475,28 +2475,27 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
   Representation rep = instr->hydrogen()->value()->representation();
   ASSERT(!rep.IsInteger32());
-  Label if_false;
   Register scratch = ToRegister(instr->temp());
 
   if (rep.IsDouble()) {
     DwVfpRegister value = ToDoubleRegister(instr->value());
     __ VFPCompareAndSetFlags(value, 0.0);
-    __ b(ne, &if_false);
+    EmitFalseBranch(instr, ne);
     __ VmovHigh(scratch, value);
     __ cmp(scratch, Operand(0x80000000));
   } else {
     Register value = ToRegister(instr->value());
-    __ CheckMap(
-        value, scratch, Heap::kHeapNumberMapRootIndex, &if_false, DO_SMI_CHECK);
+    __ CheckMap(value,
+                scratch,
+                Heap::kHeapNumberMapRootIndex,
+                instr->FalseLabel(chunk()),
+                DO_SMI_CHECK);
     __ ldr(scratch, FieldMemOperand(value, HeapNumber::kExponentOffset));
     __ ldr(ip, FieldMemOperand(value, HeapNumber::kMantissaOffset));
     __ cmp(scratch, Operand(0x80000000));
     __ cmp(ip, Operand(0x00000000), eq);
   }
   EmitBranch(instr, eq);
-
-  __ bind(&if_false);
-  EmitFalseBranch(instr, al);
 }
 
 
