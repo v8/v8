@@ -132,5 +132,8 @@
 
   # Fails since 16322 (new test).
   'test-code-stubs-arm/ConvertDToI': [SKIP],
+
+  # BUG(2998).
+  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 ]
