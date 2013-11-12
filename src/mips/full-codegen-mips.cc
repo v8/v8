@@ -3824,16 +3824,6 @@ void FullCodeGenerator::EmitMathSqrt(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitMathFloor(CallRuntime* expr) {
-  // Load the argument on the stack and call the runtime function.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_floor, 1);
-  context()->Plug(v0);
-}
-
-
 void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() >= 2);
