@@ -117,9 +117,8 @@ function MathMax(arg1, arg2) {  // length == 2
     if (arg2 > arg1) return arg2;
     if (arg1 > arg2) return arg1;
     if (arg1 == arg2) {
-      // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be
-      // a Smi or a heap number.
-      return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg2 : arg1;
+      // Make sure -0 is considered less than +0.
+      return (arg1 === 0 && %_IsMinusZero(arg1)) ? arg2 : arg1;
     }
     // All comparisons failed, one of the arguments must be NaN.
     return NAN;
@@ -128,10 +127,8 @@ function MathMax(arg1, arg2) {  // length == 2
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
-    // Make sure +0 is considered greater than -0.  -0 is never a Smi, +0 can be
-    // a Smi or heap number.
-    if (NUMBER_IS_NAN(n) || n > r ||
-        (r == 0 && n == 0 && !%_IsSmi(r) && 1 / r < 0)) {
+    // Make sure +0 is considered greater than -0.
+    if (NUMBER_IS_NAN(n) || n > r || (r === 0 && n === 0 && %_IsMinusZero(r))) {
       r = n;
     }
   }
@@ -147,9 +144,8 @@ function MathMin(arg1, arg2) {  // length == 2
     if (arg2 > arg1) return arg1;
     if (arg1 > arg2) return arg2;
     if (arg1 == arg2) {
-      // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be
-      // a Smi or a heap number.
-      return (arg1 == 0 && !%_IsSmi(arg1) && 1 / arg1 < 0) ? arg1 : arg2;
+      // Make sure -0 is considered less than +0.
+      return (arg1 === 0 && %_IsMinusZero(arg1)) ? arg1 : arg2;
     }
     // All comparisons failed, one of the arguments must be NaN.
     return NAN;
@@ -158,10 +154,8 @@ function MathMin(arg1, arg2) {  // length == 2
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
-    // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be a
-    // Smi or a heap number.
-    if (NUMBER_IS_NAN(n) || n < r ||
-        (r == 0 && n == 0 && !%_IsSmi(n) && 1 / n < 0)) {
+    // Make sure -0 is considered less than +0.
+    if (NUMBER_IS_NAN(n) || n < r || (r === 0 && n === 0 && %_IsMinusZero(n))) {
       r = n;
     }
   }

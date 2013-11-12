@@ -606,7 +606,9 @@ function SameValue(x, y) {
   if (IS_NUMBER(x)) {
     if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
     // x is +0 and y is -0 or vice versa.
-    if (x === 0 && y === 0 && (1 / x) != (1 / y)) return false;
+    if (x === 0 && y === 0 && %_IsMinusZero(x) != %_IsMinusZero(y)) {
+      return false;
+    }
   }
   return x === y;
 }
