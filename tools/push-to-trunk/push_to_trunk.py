@@ -221,18 +221,10 @@ class CommitRepository(Step):
     self.WaitForLGTM()
     # Re-read the ChangeLog entry (to pick up possible changes).
     # FIXME(machenbach): This was hanging once with a broken pipe.
-    TextToFile(Command("cat %s | awk --posix '{\
-        if ($0 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}:/) {\
-          if (in_firstblock == 1) {\
-            exit 0;\
-          } else {\
-            in_firstblock = 1;\
-          }\
-        };\
-        print $0;\
-      }'" % self.Config(CHANGELOG_FILE)), self.Config(CHANGELOG_ENTRY_FILE))
+    TextToFile(GetLastChangeLogEntries(self.Config(CHANGELOG_FILE)),
+               self.Config(CHANGELOG_ENTRY_FILE))
 
-    if self.Git("cl dcommit", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
+    if self.Git("cl dcommit -v", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
       self.Die("'git cl dcommit' failed, please try again.")
 
 
