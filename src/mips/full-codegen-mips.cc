@@ -3133,6 +3133,36 @@ void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ CheckMap(v0, a1, Heap::kHeapNumberMapRootIndex, if_false, DO_SMI_CHECK);
+  __ lw(a2, FieldMemOperand(v0, HeapNumber::kExponentOffset));
+  __ lw(a1, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
+  __ li(t0, 0x80000000);
+  Label not_nan;
+  __ Branch(&not_nan, ne, a2, Operand(t0));
+  __ mov(t0, zero_reg);
+  __ mov(a2, a1);
+  __ bind(&not_nan);
+
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  Split(eq, a2, Operand(t0), if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
+}
+
+
 void FullCodeGenerator::EmitIsArray(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);

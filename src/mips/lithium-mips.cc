@@ -1703,6 +1703,16 @@ LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
 }
 
 
+LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
+    HCompareMinusZeroAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
+  LOperand* value = UseRegister(instr->value());
+  LOperand* scratch = TempRegister();
+  return new(zone()) LCompareMinusZeroAndBranch(value, scratch);
+}
+
+
 LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* temp = TempRegister();

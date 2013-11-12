@@ -2311,6 +2311,33 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 }
 
 
+void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
+  Representation rep = instr->hydrogen()->value()->representation();
+  ASSERT(!rep.IsInteger32());
+  Label if_false;
+  Register scratch = ToRegister(instr->temp());
+
+  if (rep.IsDouble()) {
+    DoubleRegister value = ToDoubleRegister(instr->value());
+    __ BranchF(&if_false, NULL, ne, value, kDoubleRegZero);
+    __ FmoveHigh(scratch, value);
+    __ li(at, 0x80000000);
+  } else {
+    Register value = ToRegister(instr->value());
+    __ CheckMap(
+        value, scratch, Heap::kHeapNumberMapRootIndex, &if_false, DO_SMI_CHECK);
+    __ lw(scratch, FieldMemOperand(value, HeapNumber::kExponentOffset));
+    __ Branch(&if_false, ne, scratch, Operand(0x80000000));
+    __ lw(scratch, FieldMemOperand(value, HeapNumber::kMantissaOffset));
+    __ mov(at, zero_reg);
+  }
+  EmitBranch(instr, eq, scratch, Operand(at));
+
+  __ bind(&if_false);
+  EmitFalseBranchF(instr, al, kDoubleRegZero, kDoubleRegZero);
+}
+
+
 Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
                                  Register temp2,
