@@ -1768,8 +1768,6 @@ class PagedSpace : public Space {
   // failure object if not.
   MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes);
 
-  virtual bool ReserveSpace(int bytes);
-
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
   // If add_to_freelist is false then just accounting stats are updated and
@@ -2167,11 +2165,6 @@ class SemiSpace : public Space {
     return 0;
   }
 
-  virtual bool ReserveSpace(int bytes) {
-    UNREACHABLE();
-    return false;
-  }
-
   bool is_committed() { return committed_; }
   bool Commit();
   bool Uncommit();
@@ -2535,8 +2528,6 @@ class NewSpace : public Space {
   // if successful.
   bool AddFreshPage();
 
-  virtual bool ReserveSpace(int bytes);
-
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
   virtual void Verify();
@@ -2848,11 +2839,6 @@ class LargeObjectSpace : public Space {
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page_ == NULL; }
-
-  // See the comments for ReserveSpace in the Space class.  This has to be
-  // called after ReserveSpace has been called on the paged spaces, since they
-  // may use some memory, leaving less for large objects.
-  virtual bool ReserveSpace(int bytes);
 
   LargePage* first_page() { return first_page_; }
 
