@@ -194,12 +194,18 @@ class TransitionKey:
     code = 'if ('
     first = True
     for r in self.__ranges:
+      if r[0] >= 256: # FIXME: add class checks
+        continue
       if not first:
         code += ' || '
       if r[0] == r[1]:
-        code += 'c == %s' % r[0]
+        code += 'yych == %s' % r[0]
+      elif r[0] == 0:
+        code += 'yych <= %s' % r[1]
+      elif r[1] == 255: # FIXME: this should depend on the char type maybe??
+        code += 'yych >= %s' % r[0]
       else:
-        code += '(c >= %s && c <= %s)' % (r[0], r[1])
+        code += '(yych >= %s && yych <= %s)' % (r[0], r[1])
       first = False
     code += ')'
     return code

@@ -59,26 +59,30 @@ class DfaState(AutomatonState):
     # FIXME: add default action
     code = '''
 code_%s:
-fprintf(stderr, "state %s, char at hand is %%c (%%d)\\n", c, c);
-''' % (self.node_number(), self.node_number())
-
-    for key, state in self.__transitions.items():
-      code += key.to_code()
-      code += ''' {
-  c = *(++cursor);
-  goto code_%s;
-}
-''' % state.node_number()
+    fprintf(stderr, "state %s\\n");''' % (self.node_number(), self.node_number())
 
     action = self.action()
     if action:
       if action[1] == 'terminate':
         code += 'return 0;'
+        return code
       elif action[1] == 'terminate_illegal':
         code += 'return 1;'
-      else:
-        code += self.action()[1];
-        code += 'goto code_%s;' % start_node_number
+        return code
+
+    code += '''
+    yych = *(++cursor_);
+    fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
+
+    for key, state in self.__transitions.items():
+      code += key.to_code()
+      code += ''' {
+        goto code_%s;
+    }
+''' % state.node_number()
+
+    if action:
+      code += '%s\ngoto code_%s;\n' % (self.action()[1], start_node_number)
 
     return code
 
@@ -162,7 +166,7 @@ class Dfa(Automaton):
 
   def to_code(self):
     code = '''
-char c = *cursor;
+YYCTYPE yych = *cursor_;
 goto code_%s;
 ''' % (self.__start.node_number())
     for n in self.__name_map.values():
