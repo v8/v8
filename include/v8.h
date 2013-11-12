@@ -3042,6 +3042,8 @@ class V8_EXPORT RegExp : public Object {
  */
 class V8_EXPORT External : public Value {
  public:
+  static Local<External> New(Isolate* isolate, void* value);
+  // Deprecated, do not use.
   static Local<External> New(void* value);
   V8_INLINE static External* Cast(Value* obj);
   void* Value() const;

@@ -5369,14 +5369,19 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
 }
 
 
-Local<External> v8::External::New(void* value) {
+Local<External> v8::External::New(Isolate* isolate, void* value) {
   STATIC_ASSERT(sizeof(value) == sizeof(i::Address));
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::External::New()");
-  LOG_API(isolate, "External::New");
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> external = isolate->factory()->NewExternal(value);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::External::New()");
+  LOG_API(i_isolate, "External::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSObject> external = i_isolate->factory()->NewExternal(value);
   return Utils::ExternalToLocal(external);
+}
+
+
+Local<External> v8::External::New(void* value) {
+  return v8::External::New(Isolate::GetCurrent(), value);
 }
 
 

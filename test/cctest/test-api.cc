@@ -1306,7 +1306,8 @@ static void TestExternalPointerWrapping() {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  v8::Handle<v8::Value> data = v8::External::New(expected_ptr);
+  v8::Handle<v8::Value> data =
+      v8::External::New(env->GetIsolate(), expected_ptr);
 
   v8::Handle<v8::Object> obj = v8::Object::New();
   obj->Set(v8_str("func"),
@@ -3119,7 +3120,7 @@ THREADED_TEST(HiddenPropertiesWithInterceptors) {
 THREADED_TEST(External) {
   v8::HandleScope scope(CcTest::isolate());
   int x = 3;
-  Local<v8::External> ext = v8::External::New(&x);
+  Local<v8::External> ext = v8::External::New(CcTest::isolate(), &x);
   LocalContext env;
   env->Global()->Set(v8_str("ext"), ext);
   Local<Value> reext_obj = Script::Compile(v8_str("this.ext"))->Run();
@@ -3131,10 +3132,10 @@ THREADED_TEST(External) {
 
   // Make sure unaligned pointers are wrapped properly.
   char* data = i::StrDup("0123456789");
-  Local<v8::Value> zero = v8::External::New(&data[0]);
-  Local<v8::Value> one = v8::External::New(&data[1]);
-  Local<v8::Value> two = v8::External::New(&data[2]);
-  Local<v8::Value> three = v8::External::New(&data[3]);
+  Local<v8::Value> zero = v8::External::New(CcTest::isolate(), &data[0]);
+  Local<v8::Value> one = v8::External::New(CcTest::isolate(), &data[1]);
+  Local<v8::Value> two = v8::External::New(CcTest::isolate(), &data[2]);
+  Local<v8::Value> three = v8::External::New(CcTest::isolate(), &data[3]);
 
   char* char_ptr = reinterpret_cast<char*>(v8::External::Cast(*zero)->Value());
   CHECK_EQ('0', *char_ptr);
@@ -6874,7 +6875,7 @@ THREADED_TEST(WeakReference) {
   Whammy* whammy = new Whammy(CcTest::isolate());
   templ->SetNamedPropertyHandler(WhammyPropertyGetter,
                                  0, 0, 0, 0,
-                                 v8::External::New(whammy));
+                                 v8::External::New(CcTest::isolate(), whammy));
   const char* extension_list[] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(1, extension_list);
   v8::Handle<Context> context =
@@ -11569,9 +11570,9 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
-                                 NULL, NULL, NULL, NULL,
-                                 v8::External::New(&interceptor_call_count));
+  templ->SetNamedPropertyHandler(
+      InterceptorCallICFastApi, NULL, NULL, NULL, NULL,
+      v8::External::New(CcTest::isolate(), &interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -11598,9 +11599,9 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   proto_templ->Set(v8_str("method"), method_templ);
   fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
-                                 NULL, NULL, NULL, NULL,
-                                 v8::External::New(&interceptor_call_count));
+  templ->SetNamedPropertyHandler(
+      InterceptorCallICFastApi, NULL, NULL, NULL, NULL,
+      v8::External::New(CcTest::isolate(), &interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -11630,9 +11631,9 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   proto_templ->Set(v8_str("method"), method_templ);
   fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
-                                 NULL, NULL, NULL, NULL,
-                                 v8::External::New(&interceptor_call_count));
+  templ->SetNamedPropertyHandler(
+      InterceptorCallICFastApi, NULL, NULL, NULL, NULL,
+      v8::External::New(CcTest::isolate(), &interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -11668,9 +11669,9 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   proto_templ->Set(v8_str("method"), method_templ);
   fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
-                                 NULL, NULL, NULL, NULL,
-                                 v8::External::New(&interceptor_call_count));
+  templ->SetNamedPropertyHandler(
+      InterceptorCallICFastApi, NULL, NULL, NULL, NULL,
+      v8::External::New(CcTest::isolate(), &interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -11706,9 +11707,9 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   proto_templ->Set(v8_str("method"), method_templ);
   fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
-                                 NULL, NULL, NULL, NULL,
-                                 v8::External::New(&interceptor_call_count));
+  templ->SetNamedPropertyHandler(
+      InterceptorCallICFastApi, NULL, NULL, NULL, NULL,
+      v8::External::New(CcTest::isolate(), &interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -11747,9 +11748,9 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   proto_templ->Set(v8_str("method"), method_templ);
   fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
-                                 NULL, NULL, NULL, NULL,
-                                 v8::External::New(&interceptor_call_count));
+  templ->SetNamedPropertyHandler(
+      InterceptorCallICFastApi, NULL, NULL, NULL, NULL,
+      v8::External::New(CcTest::isolate(), &interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();

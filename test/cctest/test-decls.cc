@@ -119,7 +119,7 @@ void DeclarationContext::InitializeIfNeeded() {
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   Local<FunctionTemplate> function = FunctionTemplate::New();
-  Local<Value> data = External::New(this);
+  Local<Value> data = External::New(CcTest::isolate(), this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
                                                &HandleSet,
                                                &HandleQuery,
