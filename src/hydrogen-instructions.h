@@ -5808,12 +5808,26 @@ class HObjectAccess V8_FINAL {
         FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
   }
 
+  static HObjectAccess ForStringHashField() {
+    return HObjectAccess(kInobject,
+                         String::kHashFieldOffset,
+                         Representation::Integer32());
+  }
+
   static HObjectAccess ForStringLength() {
     STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
     return HObjectAccess(
         kStringLengths,
         String::kLengthOffset,
         FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
+  }
+
+  static HObjectAccess ForConsStringFirst() {
+    return HObjectAccess(kInobject, ConsString::kFirstOffset);
+  }
+
+  static HObjectAccess ForConsStringSecond() {
+    return HObjectAccess(kInobject, ConsString::kSecondOffset);
   }
 
   static HObjectAccess ForPropertiesPointer() {
@@ -5860,6 +5874,12 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForMapInstanceSize() {
     return HObjectAccess(kInobject,
                          Map::kInstanceSizeOffset,
+                         Representation::UInteger8());
+  }
+
+  static HObjectAccess ForMapInstanceType() {
+    return HObjectAccess(kInobject,
+                         Map::kInstanceTypeOffset,
                          Representation::UInteger8());
   }
 

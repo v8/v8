@@ -4077,6 +4077,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (operand_value->IsRegister()) {
       Register value = ToRegister(operand_value);
       __ Store(FieldOperand(write_register, offset), value, representation);
+    } else if (representation.IsInteger32()) {
+      int32_t value = ToInteger32(operand_value);
+      ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+      __ movl(FieldOperand(write_register, offset), Immediate(value));
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
@@ -4400,10 +4404,18 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
-  EmitPushTaggedOperand(instr->left());
-  EmitPushTaggedOperand(instr->right());
-  StringAddStub stub(instr->hydrogen()->flags());
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  if (FLAG_new_string_add) {
+    ASSERT(ToRegister(instr->left()).is(rdx));
+    ASSERT(ToRegister(instr->right()).is(rax));
+    NewStringAddStub stub(instr->hydrogen()->flags(),
+                          isolate()->heap()->GetPretenureMode());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  } else {
+    EmitPushTaggedOperand(instr->left());
+    EmitPushTaggedOperand(instr->right());
+    StringAddStub stub(instr->hydrogen()->flags());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 

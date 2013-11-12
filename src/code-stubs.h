@@ -43,6 +43,7 @@ namespace internal {
   V(CallConstruct)                       \
   V(BinaryOp)                            \
   V(StringAdd)                           \
+  V(NewStringAdd)                        \
   V(SubString)                           \
   V(StringCompare)                       \
   V(Compare)                             \
@@ -1176,6 +1177,47 @@ class BinaryOpStub: public HydrogenCodeStub {
   State left_state_;
   State right_state_;
   State result_state_;
+};
+
+
+// TODO(bmeurer): Rename to StringAddStub once we dropped the old StringAddStub.
+class NewStringAddStub V8_FINAL : public HydrogenCodeStub {
+ public:
+  NewStringAddStub(StringAddFlags flags, PretenureFlag pretenure_flag)
+      : bit_field_(StringAddFlagsBits::encode(flags) |
+                   PretenureFlagBits::encode(pretenure_flag)) {}
+
+  StringAddFlags flags() const {
+    return StringAddFlagsBits::decode(bit_field_);
+  }
+
+  PretenureFlag pretenure_flag() const {
+    return PretenureFlagBits::decode(bit_field_);
+  }
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kLeft = 0;
+  static const int kRight = 1;
+
+ private:
+  class StringAddFlagsBits: public BitField<StringAddFlags, 0, 2> {};
+  class PretenureFlagBits: public BitField<PretenureFlag, 2, 1> {};
+  uint32_t bit_field_;
+
+  virtual Major MajorKey() V8_OVERRIDE { return NewStringAdd; }
+  virtual int NotMissMinorKey() V8_OVERRIDE { return bit_field_; }
+
+  virtual void PrintBaseName(StringStream* stream) V8_OVERRIDE;
+
+  DISALLOW_COPY_AND_ASSIGN(NewStringAddStub);
 };
 
 

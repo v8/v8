@@ -972,6 +972,38 @@ Handle<Code> BinaryOpStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
+HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
+  NewStringAddStub* stub = casted_stub();
+  StringAddFlags flags = stub->flags();
+  PretenureFlag pretenure_flag = stub->pretenure_flag();
+
+  HValue* left = GetParameter(NewStringAddStub::kLeft);
+  HValue* right = GetParameter(NewStringAddStub::kRight);
+
+  // Make sure that both arguments are strings if not known in advance.
+  if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
+    IfBuilder if_leftnotstring(this);
+    if_leftnotstring.IfNot<HIsStringAndBranch>(left);
+    if_leftnotstring.Then();
+    if_leftnotstring.Deopt("Expected string for LHS of string addition");
+  }
+  if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
+    IfBuilder if_rightnotstring(this);
+    if_rightnotstring.IfNot<HIsStringAndBranch>(right);
+    if_rightnotstring.Then();
+    if_rightnotstring.Deopt("Expected string for RHS of string addition");
+  }
+
+  return BuildStringAdd(left, right, pretenure_flag);
+}
+
+
+Handle<Code> NewStringAddStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   ToBooleanStub* stub = casted_stub();
 
