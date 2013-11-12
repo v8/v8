@@ -145,8 +145,7 @@ class Nfa(Automaton):
 
   @staticmethod
   def __gather_transition_keys(state_set):
-    f = lambda acc, state: acc | set(state.transitions().keys())
-    keys = reduce(f, state_set, set())
+    keys = set(chain(*map(lambda state: state.key_iter(), state_set)))
     keys.discard(TransitionKey.epsilon())
     return TransitionKey.disjoint_keys(keys)
 

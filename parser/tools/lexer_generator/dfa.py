@@ -121,7 +121,7 @@ class Dfa(Automaton):
 
   @staticmethod
   def __match_char(state, char):
-    match = [s for k, s in state.transitions().items() if k.matches_char(char)]
+    match = list(state.state_iter(key_filter = lambda k: k.matches_char(char)))
     if not match: return None
     assert len(match) == 1
     return match[0]
