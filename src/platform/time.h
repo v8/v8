@@ -192,8 +192,6 @@ class Time V8_FINAL BASE_EMBEDDED {
   static const int64_t kMicrosecondsPerDay = kMicrosecondsPerHour * 24;
   static const int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
   static const int64_t kNanosecondsPerMicrosecond = 1000;
-  static const int64_t kNanosecondsPerMillisecond = kNanosecondsPerMicrosecond *
-                                                    kMicrosecondsPerMillisecond;
   static const int64_t kNanosecondsPerSecond = kNanosecondsPerMicrosecond *
                                                kMicrosecondsPerSecond;
 

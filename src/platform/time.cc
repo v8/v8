@@ -43,17 +43,6 @@
 #include "win32-headers.h"
 #endif
 
-// Make sure CLOCK_{MONOTONIC,REALTIME}_COARSE is defined on Linux.
-#if V8_OS_LINUX
-# if !defined(CLOCK_REALTIME_COARSE)
-#  define CLOCK_REALTIME_COARSE 5   // 2.6.32 and up.
-# endif
-# if !defined(CLOCK_MONOTONIC_COARSE)
-#  define CLOCK_MONOTONIC_COARSE 6  // 2.6.32 and up.
-# endif
-#endif  // V8_OS_LINUX
-
-
 namespace v8 {
 namespace internal {
 
@@ -282,40 +271,11 @@ FILETIME Time::ToFiletime() const {
 #elif V8_OS_POSIX
 
 Time Time::Now() {
-#if V8_LIBRT_NOT_AVAILABLE
-  // TODO(bmeurer): This is a temporary hack to support cross-compiling
-  // Chrome for Android in AOSP. Remove this once AOSP is fixed, also
-  // cleanup the tools/gyp/v8.gyp file.
   struct timeval tv;
   int result = gettimeofday(&tv, NULL);
   ASSERT_EQ(0, result);
   USE(result);
   return FromTimeval(tv);
-#elif defined(CLOCK_REALTIME_COARSE)
-  struct timespec ts;
-  // Use CLOCK_REALTIME_COARSE if it's available and has a precision of 1ms
-  // or higher.  It's serviced from the vDSO with no system call overhead.
-  static clock_t clock_id = static_cast<clock_t>(-1);
-  STATIC_ASSERT(CLOCK_REALTIME != static_cast<clock_t>(-1));
-  STATIC_ASSERT(CLOCK_REALTIME_COARSE != static_cast<clock_t>(-1));
-  if (clock_id == static_cast<clock_t>(-1)) {
-    if (clock_getres(CLOCK_REALTIME_COARSE, &ts) == 0
-        && ts.tv_nsec <= kNanosecondsPerMillisecond)
-      clock_id = CLOCK_REALTIME_COARSE;
-    else
-      clock_id = CLOCK_REALTIME;
-  }
-  int result = clock_gettime(clock_id, &ts);
-  ASSERT_EQ(0, result);
-  USE(result);
-  return FromTimespec(ts);
-#else
-  struct timeval tv;
-  int result = gettimeofday(&tv, NULL);
-  ASSERT_EQ(0, result);
-  USE(result);
-  return FromTimeval(tv);
-#endif  // V8_LIBRT_NOT_AVAILABLE
 }
 
 
@@ -610,23 +570,7 @@ TimeTicks TimeTicks::HighResolutionNow() {
   ticks = (tv.tv_sec * Time::kMicrosecondsPerSecond + tv.tv_usec);
 #elif V8_OS_POSIX
   struct timespec ts;
-#if defined(CLOCK_MONOTONIC_COARSE)
-  // Use CLOCK_MONOTONIC_COARSE if it's available and has a precision of 1ms
-  // or higher.  It's serviced from the vDSO with no system call overhead.
-  static clock_t clock_id = static_cast<clock_t>(-1);
-  STATIC_ASSERT(CLOCK_MONOTONIC != static_cast<clock_t>(-1));
-  STATIC_ASSERT(CLOCK_MONOTONIC_COARSE != static_cast<clock_t>(-1));
-  if (clock_id == static_cast<clock_t>(-1)) {
-    if (clock_getres(CLOCK_MONOTONIC_COARSE, &ts) == 0
-        && ts.tv_nsec <= Time::kNanosecondsPerMillisecond)
-      clock_id = CLOCK_MONOTONIC_COARSE;
-    else
-      clock_id = CLOCK_MONOTONIC;
-  }
-#else
-  static const clock_t clock_id = CLOCK_MONOTONIC;
-#endif  // defined(CLOCK_MONOTONIC_COARSE)
-  int result = clock_gettime(clock_id, &ts);
+  int result = clock_gettime(CLOCK_MONOTONIC, &ts);
   ASSERT_EQ(0, result);
   USE(result);
   ticks = (ts.tv_sec * Time::kMicrosecondsPerSecond +
