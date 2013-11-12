@@ -44,8 +44,6 @@
         '../../src/lexer',
       ],
       'sources': [
-        'even-more-experimental-scanner.cc',
-        'even-more-experimental-scanner.h',
         'experimental-scanner.cc',
         'experimental-scanner.h',
         'lexer-shell.cc',
