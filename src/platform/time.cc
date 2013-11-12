@@ -295,8 +295,10 @@ Time Time::Now() {
   struct timespec ts;
   // Use CLOCK_REALTIME_COARSE if it's available and has a precision of 1ms
   // or higher.  It's serviced from the vDSO with no system call overhead.
-  static clock_t clock_id = static_cast<clock_t>(0);
-  if (!clock_id) {
+  static clock_t clock_id = static_cast<clock_t>(-1);
+  STATIC_ASSERT(CLOCK_REALTIME != static_cast<clock_t>(-1));
+  STATIC_ASSERT(CLOCK_REALTIME_COARSE != static_cast<clock_t>(-1));
+  if (clock_id == static_cast<clock_t>(-1)) {
     if (clock_getres(CLOCK_REALTIME_COARSE, &ts) == 0
         && ts.tv_nsec <= kNanosecondsPerMillisecond)
       clock_id = CLOCK_REALTIME_COARSE;
@@ -611,8 +613,10 @@ TimeTicks TimeTicks::HighResolutionNow() {
 #if defined(CLOCK_MONOTONIC_COARSE)
   // Use CLOCK_MONOTONIC_COARSE if it's available and has a precision of 1ms
   // or higher.  It's serviced from the vDSO with no system call overhead.
-  static clock_t clock_id = static_cast<clock_t>(0);
-  if (!clock_id) {
+  static clock_t clock_id = static_cast<clock_t>(-1);
+  STATIC_ASSERT(CLOCK_MONOTONIC != static_cast<clock_t>(-1));
+  STATIC_ASSERT(CLOCK_MONOTONIC_COARSE != static_cast<clock_t>(-1));
+  if (clock_id == static_cast<clock_t>(-1)) {
     if (clock_getres(CLOCK_MONOTONIC_COARSE, &ts) == 0
         && ts.tv_nsec <= Time::kNanosecondsPerMillisecond)
       clock_id = CLOCK_MONOTONIC_COARSE;
