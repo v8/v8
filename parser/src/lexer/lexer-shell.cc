@@ -80,7 +80,8 @@ class BaselineScanner {
   BaselineScanner(const char* fname,
                   Isolate* isolate,
                   Encoding encoding,
-                  ElapsedTimer* timer) {
+                  ElapsedTimer* timer)
+      : stream_(NULL) {
     int length = 0;
     source_ = ReadFile(fname, isolate, &length);
     unicode_cache_ = new UnicodeCache();
