@@ -2807,23 +2807,6 @@ void PagedSpace::ReportStatistics() {
 }
 #endif
 
-// -----------------------------------------------------------------------------
-// FixedSpace implementation
-
-void FixedSpace::PrepareForMarkCompact() {
-  // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact();
-
-  // During a non-compacting collection, everything below the linear
-  // allocation pointer except wasted top-of-page blocks is considered
-  // allocated and we will rediscover available bytes during the
-  // collection.
-  accounting_stats_.AllocateBytes(free_list_.available());
-
-  // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_.Reset();
-}
-
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
