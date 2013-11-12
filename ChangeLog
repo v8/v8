@@ -1,3 +1,14 @@
+2013-11-12: Version 3.23.2
+
+        Fixed --extra-code flag for snapshot creation.
+        (issue 2994)
+
+        Fixed error message wording when instanceof throws.
+        (Chromium issue 82797, issue 1593)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-08: Version 3.23.1
 
         Made HCapturedObjects non-deletable for DCE. (issue 2987)
