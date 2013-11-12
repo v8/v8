@@ -85,7 +85,7 @@ code_%s:
 ''' % state.node_number()
 
     if action:
-      code += '%s\ngoto code_%s;\n' % (self.action()[1], start_node_number)
+      code += '%s\nyych = *(--cursor_);\ngoto code_%s;\n' % (self.action()[1], start_node_number)
 
     return code
 

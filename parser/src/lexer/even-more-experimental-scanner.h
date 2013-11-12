@@ -57,9 +57,10 @@ class EvenMoreExperimentalScanner {
 
   UnicodeCache* unicode_cache_;
 
-  YYCTYPE* cursor_;
   YYCTYPE* buffer_;
   YYCTYPE* buffer_end_;
+  YYCTYPE* start_;
+  YYCTYPE* cursor_;
 
   YYCTYPE yych;
   ExperimentalScanner* sink_;

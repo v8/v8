@@ -56,9 +56,9 @@
 
 #include "experimental-scanner.h"
 
-#define PUSH_TOKEN(T) { send(T); }
-#define PUSH_LINE_TERMINATOR(s) fprintf(stderr, "PUSH_LINE_TERMINATOR\n");
-#define SKIP() fprintf(stderr, "SKIP\n");
+#define PUSH_TOKEN(T) { send(T); start_ = cursor_; }
+#define PUSH_LINE_TERMINATOR(s) { start_ = cursor_; }
+#define SKIP() { start_ = cursor_; }
 
 using namespace v8::internal;
 
@@ -81,9 +81,10 @@ EvenMoreExperimentalScanner::EvenMoreExperimentalScanner(
     ExperimentalScanner* sink,
     UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
-      cursor_(NULL),
       buffer_(NULL),
       buffer_end_(NULL),
+      start_(NULL),
+      cursor_(NULL),
       sink_(sink) {}
 
 
@@ -123,6 +124,7 @@ uint32_t EvenMoreExperimentalScanner::push(const void *input, int input_size) {
     return 0;
   buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(input));
   cursor_ = buffer_ - 1;
+  start_ = buffer_;
   buffer_end_ = buffer_ + input_size;
 
 #include "generated.c"
@@ -130,15 +132,9 @@ uint32_t EvenMoreExperimentalScanner::push(const void *input, int input_size) {
 
 
 void EvenMoreExperimentalScanner::send(Token::Value token) {
-  // int beg = (start_ - buffer_) + real_start_;
-  // int end = (cursor_ - buffer_) + real_start_;
-  // if (FLAG_trace_lexer) {
-  //   printf("got %s at (%d, %d): ", Token::Name(token), beg, end);
-  //   for (YYCTYPE* s = start_; s != cursor_; s++) printf("%c", (char)*s);
-  //   printf(".\n");
-  // }
-  // just_seen_line_terminator_ = false;
-  sink_->Record(token, 0, 0);
+  int beg = start_ - buffer_;
+  int end = cursor_ - buffer_;
+  sink_->Record(token, beg, end);
 }
 
 
