@@ -37,6 +37,9 @@ class DfaState(AutomatonState):
     self.__transitions = {}
     self.__actions = actions
 
+  def transitions_to_multiple_states(self):
+    return False
+
   def name(self):
     return self.__name
 
@@ -110,6 +113,12 @@ class Dfa(Automaton):
     self.__start = self.__name_map[start_name]
     assert self.__terminal_set
 
+  def start_set(self):
+    return set([self.__start])
+
+  def terminal_set(self):
+    return set(self.__terminal_set)
+
   @staticmethod
   def __match_char(state, char):
     match = [s for k, s in state.transitions().items() if k.matches_char(char)]
@@ -150,16 +159,6 @@ class Dfa(Automaton):
       state = next
     assert state.action() # must invoke default action here
     yield (state.action()[1], last_position, len(string))
-
-  def __visit_all_edges(self, visitor, state):
-    edge = set([self.__start])
-    next_edge = lambda node: set(node.transitions().values())
-    return self.visit_edges(edge, next_edge, visitor, state)
-
-  def to_dot(self):
-    iterator = lambda visitor, state: self.__visit_all_edges(visitor, state)
-    state_iterator = lambda x : [x]
-    return self.generate_dot(self.__start, self.__terminal_set, iterator, state_iterator)
 
   def minimize(self):
     pass

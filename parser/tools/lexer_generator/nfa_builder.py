@@ -205,9 +205,42 @@ class NfaBuilder(object):
     self.__patch_ends(ends, end)
     return (start, end, self.__node_number - start_node_number)
 
+  @staticmethod
+  def __compute_epsilon_closures(start_state):
+    def outer(node, state):
+      def inner(node, closure):
+        closure.add(node)
+        return closure
+      is_epsilon = lambda k: k == TransitionKey.epsilon()
+      state_iter = lambda node : node.state_iter(key_filter = is_epsilon)
+      edge = set(state_iter(node))
+      closure = Automaton.visit_states(edge, inner, state_iter=state_iter, visit_state=set())
+      node.set_epsilon_closure(closure)
+    Automaton.visit_states(set([start_state]), outer)
+
+  @staticmethod
+  def __replace_catch_all(state):
+    catch_all = TransitionKey.unique('catch_all')
+    transitions = state.transitions()
+    if not catch_all in transitions:
+      return
+    f = lambda acc, state: acc | state.epsilon_closure()
+    reachable_states = reduce(f, transitions[catch_all], set())
+    f = lambda acc, state: acc | set(state.transitions().keys())
+    keys = reduce(f, reachable_states, set())
+    keys.discard(TransitionKey.epsilon())
+    keys.discard(catch_all)
+    inverse_key = TransitionKey.inverse_key(keys)
+    if inverse_key:
+      transitions[inverse_key] = transitions[catch_all]
+    del transitions[catch_all]
+
   def nfa(self, graph):
     (start, end, nodes_created) = self.__nfa(graph)
     end.close(None)
+    self.__compute_epsilon_closures(start)
+    f = lambda node, state: self.__replace_catch_all(node)
+    Automaton.visit_states(set([start]), f)
     return Nfa(start, end, nodes_created)
 
   @staticmethod

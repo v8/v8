@@ -37,6 +37,9 @@ class NfaState(AutomatonState):
     self.__epsilon_closure = None
     self.__action = None
 
+  def transitions_to_multiple_states(self):
+    return True
+
   def epsilon_closure(self):
     return self.__epsilon_closure
 
@@ -104,64 +107,26 @@ class NfaState(AutomatonState):
   def key_matches(self, value):
     return self.__matches(lambda k, v : k.matches_key(v), value)
 
-  def replace_catch_all(self):
-    catch_all = TransitionKey.unique('catch_all')
-    if not catch_all in self.__transitions:
-      return
-    f = lambda acc, state: acc | state.__epsilon_closure
-    reachable_states = reduce(f, self.__transitions[catch_all], set())
-    f = lambda acc, state: acc | set(state.__transitions.keys())
-    keys = reduce(f, reachable_states, set())
-    keys.discard(TransitionKey.epsilon())
-    keys.discard(catch_all)
-    inverse_key = TransitionKey.inverse_key(keys)
-    if inverse_key:
-      self.__transitions[inverse_key] = self.__transitions[catch_all]
-    del self.__transitions[catch_all]
-
-  @staticmethod
-  def gather_transition_keys(state_set):
-    f = lambda acc, state: acc | set(state.__transitions.keys())
-    keys = reduce(f, state_set, set())
-    keys.discard(TransitionKey.epsilon())
-    return TransitionKey.disjoint_keys(keys)
-
 class Nfa(Automaton):
 
   def __init__(self, start, end, nodes_created):
     super(Nfa, self).__init__()
     self.__start = start
     self.__end = end
-    self.__epsilon_closure_computed = False
     self.__verify(nodes_created)
 
-  def __visit_all_edges(self, visitor, state):
-    edge = set([self.__start])
-    next_edge = lambda node: node.next_states(lambda x : True)
-    return self.visit_edges(edge, next_edge, visitor, state)
+  def start_set(self):
+    return set([self.__start])
+
+  def terminal_set(self):
+    return set([self.__end])
 
   def __verify(self, nodes_created):
-    def f(node, node_list):
+    def f(node, count):
       assert node.is_closed()
-      node_list.append(node)
-      return node_list
-    node_list = self.__visit_all_edges(f, [])
-    assert len(node_list) == nodes_created
-
-  def __compute_epsilon_closures(self):
-    if self.__epsilon_closure_computed:
-      return
-    self.__epsilon_closure_computed = True
-    def outer(node, state):
-      def inner(node, closure):
-        closure.add(node)
-        return closure
-      is_epsilon = lambda k: k == TransitionKey.epsilon()
-      next_edge = lambda node : node.next_states(is_epsilon)
-      edge = next_edge(node)
-      closure = self.visit_edges(edge, next_edge, inner, set())
-      node.set_epsilon_closure(closure)
-    self.__visit_all_edges(outer, None)
+      return count + 1
+    count = self.visit_all_states(f, 0)
+    assert count == nodes_created
 
   @staticmethod
   def __close(states):
@@ -169,7 +134,6 @@ class Nfa(Automaton):
     return reduce(f, states, set(states))
 
   def matches(self, string):
-    self.__compute_epsilon_closures()
     valid_states = Nfa.__close(set([self.__start]))
     for c in string:
       f = lambda acc, state: acc | state.char_matches(c)
@@ -178,6 +142,13 @@ class Nfa(Automaton):
         return False
       valid_states = Nfa.__close(transitions)
     return self.__end in valid_states
+
+  @staticmethod
+  def __gather_transition_keys(state_set):
+    f = lambda acc, state: acc | set(state.transitions().keys())
+    keys = reduce(f, state_set, set())
+    keys.discard(TransitionKey.epsilon())
+    return TransitionKey.disjoint_keys(keys)
 
   @staticmethod
   def __to_dfa(nfa_state_set, dfa_nodes, end_node):
@@ -198,7 +169,7 @@ class Nfa(Automaton):
       'transitions': {},
       'terminal': end_node in nfa_state_set,
       'actions' : gather_actions(nfa_state_set)}
-    for key in NfaState.gather_transition_keys(nfa_state_set):
+    for key in Nfa.__gather_transition_keys(nfa_state_set):
       match_states = set()
       f = lambda acc, state: acc | state.key_matches(key)
       for state in reduce(f, nfa_state_set, set()):
@@ -208,13 +179,6 @@ class Nfa(Automaton):
     return name
 
   def compute_dfa(self):
-    self.__compute_epsilon_closures()
-    self.__visit_all_edges(lambda node, state: node.replace_catch_all(), None)
     dfa_nodes = {}
     start_name = self.__to_dfa(set([self.__start]), dfa_nodes, self.__end)
     return (start_name, dfa_nodes)
-
-  def to_dot(self):
-    iterator = lambda visitor, state: self.__visit_all_edges(visitor, state)
-    state_iterator = lambda x : x
-    return self.generate_dot(self.__start, set([self.__end]), iterator, state_iterator)

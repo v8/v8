@@ -25,7 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from types import TupleType
+from types import TupleType, ListType
+from itertools import chain
 from transition_keys import TransitionKey
 
 class Action(object):
@@ -42,22 +43,52 @@ class AutomatonState(object):
   def __str__(self):
     return "%s(%d)" % (type(self), self.node_number())
 
+  __pass = lambda x : True
+
+  def key_iter(self, key_filter = __pass):
+    for k in self.transitions().keys():
+      if key_filter(k): yield k
+
+  def state_iter(self, key_filter = __pass, state_filter = __pass):
+    return self.key_state_iter(key_filter, state_filter, lambda x, y: y)
+
+  def key_state_iter(
+    self,
+    key_filter = __pass,
+    state_filter = __pass,
+    yield_func = lambda x, y : (x, y)):
+    for key, states in self.transitions().items():
+      if key_filter(key):
+        if not self.transitions_to_multiple_states():
+          if state_filter(states):
+            yield yield_func(key, states)
+        else:
+          for state in states:
+            if state_filter(state):
+              yield yield_func(key, state)
+
 class Automaton(object):
 
   @staticmethod
-  def visit_edges(edge, compute_next_edge, visitor, state):
+  def visit_states(edge, visitor, visit_state = None, state_iter = None):
+    if not state_iter:
+      state_iter  = lambda node: node.state_iter()
     visited = set()
     while edge:
-      f = lambda (next_edge, state), node: (
-        next_edge | compute_next_edge(node),
-        visitor(node, state))
-      (next_edge, state) = reduce(f, edge, (set(), state))
+      next_edge_iters = []
+      def f(visit_state, node):
+        next_edge_iters.append(state_iter(node))
+        return visitor(node, visit_state)
+      visit_state = reduce(f, edge, visit_state)
+      next_edge = set(chain(*next_edge_iters))
       visited |= edge
       edge = next_edge - visited
-    return state
+    return visit_state
 
-  @staticmethod
-  def generate_dot(start_node, terminal_set, edge_iterator, state_iterator):
+  def visit_all_states(self, visitor, visit_state = None, state_iter = None):
+    return self.visit_states(self.start_set(), visitor, visit_state, state_iter)
+
+  def to_dot(self):
 
     def escape(v):
       v = str(v).replace('\r', '\\\\r')
@@ -67,24 +98,28 @@ class Automaton(object):
       v = str(v).replace('\"', '\\\"')
       return v
 
-    def f(node, content):
-      (node_content, edge_content) = content
+    def f(node, (node_content, edge_content)):
       if node.action():
         action_text = node.action()[1].split('\n')[0]
         node_content.append('  S_l%s[shape = box, label="%s"];' %
                             (node.node_number(), action_text))
         node_content.append('  S_%s -> S_l%s [arrowhead = none];' %
                             (node.node_number(), node.node_number()))
-      for key, values in node.transitions().items():
+      for key, state in node.key_state_iter():
         if key == TransitionKey.epsilon():
           key = "&epsilon;"
-        for state in state_iterator(values):
-          edge_content.append("  S_%s -> S_%s [ label = \"%s\" ];" % (
-              node.node_number(), state.node_number(), escape(key)))
+        edge_content.append("  S_%s -> S_%s [ label = \"%s\" ];" % (
+            node.node_number(), state.node_number(), escape(key)))
       return (node_content, edge_content)
 
+    (node_content, edge_content) = self.visit_all_states(f, ([], []))
+
+    start_set = self.start_set()
+    assert len(start_set) == 1
+    start_node = iter(start_set).next()
+    terminal_set = self.terminal_set()
+
     terminals = ["S_%d;" % x.node_number() for x in terminal_set]
-    (node_content, edge_content) = edge_iterator(f, ([], []))
     start_number = start_node.node_number()
     start_shape = "circle"
     if start_node in terminal_set:
