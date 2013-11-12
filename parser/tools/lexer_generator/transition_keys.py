@@ -166,13 +166,19 @@ class TransitionKey:
 
   def matches_key(self, key):
     assert isinstance(key, self.__class__)
-    assert key != TransitionKey.epsilon()
+    assert key != TransitionKey.epsilon() and not key.__is_unique()
     assert len(key.__ranges) == 1
     subkey = key.__ranges[0]
+    matches = False
     for k in self.__ranges:
-      if k[0] <= subkey[0] and k[1] >= subkey[1]: return True
-    # TODO assert disjoint
-    return False
+      if k[0] <= subkey[0]:
+        assert subkey[1] <= k[1] or subkey[0] > k[1]
+      if subkey[0] < k[0]:
+        assert subkey[1] < k[0]
+      if k[0] <= subkey[0] and k[1] >= subkey[1]:
+        assert not matches
+        matches = True
+    return matches
 
   def __hash__(self):
     if self.__cached_hash == None:
