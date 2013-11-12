@@ -29,7 +29,7 @@ import argparse
 from nfa import Nfa
 from nfa_builder import NfaBuilder
 from dfa import Dfa
-from rule_parser import RuleParser, RuleParserState
+from rule_parser import RuleParser, RuleParserState, RuleProcessor
 from code_generator import CodeGenerator
 
 file_template = '''
@@ -64,85 +64,26 @@ load_outer_template = '''    <script>
 %s
     </script>'''
 
-class Generator(object):
+def generate_html(rule_processor):
+  scripts = []
+  loads = []
+  for i, (name, (nfa, dfa)) in enumerate(list(rule_processor.automata_iter())):
+    if name == 'Normal': continue
+    (nfa_i, dfa_i) = ("nfa_%d" % i, "dfa_%d" % i)
+    scripts.append(script_template % (nfa_i, nfa.to_dot()))
+    scripts.append(script_template % (dfa_i, dfa.to_dot()))
+    loads.append(load_template % ("nfa [%s]" % name, nfa_i))
+    loads.append(load_template % ("dfa [%s]" % name, dfa_i))
+    body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
+  return file_template % body
 
-  def __init__(self, rules):
-    parser_state = RuleParserState()
-    RuleParser.parse(rules, parser_state)
-    self.__automata = {}
-    self.process_rules(parser_state)
+def generate_code(rule_processor):
+  (nfa, dfa) = rule_processor.default_automata()
+  return CodeGenerator.dfa_to_code(dfa)
 
-  def generate_html(self):
-    scripts = []
-    loads = []
-    for i, name in enumerate(self.__automata):
-      (nfa, dfa) = self.__automata[name]
-      if name == 'Normal': continue
-      (nfa_i, dfa_i) = ("nfa_%d" % i, "dfa_%d" % i)
-      scripts.append(script_template % (nfa_i, nfa.to_dot()))
-      scripts.append(script_template % (dfa_i, dfa.to_dot()))
-      loads.append(load_template % ("nfa [%s]" % name, nfa_i))
-      loads.append(load_template % ("dfa [%s]" % name, dfa_i))
-      body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
-    return file_template % body
-
-  def process_rules(self, parser_state):
-    rule_map = {}
-    builder = NfaBuilder()
-    builder.set_character_classes(parser_state.character_classes)
-    assert 'default' in parser_state.rules
-    def process(k, v):
-      graphs = []
-      continues = 0
-      for (graph, (precedence, code, transition)) in v['regex']:
-        default_code = v['default_action']
-        action = code if code else default_code
-        if action:
-          graph = NfaBuilder.add_action(graph, (precedence, action))
-        if not transition or transition == 'break':
-          pass
-        elif transition == 'continue':
-          assert not k == 'default'
-          continues += 1
-          graph = NfaBuilder.add_continue(graph)
-        elif (transition == 'terminate' or
-              transition == 'terminate_illegal'):
-          assert not code
-          graph = NfaBuilder.add_action(graph, (-1, transition))
-        else:
-          assert k == 'default'
-          subgraph_modifier = '*' if code else None
-          graph = NfaBuilder.join_subgraph(
-            graph, transition, rule_map[transition], subgraph_modifier)
-        graphs.append(graph)
-      if continues == len(graphs):
-        graphs.append(NfaBuilder.epsilon())
-      if v['catch_all']:
-        assert v['catch_all'] == 'continue'
-        graphs.append(NfaBuilder.add_continue(NfaBuilder.catch_all()))
-      graph = NfaBuilder.or_graphs(graphs)
-      rule_map[k] = graph
-    # process first the subgraphs, then the default graph
-    for k, v in parser_state.rules.items():
-      if k == 'default': continue
-      process(k, v)
-    process('default', parser_state.rules['default'])
-    # build the automata
-    for rule_name, graph in rule_map.items():
-      nfa = builder.nfa(graph)
-      (start, dfa_nodes) = nfa.compute_dfa()
-      dfa = Dfa(start, dfa_nodes)
-      self.__automata[rule_name] = (nfa, dfa)
-
-  # Lexes strings with the help of DFAs procuded by the grammar. For sanity
-  # checking the automata.
-  def lex(self, string):
-    (nfa, dfa) = self.__automata['default']
-    return dfa.lex(string)
-
-  def generate_code(self):
-    (nfa, dfa) = self.__automata['default']
-    return CodeGenerator.dfa_to_code(dfa)
+def lex(rule_processor, string):
+  for t in rule_processor.lex(string + '\0'):
+    print t
 
 if __name__ == '__main__':
 
@@ -154,21 +95,20 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   re_file = args.re
-  parser_state = RuleParserState()
   print "parsing %s" % re_file
   with open(re_file, 'r') as f:
-    generator = Generator(f.read())
+    rule_processor = RuleProcessor.parse(f.read())
 
   html_file = args.html
   if html_file:
-    html = generator.generate_html()
+    html = generate_html(rule_processor)
     with open(args.html, 'w') as f:
       f.write(html)
       print "wrote html to %s" % html_file
 
   code_file = args.code
   if code_file:
-    code = generator.generate_code()
+    code = generate_code(rule_processor)
     with open(code_file, 'w') as f:
       f.write(code)
       print "wrote code to %s" % code_file
@@ -176,6 +116,4 @@ if __name__ == '__main__':
   input_file = args.input
   if input_file:
     with open(input_file, 'r') as f:
-      input_text = f.read() + '\0'
-    for t in generator.lex(input_text):
-      print t
+      lex(rule_processor, f.read())

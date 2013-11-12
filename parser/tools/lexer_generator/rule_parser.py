@@ -29,6 +29,7 @@ import ply.yacc as yacc
 from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
+from dfa import Dfa
 from transition_keys import TransitionKey
 
 class RuleParserState:
@@ -212,3 +213,73 @@ class RuleParser:
       raise
     parser.__state = None
     assert parser_state.transitions <= set(parser_state.rules.keys())
+
+class RuleProcessor(object):
+
+  def __init__(self, parser_state):
+    self.__automata = {}
+    self.__process_parser_state(parser_state)
+
+  @staticmethod
+  def parse(string):
+    parser_state = RuleParserState()
+    RuleParser.parse(string, parser_state)
+    return RuleProcessor(parser_state)
+
+  def automata_iter(self):
+    return iter(self.__automata.items())
+
+  def default_automata(self):
+    return self.__automata['default']
+
+  def lex(self, string):
+    (nfa, dfa) = self.default_automata()
+    return dfa.lex(string)
+
+  def __process_parser_state(self, parser_state):
+    rule_map = {}
+    builder = NfaBuilder()
+    builder.set_character_classes(parser_state.character_classes)
+    assert 'default' in parser_state.rules
+    def process(k, v):
+      graphs = []
+      continues = 0
+      for (graph, (precedence, code, transition)) in v['regex']:
+        default_code = v['default_action']
+        action = code if code else default_code
+        if action:
+          graph = NfaBuilder.add_action(graph, (precedence, action))
+        if not transition or transition == 'break':
+          pass
+        elif transition == 'continue':
+          assert not k == 'default'
+          continues += 1
+          graph = NfaBuilder.add_continue(graph)
+        elif (transition == 'terminate' or
+              transition == 'terminate_illegal'):
+          assert not code
+          graph = NfaBuilder.add_action(graph, (-1, transition))
+        else:
+          assert k == 'default'
+          subgraph_modifier = '*' if code else None
+          graph = NfaBuilder.join_subgraph(
+            graph, transition, rule_map[transition], subgraph_modifier)
+        graphs.append(graph)
+      if continues == len(graphs):
+        graphs.append(NfaBuilder.epsilon())
+      if v['catch_all']:
+        assert v['catch_all'] == 'continue'
+        graphs.append(NfaBuilder.add_continue(NfaBuilder.catch_all()))
+      graph = NfaBuilder.or_graphs(graphs)
+      rule_map[k] = graph
+    # process first the subgraphs, then the default graph
+    for k, v in parser_state.rules.items():
+      if k == 'default': continue
+      process(k, v)
+    process('default', parser_state.rules['default'])
+    # build the automata
+    for rule_name, graph in rule_map.items():
+      nfa = builder.nfa(graph)
+      (start, dfa_nodes) = nfa.compute_dfa()
+      dfa = Dfa(start, dfa_nodes)
+      self.__automata[rule_name] = (nfa, dfa)
