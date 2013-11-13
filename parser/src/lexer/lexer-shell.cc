@@ -213,7 +213,8 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
     Isolate* isolate,
     bool run_baseline,
     bool run_experimental,
-    bool print_tokens) {
+    bool print_tokens,
+    bool check_tokens) {
   if (print_tokens) {
     printf("Processing file %s\n", fname);
   }
@@ -222,11 +223,13 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
   TimeDelta baseline_time, experimental_time;
   if (run_baseline) {
     baseline_time = RunBaselineScanner(
-        fname, isolate, encoding, print_tokens, &baseline_tokens);
+        fname, isolate, encoding, print_tokens || check_tokens,
+        &baseline_tokens);
   }
   if (run_experimental) {
     experimental_time = RunExperimentalScanner(
-        fname, isolate, encoding, print_tokens, &experimental_tokens);
+        fname, isolate, encoding, print_tokens || check_tokens,
+        &experimental_tokens);
   }
   if (print_tokens && !run_experimental) {
     PrintTokens("Baseline", baseline_tokens);
@@ -234,14 +237,16 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
   if (print_tokens && !run_baseline) {
     PrintTokens("Experimental", experimental_tokens);
   }
-  if (print_tokens && run_baseline && run_experimental) {
-    printf("No of tokens in Baseline:     %d\n",
-           static_cast<int>(baseline_tokens.size()));
-    printf("No of tokens in Experimental: %d\n",
-           static_cast<int>(experimental_tokens.size()));
-    printf("Baseline and Experimental:\n");
+  if ((print_tokens || check_tokens) && run_baseline && run_experimental) {
+    if (print_tokens) {
+      printf("No of tokens in Baseline:     %d\n",
+             static_cast<int>(baseline_tokens.size()));
+      printf("No of tokens in Experimental: %d\n",
+             static_cast<int>(experimental_tokens.size()));
+      printf("Baseline and Experimental:\n");
+    }
     for (size_t i = 0; i < experimental_tokens.size(); ++i) {
-      experimental_tokens[i].Print("=>");
+      if (print_tokens) experimental_tokens[i].Print("=>");
       if (experimental_tokens[i] != baseline_tokens[i]) {
         printf("MISMATCH:\n");
         baseline_tokens[i].Print("Expected: ");
@@ -261,6 +266,7 @@ int main(int argc, char* argv[]) {
   bool print_tokens = false;
   bool run_baseline = true;
   bool run_experimental = true;
+  bool check_tokens = true;
   std::vector<std::string> fnames;
   std::string benchmark;
   for (int i = 0; i < argc; ++i) {
@@ -278,6 +284,8 @@ int main(int argc, char* argv[]) {
       run_baseline = false;
     } else if (strcmp(argv[i], "--no-experimental") == 0) {
       run_experimental = false;
+    } else if (strcmp(argv[i], "--no-check") == 0) {
+      check_tokens = false;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
       benchmark = std::string(argv[i]).substr(12);
     } else if (i > 0 && argv[i][0] != '-') {
@@ -296,8 +304,9 @@ int main(int argc, char* argv[]) {
       double baseline_total = 0, experimental_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
         std::pair<TimeDelta, TimeDelta> times;
-        times = ProcessFile(fnames[i].c_str(), encoding, isolate,
-                            run_baseline, run_experimental, print_tokens);
+        check_tokens = check_tokens && run_baseline && run_experimental;
+        times = ProcessFile(fnames[i].c_str(), encoding, isolate, run_baseline,
+                            run_experimental, print_tokens, check_tokens);
         baseline_total += times.first.InMillisecondsF();
         experimental_total += times.second.InMillisecondsF();
       }
@@ -306,7 +315,8 @@ int main(int argc, char* argv[]) {
                baseline_total);
       }
       if (run_experimental) {
-        printf("Experimental%s(RunTime): %.f ms\n", benchmark.c_str(),
+        if (benchmark.empty()) benchmark = "Experimental";
+        printf("%s(RunTime): %.f ms\n", benchmark.c_str(),
                experimental_total);
       }
     }
