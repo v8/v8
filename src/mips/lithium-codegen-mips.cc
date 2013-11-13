@@ -2039,6 +2039,16 @@ void LCodeGen::EmitBranchF(InstrType instr,
 
 
 template<class InstrType>
+void LCodeGen::EmitFalseBranch(InstrType instr,
+                               Condition condition,
+                               Register src1,
+                               const Operand& src2) {
+  int false_block = instr->FalseDestination(chunk_);
+  __ Branch(chunk_->GetAssemblyLabel(false_block), condition, src1, src2);
+}
+
+
+template<class InstrType>
 void LCodeGen::EmitFalseBranchF(InstrType instr,
                                 Condition condition,
                                 FPURegister src1,
@@ -2314,27 +2324,26 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
   Representation rep = instr->hydrogen()->value()->representation();
   ASSERT(!rep.IsInteger32());
-  Label if_false;
   Register scratch = ToRegister(instr->temp());
 
   if (rep.IsDouble()) {
     DoubleRegister value = ToDoubleRegister(instr->value());
-    __ BranchF(&if_false, NULL, ne, value, kDoubleRegZero);
+    EmitFalseBranchF(instr, ne, value, kDoubleRegZero);
     __ FmoveHigh(scratch, value);
     __ li(at, 0x80000000);
   } else {
     Register value = ToRegister(instr->value());
-    __ CheckMap(
-        value, scratch, Heap::kHeapNumberMapRootIndex, &if_false, DO_SMI_CHECK);
+    __ CheckMap(value,
+                scratch,
+                Heap::kHeapNumberMapRootIndex,
+                instr->FalseLabel(chunk()),
+                DO_SMI_CHECK);
     __ lw(scratch, FieldMemOperand(value, HeapNumber::kExponentOffset));
-    __ Branch(&if_false, ne, scratch, Operand(0x80000000));
+    EmitFalseBranch(instr, ne, scratch, Operand(0x80000000));
     __ lw(scratch, FieldMemOperand(value, HeapNumber::kMantissaOffset));
     __ mov(at, zero_reg);
   }
   EmitBranch(instr, eq, scratch, Operand(at));
-
-  __ bind(&if_false);
-  EmitFalseBranchF(instr, al, kDoubleRegZero, kDoubleRegZero);
 }
 
 
