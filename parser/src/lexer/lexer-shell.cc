@@ -50,7 +50,6 @@
 using namespace v8::internal;
 
 enum Encoding {
-  ASCII,
   LATIN1,
   UTF8,
   UTF16
@@ -88,7 +87,6 @@ class BaselineScanner {
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
     switch (encoding) {
-      case ASCII:
       case UTF8:
         stream_ = new Utf8ToUtf16CharacterStream(source_, length);
         break;
@@ -262,7 +260,7 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  Encoding encoding = ASCII;
+  Encoding encoding = LATIN1;
   bool print_tokens = false;
   bool run_baseline = true;
   bool run_experimental = true;
@@ -276,8 +274,6 @@ int main(int argc, char* argv[]) {
       encoding = UTF8;
     } else if (strcmp(argv[i], "--utf16") == 0) {
       encoding = UTF16;
-    } else if (strcmp(argv[i], "--ascii") == 0) {
-      encoding = ASCII;
     } else if (strcmp(argv[i], "--print-tokens") == 0) {
       print_tokens = true;
     } else if (strcmp(argv[i], "--no-baseline") == 0) {
