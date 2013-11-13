@@ -30,6 +30,7 @@
   ##############################################################################
   # Flaky tests.
   # BUG(v8:2989).
+  'dfg-inline-arguments-become-double': [PASS, FLAKY],
   'dfg-inline-arguments-become-int32': [PASS, FLAKY],
   'dfg-inline-arguments-reset': [PASS, FLAKY],
 }],  # ALWAYS
