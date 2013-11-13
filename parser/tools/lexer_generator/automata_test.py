@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
+from automaton import Action
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
 from dfa import Dfa
@@ -80,8 +81,8 @@ class AutomataTestCase(unittest.TestCase):
         dfa.to_dot()
 
     def test_actions(self):
-      left_action = ("LEFT_ACTION", "LEFT_CONDITION")
-      right_action = ("RIGHT_ACTION", "RIGHT_CONDITION")
+      left_action = Action("LEFT_ACTION")
+      right_action = Action("RIGHT_ACTION")
       left = RegexParser.parse("left")
       right = RegexParser.parse("right")
       left = NfaBuilder.add_action(left, left_action)
@@ -95,9 +96,9 @@ class AutomataTestCase(unittest.TestCase):
         for i, action in enumerate(actions):
           self.assertEqual(action, expected[i])
       def verify_miss(string, expected):
-        verify(string, expected + [('MISS',)])
+        verify(string, expected + [Action('MISS',)])
       def verify_hit(string, expected):
-        verify(string, expected + [('TERMINATE',)])
+        verify(string, expected + [Action('TERMINATE',)])
       (l, r) = left_action, right_action
       verify_hit("left", [l])
       verify_miss("lefta", [l])

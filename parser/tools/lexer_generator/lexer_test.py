@@ -26,16 +26,18 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
+from automaton import Action
 from rule_parser import RuleProcessor
 
 class LexerTestCase(unittest.TestCase):
 
-  def __verify_action_stream(self, rules, string, expected_stream):
-    expected_stream.append(('terminate', '\0'))
+  def __verify_action_stream(self, rules, string, expected):
+    expected = map(lambda (action, s) : (Action('code', action), s), expected)
+    expected.append((Action('terminate'), '\0'))
     rule_processor = RuleProcessor.parse(rules)
     for i, (action, start, stop) in enumerate(rule_processor.lex(string)):
-      self.assertEquals(expected_stream[i][0], action)
-      self.assertEquals(expected_stream[i][1], string[start : stop])
+      self.assertEquals(expected[i][0], action)
+      self.assertEquals(expected[i][1], string[start : stop])
 
   def test_simple(self):
     rules = '''

@@ -30,8 +30,8 @@ from automaton import *
 
 class NfaState(AutomatonState):
 
-  def __init__(self, node_number):
-    super(NfaState, self).__init__(node_number)
+  def __init__(self):
+    super(NfaState, self).__init__()
     self.__transitions = {}
     self.__unclosed = set()
     self.__epsilon_closure = None
@@ -150,24 +150,31 @@ class Nfa(Automaton):
     return TransitionKey.disjoint_keys(keys)
 
   @staticmethod
+  def __gather_actions(states):
+    action = None
+    for state in states:
+      if not state.action():
+        continue
+      if not action:
+        action = state.action()
+        continue
+      if state.action().precedence() == action.precedence():
+        assert state.action() == action
+      elif state.action().precedence() < action.precedence():
+        action = state.action()
+    return action
+
+  @staticmethod
   def __to_dfa(nfa_state_set, dfa_nodes, end_node):
     nfa_state_set = Nfa.__close(nfa_state_set)
     assert nfa_state_set
     name = ".".join(str(x.node_number()) for x in sorted(nfa_state_set))
     if name in dfa_nodes:
       return name
-    def gather_actions(states):
-      actions = set()
-      for state in states:
-        if state.action():
-          actions.add(state.action())
-      actions = list(actions)
-      actions.sort()
-      return actions
     dfa_nodes[name] = {
       'transitions': {},
       'terminal': end_node in nfa_state_set,
-      'actions' : gather_actions(nfa_state_set)}
+      'action' : Nfa.__gather_actions(nfa_state_set)}
     for key in Nfa.__gather_transition_keys(nfa_state_set):
       match_states = set()
       f = lambda acc, state: acc | state.key_matches(key)

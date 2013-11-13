@@ -30,12 +30,49 @@ from itertools import chain
 from transition_keys import TransitionKey
 
 class Action(object):
-  pass
+
+  def __init__(self, type, data = None, precedence = -1):
+    assert type
+    self.__type = type
+    self.__data = data
+    self.__precedence = precedence
+
+  def type(self):
+    return self.__type
+
+  def data(self):
+    return self.__data
+
+  def precedence(self):
+    return self.__precedence
+
+  def __hash__(self):
+    return hash((self.__type, self.__data))
+
+  def __eq__(self, other):
+    return (isinstance(other, self.__class__) and
+            self.__type == other.__type and
+            self.__data == other.__data)
+
+  def __str__(self):
+    if not self.__data:
+      return "action<%s>" % self.__type
+    return "action<%s, %s>" % (self.__type, self.__data)
 
 class AutomatonState(object):
 
-  def __init__(self, node_number):
-    self.__node_number = node_number
+  __node_number_counter = 0
+
+  def __init__(self):
+    self.__node_number = AutomatonState.__node_number_counter
+    AutomatonState.__node_number_counter += 1
+
+  def __hash__(self):
+    return hash(self.__node_number)
+
+  def __eq__(self, other):
+    return (isinstance(other, self.__class__) and
+            self.__node_number == other.__node_number)
 
   def node_number(self):
     return self.__node_number
@@ -91,16 +128,20 @@ class Automaton(object):
   def to_dot(self):
 
     def escape(v):
-      v = str(v).replace('\r', '\\\\r')
-      v = str(v).replace('\t', '\\\\t')
-      v = str(v).replace('\n', '\\\\n')
-      v = str(v).replace('\\', '\\\\')
-      v = str(v).replace('\"', '\\\"')
+      v = str(v)
+      v = v.replace('\r', '\\\\r').replace('\t', '\\\\t').replace('\n', '\\\\n')
+      v = v.replace('\\', '\\\\').replace('\"', '\\\"')
       return v
 
     def f(node, (node_content, edge_content)):
       if node.action():
-        action_text = node.action()[1].split('\n')[0]
+        action = node.action()
+        if action.type() == 'code':
+          # assert action.data()
+          action_text = action.data()
+        else:
+          action_text = action.type()
+        action_text = escape(action_text)
         node_content.append('  S_l%s[shape = box, label="%s"];' %
                             (node.node_number(), action_text))
         node_content.append('  S_%s -> S_l%s [arrowhead = none];' %

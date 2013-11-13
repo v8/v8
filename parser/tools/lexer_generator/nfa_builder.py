@@ -43,7 +43,7 @@ class NfaBuilder(object):
 
   def __new_state(self):
     self.__node_number += 1
-    return NfaState(self.__node_number - 1)
+    return NfaState()
 
   def __or(self, graph):
     start = self.__new_state()

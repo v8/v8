@@ -26,64 +26,49 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from rule_parser import RuleParser, RuleParserState
+from automaton import Action
+from rule_parser import RuleProcessor
 from nfa_builder import NfaBuilder
 from dfa import Dfa
 
-def dfa_from_nfa(nfa):
-  (start_name, dfa_nodes) = nfa.compute_dfa()
-  return Dfa(start_name, dfa_nodes)
-
-def process_rules(parser_state):
+def process_rules(rules):
   rule_map = {}
-  builder = NfaBuilder()
-  for k, v in parser_state.rules.items():
-    graphs = []
-    for (graph, action) in v['regex']:
-      graphs.append(NfaBuilder.add_action(graph, action))
-    nfa = builder.nfa(NfaBuilder.or_graphs(graphs))
-    dfa = dfa_from_nfa(nfa)
-    rule_map[k] = (nfa, dfa)
+  for name, automata in RuleProcessor.parse(rules).automata_iter():
+    rule_map[name] = automata
   return rule_map
 
 class ActionTestCase(unittest.TestCase):
 
-    def __verify_last_action(self, dfa, string, expected_code,
-                             expected_condition):
+    def __verify_last_action(self, dfa, string, expected_code):
       actions = list(dfa.collect_actions(string))
-      self.assertEqual(actions[-1], ('TERMINATE',))
-      self.assertEqual(actions[-2][1], expected_code)
-      self.assertEqual(actions[-2][2], expected_condition)
+      self.assertEqual(actions[-1], Action('TERMINATE'))
+      self.assertEqual(actions[-2].data(), expected_code)
 
     def test_action_precedence(self):
-      parser_state = RuleParserState()
       rules = '''<default>
                  "key" { KEYWORD } <<break>>
                  /[a-z]+/ { ID } <<break>>'''
-      RuleParser.parse(rules, parser_state)
-      automata_for_conditions = process_rules(parser_state)
+      automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)
       (nfa, dfa) = automata_for_conditions['default']
 
-      self.__verify_last_action(dfa, 'foo', 'ID', 'break')
-      self.__verify_last_action(dfa, 'key', 'KEYWORD', 'break')
-      self.__verify_last_action(dfa, 'k', 'ID', 'break')
-      self.__verify_last_action(dfa, 'ke', 'ID', 'break')
-      self.__verify_last_action(dfa, 'keys', 'ID', 'break')
+      self.__verify_last_action(dfa, 'foo', 'ID')
+      self.__verify_last_action(dfa, 'key', 'KEYWORD')
+      self.__verify_last_action(dfa, 'k', 'ID')
+      self.__verify_last_action(dfa, 'ke', 'ID')
+      self.__verify_last_action(dfa, 'keys', 'ID')
 
     def test_wrong_action_precedence(self):
-      parser_state = RuleParserState()
       rules = '''<default>
                  /[a-z]+/ { ID } <<break>>
                  "key" { KEYWORD } <<break>>'''
-      RuleParser.parse(rules, parser_state)
-      automata_for_conditions = process_rules(parser_state)
+      automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)
       (nfa, dfa) = automata_for_conditions['default']
 
       # The keyword is not recognized because of the rule preference order (ID
       # is preferred over KEYWORD).
-      self.__verify_last_action(dfa, 'foo', 'ID', 'break')
-      self.__verify_last_action(dfa, 'key', 'ID', 'break')
+      self.__verify_last_action(dfa, 'foo', 'ID')
+      self.__verify_last_action(dfa, 'key', 'ID')

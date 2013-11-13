@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ply.yacc as yacc
+from automaton import Action
 from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
@@ -116,7 +117,7 @@ class RuleParser:
       assert not rules['catch_all']
       rules['catch_all'] = transition
     else:
-      rule = (p[1], (RuleParser.__rule_precedence_counter, code, transition))
+      rule = (p[1], RuleParser.__rule_precedence_counter, code, transition)
       rules['regex'].append(rule)
 
   def p_action(self, p):
@@ -244,11 +245,11 @@ class RuleProcessor(object):
     def process(k, v):
       graphs = []
       continues = 0
-      for (graph, (precedence, code, transition)) in v['regex']:
+      for (graph, precedence, code, transition) in v['regex']:
         default_code = v['default_action']
-        action = code if code else default_code
-        if action:
-          graph = NfaBuilder.add_action(graph, (precedence, action))
+        if code or default_code:
+          action = Action('code', code if code else default_code, precedence)
+          graph = NfaBuilder.add_action(graph, action)
         if not transition or transition == 'break':
           pass
         elif transition == 'continue':
@@ -258,7 +259,7 @@ class RuleProcessor(object):
         elif (transition == 'terminate' or
               transition == 'terminate_illegal'):
           assert not code
-          graph = NfaBuilder.add_action(graph, (-1, transition))
+          graph = NfaBuilder.add_action(graph, Action(transition, None, -1))
         else:
           assert k == 'default'
           subgraph_modifier = '*' if code else None

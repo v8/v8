@@ -31,11 +31,11 @@ from transition_keys import TransitionKey
 
 class DfaState(AutomatonState):
 
-  def __init__(self, name, node_number, actions):
-    super(DfaState, self).__init__(node_number)
+  def __init__(self, name, action):
+    super(DfaState, self).__init__()
     self.__name = name
     self.__transitions = {}
-    self.__actions = actions
+    self.__action = action
 
   def transitions_to_multiple_states(self):
     return False
@@ -44,10 +44,7 @@ class DfaState(AutomatonState):
     return self.__name
 
   def action(self):
-    return self.__actions[0] if self.__actions else None
-
-  def actions(self):
-    return self.__actions
+    return self.__action
 
   def add_transition(self, key, state):
     assert not self.__transitions.has_key(key)
@@ -62,8 +59,8 @@ class Dfa(Automaton):
     super(Dfa, self).__init__()
     self.__terminal_set = set()
     self.__name_map = {}
-    for i, (name, node_data) in enumerate(mapping.items()):
-      node = DfaState(name, i, node_data['actions'])
+    for name, node_data in mapping.items():
+      node = DfaState(name, node_data['action'])
       self.__name_map[name] = node
       if node_data['terminal']:
         self.__terminal_set.add(node)
@@ -104,18 +101,18 @@ class Dfa(Automaton):
     for c in string:
       state = Dfa.__match_char(state, c)
       if not state:
-        yield ('MISS',)
+        yield Action('MISS')
         return
       if state.action():
         yield state.action()
     if state in self.__terminal_set:
-      yield ('TERMINATE', )
+      yield Action('TERMINATE')
     else:
-      yield ('MISS',)
+      yield Action('MISS')
 
   def matches(self, string):
     actions = list(self.collect_actions(string))
-    return actions and actions[-1][0] == 'TERMINATE'
+    return actions and actions[-1].type() == 'TERMINATE'
 
   def lex(self, string):
     state = self.__start
@@ -124,14 +121,14 @@ class Dfa(Automaton):
       next = Dfa.__match_char(state, c)
       if not next:
         assert state.action() # must invoke default action here
-        yield (state.action()[1], last_position, pos)
+        yield (state.action(), last_position, pos)
         last_position = pos
         # lex next token
         next = Dfa.__match_char(self.__start, c)
         assert next
       state = next
     assert state.action() # must invoke default action here
-    yield (state.action()[1], last_position, len(string))
+    yield (state.action(), last_position, len(string))
 
   def minimize(self):
     pass
