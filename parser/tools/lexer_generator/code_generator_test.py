@@ -25,24 +25,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from unittest import TestLoader, TextTestRunner, TestSuite
+import unittest
+from code_generator import CodeGenerator
+from rule_parser import RuleProcessor
 
-from action_test import *
-from automata_test import *
-from code_generator_test import *
-from lexer_test import *
-from rule_parser_test import *
-from transition_key_test import *
+class CodeGeneratorTestCase(unittest.TestCase):
 
-if __name__ == "__main__":
-  loader = TestLoader()
-  suite = TestSuite((
-    loader.loadTestsFromTestCase(TransitionKeyTestCase),
-    loader.loadTestsFromTestCase(AutomataTestCase),
-    loader.loadTestsFromTestCase(RuleParserTestCase),
-    loader.loadTestsFromTestCase(ActionTestCase),
-    loader.loadTestsFromTestCase(LexerTestCase),
-    loader.loadTestsFromTestCase(CodeGeneratorTestCase),
-  ))
-  runner = TextTestRunner(verbosity = 2)
-  runner.run(suite)
+  def test_simple(self):
+    rules = '''
+    <default>
+    "("           { LBRACE }
+    ")"           { RBRACE }
+
+    "foo"         { FOO }
+    eof           <<terminate>>'''
+    rule_processor = RuleProcessor.parse(rules)
+    (nfa, dfa) = rule_processor.default_automata()
+    CodeGenerator.dfa_to_code(dfa)

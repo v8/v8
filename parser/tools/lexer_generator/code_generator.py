@@ -63,10 +63,10 @@ code_%s:
 
     action = state.action()
     if action:
-      if action[1] == 'terminate':
+      if action.type() == 'terminate':
         code += 'return 0;'
         return code
-      elif action[1] == 'terminate_illegal':
+      elif action.type() == 'terminate_illegal':
         code += 'return 1;'
         return code
 
@@ -82,7 +82,7 @@ code_%s:
 ''' % s.node_number()
 
     if action:
-      code += '%s\nyych = *(--cursor_);\ngoto code_%s;\n' % (state.action()[1],
+      code += '%s\nyych = *(--cursor_);\ngoto code_%s;\n' % (action.data(),
                                                              start_node_number)
     return code
 
