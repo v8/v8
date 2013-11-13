@@ -46,6 +46,7 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
+      handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
       has_miss_handler_(false) { }
 

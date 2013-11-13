@@ -168,15 +168,21 @@ static void InitializeArrayConstructorDescriptor(
   // eax -- number of arguments
   // edi -- function
   // ebx -- type info cell with elements kind
-  static Register registers[] = { edi, ebx };
-  descriptor->register_param_count_ = 2;
+  static Register registers_variable_args[] = { edi, ebx, eax };
+  static Register registers_no_args[] = { edi, ebx };
 
-  if (constant_stack_parameter_count != 0) {
+  if (constant_stack_parameter_count == 0) {
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers_no_args;
+  } else {
     // stack param count needs (constructor pointer, and single argument)
+    descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
     descriptor->stack_parameter_count_ = eax;
+    descriptor->register_param_count_ = 3;
+    descriptor->register_params_ = registers_variable_args;
   }
+
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
-  descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kArrayConstructor)->entry;
@@ -190,15 +196,21 @@ static void InitializeInternalArrayConstructorDescriptor(
   // register state
   // eax -- number of arguments
   // edi -- constructor function
-  static Register registers[] = { edi };
-  descriptor->register_param_count_ = 1;
+  static Register registers_variable_args[] = { edi, eax };
+  static Register registers_no_args[] = { edi };
 
-  if (constant_stack_parameter_count != 0) {
+  if (constant_stack_parameter_count == 0) {
+    descriptor->register_param_count_ = 1;
+    descriptor->register_params_ = registers_no_args;
+  } else {
     // stack param count needs (constructor pointer, and single argument)
+    descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
     descriptor->stack_parameter_count_ = eax;
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers_variable_args;
   }
+
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
-  descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kInternalArrayConstructor)->entry;

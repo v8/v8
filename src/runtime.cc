@@ -14734,18 +14734,25 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
   HandleScope scope(isolate);
   // If we get 2 arguments then they are the stub parameters (constructor, type
-  // info).  If we get 3, then the first one is a pointer to the arguments
-  // passed by the caller.
+  // info).  If we get 4, then the first one is a pointer to the arguments
+  // passed by the caller, and the last one is the length of the arguments
+  // passed to the caller (redundant, but useful to check on the deoptimizer
+  // with an assert).
   Arguments empty_args(0, NULL);
   bool no_caller_args = args.length() == 2;
-  ASSERT(no_caller_args || args.length() == 3);
+  ASSERT(no_caller_args || args.length() == 4);
   int parameters_start = no_caller_args ? 0 : 1;
   Arguments* caller_args = no_caller_args
       ? &empty_args
       : reinterpret_cast<Arguments*>(args[0]);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
   CONVERT_ARG_HANDLE_CHECKED(Object, type_info, parameters_start + 1);
-
+#ifdef DEBUG
+  if (!no_caller_args) {
+    CONVERT_SMI_ARG_CHECKED(arg_count, parameters_start + 2);
+    ASSERT(arg_count == caller_args->length());
+  }
+#endif
   return ArrayConstructorCommon(isolate,
                                 constructor,
                                 type_info,
@@ -14757,13 +14764,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalArrayConstructor) {
   HandleScope scope(isolate);
   Arguments empty_args(0, NULL);
   bool no_caller_args = args.length() == 1;
-  ASSERT(no_caller_args || args.length() == 2);
+  ASSERT(no_caller_args || args.length() == 3);
   int parameters_start = no_caller_args ? 0 : 1;
   Arguments* caller_args = no_caller_args
       ? &empty_args
       : reinterpret_cast<Arguments*>(args[0]);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
-
+#ifdef DEBUG
+  if (!no_caller_args) {
+    CONVERT_SMI_ARG_CHECKED(arg_count, parameters_start + 1);
+    ASSERT(arg_count == caller_args->length());
+  }
+#endif
   return ArrayConstructorCommon(isolate,
                                 constructor,
                                 Handle<Object>::null(),
