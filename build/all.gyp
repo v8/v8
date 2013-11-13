@@ -10,6 +10,7 @@
       'dependencies': [
         '../samples/samples.gyp:*',
         '../src/d8.gyp:d8',
+        '../tools/lexer-shell.gyp:lexer-shell',
         '../test/cctest/cctest.gyp:*',
       ],
     }
