@@ -197,6 +197,7 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
     bool run_experimental,
     bool print_tokens,
     bool check_tokens,
+    bool break_after_illegal,
     int repeat) {
   if (print_tokens) {
     printf("Processing file %s\n", fname);
@@ -230,6 +231,18 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
     }
     for (size_t i = 0; i < experimental_tokens.size(); ++i) {
       if (print_tokens) experimental_tokens[i].Print("=>");
+      if (baseline_tokens[i].value == Token::ILLEGAL) {
+        if (experimental_tokens[i].value != Token::ILLEGAL ||
+            experimental_tokens[i].beg != baseline_tokens[i].beg) {
+          printf("MISMATCH:\n");
+          baseline_tokens[i].Print("Expected: ");
+          experimental_tokens[i].Print("Actual:   ");
+          exit(1);
+        }
+        if (break_after_illegal)
+          break;
+        continue;
+      }
       if (experimental_tokens[i] != baseline_tokens[i]) {
         printf("MISMATCH:\n");
         baseline_tokens[i].Print("Expected: ");
@@ -250,6 +263,7 @@ int main(int argc, char* argv[]) {
   bool run_baseline = true;
   bool run_experimental = true;
   bool check_tokens = true;
+  bool break_after_illegal = false;
   std::vector<std::string> fnames;
   std::string benchmark;
   int repeat = 1;
@@ -268,6 +282,8 @@ int main(int argc, char* argv[]) {
       run_experimental = false;
     } else if (strcmp(argv[i], "--no-check") == 0) {
       check_tokens = false;
+    } else if (strcmp(argv[i], "--break-after-illegal") == 0) {
+      break_after_illegal = true;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
       benchmark = std::string(argv[i]).substr(12);
     } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
@@ -292,7 +308,7 @@ int main(int argc, char* argv[]) {
         check_tokens = check_tokens && run_baseline && run_experimental;
         times = ProcessFile(fnames[i].c_str(), encoding, isolate, run_baseline,
                             run_experimental, print_tokens, check_tokens,
-                            repeat);
+                            break_after_illegal, repeat);
         baseline_total += times.first.InMillisecondsF();
         experimental_total += times.second.InMillisecondsF();
       }
