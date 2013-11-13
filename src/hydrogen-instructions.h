@@ -1579,6 +1579,9 @@ class HForceRepresentation V8_FINAL : public HTemplateInstruction<1> {
 
   DECLARE_CONCRETE_INSTRUCTION(ForceRepresentation)
 
+ protected:
+  virtual int RedefinedOperandIndex() { return 0; }
+
  private:
   HForceRepresentation(HValue* value, Representation required_representation) {
     SetOperandAt(0, value);
