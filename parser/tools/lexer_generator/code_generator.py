@@ -84,10 +84,13 @@ code_%s:
     if action:
       code += '%s\nyych = *(--cursor_);\ngoto code_%s;\n' % (action.data(),
                                                              start_node_number)
+    else:
+      code += 'goto default_action;'
     return code
 
   @staticmethod
-  def dfa_to_code(dfa):
+  def rule_processor_to_code(rule_processor):
+    dfa = rule_processor.default_automata().dfa()
     start_node_number = dfa.start_state().node_number()
     code = '''
 #include "lexer/even-more-experimental-scanner.h"
@@ -95,16 +98,23 @@ code_%s:
 namespace v8 {
 namespace internal {
 uint32_t EvenMoreExperimentalScanner::DoLex() {
-YYCTYPE yych = *cursor_;
-goto code_%s;
+  YYCTYPE yych = *cursor_;
+  goto code_%s;
 ''' % start_node_number
     def f(state, code):
       code += CodeGenerator.dfa_state_to_code(state, start_node_number)
       return code
     code = dfa.visit_all_states(f, code)
     code += '''
-return 0;
+  CHECK(false);
+default_action:
+  %s
+  yych = *(--cursor_);
+  goto code_%s;
+  return 0;
+}
+
 }
 }
-}'''
+''' % (rule_processor.default_action, start_node_number)
     return code

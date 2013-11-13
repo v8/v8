@@ -246,7 +246,7 @@ class RuleProcessor(object):
       self.__minimial_dfa = self.__dfa.minimize()
 
     def nfa(self):
-      return self.__dfa
+      return self.__nfa
 
     def dfa(self):
       return self.__dfa
@@ -299,3 +299,4 @@ class RuleProcessor(object):
     for rule_name, graph in rule_map.items():
       nfa = builder.nfa(graph)
       self.__automata[rule_name] = RuleProcessor.Automata(nfa)
+    self.default_action = parser_state.rules['default']['default_action']

@@ -78,8 +78,7 @@ def generate_html(rule_processor):
   return file_template % body
 
 def generate_code(rule_processor):
-  dfa = rule_processor.default_automata().dfa()
-  return CodeGenerator.dfa_to_code(dfa)
+  return CodeGenerator.rule_processor_to_code(rule_processor)
 
 def lex(rule_processor, string):
   for t in rule_processor.lex(string + '\0'):
