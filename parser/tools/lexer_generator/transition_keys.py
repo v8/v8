@@ -42,12 +42,6 @@ class TransitionKey:
   __unique_key_counter = -1
 
   @staticmethod
-  def alphabet_iter():
-    for k, (lower, upper) in TransitionKey.__class_bounds.items():
-      for i in range(lower, upper + 1):
-        yield i
-
-  @staticmethod
   def __in_latin_1(char):
     bound = TransitionKey.__class_bounds["latin_1"]
     return (bound[0] <= char and char <= bound[1])

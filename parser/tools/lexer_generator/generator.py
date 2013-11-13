@@ -96,7 +96,7 @@ if __name__ == '__main__':
   re_file = args.re
   print "parsing %s" % re_file
   with open(re_file, 'r') as f:
-    rule_processor = RuleProcessor.parse(f.read())
+    rule_processor = RuleProcessor.parse(f.read(), False)
 
   html_file = args.html
   if html_file:

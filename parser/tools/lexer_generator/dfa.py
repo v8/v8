@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from itertools import chain
 from automaton import *
 from transition_keys import TransitionKey
 
@@ -51,6 +52,21 @@ class DfaState(AutomatonState):
 
   def transitions(self):
     return self.__transitions
+
+  # TODO abstract state matching
+  def __matches(self, match_func, value):
+    f = lambda acc, (k, vs): acc | set([vs]) if match_func(k, value) else acc
+    matches = reduce(f, self.__transitions.items(), set())
+    if not matches:
+      return None
+    assert len(matches) == 1
+    return iter(matches).next()
+
+  def char_matches(self, value):
+    return self.__matches(lambda k, v : k.matches_char(v), value)
+
+  def key_matches(self, value):
+    return self.__matches(lambda k, v : k.matches_key(v), value)
 
 class Dfa(Automaton):
 
@@ -81,6 +97,9 @@ class Dfa(Automaton):
     assert self.__terminal_set
     state_count = self.visit_all_states(lambda state, count: count + 1, 0)
     assert self.__node_count == state_count
+
+  def node_count(self):
+    return self.__node_count
 
   def start_state(self):
     return self.__start
@@ -133,22 +152,146 @@ class Dfa(Automaton):
     yield (state.action(), last_position, len(string))
 
   def minimize(self):
-    paritions = []
-    working_set = []
+    return DfaMinimizer(self).minimize()
+
+class StatePartition(object):
+
+  def __init__(self, node_numbers):
+    self.__node_numbers = frozenset(iter(node_numbers))
+    assert self.__node_numbers
+    self.__hash = reduce(lambda acc, x: acc ^ hash(x), self.__node_numbers, 0)
+
+  def set(self):
+    return self.__node_numbers
+
+  def __hash__(self):
+    return self.__hash
+
+  def __eq__(self, other):
+    return (isinstance(other, self.__class__) and
+            self.__node_numbers == other.__node_numbers)
+
+  def __len__(self):
+    return len(self.__node_numbers)
+
+  def __iter__(self):
+    return self.__node_numbers.__iter__()
+
+  def __str__(self):
+    return str([x for x in self.__node_numbers])
+
+class DfaMinimizer:
+
+  def __init__(self, dfa):
+    self.__dfa = dfa
+
+  def __partition(self):
     action_map = {}
     id_map = {}
+    terminal_set = self.__dfa.terminal_set()
     def f(state, visitor_state):
       node_number = state.node_number()
       assert not node_number in id_map
       id_map[node_number] = state
       action = state.action()
+      if action:
+        # TODO add this back
+        # assert state in self.__terminal_set
+        if state not in terminal_set:
+          action = "nonterminal action " + str(action)
+      elif state in terminal_set:
+        action = "terminal_set"
       if not action in action_map:
         action_map[action] = set()
       action_map[action].add(node_number)
-    self.visit_all_states(f)
-    total = 0
+    self.__dfa.visit_all_states(f)
+    partitions = set()
     for p in action_map.values():
-      paritions.append(p)
-      total += len(p)
-    assert total == self.__node_count
+      assert p
+      partitions.add(StatePartition(p))
+    return (id_map, partitions)
 
+  def __generate_alphabet(self):
+    keys = []
+    self.__dfa.visit_all_states(lambda s, acc: keys.append(s.key_iter()))
+    return TransitionKey.disjoint_keys(chain(*keys))
+
+  @staticmethod
+  def __find_partition(partitions, id):
+    for p in partitions:
+      if id in p:
+        return p
+    assert False
+
+  def __verify_partitions(self, id_map, partitions):
+    assert len(partitions) <= len(id_map)
+    alphabet = self.__generate_alphabet()
+    for partition in partitions:
+      for key in alphabet:
+        first = True
+        mapped_partition = None
+        for state_id in partition:
+          s = id_map[state_id].key_matches(key)
+          if s:
+            s = self.__find_partition(partitions, s.node_number())
+          if first:
+            first = False
+            mapped_partition = s
+          assert mapped_partition == s
+
+  @staticmethod
+  def __partition_count(partitions):
+    return len(reduce(lambda acc, p: acc | p.set(), partitions, set()))
+
+  def minimize(self):
+    (id_map, partitions) = self.__partition()
+    node_count = self.__dfa.node_count()
+    assert self.__partition_count(partitions) == node_count
+    if len(partitions) == 1:
+      return self.__dfa
+    working_set = set(partitions)
+    alphabet = self.__generate_alphabet()
+    all_state_ids = set(id_map.keys())
+    while working_set:
+      # print "working_set %s partitions %s nodes %s" % (len(working_set),
+      #                                                  len(partitions),
+      #                                                  node_count)
+      assert working_set <= partitions
+      assert self.__partition_count(partitions) == node_count
+      test_partition = iter(working_set).next()
+      working_set.remove(test_partition)
+      to_split = None
+      for key in alphabet:
+        # print key
+        transition_map = {}
+        map_into_partition = set()
+        for state_id in all_state_ids:
+          maps_to = id_map[state_id].key_matches(key)
+          if maps_to and maps_to.node_number() in test_partition:
+            map_into_partition.add(state_id)
+        if not map_into_partition:
+          continue
+        new_partitions = set()
+        for p in partitions:
+          intersection = p.set().intersection(map_into_partition)
+          difference = p.set().difference(map_into_partition)
+          if not intersection or not difference:
+            new_partitions.add(p)
+            continue
+          intersection = StatePartition(intersection)
+          difference = StatePartition(difference)
+          new_partitions.add(intersection)
+          new_partitions.add(difference)
+          if p in working_set:
+            working_set.remove(p)
+            working_set.add(intersection)
+            working_set.add(difference)
+          elif len(intersection) <= len(difference):
+            working_set.add(intersection)
+          else:
+            working_set.add(difference)
+        partitions = new_partitions
+    self.__verify_partitions(id_map, partitions)
+    if len(partitions) == len(id_map):
+      return self.__dfa
+    # merge partitions
