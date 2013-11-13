@@ -63,6 +63,13 @@
 }],  # ALWAYS
 
 ##############################################################################
+['system == windows', {
+
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+}],  # 'system == windows'
+
+##############################################################################
 ['arch == arm', {
 
   # We cannot assume that we can throw OutOfMemory exceptions in all situations.
@@ -80,6 +87,7 @@
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
 }],  # 'arch == arm'
+
 ##############################################################################
 ['arch == mipsel', {
 
@@ -132,5 +140,8 @@
 
   # Fails since 16322 (new test).
   'test-code-stubs-arm/ConvertDToI': [SKIP],
+
+  # BUG(2998).
+  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 ]

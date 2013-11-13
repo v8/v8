@@ -2327,8 +2327,8 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
 
 TEST(OperandOffset) {
   i::V8::Initialize(NULL);
-  int data[256];
-  for (int i = 0; i < 256; i++) { data[i] = i * 0x01010101; }
+  uint32_t data[256];
+  for (uint32_t i = 0; i < 256; i++) { data[i] = i * 0x01010101; }
 
   // Allocate an executable page of memory.
   size_t actual_size;

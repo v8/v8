@@ -1683,10 +1683,10 @@ class PagedSpace : public Space {
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
-  virtual void RepairFreeListsAfterBoot();
+  void RepairFreeListsAfterBoot();
 
   // Prepares for a mark-compact GC.
-  virtual void PrepareForMarkCompact();
+  void PrepareForMarkCompact();
 
   // Current capacity without growing (Size() + Available()).
   intptr_t Capacity() { return accounting_stats_.Capacity(); }
@@ -1767,8 +1767,6 @@ class PagedSpace : public Space {
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
   MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes);
-
-  virtual bool ReserveSpace(int bytes);
 
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
@@ -1913,12 +1911,6 @@ class PagedSpace : public Space {
 
   // Normal allocation information.
   AllocationInfo allocation_info_;
-
-  // Bytes of each page that cannot be allocated.  Possibly non-zero
-  // for pages in spaces with only fixed-size objects.  Always zero
-  // for pages in spaces with variable sized objects (those pages are
-  // padded with free-list nodes).
-  int page_extra_;
 
   bool was_swept_conservatively_;
 
@@ -2165,11 +2157,6 @@ class SemiSpace : public Space {
   virtual intptr_t Size() {
     UNREACHABLE();
     return 0;
-  }
-
-  virtual bool ReserveSpace(int bytes) {
-    UNREACHABLE();
-    return false;
   }
 
   bool is_committed() { return committed_; }
@@ -2535,8 +2522,6 @@ class NewSpace : public Space {
   // if successful.
   bool AddFreshPage();
 
-  virtual bool ReserveSpace(int bytes);
-
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
   virtual void Verify();
@@ -2632,12 +2617,6 @@ class OldSpace : public PagedSpace {
            AllocationSpace id,
            Executability executable)
       : PagedSpace(heap, max_capacity, id, executable) {
-    page_extra_ = 0;
-  }
-
-  // The limit of allocation for a page in this space.
-  virtual Address PageAllocationLimit(Page* page) {
-    return page->area_end();
   }
 
  public:
@@ -2654,43 +2633,13 @@ class OldSpace : public PagedSpace {
 
 
 // -----------------------------------------------------------------------------
-// Old space for objects of a fixed size
-
-class FixedSpace : public PagedSpace {
- public:
-  FixedSpace(Heap* heap,
-             intptr_t max_capacity,
-             AllocationSpace id,
-             int object_size_in_bytes)
-      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
-        object_size_in_bytes_(object_size_in_bytes) {
-    page_extra_ = Page::kNonCodeObjectAreaSize % object_size_in_bytes;
-  }
-
-  // The limit of allocation for a page in this space.
-  virtual Address PageAllocationLimit(Page* page) {
-    return page->area_end() - page_extra_;
-  }
-
-  int object_size_in_bytes() { return object_size_in_bytes_; }
-
-  // Prepares for a mark-compact GC.
-  virtual void PrepareForMarkCompact();
-
- private:
-  // The size of objects in this space.
-  int object_size_in_bytes_;
-};
-
-
-// -----------------------------------------------------------------------------
 // Old space for all map objects
 
-class MapSpace : public FixedSpace {
+class MapSpace : public PagedSpace {
  public:
   // Creates a map space object with a maximum capacity.
   MapSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, Map::kSize),
+      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
         max_map_space_pages_(kMaxMapPageIndex - 1) {
   }
 
@@ -2727,12 +2676,12 @@ class MapSpace : public FixedSpace {
 // -----------------------------------------------------------------------------
 // Old space for simple property cell objects
 
-class CellSpace : public FixedSpace {
+class CellSpace : public PagedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
   CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, Cell::kSize)
-  {}
+      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE) {
+  }
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
     if (IsPowerOf2(Cell::kSize)) {
@@ -2753,13 +2702,13 @@ class CellSpace : public FixedSpace {
 // -----------------------------------------------------------------------------
 // Old space for all global object property cell objects
 
-class PropertyCellSpace : public FixedSpace {
+class PropertyCellSpace : public PagedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
   PropertyCellSpace(Heap* heap, intptr_t max_capacity,
                     AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, PropertyCell::kSize)
-  {}
+      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE) {
+  }
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
     if (IsPowerOf2(PropertyCell::kSize)) {
@@ -2848,11 +2797,6 @@ class LargeObjectSpace : public Space {
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page_ == NULL; }
-
-  // See the comments for ReserveSpace in the Space class.  This has to be
-  // called after ReserveSpace has been called on the paged spaces, since they
-  // may use some memory, leaving less for large objects.
-  virtual bool ReserveSpace(int bytes);
 
   LargePage* first_page() { return first_page_; }
 

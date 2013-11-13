@@ -32,24 +32,12 @@ var symbols = []
 
 // Test different forms of constructor calls, all equivalent.
 function TestNew() {
-  function IndirectSymbol() { return new Symbol }
-  function indirect() { return new IndirectSymbol() }
   for (var i = 0; i < 2; ++i) {
     for (var j = 0; j < 5; ++j) {
-      symbols.push(Symbol())
-      symbols.push(Symbol(undefined))
-      symbols.push(Symbol("66"))
-      symbols.push(Symbol(66))
-      symbols.push(Symbol(Symbol()))
-      symbols.push((new Symbol).valueOf())
-      symbols.push((new Symbol()).valueOf())
-      symbols.push((new Symbol(Symbol())).valueOf())
-      symbols.push(Object(Symbol()).valueOf())
-      symbols.push((indirect()).valueOf())
+      symbols.push(%CreatePrivateSymbol("66"))
+      symbols.push(Object(%CreatePrivateSymbol("66")).valueOf())
     }
-    %OptimizeFunctionOnNextCall(indirect)
-    indirect()  // Call once before GC throws away type feedback.
-    gc()        // Promote existing symbols and then allocate some more.
+    gc()  // Promote existing symbols and then allocate some more.
   }
 }
 TestNew()
@@ -59,7 +47,7 @@ function TestType() {
   for (var i in symbols) {
     assertEquals("symbol", typeof symbols[i])
     assertTrue(typeof symbols[i] === "symbol")
-    assertFalse(%SymbolIsPrivate(symbols[i]))
+    assertTrue(%SymbolIsPrivate(symbols[i]))
     assertEquals(null, %_ClassOf(symbols[i]))
     assertEquals("Symbol", %_ClassOf(new Symbol(symbols[i])))
     assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
@@ -69,13 +57,6 @@ TestType()
 
 
 function TestPrototype() {
-  assertSame(Object.prototype, Symbol.prototype.__proto__)
-  assertSame(Symbol.prototype, Symbol().__proto__)
-  assertSame(Symbol.prototype, Symbol(Symbol()).__proto__)
-  assertSame(Symbol.prototype, (new Symbol).__proto__)
-  assertSame(Symbol.prototype, (new Symbol()).__proto__)
-  assertSame(Symbol.prototype, (new Symbol(Symbol())).__proto__)
-  assertSame(Symbol.prototype, Object(Symbol()).__proto__)
   for (var i in symbols) {
     assertSame(Symbol.prototype, symbols[i].__proto__)
   }
@@ -84,15 +65,6 @@ TestPrototype()
 
 
 function TestConstructor() {
-  assertFalse(Object === Symbol.prototype.constructor)
-  assertFalse(Symbol === Object.prototype.constructor)
-  assertSame(Symbol, Symbol.prototype.constructor)
-  assertSame(Symbol, Symbol().__proto__.constructor)
-  assertSame(Symbol, Symbol(Symbol()).__proto__.constructor)
-  assertSame(Symbol, (new Symbol).__proto__.constructor)
-  assertSame(Symbol, (new Symbol()).__proto__.constructor)
-  assertSame(Symbol, (new Symbol(Symbol())).__proto__.constructor)
-  assertSame(Symbol, Object(Symbol()).__proto__.constructor)
   for (var i in symbols) {
     assertSame(Symbol, symbols[i].__proto__.constructor)
   }
@@ -103,7 +75,7 @@ TestConstructor()
 function TestName() {
   for (var i in symbols) {
     var name = symbols[i].name
-    assertTrue(name === undefined || name === "66")
+    assertTrue(name === "66")
   }
 }
 TestName()

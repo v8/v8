@@ -73,6 +73,7 @@
   # trigonometric functions are platform/compiler dependent.  Furthermore, the
   # expectation values by far deviates from the actual result given by an
   # arbitrary-precision calculator, making those tests partly bogus.
+  'S15.8.2.7_A7': [PASS, FAIL_OK],  # Math.cos
   'S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
   'S15.8.2.16_A7': [PASS, FAIL_OK],  # Math.sin
   'S15.8.2.18_A7': [PASS, FAIL_OK],  # Math.tan

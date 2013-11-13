@@ -2504,29 +2504,6 @@ intptr_t FreeList::SumFreeLists() {
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-bool NewSpace::ReserveSpace(int bytes) {
-  // We can't reliably unpack a partial snapshot that needs more new space
-  // space than the minimum NewSpace size.  The limit can be set lower than
-  // the end of new space either because there is more space on the next page
-  // or because we have lowered the limit in order to get periodic incremental
-  // marking.  The most reliable way to ensure that there is linear space is
-  // to do the allocation, then rewind the limit.
-  ASSERT(bytes <= InitialCapacity());
-  MaybeObject* maybe = AllocateRaw(bytes);
-  Object* object = NULL;
-  if (!maybe->ToObject(&object)) return false;
-  HeapObject* allocation = HeapObject::cast(object);
-  Address top = allocation_info_.top();
-  if ((top - bytes) == allocation->address()) {
-    allocation_info_.set_top(allocation->address());
-    return true;
-  }
-  // There may be a borderline case here where the allocation succeeded, but
-  // the limit and top have moved on to a new page.  In that case we try again.
-  return ReserveSpace(bytes);
-}
-
-
 void PagedSpace::PrepareForMarkCompact() {
   // We don't have a linear allocation area while sweeping.  It will be restored
   // on the first allocation after the sweep.
@@ -2561,28 +2538,6 @@ void PagedSpace::PrepareForMarkCompact() {
 }
 
 
-bool PagedSpace::ReserveSpace(int size_in_bytes) {
-  ASSERT(size_in_bytes <= AreaSize());
-  ASSERT(size_in_bytes == RoundSizeDownToObjectAlignment(size_in_bytes));
-  Address current_top = allocation_info_.top();
-  Address new_top = current_top + size_in_bytes;
-  if (new_top <= allocation_info_.limit()) return true;
-
-  HeapObject* new_area = free_list_.Allocate(size_in_bytes);
-  if (new_area == NULL) new_area = SlowAllocateRaw(size_in_bytes);
-  if (new_area == NULL) return false;
-
-  int old_linear_size = static_cast<int>(limit() - top());
-  // Mark the old linear allocation area with a free space so it can be
-  // skipped when scanning the heap.  This also puts it back in the free list
-  // if it is big enough.
-  Free(top(), old_linear_size);
-
-  SetTop(new_area->address(), new_area->address() + size_in_bytes);
-  return true;
-}
-
-
 intptr_t PagedSpace::SizeOfObjects() {
   ASSERT(!heap()->IsSweepingComplete() || (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
@@ -2595,15 +2550,6 @@ intptr_t PagedSpace::SizeOfObjects() {
 // fix them.
 void PagedSpace::RepairFreeListsAfterBoot() {
   free_list_.RepairLists(heap());
-}
-
-
-// You have to call this last, since the implementation from PagedSpace
-// doesn't know that memory was 'promised' to large object space.
-bool LargeObjectSpace::ReserveSpace(int bytes) {
-  return heap()->OldGenerationCapacityAvailable() >= bytes &&
-         (!heap()->incremental_marking()->IsStopped() ||
-           heap()->OldGenerationSpaceAvailable() >= bytes);
 }
 
 
@@ -2860,23 +2806,6 @@ void PagedSpace::ReportStatistics() {
   ReportHistogram(heap()->isolate(), true);
 }
 #endif
-
-// -----------------------------------------------------------------------------
-// FixedSpace implementation
-
-void FixedSpace::PrepareForMarkCompact() {
-  // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact();
-
-  // During a non-compacting collection, everything below the linear
-  // allocation pointer except wasted top-of-page blocks is considered
-  // allocated and we will rediscover available bytes during the
-  // collection.
-  accounting_stats_.AllocateBytes(free_list_.available());
-
-  // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_.Reset();
-}
 
 
 // -----------------------------------------------------------------------------

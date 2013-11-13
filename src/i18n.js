@@ -1302,10 +1302,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  */
 function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
-  var number = $Number(value);
-  if (number === -0) {
-    number = 0;
-  }
+  var number = $Number(value) + 0;
 
   return %InternalNumberFormat(formatter.formatter, number);
 }

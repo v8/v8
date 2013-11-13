@@ -243,6 +243,7 @@ void Symbol::SymbolVerify() {
   CHECK(HasHashCode());
   CHECK_GT(Hash(), 0);
   CHECK(name()->IsUndefined() || name()->IsString());
+  CHECK(flags()->IsSmi());
 }
 
 

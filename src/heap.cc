@@ -3311,11 +3311,13 @@ bool Heap::CreateInitialObjects() {
   { MaybeObject* maybe_obj = AllocateSymbol();
     if (!maybe_obj->ToObject(&obj)) return false;
   }
+  Symbol::cast(obj)->set_is_private(true);
   set_frozen_symbol(Symbol::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateSymbol();
     if (!maybe_obj->ToObject(&obj)) return false;
   }
+  Symbol::cast(obj)->set_is_private(true);
   set_elements_transition_symbol(Symbol::cast(obj));
 
   { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
@@ -3327,6 +3329,7 @@ bool Heap::CreateInitialObjects() {
   { MaybeObject* maybe_obj = AllocateSymbol();
     if (!maybe_obj->ToObject(&obj)) return false;
   }
+  Symbol::cast(obj)->set_is_private(true);
   set_observed_symbol(Symbol::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
@@ -5516,9 +5519,19 @@ MaybeObject* Heap::AllocateSymbol() {
   Symbol::cast(result)->set_hash_field(
       Name::kIsNotArrayIndexMask | (hash << Name::kHashShift));
   Symbol::cast(result)->set_name(undefined_value());
+  Symbol::cast(result)->set_flags(Smi::FromInt(0));
 
-  ASSERT(result->IsSymbol());
+  ASSERT(!Symbol::cast(result)->is_private());
   return result;
+}
+
+
+MaybeObject* Heap::AllocatePrivateSymbol() {
+  MaybeObject* maybe = AllocateSymbol();
+  Symbol* symbol;
+  if (!maybe->To(&symbol)) return maybe;
+  symbol->set_is_private(true);
+  return symbol;
 }
 
 

@@ -287,6 +287,22 @@ class ScriptTest(unittest.TestCase):
     self.assertEquals("6", self.MakeStep().Restore("new_build"))
     self.assertEquals("0", self.MakeStep().Restore("new_patch"))
 
+  def testLastChangeLogEntries(self):
+    TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
+    l = """
+        Fixed something.
+        (issue 1234)\n"""
+    for _ in xrange(10): l = l + l
+
+    cl_chunk = """2013-11-12: Version 3.23.2\n%s
+        Performance and stability improvements on all platforms.\n\n\n""" % l
+
+    cl_chunk_full = cl_chunk + cl_chunk + cl_chunk
+    TextToFile(cl_chunk_full, TEST_CONFIG[CHANGELOG_FILE])
+
+    cl = GetLastChangeLogEntries(TEST_CONFIG[CHANGELOG_FILE])
+    self.assertEquals(cl_chunk, cl)
+
   def testSquashCommits(self):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
     with open(TEST_CONFIG[CHANGELOG_ENTRY_FILE], "w") as f:
@@ -368,7 +384,7 @@ class ScriptTest(unittest.TestCase):
        " 2 files changed\n",
         CheckPreparePush],
       ["cl upload -r \"reviewer@chromium.org\" --send-mail", "done\n"],
-      ["cl dcommit", "Closing issue\n"],
+      ["cl dcommit -v", "Closing issue\n"],
       ["svn fetch", "fetch result\n"],
       ["checkout svn/bleeding_edge", ""],
       [("log -1 --format=%H --grep=\"Prepare push to trunk.  "

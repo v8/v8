@@ -150,26 +150,24 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
 
+  bool runtime_stack_params = descriptor_->stack_parameter_count_.is_valid();
+  HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
-    HParameter* param =
-        Add<HParameter>(i, HParameter::REGISTER_PARAMETER);
+    Representation r = descriptor_->IsParameterCountRegister(i)
+        ? Representation::Integer32()
+        : Representation::Tagged();
+    HParameter* param = Add<HParameter>(i, HParameter::REGISTER_PARAMETER, r);
     start_environment->Bind(i, param);
     parameters_[i] = param;
+    if (descriptor_->IsParameterCountRegister(i)) {
+      param->set_type(HType::Smi());
+      stack_parameter_count = param;
+      arguments_length_ = stack_parameter_count;
+    }
   }
 
-  HInstruction* stack_parameter_count;
-  if (descriptor_->stack_parameter_count_.is_valid()) {
-    ASSERT(descriptor_->environment_length() == (param_count + 1));
-    stack_parameter_count = New<HParameter>(param_count,
-                                            HParameter::REGISTER_PARAMETER,
-                                            Representation::Integer32());
-    stack_parameter_count->set_type(HType::Smi());
-    // It's essential to bind this value to the environment in case of deopt.
-    AddInstruction(stack_parameter_count);
-    start_environment->Bind(param_count, stack_parameter_count);
-    arguments_length_ = stack_parameter_count;
-  } else {
-    ASSERT(descriptor_->environment_length() == param_count);
+  ASSERT(!runtime_stack_params || arguments_length_ != NULL);
+  if (!runtime_stack_params) {
     stack_parameter_count = graph()->GetConstantMinus1();
     arguments_length_ = graph()->GetConstant0();
   }
@@ -189,10 +187,11 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   if (descriptor_->function_mode_ == JS_FUNCTION_STUB_MODE) {
     if (!stack_parameter_count->IsConstant() &&
         descriptor_->hint_stack_parameter_count_ < 0) {
-      HInstruction* amount = graph()->GetConstant1();
-      stack_pop_count = Add<HAdd>(stack_parameter_count, amount);
-      stack_pop_count->ChangeRepresentation(Representation::Integer32());
+      HInstruction* constant_one = graph()->GetConstant1();
+      stack_pop_count = Add<HAdd>(stack_parameter_count, constant_one);
       stack_pop_count->ClearFlag(HValue::kCanOverflow);
+      // TODO(mvstanton): verify that stack_parameter_count+1 really fits in a
+      // smi.
     } else {
       int count = descriptor_->hint_stack_parameter_count_;
       stack_pop_count = Add<HConstant>(count);
@@ -967,6 +966,38 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
 
 
 Handle<Code> BinaryOpStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
+  NewStringAddStub* stub = casted_stub();
+  StringAddFlags flags = stub->flags();
+  PretenureFlag pretenure_flag = stub->pretenure_flag();
+
+  HValue* left = GetParameter(NewStringAddStub::kLeft);
+  HValue* right = GetParameter(NewStringAddStub::kRight);
+
+  // Make sure that both arguments are strings if not known in advance.
+  if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
+    IfBuilder if_leftnotstring(this);
+    if_leftnotstring.IfNot<HIsStringAndBranch>(left);
+    if_leftnotstring.Then();
+    if_leftnotstring.Deopt("Expected string for LHS of string addition");
+  }
+  if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
+    IfBuilder if_rightnotstring(this);
+    if_rightnotstring.IfNot<HIsStringAndBranch>(right);
+    if_rightnotstring.Then();
+    if_rightnotstring.Deopt("Expected string for RHS of string addition");
+  }
+
+  return BuildStringAdd(left, right, pretenure_flag);
+}
+
+
+Handle<Code> NewStringAddStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 

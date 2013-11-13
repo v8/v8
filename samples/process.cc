@@ -324,7 +324,7 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
-  Handle<External> map_ptr = External::New(obj);
+  Handle<External> map_ptr = External::New(GetIsolate(), obj);
 
   // Store the map pointer in the JavaScript wrapper.
   result->SetInternalField(0, map_ptr);
@@ -432,7 +432,7 @@ Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
-  Handle<External> request_ptr = External::New(request);
+  Handle<External> request_ptr = External::New(GetIsolate(), request);
 
   // Store the request pointer in the JavaScript wrapper.
   result->SetInternalField(0, request_ptr);

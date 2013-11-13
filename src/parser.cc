@@ -4114,8 +4114,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     while (!done) {
       bool is_strict_reserved = false;
       Handle<String> param_name =
-          ParseIdentifierOrStrictReservedWord(&is_strict_reserved,
-                                              CHECK_OK);
+          ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
 
       // Store locations for possible future error reports.
       if (!name_loc.IsValid() && IsEvalOrArguments(param_name)) {

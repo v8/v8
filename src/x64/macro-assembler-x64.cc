@@ -4415,17 +4415,26 @@ void MacroAssembler::CopyBytes(Register destination,
     cmpl(length, Immediate(min_length));
     Assert(greater_equal, kInvalidMinLength);
   }
-  Label loop, done, short_string, short_loop;
+  Label short_loop, len8, len16, len24, done, short_string;
 
-  const int kLongStringLimit = 20;
+  const int kLongStringLimit = 4 * kPointerSize;
   if (min_length <= kLongStringLimit) {
-    cmpl(length, Immediate(kLongStringLimit));
-    j(less_equal, &short_string);
+    cmpl(length, Immediate(kPointerSize));
+    j(below, &short_string, Label::kNear);
   }
 
   ASSERT(source.is(rsi));
   ASSERT(destination.is(rdi));
   ASSERT(length.is(rcx));
+
+  if (min_length <= kLongStringLimit) {
+    cmpl(length, Immediate(2 * kPointerSize));
+    j(below_equal, &len8, Label::kNear);
+    cmpl(length, Immediate(3 * kPointerSize));
+    j(below_equal, &len16, Label::kNear);
+    cmpl(length, Immediate(4 * kPointerSize));
+    j(below_equal, &len24, Label::kNear);
+  }
 
   // Because source is 8-byte aligned in our uses of this function,
   // we keep source aligned for the rep movs operation by copying the odd bytes
@@ -4440,25 +4449,38 @@ void MacroAssembler::CopyBytes(Register destination,
   addq(destination, scratch);
 
   if (min_length <= kLongStringLimit) {
-    jmp(&done);
+    jmp(&done, Label::kNear);
+    bind(&len24);
+    movq(scratch, Operand(source, 2 * kPointerSize));
+    movq(Operand(destination, 2 * kPointerSize), scratch);
+    bind(&len16);
+    movq(scratch, Operand(source, kPointerSize));
+    movq(Operand(destination, kPointerSize), scratch);
+    bind(&len8);
+    movq(scratch, Operand(source, 0));
+    movq(Operand(destination, 0), scratch);
+    // Move remaining bytes of length.
+    movq(scratch, Operand(source, length, times_1, -kPointerSize));
+    movq(Operand(destination, length, times_1, -kPointerSize), scratch);
+    addq(destination, length);
+    jmp(&done, Label::kNear);
 
     bind(&short_string);
     if (min_length == 0) {
       testl(length, length);
-      j(zero, &done);
+      j(zero, &done, Label::kNear);
     }
-    lea(scratch, Operand(destination, length, times_1, 0));
 
     bind(&short_loop);
-    movb(length, Operand(source, 0));
-    movb(Operand(destination, 0), length);
+    movb(scratch, Operand(source, 0));
+    movb(Operand(destination, 0), scratch);
     incq(source);
     incq(destination);
-    cmpq(destination, scratch);
-    j(not_equal, &short_loop);
-
-    bind(&done);
+    decl(length);
+    j(not_zero, &short_loop);
   }
+
+  bind(&done);
 }
 
 

@@ -2944,6 +2944,24 @@ void HCompareHoleAndBranch::InferRepresentation(
 }
 
 
+bool HCompareMinusZeroAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (value()->representation().IsSmiOrInteger32()) {
+    // A Smi or Integer32 cannot contain minus zero.
+    *block = SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
+void HCompareMinusZeroAndBranch::InferRepresentation(
+    HInferRepresentationPhase* h_infer) {
+  ChangeRepresentation(value()->representation());
+}
+
+
+
 void HGoto::PrintDataTo(StringStream* stream) {
   stream->Add("B%d", SuccessorAt(0)->block_id());
 }
