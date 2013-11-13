@@ -1683,9 +1683,11 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
+#ifndef V8_SHARED
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory());
   v8::SetResourceConstraints(isolate, &constraints);
+#endif
   DumbLineEditor dumb_line_editor(isolate);
   {
     Initialize(isolate);
