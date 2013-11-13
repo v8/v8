@@ -1679,11 +1679,13 @@ int Shell::Main(int argc, char* argv[]) {
 #else
   SetStandaloneFlagsViaCommandLine();
 #endif
-  v8::SetDefaultResourceConstraintsForCurrentPlatform();
   ShellArrayBufferAllocator array_buffer_allocator;
   v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
+  v8::ResourceConstraints constraints;
+  constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory());
+  v8::SetResourceConstraints(isolate, &constraints);
   DumbLineEditor dumb_line_editor(isolate);
   {
     Initialize(isolate);

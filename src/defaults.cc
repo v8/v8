@@ -37,6 +37,7 @@
 namespace v8 {
 
 
+// TODO(rmcilroy): Remove this function once it is no longer used in Chrome.
 bool ConfigureResourceConstraintsForCurrentPlatform(
     ResourceConstraints* constraints) {
   if (constraints == NULL) {
@@ -60,6 +61,7 @@ bool ConfigureResourceConstraintsForCurrentPlatform(
 }
 
 
+// TODO(rmcilroy): Remove this function once it is no longer used in Chrome.
 bool SetDefaultResourceConstraintsForCurrentPlatform() {
   ResourceConstraints constraints;
   if (!ConfigureResourceConstraintsForCurrentPlatform(&constraints))

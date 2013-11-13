@@ -3803,6 +3803,16 @@ V8_INLINE Handle<Boolean> False(Isolate* isolate);
 class V8_EXPORT ResourceConstraints {
  public:
   ResourceConstraints();
+
+  /**
+   * Configures the constraints with reasonable default values based on the
+   * capabilities of the current device the VM is running on.
+   *
+   * \param physical_memory The total amount of physical memory on the current
+   *   device, in bytes.
+   */
+  void ConfigureDefaults(uint64_t physical_memory);
+
   int max_young_space_size() const { return max_young_space_size_; }
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
