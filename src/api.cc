@@ -3191,6 +3191,12 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
 }
 
 
+bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
+  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
+  return Set(*key_as_value, value, DontEnum);
+}
+
+
 bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::ForceDelete()", return false);
@@ -3239,6 +3245,12 @@ Local<Value> v8::Object::Get(uint32_t index) {
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
+}
+
+
+Local<Value> v8::Object::GetPrivate(v8::Handle<Private> key) {
+  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
+  return Get(*key_as_value);
 }
 
 
@@ -3441,6 +3453,12 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
 }
 
 
+bool v8::Object::DeletePrivate(v8::Handle<Private> key) {
+  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
+  return Delete(*key_as_value);
+}
+
+
 bool v8::Object::Has(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::Has()", return false);
@@ -3452,6 +3470,12 @@ bool v8::Object::Has(v8::Handle<Value> key) {
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
+}
+
+
+bool v8::Object::HasPrivate(v8::Handle<Private> key) {
+  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
+  return Has(*key_as_value);
 }
 
 
@@ -4876,6 +4900,11 @@ Local<Value> Symbol::Name() const {
 }
 
 
+Local<Value> Private::Name() const {
+  return reinterpret_cast<const Symbol*>(this)->Name();
+}
+
+
 double Number::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->Number();
@@ -6138,27 +6167,39 @@ Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
 }
 
 
-Local<Symbol> v8::Symbol::New(Isolate* isolate) {
+Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
   LOG_API(i_isolate, "Symbol::New()");
   ENTER_V8(i_isolate);
   i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
+  if (data != NULL) {
+    if (length == -1) length = i::StrLength(data);
+    i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
+        i::Vector<const char>(data, length));
+    result->set_name(*name);
+  }
   return Utils::ToLocal(result);
 }
 
 
-Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
+Local<Private> v8::Private::New(
+    Isolate* isolate, const char* data, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
-  LOG_API(i_isolate, "Symbol::New(char)");
+  EnsureInitializedForIsolate(i_isolate, "v8::Private::New()");
+  LOG_API(i_isolate, "Private::New()");
   ENTER_V8(i_isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
-      i::Vector<const char>(data, length));
-  i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
-  result->set_name(*name);
-  return Utils::ToLocal(result);
+  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
+  if (data != NULL) {
+    if (length == -1) length = i::StrLength(data);
+    i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
+        i::Vector<const char>(data, length));
+    symbol->set_name(*name);
+  }
+  Local<Symbol> result = Utils::ToLocal(symbol);
+  v8::Handle<Private>* result_as_private =
+      reinterpret_cast<v8::Handle<Private>*>(&result);
+  return *result_as_private;
 }
 
 

@@ -2744,6 +2744,70 @@ THREADED_TEST(SymbolProperties) {
   CHECK(!obj->Has(sym2));
   CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
   CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+
+  // Symbol properties are inherited.
+  v8::Local<v8::Object> child = v8::Object::New();
+  child->SetPrototype(obj);
+  CHECK(child->Has(sym1));
+  CHECK_EQ(2002, child->Get(sym1)->Int32Value());
+  CHECK_EQ(0, child->GetOwnPropertyNames()->Length());
+}
+
+
+THREADED_TEST(PrivateProperties) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::Private> priv1 = v8::Private::New(isolate);
+  v8::Local<v8::Private> priv2 = v8::Private::New(isolate, "my-private");
+
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  CHECK(priv2->Name()->Equals(v8::String::New("my-private")));
+
+  // Make sure delete of a non-existent private symbol property works.
+  CHECK(obj->DeletePrivate(priv1));
+  CHECK(!obj->HasPrivate(priv1));
+
+  CHECK(obj->SetPrivate(priv1, v8::Integer::New(1503)));
+  CHECK(obj->HasPrivate(priv1));
+  CHECK_EQ(1503, obj->GetPrivate(priv1)->Int32Value());
+  CHECK(obj->SetPrivate(priv1, v8::Integer::New(2002)));
+  CHECK(obj->HasPrivate(priv1));
+  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
+
+  CHECK_EQ(0, obj->GetOwnPropertyNames()->Length());
+  int num_props = obj->GetPropertyNames()->Length();
+  CHECK(obj->Set(v8::String::New("bla"), v8::Integer::New(20)));
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+  CHECK_EQ(num_props + 1, obj->GetPropertyNames()->Length());
+
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  // Add another property and delete it afterwards to force the object in
+  // slow case.
+  CHECK(obj->SetPrivate(priv2, v8::Integer::New(2008)));
+  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
+  CHECK_EQ(2008, obj->GetPrivate(priv2)->Int32Value());
+  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+
+  CHECK(obj->HasPrivate(priv1));
+  CHECK(obj->HasPrivate(priv2));
+  CHECK(obj->DeletePrivate(priv2));
+  CHECK(obj->HasPrivate(priv1));
+  CHECK(!obj->HasPrivate(priv2));
+  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+
+  // Private properties are inherited (for the time being).
+  v8::Local<v8::Object> child = v8::Object::New();
+  child->SetPrototype(obj);
+  CHECK(child->HasPrivate(priv1));
+  CHECK_EQ(2002, child->GetPrivate(priv1)->Int32Value());
+  CHECK_EQ(0, child->GetOwnPropertyNames()->Length());
 }
 
 

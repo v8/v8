@@ -317,7 +317,9 @@ namespace internal {
   \
   /* Harmony symbols */ \
   F(CreateSymbol, 1, 1) \
+  F(CreatePrivateSymbol, 1, 1) \
   F(SymbolName, 1, 1) \
+  F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \

@@ -365,6 +365,14 @@ Handle<Symbol> Factory::NewSymbol() {
 }
 
 
+Handle<Symbol> Factory::NewPrivateSymbol() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocatePrivateSymbol(),
+      Symbol);
+}
+
+
 Handle<Context> Factory::NewNativeContext() {
   CALL_HEAP_FUNCTION(
       isolate(),

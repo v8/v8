@@ -523,6 +523,7 @@ void Symbol::SymbolPrint(FILE* out) {
   PrintF(out, " - hash: %d\n", Hash());
   PrintF(out, " - name: ");
   name()->ShortPrint();
+  PrintF(out, " - private: %d\n", is_private());
   PrintF(out, "\n");
 }
 

@@ -2692,6 +2692,8 @@ bool Name::Equals(Name* other) {
 
 
 ACCESSORS(Symbol, name, Object, kNameOffset)
+ACCESSORS(Symbol, flags, Smi, kFlagsOffset)
+BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
 
 
 bool String::Equals(String* other) {

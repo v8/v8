@@ -186,6 +186,7 @@ class Factory {
 
   // Create a symbol.
   Handle<Symbol> NewSymbol();
+  Handle<Symbol> NewPrivateSymbol();
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
