@@ -39,47 +39,54 @@
 namespace v8 {
 namespace internal {
 
-namespace {
 
-// Will go away.
-const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
+const byte* ReadFile(const char* name, Isolate* isolate,
+                     int* size, int repeat) {
   FILE* file = fopen(name, "rb");
   *size = 0;
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
-  *size = ftell(file);
+  int file_size = ftell(file);
   rewind(file);
 
+  *size = file_size * repeat;
+
   byte* chars = new byte[*size + 1];
-  chars[*size] = 0;
-  for (int i = 0; i < *size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, *size - i, file));
+  for (int i = 0; i < file_size;) {
+    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
     i += read;
   }
   fclose(file);
+
+  for (int i = file_size; i < *size; i++) {
+    chars[i] = chars[i - file_size];
+  }
+  chars[*size] = 0;
+
   return chars;
 }
 
-}
 
 ExperimentalScanner::ExperimentalScanner(const char* fname,
                                          bool read_all_at_once,
-                                         Isolate* isolate)
+                                         Isolate* isolate,
+                                         int repeat)
     : current_(0),
       fetched_(0),
       read_all_at_once_(read_all_at_once),
       already_pushed_(false),
       source_(0),
       length_(0) {
+  CHECK(repeat == 1 || read_all_at_once);
   file_ = fopen(fname, "rb");
   // python generated version
   scanner_ = new EvenMoreExperimentalScanner(this, isolate->unicode_cache());
   // re2c version
   // scanner_ = new PushScanner(this, isolate->unicode_cache());
   if (read_all_at_once_) {
-    source_ = ReadFile(fname, isolate, &length_);
-    token_.resize(1500);
+    source_ = ReadFile(fname, isolate, &length_, repeat);
+    token_.resize(length_);
   } else {
     token_.resize(BUFFER_SIZE);
   }

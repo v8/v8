@@ -62,7 +62,8 @@ class ExperimentalScanner {
 
   ExperimentalScanner(const char* fname,
                       bool read_all_at_once,
-                      Isolate* isolate);
+                      Isolate* isolate,
+                      int repeat);
   ~ExperimentalScanner();
 
   Token::Value Next();
@@ -87,6 +88,8 @@ class ExperimentalScanner {
   const v8::internal::byte* source_;
   int length_;
 };
+
+const byte* ReadFile(const char* name, Isolate* isolate, int* size, int repeat);
 
 } }  // namespace v8::internal
 

@@ -56,34 +56,16 @@ enum Encoding {
 };
 
 
-const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
-  FILE* file = fopen(name, "rb");
-  *size = 0;
-  if (file == NULL) return NULL;
-
-  fseek(file, 0, SEEK_END);
-  *size = ftell(file);
-  rewind(file);
-
-  byte* chars = new byte[*size + 1];
-  chars[*size] = 0;
-  for (int i = 0; i < *size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, *size - i, file));
-    i += read;
-  }
-  fclose(file);
-  return chars;
-}
-
 class BaselineScanner {
  public:
   BaselineScanner(const char* fname,
                   Isolate* isolate,
                   Encoding encoding,
-                  ElapsedTimer* timer)
+                  ElapsedTimer* timer,
+                  int repeat)
       : stream_(NULL) {
     int length = 0;
-    source_ = ReadFile(fname, isolate, &length);
+    source_ = ReadFile(fname, isolate, &length, repeat);
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
     switch (encoding) {
@@ -158,9 +140,10 @@ TimeDelta RunBaselineScanner(const char* fname,
                              Isolate* isolate,
                              Encoding encoding,
                              bool dump_tokens,
-                             std::vector<TokenWithLocation>* tokens) {
+                             std::vector<TokenWithLocation>* tokens,
+                             int repeat) {
   ElapsedTimer timer;
-  BaselineScanner scanner(fname, isolate, encoding, &timer);
+  BaselineScanner scanner(fname, isolate, encoding, &timer, repeat);
   Token::Value token;
   int beg, end;
   do {
@@ -177,10 +160,11 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  Isolate* isolate,
                                  Encoding encoding,
                                  bool dump_tokens,
-                                 std::vector<TokenWithLocation>* tokens) {
+                                 std::vector<TokenWithLocation>* tokens,
+                                 int repeat) {
   ElapsedTimer timer;
+  ExperimentalScanner scanner(fname, true, isolate, repeat);
   timer.Start();
-  ExperimentalScanner scanner(fname, true, isolate);
   Token::Value token;
   do {
     token = scanner.Next();
@@ -212,7 +196,8 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
     bool run_baseline,
     bool run_experimental,
     bool print_tokens,
-    bool check_tokens) {
+    bool check_tokens,
+    int repeat) {
   if (print_tokens) {
     printf("Processing file %s\n", fname);
   }
@@ -222,12 +207,12 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
   if (run_baseline) {
     baseline_time = RunBaselineScanner(
         fname, isolate, encoding, print_tokens || check_tokens,
-        &baseline_tokens);
+        &baseline_tokens, repeat);
   }
   if (run_experimental) {
     experimental_time = RunExperimentalScanner(
         fname, isolate, encoding, print_tokens || check_tokens,
-        &experimental_tokens);
+        &experimental_tokens, repeat);
   }
   if (print_tokens && !run_experimental) {
     PrintTokens("Baseline", baseline_tokens);
@@ -267,6 +252,7 @@ int main(int argc, char* argv[]) {
   bool check_tokens = true;
   std::vector<std::string> fnames;
   std::string benchmark;
+  int repeat = 1;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
       encoding = LATIN1;
@@ -284,6 +270,9 @@ int main(int argc, char* argv[]) {
       check_tokens = false;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
       benchmark = std::string(argv[i]).substr(12);
+    } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
+      std::string repeat_str = std::string(argv[i]).substr(9);
+      repeat = atoi(repeat_str.c_str());
     } else if (i > 0 && argv[i][0] != '-') {
       fnames.push_back(std::string(argv[i]));
     }
@@ -302,7 +291,8 @@ int main(int argc, char* argv[]) {
         std::pair<TimeDelta, TimeDelta> times;
         check_tokens = check_tokens && run_baseline && run_experimental;
         times = ProcessFile(fnames[i].c_str(), encoding, isolate, run_baseline,
-                            run_experimental, print_tokens, check_tokens);
+                            run_experimental, print_tokens, check_tokens,
+                            repeat);
         baseline_total += times.first.InMillisecondsF();
         experimental_total += times.second.InMillisecondsF();
       }
