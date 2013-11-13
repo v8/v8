@@ -56,10 +56,6 @@
 
 #include "experimental-scanner.h"
 
-#define PUSH_TOKEN(T) { send(T); start_ = cursor_; }
-#define PUSH_LINE_TERMINATOR(s) { start_ = cursor_; }
-#define SKIP() { start_ = cursor_; }
-
 using namespace v8::internal;
 
 namespace {
@@ -126,8 +122,7 @@ uint32_t EvenMoreExperimentalScanner::push(const void *input, int input_size) {
   cursor_ = buffer_ - 1;
   start_ = buffer_;
   buffer_end_ = buffer_ + input_size;
-
-#include "generated.c"
+  return DoLex();
 }
 
 

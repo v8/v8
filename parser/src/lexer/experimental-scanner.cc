@@ -34,6 +34,7 @@
 #include "spaces-inl.h"
 #include "isolate.h"
 #include "lexer.h"
+#include "even-more-experimental-scanner.h"
 
 namespace v8 {
 namespace internal {
@@ -72,7 +73,10 @@ ExperimentalScanner::ExperimentalScanner(const char* fname,
       source_(0),
       length_(0) {
   file_ = fopen(fname, "rb");
-  scanner_ = new PushScanner(this, isolate->unicode_cache());
+  // python generated version
+  scanner_ = new EvenMoreExperimentalScanner(this, isolate->unicode_cache());
+  // re2c version
+  // scanner_ = new PushScanner(this, isolate->unicode_cache());
   if (read_all_at_once_) {
     source_ = ReadFile(fname, isolate, &length_);
     token_.resize(1500);

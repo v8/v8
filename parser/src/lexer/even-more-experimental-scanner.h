@@ -34,6 +34,10 @@
 
 #define YYCTYPE uint8_t
 
+#define PUSH_TOKEN(T) { send(T); start_ = cursor_; }
+#define PUSH_LINE_TERMINATOR(s) { start_ = cursor_; }
+#define SKIP() { start_ = cursor_; }
+
 namespace v8 {
 namespace internal {
 
@@ -51,6 +55,8 @@ class EvenMoreExperimentalScanner {
   uint32_t push(const void *input, int input_size);
 
  private:
+  uint32_t DoLex();
+
   bool ValidIdentifierStart();
   bool ValidIdentifierPart();
   uc32 ScanHexNumber(int length);

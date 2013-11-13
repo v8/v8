@@ -36,6 +36,7 @@
 namespace v8 {
 namespace internal {
 
+class EvenMoreExperimentalScanner;
 class PushScanner;
 
 class ExperimentalScanner {
@@ -77,7 +78,10 @@ class ExperimentalScanner {
   size_t current_;
   size_t fetched_;
   FILE* file_;
-  PushScanner* scanner_;
+  // python generated version
+  EvenMoreExperimentalScanner* scanner_;
+  // re2c version
+  // PushScanner* scanner_;
   bool read_all_at_once_;
   bool already_pushed_;
   const v8::internal::byte* source_;

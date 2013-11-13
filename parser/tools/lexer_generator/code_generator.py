@@ -58,7 +58,7 @@ class CodeGenerator:
     # FIXME: add default action
     code = '''
 code_%s:
-    fprintf(stderr, "state %s\\n");''' % (state.node_number(),
+    //fprintf(stderr, "state %s\\n");''' % (state.node_number(),
                                           state.node_number())
 
     action = state.action()
@@ -72,7 +72,7 @@ code_%s:
 
     code += '''
     yych = *(++cursor_);
-    fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
+    //fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
 
     for key, s in state.transitions().items():
       code += CodeGenerator.key_to_code(key)
@@ -90,10 +90,21 @@ code_%s:
   def dfa_to_code(dfa):
     start_node_number = dfa.start_state().node_number()
     code = '''
+#include "lexer/even-more-experimental-scanner.h"
+
+namespace v8 {
+namespace internal {
+uint32_t EvenMoreExperimentalScanner::DoLex() {
 YYCTYPE yych = *cursor_;
 goto code_%s;
 ''' % start_node_number
     def f(state, code):
       code += CodeGenerator.dfa_state_to_code(state, start_node_number)
       return code
-    return dfa.visit_all_states(f, code)
+    code = dfa.visit_all_states(f, code)
+    code += '''
+return 0;
+}
+}
+}'''
+    return code

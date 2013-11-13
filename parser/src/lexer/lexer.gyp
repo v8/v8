@@ -44,10 +44,13 @@
         '../../src/lexer',
       ],
       'sources': [
+        'even-more-experimental-scanner.cc',
+        'even-more-experimental-scanner.h',
         'experimental-scanner.cc',
         'experimental-scanner.h',
         'lexer-shell.cc',
         'lexer.h',
+        '<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
         '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
       ],
       'conditions': [
@@ -75,6 +78,22 @@
             '--output',
             '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
             '../../src/lexer/lexer.re',
+          ],
+        },
+        {
+          'action_name': 'codegen',
+          'inputs': [
+            '../../src/lexer/lexer_py.re',
+            '../../tools/lexer_generator/*.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/lexer_generator/generator.py',
+            '--re=../../src/lexer/lexer_py.re',
+            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
           ],
         },
       ],
