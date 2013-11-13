@@ -36,6 +36,7 @@
 
 #define PUSH_TOKEN(T) { send(T); start_ = cursor_; }
 #define PUSH_LINE_TERMINATOR(s) { start_ = cursor_; }
+#define BACK() { yych = *(--cursor_); }
 #define SKIP() { start_ = cursor_; }
 
 namespace v8 {

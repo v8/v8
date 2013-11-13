@@ -195,8 +195,8 @@ eof              <<terminate>>
 catch_all <<continue>>
 
 <MultiLineComment>
-"*/"             { SKIP(); }
-/\*./             <<continue>>
+"*/"             { SKIP(); BACK(); goto code_start;}
+/\*[^\057]/      <<continue>>
 # need to force action
 line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
 eof              <<terminate>>

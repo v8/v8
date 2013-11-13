@@ -56,18 +56,24 @@ class CodeGenerator:
     # FIXME: add different check types (if, switch, lookup table)
     # FIXME: add action + break / continue
     # FIXME: add default action
-    code = '''
+    code = ''
+    if start_node_number == state.node_number():
+      code += '''
+code_start:
+'''
+    code += '''
 code_%s:
-    //fprintf(stderr, "state %s\\n");''' % (state.node_number(),
-                                          state.node_number())
+    //fprintf(stderr, "state %s\\n");
+''' % (state.node_number(),
+       state.node_number())
 
     action = state.action()
     if action:
       if action.type() == 'terminate':
-        code += 'return 0;'
+        code += 'PUSH_TOKEN(Token::EOS); return 0;'
         return code
       elif action.type() == 'terminate_illegal':
-        code += 'return 1;'
+        code += 'PUSH_TOKEN(Token::ILLEGAL); return 1;'
         return code
 
     code += '''
@@ -82,7 +88,7 @@ code_%s:
 ''' % s.node_number()
 
     if action:
-      code += '%s\nyych = *(--cursor_);\ngoto code_%s;\n' % (action.data(),
+      code += '%s\nBACK();\ngoto code_%s;\n' % (action.data(),
                                                              start_node_number)
     else:
       code += 'goto default_action;'
@@ -108,8 +114,9 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
     code += '''
   CHECK(false);
 default_action:
+  //fprintf(stderr, "default action\\n");
   %s
-  yych = *(--cursor_);
+  BACK();
   goto code_%s;
   return 0;
 }
