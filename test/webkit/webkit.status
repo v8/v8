@@ -33,6 +33,7 @@
   'dfg-inline-arguments-become-double': [PASS, FLAKY],
   'dfg-inline-arguments-become-int32': [PASS, FLAKY],
   'dfg-inline-arguments-reset': [PASS, FLAKY],
+  'dfg-inline-arguments-reset-changetype': [PASS, FLAKY],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
