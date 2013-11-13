@@ -51,7 +51,7 @@ class ActionTestCase(unittest.TestCase):
       automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)
-      (nfa, dfa) = automata_for_conditions['default']
+      dfa = automata_for_conditions['default'].dfa()
 
       self.__verify_last_action(dfa, 'foo', 'ID')
       self.__verify_last_action(dfa, 'key', 'KEYWORD')
@@ -66,7 +66,7 @@ class ActionTestCase(unittest.TestCase):
       automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)
-      (nfa, dfa) = automata_for_conditions['default']
+      dfa = automata_for_conditions['default'].dfa()
 
       # The keyword is not recognized because of the rule preference order (ID
       # is preferred over KEYWORD).

@@ -234,8 +234,25 @@ class RuleProcessor(object):
     return self.__automata['default']
 
   def lex(self, string):
-    (nfa, dfa) = self.default_automata()
+    dfa = self.default_automata().dfa()
     return dfa.lex(string)
+
+  class Automata(object):
+
+    def __init__(self, nfa):
+      (start, dfa_nodes) = nfa.compute_dfa()
+      self.__nfa = nfa
+      self.__dfa = Dfa(start, dfa_nodes)
+      self.__minimial_dfa = self.__dfa.minimize()
+
+    def nfa(self):
+      return self.__dfa
+
+    def dfa(self):
+      return self.__dfa
+
+    def minimal_dfa(self):
+      return self.__minimial_dfa
 
   def __process_parser_state(self, parser_state):
     rule_map = {}
@@ -281,6 +298,4 @@ class RuleProcessor(object):
     # build the automata
     for rule_name, graph in rule_map.items():
       nfa = builder.nfa(graph)
-      (start, dfa_nodes) = nfa.compute_dfa()
-      dfa = Dfa(start, dfa_nodes)
-      self.__automata[rule_name] = (nfa, dfa)
+      self.__automata[rule_name] = RuleProcessor.Automata(nfa)

@@ -26,7 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from automaton import *
-from nfa import Nfa
 from transition_keys import TransitionKey
 
 class DfaState(AutomatonState):
@@ -58,14 +57,14 @@ class Dfa(Automaton):
   def __init__(self, start_name, mapping):
     super(Dfa, self).__init__()
     self.__terminal_set = set()
-    self.__name_map = {}
+    name_map = {}
     for name, node_data in mapping.items():
       node = DfaState(name, node_data['action'])
-      self.__name_map[name] = node
+      name_map[name] = node
       if node_data['terminal']:
         self.__terminal_set.add(node)
     for name, node_data in mapping.items():
-      node = self.__name_map[name]
+      node = name_map[name]
       inversion = {}
       for key, state in node_data['transitions'].items():
         if not state in inversion:
@@ -73,9 +72,15 @@ class Dfa(Automaton):
         inversion[state].append(key)
       for state, keys in inversion.items():
         merged_key = TransitionKey.merged_key(keys)
-        node.add_transition(merged_key, self.__name_map[state])
-    self.__start = self.__name_map[start_name]
+        node.add_transition(merged_key, name_map[state])
+    self.__start = name_map[start_name]
+    self.__node_count = len(mapping)
+    self.__verify()
+
+  def __verify(self):
     assert self.__terminal_set
+    state_count = self.visit_all_states(lambda state, count: count + 1, 0)
+    assert self.__node_count == state_count
 
   def start_state(self):
     return self.__start
@@ -87,7 +92,7 @@ class Dfa(Automaton):
     return set(self.__terminal_set)
 
   def all_states_iter(self):
-    return iter(self.__name_map.values())
+    return self.__start.state_iter()
 
   @staticmethod
   def __match_char(state, char):

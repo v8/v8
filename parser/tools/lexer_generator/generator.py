@@ -67,8 +67,8 @@ load_outer_template = '''    <script>
 def generate_html(rule_processor):
   scripts = []
   loads = []
-  for i, (name, (nfa, dfa)) in enumerate(list(rule_processor.automata_iter())):
-    if name == 'Normal': continue
+  for i, (name, automata) in enumerate(list(rule_processor.automata_iter())):
+    (nfa, dfa) = (automata.nfa(), automata.dfa())
     (nfa_i, dfa_i) = ("nfa_%d" % i, "dfa_%d" % i)
     scripts.append(script_template % (nfa_i, nfa.to_dot()))
     scripts.append(script_template % (dfa_i, dfa.to_dot()))
@@ -78,7 +78,7 @@ def generate_html(rule_processor):
   return file_template % body
 
 def generate_code(rule_processor):
-  (nfa, dfa) = rule_processor.default_automata()
+  dfa = rule_processor.default_automata().dfa()
   return CodeGenerator.dfa_to_code(dfa)
 
 def lex(rule_processor, string):
