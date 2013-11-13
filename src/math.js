@@ -217,7 +217,7 @@ var InitTrigonometricFunctions;
 // Also define the initialization function that populates the lookup table
 // and then wires up the function definitions.
 function SetupTrigonometricFunctions() {
-  var samples = 2048;  // Table size.
+  var samples = 1800;  // Table size.
   var pi = 3.1415926535897932;
   var pi_half = pi / 2;
   var inverse_pi_half = 1 / pi_half;
