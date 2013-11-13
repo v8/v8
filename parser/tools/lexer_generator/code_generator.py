@@ -89,7 +89,7 @@ code_%s:
 
     if action:
       code += '%s\nBACK();\ngoto code_%s;\n' % (action.data(),
-                                                             start_node_number)
+                                                start_node_number)
     else:
       code += 'goto default_action;'
     return code
@@ -116,7 +116,6 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
 default_action:
   //fprintf(stderr, "default action\\n");
   %s
-  BACK();
   goto code_%s;
   return 0;
 }
