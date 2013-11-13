@@ -329,6 +329,8 @@ template <class T> class Handle {
   friend Handle<Boolean> False(Isolate* isolate);
   friend class Context;
   friend class HandleScope;
+  friend class Object;
+  friend class Private;
 
   V8_INLINE static Handle<T> New(Isolate* isolate, T* that);
 

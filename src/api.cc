@@ -3192,8 +3192,8 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
 
 
 bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
-  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
-  return Set(*key_as_value, value, DontEnum);
+  return Set(v8::Handle<Value>(reinterpret_cast<Value*>(*key)),
+             value, DontEnum);
 }
 
 
@@ -3249,8 +3249,7 @@ Local<Value> v8::Object::Get(uint32_t index) {
 
 
 Local<Value> v8::Object::GetPrivate(v8::Handle<Private> key) {
-  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
-  return Get(*key_as_value);
+  return Get(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -3454,8 +3453,7 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
 
 
 bool v8::Object::DeletePrivate(v8::Handle<Private> key) {
-  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
-  return Delete(*key_as_value);
+  return Delete(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -3474,8 +3472,7 @@ bool v8::Object::Has(v8::Handle<Value> key) {
 
 
 bool v8::Object::HasPrivate(v8::Handle<Private> key) {
-  v8::Handle<Value>* key_as_value = reinterpret_cast<v8::Handle<Value>*>(&key);
-  return Has(*key_as_value);
+  return Has(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -6197,9 +6194,7 @@ Local<Private> v8::Private::New(
     symbol->set_name(*name);
   }
   Local<Symbol> result = Utils::ToLocal(symbol);
-  v8::Handle<Private>* result_as_private =
-      reinterpret_cast<v8::Handle<Private>*>(&result);
-  return *result_as_private;
+  return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
 }
 
 
