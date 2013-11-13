@@ -91,9 +91,6 @@ class Dfa(Automaton):
   def terminal_set(self):
     return set(self.__terminal_set)
 
-  def all_states_iter(self):
-    return self.__start.state_iter()
-
   @staticmethod
   def __match_char(state, char):
     match = list(state.state_iter(key_filter = lambda k: k.matches_char(char)))
@@ -136,4 +133,22 @@ class Dfa(Automaton):
     yield (state.action(), last_position, len(string))
 
   def minimize(self):
-    pass
+    paritions = []
+    working_set = []
+    action_map = {}
+    id_map = {}
+    def f(state, visitor_state):
+      node_number = state.node_number()
+      assert not node_number in id_map
+      id_map[node_number] = state
+      action = state.action()
+      if not action in action_map:
+        action_map[action] = set()
+      action_map[action].add(node_number)
+    self.visit_all_states(f)
+    total = 0
+    for p in action_map.values():
+      paritions.append(p)
+      total += len(p)
+    assert total == self.__node_count
+

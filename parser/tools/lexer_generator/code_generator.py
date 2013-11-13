@@ -88,11 +88,12 @@ code_%s:
 
   @staticmethod
   def dfa_to_code(dfa):
+    start_node_number = dfa.start_state().node_number()
     code = '''
 YYCTYPE yych = *cursor_;
 goto code_%s;
-''' % (dfa.start_state().node_number())
-    for n in dfa.all_states_iter():
-      code += CodeGenerator.dfa_state_to_code(n,
-                                              dfa.start_state().node_number())
-    return code
+''' % start_node_number
+    def f(state, code):
+      code += CodeGenerator.dfa_state_to_code(state, start_node_number)
+      return code
+    return dfa.visit_all_states(f, code)
