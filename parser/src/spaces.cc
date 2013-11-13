@@ -960,8 +960,8 @@ PagedSpace::PagedSpace(Heap* heap,
       * AreaSize();
   accounting_stats_.Clear();
 
-  allocation_info_.top = NULL;
-  allocation_info_.limit = NULL;
+  allocation_info_.set_top(NULL);
+  allocation_info_.set_limit(NULL);
 
   anchor_.InitializeAsAnchor(this);
 }
@@ -990,7 +990,7 @@ void PagedSpace::TearDown() {
 
 size_t PagedSpace::CommittedPhysicalMemory() {
   if (!VirtualMemory::HasLazyCommits()) return CommittedMemory();
-  MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = 0;
   PageIterator it(this);
   while (it.has_next()) {
@@ -1122,6 +1122,11 @@ void PagedSpace::ResetFreeListStatistics() {
 }
 
 
+void PagedSpace::IncreaseCapacity(int size) {
+  accounting_stats_.ExpandSpace(size);
+}
+
+
 void PagedSpace::ReleasePage(Page* page, bool unlink) {
   ASSERT(page->LiveBytes() == 0);
   ASSERT(AreaSize() == page->area_size());
@@ -1142,8 +1147,9 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
     DecreaseUnsweptFreeBytes(page);
   }
 
-  if (Page::FromAllocationTop(allocation_info_.top) == page) {
-    allocation_info_.top = allocation_info_.limit = NULL;
+  if (Page::FromAllocationTop(allocation_info_.top()) == page) {
+    allocation_info_.set_top(NULL);
+    allocation_info_.set_limit(NULL);
   }
 
   if (unlink) {
@@ -1170,12 +1176,12 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
   if (was_swept_conservatively_) return;
 
   bool allocation_pointer_found_in_space =
-      (allocation_info_.top == allocation_info_.limit);
+      (allocation_info_.top() == allocation_info_.limit());
   PageIterator page_iterator(this);
   while (page_iterator.has_next()) {
     Page* page = page_iterator.next();
     CHECK(page->owner() == this);
-    if (page == Page::FromAllocationTop(allocation_info_.top)) {
+    if (page == Page::FromAllocationTop(allocation_info_.top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->WasSweptPrecisely());
@@ -1286,8 +1292,8 @@ void NewSpace::TearDown() {
   }
 
   start_ = NULL;
-  allocation_info_.top = NULL;
-  allocation_info_.limit = NULL;
+  allocation_info_.set_top(NULL);
+  allocation_info_.set_limit(NULL);
 
   to_space_.TearDown();
   from_space_.TearDown();
@@ -1344,22 +1350,22 @@ void NewSpace::Shrink() {
       }
     }
   }
-  allocation_info_.limit = to_space_.page_high();
+  allocation_info_.set_limit(to_space_.page_high());
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
 void NewSpace::UpdateAllocationInfo() {
-  MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
-  allocation_info_.top = to_space_.page_low();
-  allocation_info_.limit = to_space_.page_high();
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  allocation_info_.set_top(to_space_.page_low());
+  allocation_info_.set_limit(to_space_.page_high());
 
   // Lower limit during incremental marking.
   if (heap()->incremental_marking()->IsMarking() &&
       inline_allocation_limit_step() != 0) {
     Address new_limit =
-        allocation_info_.top + inline_allocation_limit_step();
-    allocation_info_.limit = Min(new_limit, allocation_info_.limit);
+        allocation_info_.top() + inline_allocation_limit_step();
+    allocation_info_.set_limit(Min(new_limit, allocation_info_.limit()));
   }
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
@@ -1378,7 +1384,7 @@ void NewSpace::ResetAllocationInfo() {
 
 
 bool NewSpace::AddFreshPage() {
-  Address top = allocation_info_.top;
+  Address top = allocation_info_.top();
   if (NewSpacePage::IsAtStart(top)) {
     // The current page is already empty. Don't try to make another.
 
@@ -1410,15 +1416,16 @@ bool NewSpace::AddFreshPage() {
 
 
 MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
-  Address old_top = allocation_info_.top;
+  Address old_top = allocation_info_.top();
   Address new_top = old_top + size_in_bytes;
   Address high = to_space_.page_high();
-  if (allocation_info_.limit < high) {
+  if (allocation_info_.limit() < high) {
     // Incremental marking has lowered the limit to get a
     // chance to do a step.
-    allocation_info_.limit = Min(
-        allocation_info_.limit + inline_allocation_limit_step_,
+    Address new_limit = Min(
+        allocation_info_.limit() + inline_allocation_limit_step_,
         high);
+    allocation_info_.set_limit(new_limit);
     int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
     heap()->incremental_marking()->Step(
         bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
@@ -1509,6 +1516,7 @@ void SemiSpace::SetUp(Address start,
   initial_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   capacity_ = initial_capacity;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
+  maximum_committed_ = 0;
   committed_ = false;
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
@@ -1541,6 +1549,7 @@ bool SemiSpace::Commit() {
     current = new_page;
   }
 
+  SetCapacity(capacity_);
   committed_ = true;
   Reset();
   return true;
@@ -1589,7 +1598,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
       start_ + capacity_, delta, executable())) {
     return false;
   }
-  capacity_ = new_capacity;
+  SetCapacity(new_capacity);
   NewSpacePage* last_page = anchor()->prev_page();
   ASSERT(last_page != anchor());
   for (int i = pages_before; i < pages_after; i++) {
@@ -1629,7 +1638,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
     ASSERT((current_page_ >= first_page()) && (current_page_ <= new_last_page));
   }
 
-  capacity_ = new_capacity;
+  SetCapacity(new_capacity);
 
   return true;
 }
@@ -1689,6 +1698,14 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   to->FlipPages(flags, NewSpacePage::kCopyOnFlipFlagsMask);
 
   from->FlipPages(0, 0);
+}
+
+
+void SemiSpace::SetCapacity(int new_capacity) {
+  capacity_ = new_capacity;
+  if (capacity_ > maximum_committed_) {
+    maximum_committed_ = capacity_;
+  }
 }
 
 
@@ -1973,7 +1990,7 @@ void NewSpace::RecordPromotion(HeapObject* obj) {
 
 size_t NewSpace::CommittedPhysicalMemory() {
   if (!VirtualMemory::HasLazyCommits()) return CommittedMemory();
-  MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = to_space_.CommittedPhysicalMemory();
   if (from_space_.is_committed()) {
     size += from_space_.CommittedPhysicalMemory();
@@ -2487,29 +2504,6 @@ intptr_t FreeList::SumFreeLists() {
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-bool NewSpace::ReserveSpace(int bytes) {
-  // We can't reliably unpack a partial snapshot that needs more new space
-  // space than the minimum NewSpace size.  The limit can be set lower than
-  // the end of new space either because there is more space on the next page
-  // or because we have lowered the limit in order to get periodic incremental
-  // marking.  The most reliable way to ensure that there is linear space is
-  // to do the allocation, then rewind the limit.
-  ASSERT(bytes <= InitialCapacity());
-  MaybeObject* maybe = AllocateRaw(bytes);
-  Object* object = NULL;
-  if (!maybe->ToObject(&object)) return false;
-  HeapObject* allocation = HeapObject::cast(object);
-  Address top = allocation_info_.top;
-  if ((top - bytes) == allocation->address()) {
-    allocation_info_.top = allocation->address();
-    return true;
-  }
-  // There may be a borderline case here where the allocation succeeded, but
-  // the limit and top have moved on to a new page.  In that case we try again.
-  return ReserveSpace(bytes);
-}
-
-
 void PagedSpace::PrepareForMarkCompact() {
   // We don't have a linear allocation area while sweeping.  It will be restored
   // on the first allocation after the sweep.
@@ -2544,28 +2538,6 @@ void PagedSpace::PrepareForMarkCompact() {
 }
 
 
-bool PagedSpace::ReserveSpace(int size_in_bytes) {
-  ASSERT(size_in_bytes <= AreaSize());
-  ASSERT(size_in_bytes == RoundSizeDownToObjectAlignment(size_in_bytes));
-  Address current_top = allocation_info_.top;
-  Address new_top = current_top + size_in_bytes;
-  if (new_top <= allocation_info_.limit) return true;
-
-  HeapObject* new_area = free_list_.Allocate(size_in_bytes);
-  if (new_area == NULL) new_area = SlowAllocateRaw(size_in_bytes);
-  if (new_area == NULL) return false;
-
-  int old_linear_size = static_cast<int>(limit() - top());
-  // Mark the old linear allocation area with a free space so it can be
-  // skipped when scanning the heap.  This also puts it back in the free list
-  // if it is big enough.
-  Free(top(), old_linear_size);
-
-  SetTop(new_area->address(), new_area->address() + size_in_bytes);
-  return true;
-}
-
-
 intptr_t PagedSpace::SizeOfObjects() {
   ASSERT(!heap()->IsSweepingComplete() || (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
@@ -2578,15 +2550,6 @@ intptr_t PagedSpace::SizeOfObjects() {
 // fix them.
 void PagedSpace::RepairFreeListsAfterBoot() {
   free_list_.RepairLists(heap());
-}
-
-
-// You have to call this last, since the implementation from PagedSpace
-// doesn't know that memory was 'promised' to large object space.
-bool LargeObjectSpace::ReserveSpace(int bytes) {
-  return heap()->OldGenerationCapacityAvailable() >= bytes &&
-         (!heap()->incremental_marking()->IsStopped() ||
-           heap()->OldGenerationSpaceAvailable() >= bytes);
 }
 
 
@@ -2624,16 +2587,17 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
 
 
 void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
-  if (allocation_info_.top >= allocation_info_.limit) return;
+  if (allocation_info_.top() >= allocation_info_.limit()) return;
 
-  if (Page::FromAllocationTop(allocation_info_.top)->IsEvacuationCandidate()) {
+  if (Page::FromAllocationTop(allocation_info_.top())->
+      IsEvacuationCandidate()) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining =
-        static_cast<int>(allocation_info_.limit - allocation_info_.top);
-    heap()->CreateFillerObjectAt(allocation_info_.top, remaining);
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top());
+    heap()->CreateFillerObjectAt(allocation_info_.top(), remaining);
 
-    allocation_info_.top = NULL;
-    allocation_info_.limit = NULL;
+    allocation_info_.set_top(NULL);
+    allocation_info_.set_limit(NULL);
   }
 }
 
@@ -2843,23 +2807,6 @@ void PagedSpace::ReportStatistics() {
 }
 #endif
 
-// -----------------------------------------------------------------------------
-// FixedSpace implementation
-
-void FixedSpace::PrepareForMarkCompact() {
-  // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact();
-
-  // During a non-compacting collection, everything below the linear
-  // allocation pointer except wasted top-of-page blocks is considered
-  // allocated and we will rediscover available bytes during the
-  // collection.
-  accounting_stats_.AllocateBytes(free_list_.available());
-
-  // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_.Reset();
-}
-
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
@@ -2935,6 +2882,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap,
 bool LargeObjectSpace::SetUp() {
   first_page_ = NULL;
   size_ = 0;
+  maximum_committed_ = 0;
   page_count_ = 0;
   objects_size_ = 0;
   chunk_map_.Clear();
@@ -2980,6 +2928,10 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   page_count_++;
   page->set_next_page(first_page_);
   first_page_ = page;
+
+  if (size_ > maximum_committed_) {
+    maximum_committed_ = size_;
+  }
 
   // Register all MemoryChunk::kAlignment-aligned chunks covered by
   // this large page in the chunk map.

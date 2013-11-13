@@ -578,8 +578,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1, a0, a3);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(a2);  // Save the key.
-    __ Push(a1, a2);  // Pass the receiver and the key.
+    __ Push(a2, a1, a2);  // Save the key and pass the receiver and the key.
     __ CallRuntime(Runtime::kKeyedGetProperty, 2);
     __ pop(a2);  // Restore the key.
   }
@@ -1181,6 +1180,22 @@ static void KeyedStoreGenerateGenericHelper(
     __ Branch(fast_double, ne, elements_map,
               Operand(masm->isolate()->factory()->fixed_array_map()));
   }
+
+  // HOLECHECK: guards "A[i] = V"
+  // We have to go to the runtime if the current value is the hole because
+  // there may be a callback on the element.
+  Label holecheck_passed1;
+  __ Addu(address, elements, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ sll(at, key, kPointerSizeLog2 - kSmiTagSize);
+  __ addu(address, address, at);
+  __ lw(scratch_value, MemOperand(address));
+  __ Branch(&holecheck_passed1, ne, scratch_value,
+            Operand(masm->isolate()->factory()->the_hole_value()));
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
+                                      slow);
+
+  __ bind(&holecheck_passed1);
+
   // Smi stores don't require further checks.
   Label non_smi_value;
   __ JumpIfNotSmi(value, &non_smi_value);
@@ -1231,6 +1246,21 @@ static void KeyedStoreGenerateGenericHelper(
     __ LoadRoot(at, Heap::kFixedDoubleArrayMapRootIndex);
     __ Branch(slow, ne, elements_map, Operand(at));
   }
+
+  // HOLECHECK: guards "A[i] double hole?"
+  // We have to see if the double version of the hole is present. If so
+  // go to the runtime.
+  __ Addu(address, elements,
+          Operand(FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32)
+                  - kHeapObjectTag));
+  __ sll(at, key, kPointerSizeLog2);
+  __ addu(address, address, at);
+  __ lw(scratch_value, MemOperand(address));
+  __ Branch(&fast_double_without_map_check, ne, scratch_value,
+            Operand(kHoleNanUpper32));
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
+                                      slow);
+
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(value,
                                  key,

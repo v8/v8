@@ -301,17 +301,12 @@ static void CallRuntimePassFunction(MacroAssembler* masm,
                                     Runtime::FunctionId function_id) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
-  __ push(a1);
-  // Push call kind information.
-  __ push(t1);
-  // Function is also the parameter to the runtime call.
-  __ push(a1);
+  // Push call kind information and function as parameter to the runtime call.
+  __ Push(a1, t1, a1);
 
   __ CallRuntime(function_id, 1);
-  // Restore call kind information.
-  __ pop(t1);
-  // Restore receiver.
-  __ pop(a1);
+  // Restore call kind information and receiver.
+  __ Pop(a1, t1);
 }
 
 
@@ -421,14 +416,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ sb(t0, constructor_count);
         __ Branch(&allocate, ne, t0, Operand(zero_reg));
 
-        __ Push(a1, a2);
-
-        __ push(a1);  // Constructor.
+        __ Push(a1, a2, a1);  // a1 = Constructor.
         // The call will replace the stub, so the countdown is only done once.
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
-        __ pop(a2);
-        __ pop(a1);
+        __ Pop(a1, a2);
 
         __ bind(&allocate);
       }
@@ -1245,8 +1237,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Out of stack space.
     __ lw(a1, MemOperand(fp, kFunctionOffset));
-    __ push(a1);
-    __ push(v0);
+    __ Push(a1, v0);
     __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
     // End of stack check.
 
@@ -1327,8 +1318,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // a0: current argument index
     __ bind(&loop);
     __ lw(a1, MemOperand(fp, kArgsOffset));
-    __ push(a1);
-    __ push(a0);
+    __ Push(a1, a0);
 
     // Call the runtime to access the property in the arguments array.
     __ CallRuntime(Runtime::kGetProperty, 2);

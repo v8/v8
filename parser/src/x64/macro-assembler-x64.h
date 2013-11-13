@@ -53,6 +53,22 @@ typedef Operand MemOperand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
+enum SmiOperationConstraint {
+  PRESERVE_SOURCE_REGISTER,
+  BAILOUT_ON_NO_OVERFLOW,
+  BAILOUT_ON_OVERFLOW,
+  NUMBER_OF_CONSTRAINTS
+};
+
+STATIC_ASSERT(NUMBER_OF_CONSTRAINTS <= 8);
+
+class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
+ public:
+  SmiOperationExecutionMode() : EnumSet<SmiOperationConstraint, byte>(0) { }
+  explicit SmiOperationExecutionMode(byte bits)
+      : EnumSet<SmiOperationConstraint, byte>(bits) { }
+};
+
 bool AreAliased(Register r1, Register r2, Register r3, Register r4);
 
 // Forward declaration.
@@ -319,7 +335,7 @@ class MacroAssembler: public Assembler {
   void InitializeRootRegister() {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
-    movq(kRootRegister, roots_array_start);
+    Move(kRootRegister, roots_array_start);
     addq(kRootRegister, Immediate(kRootRegisterBias));
   }
 
@@ -384,8 +400,7 @@ class MacroAssembler: public Assembler {
   void SafePush(Smi* src);
 
   void InitializeSmiConstantRegister() {
-    movq(kSmiConstantRegister,
-         reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
+    movq(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
          RelocInfo::NONE64);
   }
 
@@ -548,7 +563,8 @@ class MacroAssembler: public Assembler {
   void SmiAddConstant(Register dst,
                       Register src,
                       Smi* constant,
-                      Label* on_not_smi_result,
+                      SmiOperationExecutionMode mode,
+                      Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
@@ -561,7 +577,8 @@ class MacroAssembler: public Assembler {
   void SmiSubConstant(Register dst,
                       Register src,
                       Smi* constant,
-                      Label* on_not_smi_result,
+                      SmiOperationExecutionMode mode,
+                      Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Negating a smi can give a negative zero or too large positive value.
@@ -829,6 +846,12 @@ class MacroAssembler: public Assembler {
   void Pop(Register dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
+  void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
+  void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
+  void Move(Register dst, ExternalReference ext) {
+    movq(dst, reinterpret_cast<Address>(ext.address()),
+         RelocInfo::EXTERNAL_REFERENCE);
+  }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
@@ -914,13 +937,8 @@ class MacroAssembler: public Assembler {
                                    Label* fail,
                                    int elements_offset = 0);
 
-  // Compare an object's map with the specified map and its transitioned
-  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. FLAGS are set with
-  // result of map compare. If multiple map compares are required, the compare
-  // sequences branches to early_success.
-  void CompareMap(Register obj,
-                  Handle<Map> map,
-                  Label* early_success);
+  // Compare an object's map with the specified map.
+  void CompareMap(Register obj, Handle<Map> map);
 
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
@@ -1097,15 +1115,6 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Label* gc_required,
                 AllocationFlags flags);
-
-  // Record a JS object allocation if allocations tracking mode is on.
-  void RecordObjectAllocation(Isolate* isolate,
-                              Register object,
-                              Register object_size);
-
-  void RecordObjectAllocation(Isolate* isolate,
-                              Register object,
-                              int object_size);
 
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. Make sure that no pointers are left to the
@@ -1409,6 +1418,10 @@ class MacroAssembler: public Assembler {
     j(equal, memento_found);
     bind(&no_memento_found);
   }
+
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
 
  private:
   // Order general registers are pushed by Pushad.

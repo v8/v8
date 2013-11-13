@@ -2328,6 +2328,7 @@ bool Isolate::Init(Deserializer* des) {
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
     NumberToStringStub::InstallDescriptors(this);
+    NewStringAddStub::InstallDescriptors(this);
   }
 
   if (FLAG_sweeper_threads > 0) {
@@ -2462,6 +2463,12 @@ HStatistics* Isolate::GetHStatistics() {
 HTracer* Isolate::GetHTracer() {
   if (htracer() == NULL) set_htracer(new HTracer(id()));
   return htracer();
+}
+
+
+CodeTracer* Isolate::GetCodeTracer() {
+  if (code_tracer() == NULL) set_code_tracer(new CodeTracer(id()));
+  return code_tracer();
 }
 
 

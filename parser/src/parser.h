@@ -47,24 +47,6 @@ class Target;
 template <typename T> class ZoneListWrapper;
 
 
-class ParserMessage : public Malloced {
- public:
-  ParserMessage(Scanner::Location loc, const char* message,
-                Vector<const char*> args)
-      : loc_(loc),
-        message_(message),
-        args_(args) { }
-  ~ParserMessage();
-  Scanner::Location location() { return loc_; }
-  const char* message() { return message_; }
-  Vector<const char*> args() { return args_; }
- private:
-  Scanner::Location loc_;
-  const char* message_;
-  Vector<const char*> args_;
-};
-
-
 class FunctionEntry BASE_EMBEDDED {
  public:
   enum {
@@ -652,25 +634,6 @@ class Parser : public ParserBase {
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
-
-  // Populate the constant properties fixed array for a materialized object
-  // literal.
-  void BuildObjectLiteralConstantProperties(
-      ZoneList<ObjectLiteral::Property*>* properties,
-      Handle<FixedArray> constants,
-      bool* is_simple,
-      bool* fast_elements,
-      int* depth,
-      bool* may_store_doubles);
-
-  // Decide if a property should be in the object boilerplate.
-  bool IsBoilerplateProperty(ObjectLiteral::Property* property);
-  // If the expression is a literal, return the literal value;
-  // if the expression is a materialized literal and is simple return a
-  // compile time value as encoded by CompileTimeValue::GetValue().
-  // Otherwise, return undefined literal as the placeholder
-  // in the object literal boilerplate.
-  Handle<Object> GetBoilerplateValue(Expression* expression);
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,

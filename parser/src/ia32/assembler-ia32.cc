@@ -553,6 +553,16 @@ void Assembler::mov_w(const Operand& dst, Register src) {
 }
 
 
+void Assembler::mov_w(const Operand& dst, int16_t imm16) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0xC7);
+  emit_operand(eax, dst);
+  EMIT(static_cast<int8_t>(imm16 & 0xff));
+  EMIT(static_cast<int8_t>(imm16 >> 8));
+}
+
+
 void Assembler::mov(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
   EMIT(0xB8 | dst.code());
@@ -2055,6 +2065,22 @@ void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   EMIT(0x66);
   EMIT(0x0F);
   EMIT(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::andps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::orps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x56);
   emit_sse_operand(dst, src);
 }
 

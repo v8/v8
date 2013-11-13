@@ -671,7 +671,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())));
     patcher.masm()->Call(t9);
     // Record the stub address in the empty space for GetCodeAgeAndParity()
-    patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    patcher.masm()->emit_code_stub_address(stub);
   }
 }
 

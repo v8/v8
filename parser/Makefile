@@ -104,6 +104,10 @@ endif
 ifeq ($(unalignedaccess), on)
   GYPFLAGS += -Dv8_can_use_unaligned_accesses=true
 endif
+# randomseed=12345, disable random seed via randomseed=0
+ifdef randomseed
+  GYPFLAGS += -Dv8_random_seed=$(randomseed)
+endif
 # soname_version=1.2.3
 ifdef soname_version
   GYPFLAGS += -Dsoname_version=$(soname_version)
@@ -328,7 +332,7 @@ $(addsuffix .check, $(ANDROID_BUILDS)): $$(basename $$@).sync
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	     --arch-and-mode=$(basename $@) \
 	     --timeout=600 \
-	     --command-prefix="tools/android-run.py"
+	     --command-prefix="tools/android-run.py" $(TESTFLAGS)
 
 $(addsuffix .check, $(ANDROID_ARCHES)): \
                 $(addprefix $$(basename $$@).,$(MODES)).check

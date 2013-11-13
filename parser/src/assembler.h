@@ -390,7 +390,6 @@ class RelocInfo BASE_EMBEDDED {
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
   INLINE(Object* target_object());
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
-  INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
   INLINE(Address target_runtime_entry(Assembler* origin));
@@ -425,7 +424,7 @@ class RelocInfo BASE_EMBEDDED {
 
   // Read/modify the reference in the instruction this relocation
   // applies to; can only be called if rmode_ is external_reference
-  INLINE(Address* target_reference_address());
+  INLINE(Address target_reference());
 
   // Read/modify the address of a call instruction. This is used to relocate
   // the break points where straight-line code is patched with a call
@@ -435,6 +434,10 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Object* call_object());
   INLINE(void set_call_object(Object* target));
   INLINE(Object** call_object_address());
+
+  // Wipe out a relocation to a fixed value, used for making snapshots
+  // reproducible.
+  INLINE(void WipeOut());
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
@@ -486,12 +489,6 @@ class RelocInfo BASE_EMBEDDED {
     double data64_;
   };
   Code* host_;
-  // Code and Embedded Object pointers on some platforms are stored split
-  // across two consecutive 32-bit instructions. Heap management
-  // routines expect to access these pointers indirectly. The following
-  // location provides a place for these pointers to exist naturally
-  // when accessed via the Iterator.
-  Object* reconstructed_obj_ptr_;
   // External-reference pointers are also split across instruction-pairs
   // on some platforms, but are accessed via indirect pointers. This location
   // provides a place for that pointer to exist naturally. Its address
@@ -718,8 +715,6 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference flush_icache_function(Isolate* isolate);
   static ExternalReference perform_gc_function(Isolate* isolate);
-  static ExternalReference fill_heap_number_with_random_function(
-      Isolate* isolate);
   static ExternalReference random_uint32_function(Isolate* isolate);
   static ExternalReference transcendental_cache_array_address(Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
@@ -729,9 +724,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference get_make_code_young_function(Isolate* isolate);
   static ExternalReference get_mark_code_as_executed_function(Isolate* isolate);
-
-  // New heap objects tracking support.
-  static ExternalReference record_object_allocation_function(Isolate* isolate);
 
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);

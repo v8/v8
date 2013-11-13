@@ -419,8 +419,8 @@ class Vector {
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
   Vector<T> SubVector(int from, int to) {
-    ASSERT(to <= length_);
-    ASSERT(from < to);
+    SLOW_ASSERT(to <= length_);
+    SLOW_ASSERT(from < to);
     ASSERT(0 <= from);
     return Vector<T>(start() + from, to - from);
   }
@@ -1083,7 +1083,7 @@ class EnumSet {
     // The strange typing in ASSERT is necessary to avoid stupid warnings, see:
     // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43680
     ASSERT(static_cast<int>(element) < static_cast<int>(sizeof(T) * CHAR_BIT));
-    return 1 << element;
+    return static_cast<T>(1) << element;
   }
 
   T bits_;

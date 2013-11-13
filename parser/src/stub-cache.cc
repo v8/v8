@@ -177,12 +177,12 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   Handle<Name> cache_name = factory()->empty_string();
   Handle<JSObject> current;
   Handle<Object> next = receiver;
-  Handle<GlobalObject> global;
+  Handle<JSGlobalObject> global;
   do {
     current = Handle<JSObject>::cast(next);
     next = Handle<Object>(current->GetPrototype(), isolate_);
-    if (current->IsGlobalObject()) {
-      global = Handle<GlobalObject>::cast(current);
+    if (current->IsJSGlobalObject()) {
+      global = Handle<JSGlobalObject>::cast(current);
       cache_name = name;
     } else if (!current->HasFastProperties()) {
       cache_name = name;
@@ -199,22 +199,6 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
       compiler.CompileLoadNonexistent(receiver, current, cache_name, global);
   HeapObject::UpdateMapCodeCache(receiver, cache_name, handler);
   return handler;
-}
-
-
-Handle<Code> StubCache::ComputeLoadGlobal(Handle<Name> name,
-                                          Handle<JSObject> receiver,
-                                          Handle<GlobalObject> holder,
-                                          Handle<PropertyCell> cell,
-                                          bool is_dont_delete) {
-  Handle<Code> stub = FindIC(name, receiver, Code::LOAD_IC);
-  if (!stub.is_null()) return stub;
-
-  LoadStubCompiler compiler(isolate_);
-  Handle<Code> ic =
-      compiler.CompileLoadGlobal(receiver, holder, cell, name, is_dont_delete);
-  HeapObject::UpdateMapCodeCache(receiver, name, ic);
-  return ic;
 }
 
 
@@ -258,35 +242,6 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
 
   Map::UpdateCodeCache(receiver_map, name, code);
   ASSERT(Code::GetKeyedAccessStoreMode(code->extra_ic_state()) == store_mode);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
-                                           Handle<GlobalObject> receiver,
-                                           Handle<PropertyCell> cell,
-                                           Handle<Object> value,
-                                           StrictModeFlag strict_mode) {
-  Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
-  bool is_constant = union_type->IsConstant();
-  StoreGlobalStub stub(strict_mode, is_constant);
-
-  Handle<Code> code = FindIC(
-      name, Handle<JSObject>::cast(receiver),
-      Code::STORE_IC, stub.GetExtraICState());
-  if (!code.is_null()) return code;
-
-  // Replace the placeholder cell and global object map with the actual global
-  // cell and receiver map.
-  Handle<Map> meta_map(isolate_->heap()->meta_map());
-  Handle<Object> receiver_map(receiver->map(), isolate_);
-  code = stub.GetCodeCopyFromTemplate(isolate_);
-  code->ReplaceNthObject(1, *meta_map, *receiver_map);
-  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
-  code->ReplaceNthObject(1, *cell_map, *cell);
-
-  HeapObject::UpdateMapCodeCache(receiver, name, code);
-
   return code;
 }
 
@@ -1141,7 +1096,10 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
   masm_.GetCode(&desc);
   Handle<Code> code = factory()->NewCode(desc, flags, masm_.CodeObject());
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code_stubs) code->Disassemble(name);
+  if (FLAG_print_code_stubs) {
+    CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
+    code->Disassemble(name, trace_scope.file());
+  }
 #endif
   return code;
 }
@@ -1205,6 +1163,40 @@ Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<JSObject> object,
 
   HandlerFrontendFooter(name, success, &miss);
   return reg;
+}
+
+
+void LoadStubCompiler::NonexistentHandlerFrontend(
+    Handle<JSObject> object,
+    Handle<JSObject> last,
+    Handle<Name> name,
+    Label* success,
+    Handle<JSGlobalObject> global) {
+  Label miss;
+
+  Register holder =
+      HandlerFrontendHeader(object, receiver(), last, name, &miss);
+
+  if (!last->HasFastProperties() &&
+      !last->IsJSGlobalObject() &&
+      !last->IsJSGlobalProxy()) {
+    if (!name->IsUniqueName()) {
+      ASSERT(name->IsString());
+      name = factory()->InternalizeString(Handle<String>::cast(name));
+    }
+    ASSERT(last->property_dictionary()->FindEntry(*name) ==
+        NameDictionary::kNotFound);
+    GenerateDictionaryNegativeLookup(masm(), &miss, holder, name,
+                                     scratch2(), scratch3());
+  }
+
+  // If the last object in the prototype chain is a global object,
+  // check that the global property cell is empty.
+  if (!global.is_null()) {
+    GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
+  }
+
+  HandlerFrontendFooter(name, success, &miss);
 }
 
 
@@ -1562,7 +1554,6 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
 Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
                                                 Code::StubType type,
                                                 Handle<Name> name) {
-  ASSERT(type != Code::NORMAL);
   Code::Flags flags = Code::ComputeFlags(
       Code::HANDLER, MONOMORPHIC, extra_state(), type, kind);
   Handle<Code> code = GetCodeWithFlags(flags, name);

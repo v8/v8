@@ -1,3 +1,75 @@
+2013-11-13: Version 3.23.3
+
+        Fixed compilation with GCC 4.8.
+        (issue 2767, 2149)
+
+        Added explicit Isolate parameter to External::New.
+        (Chromium issue 266838)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-12: Version 3.23.2
+
+        Fixed --extra-code flag for snapshot creation.
+        (issue 2994)
+
+        Fixed error message wording when instanceof throws.
+        (Chromium issue 82797, issue 1593)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-08: Version 3.23.1
+
+        Made HCapturedObjects non-deletable for DCE. (issue 2987)
+
+        Use a fixed random seed per default. (issue 1880, 2885)
+
+        Fixed y-umlaut to uppercase. (issue 2984)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-06: Version 3.23.0
+
+        Fixed loading message from an Error object.  (Chromium issue 306220)
+
+        Made Object.freeze/seal/preventExtensions observable. (issue 2975, 2941)
+
+        Made snapshots reproducible. (issue 2885)
+
+        Added missing negative dictionary lookup to NonexistentHandlerFrontend.
+        (issue 2980)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-31: Version 3.22.24
+
+        Fixed uint32-to-smi conversion in Lithium.
+        (Chromium issue 309623)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-28: Version 3.22.23
+
+        Renamed deprecated __attribute__((no_address_safety_analysis)) to
+        __attribute__((no_sanitize_address)) (Chromium issue 311283)
+
+        Defined DEBUG for v8_optimized_debug=2
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-25: Version 3.22.22
+
+        Record allocation stack traces. (Chromium issue 277984,v8:2949)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-10-24: Version 3.22.21
 
         Performance and stability improvements on all platforms.

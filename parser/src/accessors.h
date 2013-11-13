@@ -149,7 +149,7 @@ class Accessors : public AllStatic {
                                                     void*);
 
   // Helper functions.
-  static Object* FlattenNumber(Isolate* isolate, Object* value);
+  static Handle<Object> FlattenNumber(Isolate* isolate, Handle<Object> value);
   static MaybeObject* IllegalSetter(Isolate* isolate,
                                     JSObject*,
                                     Object*,

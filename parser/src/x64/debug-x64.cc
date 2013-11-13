@@ -132,7 +132,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
     __ Set(rax, 0);  // No arguments (argc == 0).
-    __ movq(rbx, ExternalReference::debug_break(masm->isolate()));
+    __ Move(rbx, ExternalReference::debug_break(masm->isolate()));
 
     CEntryStub ceb(1);
     __ CallStub(&ceb);
@@ -172,7 +172,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // overwritten by the address of DebugBreakXXX.
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
-  __ movq(kScratchRegister, after_break_target);
+  __ Move(kScratchRegister, after_break_target);
   __ jmp(Operand(kScratchRegister, 0));
 }
 
@@ -319,7 +319,7 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
       ExternalReference(Debug_Address::RestarterFrameFunctionPointer(),
                         masm->isolate());
-  __ movq(rax, restarter_frame_function_slot);
+  __ Move(rax, restarter_frame_function_slot);
   __ movq(Operand(rax, 0), Immediate(0));
 
   // We do not know our frame height, but set rsp based on rbp.

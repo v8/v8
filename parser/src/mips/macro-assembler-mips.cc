@@ -35,6 +35,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -48,6 +49,38 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
+  }
+}
+
+
+void MacroAssembler::Load(Register dst,
+                          const MemOperand& src,
+                          Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8()) {
+    lb(dst, src);
+  } else if (r.IsUInteger8()) {
+    lbu(dst, src);
+  } else if (r.IsInteger16()) {
+    lh(dst, src);
+  } else if (r.IsUInteger16()) {
+    lhu(dst, src);
+  } else {
+    lw(dst, src);
+  }
+}
+
+
+void MacroAssembler::Store(Register src,
+                           const MemOperand& dst,
+                           Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8() || r.IsUInteger8()) {
+    sb(src, dst);
+  } else if (r.IsInteger16() || r.IsUInteger16()) {
+    sh(src, dst);
+  } else {
+    sw(src, dst);
   }
 }
 
@@ -79,19 +112,6 @@ void MacroAssembler::StoreRoot(Register source,
                                Register src1, const Operand& src2) {
   Branch(2, NegateCondition(cond), src1, src2);
   sw(source, MemOperand(s6, index << kPointerSizeLog2));
-}
-
-
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    li(result, Operand(cell));
-    lw(result, FieldMemOperand(result, Cell::kValueOffset));
-  } else {
-    li(result, Operand(object));
-  }
 }
 
 
@@ -766,6 +786,23 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
 
 
 //------------Pseudo-instructions-------------
+
+void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
+  AllowDeferredHandleDereference smi_check;
+  if (value->IsSmi()) {
+    li(dst, Operand(value), mode);
+  } else {
+    ASSERT(value->IsHeapObject());
+    if (isolate()->heap()->InNewSpace(*value)) {
+      Handle<Cell> cell = isolate()->factory()->NewCell(value);
+      li(dst, Operand(cell));
+      lw(dst, FieldMemOperand(dst, Cell::kValueOffset));
+    } else {
+      li(dst, Operand(value));
+    }
+  }
+}
+
 
 void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   ASSERT(!j.is_reg());
@@ -3696,7 +3733,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(a1, function);
+  li(a1, function);
   lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -4596,19 +4633,19 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       nop(Assembler::CODE_AGE_MARKER_NOP);
       // Save the function's original return address
-      // (it will be clobbered by Call(t9))
+      // (it will be clobbered by Call(t9)).
       mov(at, ra);
-      // Load the stub address to t9 and call it
+      // Load the stub address to t9 and call it.
       li(t9,
          Operand(reinterpret_cast<uint32_t>(stub->instruction_start())));
       Call(t9);
-      // Record the stub address in the empty space for GetCodeAgeAndParity()
-      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+      // Record the stub address in the empty space for GetCodeAgeAndParity().
+      emit_code_stub_address(stub);
     } else {
       Push(ra, fp, cp, a1);
       nop(Assembler::CODE_AGE_SEQUENCE_NOP);
@@ -5646,6 +5683,30 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   }
   UNREACHABLE();
   return no_reg;
+}
+
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // Scratch contained elements pointer.
+  Move(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  lw(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  lb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
+  Ext(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  Branch(found, eq, scratch1, Operand(DICTIONARY_ELEMENTS));
+  lw(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  Branch(&loop_again, ne, current, Operand(factory->null_value()));
 }
 
 

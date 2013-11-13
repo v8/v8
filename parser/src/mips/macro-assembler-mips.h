@@ -279,6 +279,9 @@ class MacroAssembler: public Assembler {
     Branch(L);
   }
 
+  void Load(Register dst, const MemOperand& src, Representation r);
+  void Store(Register src, const MemOperand& dst, Representation r);
+
   // Load an object from the root table.
   void LoadRoot(Register destination,
                 Heap::RootListIndex index);
@@ -292,17 +295,6 @@ class MacroAssembler: public Assembler {
   void StoreRoot(Register source,
                  Heap::RootListIndex index,
                  Condition cond, Register src1, const Operand& src2);
-
-  void LoadHeapObject(Register dst, Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      li(result, object);
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -620,10 +612,7 @@ class MacroAssembler: public Assembler {
   inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }
-  inline void li(Register dst, Handle<Object> value,
-                 LiFlags mode = OPTIMIZE_SIZE) {
-    li(dst, Operand(value), mode);
-  }
+  void li(Register dst, Handle<Object> value, LiFlags mode = OPTIMIZE_SIZE);
 
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
@@ -1539,6 +1528,10 @@ class MacroAssembler: public Assembler {
                                     &no_memento_found, eq, memento_found);
     bind(&no_memento_found);
   }
+
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
 
  private:
   void CallCFunctionHelper(Register function,

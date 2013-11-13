@@ -106,6 +106,7 @@ namespace internal {
   F(AllocateInOldPointerSpace, 1, 1) \
   F(AllocateInOldDataSpace, 1, 1) \
   F(SetNativeFlag, 1, 1) \
+  F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
@@ -189,6 +190,7 @@ namespace internal {
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
+  F(PopulateTrigonometricTable, 3, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -300,7 +302,6 @@ namespace internal {
   F(MaterializeRegExpLiteral, 4, 1)\
   F(CreateObjectLiteral, 4, 1) \
   F(CreateArrayLiteral, 3, 1) \
-  F(CreateArrayLiteralShallow, 3, 1) \
   \
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \
@@ -316,7 +317,9 @@ namespace internal {
   \
   /* Harmony symbols */ \
   F(CreateSymbol, 1, 1) \
+  F(CreatePrivateSymbol, 1, 1) \
   F(SymbolName, 1, 1) \
+  F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
@@ -626,11 +629,9 @@ namespace internal {
   F(IsSpecObject, 1, 1)                                                      \
   F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(MathPow, 2, 1)                                                           \
-  F(MathSin, 1, 1)                                                           \
-  F(MathCos, 1, 1)                                                           \
-  F(MathTan, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
+  F(IsMinusZero, 1, 1)                                                       \
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
@@ -777,7 +778,7 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       uint32_t index);
 
-  MUST_USE_RESULT static MaybeObject* SetObjectProperty(
+  static Handle<Object> SetObjectProperty(
       Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key,
@@ -785,15 +786,7 @@ class Runtime : public AllStatic {
       PropertyAttributes attr,
       StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT static MaybeObject* SetObjectPropertyOrFail(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> key,
-      Handle<Object> value,
-      PropertyAttributes attr,
-      StrictModeFlag strict_mode);
-
-  MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
+  static Handle<Object> ForceSetObjectProperty(
       Isolate* isolate,
       Handle<JSObject> object,
       Handle<Object> key,

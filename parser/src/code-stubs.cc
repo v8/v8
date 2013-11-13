@@ -46,6 +46,7 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
+      handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
       has_miss_handler_(false) { }
 
@@ -160,8 +161,9 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
 
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
-      new_object->Disassemble(*GetName());
-      PrintF("\n");
+      CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+      new_object->Disassemble(*GetName(), trace_scope.file());
+      PrintF(trace_scope.file(), "\n");
     }
 #endif
 
@@ -681,6 +683,21 @@ Handle<Type> BinaryOpStub::GetResultType(Isolate* isolate) const {
 }
 
 
+void NewStringAddStub::PrintBaseName(StringStream* stream) {
+  stream->Add("NewStringAddStub");
+  if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
+    stream->Add("_CheckBoth");
+  } else if ((flags() & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
+    stream->Add("_CheckLeft");
+  } else if ((flags() & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
+    stream->Add("_CheckRight");
+  }
+  if (pretenure_flag() == TENURED) {
+    stream->Add("_Tenured");
+  }
+}
+
+
 InlineCacheState ICCompareStub::GetICState() {
   CompareIC::State state = Max(left_, right_);
   switch (state) {
@@ -1129,6 +1146,13 @@ void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
 
 void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
   FastNewClosureStub stub(STRICT_MODE, false);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void NewStringAddStub::InstallDescriptors(Isolate* isolate) {
+  NewStringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
   InstallDescriptor(isolate, &stub);
 }
 

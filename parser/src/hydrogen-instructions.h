@@ -100,6 +100,7 @@ class LChunkBuilder;
   V(CompareNumericAndBranch)                   \
   V(CompareHoleAndBranch)                      \
   V(CompareGeneric)                            \
+  V(CompareMinusZeroAndBranch)                 \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
   V(Constant)                                  \
@@ -159,6 +160,7 @@ class LChunkBuilder;
   V(Return)                                    \
   V(Ror)                                       \
   V(Sar)                                       \
+  V(SeqStringGetChar)                          \
   V(SeqStringSetChar)                          \
   V(Shl)                                       \
   V(Shr)                                       \
@@ -208,7 +210,8 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(InobjectFields)                            \
   V(OsrEntries)                                \
-  V(ExternalMemory)
+  V(ExternalMemory)                            \
+  V(StringChars)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)                              \
@@ -542,7 +545,7 @@ class DecompositionResult V8_FINAL BASE_EMBEDDED {
 };
 
 
-typedef EnumSet<GVNFlag> GVNFlagSet;
+typedef EnumSet<GVNFlag, int64_t> GVNFlagSet;
 
 
 class HValue : public ZoneObject {
@@ -3257,9 +3260,6 @@ class HDematerializedObject : public HInstruction {
 
   // List of values tracked by this marker.
   ZoneList<HValue*> values_;
-
- private:
-  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return true; }
 };
 
 
@@ -3287,6 +3287,8 @@ class HArgumentsObject V8_FINAL : public HDematerializedObject {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+
+  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return true; }
 };
 
 
@@ -3323,6 +3325,11 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
 
  private:
   int capture_id_;
+
+  // Note that we cannot DCE captured objects as they are used to replay
+  // the environment. This method is here as an explicit reminder.
+  // TODO(mstarzinger): Turn HSimulates into full snapshots maybe?
+  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return false; }
 };
 
 
@@ -4155,6 +4162,28 @@ class HCompareHoleAndBranch V8_FINAL : public HUnaryControlInstruction {
       : HUnaryControlInstruction(value, true_target, false_target) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
+  }
+};
+
+
+class HCompareMinusZeroAndBranch V8_FINAL : public HUnaryControlInstruction {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P1(HCompareMinusZeroAndBranch, HValue*);
+
+  virtual void InferRepresentation(
+      HInferRepresentationPhase* h_infer) V8_OVERRIDE;
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return representation();
+  }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch)
+
+ private:
+  explicit HCompareMinusZeroAndBranch(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) {
   }
 };
 
@@ -5786,20 +5815,9 @@ class HObjectAccess V8_FINAL {
                 ? Representation::Smi() : Representation::Tagged());
   }
 
-  static HObjectAccess ForAllocationSiteTransitionInfo() {
-    return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
-  }
-
-  static HObjectAccess ForAllocationSiteNestedSite() {
-    return HObjectAccess(kInobject, AllocationSite::kNestedSiteOffset);
-  }
-
-  static HObjectAccess ForAllocationSiteDependentCode() {
-    return HObjectAccess(kInobject, AllocationSite::kDependentCodeOffset);
-  }
-
-  static HObjectAccess ForAllocationSiteWeakNext() {
-    return HObjectAccess(kInobject, AllocationSite::kWeakNextOffset);
+  static HObjectAccess ForAllocationSiteOffset(int offset) {
+    ASSERT(offset >= HeapObject::kHeaderSize && offset < AllocationSite::kSize);
+    return HObjectAccess(kInobject, offset);
   }
 
   static HObjectAccess ForAllocationSiteList() {
@@ -5813,12 +5831,26 @@ class HObjectAccess V8_FINAL {
         FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
   }
 
+  static HObjectAccess ForStringHashField() {
+    return HObjectAccess(kInobject,
+                         String::kHashFieldOffset,
+                         Representation::Integer32());
+  }
+
   static HObjectAccess ForStringLength() {
     STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
     return HObjectAccess(
         kStringLengths,
         String::kLengthOffset,
         FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
+  }
+
+  static HObjectAccess ForConsStringFirst() {
+    return HObjectAccess(kInobject, ConsString::kFirstOffset);
+  }
+
+  static HObjectAccess ForConsStringSecond() {
+    return HObjectAccess(kInobject, ConsString::kSecondOffset);
   }
 
   static HObjectAccess ForPropertiesPointer() {
@@ -5865,7 +5897,13 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForMapInstanceSize() {
     return HObjectAccess(kInobject,
                          Map::kInstanceSizeOffset,
-                         Representation::Byte());
+                         Representation::UInteger8());
+  }
+
+  static HObjectAccess ForMapInstanceType() {
+    return HObjectAccess(kInobject,
+                         Map::kInstanceTypeOffset,
+                         Representation::UInteger8());
   }
 
   static HObjectAccess ForPropertyCellValue() {
@@ -5943,8 +5981,8 @@ class HObjectAccess V8_FINAL {
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
-  class RepresentationField : public BitField<Representation::Kind, 3, 3> {};
-  class OffsetField : public BitField<int, 6, 26> {};
+  class RepresentationField : public BitField<Representation::Kind, 3, 4> {};
+  class OffsetField : public BitField<int, 7, 25> {};
 
   uint32_t value_;  // encodes portion, representation, and offset
   Handle<String> name_;
@@ -5997,7 +6035,10 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
     SetOperandAt(0, object);
 
     Representation representation = access.representation();
-    if (representation.IsByte()) {
+    if (representation.IsInteger8() ||
+        representation.IsUInteger8() ||
+        representation.IsInteger16() ||
+        representation.IsUInteger16()) {
       set_representation(Representation::Integer32());
     } else if (representation.IsSmi()) {
       set_type(HType::Smi());
@@ -6307,7 +6348,10 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
       // object must be external in case of external memory access
       return Representation::External();
     } else if (index == 1) {
-      if (field_representation().IsByte() ||
+      if (field_representation().IsInteger8() ||
+          field_representation().IsUInteger8() ||
+          field_representation().IsInteger16() ||
+          field_representation().IsUInteger16() ||
           field_representation().IsInteger32()) {
         return Representation::Integer32();
       } else if (field_representation().IsDouble() ||
@@ -6761,6 +6805,7 @@ class HStringCharCodeAt V8_FINAL : public HTemplateInstruction<3> {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnStringChars);
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
@@ -7032,6 +7077,56 @@ class HDateField V8_FINAL : public HUnaryOperation {
 };
 
 
+class HSeqStringGetChar V8_FINAL : public HTemplateInstruction<2> {
+ public:
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           String::Encoding encoding,
+                           HValue* string,
+                           HValue* index);
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return (index == 0) ? Representation::Tagged()
+                        : Representation::Integer32();
+  }
+
+  String::Encoding encoding() const { return encoding_; }
+  HValue* string() const { return OperandAt(0); }
+  HValue* index() const { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(SeqStringGetChar)
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    return encoding() == HSeqStringGetChar::cast(other)->encoding();
+  }
+
+  virtual Range* InferRange(Zone* zone) V8_OVERRIDE {
+    if (encoding() == String::ONE_BYTE_ENCODING) {
+      return new(zone) Range(0, String::kMaxOneByteCharCode);
+    } else {
+      ASSERT_EQ(String::TWO_BYTE_ENCODING, encoding());
+      return  new(zone) Range(0, String::kMaxUtf16CodeUnit);
+    }
+  }
+
+ private:
+  HSeqStringGetChar(String::Encoding encoding,
+                    HValue* string,
+                    HValue* index) : encoding_(encoding) {
+    SetOperandAt(0, string);
+    SetOperandAt(1, index);
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnStringChars);
+  }
+
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+
+  String::Encoding encoding_;
+};
+
+
 class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P4(HSeqStringSetChar, String::Encoding,
@@ -7058,6 +7153,7 @@ class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<3> {
     SetOperandAt(1, index);
     SetOperandAt(2, value);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesStringChars);
   }
 
   String::Encoding encoding_;

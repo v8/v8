@@ -161,6 +161,9 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DwVfpRegister dst, DwVfpRegister src);
 
+  void Load(Register dst, const MemOperand& src, Representation r);
+  void Store(Register src, const MemOperand& dst, Representation r);
+
   // Load an object from the root table.
   void LoadRoot(Register destination,
                 Heap::RootListIndex index,
@@ -169,17 +172,6 @@ class MacroAssembler: public Assembler {
   void StoreRoot(Register source,
                  Heap::RootListIndex index,
                  Condition cond = al);
-
-  void LoadHeapObject(Register dst, Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, object);
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -1404,6 +1396,10 @@ class MacroAssembler: public Assembler {
     b(eq, memento_found);
     bind(&no_memento_found);
   }
+
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
 
  private:
   void CallCFunctionHelper(Register function,

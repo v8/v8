@@ -30,8 +30,10 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
-  # TODO(mvstanton) Re-enable when the performance is bearable again.
-  'regress/regress-2185-2': [SKIP],
+  ##############################################################################
+  # Flaky tests.
+  # BUG(v8:2921).
+  'debug-step-4-in-frame': [PASS, FLAKY],
 
   ##############################################################################
   # Fails.
@@ -52,11 +54,14 @@
   'compiler/regress-funcaller': [PASS, ['mode == debug', SKIP]],
   'regress/regress-2318': [PASS, ['mode == debug', SKIP]],
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
-  'regress/regress-2612': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Too slow in debug mode for GC stress mode.
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
+
+  ##############################################################################
+  # Only regexp stuff tested, no need for extensive Crankshaft tests.
+  'regexp-global': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # No need to waste time for this test.
@@ -249,6 +254,9 @@
 
   # Skip long running test that times out in debug mode and goes OOM on NaCl.
   'regress/regress-crbug-160010': [SKIP],
+
+  # Bug(v8:2978).
+  'lithium/MathExp': [PASS, FAIL],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################

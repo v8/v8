@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 #include "serialize.h"
 
@@ -51,6 +52,34 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     // TODO(titzer): should we just use a null handle here instead?
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
+  }
+}
+
+
+void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8()) {
+    movsx_b(dst, src);
+  } else if (r.IsUInteger8()) {
+    movzx_b(dst, src);
+  } else if (r.IsInteger16()) {
+    movsx_w(dst, src);
+  } else if (r.IsUInteger16()) {
+    movzx_w(dst, src);
+  } else {
+    mov(dst, src);
+  }
+}
+
+
+void MacroAssembler::Store(Register src, const Operand& dst, Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8() || r.IsUInteger8()) {
+    mov_b(dst, src);
+  } else if (r.IsInteger16() || r.IsUInteger16()) {
+    mov_w(dst, src);
+  } else {
+    mov(dst, src);
   }
 }
 
@@ -866,9 +895,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
 }
 
 
-void MacroAssembler::CompareMap(Register obj,
-                                Handle<Map> map,
-                                Label* early_success) {
+void MacroAssembler::CompareMap(Register obj, Handle<Map> map) {
   cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
 }
 
@@ -881,10 +908,8 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
 
-  Label success;
-  CompareMap(obj, map, &success);
+  CompareMap(obj, map);
   j(not_equal, fail);
-  bind(&success);
 }
 
 
@@ -1022,7 +1047,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(this,
         kNoCodeAgeSequenceLength);
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
         // Pre-age the code.
       call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
           RelocInfo::CODE_AGE_SEQUENCE);
@@ -1985,30 +2010,48 @@ void MacroAssembler::CopyBytes(Register source,
                                Register destination,
                                Register length,
                                Register scratch) {
-  Label loop, done, short_string, short_loop;
-  // Experimentation shows that the short string loop is faster if length < 10.
-  cmp(length, Immediate(10));
-  j(less_equal, &short_string);
-
+  Label short_loop, len4, len8, len12, done, short_string;
   ASSERT(source.is(esi));
   ASSERT(destination.is(edi));
   ASSERT(length.is(ecx));
+  cmp(length, Immediate(4));
+  j(below, &short_string, Label::kNear);
 
   // Because source is 4-byte aligned in our uses of this function,
   // we keep source aligned for the rep_movs call by copying the odd bytes
   // at the end of the ranges.
   mov(scratch, Operand(source, length, times_1, -4));
   mov(Operand(destination, length, times_1, -4), scratch);
+
+  cmp(length, Immediate(8));
+  j(below_equal, &len4, Label::kNear);
+  cmp(length, Immediate(12));
+  j(below_equal, &len8, Label::kNear);
+  cmp(length, Immediate(16));
+  j(below_equal, &len12, Label::kNear);
+
   mov(scratch, ecx);
   shr(ecx, 2);
   rep_movs();
   and_(scratch, Immediate(0x3));
   add(destination, scratch);
-  jmp(&done);
+  jmp(&done, Label::kNear);
+
+  bind(&len12);
+  mov(scratch, Operand(source, 8));
+  mov(Operand(destination, 8), scratch);
+  bind(&len8);
+  mov(scratch, Operand(source, 4));
+  mov(Operand(destination, 4), scratch);
+  bind(&len4);
+  mov(scratch, Operand(source, 0));
+  mov(Operand(destination, 0), scratch);
+  add(destination, length);
+  jmp(&done, Label::kNear);
 
   bind(&short_string);
   test(length, length);
-  j(zero, &done);
+  j(zero, &done, Label::kNear);
 
   bind(&short_loop);
   mov_b(scratch, Operand(source, 0));
@@ -3549,6 +3592,32 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
       Immediate(isolate()->factory()->allocation_memento_map()));
 }
 
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // scratch contained elements pointer.
+  mov(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  mov(current, FieldOperand(current, HeapObject::kMapOffset));
+  mov(scratch1, FieldOperand(current, Map::kBitField2Offset));
+  and_(scratch1, Map::kElementsKindMask);
+  shr(scratch1, Map::kElementsKindShift);
+  cmp(scratch1, Immediate(DICTIONARY_ELEMENTS));
+  j(equal, found);
+  mov(current, FieldOperand(current, Map::kPrototypeOffset));
+  cmp(current, Immediate(factory->null_value()));
+  j(not_equal, &loop_again);
+}
 
 } }  // namespace v8::internal
 

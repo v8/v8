@@ -97,8 +97,6 @@ class V8 : public AllStatic {
   static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
   // Random number generation support. Not cryptographically safe.
   static uint32_t Random(Context* context);
-  static Object* FillHeapNumberWithRandom(Object* heap_number,
-                                          Context* context);
 
   static void AddCallCompletedCallback(CallCompletedCallback callback);
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);

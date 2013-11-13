@@ -35,6 +35,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -233,7 +234,19 @@ void MacroAssembler::Push(Handle<Object> handle) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
-  mov(dst, Operand(value));
+  AllowDeferredHandleDereference smi_check;
+  if (value->IsSmi()) {
+    mov(dst, Operand(value));
+  } else {
+    ASSERT(value->IsHeapObject());
+    if (isolate()->heap()->InNewSpace(*value)) {
+      Handle<Cell> cell = isolate()->factory()->NewCell(value);
+      mov(dst, Operand(cell));
+      ldr(dst, FieldMemOperand(dst, Cell::kValueOffset));
+    } else {
+      mov(dst, Operand(value));
+    }
+  }
 }
 
 
@@ -371,6 +384,38 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
 }
 
 
+void MacroAssembler::Load(Register dst,
+                          const MemOperand& src,
+                          Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8()) {
+    ldrsb(dst, src);
+  } else if (r.IsUInteger8()) {
+    ldrb(dst, src);
+  } else if (r.IsInteger16()) {
+    ldrsh(dst, src);
+  } else if (r.IsUInteger16()) {
+    ldrh(dst, src);
+  } else {
+    ldr(dst, src);
+  }
+}
+
+
+void MacroAssembler::Store(Register src,
+                           const MemOperand& dst,
+                           Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8() || r.IsUInteger8()) {
+    strb(src, dst);
+  } else if (r.IsInteger16() || r.IsUInteger16()) {
+    strh(src, dst);
+  } else {
+    str(src, dst);
+  }
+}
+
+
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
@@ -391,19 +436,6 @@ void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond) {
   str(source, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
-}
-
-
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    mov(result, Operand(cell));
-    ldr(result, FieldMemOperand(result, Cell::kValueOffset));
-  } else {
-    mov(result, Operand(object));
-  }
 }
 
 
@@ -927,12 +959,12 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
         this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       add(r0, pc, Operand(-8));
       ldr(pc, MemOperand(pc, -4));
-      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+      emit_code_stub_address(stub);
     } else {
       stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
       nop(ip.code());
@@ -1285,7 +1317,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(r1, function);
+  Move(r1, function);
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -3926,6 +3958,32 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   }
   UNREACHABLE();
   return no_reg;
+}
+
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // scratch contained elements pointer.
+  mov(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  ldr(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
+  Ubfx(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  cmp(scratch1, Operand(DICTIONARY_ELEMENTS));
+  b(eq, found);
+  ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  cmp(current, Operand(factory->null_value()));
+  b(ne, &loop_again);
 }
 
 

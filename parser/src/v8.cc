@@ -171,30 +171,6 @@ void V8::FireCallCompletedCallback(Isolate* isolate) {
 }
 
 
-// Use a union type to avoid type-aliasing optimizations in GCC.
-typedef union {
-  double double_value;
-  uint64_t uint64_t_value;
-} double_int_union;
-
-
-Object* V8::FillHeapNumberWithRandom(Object* heap_number,
-                                     Context* context) {
-  double_int_union r;
-  uint64_t random_bits = Random(context);
-  // Convert 32 random bits to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  static const double binary_million = 1048576.0;
-  r.double_value = binary_million;
-  r.uint64_t_value |= random_bits;
-  r.double_value -= binary_million;
-
-  HeapNumber::cast(heap_number)->set_value(r.double_value);
-  return heap_number;
-}
-
-
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
   if (FLAG_stress_compaction) {
@@ -206,6 +182,7 @@ void V8::InitializeOncePerProcessImpl() {
   if (FLAG_concurrent_recompilation &&
       (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs)) {
     FLAG_concurrent_recompilation = false;
+    FLAG_concurrent_osr = false;
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   }
 
@@ -229,8 +206,9 @@ void V8::InitializeOncePerProcessImpl() {
 
   if (FLAG_concurrent_recompilation &&
       SystemThreadManager::NumberOfParallelSystemThreads(
-          SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
+          SystemThreadManager::CONCURRENT_RECOMPILATION) == 0) {
     FLAG_concurrent_recompilation = false;
+    FLAG_concurrent_osr = false;
   }
 
   Sampler::SetUp();

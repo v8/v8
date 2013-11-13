@@ -93,7 +93,8 @@ class VerifyMarkingVisitor: public ObjectVisitor {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(),
                                     rinfo->target_object())) {
-      VisitPointer(rinfo->target_object_address());
+      Object* p = rinfo->target_object();
+      VisitPointer(&p);
     }
   }
 
@@ -1649,7 +1650,7 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     int object_size = obj->Size();
     ASSERT(map->instance_type() == CODE_TYPE);
     Code* code_obj = Code::cast(obj);
-    heap->RecordCodeSubTypeStats(code_obj->kind(), code_obj->GetAge(),
+    heap->RecordCodeSubTypeStats(code_obj->kind(), code_obj->GetRawAge(),
                                  object_size);
     ObjectStatsVisitBase(kVisitCode, map, obj);
   }
@@ -2938,9 +2939,7 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   ASSERT(target_space == heap()->old_pointer_space() ||
          target_space == heap()->old_data_space());
   Object* result;
-  MaybeObject* maybe_result = target_space->AllocateRaw(
-      object_size,
-      PagedSpace::MOVE_OBJECT);
+  MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
   if (maybe_result->ToObject(&result)) {
     HeapObject* target = HeapObject::cast(result);
     MigrateObject(target->address(),
@@ -3013,7 +3012,7 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
       int size = object->Size();
 
-      MaybeObject* target = space->AllocateRaw(size, PagedSpace::MOVE_OBJECT);
+      MaybeObject* target = space->AllocateRaw(size);
       if (target->IsFailure()) {
         // OS refused to give us memory.
         V8::FatalProcessOutOfMemory("Evacuation");

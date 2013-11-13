@@ -268,6 +268,10 @@ class LCodeGen: public LCodeGenBase {
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
   void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
+  bool DeoptEveryNTimes() {
+    return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
+  }
+
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
                         LOperand* op,
@@ -295,6 +299,10 @@ class LCodeGen: public LCodeGenBase {
                                 uint32_t offset,
                                 uint32_t additional_index = 0);
 
+  Operand BuildSeqStringOperand(Register string,
+                                LOperand* index,
+                                String::Encoding encoding);
+
   void EmitIntegerMathAbs(LMathAbs* instr);
 
   // Support for recording safepoint and position information.
@@ -312,6 +320,8 @@ class LCodeGen: public LCodeGenBase {
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
+
+  // EmitBranch expects to be the last instruction of a block.
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition cc);
   template<class InstrType>

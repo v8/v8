@@ -37,41 +37,25 @@
 namespace v8 {
 
 
-#if V8_OS_ANDROID
-const bool kOsHasSwap = false;
-#else
-const bool kOsHasSwap = true;
-#endif
-
-
 bool ConfigureResourceConstraintsForCurrentPlatform(
     ResourceConstraints* constraints) {
   if (constraints == NULL) {
     return false;
   }
 
-  uint64_t physical_memory = i::OS::TotalPhysicalMemory();
   int lump_of_memory = (i::kPointerSize / 4) * i::MB;
 
   // The young_space_size should be a power of 2 and old_generation_size should
   // be a multiple of Page::kPageSize.
-  if (physical_memory <= 512ul * i::MB) {
-    constraints->set_max_young_space_size(2 * lump_of_memory);
-    constraints->set_max_old_space_size(128 * lump_of_memory);
-    constraints->set_max_executable_size(96 * lump_of_memory);
-  } else if (physical_memory <= (kOsHasSwap ? 768ul * i::MB : 1ul * i::GB)) {
-    constraints->set_max_young_space_size(8 * lump_of_memory);
-    constraints->set_max_old_space_size(256 * lump_of_memory);
-    constraints->set_max_executable_size(192 * lump_of_memory);
-  } else if (physical_memory <= (kOsHasSwap ? 1ul * i::GB : 2ul * i::GB)) {
-    constraints->set_max_young_space_size(16 * lump_of_memory);
-    constraints->set_max_old_space_size(512 * lump_of_memory);
-    constraints->set_max_executable_size(256 * lump_of_memory);
-  } else {
-    constraints->set_max_young_space_size(16 * lump_of_memory);
-    constraints->set_max_old_space_size(700 * lump_of_memory);
-    constraints->set_max_executable_size(256 * lump_of_memory);
-  }
+#if V8_OS_ANDROID
+  constraints->set_max_young_space_size(8 * lump_of_memory);
+  constraints->set_max_old_space_size(256 * lump_of_memory);
+  constraints->set_max_executable_size(192 * lump_of_memory);
+#else
+  constraints->set_max_young_space_size(16 * lump_of_memory);
+  constraints->set_max_old_space_size(700 * lump_of_memory);
+  constraints->set_max_executable_size(256 * lump_of_memory);
+#endif
   return true;
 }
 

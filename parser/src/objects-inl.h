@@ -80,7 +80,7 @@ PropertyDetails PropertyDetails::AsDeleted() {
 
 #define CAST_ACCESSOR(type)                     \
   type* type::cast(Object* object) {            \
-    ASSERT(object->Is##type());                 \
+    SLOW_ASSERT(object->Is##type());            \
     return reinterpret_cast<type*>(object);     \
   }
 
@@ -1190,7 +1190,7 @@ void HeapObject::VerifySmiField(int offset) {
 Heap* HeapObject::GetHeap() {
   Heap* heap =
       MemoryChunk::FromAddress(reinterpret_cast<Address>(this))->heap();
-  ASSERT(heap != NULL);
+  SLOW_ASSERT(heap != NULL);
   return heap;
 }
 
@@ -1307,7 +1307,7 @@ FixedArrayBase* JSObject::elements() {
 
 
 void JSObject::ValidateElements() {
-#if DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     ElementsAccessor* accessor = GetElementsAccessor();
     accessor->Validate(this);
@@ -1667,7 +1667,9 @@ int JSObject::GetHeaderSize() {
     case JS_MESSAGE_OBJECT_TYPE:
       return JSMessageObject::kSize;
     default:
-      UNREACHABLE();
+      // TODO(jkummerow): Re-enable this. Blink currently hits this
+      // from its CustomElementConstructorBuilder.
+      // UNREACHABLE();
       return 0;
   }
 }
@@ -1901,7 +1903,7 @@ FixedArrayBase* FixedArrayBase::cast(Object* object) {
 
 
 Object* FixedArray::get(int index) {
-  ASSERT(index >= 0 && index < this->length());
+  SLOW_ASSERT(index >= 0 && index < this->length());
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
@@ -2690,6 +2692,8 @@ bool Name::Equals(Name* other) {
 
 
 ACCESSORS(Symbol, name, Object, kNameOffset)
+ACCESSORS(Symbol, flags, Smi, kFlagsOffset)
+BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
 
 
 bool String::Equals(String* other) {
@@ -4805,6 +4809,8 @@ bool SharedFunctionInfo::is_classic_mode() {
 BOOL_GETTER(SharedFunctionInfo, compiler_hints, is_extended_mode,
             kExtendedModeFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
+               kInlineBuiltin)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,
                kNameShouldPrintAsAnonymous)
@@ -4865,6 +4871,7 @@ Code* SharedFunctionInfo::code() {
 
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
+  ASSERT(value->kind() != Code::OPTIMIZED_FUNCTION);
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
 }
@@ -5318,23 +5325,29 @@ INT_ACCESSORS(Code, prologue_offset, kPrologueOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
+ACCESSORS(Code, raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 
 
-// Type feedback slot: type_feedback_info for FUNCTIONs, stub_info for STUBs.
-void Code::InitializeTypeFeedbackInfoNoWriteBarrier(Object* value) {
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+void Code::WipeOutHeader() {
+  WRITE_FIELD(this, kRelocationInfoOffset, NULL);
+  WRITE_FIELD(this, kHandlerTableOffset, NULL);
+  WRITE_FIELD(this, kDeoptimizationDataOffset, NULL);
+  // Do not wipe out e.g. a minor key.
+  if (!READ_FIELD(this, kTypeFeedbackInfoOffset)->IsSmi()) {
+    WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
+  }
 }
 
 
 Object* Code::type_feedback_info() {
   ASSERT(kind() == FUNCTION);
-  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+  return raw_type_feedback_info();
 }
 
 
 void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
   ASSERT(kind() == FUNCTION);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+  set_raw_type_feedback_info(value, mode);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
                             value, mode);
 }
@@ -5342,13 +5355,13 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 Object* Code::next_code_link() {
   CHECK(kind() == OPTIMIZED_FUNCTION);
-  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+  return raw_type_feedback_info();
 }
 
 
 void Code::set_next_code_link(Object* value, WriteBarrierMode mode) {
   CHECK(kind() == OPTIMIZED_FUNCTION);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+  set_raw_type_feedback_info(value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
                             value, mode);
 }
@@ -5357,8 +5370,7 @@ void Code::set_next_code_link(Object* value, WriteBarrierMode mode) {
 int Code::stub_info() {
   ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
          kind() == BINARY_OP_IC || kind() == LOAD_IC);
-  Object* value = READ_FIELD(this, kTypeFeedbackInfoOffset);
-  return Smi::cast(value)->value();
+  return Smi::cast(raw_type_feedback_info())->value();
 }
 
 
@@ -5371,7 +5383,7 @@ void Code::set_stub_info(int value) {
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||
          kind() == KEYED_STORE_IC);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, Smi::FromInt(value));
+  set_raw_type_feedback_info(Smi::FromInt(value));
 }
 
 
@@ -5516,19 +5528,24 @@ ElementsKind JSObject::GetElementsKind() {
 #if DEBUG
   FixedArrayBase* fixed_array =
       reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
-  Map* map = fixed_array->map();
-  ASSERT((IsFastSmiOrObjectElementsKind(kind) &&
-          (map == GetHeap()->fixed_array_map() ||
-           map == GetHeap()->fixed_cow_array_map())) ||
-         (IsFastDoubleElementsKind(kind) &&
-          (fixed_array->IsFixedDoubleArray() ||
-           fixed_array == GetHeap()->empty_fixed_array())) ||
-         (kind == DICTIONARY_ELEMENTS &&
+
+  // If a GC was caused while constructing this object, the elements
+  // pointer may point to a one pointer filler map.
+  if (ElementsAreSafeToExamine()) {
+    Map* map = fixed_array->map();
+    ASSERT((IsFastSmiOrObjectElementsKind(kind) &&
+            (map == GetHeap()->fixed_array_map() ||
+             map == GetHeap()->fixed_cow_array_map())) ||
+           (IsFastDoubleElementsKind(kind) &&
+            (fixed_array->IsFixedDoubleArray() ||
+             fixed_array == GetHeap()->empty_fixed_array())) ||
+           (kind == DICTIONARY_ELEMENTS &&
             fixed_array->IsFixedArray() &&
-          fixed_array->IsDictionary()) ||
-         (kind > DICTIONARY_ELEMENTS));
-  ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
-         (elements()->IsFixedArray() && elements()->length() >= 2));
+            fixed_array->IsDictionary()) ||
+           (kind > DICTIONARY_ELEMENTS));
+    ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
+           (elements()->IsFixedArray() && elements()->length() >= 2));
+  }
 #endif
   return kind;
 }
@@ -5839,10 +5856,17 @@ Object* JSObject::BypassGlobalProxy() {
 }
 
 
-MaybeObject* JSReceiver::GetIdentityHash(CreationFlag flag) {
+Handle<Object> JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver> object) {
+  return object->IsJSProxy()
+      ? JSProxy::GetOrCreateIdentityHash(Handle<JSProxy>::cast(object))
+      : JSObject::GetOrCreateIdentityHash(Handle<JSObject>::cast(object));
+}
+
+
+Object* JSReceiver::GetIdentityHash() {
   return IsJSProxy()
-      ? JSProxy::cast(this)->GetIdentityHash(flag)
-      : JSObject::cast(this)->GetIdentityHash(flag);
+      ? JSProxy::cast(this)->GetIdentityHash()
+      : JSObject::cast(this)->GetIdentityHash();
 }
 
 
@@ -6042,16 +6066,14 @@ bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
 
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
-  MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+  return Smi::cast(key->GetHash())->value();
 }
 
 
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
                                                         Object* other) {
-  MaybeObject* maybe_hash = other->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+  return Smi::cast(other->GetHash())->value();
 }
 
 

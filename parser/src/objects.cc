@@ -343,6 +343,14 @@ static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
 }
 
 
+Handle<FixedArray> JSObject::EnsureWritableFastElements(
+    Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->EnsureWritableFastElements(),
+                     FixedArray);
+}
+
+
 Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
                                                  Handle<Object> receiver,
                                                  Handle<Object> structure,
@@ -1020,7 +1028,7 @@ Object* Object::GetPrototype(Isolate* isolate) {
 }
 
 
-MaybeObject* Object::GetHash(CreationFlag flag) {
+Object* Object::GetHash() {
   // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber()) {
@@ -1035,12 +1043,20 @@ MaybeObject* Object::GetHash(CreationFlag flag) {
     uint32_t hash = Oddball::cast(this)->to_string()->Hash();
     return Smi::FromInt(hash);
   }
-  if (IsJSReceiver()) {
-    return JSReceiver::cast(this)->GetIdentityHash(flag);
-  }
 
-  UNREACHABLE();
-  return Smi::FromInt(0);
+  ASSERT(IsJSReceiver());
+  return JSReceiver::cast(this)->GetIdentityHash();
+}
+
+
+Handle<Object> Object::GetOrCreateHash(Handle<Object> object,
+                                       Isolate* isolate) {
+  Handle<Object> hash(object->GetHash(), isolate);
+  if (hash->IsSmi())
+    return hash;
+
+  ASSERT(object->IsJSReceiver());
+  return JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver>::cast(object));
 }
 
 
@@ -1196,7 +1212,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   ASSERT(!this->IsExternalString());
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
@@ -1253,7 +1269,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 
 bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
@@ -2141,7 +2157,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
       object->map()->is_observed() &&
       *name != isolate->heap()->hidden_string()) {
     Handle<Object> old_value = isolate->factory()->the_hole_value();
-    EnqueueChangeRecord(object, "new", name, old_value);
+    EnqueueChangeRecord(object, "add", name, old_value);
   }
 
   return value;
@@ -2159,11 +2175,13 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
     object = handle(JSGlobalObject::cast(*object)->global_receiver(), isolate);
   }
   Handle<Object> args[] = { type, object, name, old_value };
+  int argc = name.is_null() ? 2 : old_value->IsTheHole() ? 3 : 4;
   bool threw;
+
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_notify_change()),
                   isolate->factory()->undefined_value(),
-                  old_value->IsTheHole() ? 3 : 4, args,
+                  argc, args,
                   &threw);
   ASSERT(!threw);
 }
@@ -3747,7 +3765,7 @@ void JSProxy::Fix(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
 
   // Save identity hash.
-  Handle<Object> hash = JSProxy::GetIdentityHash(proxy, OMIT_CREATION);
+  Handle<Object> hash(proxy->GetIdentityHash(), isolate);
 
   if (proxy->IsJSFunctionProxy()) {
     isolate->factory()->BecomeJSFunction(proxy);
@@ -3759,7 +3777,8 @@ void JSProxy::Fix(Handle<JSProxy> proxy) {
 
   // Inherit identity, if it was present.
   if (hash->IsSmi()) {
-    JSObject::SetIdentityHash(Handle<JSObject>::cast(proxy), Smi::cast(*hash));
+    JSObject::SetIdentityHash(Handle<JSObject>::cast(proxy),
+                              Handle<Smi>::cast(hash));
   }
 }
 
@@ -4086,43 +4105,20 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   if (is_observed) {
     if (lookup->IsTransition()) {
-      EnqueueChangeRecord(object, "new", name, old_value);
+      EnqueueChangeRecord(object, "add", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
         Handle<Object> new_value = Object::GetProperty(object, name);
         if (!new_value->SameValue(*old_value)) {
-          EnqueueChangeRecord(object, "updated", name, old_value);
+          EnqueueChangeRecord(object, "update", name, old_value);
         }
       }
     }
   }
 
   return result;
-}
-
-
-MaybeObject* JSObject::SetLocalPropertyIgnoreAttributesTrampoline(
-    Name* key,
-    Object* value,
-    PropertyAttributes attributes,
-    ValueType value_type,
-    StoreMode mode,
-    ExtensibilityCheck extensibility_check) {
-  // TODO(mstarzinger): The trampoline is a giant hack, don't use it anywhere
-  // else or handlification people will start hating you for all eternity.
-  HandleScope scope(GetIsolate());
-  IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
-  return trampoline.CallWithReturnValue(
-      &JSObject::SetLocalPropertyIgnoreAttributes,
-      Handle<JSObject>(this),
-      Handle<Name>(key),
-      Handle<Object>(value, GetIsolate()),
-      attributes,
-      value_type,
-      mode,
-      extensibility_check);
 }
 
 
@@ -4226,9 +4222,9 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   if (is_observed) {
     if (lookup.IsTransition()) {
-      EnqueueChangeRecord(object, "new", name, old_value);
+      EnqueueChangeRecord(object, "add", name, old_value);
     } else if (old_value->IsTheHole()) {
-      EnqueueChangeRecord(object, "reconfigured", name, old_value);
+      EnqueueChangeRecord(object, "reconfigure", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
@@ -4239,9 +4235,9 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       }
       if (new_lookup.GetAttributes() != old_attributes) {
         if (!value_changed) old_value = isolate->factory()->the_hole_value();
-        EnqueueChangeRecord(object, "reconfigured", name, old_value);
+        EnqueueChangeRecord(object, "reconfigure", name, old_value);
       } else if (value_changed) {
-        EnqueueChangeRecord(object, "updated", name, old_value);
+        EnqueueChangeRecord(object, "update", name, old_value);
       }
     }
   }
@@ -4483,7 +4479,7 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
       Handle<Map>::cast(result)->SharedMapVerify();
     }
 #endif
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
@@ -4780,52 +4776,52 @@ Smi* JSReceiver::GenerateIdentityHash() {
 }
 
 
-void JSObject::SetIdentityHash(Handle<JSObject> object, Smi* hash) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->SetHiddenProperty(
-                              object->GetHeap()->identity_hash_string(), hash));
+void JSObject::SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash) {
+  Isolate* isolate = object->GetIsolate();
+  SetHiddenProperty(object, isolate->factory()->identity_hash_string(), hash);
 }
 
 
-int JSObject::GetIdentityHash(Handle<JSObject> object) {
-  CALL_AND_RETRY_OR_DIE(object->GetIsolate(),
-                        object->GetIdentityHash(ALLOW_CREATION),
-                        return Smi::cast(__object__)->value(),
-                        return 0);
-}
-
-
-MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
+Object* JSObject::GetIdentityHash() {
   Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_string());
-  if (stored_value->IsSmi()) return stored_value;
+  return stored_value->IsSmi() ? stored_value : GetHeap()->undefined_value();
+}
 
-  // Do not generate permanent identity hash code if not requested.
-  if (flag == OMIT_CREATION) return GetHeap()->undefined_value();
 
-  Smi* hash = GenerateIdentityHash();
-  MaybeObject* result = SetHiddenProperty(GetHeap()->identity_hash_string(),
-                                          hash);
-  if (result->IsFailure()) return result;
-  if (result->ToObjectUnchecked()->IsUndefined()) {
+Handle<Object> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
+  Handle<Object> hash(object->GetIdentityHash(), object->GetIsolate());
+  if (hash->IsSmi())
+    return hash;
+
+  Isolate* isolate = object->GetIsolate();
+
+  hash = handle(object->GenerateIdentityHash(), isolate);
+  Handle<Object> result = SetHiddenProperty(object,
+      isolate->factory()->identity_hash_string(), hash);
+
+  if (result->IsUndefined()) {
     // Trying to get hash of detached proxy.
-    return Smi::FromInt(0);
+    return handle(Smi::FromInt(0), isolate);
   }
+
   return hash;
 }
 
 
-Handle<Object> JSProxy::GetIdentityHash(Handle<JSProxy> proxy,
-                                        CreationFlag flag) {
-  CALL_HEAP_FUNCTION(proxy->GetIsolate(), proxy->GetIdentityHash(flag), Object);
+Object* JSProxy::GetIdentityHash() {
+  return this->hash();
 }
 
 
-MaybeObject* JSProxy::GetIdentityHash(CreationFlag flag) {
-  Object* hash = this->hash();
-  if (!hash->IsSmi() && flag == ALLOW_CREATION) {
-    hash = GenerateIdentityHash();
-    set_hash(hash);
-  }
+Handle<Object> JSProxy::GetOrCreateIdentityHash(Handle<JSProxy> proxy) {
+  Isolate* isolate = proxy->GetIsolate();
+
+  Handle<Object> hash(proxy->GetIdentityHash(), isolate);
+  if (hash->IsSmi())
+    return hash;
+
+  hash = handle(proxy->GenerateIdentityHash(), isolate);
+  proxy->set_hash(*hash);
   return hash;
 }
 
@@ -4841,9 +4837,7 @@ Object* JSObject::GetHiddenProperty(Name* key) {
     return JSObject::cast(proxy_parent)->GetHiddenProperty(key);
   }
   ASSERT(!IsJSGlobalProxy());
-  MaybeObject* hidden_lookup =
-      GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
-  Object* inline_value = hidden_lookup->ToObjectUnchecked();
+  Object* inline_value = GetHiddenPropertiesHashTable();
 
   if (inline_value->IsSmi()) {
     // Handle inline-stored identity hash.
@@ -4862,53 +4856,45 @@ Object* JSObject::GetHiddenProperty(Name* key) {
 }
 
 
-Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
+Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> object,
                                            Handle<Name> key,
                                            Handle<Object> value) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->SetHiddenProperty(*key, *value),
-                     Object);
-}
+  Isolate* isolate = object->GetIsolate();
 
-
-MaybeObject* JSObject::SetHiddenProperty(Name* key, Object* value) {
   ASSERT(key->IsUniqueName());
-  if (IsJSGlobalProxy()) {
+  if (object->IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
-    Object* proxy_parent = GetPrototype();
+    Handle<Object> proxy_parent(object->GetPrototype(), isolate);
     // If the proxy is detached, return undefined.
-    if (proxy_parent->IsNull()) return GetHeap()->undefined_value();
+    if (proxy_parent->IsNull()) return isolate->factory()->undefined_value();
     ASSERT(proxy_parent->IsJSGlobalObject());
-    return JSObject::cast(proxy_parent)->SetHiddenProperty(key, value);
+    return SetHiddenProperty(Handle<JSObject>::cast(proxy_parent), key, value);
   }
-  ASSERT(!IsJSGlobalProxy());
-  MaybeObject* hidden_lookup =
-      GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
-  Object* inline_value = hidden_lookup->ToObjectUnchecked();
+  ASSERT(!object->IsJSGlobalProxy());
+
+  Handle<Object> inline_value(object->GetHiddenPropertiesHashTable(), isolate);
 
   // If there is no backing store yet, store the identity hash inline.
   if (value->IsSmi() &&
-      key == GetHeap()->identity_hash_string() &&
+      *key == *isolate->factory()->identity_hash_string() &&
       (inline_value->IsUndefined() || inline_value->IsSmi())) {
-    return SetHiddenPropertiesHashTable(value);
+    return JSObject::SetHiddenPropertiesHashTable(object, value);
   }
 
-  hidden_lookup = GetHiddenPropertiesHashTable(CREATE_NEW_IF_ABSENT);
-  ObjectHashTable* hashtable;
-  if (!hidden_lookup->To(&hashtable)) return hidden_lookup;
+  Handle<ObjectHashTable> hashtable =
+      GetOrCreateHiddenPropertiesHashtable(object);
 
   // If it was found, check if the key is already in the dictionary.
-  MaybeObject* insert_result = hashtable->Put(key, value);
-  ObjectHashTable* new_table;
-  if (!insert_result->To(&new_table)) return insert_result;
-  if (new_table != hashtable) {
+  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(hashtable, key,
+                                                           value);
+  if (*new_table != *hashtable) {
     // If adding the key expanded the dictionary (i.e., Add returned a new
     // dictionary), store it back to the object.
-    MaybeObject* store_result = SetHiddenPropertiesHashTable(new_table);
-    if (store_result->IsFailure()) return store_result;
+    SetHiddenPropertiesHashTable(object, new_table);
   }
+
   // Return this to mark success.
-  return this;
+  return object;
 }
 
 
@@ -4923,16 +4909,14 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
     return DeleteHiddenProperty(Handle<JSObject>::cast(proto), key);
   }
 
-  MaybeObject* hidden_lookup =
-      object->GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
-  Object* inline_value = hidden_lookup->ToObjectUnchecked();
+  Object* inline_value = object->GetHiddenPropertiesHashTable();
 
   // We never delete (inline-stored) identity hashes.
-  ASSERT(*key != isolate->heap()->identity_hash_string());
+  ASSERT(*key != *isolate->factory()->identity_hash_string());
   if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
 
   Handle<ObjectHashTable> hashtable(ObjectHashTable::cast(inline_value));
-  PutIntoObjectHashTable(hashtable, key, isolate->factory()->the_hole_value());
+  ObjectHashTable::Put(hashtable, key, isolate->factory()->the_hole_value());
 }
 
 
@@ -4943,10 +4927,8 @@ bool JSObject::HasHiddenProperties() {
 }
 
 
-MaybeObject* JSObject::GetHiddenPropertiesHashTable(
-    InitializeHiddenProperties init_option) {
+Object* JSObject::GetHiddenPropertiesHashTable() {
   ASSERT(!IsJSGlobalProxy());
-  Object* inline_value;
   if (HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
     // in the descriptor array matches the hidden string. Since the
@@ -4958,93 +4940,97 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
       if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
           sorted_index < map()->NumberOfOwnDescriptors()) {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
-        MaybeObject* maybe_value = this->FastPropertyAt(
-            descriptors->GetDetails(sorted_index).representation(),
+        ASSERT(descriptors->GetDetails(sorted_index).representation().
+               IsCompatibleForLoad(Representation::Tagged()));
+        return this->RawFastPropertyAt(
             descriptors->GetFieldIndex(sorted_index));
-        if (!maybe_value->To(&inline_value)) return maybe_value;
       } else {
-        inline_value = GetHeap()->undefined_value();
+        return GetHeap()->undefined_value();
       }
     } else {
-      inline_value = GetHeap()->undefined_value();
+      return GetHeap()->undefined_value();
     }
   } else {
     PropertyAttributes attributes;
     // You can't install a getter on a property indexed by the hidden string,
     // so we can be sure that GetLocalPropertyPostInterceptor returns a real
     // object.
-    inline_value =
-        GetLocalPropertyPostInterceptor(this,
-                                        GetHeap()->hidden_string(),
-                                        &attributes)->ToObjectUnchecked();
+    return GetLocalPropertyPostInterceptor(this,
+                                           GetHeap()->hidden_string(),
+                                           &attributes)->ToObjectUnchecked();
   }
+}
 
-  if (init_option == ONLY_RETURN_INLINE_VALUE ||
-      inline_value->IsHashTable()) {
-    return inline_value;
-  }
+Handle<ObjectHashTable> JSObject::GetOrCreateHiddenPropertiesHashtable(
+    Handle<JSObject> object) {
+  Isolate* isolate = object->GetIsolate();
 
-  ObjectHashTable* hashtable;
   static const int kInitialCapacity = 4;
-  MaybeObject* maybe_obj =
-      ObjectHashTable::Allocate(GetHeap(),
-                                kInitialCapacity,
-                                ObjectHashTable::USE_CUSTOM_MINIMUM_CAPACITY);
-  if (!maybe_obj->To<ObjectHashTable>(&hashtable)) return maybe_obj;
+  Handle<Object> inline_value(object->GetHiddenPropertiesHashTable(), isolate);
+  if (inline_value->IsHashTable()) {
+    return Handle<ObjectHashTable>::cast(inline_value);
+  }
+
+  Handle<ObjectHashTable> hashtable = isolate->factory()->NewObjectHashTable(
+      kInitialCapacity,
+      USE_CUSTOM_MINIMUM_CAPACITY);
 
   if (inline_value->IsSmi()) {
     // We were storing the identity hash inline and now allocated an actual
     // dictionary.  Put the identity hash into the new dictionary.
-    MaybeObject* insert_result =
-        hashtable->Put(GetHeap()->identity_hash_string(), inline_value);
-    ObjectHashTable* new_table;
-    if (!insert_result->To(&new_table)) return insert_result;
-    // We expect no resizing for the first insert.
-    ASSERT_EQ(hashtable, new_table);
+    hashtable = ObjectHashTable::Put(hashtable,
+                                     isolate->factory()->identity_hash_string(),
+                                     inline_value);
   }
 
-  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
-      GetHeap()->hidden_string(),
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      object,
+      isolate->factory()->hidden_string(),
       hashtable,
       DONT_ENUM,
       OPTIMAL_REPRESENTATION,
       ALLOW_AS_CONSTANT,
       OMIT_EXTENSIBILITY_CHECK);
-  if (store_result->IsFailure()) return store_result;
+
   return hashtable;
 }
 
 
-MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
-  ASSERT(!IsJSGlobalProxy());
+Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
+                                                      Handle<Object> value) {
+  ASSERT(!object->IsJSGlobalProxy());
+
+  Isolate* isolate = object->GetIsolate();
+
   // We can store the identity hash inline iff there is no backing store
   // for hidden properties yet.
-  ASSERT(HasHiddenProperties() != value->IsSmi());
-  if (HasFastProperties()) {
+  ASSERT(object->HasHiddenProperties() != value->IsSmi());
+  if (object->HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
     // in the descriptor array matches the hidden string. Since the
     // hidden strings hash code is zero (and no other name has hash
     // code zero) it will always occupy the first entry if present.
-    DescriptorArray* descriptors = this->map()->instance_descriptors();
+    DescriptorArray* descriptors = object->map()->instance_descriptors();
     if (descriptors->number_of_descriptors() > 0) {
       int sorted_index = descriptors->GetSortedKeyIndex(0);
-      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
-          sorted_index < map()->NumberOfOwnDescriptors()) {
+      if (descriptors->GetKey(sorted_index) == isolate->heap()->hidden_string()
+          && sorted_index < object->map()->NumberOfOwnDescriptors()) {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
-        FastPropertyAtPut(descriptors->GetFieldIndex(sorted_index), value);
-        return this;
+        object->FastPropertyAtPut(descriptors->GetFieldIndex(sorted_index),
+                                  *value);
+        return object;
       }
     }
   }
-  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
-      GetHeap()->hidden_string(),
-      value,
-      DONT_ENUM,
-      OPTIMAL_REPRESENTATION,
-      ALLOW_AS_CONSTANT,
-      OMIT_EXTENSIBILITY_CHECK);
-  if (store_result->IsFailure()) return store_result;
-  return this;
+
+  SetLocalPropertyIgnoreAttributes(object,
+                                   isolate->factory()->hidden_string(),
+                                   value,
+                                   DONT_ENUM,
+                                   OPTIMAL_REPRESENTATION,
+                                   ALLOW_AS_CONSTANT,
+                                   OMIT_EXTENSIBILITY_CHECK);
+  return object;
 }
 
 
@@ -5197,7 +5183,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   if (should_enqueue_change_record && !HasLocalElement(object, index)) {
     Handle<String> name = factory->Uint32ToString(index);
-    EnqueueChangeRecord(object, "deleted", name, old_value);
+    EnqueueChangeRecord(object, "delete", name, old_value);
   }
 
   return result;
@@ -5273,7 +5259,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   if (is_observed && !HasLocalProperty(object, name)) {
-    EnqueueChangeRecord(object, "deleted", name, old_value);
+    EnqueueChangeRecord(object, "delete", name, old_value);
   }
 
   return result;
@@ -5435,6 +5421,9 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
+
+  if (!object->map()->is_extensible()) return object;
+
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(*object,
                                isolate->heap()->undefined_value(),
@@ -5477,6 +5466,11 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   new_map->set_is_extensible(false);
   object->set_map(*new_map);
   ASSERT(!object->map()->is_extensible());
+
+  if (FLAG_harmony_observation && object->map()->is_observed()) {
+    EnqueueChangeRecord(object, "preventExtensions", Handle<Name>(),
+                        isolate->factory()->the_hole_value());
+  }
   return object;
 }
 
@@ -5505,6 +5499,7 @@ static void FreezeDictionary(Dictionary* dictionary) {
 Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
   // Freezing non-strict arguments should be handled elsewhere.
   ASSERT(!object->HasNonStrictArgumentsElements());
+  ASSERT(!object->map()->is_observed());
 
   if (object->map()->is_frozen()) return object;
 
@@ -5829,7 +5824,9 @@ Handle<JSObject> JSObjectWalkVisitor::StructureWalk(Handle<JSObject> object) {
     case FAST_HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
       if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
-        isolate->counters()->cow_arrays_created_runtime()->Increment();
+        if (copying) {
+          isolate->counters()->cow_arrays_created_runtime()->Increment();
+        }
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
           ASSERT(!elements->get(i)->IsJSObject());
@@ -6222,6 +6219,31 @@ bool JSObject::CanSetCallback(Name* name) {
 }
 
 
+bool Map::DictionaryElementsInPrototypeChainOnly() {
+  Heap* heap = GetHeap();
+
+  if (IsDictionaryElementsKind(elements_kind())) {
+    return false;
+  }
+
+  for (Object* prototype = this->prototype();
+       prototype != heap->null_value();
+       prototype = prototype->GetPrototype(GetIsolate())) {
+    if (prototype->IsJSProxy()) {
+      // Be conservative, don't walk into proxies.
+      return true;
+    }
+
+    if (IsDictionaryElementsKind(
+            JSObject::cast(prototype)->map()->elements_kind())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 void JSObject::SetElementCallback(Handle<JSObject> object,
                                   uint32_t index,
                                   Handle<Object> structure,
@@ -6230,6 +6252,7 @@ void JSObject::SetElementCallback(Handle<JSObject> object,
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
 
   // Normalize elements to make this operation simple.
+  bool had_dictionary_elements = object->HasDictionaryElements();
   Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
   ASSERT(object->HasDictionaryElements() ||
          object->HasDictionaryArgumentsElements());
@@ -6253,6 +6276,11 @@ void JSObject::SetElementCallback(Handle<JSObject> object,
     parameter_map->set(1, *dictionary);
   } else {
     object->set_elements(*dictionary);
+
+    if (!had_dictionary_elements) {
+      // KeyedStoreICs (at least the non-generic ones) need a reset.
+      heap->ClearAllICsByKind(Code::KEYED_STORE_IC);
+    }
   }
 }
 
@@ -6352,7 +6380,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   if (is_observed) {
-    const char* type = preexists ? "reconfigured" : "new";
+    const char* type = preexists ? "reconfigure" : "add";
     EnqueueChangeRecord(object, type, name, old_value);
   }
 }
@@ -7828,7 +7856,7 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
       accessor->AddElementsToFixedArray(array, array, this);
   FixedArray* result;
   if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
@@ -7846,7 +7874,7 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
       accessor->AddElementsToFixedArray(NULL, NULL, this, other);
   FixedArray* result;
   if (!maybe_result->To(&result)) return maybe_result;
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
@@ -8308,11 +8336,6 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
                                           RobustnessFlag robust_flag,
                                           int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
-}
-
-
-const uc16* String::GetTwoByteData() {
-  return GetTwoByteData(0);
 }
 
 
@@ -8901,7 +8924,7 @@ bool String::SlowEquals(String* other) {
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
   if (HasHashCode() && other->HasHashCode()) {
-#ifdef DEBUG
+#ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
       if (Hash() != other->Hash()) {
         bool found_difference = false;
@@ -9156,7 +9179,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   if (newspace->Contains(start_of_string) &&
       newspace->top() == start_of_string + old_size) {
     // Last allocated object in new space.  Simply lower allocation top.
-    *(newspace->allocation_top_address()) = start_of_string + new_size;
+    newspace->set_top(start_of_string + new_size);
   } else {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
@@ -9560,7 +9583,7 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
-    // Crate 3 entries per context {context, code, literals}.
+    // Create 3 entries per context {context, code, literals}.
     MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
     if (!maybe->To(&new_code_map)) return maybe;
     new_code_map->set(kEntriesStart + 0, native_context);
@@ -9719,20 +9742,6 @@ bool JSFunction::EnsureCompiled(Handle<JSFunction> function,
 }
 
 
-bool JSFunction::IsInlineable() {
-  if (IsBuiltin()) return false;
-  SharedFunctionInfo* shared_info = shared();
-  // Check that the function has a script associated with it.
-  if (!shared_info->script()->IsScript()) return false;
-  if (shared_info->optimization_disabled()) return false;
-  Code* code = shared_info->code();
-  if (code->kind() == Code::OPTIMIZED_FUNCTION) return true;
-  // If we never ran this (unlikely) then lets try to optimize it.
-  if (code->kind() != Code::FUNCTION) return true;
-  return code->optimizable();
-}
-
-
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
   if (object->IsGlobalObject()) return;
 
@@ -9876,6 +9885,48 @@ void JSFunction::RemovePrototype() {
 }
 
 
+void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
+  if (function->has_initial_map()) return;
+  Isolate* isolate = function->GetIsolate();
+
+  // First create a new map with the size and number of in-object properties
+  // suggested by the function.
+  InstanceType instance_type;
+  int instance_size;
+  int in_object_properties;
+  if (function->shared()->is_generator()) {
+    instance_type = JS_GENERATOR_OBJECT_TYPE;
+    instance_size = JSGeneratorObject::kSize;
+    in_object_properties = 0;
+  } else {
+    instance_type = JS_OBJECT_TYPE;
+    instance_size = function->shared()->CalculateInstanceSize();
+    in_object_properties = function->shared()->CalculateInObjectProperties();
+  }
+  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
+
+  // Fetch or allocate prototype.
+  Handle<Object> prototype;
+  if (function->has_instance_prototype()) {
+    prototype = handle(function->instance_prototype(), isolate);
+  } else {
+    prototype = isolate->factory()->NewFunctionPrototype(function);
+  }
+  map->set_inobject_properties(in_object_properties);
+  map->set_unused_property_fields(in_object_properties);
+  map->set_prototype(*prototype);
+  ASSERT(map->has_fast_object_elements());
+
+  if (!function->shared()->is_generator()) {
+    function->shared()->StartInobjectSlackTracking(*map);
+  }
+
+  // Finally link initial map and constructor function.
+  function->set_initial_map(*map);
+  map->set_constructor(*function);
+}
+
+
 void JSFunction::SetInstanceClassName(String* name) {
   shared()->set_instance_class_name(name);
 }
@@ -9904,9 +9955,13 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
   String* name = shared()->DebugName();
   Vector<const char> filter = CStrVector(raw_filter);
   if (filter.length() == 0) return name->length() == 0;
-  if (filter[0] != '-' && name->IsUtf8EqualTo(filter)) return true;
-  if (filter[0] == '-' &&
-      !name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+  if (filter[0] == '-') {
+    if (filter.length() == 1) {
+      return (name->length() != 0);
+    } else if (!name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+      return true;
+    }
+  } else if (name->IsUtf8EqualTo(filter)) {
     return true;
   }
   if (filter[filter.length() - 1] == '*' &&
@@ -9952,6 +10007,16 @@ Handle<Object> SharedFunctionInfo::GetSourceCode() {
   Handle<String> source(String::cast(Script::cast(script())->source()));
   return GetIsolate()->factory()->NewSubString(
       source, start_position(), end_position());
+}
+
+
+bool SharedFunctionInfo::IsInlineable() {
+  // Check that the function has a script associated with it.
+  if (!script()->IsScript()) return false;
+  if (optimization_disabled()) return false;
+  // If we never ran this (unlikely) then lets try to optimize it.
+  if (code()->kind() != Code::FUNCTION) return true;
+  return code()->optimizable();
 }
 
 
@@ -10305,13 +10370,14 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
 
 void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-  VisitPointer(rinfo->target_object_address());
+  Object* p = rinfo->target_object();
+  VisitPointer(&p);
 }
 
 
 void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
-  Address* p = rinfo->target_reference_address();
-  VisitExternalReference(p);
+  Address p = rinfo->target_reference();
+  VisitExternalReference(&p);
 }
 
 
@@ -10468,7 +10534,7 @@ Map* Code::FindFirstMap() {
 void Code::ReplaceNthObject(int n,
                             Map* match_map,
                             Object* replace_with) {
-  ASSERT(is_inline_cache_stub());
+  ASSERT(is_inline_cache_stub() || is_handler());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
@@ -10565,6 +10631,16 @@ void Code::ReplaceNthCell(int n, Cell* replace_with) {
 
 
 void Code::ClearInlineCaches() {
+  ClearInlineCaches(NULL);
+}
+
+
+void Code::ClearInlineCaches(Code::Kind kind) {
+  ClearInlineCaches(&kind);
+}
+
+
+void Code::ClearInlineCaches(Code::Kind* kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
              RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
@@ -10573,7 +10649,9 @@ void Code::ClearInlineCaches() {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
-      IC::Clear(this->GetIsolate(), info->pc());
+      if (kind == NULL || *kind == target->kind()) {
+        IC::Clear(this->GetIsolate(), info->pc());
+      }
     }
   }
 }
@@ -10619,12 +10697,25 @@ void Code::MarkCodeAsExecuted(byte* sequence, Isolate* isolate) {
 }
 
 
+static Code::Age EffectiveAge(Code::Age age) {
+  if (age == Code::kNotExecutedCodeAge) {
+    // Treat that's never been executed as old immediately.
+    age = Code::kIsOldCodeAge;
+  } else if (age == Code::kExecutedOnceCodeAge) {
+    // Pre-age code that has only been executed once.
+    age = Code::kPreAgedCodeAge;
+  }
+  return age;
+}
+
+
 void Code::MakeOlder(MarkingParity current_parity) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
     Age age;
     MarkingParity code_parity;
     GetCodeAgeAndParity(sequence, &age, &code_parity);
+    age = EffectiveAge(age);
     if (age != kLastCodeAge && code_parity != current_parity) {
       PatchPlatformCodeAge(GetIsolate(),
                            sequence,
@@ -10636,8 +10727,7 @@ void Code::MakeOlder(MarkingParity current_parity) {
 
 
 bool Code::IsOld() {
-  Age age = GetAge();
-  return age >= kIsOldCodeAge;
+  return GetAge() >= kIsOldCodeAge;
 }
 
 
@@ -10652,9 +10742,14 @@ byte* Code::FindCodeAgeSequence() {
 
 
 Code::Age Code::GetAge() {
+  return EffectiveAge(GetRawAge());
+}
+
+
+Code::Age Code::GetRawAge() {
   byte* sequence = FindCodeAgeSequence();
   if (sequence == NULL) {
-    return Code::kNoAgeCodeAge;
+    return kNoAgeCodeAge;
   }
   Age age;
   MarkingParity parity;
@@ -10685,15 +10780,13 @@ void Code::GetCodeAgeAndParity(Code* code, Age* age,
 #undef HANDLE_CODE_AGE
   stub = *builtins->MarkCodeAsExecutedOnce();
   if (code == stub) {
-    // Treat that's never been executed as old immediatly.
-    *age = kIsOldCodeAge;
+    *age = kNotExecutedCodeAge;
     *parity = NO_MARKING_PARITY;
     return;
   }
   stub = *builtins->MarkCodeAsExecutedTwice();
   if (code == stub) {
-    // Pre-age code that has only been executed once.
-    *age = kPreAgedCodeAge;
+    *age = kExecutedOnceCodeAge;
     *parity = NO_MARKING_PARITY;
     return;
   }
@@ -10729,7 +10822,7 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 }
 
 
-void Code::PrintDeoptLocation(int bailout_id) {
+void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
   const char* last_comment = NULL;
   int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
       | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
@@ -10743,7 +10836,7 @@ void Code::PrintDeoptLocation(int bailout_id) {
           (bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-        PrintF("            %s\n", last_comment);
+        PrintF(out, "            %s\n", last_comment);
         return;
       }
     }
@@ -10945,10 +11038,10 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
          this->DeoptPoints());
   if (this->DeoptPoints() == 0) return;
 
-  PrintF("%6s  %8s  %s\n", "ast id", "pc", "state");
+  PrintF(out, "%6s  %8s  %s\n", "ast id", "pc", "state");
   for (int i = 0; i < this->DeoptPoints(); i++) {
     int pc_and_state = this->PcAndState(i)->value();
-    PrintF("%6d  %8d  %s\n",
+    PrintF(out, "%6d  %8d  %s\n",
            this->AstId(i).ToInt(),
            FullCodeGenerator::PcField::decode(pc_and_state),
            FullCodeGenerator::State2String(
@@ -11059,7 +11152,7 @@ void Code::Disassemble(const char* name, FILE* out) {
         DeoptimizationInputData::cast(this->deoptimization_data());
     data->DeoptimizationInputDataPrint(out);
   }
-  PrintF("\n");
+  PrintF(out, "\n");
 
   if (is_crankshafted()) {
     SafepointTable table(this);
@@ -11067,7 +11160,7 @@ void Code::Disassemble(const char* name, FILE* out) {
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
       PrintF(out, "%p  %4d  ", (instruction_start() + pc_offset), pc_offset);
-      table.PrintEntry(i);
+      table.PrintEntry(i, out);
       PrintF(out, " (sp -> fp)");
       SafepointEntry entry = table.GetEntry(i);
       if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
@@ -11108,7 +11201,7 @@ void Code::Disassemble(const char* name, FILE* out) {
 #endif
   }
 
-  PrintF("RelocInfo (size = %d)\n", relocation_size());
+  PrintF(out, "RelocInfo (size = %d)\n", relocation_size());
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Print(GetIsolate(), out);
   }
@@ -11394,11 +11487,11 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 
   for (int i = 0; i < indices.length(); ++i) {
     JSObject::EnqueueChangeRecord(
-        self, "deleted", isolate->factory()->Uint32ToString(indices[i]),
+        self, "delete", isolate->factory()->Uint32ToString(indices[i]),
         old_values[i]);
   }
   JSObject::EnqueueChangeRecord(
-      self, "updated", isolate->factory()->length_string(),
+      self, "update", isolate->factory()->length_string(),
       old_length_handle);
 
   EndPerformSplice(self);
@@ -11746,6 +11839,8 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     }
   }
 
+  bool dictionary_elements_in_chain =
+      object->map()->DictionaryElementsInPrototypeChainOnly();
   Handle<JSObject> real_receiver = object;
 
   if (skip_hidden_prototypes) {
@@ -11777,6 +11872,14 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   }
   ASSERT(new_map->prototype() == *value);
   real_receiver->set_map(*new_map);
+
+  if (!dictionary_elements_in_chain &&
+      new_map->DictionaryElementsInPrototypeChainOnly()) {
+    // If the prototype chain didn't previously have element callbacks, then
+    // KeyedStoreICs need to be cleared to ensure any that involve this
+    // map go generic.
+    object->GetHeap()->ClearAllICsByKind(Code::KEYED_STORE_IC);
+  }
 
   heap->ClearInstanceofCache();
   ASSERT(size == object->Size());
@@ -12433,6 +12536,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     Handle<Object> value,
                                     PropertyAttributes attr,
                                     StrictModeFlag strict_mode,
+                                    bool check_prototype,
                                     SetPropertyMode set_mode) {
   if (object->HasExternalArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
@@ -12445,7 +12549,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
   CALL_HEAP_FUNCTION(
       object->GetIsolate(),
-      object->SetElement(index, *value, attr, strict_mode, true, set_mode),
+      object->SetElement(index, *value, attr, strict_mode, check_prototype,
+                         set_mode),
       Object);
 }
 
@@ -12544,26 +12649,26 @@ MaybeObject* JSObject::SetElement(uint32_t index,
       CHECK(new_length_handle->ToArrayIndex(&new_length));
 
       BeginPerformSplice(Handle<JSArray>::cast(self));
-      EnqueueChangeRecord(self, "new", name, old_value);
-      EnqueueChangeRecord(self, "updated", isolate->factory()->length_string(),
+      EnqueueChangeRecord(self, "add", name, old_value);
+      EnqueueChangeRecord(self, "update", isolate->factory()->length_string(),
                           old_length_handle);
       EndPerformSplice(Handle<JSArray>::cast(self));
       Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
       EnqueueSpliceRecord(Handle<JSArray>::cast(self), old_length, deleted,
                           new_length - old_length);
     } else {
-      EnqueueChangeRecord(self, "new", name, old_value);
+      EnqueueChangeRecord(self, "add", name, old_value);
     }
   } else if (old_value->IsTheHole()) {
-    EnqueueChangeRecord(self, "reconfigured", name, old_value);
+    EnqueueChangeRecord(self, "reconfigure", name, old_value);
   } else {
     Handle<Object> new_value = Object::GetElement(isolate, self, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
-      EnqueueChangeRecord(self, "reconfigured", name, old_value);
+      EnqueueChangeRecord(self, "reconfigure", name, old_value);
     } else if (value_changed) {
-      EnqueueChangeRecord(self, "updated", name, old_value);
+      EnqueueChangeRecord(self, "update", name, old_value);
     }
   }
 
@@ -12766,9 +12871,11 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   }
 
   if (from_kind == to_kind) return this;
-
-  MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
-  if (maybe_failure->IsFailure()) return maybe_failure;
+  // Don't update the site if to_kind isn't fast
+  if (IsFastElementsKind(to_kind)) {
+    MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
+    if (maybe_failure->IsFailure()) return maybe_failure;
+  }
 
   Isolate* isolate = GetIsolate();
   if (elements() == isolate->heap()->empty_fixed_array() ||
@@ -14287,6 +14394,14 @@ template
 int HashTable<SeededNumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
 
 
+Handle<Object> JSObject::PrepareSlowElementsForSort(
+    Handle<JSObject> object, uint32_t limit) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->PrepareSlowElementsForSort(limit),
+                     Object);
+}
+
+
 // Collates undefined and unexisting elements below limit from position
 // zero of the elements. The object stays in Dictionary mode.
 MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
@@ -14389,74 +14504,57 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // the start of the elements array.
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
-MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
-  Heap* heap = GetHeap();
+Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
+                                                uint32_t limit) {
+  Isolate* isolate = object->GetIsolate();
 
-  ASSERT(!map()->is_observed());
-  if (HasDictionaryElements()) {
+  ASSERT(!object->map()->is_observed());
+  if (object->HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
-    SeededNumberDictionary* dict = element_dictionary();
-    if (IsJSArray() || dict->requires_slow_elements() ||
+    Handle<SeededNumberDictionary> dict(object->element_dictionary());
+    if (object->IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
-      return PrepareSlowElementsForSort(limit);
+      return JSObject::PrepareSlowElementsForSort(object, limit);
     }
     // Convert to fast elements.
 
-    Object* obj;
-    MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
-                                                      FAST_HOLEY_ELEMENTS);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    Map* new_map = Map::cast(obj);
+    Handle<Map> new_map =
+        JSObject::GetElementsTransitionMap(object, FAST_HOLEY_ELEMENTS);
 
-    PretenureFlag tenure = heap->InNewSpace(this) ? NOT_TENURED: TENURED;
-    Object* new_array;
-    { MaybeObject* maybe_new_array =
-          heap->AllocateFixedArray(dict->NumberOfElements(), tenure);
-      if (!maybe_new_array->ToObject(&new_array)) return maybe_new_array;
-    }
-    FixedArray* fast_elements = FixedArray::cast(new_array);
-    dict->CopyValuesTo(fast_elements);
-    ValidateElements();
+    PretenureFlag tenure = isolate->heap()->InNewSpace(*object) ?
+        NOT_TENURED: TENURED;
+    Handle<FixedArray> fast_elements =
+        isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
+    dict->CopyValuesTo(*fast_elements);
+    object->ValidateElements();
 
-    set_map_and_elements(new_map, fast_elements);
-  } else if (HasExternalArrayElements()) {
+    object->set_map_and_elements(*new_map, *fast_elements);
+  } else if (object->HasExternalArrayElements()) {
     // External arrays cannot have holes or undefined elements.
-    return Smi::FromInt(ExternalArray::cast(elements())->length());
-  } else if (!HasFastDoubleElements()) {
-    Object* obj;
-    { MaybeObject* maybe_obj = EnsureWritableFastElements();
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
+    return handle(Smi::FromInt(
+        ExternalArray::cast(object->elements())->length()), isolate);
+  } else if (!object->HasFastDoubleElements()) {
+    JSObject::EnsureWritableFastElements(object);
   }
-  ASSERT(HasFastSmiOrObjectElements() || HasFastDoubleElements());
+  ASSERT(object->HasFastSmiOrObjectElements() ||
+         object->HasFastDoubleElements());
 
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.
 
-  FixedArrayBase* elements_base = FixedArrayBase::cast(this->elements());
+  Handle<FixedArrayBase> elements_base(object->elements());
   uint32_t elements_length = static_cast<uint32_t>(elements_base->length());
   if (limit > elements_length) {
     limit = elements_length ;
   }
   if (limit == 0) {
-    return Smi::FromInt(0);
-  }
-
-  HeapNumber* result_double = NULL;
-  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
-    // Pessimistically allocate space for return value before
-    // we start mutating the array.
-    Object* new_double;
-    { MaybeObject* maybe_new_double = heap->AllocateHeapNumber(0.0);
-      if (!maybe_new_double->ToObject(&new_double)) return maybe_new_double;
-    }
-    result_double = HeapNumber::cast(new_double);
+    return handle(Smi::FromInt(0), isolate);
   }
 
   uint32_t result = 0;
-  if (elements_base->map() == heap->fixed_double_array_map()) {
-    FixedDoubleArray* elements = FixedDoubleArray::cast(elements_base);
+  if (elements_base->map() == isolate->heap()->fixed_double_array_map()) {
+    FixedDoubleArray* elements = FixedDoubleArray::cast(*elements_base);
     // Split elements into defined and the_hole, in that order.
     unsigned int holes = limit;
     // Assume most arrays contain no holes and undefined values, so minimize the
@@ -14483,7 +14581,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
       holes++;
     }
   } else {
-    FixedArray* elements = FixedArray::cast(elements_base);
+    FixedArray* elements = FixedArray::cast(*elements_base);
     DisallowHeapAllocation no_gc;
 
     // Split elements into defined, undefined and the_hole, in that order.  Only
@@ -14528,12 +14626,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     }
   }
 
-  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
-    return Smi::FromInt(static_cast<int>(result));
-  }
-  ASSERT_NE(NULL, result_double);
-  result_double->set_value(static_cast<double>(result));
-  return result_double;
+  return isolate->factory()->NewNumberFromUint(result);
 }
 
 
@@ -14751,8 +14844,8 @@ PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
 }
 
 
-Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
-    Handle<GlobalObject> global,
+Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
+    Handle<JSGlobalObject> global,
     Handle<Name> name) {
   ASSERT(!global->HasFastProperties());
   int entry = global->property_dictionary()->FindEntry(*name);
@@ -15140,7 +15233,7 @@ MaybeObject* Dictionary<Shape, Key>::Allocate(Heap* heap,
       HashTable<Shape, Key>::Allocate(
           heap,
           at_least_space_for,
-          HashTable<Shape, Key>::USE_DEFAULT_MINIMUM_CAPACITY,
+          USE_DEFAULT_MINIMUM_CAPACITY,
           pretenure);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
@@ -15706,61 +15799,99 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
 }
 
 
+Handle<ObjectHashSet> ObjectHashSet::EnsureCapacity(
+    Handle<ObjectHashSet> table,
+    int n,
+    Handle<Object> key,
+    PretenureFlag pretenure) {
+  Handle<HashTable<ObjectHashTableShape<1>, Object*> > table_base = table;
+  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
+                     table_base->EnsureCapacity(n, *key, pretenure),
+                     ObjectHashSet);
+}
+
+
+Handle<ObjectHashSet> ObjectHashSet::Shrink(Handle<ObjectHashSet> table,
+                                            Handle<Object> key) {
+  Handle<HashTable<ObjectHashTableShape<1>, Object*> > table_base = table;
+  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
+                     table_base->Shrink(*key),
+                     ObjectHashSet);
+}
+
+
 bool ObjectHashSet::Contains(Object* key) {
   ASSERT(IsKey(key));
 
   // If the object does not have an identity hash, it was never used as a key.
-  { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-    if (maybe_hash->ToObjectUnchecked()->IsUndefined()) return false;
-  }
+  Object* hash = key->GetHash();
+  if (hash->IsUndefined()) return false;
+
   return (FindEntry(key) != kNotFound);
 }
 
 
-MaybeObject* ObjectHashSet::Add(Object* key) {
-  ASSERT(IsKey(key));
+Handle<ObjectHashSet> ObjectHashSet::Add(Handle<ObjectHashSet> table,
+                                         Handle<Object> key) {
+  ASSERT(table->IsKey(*key));
 
   // Make sure the key object has an identity hash code.
-  int hash;
-  { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
-    if (maybe_hash->IsFailure()) return maybe_hash;
-    ASSERT(key->GetHash(OMIT_CREATION) == maybe_hash);
-    hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
-  }
-  int entry = FindEntry(key);
+  Handle<Object> object_hash = Object::GetOrCreateHash(key,
+                                                       table->GetIsolate());
+
+  int entry = table->FindEntry(*key);
 
   // Check whether key is already present.
-  if (entry != kNotFound) return this;
+  if (entry != kNotFound) return table;
 
   // Check whether the hash set should be extended and add entry.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  ObjectHashSet* table = ObjectHashSet::cast(obj);
-  entry = table->FindInsertionEntry(hash);
-  table->set(EntryToIndex(entry), key);
-  table->ElementAdded();
-  return table;
+  Handle<ObjectHashSet> new_table =
+      ObjectHashSet::EnsureCapacity(table, 1, key);
+  entry = new_table->FindInsertionEntry(Smi::cast(*object_hash)->value());
+  new_table->set(EntryToIndex(entry), *key);
+  new_table->ElementAdded();
+  return new_table;
 }
 
 
-MaybeObject* ObjectHashSet::Remove(Object* key) {
-  ASSERT(IsKey(key));
+Handle<ObjectHashSet> ObjectHashSet::Remove(Handle<ObjectHashSet> table,
+                                            Handle<Object> key) {
+  ASSERT(table->IsKey(*key));
 
   // If the object does not have an identity hash, it was never used as a key.
-  { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-    if (maybe_hash->ToObjectUnchecked()->IsUndefined()) return this;
-  }
-  int entry = FindEntry(key);
+  if (key->GetHash()->IsUndefined()) return table;
+
+  int entry = table->FindEntry(*key);
 
   // Check whether key is actually present.
-  if (entry == kNotFound) return this;
+  if (entry == kNotFound) return table;
 
   // Remove entry and try to shrink this hash set.
-  set_the_hole(EntryToIndex(entry));
-  ElementRemoved();
-  return Shrink(key);
+  table->set_the_hole(EntryToIndex(entry));
+  table->ElementRemoved();
+
+  return ObjectHashSet::Shrink(table, key);
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
+    Handle<ObjectHashTable> table,
+    int n,
+    Handle<Object> key,
+    PretenureFlag pretenure) {
+  Handle<HashTable<ObjectHashTableShape<2>, Object*> > table_base = table;
+  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
+                     table_base->EnsureCapacity(n, *key, pretenure),
+                     ObjectHashTable);
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::Shrink(
+    Handle<ObjectHashTable> table, Handle<Object> key) {
+  Handle<HashTable<ObjectHashTableShape<2>, Object*> > table_base = table;
+  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
+                     table_base->Shrink(*key),
+                     ObjectHashTable);
 }
 
 
@@ -15768,10 +15899,9 @@ Object* ObjectHashTable::Lookup(Object* key) {
   ASSERT(IsKey(key));
 
   // If the object does not have an identity hash, it was never used as a key.
-  { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-    if (maybe_hash->ToObjectUnchecked()->IsUndefined()) {
-      return GetHeap()->the_hole_value();
-    }
+  Object* hash = key->GetHash();
+  if (hash->IsUndefined()) {
+    return GetHeap()->the_hole_value();
   }
   int entry = FindEntry(key);
   if (entry == kNotFound) return GetHeap()->the_hole_value();
@@ -15779,38 +15909,36 @@ Object* ObjectHashTable::Lookup(Object* key) {
 }
 
 
-MaybeObject* ObjectHashTable::Put(Object* key, Object* value) {
-  ASSERT(IsKey(key));
+Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
+                                             Handle<Object> key,
+                                             Handle<Object> value) {
+  ASSERT(table->IsKey(*key));
+
+  Isolate* isolate = table->GetIsolate();
 
   // Make sure the key object has an identity hash code.
-  int hash;
-  { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
-    if (maybe_hash->IsFailure()) return maybe_hash;
-    ASSERT(key->GetHash(OMIT_CREATION) == maybe_hash);
-    hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
-  }
-  int entry = FindEntry(key);
+  Handle<Object> hash = Object::GetOrCreateHash(key, isolate);
+
+  int entry = table->FindEntry(*key);
 
   // Check whether to perform removal operation.
   if (value->IsTheHole()) {
-    if (entry == kNotFound) return this;
-    RemoveEntry(entry);
-    return Shrink(key);
+    if (entry == kNotFound) return table;
+    table->RemoveEntry(entry);
+    return Shrink(table, key);
   }
 
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
-    set(EntryToIndex(entry) + 1, value);
-    return this;
+    table->set(EntryToIndex(entry) + 1, *value);
+    return table;
   }
 
   // Check whether the hash table should be extended.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  ObjectHashTable* table = ObjectHashTable::cast(obj);
-  table->AddEntry(table->FindInsertionEntry(hash), key, value);
+  table = EnsureCapacity(table, 1, key);
+  table->AddEntry(table->FindInsertionEntry(Handle<Smi>::cast(hash)->value()),
+                  *key,
+                  *value);
   return table;
 }
 

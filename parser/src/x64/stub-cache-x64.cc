@@ -107,38 +107,34 @@ static void ProbeTable(Isolate* isolate,
 }
 
 
-// Helper function used to check that the dictionary doesn't contain
-// the property. This function may return false negatives, so miss_label
-// must always call a backup property check that is complete.
-// This function is safe to call if the receiver has fast properties.
-// Name must be unique and receiver must be a heap object.
-static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
-                                             Label* miss_label,
-                                             Register receiver,
-                                             Handle<Name> name,
-                                             Register r0,
-                                             Register r1) {
+void StubCompiler::GenerateDictionaryNegativeLookup(MacroAssembler* masm,
+                                                    Label* miss_label,
+                                                    Register receiver,
+                                                    Handle<Name> name,
+                                                    Register scratch0,
+                                                    Register scratch1) {
   ASSERT(name->IsUniqueName());
+  ASSERT(!receiver.is(scratch0));
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1);
 
-  __ movq(r0, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ movq(scratch0, FieldOperand(receiver, HeapObject::kMapOffset));
 
   const int kInterceptorOrAccessCheckNeededMask =
       (1 << Map::kHasNamedInterceptor) | (1 << Map::kIsAccessCheckNeeded);
 
   // Bail out if the receiver has a named interceptor or requires access checks.
-  __ testb(FieldOperand(r0, Map::kBitFieldOffset),
+  __ testb(FieldOperand(scratch0, Map::kBitFieldOffset),
            Immediate(kInterceptorOrAccessCheckNeededMask));
   __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
-  __ CmpInstanceType(r0, FIRST_SPEC_OBJECT_TYPE);
+  __ CmpInstanceType(scratch0, FIRST_SPEC_OBJECT_TYPE);
   __ j(below, miss_label);
 
   // Load properties array.
-  Register properties = r0;
+  Register properties = scratch0;
   __ movq(properties, FieldOperand(receiver, JSObject::kPropertiesOffset));
 
   // Check that the properties array is a dictionary.
@@ -152,7 +148,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                                    &done,
                                                    properties,
                                                    name,
-                                                   r1);
+                                                   scratch1);
   __ bind(&done);
   __ DecrementCounter(counters->negative_lookups_miss(), 1);
 }
@@ -477,7 +473,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   } else {
     __ Move(args.GetArgumentOperand(offset - FCA::kDataIndex), call_data);
   }
-  __ movq(kScratchRegister,
+  __ Move(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
   __ movq(args.GetArgumentOperand(offset - FCA::kIsolateIndex),
           kScratchRegister);
@@ -777,16 +773,13 @@ void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
 }
 
 
-// Generate code to check that a global property cell is empty. Create
-// the property cell at compilation time if no cell exists for the
-// property.
-static void GenerateCheckPropertyCell(MacroAssembler* masm,
-                                      Handle<GlobalObject> global,
-                                      Handle<Name> name,
-                                      Register scratch,
-                                      Label* miss) {
+void StubCompiler::GenerateCheckPropertyCell(MacroAssembler* masm,
+                                             Handle<JSGlobalObject> global,
+                                             Handle<Name> name,
+                                             Register scratch,
+                                             Label* miss) {
   Handle<PropertyCell> cell =
-      GlobalObject::EnsurePropertyCell(global, name);
+      JSGlobalObject::EnsurePropertyCell(global, name);
   ASSERT(cell->value()->IsTheHole());
   __ Move(scratch, cell);
   __ Cmp(FieldOperand(scratch, Cell::kValueOffset),
@@ -803,7 +796,7 @@ void StoreStubCompiler::GenerateNegativeHolderLookup(
     Label* miss) {
   if (holder->IsJSGlobalObject()) {
     GenerateCheckPropertyCell(
-        masm, Handle<GlobalObject>::cast(holder), name, scratch1(), miss);
+        masm, Handle<JSGlobalObject>::cast(holder), name, scratch1(), miss);
   } else if (!holder->HasFastProperties() && !holder->IsJSGlobalProxy()) {
     GenerateDictionaryNegativeLookup(
         masm, miss, holder_reg, name, scratch1(), scratch2());
@@ -1054,19 +1047,17 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
 }
 
 
-// Calls GenerateCheckPropertyCell for each global object in the prototype chain
-// from object to (but not including) holder.
-static void GenerateCheckPropertyCells(MacroAssembler* masm,
-                                       Handle<JSObject> object,
-                                       Handle<JSObject> holder,
-                                       Handle<Name> name,
-                                       Register scratch,
-                                       Label* miss) {
+void StubCompiler::GenerateCheckPropertyCells(MacroAssembler* masm,
+                                              Handle<JSObject> object,
+                                              Handle<JSObject> holder,
+                                              Handle<Name> name,
+                                              Register scratch,
+                                              Label* miss) {
   Handle<JSObject> current = object;
   while (!current.is_identical_to(holder)) {
-    if (current->IsGlobalObject()) {
+    if (current->IsJSGlobalObject()) {
       GenerateCheckPropertyCell(masm,
-                                Handle<GlobalObject>::cast(current),
+                                Handle<JSGlobalObject>::cast(current),
                                 name,
                                 scratch,
                                 miss);
@@ -1282,30 +1273,10 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
 }
 
 
-void LoadStubCompiler::NonexistentHandlerFrontend(
-    Handle<JSObject> object,
-    Handle<JSObject> last,
-    Handle<Name> name,
-    Label* success,
-    Handle<GlobalObject> global) {
-  Label miss;
-
-  HandlerFrontendHeader(object, receiver(), last, name, &miss);
-
-  // If the last object in the prototype chain is a global object,
-  // check that the global property cell is empty.
-  if (!global.is_null()) {
-    GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
-  }
-
-  HandlerFrontendFooter(name, success, &miss);
-}
-
-
 void LoadStubCompiler::GenerateLoadField(Register reg,
-                                             Handle<JSObject> holder,
-                                             PropertyIndex field,
-                                             Representation representation) {
+                                         Handle<JSObject> holder,
+                                         PropertyIndex field,
+                                         Representation representation) {
   if (!reg.is(receiver())) __ movq(receiver(), reg);
   if (kind() == Code::LOAD_IC) {
     LoadFieldStub stub(field.is_inobject(holder),
@@ -2322,7 +2293,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   Label already_round;
   __ bind(&conversion_failure);
   int64_t kTwoMantissaBits= V8_INT64_C(0x4330000000000000);
-  __ movq(rbx, kTwoMantissaBits, RelocInfo::NONE64);
+  __ movq(rbx, kTwoMantissaBits);
   __ movq(xmm1, rbx);
   __ ucomisd(xmm0, xmm1);
   __ j(above_equal, &already_round);
@@ -2343,7 +2314,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   // Subtract 1 if the argument was less than the tentative result.
   int64_t kOne = V8_INT64_C(0x3ff0000000000000);
-  __ movq(rbx, kOne, RelocInfo::NONE64);
+  __ movq(rbx, kOne);
   __ movq(xmm1, rbx);
   __ andpd(xmm1, xmm2);
   __ subsd(xmm0, xmm1);
@@ -2440,15 +2411,14 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   // Check if the argument is a heap number and load its value.
   __ bind(&not_smi);
   __ CheckMap(rax, factory()->heap_number_map(), &slow, DONT_DO_SMI_CHECK);
-  __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ MoveDouble(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
 
   // Check the sign of the argument. If the argument is positive,
   // just return it.
   Label negative_sign;
   const int sign_mask_shift =
       (HeapNumber::kExponentOffset - HeapNumber::kValueOffset) * kBitsPerByte;
-  __ movq(rdi, static_cast<int64_t>(HeapNumber::kSignMask) << sign_mask_shift,
-          RelocInfo::NONE64);
+  __ Set(rdi, static_cast<int64_t>(HeapNumber::kSignMask) << sign_mask_shift);
   __ testq(rbx, rdi);
   __ j(not_zero, &negative_sign);
   __ ret(2 * kPointerSize);
@@ -2458,7 +2428,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   __ bind(&negative_sign);
   __ xor_(rbx, rdi);
   __ AllocateHeapNumber(rax, rdx, &slow);
-  __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rbx);
+  __ MoveDouble(FieldOperand(rax, HeapNumber::kValueOffset), rbx);
   __ ret(2 * kPointerSize);
 
   // Tail call the full function. We do not have to patch the receiver
@@ -2957,7 +2927,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
     Handle<JSObject> object,
     Handle<JSObject> last,
     Handle<Name> name,
-    Handle<GlobalObject> global) {
+    Handle<JSGlobalObject> global) {
   Label success;
 
   NonexistentHandlerFrontend(object, last, name, &success, global);
@@ -3066,10 +3036,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   // TODO(verwaest): Directly store to rax. Currently we cannot do this, since
   // rax is used as receiver(), which we would otherwise clobber before a
   // potential miss.
-
-  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss, DO_SMI_CHECK);
-  HandlerFrontendHeader(
-      object, receiver(), Handle<JSObject>::cast(global), name, &miss);
+  HandlerFrontendHeader(object, receiver(), global, name, &miss);
 
   // Get the value from the cell.
   __ Move(rbx, cell);
@@ -3093,7 +3060,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   __ ret(0);
 
   // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, name);
+  return GetCode(kind(), Code::NORMAL, name);
 }
 
 

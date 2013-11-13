@@ -783,64 +783,67 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-var CallSiteReceiverKey = %CreateSymbol("receiver");
-var CallSiteFunctionKey = %CreateSymbol("function");
-var CallSitePositionKey = %CreateSymbol("position");
-var CallSiteStrictModeKey = %CreateSymbol("strict mode");
+//TODO(rossberg)
+var CallSiteReceiverKey = NEW_PRIVATE("receiver");
+var CallSiteFunctionKey = NEW_PRIVATE("function");
+var CallSitePositionKey = NEW_PRIVATE("position");
+var CallSiteStrictModeKey = NEW_PRIVATE("strict mode");
 
 function CallSite(receiver, fun, pos, strict_mode) {
-  this[CallSiteReceiverKey] = receiver;
-  this[CallSiteFunctionKey] = fun;
-  this[CallSitePositionKey] = pos;
-  this[CallSiteStrictModeKey] = strict_mode;
+  SET_PRIVATE(this, CallSiteReceiverKey, receiver);
+  SET_PRIVATE(this, CallSiteFunctionKey, fun);
+  SET_PRIVATE(this, CallSitePositionKey, pos);
+  SET_PRIVATE(this, CallSiteStrictModeKey, strict_mode);
 }
 
 function CallSiteGetThis() {
-  return this[CallSiteStrictModeKey] ? UNDEFINED : this[CallSiteReceiverKey];
+  return GET_PRIVATE(this, CallSiteStrictModeKey)
+      ? UNDEFINED : GET_PRIVATE(this, CallSiteReceiverKey);
 }
 
 function CallSiteGetTypeName() {
-  return GetTypeName(this[CallSiteReceiverKey], false);
+  return GetTypeName(GET_PRIVATE(this, CallSiteReceiverKey), false);
 }
 
 function CallSiteIsToplevel() {
-  if (this[CallSiteReceiverKey] == null) {
+  if (GET_PRIVATE(this, CallSiteReceiverKey) == null) {
     return true;
   }
-  return IS_GLOBAL(this[CallSiteReceiverKey]);
+  return IS_GLOBAL(GET_PRIVATE(this, CallSiteReceiverKey));
 }
 
 function CallSiteIsEval() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script && script.compilation_type == COMPILATION_TYPE_EVAL;
 }
 
 function CallSiteGetEvalOrigin() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return FormatEvalOrigin(script);
 }
 
 function CallSiteGetScriptNameOrSourceURL() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script ? script.nameOrSourceURL() : null;
 }
 
 function CallSiteGetFunction() {
-  return this[CallSiteStrictModeKey] ? UNDEFINED : this[CallSiteFunctionKey];
+  return GET_PRIVATE(this, CallSiteStrictModeKey)
+      ? UNDEFINED : GET_PRIVATE(this, CallSiteFunctionKey);
 }
 
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
-  var name = this[CallSiteFunctionKey].name;
+  var name = GET_PRIVATE(this, CallSiteFunctionKey).name;
   if (name) {
     return name;
   }
-  name = %FunctionGetInferredName(this[CallSiteFunctionKey]);
+  name = %FunctionGetInferredName(GET_PRIVATE(this, CallSiteFunctionKey));
   if (name) {
     return name;
   }
   // Maybe this is an evaluation?
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   if (script && script.compilation_type == COMPILATION_TYPE_EVAL) {
     return "eval";
   }
@@ -850,8 +853,8 @@ function CallSiteGetFunctionName() {
 function CallSiteGetMethodName() {
   // See if we can find a unique property on the receiver that holds
   // this function.
-  var receiver = this[CallSiteReceiverKey];
-  var fun = this[CallSiteFunctionKey];
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
   var ownName = fun.name;
   if (ownName && receiver &&
       (%_CallFunction(receiver, ownName, ObjectLookupGetter) === fun ||
@@ -880,49 +883,51 @@ function CallSiteGetMethodName() {
 }
 
 function CallSiteGetFileName() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script ? script.name : null;
 }
 
 function CallSiteGetLineNumber() {
-  if (this[CallSitePositionKey] == -1) {
+  if (GET_PRIVATE(this, CallSitePositionKey) == -1) {
     return null;
   }
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   var location = null;
   if (script) {
-    location = script.locationFromPosition(this[CallSitePositionKey], true);
+    location = script.locationFromPosition(
+        GET_PRIVATE(this, CallSitePositionKey), true);
   }
   return location ? location.line + 1 : null;
 }
 
 function CallSiteGetColumnNumber() {
-  if (this[CallSitePositionKey] == -1) {
+  if (GET_PRIVATE(this, CallSitePositionKey) == -1) {
     return null;
   }
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   var location = null;
   if (script) {
-    location = script.locationFromPosition(this[CallSitePositionKey], true);
+    location = script.locationFromPosition(
+      GET_PRIVATE(this, CallSitePositionKey), true);
   }
   return location ? location.column + 1: null;
 }
 
 function CallSiteIsNative() {
-  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
+  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
   return script ? (script.type == TYPE_NATIVE) : false;
 }
 
 function CallSiteGetPosition() {
-  return this[CallSitePositionKey];
+  return GET_PRIVATE(this, CallSitePositionKey);
 }
 
 function CallSiteIsConstructor() {
-  var receiver = this[CallSiteReceiverKey];
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
   var constructor = (receiver != null && IS_OBJECT(receiver))
                         ? %GetDataProperty(receiver, "constructor") : null;
   if (!constructor) return false;
-  return this[CallSiteFunctionKey] === constructor;
+  return GET_PRIVATE(this, CallSiteFunctionKey) === constructor;
 }
 
 function CallSiteToString() {
@@ -965,7 +970,7 @@ function CallSiteToString() {
   var isConstructor = this.isConstructor();
   var isMethodCall = !(this.isToplevel() || isConstructor);
   if (isMethodCall) {
-    var typeName = GetTypeName(this[CallSiteReceiverKey], true);
+    var typeName = GetTypeName(GET_PRIVATE(this, CallSiteReceiverKey), true);
     var methodName = this.getMethodName();
     if (functionName) {
       if (typeName &&
@@ -1247,23 +1252,24 @@ var visited_errors = new InternalArray();
 var cyclic_error_marker = new $Object();
 
 function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
+  var current = error;
   // Climb the prototype chain until we find the holder.
-  while (error && !%HasLocalProperty(error, name)) {
-    error = %GetPrototype(error);
+  while (current && !%HasLocalProperty(current, name)) {
+    current = %GetPrototype(current);
   }
-  if (IS_NULL(error)) return UNDEFINED;
-  if (!IS_OBJECT(error)) return error[name];
+  if (IS_NULL(current)) return UNDEFINED;
+  if (!IS_OBJECT(current)) return error[name];
   // If the property is an accessor on one of the predefined errors that can be
   // generated statically by the compiler, don't touch it. This is to address
   // http://code.google.com/p/chromium/issues/detail?id=69187
-  var desc = %GetOwnProperty(error, name);
+  var desc = %GetOwnProperty(current, name);
   if (desc && desc[IS_ACCESSOR_INDEX]) {
     var isName = name === "name";
-    if (error === $ReferenceError.prototype)
+    if (current === $ReferenceError.prototype)
       return isName ? "ReferenceError" : UNDEFINED;
-    if (error === $SyntaxError.prototype)
+    if (current === $SyntaxError.prototype)
       return isName ? "SyntaxError" : UNDEFINED;
-    if (error === $TypeError.prototype)
+    if (current === $TypeError.prototype)
       return isName ? "TypeError" : UNDEFINED;
   }
   // Otherwise, read normally.

@@ -10,8 +10,14 @@
       'dependencies': [
         '../samples/samples.gyp:*',
         '../src/d8.gyp:d8',
-        '../src/lexer/lexer.gyp:lexer-shell',
         '../test/cctest/cctest.gyp:*',
+      ],
+      'conditions': [
+        ['component!="shared_library"', {
+          'dependencies': [
+            '../src/lexer/lexer.gyp:lexer-shell',
+          ],
+        }],
       ],
     }
   ]

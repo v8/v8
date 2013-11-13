@@ -34,50 +34,68 @@ var $ArrayBuffer = global.ArrayBuffer;
 
 
 // --------------- Typed Arrays ---------------------
+macro TYPED_ARRAYS(FUNCTION)
+// arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
+FUNCTION(1, Uint8Array, 1)
+FUNCTION(2, Int8Array, 1)
+FUNCTION(3, Uint16Array, 2)
+FUNCTION(4, Int16Array, 2)
+FUNCTION(5, Uint32Array, 4)
+FUNCTION(6, Int32Array, 4)
+FUNCTION(7, Float32Array, 4)
+FUNCTION(8, Float64Array, 8)
+FUNCTION(9, Uint8ClampedArray, 1)
+endmacro
 
-function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
-  function ConstructByArrayBuffer(obj, buffer, byteOffset, length) {
-    var offset = ToPositiveInteger(byteOffset, "invalid_typed_array_length")
+macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
+  function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
+    var bufferByteLength = buffer.byteLength;
+    var offset;
+    if (IS_UNDEFINED(byteOffset)) {
+      offset = 0;
+    } else {
+      offset = ToPositiveInteger(byteOffset, "invalid_typed_array_length");
 
-    if (offset % elementSize !== 0) {
-      throw MakeRangeError("invalid_typed_array_alignment",
-          "start offset", name, elementSize);
-    }
-    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
-    if (offset > bufferByteLength) {
-      throw MakeRangeError("invalid_typed_array_offset");
+      if (offset % ELEMENT_SIZE !== 0) {
+        throw MakeRangeError("invalid_typed_array_alignment",
+            "start offset", "NAME", ELEMENT_SIZE);
+      }
+      if (offset > bufferByteLength) {
+        throw MakeRangeError("invalid_typed_array_offset");
+      }
     }
 
     var newByteLength;
     var newLength;
     if (IS_UNDEFINED(length)) {
-      if (bufferByteLength % elementSize !== 0) {
+      if (bufferByteLength % ELEMENT_SIZE !== 0) {
         throw MakeRangeError("invalid_typed_array_alignment",
-          "byte length", name, elementSize);
+          "byte length", "NAME", ELEMENT_SIZE);
       }
       newByteLength = bufferByteLength - offset;
-      newLength = newByteLength / elementSize;
+      newLength = newByteLength / ELEMENT_SIZE;
     } else {
       var newLength = ToPositiveInteger(length, "invalid_typed_array_length");
-      newByteLength = newLength * elementSize;
+      newByteLength = newLength * ELEMENT_SIZE;
     }
     if (offset + newByteLength > bufferByteLength) {
       throw MakeRangeError("invalid_typed_array_length");
     }
-    %TypedArrayInitialize(obj, arrayId, buffer, offset, newByteLength);
+    %TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
   }
 
-  function ConstructByLength(obj, length) {
-    var l = ToPositiveInteger(length, "invalid_typed_array_length");
-    var byteLength = l * elementSize;
+  function NAMEConstructByLength(obj, length) {
+    var l = IS_UNDEFINED(length) ?
+      0 : ToPositiveInteger(length, "invalid_typed_array_length");
+    var byteLength = l * ELEMENT_SIZE;
     var buffer = new $ArrayBuffer(byteLength);
-    %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
+    %TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
   }
 
-  function ConstructByArrayLike(obj, arrayLike) {
+  function NAMEConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
     var l = ToPositiveInteger(length, "invalid_typed_array_length");
-    if(!%TypedArrayInitializeFromArrayLike(obj, arrayId, arrayLike, l)) {
+    if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
       for (var i = 0; i < l; i++) {
         // It is crucial that we let any execptions from arrayLike[i]
         // propagate outside the function.
@@ -86,21 +104,24 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
     }
   }
 
-  return function (arg1, arg2, arg3) {
+  function NAMEConstructor(arg1, arg2, arg3) {
+
     if (%_IsConstructCall()) {
       if (IS_ARRAYBUFFER(arg1)) {
-        ConstructByArrayBuffer(this, arg1, arg2, arg3);
+        NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
       } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
                  IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
-        ConstructByLength(this, arg1);
+        NAMEConstructByLength(this, arg1);
       } else {
-        ConstructByArrayLike(this, arg1);
+        NAMEConstructByArrayLike(this, arg1);
       }
     } else {
-      throw MakeTypeError("constructor_not_function", [name])
+      throw MakeTypeError("constructor_not_function", ["NAME"])
     }
   }
-}
+endmacro
+
+TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
 
 function TypedArrayGetBuffer() {
   return %TypedArrayGetBuffer(this);
@@ -247,10 +268,8 @@ function TypedArraySet(obj, offset) {
 
 // -------------------------------------------------------------------
 
-function SetupTypedArray(arrayId, name, constructor, elementSize) {
+function SetupTypedArray(constructor, fun, elementSize) {
   %CheckIsBootstrapping();
-  var fun = CreateTypedArrayConstructor(name, elementSize,
-                                        arrayId, constructor);
   %SetCode(constructor, fun);
   %FunctionSetPrototype(constructor, new $Object());
 
@@ -272,17 +291,11 @@ function SetupTypedArray(arrayId, name, constructor, elementSize) {
   ));
 }
 
-// arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
-SetupTypedArray(1, "Uint8Array", global.Uint8Array, 1);
-SetupTypedArray(2, "Int8Array", global.Int8Array, 1);
-SetupTypedArray(3, "Uint16Array", global.Uint16Array, 2);
-SetupTypedArray(4, "Int16Array", global.Int16Array, 2);
-SetupTypedArray(5, "Uint32Array", global.Uint32Array, 4);
-SetupTypedArray(6, "Int32Array", global.Int32Array, 4);
-SetupTypedArray(7, "Float32Array", global.Float32Array, 4);
-SetupTypedArray(8, "Float64Array", global.Float64Array, 8);
-SetupTypedArray(9, "Uint8ClampedArray", global.Uint8ClampedArray, 1);
+macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
+  SetupTypedArray (global.NAME, NAMEConstructor, ELEMENT_SIZE);
+endmacro
 
+TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 // --------------------------- DataView -----------------------------
 
@@ -294,7 +307,8 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
       throw MakeTypeError('data_view_not_array_buffer', []);
     }
     var bufferByteLength = %ArrayBufferGetByteLength(buffer);
-    var offset = ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
+    var offset = IS_UNDEFINED(byteOffset) ?
+      0 : ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
     if (offset > bufferByteLength) {
       throw MakeRangeError('invalid_data_view_offset');
     }

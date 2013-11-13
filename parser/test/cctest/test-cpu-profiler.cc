@@ -718,7 +718,8 @@ TEST(NativeAccessorUninitializedIC) {
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors(100);
-  v8::Local<v8::External> data = v8::External::New(&accessors);
+  v8::Local<v8::External> data =
+      v8::External::New(env->GetIsolate(), &accessors);
   instance_template->SetAccessor(
       v8::String::New("foo"), &TestApiCallbacks::Getter,
       &TestApiCallbacks::Setter, data);
@@ -758,7 +759,8 @@ TEST(NativeAccessorMonomorphicIC) {
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors(1);
-  v8::Local<v8::External> data = v8::External::New(&accessors);
+  v8::Local<v8::External> data =
+      v8::External::New(env->GetIsolate(), &accessors);
   instance_template->SetAccessor(
       v8::String::New("foo"), &TestApiCallbacks::Getter,
       &TestApiCallbacks::Setter, data);
@@ -807,7 +809,8 @@ TEST(NativeMethodUninitializedIC) {
   v8::HandleScope scope(env->GetIsolate());
 
   TestApiCallbacks callbacks(100);
-  v8::Local<v8::External> data = v8::External::New(&callbacks);
+  v8::Local<v8::External> data =
+      v8::External::New(env->GetIsolate(), &callbacks);
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
   func_template->SetClassName(v8::String::New("Test_InstanceCostructor"));
@@ -844,7 +847,8 @@ TEST(NativeMethodMonomorphicIC) {
   v8::HandleScope scope(env->GetIsolate());
 
   TestApiCallbacks callbacks(1);
-  v8::Local<v8::External> data = v8::External::New(&callbacks);
+  v8::Local<v8::External> data =
+      v8::External::New(env->GetIsolate(), &callbacks);
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
   func_template->SetClassName(v8::String::New("Test_InstanceCostructor"));

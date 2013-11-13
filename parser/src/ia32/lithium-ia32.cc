@@ -580,6 +580,14 @@ LOperand* LChunkBuilder::UseOrConstantAtStart(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseFixedOrConstant(HValue* value,
+                                            Register fixed_register) {
+  return CanBeImmediateConstant(value)
+      ? chunk_->DefineConstantOperand(HConstant::cast(value))
+      : UseFixed(value, fixed_register);
+}
+
+
 LOperand* LChunkBuilder::UseRegisterOrConstant(HValue* value) {
   return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
@@ -916,10 +924,12 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
 
   LInstruction* instr = NULL;
   if (current->CanReplaceWithDummyUses()) {
-    HValue* first_operand = current->OperandCount() == 0
-        ? graph()->GetConstant1()
-        : current->OperandAt(0);
-    instr = DefineAsRegister(new(zone()) LDummyUse(UseAny(first_operand)));
+    if (current->OperandCount() == 0) {
+      instr = DefineAsRegister(new(zone()) LDummy());
+    } else {
+      instr = DefineAsRegister(new(zone())
+          LDummyUse(UseAny(current->OperandAt(0))));
+    }
     for (int i = 1; i < current->OperandCount(); ++i) {
       LInstruction* dummy =
           new(zone()) LDummyUse(UseAny(current->OperandAt(i)));
@@ -1282,10 +1292,9 @@ LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
-  LOperand* context = UseAny(instr->context());
   LOperand* input = UseRegister(instr->value());
   LOperand* temp = FixedTemp(xmm4);
-  LMathRound* result = new(zone()) LMathRound(context, input, temp);
+  LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
 }
 
@@ -1347,10 +1356,9 @@ LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathPowHalf(HUnaryMathOperation* instr) {
-  LOperand* context = UseAny(instr->context());
   LOperand* input = UseRegisterAtStart(instr->value());
   LOperand* temp = TempRegister();
-  LMathPowHalf* result = new(zone()) LMathPowHalf(context, input, temp);
+  LMathPowHalf* result = new(zone()) LMathPowHalf(input, temp);
   return DefineSameAsFirst(result);
 }
 
@@ -1728,9 +1736,12 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     ASSERT(instr->right()->representation().IsDouble());
     LOperand* left;
     LOperand* right;
-    if (instr->left()->IsConstant() && instr->right()->IsConstant()) {
-      left = UseRegisterOrConstantAtStart(instr->left());
-      right = UseRegisterOrConstantAtStart(instr->right());
+    if (CanBeImmediateConstant(instr->left()) &&
+        CanBeImmediateConstant(instr->right())) {
+      // The code generator requires either both inputs to be constant
+      // operands, or neither.
+      left = UseConstant(instr->left());
+      right = UseConstant(instr->right());
     } else {
       left = UseRegisterAtStart(instr->left());
       right = UseRegisterAtStart(instr->right());
@@ -1754,6 +1765,16 @@ LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
     HCompareHoleAndBranch* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return new(zone()) LCmpHoleAndBranch(value);
+}
+
+
+LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
+    HCompareMinusZeroAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
+  LOperand* value = UseRegister(instr->value());
+  LOperand* scratch = TempRegister();
+  return new(zone()) LCompareMinusZeroAndBranch(value, scratch);
 }
 
 
@@ -1862,14 +1883,20 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  return DefineAsRegister(new(zone()) LSeqStringGetChar(string, index));
+}
+
+
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
-  LOperand* string = UseRegister(instr->string());
-  LOperand* index = UseRegister(instr->index());
-  ASSERT(ecx.is_byte_register());
-  LOperand* value = UseFixed(instr->value(), ecx);
-  LSeqStringSetChar* result =
-      new(zone()) LSeqStringSetChar(instr->encoding(), string, index, value);
-  return DefineSameAsFirst(result);
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  LOperand* value = (instr->encoding() == String::ONE_BYTE_ENCODING)
+      ? UseFixedOrConstant(instr->value(), eax)
+      : UseRegisterOrConstantAtStart(instr->value());
+  return new(zone()) LSeqStringSetChar(string, index, value);
 }
 
 
@@ -1999,8 +2026,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result =
-          DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
+      LInstruction* result = val->CheckFlag(HInstruction::kUint32)
+           ? DefineSameAsFirst(new(zone()) LUint32ToSmi(value))
+           : DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return result;
       }
@@ -2098,12 +2126,10 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 
 
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
-  LOperand* context = info()->IsStub()
-      ? UseFixed(instr->context(), esi)
-      : NULL;
+  LOperand* context = info()->IsStub() ? UseFixed(instr->context(), esi) : NULL;
   LOperand* parameter_count = UseRegisterOrConstant(instr->parameter_count());
-  return new(zone()) LReturn(UseFixed(instr->value(), eax), context,
-                             parameter_count);
+  return new(zone()) LReturn(
+      UseFixed(instr->value(), eax), context, parameter_count);
 }
 
 
@@ -2418,7 +2444,8 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
       !(FLAG_track_double_fields && instr->field_representation().IsDouble());
 
   LOperand* val;
-  if (instr->field_representation().IsByte()) {
+  if (instr->field_representation().IsInteger8() ||
+      instr->field_representation().IsUInteger8()) {
     // mov_b requires a byte register (i.e. any of eax, ebx, ecx, edx).
     // Just force the value to be in eax and we're safe here.
     val = UseFixed(instr->value(), eax);
@@ -2468,8 +2495,12 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* left = UseOrConstantAtStart(instr->left());
-  LOperand* right = UseOrConstantAtStart(instr->right());
+  LOperand* left = FLAG_new_string_add
+      ? UseFixed(instr->left(), edx)
+      : UseOrConstantAtStart(instr->left());
+  LOperand* right = FLAG_new_string_add
+      ? UseFixed(instr->right(), eax)
+      : UseOrConstantAtStart(instr->right());
   LStringAdd* string_add = new(zone()) LStringAdd(context, left, right);
   return MarkAsCall(DefineFixed(string_add, eax), instr);
 }
@@ -2538,7 +2569,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     CodeStubInterfaceDescriptor* descriptor =
         info()->code_stub()->GetInterfaceDescriptor(info()->isolate());
     int index = static_cast<int>(instr->index());
-    Register reg = DESCRIPTOR_GET_PARAMETER_REGISTER(descriptor, index);
+    Register reg = descriptor->GetParameterRegister(index);
     return DefineFixed(result, reg);
   }
 }

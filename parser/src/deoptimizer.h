@@ -333,15 +333,9 @@ class Deoptimizer : public Malloced {
                          int object_index,
                          int field_index);
 
-  enum DeoptimizerTranslatedValueType {
-    TRANSLATED_VALUE_IS_NATIVE,
-    TRANSLATED_VALUE_IS_TAGGED
-  };
-
   void DoTranslateCommand(TranslationIterator* iterator,
-      int frame_index,
-      unsigned output_offset,
-      DeoptimizerTranslatedValueType value_type = TRANSLATED_VALUE_IS_TAGGED);
+                          int frame_index,
+                          unsigned output_offset);
 
   unsigned ComputeInputFrameSize() const;
   unsigned ComputeFixedSize(JSFunction* function) const;
@@ -451,7 +445,7 @@ class Deoptimizer : public Malloced {
   DisallowHeapAllocation* disallow_heap_allocation_;
 #endif  // DEBUG
 
-  bool trace_;
+  CodeTracer::Scope* trace_scope_;
 
   static const int table_entry_size_;
 
@@ -506,7 +500,15 @@ class FrameDescription {
   void SetCallerFp(unsigned offset, intptr_t value);
 
   intptr_t GetRegister(unsigned n) const {
-    ASSERT(n < ARRAY_SIZE(registers_));
+#if DEBUG
+    // This convoluted ASSERT is needed to work around a gcc problem that
+    // improperly detects an array bounds overflow in optimized debug builds
+    // when using a plain ASSERT.
+    if (n >= ARRAY_SIZE(registers_)) {
+      ASSERT(false);
+      return 0;
+    }
+#endif
     return registers_[n];
   }
 

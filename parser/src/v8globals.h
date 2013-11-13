@@ -199,6 +199,11 @@ const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 // allows).
 enum PretenureFlag { NOT_TENURED, TENURED };
 
+enum MinimumCapacity {
+  USE_DEFAULT_MINIMUM_CAPACITY,
+  USE_CUSTOM_MINIMUM_CAPACITY
+};
+
 enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };

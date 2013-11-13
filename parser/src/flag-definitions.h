@@ -311,7 +311,7 @@ DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
-DEFINE_int(escape_analysis_iterations, 1,
+DEFINE_int(escape_analysis_iterations, 2,
            "maximum number of escape analysis fix-point iterations")
 
 DEFINE_bool(optimize_for_in, true,
@@ -337,6 +337,8 @@ DEFINE_implication(concurrent_osr, concurrent_recompilation)
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
+
+DEFINE_bool(new_string_add, false, "enable new string addition")
 
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
@@ -502,6 +504,9 @@ DEFINE_bool(trace_gc_ignore_scavenger, false,
             "do not print trace line after scavenger collection")
 DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
+DEFINE_bool(print_max_heap_committed, false,
+            "print statistics of the maximum memory committed for the heap "
+            "in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(trace_fragmentation, false,
@@ -698,8 +703,10 @@ DEFINE_bool(stress_compaction, false,
 #endif
 
 // checks.cc
+#ifdef ENABLE_SLOW_ASSERTS
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
+#endif
 
 // codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_bool(print_source, false, "pretty print source code")
@@ -791,6 +798,12 @@ DEFINE_bool(log_timer_events, false,
             "Time events including external callbacks.")
 DEFINE_implication(log_timer_events, log_internal_timer_events)
 DEFINE_implication(log_internal_timer_events, prof)
+
+DEFINE_bool(redirect_code_traces, false,
+            "output deopt information and disassembly into file "
+            "code-<pid>-<isolate id>.asm")
+DEFINE_string(redirect_code_traces_to, NULL,
+            "output deopt information and disassembly into the given file")
 
 //
 // Disassembler only flags

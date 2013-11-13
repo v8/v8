@@ -105,46 +105,7 @@ class StubCache {
   Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
                                       Handle<JSObject> object);
 
-  Handle<Code> ComputeLoadGlobal(Handle<Name> name,
-                                 Handle<JSObject> object,
-                                 Handle<GlobalObject> holder,
-                                 Handle<PropertyCell> cell,
-                                 bool is_dont_delete);
-
   // ---
-
-  Handle<Code> ComputeKeyedLoadField(Handle<Name> name,
-                                     Handle<JSObject> object,
-                                     Handle<JSObject> holder,
-                                     PropertyIndex field_index,
-                                     Representation representation);
-
-  Handle<Code> ComputeKeyedLoadCallback(
-      Handle<Name> name,
-      Handle<JSObject> object,
-      Handle<JSObject> holder,
-      Handle<ExecutableAccessorInfo> callback);
-
-  Handle<Code> ComputeKeyedLoadCallback(
-      Handle<Name> name,
-      Handle<JSObject> object,
-      Handle<JSObject> holder,
-      const CallOptimization& call_optimization);
-
-  Handle<Code> ComputeKeyedLoadConstant(Handle<Name> name,
-                                        Handle<JSObject> object,
-                                        Handle<JSObject> holder,
-                                        Handle<Object> value);
-
-  Handle<Code> ComputeKeyedLoadInterceptor(Handle<Name> name,
-                                           Handle<JSObject> object,
-                                           Handle<JSObject> holder);
-
-  Handle<Code> ComputeStoreGlobal(Handle<Name> name,
-                                  Handle<GlobalObject> object,
-                                  Handle<PropertyCell> cell,
-                                  Handle<Object> value,
-                                  StrictModeFlag strict_mode);
 
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
@@ -434,6 +395,18 @@ class StubCompiler BASE_EMBEDDED {
                                                   int index,
                                                   Register prototype);
 
+  // Helper function used to check that the dictionary doesn't contain
+  // the property. This function may return false negatives, so miss_label
+  // must always call a backup property check that is complete.
+  // This function is safe to call if the receiver has fast properties.
+  // Name must be unique and receiver must be a heap object.
+  static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
+                                               Label* miss_label,
+                                               Register receiver,
+                                               Handle<Name> name,
+                                               Register r0,
+                                               Register r1);
+
   // Generates prototype loading code that uses the objects from the
   // context we were in when this function was called. If the context
   // has changed, a jump to miss is performed. This ties the generated
@@ -468,6 +441,24 @@ class StubCompiler BASE_EMBEDDED {
                                             Register scratch1,
                                             Register scratch2,
                                             Label* miss_label);
+
+  // Generate code to check that a global property cell is empty. Create
+  // the property cell at compilation time if no cell exists for the
+  // property.
+  static void GenerateCheckPropertyCell(MacroAssembler* masm,
+                                        Handle<JSGlobalObject> global,
+                                        Handle<Name> name,
+                                        Register scratch,
+                                        Label* miss);
+
+  // Calls GenerateCheckPropertyCell for each global object in the prototype
+  // chain from object to (but not including) holder.
+  static void GenerateCheckPropertyCells(MacroAssembler* masm,
+                                         Handle<JSObject> object,
+                                         Handle<JSObject> holder,
+                                         Handle<Name> name,
+                                         Register scratch,
+                                         Label* miss);
 
   static void TailCallBuiltin(MacroAssembler* masm, Builtins::Name name);
 
@@ -673,7 +664,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   Handle<Code> CompileLoadNonexistent(Handle<JSObject> object,
                                       Handle<JSObject> last,
                                       Handle<Name> name,
-                                      Handle<GlobalObject> global);
+                                      Handle<JSGlobalObject> global);
 
   Handle<Code> CompileLoadGlobal(Handle<JSObject> object,
                                  Handle<GlobalObject> holder,
@@ -704,7 +695,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                   Handle<JSObject> last,
                                   Handle<Name> name,
                                   Label* success,
-                                  Handle<GlobalObject> global);
+                                  Handle<JSGlobalObject> global);
 
   void GenerateLoadField(Register reg,
                          Handle<JSObject> holder,

@@ -255,13 +255,6 @@ enum NormalizedMapSharingMode {
 };
 
 
-// Indicates whether a get method should implicitly create the object looked up.
-enum CreationFlag {
-  ALLOW_CREATION,
-  OMIT_CREATION
-};
-
-
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
@@ -359,6 +352,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)                \
                                                                                \
   V(SYMBOL_TYPE)                                                               \
+                                                                               \
   V(MAP_TYPE)                                                                  \
   V(CODE_TYPE)                                                                 \
   V(ODDBALL_TYPE)                                                              \
@@ -691,7 +685,7 @@ enum InstanceType {
       | kNotInternalizedTag,
 
   // Non-string names
-  SYMBOL_TYPE = kNotStringTag,  // LAST_NAME_TYPE, FIRST_NONSTRING_TYPE
+  SYMBOL_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
 
   // Objects allocated in their own spaces (never in new space).
   MAP_TYPE,
@@ -875,14 +869,6 @@ class FixedArrayBase;
 class ObjectVisitor;
 class StringStream;
 class Type;
-
-struct ValueInfo : public Malloced {
-  ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
-  InstanceType type;
-  Object* ptr;
-  const char* str;
-  double number;
-};
 
 
 // A template-ized version of the IsXXX functions.
@@ -1509,10 +1495,17 @@ class Object : public MaybeObject {
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
 
+  // Returns the permanent hash code associated with this object. May return
+  // undefined if not yet created.
+  Object* GetHash();
+
   // Returns the permanent hash code associated with this object depending on
-  // the actual object type.  Might return a failure in case no hash was
-  // created yet or GC was caused by creation.
-  MUST_USE_RESULT MaybeObject* GetHash(CreationFlag flag);
+  // the actual object type. May create and store a hash code if needed and none
+  // exists.
+  // TODO(rafaelw): Remove isolate parameter when objects.cc is fully
+  // handlified.
+  static Handle<Object> GetOrCreateHash(Handle<Object> object,
+                                        Isolate* isolate);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
@@ -2003,8 +1996,13 @@ class JSReceiver: public HeapObject {
   inline Object* GetConstructor();
 
   // Retrieves a permanent object identity hash code. The undefined value might
-  // be returned in case no hash was created yet and OMIT_CREATION was used.
-  inline MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  // be returned in case no hash was created yet.
+  inline Object* GetIdentityHash();
+
+  // Retrieves a permanent object identity hash code. May create and store a
+  // hash code if needed and none exists.
+  inline static Handle<Object> GetOrCreateIdentityHash(
+      Handle<JSReceiver> object);
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
@@ -2035,6 +2033,9 @@ class JSReceiver: public HeapObject {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
+
+// Forward declaration for JSObject::GetOrCreateHiddenPropertiesHashTable.
+class ObjectHashTable;
 
 // The JSObject describes real heap allocated JavaScript objects with
 // properties.
@@ -2112,14 +2113,19 @@ class JSObject: public JSReceiver {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Requires: HasFastElements().
+  static Handle<FixedArray> EnsureWritableFastElements(
+      Handle<JSObject> object);
   MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
   // Returns the number of non-undefined values.
-  MUST_USE_RESULT MaybeObject* PrepareElementsForSort(uint32_t limit);
+  static Handle<Object> PrepareElementsForSort(Handle<JSObject> object,
+                                               uint32_t limit);
   // As PrepareElementsForSort, but only on objects where elements is
   // a dictionary, and it will stay a dictionary.
+  static Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
+                                                   uint32_t limit);
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
   static Handle<Object> GetPropertyWithCallback(Handle<JSObject> object,
@@ -2179,15 +2185,6 @@ class JSObject: public JSReceiver {
   // Migrates the given object only if the target map is already available,
   // or returns an empty handle if such a map is not yet available.
   static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
-
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -2282,11 +2279,9 @@ class JSObject: public JSReceiver {
 
   // Sets a hidden property on this object. Returns this object if successful,
   // undefined if called on a detached proxy.
-  static Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+  static Handle<Object> SetHiddenProperty(Handle<JSObject> object,
                                           Handle<Name> key,
                                           Handle<Object> value);
-  // Returns a failure if a GC is required.
-  MUST_USE_RESULT MaybeObject* SetHiddenProperty(Name* key, Object* value);
   // Gets the value of a hidden property with the given key. Returns the hole
   // if the property doesn't exist (or if called on a detached proxy),
   // otherwise returns the value set for the key.
@@ -2298,8 +2293,7 @@ class JSObject: public JSReceiver {
   // Returns true if the object has a property with the hidden string as name.
   bool HasHiddenProperties();
 
-  static int GetIdentityHash(Handle<JSObject> object);
-  static void SetIdentityHash(Handle<JSObject> object, Smi* hash);
+  static void SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash);
 
   inline void ValidateElements();
 
@@ -2375,6 +2369,7 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attr,
       StrictModeFlag strict_mode,
+      bool check_prototype = true,
       SetPropertyMode set_mode = SET_PROPERTY);
 
   // A Failure object is returned if GC is needed.
@@ -2591,6 +2586,14 @@ class JSObject: public JSReceiver {
 
   void IncrementSpillStatistics(SpillInformation* info);
 #endif
+
+#ifdef VERIFY_HEAP
+  // If a GC was caused while constructing this object, the elements pointer
+  // may point to a one pointer filler map. The object won't be rooted, but
+  // our heap verification code could stumble across it.
+  bool ElementsAreSafeToExamine();
+#endif
+
   Object* SlowReverseLookup(Object* value);
 
   // Maximal number of fast properties for the JSObject. Used to
@@ -2845,23 +2848,25 @@ class JSObject: public JSReceiver {
                                  Handle<Object> accessor,
                                  PropertyAttributes attributes);
 
-  enum InitializeHiddenProperties {
-    CREATE_NEW_IF_ABSENT,
-    ONLY_RETURN_INLINE_VALUE
-  };
 
-  // If create_if_absent is true, return the hash table backing store
-  // for hidden properties.  If there is no backing store, allocate one.
-  // If create_if_absent is false, return the hash table backing store
-  // or the inline stored identity hash, whatever is found.
-  MUST_USE_RESULT MaybeObject* GetHiddenPropertiesHashTable(
-      InitializeHiddenProperties init_option);
+  // Return the hash table backing store or the inline stored identity hash,
+  // whatever is found.
+  MUST_USE_RESULT Object* GetHiddenPropertiesHashTable();
+
+  // Return the hash table backing store for hidden properties.  If there is no
+  // backing store, allocate one.
+  static Handle<ObjectHashTable> GetOrCreateHiddenPropertiesHashtable(
+      Handle<JSObject> object);
+
   // Set the hidden property backing store to either a hash table or
   // the inline-stored identity hash.
-  MUST_USE_RESULT MaybeObject* SetHiddenPropertiesHashTable(
-      Object* value);
+  static Handle<Object> SetHiddenPropertiesHashTable(
+      Handle<JSObject> object,
+      Handle<Object> value);
 
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  MUST_USE_RESULT Object* GetIdentityHash();
+
+  static Handle<Object> GetOrCreateIdentityHash(Handle<JSObject> object);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -3471,11 +3476,6 @@ class BaseShape {
 template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
-  enum MinimumCapacity {
-    USE_DEFAULT_MINIMUM_CAPACITY,
-    USE_CUSTOM_MINIMUM_CAPACITY
-  };
-
   // Wrapper methods
   inline uint32_t Hash(Key key) {
     if (Shape::UsesSeed) {
@@ -3586,6 +3586,9 @@ class HashTable: public FixedArray {
   void Rehash(Key key);
 
  protected:
+  friend class ObjectHashSet;
+  friend class ObjectHashTable;
+
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
   uint32_t FindInsertionEntry(uint32_t hash);
@@ -4049,11 +4052,23 @@ class ObjectHashSet: public HashTable<ObjectHashTableShape<1>, Object*> {
   // Looks up whether the given key is part of this hash set.
   bool Contains(Object* key);
 
+  static Handle<ObjectHashSet> EnsureCapacity(
+      Handle<ObjectHashSet> table,
+      int n,
+      Handle<Object> key,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Attempt to shrink hash table after removal of key.
+  static Handle<ObjectHashSet> Shrink(Handle<ObjectHashSet> table,
+                                      Handle<Object> key);
+
   // Adds the given key to this hash set.
-  MUST_USE_RESULT MaybeObject* Add(Object* key);
+  static Handle<ObjectHashSet> Add(Handle<ObjectHashSet> table,
+                                   Handle<Object> key);
 
   // Removes the given key from this hash set.
-  MUST_USE_RESULT MaybeObject* Remove(Object* key);
+  static Handle<ObjectHashSet> Remove(Handle<ObjectHashSet> table,
+                                      Handle<Object> key);
 };
 
 
@@ -4066,13 +4081,25 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
     return reinterpret_cast<ObjectHashTable*>(obj);
   }
 
+  static Handle<ObjectHashTable> EnsureCapacity(
+      Handle<ObjectHashTable> table,
+      int n,
+      Handle<Object> key,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Attempt to shrink hash table after removal of key.
+  static Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
+                                        Handle<Object> key);
+
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
   Object* Lookup(Object* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
-  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+  static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
+                                     Handle<Object> key,
+                                     Handle<Object> value);
 
  private:
   friend class MarkCompactCollector;
@@ -5002,13 +5029,15 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_info]: This field stores various things, depending on the
-  // kind of the code object.
+  // [raw_type_feedback_info]: This field stores various things, depending on
+  // the kind of the code object.
   //   FUNCTION           => type feedback information.
   //   STUB               => various things, e.g. a SMI
   //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
-  DECL_ACCESSORS(type_feedback_info, Object)
-  inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
+  DECL_ACCESSORS(raw_type_feedback_info, Object)
+  inline Object* type_feedback_info();
+  inline void set_type_feedback_info(
+      Object* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline int stub_info();
   inline void set_stub_info(int info);
 
@@ -5183,6 +5212,15 @@ class Code: public HeapObject {
 
   void ReplaceNthCell(int n, Cell* replace_with);
 
+  // The entire code object including its header is copied verbatim to the
+  // snapshot so that it can be written in one, fast, memcpy during
+  // deserialization. The deserializer will overwrite some pointers, rather
+  // like a runtime linker, but the random allocation addresses used in the
+  // mksnapshot process would still be present in the unlinked snapshot data,
+  // which would make snapshot production non-reproducible. This method wipes
+  // out the to-be-overwritten header data for reproducible snapshots.
+  inline void WipeOutHeader();
+
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
@@ -5293,6 +5331,8 @@ class Code: public HeapObject {
   DECLARE_VERIFIER(Code)
 
   void ClearInlineCaches();
+  void ClearInlineCaches(Kind kind);
+
   void ClearTypeFeedbackCells(Heap* heap);
 
   BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
@@ -5304,8 +5344,9 @@ class Code: public HeapObject {
     kNoAgeCodeAge = 0,
     CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
     kAfterLastCodeAge,
+    kFirstCodeAge = kNotExecutedCodeAge,
     kLastCodeAge = kAfterLastCodeAge - 1,
-    kCodeAgeCount = kAfterLastCodeAge - 1,
+    kCodeAgeCount = kAfterLastCodeAge - kNotExecutedCodeAge - 1,
     kIsOldCodeAge = kSexagenarianCodeAge,
     kPreAgedCodeAge = kIsOldCodeAge - 1
   };
@@ -5321,11 +5362,14 @@ class Code: public HeapObject {
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
   Age GetAge();
+  // Gets the raw code age, including psuedo code-age values such as
+  // kNotExecutedCodeAge and kExecutedOnceCodeAge.
+  Age GetRawAge();
   static inline Code* GetPreAgedCodeAgeStub(Isolate* isolate) {
     return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
   }
 
-  void PrintDeoptLocation(int bailout_id);
+  void PrintDeoptLocation(FILE* out, int bailout_id);
   bool CanDeoptAt(Address pc);
 
 #ifdef VERIFY_HEAP
@@ -5460,6 +5504,8 @@ class Code: public HeapObject {
 
  private:
   friend class RelocIterator;
+
+  void ClearInlineCaches(Kind* kind);
 
   // Code aging
   byte* FindCodeAgeSequence();
@@ -5751,6 +5797,10 @@ class Map: public HeapObject {
 
   static bool IsValidElementsTransition(ElementsKind from_kind,
                                         ElementsKind to_kind);
+
+  // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
+  // map with DICTIONARY_ELEMENTS was found in the prototype chain.
+  bool DictionaryElementsInPrototypeChainOnly();
 
   inline bool HasTransitionArray();
   inline bool HasElementsTransition();
@@ -6732,6 +6782,9 @@ class SharedFunctionInfo: public HeapObject {
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
 
+  // Indicate that this builtin needs to be inlined in crankshaft.
+  DECL_BOOLEAN_ACCESSORS(inline_builtin)
+
   // Indicates that the function was created by the Function function.
   // Though it's anonymous, toString should treat it as if it had the name
   // "anonymous".  We don't set the name itself so that the system does not
@@ -6820,6 +6873,9 @@ class SharedFunctionInfo: public HeapObject {
     set_bailout_reason(reason);
     set_dont_optimize(reason != kNoReason);
   }
+
+  // Check whether or not this function is inlineable.
+  bool IsInlineable();
 
   // Source size of this function.
   int SourceSize();
@@ -6971,6 +7027,7 @@ class SharedFunctionInfo: public HeapObject {
     kUsesArguments,
     kHasDuplicateParameters,
     kNative,
+    kInlineBuiltin,
     kBoundFunction,
     kIsAnonymous,
     kNameShouldPrintAsAnonymous,
@@ -7197,9 +7254,6 @@ class JSFunction: public JSObject {
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInRecompileQueue();
 
-  // Check whether or not this function is inlineable.
-  bool IsInlineable();
-
   // [literals_or_bindings]: Fixed array holding either
   // the materialized literals or the bindings of a bound function.
   //
@@ -7226,6 +7280,7 @@ class JSFunction: public JSObject {
   inline Map* initial_map();
   inline void set_initial_map(Map* value);
   inline bool has_initial_map();
+  static void EnsureHasInitialMap(Handle<JSFunction> function);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
@@ -7376,10 +7431,6 @@ class GlobalObject: public JSObject {
     return answer;
   }
 
-  // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
-                                                 Handle<Name> name);
-
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 
@@ -7400,6 +7451,10 @@ class JSGlobalObject: public GlobalObject {
  public:
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
+
+  // Ensure that the global object has a cell for the given property name.
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<JSGlobalObject> global,
+                                                 Handle<Name> name);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalObject)
@@ -8326,6 +8381,11 @@ class Symbol: public Name {
   // [name]: the print name of a symbol, or undefined if none.
   DECL_ACCESSORS(name, Object)
 
+  DECL_ACCESSORS(flags, Smi)
+
+  // [is_private]: whether this is a private symbol.
+  DECL_BOOLEAN_ACCESSORS(is_private)
+
   // Casting.
   static inline Symbol* cast(Object* obj);
 
@@ -8335,12 +8395,14 @@ class Symbol: public Name {
 
   // Layout description.
   static const int kNameOffset = Name::kSize;
-  static const int kSize = kNameOffset + kPointerSize;
+  static const int kFlagsOffset = kNameOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
 
-  typedef FixedBodyDescriptor<kNameOffset, kNameOffset + kPointerSize, kSize>
-          BodyDescriptor;
+  typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
 
  private:
+  static const int kPrivateBit = 0;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
 };
 
@@ -8561,7 +8623,6 @@ class String: public Name {
   static const int kMaxShortPrintLength = 1024;
 
   // Support for regular expressions.
-  const uc16* GetTwoByteData();
   const uc16* GetTwoByteData(unsigned start);
 
   // Helper function for flattening strings.
@@ -9344,9 +9405,9 @@ class JSProxy: public JSReceiver {
                                                  uint32_t index,
                                                  DeleteMode mode);
 
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
-  static Handle<Object> GetIdentityHash(Handle<JSProxy> proxy,
-                                        CreationFlag flag);
+  MUST_USE_RESULT Object* GetIdentityHash();
+
+  static Handle<Object> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };

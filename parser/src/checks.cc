@@ -129,8 +129,6 @@ void API_Fatal(const char* location, const char* format, ...) {
 
 namespace v8 { namespace internal {
 
-  bool EnableSlowAsserts() { return FLAG_enable_slow_asserts; }
-
   intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
 
 } }  // namespace v8::internal
