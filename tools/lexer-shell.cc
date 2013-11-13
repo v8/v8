@@ -55,22 +55,30 @@ enum Encoding {
 };
 
 
-const byte* ReadFile(const char* name, Isolate* isolate, int* size) {
+const byte* ReadFile(const char* name, Isolate* isolate,
+                     int* size, int repeat) {
   FILE* file = fopen(name, "rb");
   *size = 0;
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
-  *size = ftell(file);
+  int file_size = ftell(file);
   rewind(file);
 
+  *size = file_size * repeat;
+
   byte* chars = new byte[*size + 1];
-  chars[*size] = 0;
-  for (int i = 0; i < *size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, *size - i, file));
+  for (int i = 0; i < file_size;) {
+    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
     i += read;
   }
   fclose(file);
+
+  for (int i = file_size; i < *size; i++) {
+    chars[i] = chars[i - file_size];
+  }
+  chars[*size] = 0;
+
   return chars;
 }
 
@@ -80,10 +88,11 @@ class BaselineScanner {
   BaselineScanner(const char* fname,
                   Isolate* isolate,
                   Encoding encoding,
-                  ElapsedTimer* timer)
+                  ElapsedTimer* timer,
+                  int repeat)
       : stream_(NULL) {
     int length = 0;
-    source_ = ReadFile(fname, isolate, &length);
+    source_ = ReadFile(fname, isolate, &length, repeat);
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
     switch (encoding) {
@@ -158,9 +167,10 @@ TimeDelta RunBaselineScanner(const char* fname,
                              Isolate* isolate,
                              Encoding encoding,
                              bool dump_tokens,
-                             std::vector<TokenWithLocation>* tokens) {
+                             std::vector<TokenWithLocation>* tokens,
+                             int repeat) {
   ElapsedTimer timer;
-  BaselineScanner scanner(fname, isolate, encoding, &timer);
+  BaselineScanner scanner(fname, isolate, encoding, &timer, repeat);
   Token::Value token;
   int beg, end;
   do {
@@ -188,7 +198,8 @@ TimeDelta ProcessFile(
     const char* fname,
     Encoding encoding,
     Isolate* isolate,
-    bool print_tokens) {
+    bool print_tokens,
+    int repeat) {
   if (print_tokens) {
     printf("Processing file %s\n", fname);
   }
@@ -197,7 +208,7 @@ TimeDelta ProcessFile(
   TimeDelta baseline_time;
   baseline_time = RunBaselineScanner(
       fname, isolate, encoding, print_tokens,
-      &baseline_tokens);
+      &baseline_tokens, repeat);
   if (print_tokens) {
     PrintTokens("Baseline", baseline_tokens);
   }
@@ -212,6 +223,7 @@ int main(int argc, char* argv[]) {
   bool print_tokens = false;
   std::vector<std::string> fnames;
   std::string benchmark;
+  int repeat = 1;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
       encoding = LATIN1;
@@ -223,6 +235,9 @@ int main(int argc, char* argv[]) {
       print_tokens = true;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
       benchmark = std::string(argv[i]).substr(12);
+    } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
+      std::string repeat_str = std::string(argv[i]).substr(9);
+      repeat = atoi(repeat_str.c_str());
     } else if (i > 0 && argv[i][0] != '-') {
       fnames.push_back(std::string(argv[i]));
     }
@@ -239,7 +254,8 @@ int main(int argc, char* argv[]) {
       double baseline_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
         TimeDelta time;
-        time = ProcessFile(fnames[i].c_str(), encoding, isolate, print_tokens);
+        time = ProcessFile(fnames[i].c_str(), encoding, isolate, print_tokens,
+                           repeat);
         baseline_total += time.InMillisecondsF();
       }
       if (benchmark.empty()) benchmark = "Baseline";
