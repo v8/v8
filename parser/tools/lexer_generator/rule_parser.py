@@ -252,6 +252,8 @@ class RuleProcessor(object):
       return self.__dfa
 
     def minimal_dfa(self):
+      if not self.__minimial_dfa:
+        self.__minimial_dfa = self.__dfa.minimize()
       return self.__minimial_dfa
 
   def __process_parser_state(self, parser_state, minimize_dfa):

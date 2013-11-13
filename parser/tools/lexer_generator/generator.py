@@ -69,11 +69,15 @@ def generate_html(rule_processor):
   loads = []
   for i, (name, automata) in enumerate(list(rule_processor.automata_iter())):
     (nfa, dfa) = (automata.nfa(), automata.dfa())
-    (nfa_i, dfa_i) = ("nfa_%d" % i, "dfa_%d" % i)
+    mdfa = None if name == 'default' else automata.minimal_dfa()
+    (nfa_i, dfa_i, mdfa_i) = ("nfa_%d" % i, "dfa_%d" % i, "mdfa_%d" % i)
     scripts.append(script_template % (nfa_i, nfa.to_dot()))
-    scripts.append(script_template % (dfa_i, dfa.to_dot()))
     loads.append(load_template % ("nfa [%s]" % name, nfa_i))
+    scripts.append(script_template % (dfa_i, dfa.to_dot()))
     loads.append(load_template % ("dfa [%s]" % name, dfa_i))
+    if mdfa and mdfa != dfa:
+      scripts.append(script_template % (mdfa_i, mdfa.to_dot()))
+      loads.append(load_template % ("mdfa [%s]" % name, mdfa_i))
     body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
   return file_template % body
 

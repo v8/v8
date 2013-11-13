@@ -243,6 +243,33 @@ class DfaMinimizer:
   def __partition_count(partitions):
     return len(reduce(lambda acc, p: acc | p.set(), partitions, set()))
 
+  def __merge_partitions(self, id_map, partitions):
+    mapping = {}
+    name_map = {}
+    for partition in partitions:
+      name_map[partition] = str(partition)
+    alphabet = self.__generate_alphabet()
+    for partition in partitions:
+      state_id = iter(partition).next()
+      state = id_map[state_id]
+      node = {
+        'transitions' : {},
+        'terminal' : state in self.__dfa.terminal_set(),
+        'action' : state.action(),
+      }
+      mapping[str(partition)] = node
+      for key in alphabet:
+        transition_state = state.key_matches(key)
+        if not transition_state:
+          continue
+        transition_id = transition_state.node_number()
+        transition_partition = self.__find_partition(partitions, transition_id)
+        assert transition_partition
+        node['transitions'][key] = name_map[transition_partition]
+    start_id = self.__dfa.start_state().node_number()
+    start_name = name_map[self.__find_partition(partitions, start_id)]
+    return (start_name, mapping)
+
   def minimize(self):
     (id_map, partitions) = self.__partition()
     node_count = self.__dfa.node_count()
@@ -294,4 +321,5 @@ class DfaMinimizer:
     self.__verify_partitions(id_map, partitions)
     if len(partitions) == len(id_map):
       return self.__dfa
-    # merge partitions
+    (start_name, mapping) = self.__merge_partitions(id_map, partitions)
+    return Dfa(start_name, mapping)
