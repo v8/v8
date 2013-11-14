@@ -28,7 +28,7 @@
 import argparse
 from nfa import Nfa
 from nfa_builder import NfaBuilder
-from dfa import Dfa
+from dfa import Dfa, DfaMinimizer
 from rule_parser import RuleParser, RuleParserState, RuleProcessor
 from code_generator import CodeGenerator
 
@@ -98,12 +98,19 @@ if __name__ == '__main__':
   parser.add_argument('--input')
   parser.add_argument('--code')
   parser.add_argument('--minimize-default', action='store_true')
+  parser.add_argument('--no-verify-default', action='store_true')
   args = parser.parse_args()
 
   re_file = args.re
   print "parsing %s" % re_file
   with open(re_file, 'r') as f:
     rule_processor = RuleProcessor.parse(f.read())
+
+  if args.minimize_default:
+    if args.no_verify_default:
+      DfaMinimizer.set_verify(False)
+    rule_processor.default_automata().minimal_dfa()
+    DfaMinimizer.set_verify(True)
 
   html_file = args.html
   if html_file:

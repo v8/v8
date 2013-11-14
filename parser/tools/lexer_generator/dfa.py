@@ -159,12 +159,14 @@ class StatePartition(object):
   def __init__(self, node_numbers):
     self.__node_numbers = node_numbers
     assert self.__node_numbers
-    self.__hash = reduce(lambda acc, x: acc ^ hash(x), self.__node_numbers, 0)
+    self.__hash = None
 
   def set(self):
     return self.__node_numbers
 
   def __hash__(self):
+    if not self.__hash:
+      self.__hash = reduce(lambda acc, x: acc ^ hash(x), self.__node_numbers, 0)
     return self.__hash
 
   def __eq__(self, other):
@@ -182,17 +184,31 @@ class StatePartition(object):
 
 class DfaMinimizer:
 
+  __verify = True
+
+  @staticmethod
+  def set_verify(verify):
+    DfaMinimizer.__verify = verify
+
   def __init__(self, dfa):
     self.__dfa = dfa
+    self.__id_map = None
+    self.__reverse_id_map = None
+    self.__alphabet = None
 
   def __partition(self):
+    assert not self.__id_map
+    assert not self.__reverse_id_map
+    assert not self.__alphabet
     action_map = {}
     id_map = {}
     terminal_set = self.__dfa.terminal_set()
+    all_keys = []
     def f(state, visitor_state):
-      node_number = len(id_map)
-      id_map[node_number] = state
+      state_id = len(id_map)
+      id_map[state_id] = state
       action = state.action()
+      all_keys.append(state.key_iter())
       if action:
         # TODO add this back
         # assert state in self.__terminal_set
@@ -202,55 +218,61 @@ class DfaMinimizer:
         action = "terminal_set"
       if not action in action_map:
         action_map[action] = set()
-      action_map[action].add(node_number)
+      action_map[action].add(state_id)
     self.__dfa.visit_all_states(f)
     partitions = set()
     for p in action_map.values():
-      assert p
       partitions.add(StatePartition(p))
-    return (id_map, partitions)
-
-  def __generate_alphabet(self):
-    keys = []
-    self.__dfa.visit_all_states(lambda s, acc: keys.append(s.key_iter()))
-    return TransitionKey.disjoint_keys(chain(*keys))
-
-  @staticmethod
-  def __find_partition(partitions, id):
-    for p in partitions:
-      if id in p:
-        return p
-    assert False
-
-  def __verify_partitions(self, id_map, partitions):
-    assert len(partitions) <= len(id_map)
-    alphabet = self.__generate_alphabet()
-    for partition in partitions:
-      for key in alphabet:
-        first = True
-        mapped_partition = None
+    reverse_id_map = {v : k for k, v in id_map.items()}
+    assert len(id_map) == len(reverse_id_map)
+    self.__reverse_id_map = reverse_id_map
+    self.__id_map = id_map
+    self.__alphabet = list(TransitionKey.disjoint_keys(chain(*all_keys)))
+    # map transitions wrt alphabet mapping
+    transitions = {}
+    for state_id, state in id_map.items():
+      def f((key_id, key)):
+        transition = state.key_matches(key)
+        if transition:
+          return reverse_id_map[transition]
+        return None
+      transitions[state_id] = map(f, enumerate(self.__alphabet))
+    self.__transitions = transitions
+    # verify created structures
+    if self.__verify:
+      for partition in partitions:
         for state_id in partition:
-          s = id_map[state_id].key_matches(key)
-          if s:
-            s = self.__find_partition(partitions, s.node_number())
-          if first:
-            first = False
-            mapped_partition = s
-          assert mapped_partition == s
+          transition_array = transitions[state_id]
+          state = id_map[state_id]
+          for key_id, key in enumerate(self.__alphabet):
+            transition_id = transition_array[key_id]
+            transition_state = state.key_matches(key)
+            if not transition_state:
+              assert transition_id == None
+            else:
+              assert transition_id != None
+              assert transition_id == reverse_id_map[transition_state]
+    return partitions
 
   @staticmethod
   def __partition_count(partitions):
     return len(reduce(lambda acc, p: acc | p.set(), partitions, set()))
 
-  def __merge_partitions(self, id_map, partitions):
+  def __merge_partitions(self, partitions):
+    id_map = self.__id_map
+    reverse_id_map = self.__reverse_id_map
+    verify = self.__verify
     mapping = {}
     name_map = {}
+    reverse_partition_map = {}
     for partition in partitions:
       name_map[partition] = str(partition)
-    alphabet = self.__generate_alphabet()
-    reverse_id_map = {v:k for k, v in id_map.items()}
+      for state_id in partition:
+        reverse_partition_map[state_id] = partition
+    transitions = self.__transitions
     for partition in partitions:
-      state_id = iter(partition).next()
+      state_ids = list(partition)
+      state_id = state_ids[0]
       state = id_map[state_id]
       node = {
         'transitions' : {},
@@ -258,45 +280,37 @@ class DfaMinimizer:
         'action' : state.action(),
       }
       mapping[str(partition)] = node
-      for key in alphabet:
-        transition_state = state.key_matches(key)
-        if not transition_state:
+      transition_array = transitions[state_id]
+      for key_id, key in enumerate(self.__alphabet):
+        transition_id = transition_array[key_id]
+        if transition_id == None:
+          if verify:
+            assert not state.key_matches(key)
+            for s_id in state_ids:
+              assert not id_map[s_id].key_matches(key)
           continue
-        transition_id = reverse_id_map[transition_state]
-        transition_partition = self.__find_partition(partitions, transition_id)
+        transition_partition = reverse_partition_map[transition_id]
         assert transition_partition
+        if verify:
+          for s_id in state_ids:
+            transition = id_map[s_id].key_matches(key)
+            assert transition
+            test_partition = reverse_partition_map[reverse_id_map[transition]]
+            assert test_partition == transition_partition
         node['transitions'][key] = name_map[transition_partition]
     start_id = reverse_id_map[self.__dfa.start_state()]
-    start_name = name_map[self.__find_partition(partitions, start_id)]
+    start_name = name_map[reverse_partition_map[start_id]]
     return (start_name, mapping)
 
   def minimize(self):
-    (id_map, partitions) = self.__partition()
+    partitions = self.__partition()
     node_count = self.__dfa.node_count()
-    assert self.__partition_count(partitions) == node_count
-    if len(partitions) == 1:
-      return self.__dfa
+    id_map = self.__id_map
+    reverse_id_map = self.__reverse_id_map
+    transitions = self.__transitions
+    key_range = range(0, len(self.__alphabet))
     working_set = set(partitions)
-    # map alphabet
-    alphabet_mapping = {}
-    for i, key in enumerate(self.__generate_alphabet()):
-      alphabet_mapping[key] = i
-    key_range = range(0, len(alphabet_mapping))
-    # map transitions wrt alphabet mapping
-    reverse_id_map = {v:k for k, v in id_map.items()}
-    transitions = {}
-    for id, state in id_map.items():
-      def f((key, key_id)):
-        transition = state.key_matches(key)
-        if transition:
-          return reverse_id_map[transition]
-        return None
-      transitions[id] = map(f, alphabet_mapping.items())
-
     while working_set:
-      # print "working_set %s partitions %s nodes %s" % (len(working_set),
-      #                                                  len(partitions),
-      #                                                  node_count)
       assert working_set <= partitions
       assert self.__partition_count(partitions) == node_count
       test_partition = iter(working_set).next()
@@ -308,7 +322,7 @@ class DfaMinimizer:
         map_into_partition = set()
         for state_id, transition_array in transitions.items():
           transition_id = transition_array[key_index]
-          if transition_id and test_array[transition_id]:
+          if transition_id != None and test_array[transition_id]:
             map_into_partition.add(state_id)
         if not map_into_partition:
           continue
@@ -338,8 +352,5 @@ class DfaMinimizer:
           partitions -= old_partitions
         if new_partitions:
           partitions |= new_partitions
-    # self.__verify_partitions(id_map, partitions)
-    if len(partitions) == len(id_map):
-      return self.__dfa
-    (start_name, mapping) = self.__merge_partitions(id_map, partitions)
+    (start_name, mapping) = self.__merge_partitions(partitions)
     return Dfa(start_name, mapping)

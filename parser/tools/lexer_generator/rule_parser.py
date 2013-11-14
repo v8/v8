@@ -235,21 +235,27 @@ class RuleProcessor(object):
 
   class Automata(object):
 
-    def __init__(self, nfa):
-      (start, dfa_nodes) = nfa.compute_dfa()
-      self.__nfa = nfa
-      self.__dfa = Dfa(start, dfa_nodes)
+    def __init__(self, builder, graph):
+      self.__builder = builder
+      self.__graph = graph
+      self.__nfa = None
+      self.__dfa = None
       self.__minimial_dfa = None
 
     def nfa(self):
+      if not self.__nfa:
+        self.__nfa = self.__builder.nfa(self.__graph)
       return self.__nfa
 
     def dfa(self):
+      if not self.__dfa:
+        (start, dfa_nodes) = self.nfa().compute_dfa()
+        self.__dfa = Dfa(start, dfa_nodes)
       return self.__dfa
 
     def minimal_dfa(self):
       if not self.__minimial_dfa:
-        self.__minimial_dfa = self.__dfa.minimize()
+        self.__minimial_dfa = self.dfa().minimize()
       return self.__minimial_dfa
 
   def __process_parser_state(self, parser_state):
@@ -295,6 +301,5 @@ class RuleProcessor(object):
     process('default', parser_state.rules['default'])
     # build the automata
     for rule_name, graph in rule_map.items():
-      nfa = builder.nfa(graph)
-      self.__automata[rule_name] = RuleProcessor.Automata(nfa)
+      self.__automata[rule_name] = RuleProcessor.Automata(builder, graph)
     self.default_action = parser_state.rules['default']['default_action']
