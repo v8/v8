@@ -169,7 +169,8 @@ class RuleParser:
 
   def p_regex(self, p):
     'regex : REGEX'
-    p[0] = RegexParser.parse(p[1][1:-1])
+    string = p[1][1:-1].replace("\\/", "/")
+    p[0] = RegexParser.parse(string)
 
   def p_regex_class(self, p):
     'regex_class : CHARACTER_CLASS_REGEX'

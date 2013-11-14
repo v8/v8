@@ -80,7 +80,7 @@ class RuleLexer:
     return t
 
   t_STRING = r'"((\\("|\w|\\))|[^\\"])+"'
-  t_REGEX = r'/[^\/]+/'
+  t_REGEX = r'/(\\/|[^/])+/'
   t_CHARACTER_CLASS_REGEX = r'\[([^\]]|\\\])+\]'
 
   t_PLUS = r'\+'

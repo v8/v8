@@ -194,7 +194,7 @@ catch_all <<continue>>
 
 <MultiLineComment>
 "*/"             <<skip>>
-/\*[^\057]/      <<continue>>
+/\*[^\/]/      <<continue>>
 line_terminator { PUSH_LINE_TERMINATOR(); } <<continue>>
 catch_all <<continue>>
 

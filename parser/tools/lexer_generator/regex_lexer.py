@@ -115,7 +115,7 @@ class RegexLexer:
     t.value = RegexLexer.__escaped_class_literals[t.value]
     return t
 
-  t_class_CLASS_LITERAL = r'[\w $_+\']'
+  t_class_CLASS_LITERAL = r'[\w $_+\'/]'
 
   def t_REPEAT_BEGIN(self, t):
     r'\{'
