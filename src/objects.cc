@@ -12231,7 +12231,8 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
         : FAST_ELEMENTS;
 
     UpdateAllocationSite(object, kind);
-    object->set_map(*GetElementsTransitionMap(object, kind));
+    Handle<Map> new_map = GetElementsTransitionMap(object, kind);
+    object->set_map(*new_map);
     ASSERT(IsFastObjectElementsKind(object->GetElementsKind()));
   }
   // Increase backing store capacity if that's been decided previously.
