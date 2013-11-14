@@ -88,8 +88,14 @@ code_%s:
 ''' % s.node_number()
 
     if action:
-      code += '%s\nBACK();\ngoto code_%s;\n' % (action.data(),
-                                                start_node_number)
+      if action.type() == 'code':
+        code += '%s\nBACK();\ngoto code_%s;\n' % (action.data(),
+                                                  start_node_number)
+      elif action.type() == 'push_token':
+        #TODO
+        pass
+      else:
+        raise Exception("unknown type %s" % action.type())
     else:
       code += 'goto default_action;'
     return code

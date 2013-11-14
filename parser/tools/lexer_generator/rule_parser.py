@@ -98,10 +98,10 @@ class RuleParser:
                         | empty'''
 
   def p_transition_rule(self, p):
-    '''transition_rule : composite_regex code action
+    '''transition_rule : composite_regex code_or_token action
                        | composite_regex empty action
-                       | composite_regex code empty
-                       | DEFAULT_ACTION code empty
+                       | composite_regex code_or_token empty
+                       | DEFAULT_ACTION code_or_token empty
                        | CATCH_ALL empty action'''
     transition = p[3]
     if transition and not transition in self.__keyword_transitions:
@@ -119,6 +119,15 @@ class RuleParser:
     else:
       rule = (p[1], RuleParser.__rule_precedence_counter, code, transition)
       rules['regex'].append(rule)
+
+  def p_code_or_token(self, p):
+    '''code_or_token : code
+                     | push_token'''
+    p[0] = p[1]
+
+  def p_push_token(self, p):
+    'push_token : PUSH_TOKEN LEFT_PARENTHESIS IDENTIFIER RIGHT_PARENTHESIS'
+    p[0] = (p[1], p[3])
 
   def p_action(self, p):
     'action : ACTION_OPEN IDENTIFIER ACTION_CLOSE'
@@ -178,7 +187,7 @@ class RuleParser:
 
   def p_code(self, p):
     'code : LEFT_BRACKET code_fragments RIGHT_BRACKET'
-    p[0] = p[2].strip()
+    p[0] = ('code', p[2].strip())
 
   def p_code_fragments(self, p):
     '''code_fragments : CODE_FRAGMENT code_fragments
@@ -269,7 +278,8 @@ class RuleProcessor(object):
       for (graph, precedence, code, transition) in v['regex']:
         default_code = v['default_action']
         if code or default_code:
-          action = Action('code', code if code else default_code, precedence)
+          (code_type, code_value) = code if code else default_code
+          action = Action(code_type, code_value, precedence)
           graph = NfaBuilder.add_action(graph, action)
         if not transition or transition == 'break':
           pass

@@ -33,6 +33,7 @@ class RuleLexer:
     'DEFAULT',
     'DEFAULT_ACTION',
     'CATCH_ALL',
+    'PUSH_TOKEN',
 
     'IDENTIFIER',
     'STRING',
@@ -70,7 +71,7 @@ class RuleLexer:
     pass
 
   __special_identifiers = set(map(lambda s: s.lower(),
-    ['DEFAULT', 'DEFAULT_ACTION', 'CATCH_ALL',]))
+    ['DEFAULT', 'DEFAULT_ACTION', 'CATCH_ALL', 'PUSH_TOKEN']))
 
   def t_IDENTIFIER(self, t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
