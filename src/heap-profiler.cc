@@ -158,6 +158,7 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 
 void HeapProfiler::StartHeapAllocationsRecording() {
   StartHeapObjectsTracking();
+  heap()->DisableInlineAllocation();
   is_tracking_allocations_ = true;
   DropCompiledCode();
   snapshots_->UpdateHeapObjectsMap();
@@ -166,6 +167,7 @@ void HeapProfiler::StartHeapAllocationsRecording() {
 
 void HeapProfiler::StopHeapAllocationsRecording() {
   StopHeapObjectsTracking();
+  heap()->EnableInlineAllocation();
   is_tracking_allocations_ = false;
   DropCompiledCode();
 }

@@ -3516,3 +3516,36 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   marking->Step(100 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
   ASSERT(marking->IsComplete());
 }
+
+
+TEST(DisableInlineAllocation) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun("function test() {"
+             "  var x = [];"
+             "  for (var i = 0; i < 10; i++) {"
+             "    x[i] = [ {}, [1,2,3], [1,x,3] ];"
+             "  }"
+             "}"
+             "function run() {"
+             "  %OptimizeFunctionOnNextCall(test);"
+             "  test();"
+             "  %DeoptimizeFunction(test);"
+             "}");
+
+  // Warm-up with inline allocation enabled.
+  CompileRun("test(); test(); run();");
+
+  // Run test with inline allocation disabled.
+  CcTest::heap()->DisableInlineAllocation();
+  CompileRun("run()");
+
+  // Run test with inline allocation disabled and pretenuring.
+  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
+  CompileRun("run()");
+
+  // Run test with inline allocation re-enabled.
+  CcTest::heap()->EnableInlineAllocation();
+  CompileRun("run()");
+}

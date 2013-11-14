@@ -1783,12 +1783,21 @@ class PagedSpace : public Space {
   }
 
   // Set space allocation info.
-  void SetTop(Address top, Address limit) {
+  void SetTopAndLimit(Address top, Address limit) {
     ASSERT(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
     MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
     allocation_info_.set_top(top);
     allocation_info_.set_limit(limit);
+  }
+
+  // Empty space allocation info, returning unused area to free list.
+  void EmptyAllocationInfo() {
+    // Mark the old linear allocation area with a free space map so it can be
+    // skipped when scanning the heap.
+    int old_linear_size = static_cast<int>(limit() - top());
+    Free(top(), old_linear_size);
+    SetTopAndLimit(NULL, NULL);
   }
 
   void Allocate(int bytes) {
@@ -2478,16 +2487,10 @@ class NewSpace : public Space {
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
 
+  void UpdateInlineAllocationLimit(int size_in_bytes);
   void LowerInlineAllocationLimit(intptr_t step) {
     inline_allocation_limit_step_ = step;
-    if (step == 0) {
-      allocation_info_.set_limit(to_space_.page_high());
-    } else {
-      Address new_limit = Min(
-          allocation_info_.top() + inline_allocation_limit_step_,
-          allocation_info_.limit());
-      allocation_info_.set_limit(new_limit);
-    }
+    UpdateInlineAllocationLimit(0);
     top_on_previous_step_ = allocation_info_.top();
   }
 
