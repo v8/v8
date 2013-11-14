@@ -109,7 +109,9 @@ if __name__ == '__main__':
   if args.minimize_default:
     if args.no_verify_default:
       DfaMinimizer.set_verify(False)
-    rule_processor.default_automata().minimal_dfa()
+    dfa = rule_processor.default_automata().dfa()
+    mdfa = rule_processor.default_automata().minimal_dfa()
+    print "nodes reduced from %s to %s" % (dfa.node_count(), mdfa.node_count())
     DfaMinimizer.set_verify(True)
 
   html_file = args.html
