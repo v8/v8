@@ -250,6 +250,7 @@ class TypeFeedbackOracle: public ZoneObject {
   bool StoreIsPreMonomorphic(TypeFeedbackId ast_id);
   bool StoreIsKeyedPolymorphic(TypeFeedbackId ast_id);
   bool CallIsMonomorphic(Call* expr);
+  bool KeyedArrayCallIsHoley(Call* expr);
   bool CallNewIsMonomorphic(CallNew* expr);
   bool ObjectLiteralStoreIsMonomorphic(ObjectLiteralProperty* prop);
 

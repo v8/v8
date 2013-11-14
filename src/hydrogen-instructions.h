@@ -2289,19 +2289,38 @@ class HCallNamed V8_FINAL : public HUnaryCall {
 };
 
 
+enum CallMode {
+  NORMAL_CALL,
+  TAIL_CALL
+};
+
+
 class HCallFunction V8_FINAL : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallFunction, HValue*, int);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(
+      HCallFunction, HValue*, int, CallMode);
+
+  bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
 
   HValue* context() { return first(); }
   HValue* function() { return second(); }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction)
 
- private:
-  HCallFunction(HValue* context, HValue* function, int argument_count)
-      : HBinaryCall(context, function, argument_count) {
+  virtual int argument_delta() const V8_OVERRIDE {
+    if (IsTailCall()) return 0;
+    return -argument_count();
   }
+
+ private:
+  HCallFunction(HValue* context,
+                HValue* function,
+                int argument_count,
+                CallMode mode = NORMAL_CALL)
+      : HBinaryCall(context, function, argument_count), call_mode_(mode) {
+  }
+  CallMode call_mode_;
 };
 
 
@@ -7183,6 +7202,8 @@ class HCheckMapValue V8_FINAL : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(CheckMapValue)
 
  protected:
+  virtual int RedefinedOperandIndex() { return 0; }
+
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     return true;
   }
