@@ -157,7 +157,7 @@ class Dfa(Automaton):
 class StatePartition(object):
 
   def __init__(self, node_numbers):
-    self.__node_numbers = frozenset(iter(node_numbers))
+    self.__node_numbers = node_numbers
     assert self.__node_numbers
     self.__hash = reduce(lambda acc, x: acc ^ hash(x), self.__node_numbers, 0)
 
@@ -190,8 +190,7 @@ class DfaMinimizer:
     id_map = {}
     terminal_set = self.__dfa.terminal_set()
     def f(state, visitor_state):
-      node_number = state.node_number()
-      assert not node_number in id_map
+      node_number = len(id_map)
       id_map[node_number] = state
       action = state.action()
       if action:
@@ -249,6 +248,7 @@ class DfaMinimizer:
     for partition in partitions:
       name_map[partition] = str(partition)
     alphabet = self.__generate_alphabet()
+    reverse_id_map = {v:k for k, v in id_map.items()}
     for partition in partitions:
       state_id = iter(partition).next()
       state = id_map[state_id]
@@ -262,11 +262,11 @@ class DfaMinimizer:
         transition_state = state.key_matches(key)
         if not transition_state:
           continue
-        transition_id = transition_state.node_number()
+        transition_id = reverse_id_map[transition_state]
         transition_partition = self.__find_partition(partitions, transition_id)
         assert transition_partition
         node['transitions'][key] = name_map[transition_partition]
-    start_id = self.__dfa.start_state().node_number()
+    start_id = reverse_id_map[self.__dfa.start_state()]
     start_name = name_map[self.__find_partition(partitions, start_id)]
     return (start_name, mapping)
 
@@ -277,8 +277,22 @@ class DfaMinimizer:
     if len(partitions) == 1:
       return self.__dfa
     working_set = set(partitions)
-    alphabet = self.__generate_alphabet()
-    all_state_ids = set(id_map.keys())
+    # map alphabet
+    alphabet_mapping = {}
+    for i, key in enumerate(self.__generate_alphabet()):
+      alphabet_mapping[key] = i
+    key_range = range(0, len(alphabet_mapping))
+    # map transitions wrt alphabet mapping
+    reverse_id_map = {v:k for k, v in id_map.items()}
+    transitions = {}
+    for id, state in id_map.items():
+      def f((key, key_id)):
+        transition = state.key_matches(key)
+        if transition:
+          return reverse_id_map[transition]
+        return None
+      transitions[id] = map(f, alphabet_mapping.items())
+
     while working_set:
       # print "working_set %s partitions %s nodes %s" % (len(working_set),
       #                                                  len(partitions),
@@ -287,26 +301,29 @@ class DfaMinimizer:
       assert self.__partition_count(partitions) == node_count
       test_partition = iter(working_set).next()
       working_set.remove(test_partition)
-      to_split = None
-      for key in alphabet:
-        # print key
-        transition_map = {}
+      test_array = [False for x in range(0, len(id_map))]
+      for x in test_partition:
+        test_array[x] = True
+      for key_index in key_range:
         map_into_partition = set()
-        for state_id in all_state_ids:
-          maps_to = id_map[state_id].key_matches(key)
-          if maps_to and maps_to.node_number() in test_partition:
+        for state_id, transition_array in transitions.items():
+          transition_id = transition_array[key_index]
+          if transition_id and test_array[transition_id]:
             map_into_partition.add(state_id)
         if not map_into_partition:
           continue
         new_partitions = set()
+        old_partitions = set()
         for p in partitions:
           intersection = p.set().intersection(map_into_partition)
+          if not intersection:
+            continue
           difference = p.set().difference(map_into_partition)
-          if not intersection or not difference:
-            new_partitions.add(p)
+          if not difference:
             continue
           intersection = StatePartition(intersection)
           difference = StatePartition(difference)
+          old_partitions.add(p)
           new_partitions.add(intersection)
           new_partitions.add(difference)
           if p in working_set:
@@ -317,8 +334,11 @@ class DfaMinimizer:
             working_set.add(intersection)
           else:
             working_set.add(difference)
-        partitions = new_partitions
-    self.__verify_partitions(id_map, partitions)
+        if old_partitions:
+          partitions -= old_partitions
+        if new_partitions:
+          partitions |= new_partitions
+    # self.__verify_partitions(id_map, partitions)
     if len(partitions) == len(id_map):
       return self.__dfa
     (start_name, mapping) = self.__merge_partitions(id_map, partitions)

@@ -39,6 +39,4 @@ class CodeGeneratorTestCase(unittest.TestCase):
 
     "foo"         { FOO }
     eof           <<terminate>>'''
-    rule_processor = RuleProcessor.parse(rules)
-    dfa = rule_processor.default_automata().dfa()
-    CodeGenerator.dfa_to_code(dfa)
+    CodeGenerator.rule_processor_to_code(RuleProcessor.parse(rules))
