@@ -5785,10 +5785,12 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       __ Assert(equal, kExpectedAllocationSiteInCell);
     }
 
-    // Save the resulting elements kind in type info
-    __ SmiTag(edx);
-    __ mov(FieldOperand(ecx, AllocationSite::kTransitionInfoOffset), edx);
-    __ SmiUntag(edx);
+    // Save the resulting elements kind in type info. We can't just store r3
+    // in the AllocationSite::transition_info field because elements kind is
+    // restricted to a portion of the field...upper bits need to be left alone.
+    STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+    __ add(FieldOperand(ecx, AllocationSite::kTransitionInfoOffset),
+           Immediate(Smi::FromInt(kFastElementsKindPackedToHoley)));
 
     __ bind(&normal_sequence);
     int last_index = GetSequenceIndexFromFastElementsKind(
@@ -5929,8 +5931,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
       masm->isolate()->factory()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
+  // Only look at the lower 16 bits of the transition info.
   __ mov(edx, FieldOperand(edx, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(edx);
+  STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+  __ and_(edx, Immediate(AllocationSite::ElementsKindBits::kMask));
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 
   __ bind(&no_info);

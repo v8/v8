@@ -1126,17 +1126,12 @@ void AllocationSite::AllocationSitePrint(FILE* out) {
   PrintF(out, "\n - nested site: ");
   nested_site()->ShortPrint(out);
   PrintF(out, "\n - transition_info: ");
-  if (transition_info()->IsCell()) {
-    Cell* cell = Cell::cast(transition_info());
-    Object* cell_contents = cell->value();
-    if (cell_contents->IsSmi()) {
-      ElementsKind kind = static_cast<ElementsKind>(
-          Smi::cast(cell_contents)->value());
-      PrintF(out, "Array allocation with ElementsKind ");
-      PrintElementsKind(out, kind);
-      PrintF(out, "\n");
-      return;
-    }
+  if (transition_info()->IsSmi()) {
+    ElementsKind kind = GetElementsKind();
+    PrintF(out, "Array allocation with ElementsKind ");
+    PrintElementsKind(out, kind);
+    PrintF(out, "\n");
+    return;
   } else if (transition_info()->IsJSArray()) {
     PrintF(out, "Array literal ");
     transition_info()->ShortPrint(out);

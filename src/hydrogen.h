@@ -1585,9 +1585,16 @@ class HGraphBuilder {
                    ElementsKind kind,
                    HValue* constructor_function);
 
+    enum FillMode {
+      DONT_FILL_WITH_HOLE,
+      FILL_WITH_HOLE
+    };
+
+    ElementsKind kind() { return kind_; }
+
     HValue* AllocateEmptyArray();
     HValue* AllocateArray(HValue* capacity, HValue* length_field,
-                          bool fill_with_hole);
+                          FillMode fill_mode = FILL_WITH_HOLE);
     HValue* GetElementsLocation() { return elements_location_; }
 
    private:
@@ -1607,7 +1614,8 @@ class HGraphBuilder {
     HValue* EstablishEmptyArrayAllocationSize();
     HValue* EstablishAllocationSize(HValue* length_node);
     HValue* AllocateArray(HValue* size_in_bytes, HValue* capacity,
-                          HValue* length_field,  bool fill_with_hole);
+                          HValue* length_field,
+                          FillMode fill_mode = FILL_WITH_HOLE);
 
     HGraphBuilder* builder_;
     ElementsKind kind_;
@@ -1616,6 +1624,9 @@ class HGraphBuilder {
     HValue* constructor_function_;
     HInnerAllocatedObject* elements_location_;
   };
+
+  HValue* BuildAllocateArrayFromLength(JSArrayBuilder* array_builder,
+                                       HValue* length_argument);
 
   HValue* BuildAllocateElements(ElementsKind kind,
                                 HValue* capacity);
@@ -2100,6 +2111,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
+
+  bool IsCallNewArrayInlineable(CallNew* expr);
+  void BuildInlinedCallNewArray(CallNew* expr);
 
   class PropertyAccessInfo {
    public:

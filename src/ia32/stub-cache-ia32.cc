@@ -1705,7 +1705,7 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
   }
 
   Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
-  site->set_transition_info(Smi::FromInt(GetInitialFastElementsKind()));
+  site->SetElementsKind(GetInitialFastElementsKind());
   Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
   __ mov(eax, Immediate(argc));
   __ mov(ebx, site_feedback_cell);

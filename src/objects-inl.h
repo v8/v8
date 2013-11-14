@@ -1330,6 +1330,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
 
 
 void AllocationSite::Initialize() {
+  set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
@@ -1364,6 +1365,21 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   return type == JS_ARRAY_TYPE;
+}
+
+
+inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
+    Reason reason) {
+  switch (reason) {
+    case TENURING:
+      return DependentCode::kAllocationSiteTenuringChangedGroup;
+      break;
+    case TRANSITIONS:
+      return DependentCode::kAllocationSiteTransitionChangedGroup;
+      break;
+  }
+  UNREACHABLE();
+  return DependentCode::kAllocationSiteTransitionChangedGroup;
 }
 
 

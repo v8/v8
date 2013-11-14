@@ -11633,6 +11633,9 @@ DependentCode* DependentCode::ForObject(Handle<HeapObject> object,
   AllowDeferredHandleDereference dependencies_are_safe;
   if (group == DependentCode::kPropertyCellChangedGroup) {
     return Handle<PropertyCell>::cast(object)->dependent_code();
+  } else if (group == DependentCode::kAllocationSiteTenuringChangedGroup ||
+      group == DependentCode::kAllocationSiteTransitionChangedGroup) {
+    return Handle<AllocationSite>::cast(object)->dependent_code();
   }
   return Handle<Map>::cast(object)->dependent_code();
 }
@@ -12804,6 +12807,78 @@ bool AllocationSite::IsNestedSite() {
 }
 
 
+MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
+  Isolate* isolate = GetIsolate();
+
+  if (SitePointsToLiteral() && transition_info()->IsJSArray()) {
+    JSArray* transition_info = JSArray::cast(this->transition_info());
+    ElementsKind kind = transition_info->GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
+    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
+      // If the array is huge, it's not likely to be defined in a local
+      // function, so we shouldn't make new instances of it very often.
+      uint32_t length = 0;
+      CHECK(transition_info->length()->ToArrayIndex(&length));
+      if (length <= kMaximumArrayBytesToPretransition) {
+        if (FLAG_trace_track_allocation_sites) {
+          bool is_nested = IsNestedSite();
+          PrintF(
+              "AllocationSite: JSArray %p boilerplate %s updated %s->%s\n",
+              reinterpret_cast<void*>(this),
+              is_nested ? "(nested)" : "",
+              ElementsKindToString(kind),
+              ElementsKindToString(to_kind));
+        }
+        MaybeObject* result = transition_info->TransitionElementsKind(to_kind);
+        if (result->IsFailure()) return result;
+        dependent_code()->DeoptimizeDependentCodeGroup(
+            isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+      }
+    }
+  } else {
+    ElementsKind kind = GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
+    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
+      if (FLAG_trace_track_allocation_sites) {
+        PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
+               reinterpret_cast<void*>(this),
+               ElementsKindToString(kind),
+               ElementsKindToString(to_kind));
+      }
+      SetElementsKind(to_kind);
+      dependent_code()->DeoptimizeDependentCodeGroup(
+          isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+    }
+  }
+  return this;
+}
+
+
+void AllocationSite::AddDependentCompilationInfo(Reason reason,
+                                                 CompilationInfo* info) {
+  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
+  Handle<DependentCode> dep(dependent_code());
+  Handle<DependentCode> codes =
+      DependentCode::Insert(dep, group, info->object_wrapper());
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
+}
+
+
+void AllocationSite::AddDependentCode(Reason reason, Handle<Code> code) {
+  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
+  Handle<DependentCode> codes = DependentCode::Insert(
+      Handle<DependentCode>(dependent_code()), group, code);
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+}
+
+
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   if (!FLAG_track_allocation_sites || !IsJSArray()) {
     return this;
@@ -12816,49 +12891,7 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
 
   // Walk through to the Allocation Site
   AllocationSite* site = memento->GetAllocationSite();
-  if (site->SitePointsToLiteral() &&
-      site->transition_info()->IsJSArray()) {
-    JSArray* transition_info = JSArray::cast(site->transition_info());
-    ElementsKind kind = transition_info->GetElementsKind();
-    // if kind is holey ensure that to_kind is as well.
-    if (IsHoleyElementsKind(kind)) {
-      to_kind = GetHoleyElementsKind(to_kind);
-    }
-    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
-      // If the array is huge, it's not likely to be defined in a local
-      // function, so we shouldn't make new instances of it very often.
-      uint32_t length = 0;
-      CHECK(transition_info->length()->ToArrayIndex(&length));
-      if (length <= AllocationSite::kMaximumArrayBytesToPretransition) {
-        if (FLAG_trace_track_allocation_sites) {
-          bool is_nested = site->IsNestedSite();
-          PrintF(
-              "AllocationSite: JSArray %p boilerplate %s updated %s->%s\n",
-              reinterpret_cast<void*>(this),
-              is_nested ? "(nested)" : "",
-              ElementsKindToString(kind),
-              ElementsKindToString(to_kind));
-        }
-        return transition_info->TransitionElementsKind(to_kind);
-      }
-    }
-  } else {
-    ElementsKind kind = site->GetElementsKind();
-    // if kind is holey ensure that to_kind is as well.
-    if (IsHoleyElementsKind(kind)) {
-      to_kind = GetHoleyElementsKind(to_kind);
-    }
-    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
-      if (FLAG_trace_track_allocation_sites) {
-        PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
-               reinterpret_cast<void*>(this),
-               ElementsKindToString(kind),
-               ElementsKindToString(to_kind));
-      }
-      site->set_transition_info(Smi::FromInt(to_kind));
-    }
-  }
-  return this;
+  return site->DigestTransitionFeedback(to_kind);
 }
 
 

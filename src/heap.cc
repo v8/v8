@@ -4598,8 +4598,7 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   // advice
   Map* initial_map = constructor->initial_map();
 
-  Smi* smi = Smi::cast(allocation_site->transition_info());
-  ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
+  ElementsKind to_kind = allocation_site->GetElementsKind();
   AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
   if (to_kind != initial_map->elements_kind()) {
     MaybeObject* maybe_new_map = initial_map->AsElementsKind(to_kind);

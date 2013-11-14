@@ -5565,7 +5565,13 @@ class DependentCode: public FixedArray {
     // Group of code that depends on global property values in property cells
     // not being changed.
     kPropertyCellChangedGroup,
-    kGroupCount = kPropertyCellChangedGroup + 1
+    // Group of code that depends on tenuring information in AllocationSites
+    // not being changed.
+    kAllocationSiteTenuringChangedGroup,
+    // Group of code that depends on element transition information in
+    // AllocationSites not being changed.
+    kAllocationSiteTransitionChangedGroup,
+    kGroupCount = kAllocationSiteTransitionChangedGroup + 1
   };
 
   // Array for holding the index of the first code object of each group.
@@ -8087,13 +8093,31 @@ class AllocationSite: public Struct {
   // This method is expensive, it should only be called for reporting.
   bool IsNestedSite();
 
+  class ElementsKindBits:       public BitField<ElementsKind, 0,  15> {};
+  class UnusedBits:             public BitField<int,          15, 14> {};
+  class DoNotInlineBit:         public BitField<bool,         29,  1> {};
+
   ElementsKind GetElementsKind() {
     ASSERT(!SitePointsToLiteral());
-    return static_cast<ElementsKind>(Smi::cast(transition_info())->value());
+    int value = Smi::cast(transition_info())->value();
+    return ElementsKindBits::decode(value);
   }
 
   void SetElementsKind(ElementsKind kind) {
-    set_transition_info(Smi::FromInt(static_cast<int>(kind)));
+    int value = Smi::cast(transition_info())->value();
+    set_transition_info(Smi::FromInt(ElementsKindBits::update(value, kind)),
+                        SKIP_WRITE_BARRIER);
+  }
+
+  bool CanInlineCall() {
+    int value = Smi::cast(transition_info())->value();
+    return DoNotInlineBit::decode(value) == 0;
+  }
+
+  void SetDoNotInlineCall() {
+    int value = Smi::cast(transition_info())->value();
+    set_transition_info(Smi::FromInt(DoNotInlineBit::update(value, true)),
+                        SKIP_WRITE_BARRIER);
   }
 
   bool SitePointsToLiteral() {
@@ -8102,6 +8126,16 @@ class AllocationSite: public Struct {
     // for an object or array literal.
     return transition_info()->IsJSArray() || transition_info()->IsJSObject();
   }
+
+  MaybeObject* DigestTransitionFeedback(ElementsKind to_kind);
+
+  enum Reason {
+    TENURING,
+    TRANSITIONS
+  };
+
+  void AddDependentCompilationInfo(Reason reason, CompilationInfo* info);
+  void AddDependentCode(Reason reason, Handle<Code> code);
 
   DECLARE_PRINTER(AllocationSite)
   DECLARE_VERIFIER(AllocationSite)
@@ -8123,6 +8157,7 @@ class AllocationSite: public Struct {
                               kSize> BodyDescriptor;
 
  private:
+  inline DependentCode::DependencyGroup ToDependencyGroup(Reason reason);
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
 };
 
