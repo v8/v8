@@ -224,7 +224,7 @@ class CommitRepository(Step):
     TextToFile(GetLastChangeLogEntries(self.Config(CHANGELOG_FILE)),
                self.Config(CHANGELOG_ENTRY_FILE))
 
-    if self.Git("cl dcommit -v", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
+    if self.Git("cl dcommit -f", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
       self.Die("'git cl dcommit' failed, please try again.")
 
 
