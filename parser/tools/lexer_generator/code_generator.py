@@ -121,16 +121,25 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
       code += CodeGenerator.dfa_state_to_code(state, start_node_number)
       return code
     code = dfa.visit_all_states(f, code)
-    code += '''
-  CHECK(false);
+
+    default_action_code = ''
+    if rule_processor.default_action:
+      if rule_processor.default_action.type() == 'push_token':
+        default_action_code = '''
 default_action:
   //fprintf(stderr, "default action\\n");
-  %s
-  goto code_%s;
+  PUSH_TOKEN(Token::%s)
+  goto code_%s;''' % (rule_processor.default_action.data(), start_node_number)
+      else:
+        raise Exception("Default action type %s not supported" % action.type())
+
+    code += '''
+  CHECK(false);
+%s
   return 0;
 }
 
 }
 }
-''' % (rule_processor.default_action, start_node_number)
+''' % default_action_code
     return code

@@ -312,4 +312,6 @@ class RuleProcessor(object):
     # build the automata
     for rule_name, graph in rule_map.items():
       self.__automata[rule_name] = RuleProcessor.Automata(builder, graph)
-    self.default_action = parser_state.rules['default']['default_action']
+
+    default_action = parser_state.rules['default']['default_action']
+    self.default_action = Action(default_action[0], default_action[1]) if default_action else None
