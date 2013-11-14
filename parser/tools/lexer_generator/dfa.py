@@ -117,23 +117,31 @@ class Dfa(Automaton):
     assert len(match) == 1
     return match[0]
 
+  @staticmethod
+  def terminal_action():
+    return Action(None, ('TERMINATE', None))
+
+  @staticmethod
+  def miss_action():
+    return Action(None, ('Miss', None))
+
   def collect_actions(self, string):
     state = self.__start
     for c in string:
       state = Dfa.__match_char(state, c)
       if not state:
-        yield Action('MISS')
+        yield self.miss_action()
         return
       if state.action():
         yield state.action()
     if state in self.__terminal_set:
-      yield Action('TERMINATE')
+      yield self.terminal_action()
     else:
-      yield Action('MISS')
+      yield self.miss_action()
 
   def matches(self, string):
     actions = list(self.collect_actions(string))
-    return actions and actions[-1].entry_action() == 'TERMINATE'
+    return actions and actions[-1] == self.terminal_action()
 
   def lex(self, string):
     state = self.__start

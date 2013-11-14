@@ -31,8 +31,12 @@ from transition_keys import TransitionKey
 
 class Action(object):
 
-  def __init__(self, entry_action, match_action = None, precedence = -1):
-    assert type
+  def __init__(self, entry_action, match_action, precedence = -1):
+    for action in [entry_action, match_action]:
+      if action == None:
+        continue
+      assert type(action) == TupleType and len(action)
+      assert action[0] != None
     self.__entry_action = entry_action
     self.__match_action = match_action
     self.__precedence = precedence
@@ -55,7 +59,15 @@ class Action(object):
             self.__match_action == other.__match_action)
 
   def __str__(self):
-    return "action<%s, %s>" % (self.__entry_action, self.__match_action)
+    parts = []
+    for action in [self.__entry_action, self.__match_action]:
+      part = ""
+      if action:
+        part += action[0]
+        if action[1]:
+          part += "(%s)" % action[1]
+      parts.append(part)
+    return "action< %s >" % " | ".join(parts)
 
 class AutomatonState(object):
 

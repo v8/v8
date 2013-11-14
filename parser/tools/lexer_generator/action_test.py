@@ -43,7 +43,7 @@ class ActionTestCase(unittest.TestCase):
       expected_code = (expected_code, None)
       for automaton in [automata.dfa(), automata.minimal_dfa()]:
         actions = list(automaton.collect_actions(string))
-        self.assertEqual(actions[-1], Action('TERMINATE'))
+        self.assertEqual(actions[-1], Dfa.terminal_action())
         self.assertEqual(actions[-2].match_action(), expected_code)
 
     def test_action_precedence(self):

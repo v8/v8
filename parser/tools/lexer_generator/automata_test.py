@@ -40,6 +40,9 @@ def build_automata(string):
   dfa = dfa_from_nfa(nfa)
   return (nfa, dfa, dfa.minimize())
 
+def simple_action(string):
+  return Action(None, (string, None))
+
 class AutomataTestCase(unittest.TestCase):
 
     # (pattern, should match, should not match)
@@ -81,8 +84,8 @@ class AutomataTestCase(unittest.TestCase):
           automaton.to_dot()
 
     def test_actions(self):
-      left_action = Action("LEFT_ACTION")
-      right_action = Action("RIGHT_ACTION")
+      left_action = simple_action("LEFT_ACTION")
+      right_action = simple_action("RIGHT_ACTION")
       left = RegexParser.parse("left")
       right = RegexParser.parse("right")
       left = NfaBuilder.add_action(left, left_action)
@@ -96,9 +99,9 @@ class AutomataTestCase(unittest.TestCase):
         for i, action in enumerate(actions):
           self.assertEqual(action, expected[i])
       def verify_miss(string, expected):
-        verify(string, expected + [Action('MISS',)])
+        verify(string, expected + [Dfa.miss_action()])
       def verify_hit(string, expected):
-        verify(string, expected + [Action('TERMINATE',)])
+        verify(string, expected + [Dfa.terminal_action()])
       (l, r) = left_action, right_action
       verify_hit("left", [l])
       verify_miss("lefta", [l])
