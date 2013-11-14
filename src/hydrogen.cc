@@ -8627,10 +8627,14 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  SetSourcePosition(expr->position());
   HValue* right = Pop();
   HValue* left = Pop();
   HInstruction* instr = BuildBinaryOperation(expr, left, right);
+  if (FLAG_emit_opt_code_positions && instr->IsBinaryOperation()) {
+    HBinaryOperation::cast(instr)->SetOperandPositions(
+        zone(), expr->left()->position(), expr->right()->position());
+  }
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -8639,7 +8643,7 @@ void HOptimizedGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
                                                         Expression* sub_expr,
                                                         Handle<String> check) {
   CHECK_ALIVE(VisitForTypeOf(sub_expr));
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  SetSourcePosition(expr->position());
   HValue* value = Pop();
   HTypeofIsAndBranch* instr = New<HTypeofIsAndBranch>(value, check);
   return ast_context()->ReturnControl(instr, expr->id());
@@ -8700,6 +8704,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
+
+  if (FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
 
   HValue* right = Pop();
   HValue* left = Pop();
@@ -8779,6 +8785,10 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
           AddCheckMap(right, map);
           HCompareObjectEqAndBranch* result =
               New<HCompareObjectEqAndBranch>(left, right);
+          if (FLAG_emit_opt_code_positions) {
+            result->set_operand_position(zone(), 0, expr->left()->position());
+            result->set_operand_position(zone(), 1, expr->right()->position());
+          }
           return ast_context()->ReturnControl(result, expr->id());
         } else {
           BuildCheckHeapObject(left);
@@ -8820,6 +8830,11 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       HCompareNumericAndBranch* result =
           New<HCompareNumericAndBranch>(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
+      if (FLAG_emit_opt_code_positions) {
+        result->SetOperandPositions(zone(),
+                                    expr->left()->position(),
+                                    expr->right()->position());
+      }
       return ast_context()->ReturnControl(result, expr->id());
     }
   }
@@ -10136,7 +10151,8 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       Tag HIR_tag(this, "HIR");
       for (HInstructionIterator it(current); !it.Done(); it.Advance()) {
         HInstruction* instruction = it.Current();
-        int bci = 0;
+        int bci = FLAG_emit_opt_code_positions && instruction->has_position() ?
+            instruction->position() : 0;
         int uses = instruction->UseCount();
         PrintIndent();
         trace_.Add("%d %d ", bci, uses);
@@ -10161,6 +10177,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
             trace_.Add("%d ",
                        LifetimePosition::FromInstructionIndex(i).Value());
             linstr->PrintTo(&trace_);
+            trace_.Add(" [hir:");
+            linstr->hydrogen_value()->PrintNameTo(&trace_);
+            trace_.Add("]");
             trace_.Add(" <|@\n");
           }
         }
