@@ -218,10 +218,9 @@ class DfaMinimizer:
       action = state.action()
       all_keys.append(state.key_iter())
       if action:
-        # TODO add this back
-        # assert state in self.__terminal_set
         if state not in terminal_set:
-          action = "nonterminal action " + str(action)
+          assert action.entry_action()
+          action = ("nonterminal action", action)
       elif state in terminal_set:
         action = "terminal_set"
       if not action in action_map:

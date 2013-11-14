@@ -208,7 +208,7 @@ catch_all <||continue>
 "*/"             <|skip|>
 # TODO find a way to generate the below rule
 /\*[^\/]/        <||continue>
-line_terminator  <|push_line_terminator|continue>
+line_terminator  <push_line_terminator||continue>
 catch_all        <||continue>
 
 <<HtmlComment>>
@@ -216,5 +216,5 @@ catch_all        <||continue>
 # TODO find a way to generate the below rules
 /--./            <||continue>
 /-./             <||continue>
-line_terminator  <|push_line_terminator|continue>
+line_terminator  <push_line_terminator||continue>
 catch_all <||continue>

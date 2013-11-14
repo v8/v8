@@ -148,7 +148,7 @@ class RuleParser:
     if len(p) == 2:
       p[0] = (p[1], None)
     elif len(p) == 5:
-      p[0] = (p[1], p[2])
+      p[0] = (p[1], p[3])
     else:
       raise Exception()
 
@@ -319,7 +319,7 @@ class RuleProcessor(object):
         assert catch_all == (None, None, 'continue'), "unimplemented"
         graphs.append(NfaBuilder.add_continue(NfaBuilder.catch_all()))
       graph = NfaBuilder.or_graphs(graphs)
-      rule_map[k] = graph
+      rule_map[subgraph] = graph
     # process first the subgraphs, then the default graph
     for k, v in parser_state.rules.items():
       if k == 'default': continue

@@ -37,6 +37,7 @@ class Action(object):
         continue
       assert type(action) == TupleType and len(action)
       assert action[0] != None
+    assert entry_action or match_action
     self.__entry_action = entry_action
     self.__match_action = match_action
     self.__precedence = precedence
