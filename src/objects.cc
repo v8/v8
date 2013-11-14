@@ -2972,52 +2972,44 @@ Handle<Object> JSReceiver::SetPropertyWithDefinedSetter(
 }
 
 
-MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
+Handle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
+    Handle<JSObject> object,
     uint32_t index,
-    Object* value,
+    Handle<Object> value,
     bool* found,
     StrictModeFlag strict_mode) {
-  Heap* heap = GetHeap();
-  for (Object* pt = GetPrototype();
-       pt != heap->null_value();
-       pt = pt->GetPrototype(GetIsolate())) {
-    if (pt->IsJSProxy()) {
-      Isolate* isolate = GetIsolate();
-      HandleScope scope(isolate);
-      Handle<JSProxy> proxy(JSProxy::cast(pt));
-      Handle<JSObject> self(this, isolate);
-      Handle<String> name = isolate->factory()->Uint32ToString(index);
-      Handle<Object> value_handle(value, isolate);
-      Handle<Object> result = JSProxy::SetPropertyViaPrototypesWithHandler(
-          proxy, self, name, value_handle, NONE, strict_mode, found);
-      RETURN_IF_EMPTY_HANDLE(isolate, result);
-      return *result;
+  Isolate *isolate = object->GetIsolate();
+  for (Handle<Object> proto = handle(object->GetPrototype(), isolate);
+       !proto->IsNull();
+       proto = handle(proto->GetPrototype(isolate), isolate)) {
+    if (proto->IsJSProxy()) {
+      return JSProxy::SetPropertyViaPrototypesWithHandler(
+          Handle<JSProxy>::cast(proto),
+          object,
+          isolate->factory()->Uint32ToString(index),  // name
+          value,
+          NONE,
+          strict_mode,
+          found);
     }
-    if (!JSObject::cast(pt)->HasDictionaryElements()) {
+    Handle<JSObject> js_proto = Handle<JSObject>::cast(proto);
+    if (!js_proto->HasDictionaryElements()) {
       continue;
     }
-    SeededNumberDictionary* dictionary =
-        JSObject::cast(pt)->element_dictionary();
+    Handle<SeededNumberDictionary> dictionary(js_proto->element_dictionary());
     int entry = dictionary->FindEntry(index);
     if (entry != SeededNumberDictionary::kNotFound) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
         *found = true;
-        Isolate* isolate = GetIsolate();
-        HandleScope scope(isolate);
-        Handle<JSObject> self(this, isolate);
         Handle<Object> structure(dictionary->ValueAt(entry), isolate);
-        Handle<Object> value_handle(value, isolate);
-        Handle<JSObject> holder(JSObject::cast(pt));
-        Handle<Object> result = SetElementWithCallback(
-            self, structure, index, value_handle, holder, strict_mode);
-        RETURN_IF_EMPTY_HANDLE(isolate, result);
-        return *result;
+        return SetElementWithCallback(object, structure, index, value, js_proto,
+                                      strict_mode);
       }
     }
   }
   *found = false;
-  return heap->the_hole_value();
+  return isolate->factory()->the_hole_value();
 }
 
 
@@ -6262,7 +6254,6 @@ void JSObject::SetElementCallback(Handle<JSObject> object,
   Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
   ASSERT(object->HasDictionaryElements() ||
          object->HasDictionaryArgumentsElements());
-
   // Update the dictionary with the new CALLBACKS property.
   dictionary = SeededNumberDictionary::Set(dictionary, index, structure,
                                            details);
@@ -11216,6 +11207,18 @@ void Code::Disassemble(const char* name, FILE* out) {
 #endif  // ENABLE_DISASSEMBLER
 
 
+Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
+    Handle<JSObject> object,
+    int capacity,
+    int length,
+    SetFastElementsCapacitySmiMode smi_mode) {
+  CALL_HEAP_FUNCTION(
+      object->GetIsolate(),
+      object->SetFastElementsCapacityAndLength(capacity, length, smi_mode),
+      FixedArray);
+}
+
+
 MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     int capacity,
     int length,
@@ -11301,6 +11304,16 @@ bool Code::IsWeakEmbeddedObject(Kind kind, Object* object) {
 
   return false;
 }
+
+
+void JSObject::SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
+                                                      int capacity,
+                                                      int length) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->SetFastDoubleElementsCapacityAndLength(capacity, length));
+}
+
 
 MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
     int capacity,
@@ -11939,42 +11952,38 @@ AccessorPair* JSObject::GetLocalElementAccessorPair(uint32_t index) {
 }
 
 
-MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
-                                                 Object* value,
-                                                 PropertyAttributes attributes,
-                                                 StrictModeFlag strict_mode,
-                                                 bool check_prototype,
-                                                 SetPropertyMode set_mode) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
+Handle<Object> JSObject::SetElementWithInterceptor(
+    Handle<JSObject> object,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode,
+    bool check_prototype,
+    SetPropertyMode set_mode) {
+  Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSObject> this_handle(this);
-  Handle<Object> value_handle(value, isolate);
+  Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
   if (!interceptor->setter()->IsUndefined()) {
     v8::IndexedPropertySetterCallback setter =
         v8::ToCData<v8::IndexedPropertySetterCallback>(interceptor->setter());
     LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-set", this, index));
-    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
+        ApiIndexedPropertyAccess("interceptor-indexed-set", *object, index));
+    PropertyCallbackArguments args(isolate, interceptor->data(), *object,
+                                   *object);
     v8::Handle<v8::Value> result =
-        args.Call(setter, index, v8::Utils::ToLocal(value_handle));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    if (!result.IsEmpty()) return *value_handle;
+        args.Call(setter, index, v8::Utils::ToLocal(value));
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    if (!result.IsEmpty()) return value;
   }
-  MaybeObject* raw_result =
-      this_handle->SetElementWithoutInterceptor(index,
-                                                *value_handle,
-                                                attributes,
-                                                strict_mode,
-                                                check_prototype,
-                                                set_mode);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  return raw_result;
+
+  return SetElementWithoutInterceptor(object, index, value, attributes,
+                                      strict_mode,
+                                      check_prototype,
+                                      set_mode);
 }
 
 
@@ -12122,41 +12131,39 @@ bool JSObject::HasDictionaryArgumentsElements() {
 // Adding n elements in fast case is O(n*n).
 // Note: revisit design to have dual undefined values to capture absent
 // elements.
-MaybeObject* JSObject::SetFastElement(uint32_t index,
-                                      Object* value,
-                                      StrictModeFlag strict_mode,
-                                      bool check_prototype) {
-  ASSERT(HasFastSmiOrObjectElements() ||
-         HasFastArgumentsElements());
+Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
+                                        uint32_t index,
+                                        Handle<Object> value,
+                                        StrictModeFlag strict_mode,
+                                        bool check_prototype) {
+  ASSERT(object->HasFastSmiOrObjectElements() ||
+         object->HasFastArgumentsElements());
+
+  Isolate* isolate = object->GetIsolate();
 
   // Array optimizations rely on the prototype lookups of Array objects always
   // returning undefined. If there is a store to the initial prototype object,
   // make sure all of these optimizations are invalidated.
-  Isolate* isolate(GetIsolate());
-  if (isolate->is_initial_object_prototype(this) ||
-      isolate->is_initial_array_prototype(this)) {
-    HandleScope scope(GetIsolate());
-    map()->dependent_code()->DeoptimizeDependentCodeGroup(
-        GetIsolate(),
+  if (isolate->is_initial_object_prototype(*object) ||
+      isolate->is_initial_array_prototype(*object)) {
+    object->map()->dependent_code()->DeoptimizeDependentCodeGroup(isolate,
         DependentCode::kElementsCantBeAddedGroup);
   }
 
-  FixedArray* backing_store = FixedArray::cast(elements());
-  if (backing_store->map() == GetHeap()->non_strict_arguments_elements_map()) {
-    backing_store = FixedArray::cast(backing_store->get(1));
+  Handle<FixedArray> backing_store(FixedArray::cast(object->elements()));
+  if (backing_store->map() ==
+      isolate->heap()->non_strict_arguments_elements_map()) {
+    backing_store = handle(FixedArray::cast(backing_store->get(1)));
   } else {
-    MaybeObject* maybe = EnsureWritableFastElements();
-    if (!maybe->To(&backing_store)) return maybe;
+    backing_store = EnsureWritableFastElements(object);
   }
   uint32_t capacity = static_cast<uint32_t>(backing_store->length());
 
   if (check_prototype &&
       (index >= capacity || backing_store->get(index)->IsTheHole())) {
     bool found;
-    MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
-                                                                   value,
-                                                                   &found,
-                                                                   strict_mode);
+    Handle<Object> result = SetElementWithCallbackSetterInPrototypes(
+        object, index, value, &found, strict_mode);
     if (found) return result;
   }
 
@@ -12165,8 +12172,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   uint32_t array_length = 0;
   bool must_update_array_length = false;
   bool introduces_holes = true;
-  if (IsJSArray()) {
-    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
+  if (object->IsJSArray()) {
+    CHECK(Handle<JSArray>::cast(object)->length()->ToArrayIndex(&array_length));
     introduces_holes = index > array_length;
     if (index >= array_length) {
       must_update_array_length = true;
@@ -12178,13 +12185,12 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
 
   // If the array is growing, and it's not growth by a single element at the
   // end, make sure that the ElementsKind is HOLEY.
-  ElementsKind elements_kind = GetElementsKind();
+  ElementsKind elements_kind = object->GetElementsKind();
   if (introduces_holes &&
       IsFastElementsKind(elements_kind) &&
       !IsFastHoleyElementsKind(elements_kind)) {
     ElementsKind transitioned_kind = GetHoleyElementsKind(elements_kind);
-    MaybeObject* maybe = TransitionElementsKind(transitioned_kind);
-    if (maybe->IsFailure()) return maybe;
+    TransitionElementsKind(object, transitioned_kind);
   }
 
   // Check if the capacity of the backing store needs to be increased, or if
@@ -12194,94 +12200,79 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if ((index - capacity) < kMaxGap) {
       new_capacity = NewElementsCapacity(index + 1);
       ASSERT(new_capacity > index);
-      if (!ShouldConvertToSlowElements(new_capacity)) {
+      if (!object->ShouldConvertToSlowElements(new_capacity)) {
         convert_to_slow = false;
       }
     }
     if (convert_to_slow) {
-      MaybeObject* result = NormalizeElements();
-      if (result->IsFailure()) return result;
-      return SetDictionaryElement(index, value, NONE, strict_mode,
+      NormalizeElements(object);
+      return SetDictionaryElement(object, index, value, NONE, strict_mode,
                                   check_prototype);
     }
   }
   // Convert to fast double elements if appropriate.
-  if (HasFastSmiElements() && !value->IsSmi() && value->IsNumber()) {
+  if (object->HasFastSmiElements() && !value->IsSmi() && value->IsNumber()) {
     // Consider fixing the boilerplate as well if we have one.
     ElementsKind to_kind = IsHoleyElementsKind(elements_kind)
         ? FAST_HOLEY_DOUBLE_ELEMENTS
         : FAST_DOUBLE_ELEMENTS;
 
-    MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
-    if (maybe_failure->IsFailure()) return maybe_failure;
+    UpdateAllocationSite(object, to_kind);
 
-    MaybeObject* maybe =
-        SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
-    if (maybe->IsFailure()) return maybe;
-    FixedDoubleArray::cast(elements())->set(index, value->Number());
-    ValidateElements();
+    SetFastDoubleElementsCapacityAndLength(object, new_capacity, array_length);
+    FixedDoubleArray::cast(object->elements())->set(index, value->Number());
+    object->ValidateElements();
     return value;
   }
   // Change elements kind from Smi-only to generic FAST if necessary.
-  if (HasFastSmiElements() && !value->IsSmi()) {
-    Map* new_map;
-    ElementsKind kind = HasFastHoleyElements()
+  if (object->HasFastSmiElements() && !value->IsSmi()) {
+    ElementsKind kind = object->HasFastHoleyElements()
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
 
-    MaybeObject* maybe_failure = UpdateAllocationSite(kind);
-    if (maybe_failure->IsFailure()) return maybe_failure;
-
-    MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
-                                                          kind);
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
-    set_map(new_map);
+    UpdateAllocationSite(object, kind);
+    object->set_map(*GetElementsTransitionMap(object, kind));
+    ASSERT(IsFastObjectElementsKind(object->GetElementsKind()));
   }
   // Increase backing store capacity if that's been decided previously.
   if (new_capacity != capacity) {
-    FixedArray* new_elements;
     SetFastElementsCapacitySmiMode smi_mode =
-        value->IsSmi() && HasFastSmiElements()
+        value->IsSmi() && object->HasFastSmiElements()
             ? kAllowSmiElements
             : kDontAllowSmiElements;
-    { MaybeObject* maybe =
-          SetFastElementsCapacityAndLength(new_capacity,
-                                           array_length,
-                                           smi_mode);
-      if (!maybe->To(&new_elements)) return maybe;
-    }
-    new_elements->set(index, value);
-    ValidateElements();
+    Handle<FixedArray> new_elements =
+        SetFastElementsCapacityAndLength(object, new_capacity, array_length,
+                                         smi_mode);
+    new_elements->set(index, *value);
+    object->ValidateElements();
     return value;
   }
 
   // Finally, set the new element and length.
-  ASSERT(elements()->IsFixedArray());
-  backing_store->set(index, value);
+  ASSERT(object->elements()->IsFixedArray());
+  backing_store->set(index, *value);
   if (must_update_array_length) {
-    JSArray::cast(this)->set_length(Smi::FromInt(array_length));
+    Handle<JSArray>::cast(object)->set_length(Smi::FromInt(array_length));
   }
   return value;
 }
 
 
-MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
-                                            Object* value_raw,
-                                            PropertyAttributes attributes,
-                                            StrictModeFlag strict_mode,
-                                            bool check_prototype,
-                                            SetPropertyMode set_mode) {
-  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
-  Isolate* isolate = GetIsolate();
-  Heap* heap = isolate->heap();
-  Handle<JSObject> self(this);
-  Handle<Object> value(value_raw, isolate);
+Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
+                                              uint32_t index,
+                                              Handle<Object> value,
+                                              PropertyAttributes attributes,
+                                              StrictModeFlag strict_mode,
+                                              bool check_prototype,
+                                              SetPropertyMode set_mode) {
+  ASSERT(object->HasDictionaryElements() ||
+         object->HasDictionaryArgumentsElements());
+  Isolate* isolate = object->GetIsolate();
 
   // Insert element in the dictionary.
-  Handle<FixedArray> elements(FixedArray::cast(this->elements()));
+  Handle<FixedArray> elements(FixedArray::cast(object->elements()));
   bool is_arguments =
-      (elements->map() == heap->non_strict_arguments_elements_map());
+      (elements->map() == isolate->heap()->non_strict_arguments_elements_map());
   Handle<SeededNumberDictionary> dictionary(is_arguments
     ? SeededNumberDictionary::cast(elements->get(1))
     : SeededNumberDictionary::cast(*elements));
@@ -12291,10 +12282,8 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     Handle<Object> element(dictionary->ValueAt(entry), isolate);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS && set_mode == SET_PROPERTY) {
-      Handle<Object> result = SetElementWithCallback(self, element, index,
-                                                     value, self, strict_mode);
-      RETURN_IF_EMPTY_HANDLE(isolate, result);
-      return *result;
+      return SetElementWithCallback(object, element, index, value, object,
+                                    strict_mode);
     } else {
       dictionary->UpdateMaxNumberKey(index);
       // If a value has not been initialized we allow writing to it even if it
@@ -12306,21 +12295,22 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
         dictionary->DetailsAtPut(entry, details);
       } else if (details.IsReadOnly() && !element->IsTheHole()) {
         if (strict_mode == kNonStrictMode) {
-          return isolate->heap()->undefined_value();
+          return isolate->factory()->undefined_value();
         } else {
-          Handle<Object> holder(this, isolate);
           Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-          Handle<Object> args[2] = { number, holder };
+          Handle<Object> args[2] = { number, object };
           Handle<Object> error =
               isolate->factory()->NewTypeError("strict_read_only_property",
                                                HandleVector(args, 2));
-          return isolate->Throw(*error);
+          isolate->Throw(*error);
+          return Handle<Object>();
         }
       }
       // Elements of the arguments object in slow mode might be slow aliases.
       if (is_arguments && element->IsAliasedArgumentsEntry()) {
-        AliasedArgumentsEntry* entry = AliasedArgumentsEntry::cast(*element);
-        Context* context = Context::cast(elements->get(0));
+        Handle<AliasedArgumentsEntry> entry =
+            Handle<AliasedArgumentsEntry>::cast(element);
+        Handle<Context> context(Context::cast(elements->get(0)));
         int context_index = entry->aliased_context_slot();
         ASSERT(!context->get(context_index)->IsTheHole());
         context->set(context_index, *value);
@@ -12334,15 +12324,16 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     // Can cause GC!
     if (check_prototype) {
       bool found;
-      MaybeObject* result = SetElementWithCallbackSetterInPrototypes(
-          index, *value, &found, strict_mode);
+      Handle<Object> result = SetElementWithCallbackSetterInPrototypes(object,
+          index, value, &found, strict_mode);
       if (found) return result;
     }
+
     // When we set the is_extensible flag to false we always force the
     // element into dictionary mode (and force them to stay there).
-    if (!self->map()->is_extensible()) {
+    if (!object->map()->is_extensible()) {
       if (strict_mode == kNonStrictMode) {
-        return isolate->heap()->undefined_value();
+        return isolate->factory()->undefined_value();
       } else {
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<String> name = isolate->factory()->NumberToString(number);
@@ -12350,36 +12341,36 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
         Handle<Object> error =
             isolate->factory()->NewTypeError("object_not_extensible",
                                              HandleVector(args, 1));
-        return isolate->Throw(*error);
+        isolate->Throw(*error);
+        return Handle<Object>();
       }
     }
-    FixedArrayBase* new_dictionary;
+
     PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
-    MaybeObject* maybe = dictionary->AddNumberEntry(index, *value, details);
-    if (!maybe->To(&new_dictionary)) return maybe;
-    if (*dictionary != SeededNumberDictionary::cast(new_dictionary)) {
+    Handle<SeededNumberDictionary> new_dictionary =
+        SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
+                                               details);
+    if (*dictionary != *new_dictionary) {
       if (is_arguments) {
-        elements->set(1, new_dictionary);
+        elements->set(1, *new_dictionary);
       } else {
-        self->set_elements(new_dictionary);
+        object->set_elements(*new_dictionary);
       }
-      dictionary =
-          handle(SeededNumberDictionary::cast(new_dictionary), isolate);
+      dictionary = new_dictionary;
     }
   }
 
   // Update the array length if this JSObject is an array.
-  if (self->IsJSArray()) {
-    MaybeObject* result =
-        JSArray::cast(*self)->JSArrayUpdateLengthFromIndex(index, *value);
-    if (result->IsFailure()) return result;
+  if (object->IsJSArray()) {
+    JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray>::cast(object), index,
+                                          value);
   }
 
   // Attempt to put this object back in fast case.
-  if (self->ShouldConvertToFastElements()) {
+  if (object->ShouldConvertToFastElements()) {
     uint32_t new_length = 0;
-    if (self->IsJSArray()) {
-      CHECK(JSArray::cast(*self)->length()->ToArrayIndex(&new_length));
+    if (object->IsJSArray()) {
+      CHECK(Handle<JSArray>::cast(object)->length()->ToArrayIndex(&new_length));
     } else {
       new_length = dictionary->max_number_key() + 1;
     }
@@ -12388,47 +12379,47 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
         : kDontAllowSmiElements;
     bool has_smi_only_elements = false;
     bool should_convert_to_fast_double_elements =
-        self->ShouldConvertToFastDoubleElements(&has_smi_only_elements);
+        object->ShouldConvertToFastDoubleElements(&has_smi_only_elements);
     if (has_smi_only_elements) {
       smi_mode = kForceSmiElements;
     }
-    MaybeObject* result = should_convert_to_fast_double_elements
-        ? self->SetFastDoubleElementsCapacityAndLength(new_length, new_length)
-        : self->SetFastElementsCapacityAndLength(
-            new_length, new_length, smi_mode);
-    self->ValidateElements();
-    if (result->IsFailure()) return result;
+
+    if (should_convert_to_fast_double_elements) {
+      SetFastDoubleElementsCapacityAndLength(object, new_length, new_length);
+    } else {
+      SetFastElementsCapacityAndLength(object, new_length, new_length,
+                                       smi_mode);
+    }
+    object->ValidateElements();
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
       PrintF("Object elements are fast case again:\n");
-      Print();
+      object->Print();
     }
 #endif
   }
-  return *value;
+  return value;
 }
 
-
-MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
+Handle<Object> JSObject::SetFastDoubleElement(
+    Handle<JSObject> object,
     uint32_t index,
-    Object* value,
+    Handle<Object> value,
     StrictModeFlag strict_mode,
     bool check_prototype) {
-  ASSERT(HasFastDoubleElements());
+  ASSERT(object->HasFastDoubleElements());
 
-  FixedArrayBase* base_elms = FixedArrayBase::cast(elements());
+  Handle<FixedArrayBase> base_elms(FixedArrayBase::cast(object->elements()));
   uint32_t elms_length = static_cast<uint32_t>(base_elms->length());
 
   // If storing to an element that isn't in the array, pass the store request
   // up the prototype chain before storing in the receiver's elements.
   if (check_prototype &&
       (index >= elms_length ||
-       FixedDoubleArray::cast(base_elms)->is_the_hole(index))) {
+       Handle<FixedDoubleArray>::cast(base_elms)->is_the_hole(index))) {
     bool found;
-    MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
-                                                                   value,
-                                                                   &found,
-                                                                   strict_mode);
+    Handle<Object> result = SetElementWithCallbackSetterInPrototypes(object,
+        index, value, &found, strict_mode);
     if (found) return result;
   }
 
@@ -12437,48 +12428,47 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
   bool value_is_smi = value->IsSmi();
   bool introduces_holes = true;
   uint32_t length = elms_length;
-  if (IsJSArray()) {
-    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
+  if (object->IsJSArray()) {
+    CHECK(Handle<JSArray>::cast(object)->length()->ToArrayIndex(&length));
     introduces_holes = index > length;
   } else {
     introduces_holes = index >= elms_length;
   }
 
   if (!value->IsNumber()) {
-    MaybeObject* maybe_obj = SetFastElementsCapacityAndLength(
-        elms_length,
-        length,
-        kDontAllowSmiElements);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-    maybe_obj = SetFastElement(index, value, strict_mode, check_prototype);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-    ValidateElements();
-    return maybe_obj;
+    SetFastElementsCapacityAndLength(object, elms_length, length,
+                                     kDontAllowSmiElements);
+    Handle<Object> result = SetFastElement(object, index, value, strict_mode,
+                                           check_prototype);
+    RETURN_IF_EMPTY_HANDLE_VALUE(object->GetIsolate(), result,
+                                 Handle<Object>());
+    object->ValidateElements();
+    return result;
   }
 
   double double_value = value_is_smi
-      ? static_cast<double>(Smi::cast(value)->value())
-      : HeapNumber::cast(value)->value();
+      ? static_cast<double>(Handle<Smi>::cast(value)->value())
+      : Handle<HeapNumber>::cast(value)->value();
 
   // If the array is growing, and it's not growth by a single element at the
   // end, make sure that the ElementsKind is HOLEY.
-  ElementsKind elements_kind = GetElementsKind();
+  ElementsKind elements_kind = object->GetElementsKind();
   if (introduces_holes && !IsFastHoleyElementsKind(elements_kind)) {
     ElementsKind transitioned_kind = GetHoleyElementsKind(elements_kind);
-    MaybeObject* maybe = TransitionElementsKind(transitioned_kind);
-    if (maybe->IsFailure()) return maybe;
+    TransitionElementsKind(object, transitioned_kind);
   }
 
   // Check whether there is extra space in the fixed array.
   if (index < elms_length) {
-    FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+    Handle<FixedDoubleArray> elms(FixedDoubleArray::cast(object->elements()));
     elms->set(index, double_value);
-    if (IsJSArray()) {
+    if (object->IsJSArray()) {
       // Update the length of the array if needed.
       uint32_t array_length = 0;
-      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
+      CHECK(
+          Handle<JSArray>::cast(object)->length()->ToArrayIndex(&array_length));
       if (index >= array_length) {
-        JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
+        Handle<JSArray>::cast(object)->set_length(Smi::FromInt(index + 1));
       }
     }
     return value;
@@ -12488,27 +12478,23 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
   if ((index - elms_length) < kMaxGap) {
     // Try allocating extra space.
     int new_capacity = NewElementsCapacity(index+1);
-    if (!ShouldConvertToSlowElements(new_capacity)) {
+    if (!object->ShouldConvertToSlowElements(new_capacity)) {
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
-      MaybeObject* maybe_obj =
-          SetFastDoubleElementsCapacityAndLength(new_capacity, index + 1);
-      if (maybe_obj->IsFailure()) return maybe_obj;
-      FixedDoubleArray::cast(elements())->set(index, double_value);
-      ValidateElements();
+      SetFastDoubleElementsCapacityAndLength(object, new_capacity, index + 1);
+      FixedDoubleArray::cast(object->elements())->set(index, double_value);
+      object->ValidateElements();
       return value;
     }
   }
 
   // Otherwise default to slow case.
-  ASSERT(HasFastDoubleElements());
-  ASSERT(map()->has_fast_double_elements());
-  ASSERT(elements()->IsFixedDoubleArray());
-  Object* obj;
-  { MaybeObject* maybe_obj = NormalizeElements();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  ASSERT(HasDictionaryElements());
-  return SetElement(index, value, NONE, strict_mode, check_prototype);
+  ASSERT(object->HasFastDoubleElements());
+  ASSERT(object->map()->has_fast_double_elements());
+  ASSERT(object->elements()->IsFixedDoubleArray());
+
+  NormalizeElements(object);
+  ASSERT(object->HasDictionaryElements());
+  return SetElement(object, index, value, NONE, strict_mode, check_prototype);
 }
 
 
@@ -12531,262 +12517,258 @@ Handle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
                                        Handle<Object> value,
                                        StrictModeFlag strict_mode) {
   ASSERT(!object->HasExternalArrayElements());
-  CALL_HEAP_FUNCTION(
-      object->GetIsolate(),
-      object->SetElement(index, *value, NONE, strict_mode, false),
-      Object);
+  return JSObject::SetElement(object, index, value, NONE, strict_mode, false);
 }
 
 
 Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     uint32_t index,
                                     Handle<Object> value,
-                                    PropertyAttributes attr,
+                                    PropertyAttributes attributes,
                                     StrictModeFlag strict_mode,
                                     bool check_prototype,
                                     SetPropertyMode set_mode) {
+  Isolate* isolate = object->GetIsolate();
+
   if (object->HasExternalArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
       bool has_exception;
       Handle<Object> number =
-          Execution::ToNumber(object->GetIsolate(), value, &has_exception);
+          Execution::ToNumber(isolate, value, &has_exception);
       if (has_exception) return Handle<Object>();
       value = number;
     }
   }
-  CALL_HEAP_FUNCTION(
-      object->GetIsolate(),
-      object->SetElement(index, *value, attr, strict_mode, check_prototype,
-                         set_mode),
-      Object);
-}
-
-
-MaybeObject* JSObject::SetElement(uint32_t index,
-                                  Object* value_raw,
-                                  PropertyAttributes attributes,
-                                  StrictModeFlag strict_mode,
-                                  bool check_prototype,
-                                  SetPropertyMode set_mode) {
-  Isolate* isolate = GetIsolate();
 
   // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_SET)) {
-      isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-      return value_raw;
+  if (object->IsAccessCheckNeeded()) {
+    if (!isolate->MayIndexedAccess(*object, index, v8::ACCESS_SET)) {
+      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+      RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return value;
     }
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return value_raw;
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetElement(index,
-                                             value_raw,
-                                             attributes,
-                                             strict_mode,
-                                             check_prototype,
-                                             set_mode);
+    return SetElement(Handle<JSObject>::cast(proto), index, value, attributes,
+                      strict_mode,
+                      check_prototype,
+                      set_mode);
   }
 
   // Don't allow element properties to be redefined for external arrays.
-  if (HasExternalArrayElements() && set_mode == DEFINE_PROPERTY) {
+  if (object->HasExternalArrayElements() && set_mode == DEFINE_PROPERTY) {
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<Object> args[] = { handle(this, isolate), number };
+    Handle<Object> args[] = { object, number };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "redef_external_array_element", HandleVector(args, ARRAY_SIZE(args)));
-    return isolate->Throw(*error);
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
   // Normalize the elements to enable attributes on the property.
   if ((attributes & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) {
-    SeededNumberDictionary* dictionary;
-    MaybeObject* maybe_object = NormalizeElements();
-    if (!maybe_object->To(&dictionary)) return maybe_object;
+    Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
   }
 
-  if (!(FLAG_harmony_observation && map()->is_observed())) {
-    return HasIndexedInterceptor()
-      ? SetElementWithInterceptor(
-          index, value_raw, attributes, strict_mode, check_prototype, set_mode)
-      : SetElementWithoutInterceptor(
-          index, value_raw, attributes, strict_mode, check_prototype, set_mode);
+  if (!(FLAG_harmony_observation && object->map()->is_observed())) {
+    return object->HasIndexedInterceptor()
+      ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
+                                  check_prototype,
+                                   set_mode)
+      : SetElementWithoutInterceptor(object, index, value, attributes,
+                                     strict_mode,
+                                     check_prototype,
+                                     set_mode);
   }
 
-  // From here on, everything has to be handlified.
-  Handle<JSObject> self(this);
-  Handle<Object> value(value_raw, isolate);
-  PropertyAttributes old_attributes = self->GetLocalElementAttribute(index);
+  PropertyAttributes old_attributes = object->GetLocalElementAttribute(index);
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   Handle<Object> old_length_handle;
   Handle<Object> new_length_handle;
 
   if (old_attributes != ABSENT) {
-    if (self->GetLocalElementAccessorPair(index) == NULL)
-      old_value = Object::GetElement(isolate, self, index);
-  } else if (self->IsJSArray()) {
+    if (object->GetLocalElementAccessorPair(index) == NULL)
+      old_value = Object::GetElement(isolate, object, index);
+  } else if (object->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
-    old_length_handle = handle(Handle<JSArray>::cast(self)->length(), isolate);
+    old_length_handle = handle(Handle<JSArray>::cast(object)->length(),
+                               isolate);
   }
 
   // Check for lookup interceptor
-  MaybeObject* result = self->HasIndexedInterceptor()
-    ? self->SetElementWithInterceptor(
-        index, *value, attributes, strict_mode, check_prototype, set_mode)
-    : self->SetElementWithoutInterceptor(
-        index, *value, attributes, strict_mode, check_prototype, set_mode);
-
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
+  Handle<Object> result = object->HasIndexedInterceptor()
+    ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
+                                check_prototype,
+                                set_mode)
+    : SetElementWithoutInterceptor(object, index, value, attributes,
+                                   strict_mode,
+                                   check_prototype,
+                                   set_mode);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
 
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  PropertyAttributes new_attributes = self->GetLocalElementAttribute(index);
+  PropertyAttributes new_attributes = object->GetLocalElementAttribute(index);
   if (old_attributes == ABSENT) {
-    if (self->IsJSArray() &&
-        !old_length_handle->SameValue(Handle<JSArray>::cast(self)->length())) {
-      new_length_handle = handle(Handle<JSArray>::cast(self)->length(),
+    if (object->IsJSArray() &&
+        !old_length_handle->SameValue(
+            Handle<JSArray>::cast(object)->length())) {
+      new_length_handle = handle(Handle<JSArray>::cast(object)->length(),
                                  isolate);
       uint32_t old_length = 0;
       uint32_t new_length = 0;
       CHECK(old_length_handle->ToArrayIndex(&old_length));
       CHECK(new_length_handle->ToArrayIndex(&new_length));
 
-      BeginPerformSplice(Handle<JSArray>::cast(self));
-      EnqueueChangeRecord(self, "add", name, old_value);
-      EnqueueChangeRecord(self, "update", isolate->factory()->length_string(),
+      BeginPerformSplice(Handle<JSArray>::cast(object));
+      EnqueueChangeRecord(object, "add", name, old_value);
+      EnqueueChangeRecord(object, "update", isolate->factory()->length_string(),
                           old_length_handle);
-      EndPerformSplice(Handle<JSArray>::cast(self));
+      EndPerformSplice(Handle<JSArray>::cast(object));
       Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
-      EnqueueSpliceRecord(Handle<JSArray>::cast(self), old_length, deleted,
+      EnqueueSpliceRecord(Handle<JSArray>::cast(object), old_length, deleted,
                           new_length - old_length);
     } else {
-      EnqueueChangeRecord(self, "add", name, old_value);
+      EnqueueChangeRecord(object, "add", name, old_value);
     }
   } else if (old_value->IsTheHole()) {
-    EnqueueChangeRecord(self, "reconfigure", name, old_value);
+    EnqueueChangeRecord(object, "reconfigure", name, old_value);
   } else {
-    Handle<Object> new_value = Object::GetElement(isolate, self, index);
+    Handle<Object> new_value = Object::GetElement(isolate, object, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
-      EnqueueChangeRecord(self, "reconfigure", name, old_value);
+      EnqueueChangeRecord(object, "reconfigure", name, old_value);
     } else if (value_changed) {
-      EnqueueChangeRecord(self, "update", name, old_value);
+      EnqueueChangeRecord(object, "update", name, old_value);
     }
   }
 
-  return *hresult;
+  return result;
 }
 
 
-MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
-                                                    Object* value,
-                                                    PropertyAttributes attr,
-                                                    StrictModeFlag strict_mode,
-                                                    bool check_prototype,
-                                                    SetPropertyMode set_mode) {
-  ASSERT(HasDictionaryElements() ||
-         HasDictionaryArgumentsElements() ||
-         (attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) == 0);
-  Isolate* isolate = GetIsolate();
+Handle<Object> JSObject::SetElementWithoutInterceptor(
+    Handle<JSObject> object,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode,
+    bool check_prototype,
+    SetPropertyMode set_mode) {
+  ASSERT(object->HasDictionaryElements() ||
+         object->HasDictionaryArgumentsElements() ||
+         (attributes & (DONT_DELETE | DONT_ENUM | READ_ONLY)) == 0);
+  Isolate* isolate = object->GetIsolate();
   if (FLAG_trace_external_array_abuse &&
-      IsExternalArrayElementsKind(GetElementsKind())) {
-    CheckArrayAbuse(this, "external elements write", index);
+      IsExternalArrayElementsKind(object->GetElementsKind())) {
+    CheckArrayAbuse(*object, "external elements write", index);
   }
   if (FLAG_trace_js_array_abuse &&
-      !IsExternalArrayElementsKind(GetElementsKind())) {
-    if (IsJSArray()) {
-      CheckArrayAbuse(this, "elements write", index, true);
+      !IsExternalArrayElementsKind(object->GetElementsKind())) {
+    if (object->IsJSArray()) {
+      CheckArrayAbuse(*object, "elements write", index, true);
     }
   }
-  switch (GetElementsKind()) {
+  switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
-      return SetFastElement(index, value, strict_mode, check_prototype);
+      return SetFastElement(object, index, value, strict_mode, check_prototype);
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
-      return SetFastDoubleElement(index, value, strict_mode, check_prototype);
+      return SetFastDoubleElement(object, index, value, strict_mode,
+                                  check_prototype);
     case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
-      return pixels->SetValue(index, value);
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(object->elements());
+      return handle(pixels->SetValue(index, *value), isolate);
     }
     case EXTERNAL_BYTE_ELEMENTS: {
-      ExternalByteArray* array = ExternalByteArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalByteArray> array(
+          ExternalByteArray::cast(object->elements()));
+      return ExternalByteArray::SetValue(array, index, value);
     }
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-      ExternalUnsignedByteArray* array =
-          ExternalUnsignedByteArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalUnsignedByteArray> array(
+          ExternalUnsignedByteArray::cast(object->elements()));
+      return ExternalUnsignedByteArray::SetValue(array, index, value);
     }
     case EXTERNAL_SHORT_ELEMENTS: {
-      ExternalShortArray* array = ExternalShortArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalShortArray> array(ExternalShortArray::cast(
+          object->elements()));
+      return ExternalShortArray::SetValue(array, index, value);
     }
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-      ExternalUnsignedShortArray* array =
-          ExternalUnsignedShortArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalUnsignedShortArray> array(
+          ExternalUnsignedShortArray::cast(object->elements()));
+      return ExternalUnsignedShortArray::SetValue(array, index, value);
     }
     case EXTERNAL_INT_ELEMENTS: {
-      ExternalIntArray* array = ExternalIntArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalIntArray> array(
+          ExternalIntArray::cast(object->elements()));
+      return ExternalIntArray::SetValue(array, index, value);
     }
     case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-      ExternalUnsignedIntArray* array =
-          ExternalUnsignedIntArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalUnsignedIntArray> array(
+          ExternalUnsignedIntArray::cast(object->elements()));
+      return ExternalUnsignedIntArray::SetValue(array, index, value);
     }
     case EXTERNAL_FLOAT_ELEMENTS: {
-      ExternalFloatArray* array = ExternalFloatArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalFloatArray> array(
+          ExternalFloatArray::cast(object->elements()));
+      return ExternalFloatArray::SetValue(array, index, value);
     }
     case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalDoubleArray* array = ExternalDoubleArray::cast(elements());
-      return array->SetValue(index, value);
+      Handle<ExternalDoubleArray> array(
+          ExternalDoubleArray::cast(object->elements()));
+      return ExternalDoubleArray::SetValue(array, index, value);
     }
     case DICTIONARY_ELEMENTS:
-      return SetDictionaryElement(index, value, attr, strict_mode,
-                                  check_prototype, set_mode);
+      return SetDictionaryElement(object, index, value, attributes, strict_mode,
+                                  check_prototype,
+                                  set_mode);
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
-      FixedArray* parameter_map = FixedArray::cast(elements());
+      Handle<FixedArray> parameter_map(FixedArray::cast(object->elements()));
       uint32_t length = parameter_map->length();
-      Object* probe =
-          (index < length - 2) ? parameter_map->get(index + 2) : NULL;
-      if (probe != NULL && !probe->IsTheHole()) {
-        Context* context = Context::cast(parameter_map->get(0));
-        int context_index = Smi::cast(probe)->value();
+      Handle<Object> probe = index < length - 2 ?
+          Handle<Object>(parameter_map->get(index + 2), isolate) :
+          Handle<Object>();
+      if (!probe.is_null() && !probe->IsTheHole()) {
+        Handle<Context> context(Context::cast(parameter_map->get(0)));
+        int context_index = Handle<Smi>::cast(probe)->value();
         ASSERT(!context->get(context_index)->IsTheHole());
-        context->set(context_index, value);
+        context->set(context_index, *value);
         // Redefining attributes of an aliased element destroys fast aliasing.
-        if (set_mode == SET_PROPERTY || attr == NONE) return value;
+        if (set_mode == SET_PROPERTY || attributes == NONE) return value;
         parameter_map->set_the_hole(index + 2);
         // For elements that are still writable we re-establish slow aliasing.
-        if ((attr & READ_ONLY) == 0) {
-          MaybeObject* maybe_entry =
-              isolate->heap()->AllocateAliasedArgumentsEntry(context_index);
-          if (!maybe_entry->ToObject(&value)) return maybe_entry;
+        if ((attributes & READ_ONLY) == 0) {
+          value = Handle<Object>::cast(
+              isolate->factory()->NewAliasedArgumentsEntry(context_index));
         }
       }
-      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       if (arguments->IsDictionary()) {
-        return SetDictionaryElement(index, value, attr, strict_mode,
-                                    check_prototype, set_mode);
+        return SetDictionaryElement(object, index, value, attributes,
+                                    strict_mode,
+                                    check_prototype,
+                                    set_mode);
       } else {
-        return SetFastElement(index, value, strict_mode, check_prototype);
+        return SetFastElement(object, index, value, strict_mode,
+                              check_prototype);
       }
     }
   }
   // All possible cases have been handled above. Add a return to avoid the
   // complaints from the compiler.
   UNREACHABLE();
-  return isolate->heap()->null_value();
+  return isolate->factory()->null_value();
 }
 
 
@@ -12880,6 +12862,13 @@ void AllocationSite::AddDependentCode(Reason reason, Handle<Code> code) {
   Handle<DependentCode> codes = DependentCode::Insert(
       Handle<DependentCode>(dependent_code()), group, code);
   if (*codes != dependent_code()) set_dependent_code(*codes);
+}
+
+
+void JSObject::UpdateAllocationSite(Handle<JSObject> object,
+                                    ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+      object->UpdateAllocationSite(to_kind));
 }
 
 
@@ -12988,6 +12977,14 @@ bool Map::IsValidElementsTransition(ElementsKind from_kind,
 }
 
 
+void JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
+                                           uint32_t index,
+                                           Handle<Object> value) {
+  CALL_HEAP_FUNCTION_VOID(array->GetIsolate(),
+                          array->JSArrayUpdateLengthFromIndex(index, *value));
+}
+
+
 MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
                                                    Object* value) {
   uint32_t old_len = 0;
@@ -13093,8 +13090,7 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       }
       break;
     case DICTIONARY_ELEMENTS: {
-      SeededNumberDictionary* dictionary =
-          SeededNumberDictionary::cast(FixedArray::cast(elements()));
+      SeededNumberDictionary* dictionary = element_dictionary();
       *capacity = dictionary->Capacity();
       *used = dictionary->NumberOfElements();
       break;
@@ -13193,8 +13189,7 @@ bool JSObject::ShouldConvertToFastDoubleElements(
   *has_smi_only_elements = false;
   if (FLAG_unbox_double_arrays) {
     ASSERT(HasDictionaryElements());
-    SeededNumberDictionary* dictionary =
-        SeededNumberDictionary::cast(elements());
+    SeededNumberDictionary* dictionary = element_dictionary();
     bool found_double = false;
     for (int i = 0; i < dictionary->Capacity(); i++) {
       Object* key = dictionary->KeyAt(i);
@@ -14572,7 +14567,7 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     return handle(Smi::FromInt(
         ExternalArray::cast(object->elements())->length()), isolate);
   } else if (!object->HasFastDoubleElements()) {
-    JSObject::EnsureWritableFastElements(object);
+    EnsureWritableFastElements(object);
   }
   ASSERT(object->HasFastSmiOrObjectElements() ||
          object->HasFastDoubleElements());
@@ -14779,9 +14774,28 @@ static MaybeObject* ExternalArrayIntSetter(Heap* heap,
 }
 
 
+Handle<Object> ExternalByteArray::SetValue(Handle<ExternalByteArray> array,
+                                           uint32_t index,
+                                           Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
+}
+
+
 MaybeObject* ExternalByteArray::SetValue(uint32_t index, Object* value) {
   return ExternalArrayIntSetter<ExternalByteArray, int8_t>
       (GetHeap(), this, index, value);
+}
+
+
+Handle<Object> ExternalUnsignedByteArray::SetValue(
+    Handle<ExternalUnsignedByteArray> array,
+    uint32_t index,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
 }
 
 
@@ -14792,10 +14806,30 @@ MaybeObject* ExternalUnsignedByteArray::SetValue(uint32_t index,
 }
 
 
+Handle<Object> ExternalShortArray::SetValue(
+    Handle<ExternalShortArray> array,
+    uint32_t index,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
+}
+
+
 MaybeObject* ExternalShortArray::SetValue(uint32_t index,
                                           Object* value) {
   return ExternalArrayIntSetter<ExternalShortArray, int16_t>
       (GetHeap(), this, index, value);
+}
+
+
+Handle<Object> ExternalUnsignedShortArray::SetValue(
+    Handle<ExternalUnsignedShortArray> array,
+    uint32_t index,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
 }
 
 
@@ -14806,9 +14840,28 @@ MaybeObject* ExternalUnsignedShortArray::SetValue(uint32_t index,
 }
 
 
+Handle<Object> ExternalIntArray::SetValue(Handle<ExternalIntArray> array,
+                                          uint32_t index,
+                                          Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
+}
+
+
 MaybeObject* ExternalIntArray::SetValue(uint32_t index, Object* value) {
   return ExternalArrayIntSetter<ExternalIntArray, int32_t>
       (GetHeap(), this, index, value);
+}
+
+
+Handle<Object> ExternalUnsignedIntArray::SetValue(
+    Handle<ExternalUnsignedIntArray> array,
+    uint32_t index,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
 }
 
 
@@ -14833,6 +14886,15 @@ MaybeObject* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
 }
 
 
+Handle<Object> ExternalFloatArray::SetValue(Handle<ExternalFloatArray> array,
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
+}
+
+
 MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
   float cast_value = static_cast<float>(OS::nan_value());
   Heap* heap = GetHeap();
@@ -14851,6 +14913,15 @@ MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
     set(index, cast_value);
   }
   return heap->AllocateHeapNumber(cast_value);
+}
+
+
+Handle<Object> ExternalDoubleArray::SetValue(Handle<ExternalDoubleArray> array,
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
 }
 
 
@@ -15475,6 +15546,15 @@ void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
   }
 }
 
+Handle<SeededNumberDictionary> SeededNumberDictionary::AddNumberEntry(
+    Handle<SeededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value,
+    PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->AddNumberEntry(key, *value, details),
+                     SeededNumberDictionary);
+}
 
 MaybeObject* SeededNumberDictionary::AddNumberEntry(uint32_t key,
                                                     Object* value,

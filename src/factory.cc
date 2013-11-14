@@ -451,6 +451,15 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 
+Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
+    int aliased_context_slot) {
+  Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(
+      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE));
+  entry->set_aliased_context_slot(aliased_context_slot);
+  return entry;
+}
+
+
 Handle<DeclaredAccessorDescriptor> Factory::NewDeclaredAccessorDescriptor() {
   return Handle<DeclaredAccessorDescriptor>::cast(
       NewStruct(DECLARED_ACCESSOR_DESCRIPTOR_TYPE));

@@ -760,7 +760,7 @@ TEST(JSArray) {
   CHECK(array->HasFastSmiOrObjectElements());
 
   // array[length] = name.
-  array->SetElement(0, *name, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(array, 0, name, NONE, kNonStrictMode);
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(array->GetElement(isolate, 0), *name);
 
@@ -775,7 +775,7 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  array->SetElement(int_length, *name, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(array, int_length, name, NONE, kNonStrictMode);
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
@@ -805,8 +805,8 @@ TEST(JSObjectCopy) {
   JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
   JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
 
-  obj->SetElement(0, *first, NONE, kNonStrictMode)->ToObjectChecked();
-  obj->SetElement(1, *second, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(obj, 0, first, NONE, kNonStrictMode);
+  JSReceiver::SetElement(obj, 1, second, NONE, kNonStrictMode);
 
   // Make the clone.
   Handle<JSObject> clone = JSObject::Copy(obj);
@@ -822,8 +822,8 @@ TEST(JSObjectCopy) {
   JSReceiver::SetProperty(clone, first, two, NONE, kNonStrictMode);
   JSReceiver::SetProperty(clone, second, one, NONE, kNonStrictMode);
 
-  clone->SetElement(0, *second, NONE, kNonStrictMode)->ToObjectChecked();
-  clone->SetElement(1, *first, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(clone, 0, second, NONE, kNonStrictMode);
+  JSReceiver::SetElement(clone, 1, first, NONE, kNonStrictMode);
 
   CHECK_EQ(obj->GetElement(isolate, 1), clone->GetElement(isolate, 0));
   CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 1));

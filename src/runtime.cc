@@ -9821,22 +9821,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldDataSpace) {
 // array.  Returns true if the element was pushed on the stack and
 // false otherwise.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_CHECKED(JSReceiver, element, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, element, 1);
   RUNTIME_ASSERT(array->HasFastSmiOrObjectElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());
   for (int i = 0; i < length; i++) {
-    if (elements->get(i) == element) return isolate->heap()->false_value();
+    if (elements->get(i) == *element) return isolate->heap()->false_value();
   }
-  Object* obj;
+
   // Strict not needed. Used for cycle detection in Array join implementation.
-  { MaybeObject* maybe_obj =
-        array->SetFastElement(length, element, kNonStrictMode, true);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  RETURN_IF_EMPTY_HANDLE(isolate, JSObject::SetFastElement(array, length,
+                                                           element,
+                                                           kNonStrictMode,
+                                                           true));
   return isolate->heap()->true_value();
 }
 
