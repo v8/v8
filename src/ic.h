@@ -193,11 +193,11 @@ class IC {
     UNREACHABLE();
     return Handle<Code>::null();
   }
-  void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+  void UpdateMonomorphicIC(Handle<Object> receiver,
                            Handle<Code> handler,
                            Handle<String> name);
 
-  bool UpdatePolymorphicIC(Handle<HeapObject> receiver,
+  bool UpdatePolymorphicIC(Handle<Object> receiver,
                            Handle<String> name,
                            Handle<Code> code);
 

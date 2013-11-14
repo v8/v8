@@ -113,8 +113,9 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object) {
 HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
                                  Object* object,
                                  InlineCacheHolderFlag holder) {
-  Object* map_owner =
-      holder == OWN_MAP ? object : object->GetPrototype(isolate);
+  if (object->IsSmi()) holder = PROTOTYPE_MAP;
+  Object* map_owner = holder == OWN_MAP
+      ? object : object->GetPrototype(isolate);
   return HeapObject::cast(map_owner);
 }
 

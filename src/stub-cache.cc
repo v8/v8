@@ -134,7 +134,7 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 
 
 Handle<Code> StubCache::ComputeMonomorphicIC(Handle<Name> name,
-                                             Handle<HeapObject> object,
+                                             Handle<Object> object,
                                              Handle<Code> handler,
                                              StrictModeFlag strict_mode) {
   Code::Kind kind = handler->handler_kind();
@@ -148,7 +148,7 @@ Handle<Code> StubCache::ComputeMonomorphicIC(Handle<Name> name,
       name, stub_holder_map, kind, strict_mode, cache_holder);
   if (!ic.is_null()) return ic;
 
-  Handle<Map> map(object->map());
+  Handle<Map> map(object->GetMarkerMap(isolate()));
   if (kind == Code::LOAD_IC) {
     LoadStubCompiler ic_compiler(isolate(), cache_holder);
     ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
@@ -1178,6 +1178,17 @@ Register StoreStubCompiler::HandlerFrontendHeader(
   return CheckPrototypes(Handle<JSObject>::cast(object), object_reg, holder,
                          this->name(), scratch1(), scratch2(),
                          name, miss, SKIP_RECEIVER);
+}
+
+
+bool BaseLoadStoreStubCompiler::HasHeapNumberMap(MapHandleList* receiver_maps) {
+  for (int i = 0; i < receiver_maps->length(); ++i) {
+    Handle<Map> map = receiver_maps->at(i);
+    if (map.is_identical_to(isolate()->factory()->heap_number_map())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 

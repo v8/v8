@@ -1494,6 +1494,7 @@ class Object : public MaybeObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
+  Map* GetMarkerMap(Isolate* isolate);
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.

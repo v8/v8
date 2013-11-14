@@ -949,7 +949,7 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 }
 
 
-bool IC::UpdatePolymorphicIC(Handle<HeapObject> receiver,
+bool IC::UpdatePolymorphicIC(Handle<Object> receiver,
                              Handle<String> name,
                              Handle<Code> code) {
   if (!code->is_handler()) return false;
@@ -958,7 +958,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapObject> receiver,
 
   int number_of_valid_maps;
   int handler_to_overwrite = -1;
-  Handle<Map> new_receiver_map(receiver->map());
+  Handle<Map> new_receiver_map(receiver->GetMarkerMap(isolate()));
 
   target()->FindAllMaps(&receiver_maps);
   int number_of_maps = receiver_maps.length();
@@ -1000,7 +1000,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapObject> receiver,
 }
 
 
-void IC::UpdateMonomorphicIC(Handle<HeapObject> receiver,
+void IC::UpdateMonomorphicIC(Handle<Object> receiver,
                              Handle<Code> handler,
                              Handle<String> name) {
   if (!handler->is_handler()) return set_target(*handler);
@@ -1038,43 +1038,36 @@ bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
 void IC::PatchCache(Handle<Object> object,
                     Handle<String> name,
                     Handle<Code> code) {
-  // TODO(verwaest): Handle smi here as well.
-  if (!object->IsHeapObject()) return;
-
-  Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-      UpdateMonomorphicIC(receiver, code, name);
+      UpdateMonomorphicIC(object, code, name);
       break;
-    case MONOMORPHIC:
+    case MONOMORPHIC: {
       // For now, call stubs are allowed to rewrite to the same stub. This
       // happens e.g., when the field does not contain a function.
       ASSERT(target()->is_call_stub() ||
              target()->is_keyed_call_stub() ||
              !target().is_identical_to(code));
-      if (!target()->is_keyed_stub()) {
-        bool is_same_handler = false;
-        Code* old_handler = target()->FindFirstHandler();
-        is_same_handler = old_handler == *code;
-
-        if (is_same_handler &&
-            IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
-          UpdateMonomorphicIC(receiver, code, name);
-          break;
-        }
+      Code* old_handler = target()->FindFirstHandler();
+      if (old_handler == *code &&
+          IsTransitionedMapOfMonomorphicTarget(
+              object->GetMarkerMap(isolate()))) {
+        UpdateMonomorphicIC(object, code, name);
+        break;
       }
       // Fall through.
+    }
     case POLYMORPHIC:
       if (!target()->is_keyed_stub()) {
-        if (UpdatePolymorphicIC(receiver, name, code)) break;
+        if (UpdatePolymorphicIC(object, name, code)) break;
         CopyICToMegamorphicCache(name);
       }
       set_target(*megamorphic_stub());
       // Fall through.
     case MEGAMORPHIC:
-      UpdateMegamorphicCache(receiver->map(), *name, *code);
+      UpdateMegamorphicCache(object->GetMarkerMap(isolate()), *name, *code);
       break;
     case DEBUG_STUB:
       break;

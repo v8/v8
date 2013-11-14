@@ -3163,16 +3163,24 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
     GenerateNameCheck(name, this->name(), &miss);
   }
 
-  __ JumpIfSmi(receiver(), &miss);
+  Label number_case;
+  Label* smi_target = HasHeapNumberMap(receiver_maps) ? &number_case : &miss;
+  __ JumpIfSmi(receiver(), smi_target);
+
   Register map_reg = scratch1();
   __ mov(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = receiver_maps->length();
   int number_of_handled_maps = 0;
+  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = receiver_maps->at(current);
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
       __ cmp(map_reg, map);
+      if (map.is_identical_to(heap_number_map)) {
+        ASSERT(!number_case.is_unused());
+        __ bind(&number_case);
+      }
       __ j(equal, handlers->at(current));
     }
   }

@@ -93,7 +93,7 @@ class StubCache {
                            StrictModeFlag strict_mode = kNonStrictMode);
 
   Handle<Code> ComputeMonomorphicIC(Handle<Name> name,
-                                    Handle<HeapObject> receiver,
+                                    Handle<Object> receiver,
                                     Handle<Code> handler,
                                     StrictModeFlag strict_mode);
 
@@ -607,6 +607,8 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   virtual Register scratch3() = 0;
 
   void InitializeRegisters();
+
+  bool HasHeapNumberMap(MapHandleList* receiver_maps);
 
   Code::Kind kind_;
   InlineCacheHolderFlag cache_holder_;

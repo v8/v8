@@ -1028,6 +1028,12 @@ Object* Object::GetPrototype(Isolate* isolate) {
 }
 
 
+Map* Object::GetMarkerMap(Isolate* isolate) {
+  if (IsSmi()) return isolate->heap()->heap_number_map();
+  return HeapObject::cast(this)->map();
+}
+
+
 Object* Object::GetHash() {
   // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
