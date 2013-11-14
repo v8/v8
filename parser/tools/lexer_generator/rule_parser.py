@@ -52,7 +52,7 @@ class RuleParser:
   tokens = RuleLexer.tokens
   __rule_precedence_counter = 0
   __keyword_transitions = set([
-      'continue', 'break', 'terminate', 'terminate_illegal'])
+      'continue', 'break', 'terminate', 'terminate_illegal', 'skip'])
 
   def __init__(self):
     self.__state = None
@@ -111,6 +111,7 @@ class RuleParser:
     rules = self.__state.rules[self.__state.current_state]
     code = p[2]
     if p[1] == 'default_action':
+      assert self.__state.current_state == 'default'
       assert not rules['default_action']
       rules['default_action'] = code
     elif p[1] == 'catch_all':
@@ -288,7 +289,8 @@ class RuleProcessor(object):
           continues += 1
           graph = NfaBuilder.add_continue(graph)
         elif (transition == 'terminate' or
-              transition == 'terminate_illegal'):
+              transition == 'terminate_illegal' or
+              transition == 'skip'):
           assert not code
           graph = NfaBuilder.add_action(graph, Action(transition, None, -1))
         else:

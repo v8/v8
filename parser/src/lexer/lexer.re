@@ -77,18 +77,6 @@ enum Condition {
 
 using namespace v8::internal;
 
-namespace {
-
-inline int HexValue(uc32 c) {
-  c -= '0';
-  if (static_cast<unsigned>(c) <= 9) return c;
-  c = (c | 0x20) - ('a' - '0');  // detect 0x11..0x16 and 0x31..0x36.
-  if (static_cast<unsigned>(c) <= 5) return c + 10;
-  return -1;
-}
-
-}
-
 #define PUSH_TOKEN(T) { send(T); SKIP(); }
 #define PUSH_TOKEN_LOOKAHEAD(T) { --cursor_; send(T); SKIP(); }
 #define PUSH_EOF_AND_RETURN() { send(Token::EOS); eof_ = true; return 1;}

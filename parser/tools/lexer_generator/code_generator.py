@@ -75,6 +75,9 @@ code_%s:
       elif action.type() == 'terminate_illegal':
         code += 'PUSH_TOKEN(Token::ILLEGAL); return 1;'
         return code
+      elif action.type() == 'skip':
+        code += 'SKIP(); goto code_start;'
+        return code
 
     code += '''
     //fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''

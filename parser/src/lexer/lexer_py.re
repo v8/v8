@@ -100,7 +100,7 @@ number        push_token(NUMBER)
 ","           push_token(COMMA)
 
 line_terminator+  { PUSH_LINE_TERMINATOR(); }
-whitespace     { SKIP(); } # TODO implement skip
+whitespace     <<skip>>
 
 "\""           <<DoubleQuoteString>>
 "'"            <<SingleQuoteString>>
@@ -159,7 +159,7 @@ identifier_start push_token(IDENTIFIER) <<Identifier>>
   }
 } <<Identifier>>
 
-eof             { PUSH_TOKEN(Token::EOS); return 0; }
+eof             <<terminate>>
 default_action  push_token(ILLEGAL)
 
 <DoubleQuoteString>
@@ -181,32 +181,26 @@ eof       <<terminate_illegal>>
 catch_all <<continue>>
 
 <Identifier>
-identifier_char    <<continue>>
+identifier_char push_token(IDENTIFIER) <<continue>>
 /\\u[0-9a-fA-F]{4}/ {
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
     PUSH_TOKEN(Token::ILLEGAL);
   }
 } <<continue>>
-default_action push_token(IDENTIFIER)
 
 <SingleLineComment>
 line_terminator  { PUSH_LINE_TERMINATOR(); }
-eof              <<terminate>>
 catch_all <<continue>>
 
 <MultiLineComment>
-"*/"             { SKIP(); goto code_start;}
+"*/"             <<skip>>
 /\*[^\057]/      <<continue>>
-# need to force action
-line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
-eof              <<terminate>>
+line_terminator { PUSH_LINE_TERMINATOR(); } <<continue>>
 catch_all <<continue>>
 
 <HtmlComment>
-"-->"            { SKIP(); }
+"-->"            <<skip>>
 /--./            <<continue>>
 /-./             <<continue>>
-# need to force action
-line_terminator+ { PUSH_LINE_TERMINATOR(); } <<continue>>
-eof              <<terminate>>
+line_terminator { PUSH_LINE_TERMINATOR(); } <<continue>>
 catch_all <<continue>>
