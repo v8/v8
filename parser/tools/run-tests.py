@@ -47,21 +47,16 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = ["mjsunit", "cctest", "message", "preparser"]
+DEFAULT_TESTS = ["lexer"]
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
 # Use this to run several variants of the tests.
-VARIANT_FLAGS = [[],
-                 ["--stress-opt", "--always-opt"],
-                 ["--nocrankshaft"]]
+VARIANT_FLAGS = [[]]
 MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
-                 "--nofold-constants", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap"],
-    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
-                 "--nofold-constants"]}
+    "debug"   : [],
+    "release" : []}
 
 SUPPORTED_ARCHS = ["android_arm",
                    "android_ia32",
@@ -226,8 +221,6 @@ def ProcessOptions(options):
   if not options.flaky_tests in ["run", "skip", "dontcare"]:
     print "Unknown flaky test mode %s" % options.flaky_tests
     return False
-  if not options.no_i18n:
-    DEFAULT_TESTS.append("intl")
   return True
 
 
