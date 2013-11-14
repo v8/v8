@@ -804,34 +804,16 @@ MaybeObject* KeyedCallIC::LoadFunction(Handle<Object> object,
   if (use_ic && state() != MEGAMORPHIC) {
     ASSERT(!object->IsJSGlobalProxy());
     int argc = target()->arguments_count();
-    Handle<Code> stub;
-
-    // Use the KeyedArrayCallStub if the call is of the form array[smi](...),
-    // where array is an instance of one of the initial array maps (without
-    // extra named properties).
-    // TODO(verwaest): Also support keyed calls on instances of other maps.
-    if (object->IsJSArray() && key->IsSmi()) {
-      Handle<JSArray> array = Handle<JSArray>::cast(object);
-      ElementsKind kind = array->map()->elements_kind();
-      if (IsFastObjectElementsKind(kind) &&
-          array->map() == isolate()->get_initial_js_array_map(kind)) {
-        KeyedArrayCallStub stub_gen(IsHoleyElementsKind(kind), argc);
-        stub = stub_gen.GetCode(isolate());
+    Handle<Code> stub = isolate()->stub_cache()->ComputeCallMegamorphic(
+        argc, Code::KEYED_CALL_IC, Code::kNoExtraICState);
+    if (object->IsJSObject()) {
+      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+      if (receiver->elements()->map() ==
+          isolate()->heap()->non_strict_arguments_elements_map()) {
+        stub = isolate()->stub_cache()->ComputeCallArguments(argc);
       }
     }
-
-    if (stub.is_null()) {
-      stub = isolate()->stub_cache()->ComputeCallMegamorphic(
-          argc, Code::KEYED_CALL_IC, Code::kNoExtraICState);
-      if (object->IsJSObject()) {
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (receiver->elements()->map() ==
-            isolate()->heap()->non_strict_arguments_elements_map()) {
-          stub = isolate()->stub_cache()->ComputeCallArguments(argc);
-        }
-      }
-      ASSERT(!stub.is_null());
-    }
+    ASSERT(!stub.is_null());
     set_target(*stub);
     TRACE_IC("CallIC", key);
   }
@@ -2137,28 +2119,6 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure) {
   Handle<String> key = args.at<String>(1);
   ic.UpdateState(receiver, key);
   return ic.Store(receiver, key, args.at<Object>(2));
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_MissFromStubFailure) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  KeyedCallIC ic(isolate);
-  Arguments* caller_args = reinterpret_cast<Arguments*>(args[0]);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> receiver((*caller_args)[0], isolate);
-
-  ic.UpdateState(receiver, key);
-  MaybeObject* maybe_result = ic.LoadFunction(receiver, key);
-  // Result could be a function or a failure.
-  JSFunction* raw_function = NULL;
-  if (!maybe_result->To(&raw_function)) return maybe_result;
-
-  if (raw_function->is_compiled()) return raw_function;
-
-  Handle<JSFunction> function(raw_function, isolate);
-  JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
-  return *function;
 }
 
 

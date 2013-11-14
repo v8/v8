@@ -1410,10 +1410,8 @@ LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* function = UseFixed(instr->function(), edi);
-  LCallFunction* call = new(zone()) LCallFunction(context, function);
-  LInstruction* result = DefineFixed(call, eax);
-  if (instr->IsTailCall()) return result;
-  return MarkAsCall(result, instr);
+  LCallFunction* result = new(zone()) LCallFunction(context, function);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 

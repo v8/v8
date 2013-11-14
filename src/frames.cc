@@ -1401,11 +1401,6 @@ Code* StubFailureTrampolineFrame::unchecked_code() const {
     return trampoline;
   }
 
-  StubFailureTailCallTrampolineStub().FindCodeInCache(&trampoline, isolate());
-  if (trampoline->contains(pc())) {
-    return trampoline;
-  }
-
   UNREACHABLE();
   return NULL;
 }

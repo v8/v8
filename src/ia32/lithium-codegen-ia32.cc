@@ -781,36 +781,17 @@ bool LCodeGen::IsSmi(LConstantOperand* op) const {
 }
 
 
-static int ArgumentsOffsetWithoutFrame(int index) {
-  ASSERT(index < 0);
-  return -(index + 1) * kPointerSize + kPCOnStackSize;
-}
-
-
 Operand LCodeGen::ToOperand(LOperand* op) const {
   if (op->IsRegister()) return Operand(ToRegister(op));
   if (op->IsDoubleRegister()) return Operand(ToDoubleRegister(op));
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
-  if (NeedsEagerFrame()) {
-    return Operand(ebp, StackSlotOffset(op->index()));
-  } else {
-    // Retrieve parameter without eager stack-frame relative to the
-    // stack-pointer.
-    return Operand(esp, ArgumentsOffsetWithoutFrame(op->index()));
-  }
+  return Operand(ebp, StackSlotOffset(op->index()));
 }
 
 
 Operand LCodeGen::HighOperand(LOperand* op) {
   ASSERT(op->IsDoubleStackSlot());
-  if (NeedsEagerFrame()) {
-    return Operand(ebp, StackSlotOffset(op->index()) + kPointerSize);
-  } else {
-    // Retrieve parameter without eager stack-frame relative to the
-    // stack-pointer.
-    return Operand(
-        esp, ArgumentsOffsetWithoutFrame(op->index()) + kPointerSize);
-  }
+  return Operand(ebp, StackSlotOffset(op->index()) + kPointerSize);
 }
 
 
@@ -4395,12 +4376,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  if (instr->hydrogen()->IsTailCall()) {
-    if (NeedsEagerFrame()) __ leave();
-    __ jmp(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
-  } else {
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

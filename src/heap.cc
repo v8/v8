@@ -3115,12 +3115,6 @@ void Heap::CreateFixedStubs() {
 }
 
 
-void Heap::CreateStubsRequiringBuiltins() {
-  HandleScope scope(isolate());
-  CodeStub::GenerateStubsRequiringBuiltinsAheadOfTime(isolate());
-}
-
-
 bool Heap::CreateInitialObjects() {
   Object* obj;
 

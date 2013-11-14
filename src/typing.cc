@@ -450,7 +450,8 @@ void AstTyper::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
   Property* prop = callee->AsProperty();
   if (prop != NULL) {
-    expr->RecordTypeFeedback(oracle(), CALL_AS_METHOD);
+    if (prop->key()->IsPropertyName())
+      expr->RecordTypeFeedback(oracle(), CALL_AS_METHOD);
   } else {
     expr->RecordTypeFeedback(oracle(), CALL_AS_FUNCTION);
   }

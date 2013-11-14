@@ -43,18 +43,12 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
     : register_param_count_(-1),
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
-      continuation_type_(NORMAL_CONTINUATION),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
       has_miss_handler_(false) { }
-
-
-void CodeStub::GenerateStubsRequiringBuiltinsAheadOfTime(Isolate* isolate) {
-  StubFailureTailCallTrampolineStub::GenerateAheadOfTime(isolate);
-}
 
 
 bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
@@ -1112,12 +1106,6 @@ void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
   stub1.GetCode(isolate)->set_is_pregenerated(true);
   stub2.GetCode(isolate)->set_is_pregenerated(true);
-}
-
-
-void StubFailureTailCallTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  StubFailureTailCallTrampolineStub stub;
-  stub.GetCode(isolate)->set_is_pregenerated(true);
 }
 
 

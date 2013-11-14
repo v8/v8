@@ -2426,7 +2426,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
     return builder()->Add<HConstant>(map);
   }
 
-  if (constructor_function_ != NULL && kind_ == GetInitialFastElementsKind()) {
+  if (kind_ == GetInitialFastElementsKind()) {
     // No need for a context lookup if the kind_ matches the initial
     // map, because we can just load the map in that case.
     HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
@@ -7404,30 +7404,18 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
   if (prop != NULL) {
     if (!prop->key()->IsPropertyName()) {
       // Keyed function call.
-      CHECK_ALIVE(VisitForValue(prop->obj()));
-      CHECK_ALIVE(VisitForValue(prop->key()));
+      CHECK_ALIVE(VisitArgument(prop->obj()));
 
+      CHECK_ALIVE(VisitForValue(prop->key()));
       // Push receiver and key like the non-optimized code generator expects it.
       HValue* key = Pop();
       HValue* receiver = Pop();
       Push(key);
-      Push(Add<HPushArgument>(receiver));
+      Push(receiver);
+
       CHECK_ALIVE(VisitArgumentList(expr->arguments()));
 
-      if (expr->IsMonomorphic()) {
-        BuildCheckHeapObject(receiver);
-        ElementsKind kind = expr->KeyedArrayCallIsHoley()
-            ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
-
-        Handle<Map> map(isolate()->get_initial_js_array_map(kind));
-
-        HValue* function = BuildMonomorphicElementAccess(
-            receiver, key, NULL, NULL, map, false, STANDARD_STORE);
-
-        call = New<HCallFunction>(function, argument_count);
-      } else {
-        call = New<HCallKeyed>(key, argument_count);
-      }
+      call = New<HCallKeyed>(key, argument_count);
       Drop(argument_count + 1);  // 1 is the key.
       return ast_context()->ReturnInstruction(call, expr->id());
     }
