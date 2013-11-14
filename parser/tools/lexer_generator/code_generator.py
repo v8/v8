@@ -92,8 +92,9 @@ code_%s:
         code += '%s\nBACK();\ngoto code_%s;\n' % (action.data(),
                                                   start_node_number)
       elif action.type() == 'push_token':
-        #TODO
-        pass
+        content = 'PUSH_TOKEN(Token::%s);' % action.data()
+        code += '%s\nBACK();\ngoto code_%s;\n' % (content,
+                                                  start_node_number)
       else:
         raise Exception("unknown type %s" % action.type())
     else:

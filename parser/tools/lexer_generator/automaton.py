@@ -137,8 +137,9 @@ class Automaton(object):
       if node.action():
         action = node.action()
         if action.type() == 'code':
-          # assert action.data()
           action_text = action.data()
+        elif action.type() == 'push_token':
+          action_text = "token(" + action.data() + ")"
         else:
           action_text = action.type()
         action_text = escape(action_text)
