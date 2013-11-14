@@ -6132,8 +6132,10 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 
   ASSERT(byte_offset % sizeof(ElementType) == 0);
 
+  CHECK(length <= (std::numeric_limits<size_t>::max() / sizeof(ElementType)));
+  size_t byte_length = length * sizeof(ElementType);
   SetupArrayBufferView(
-      isolate, obj, buffer, byte_offset, length * sizeof(ElementType));
+      isolate, obj, buffer, byte_offset, byte_length);
 
   i::Handle<i::Object> length_object =
     isolate->factory()->NewNumberFromSize(length);
