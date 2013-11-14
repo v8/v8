@@ -2100,10 +2100,10 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
   static const int kLoopUnfoldLimit = 4;
   bool unfold_loop = false;
   int initial_capacity = JSArray::kPreallocatedArrayElements;
-  if (from->IsConstant() && to->IsConstant() &&
+  if (from->ActualValue()->IsConstant() && to->ActualValue()->IsConstant() &&
       initial_capacity <= kLoopUnfoldLimit) {
-    HConstant* constant_from = HConstant::cast(from);
-    HConstant* constant_to = HConstant::cast(to);
+    HConstant* constant_from = HConstant::cast(from->ActualValue());
+    HConstant* constant_to = HConstant::cast(to->ActualValue());
 
     if (constant_from->HasInteger32Value() &&
         constant_from->Integer32Value() == 0 &&

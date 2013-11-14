@@ -566,6 +566,42 @@ ResourceConstraints::ResourceConstraints()
     stack_limit_(NULL) { }
 
 
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
+  const int lump_of_memory = (i::kPointerSize / 4) * i::MB;
+#if V8_OS_ANDROID
+  // Android has higher physical memory requirements before raising the maximum
+  // heap size limits since it has no swap space.
+  const uint64_t low_limit = 512ul * i::MB;
+  const uint64_t medium_limit = 1ul * i::GB;
+  const uint64_t high_limit = 2ul * i::GB;
+#else
+  const uint64_t low_limit = 512ul * i::MB;
+  const uint64_t medium_limit = 768ul * i::MB;
+  const uint64_t high_limit = 1ul  * i::GB;
+#endif
+
+  // The young_space_size should be a power of 2 and old_generation_size should
+  // be a multiple of Page::kPageSize.
+  if (physical_memory <= low_limit) {
+    set_max_young_space_size(2 * lump_of_memory);
+    set_max_old_space_size(128 * lump_of_memory);
+    set_max_executable_size(96 * lump_of_memory);
+  } else if (physical_memory <= medium_limit) {
+    set_max_young_space_size(8 * lump_of_memory);
+    set_max_old_space_size(256 * lump_of_memory);
+    set_max_executable_size(192 * lump_of_memory);
+  } else if (physical_memory <= high_limit) {
+    set_max_young_space_size(16 * lump_of_memory);
+    set_max_old_space_size(512 * lump_of_memory);
+    set_max_executable_size(256 * lump_of_memory);
+  } else {
+    set_max_young_space_size(16 * lump_of_memory);
+    set_max_old_space_size(700 * lump_of_memory);
+    set_max_executable_size(256 * lump_of_memory);
+  }
+}
+
+
 bool SetResourceConstraints(ResourceConstraints* constraints) {
   i::Isolate* isolate = EnterIsolateIfNeeded();
   return SetResourceConstraints(reinterpret_cast<Isolate*>(isolate),

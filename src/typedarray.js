@@ -347,225 +347,52 @@ function DataViewGetByteLength() {
   return %DataViewGetByteLength(this);
 }
 
+macro DATA_VIEW_TYPES(FUNCTION)
+  FUNCTION(Int8)
+  FUNCTION(Uint8)
+  FUNCTION(Int16)
+  FUNCTION(Uint16)
+  FUNCTION(Int32)
+  FUNCTION(Uint32)
+  FUNCTION(Float32)
+  FUNCTION(Float64)
+endmacro
+
 function ToPositiveDataViewOffset(offset) {
   return ToPositiveInteger(offset, 'invalid_data_view_accessor_offset');
 }
 
-function DataViewGetInt8(offset, little_endian) {
+
+macro DATA_VIEW_GETTER_SETTER(TYPENAME)
+function DataViewGetTYPENAME(offset, little_endian) {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getInt8', this]);
+                        ['DataView.getTYPENAME', this]);
   }
   if (%_ArgumentsLength() < 1) {
     throw MakeTypeError('invalid_argument');
   }
-  return %DataViewGetInt8(this,
+  return %DataViewGetTYPENAME(this,
                           ToPositiveDataViewOffset(offset),
                           !!little_endian);
 }
 
-function DataViewSetInt8(offset, value, little_endian) {
+function DataViewSetTYPENAME(offset, value, little_endian) {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setInt8', this]);
+                        ['DataView.setTYPENAME', this]);
   }
   if (%_ArgumentsLength() < 2) {
     throw MakeTypeError('invalid_argument');
   }
-  %DataViewSetInt8(this,
+  %DataViewSetTYPENAME(this,
                    ToPositiveDataViewOffset(offset),
                    TO_NUMBER_INLINE(value),
                    !!little_endian);
 }
+endmacro
 
-function DataViewGetUint8(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getUint8', this]);
-  }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetUint8(this,
-                           ToPositiveDataViewOffset(offset),
-                           !!little_endian);
-}
-
-function DataViewSetUint8(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setUint8', this]);
-  }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetUint8(this,
-                   ToPositiveDataViewOffset(offset),
-                   TO_NUMBER_INLINE(value),
-                   !!little_endian);
-}
-
-function DataViewGetInt16(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getInt16', this]);
-  }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetInt16(this,
-                           ToPositiveDataViewOffset(offset),
-                           !!little_endian);
-}
-
-function DataViewSetInt16(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setInt16', this]);
-  }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetInt16(this,
-                    ToPositiveDataViewOffset(offset),
-                    TO_NUMBER_INLINE(value),
-                    !!little_endian);
-}
-
-function DataViewGetUint16(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getUint16', this]);
-  }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetUint16(this,
-                            ToPositiveDataViewOffset(offset),
-                            !!little_endian);
-}
-
-function DataViewSetUint16(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setUint16', this]);
-  }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetUint16(this,
-                     ToPositiveDataViewOffset(offset),
-                     TO_NUMBER_INLINE(value),
-                     !!little_endian);
-}
-
-function DataViewGetInt32(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getInt32', this]);
-  }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetInt32(this,
-                           ToPositiveDataViewOffset(offset),
-                           !!little_endian);
-}
-
-function DataViewSetInt32(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setInt32', this]);
-  }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetInt32(this,
-                    ToPositiveDataViewOffset(offset),
-                    TO_NUMBER_INLINE(value),
-                    !!little_endian);
-}
-
-function DataViewGetUint32(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getUint32', this]);
-  }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetUint32(this,
-                            ToPositiveDataViewOffset(offset),
-                            !!little_endian);
-}
-
-function DataViewSetUint32(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setUint32', this]);
-  }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetUint32(this,
-                     ToPositiveDataViewOffset(offset),
-                     TO_NUMBER_INLINE(value),
-                     !!little_endian);
-}
-
-function DataViewGetFloat32(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getFloat32', this]);
-  }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetFloat32(this,
-                             ToPositiveDataViewOffset(offset),
-                             !!little_endian);
-}
-
-function DataViewSetFloat32(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setFloat32', this]);
-  }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetFloat32(this,
-                      ToPositiveDataViewOffset(offset),
-                      TO_NUMBER_INLINE(value),
-                      !!little_endian);
-}
-
-function DataViewGetFloat64(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getFloat64', this]);
-  }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetFloat64(this,
-                             ToPositiveDataViewOffset(offset),
-                             !!little_endian);
-}
-
-function DataViewSetFloat64(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setFloat64', this]);
-  }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetFloat64(this,
-                      ToPositiveDataViewOffset(offset),
-                      TO_NUMBER_INLINE(value),
-                      !!little_endian);
-}
+DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 
 function SetupDataView() {
   %CheckIsBootstrapping();
