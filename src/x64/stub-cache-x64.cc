@@ -1660,8 +1660,12 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   //  -- rsp[(argc + 1) * 8] : receiver
   // -----------------------------------
 
-  // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || !cell.is_null()) return Handle<Code>::null();
+  // If object is not an array or is observed, bail out to regular call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed()) {
+    return Handle<Code>::null();
+  }
 
   Label miss;
   GenerateNameCheck(name, &miss);
@@ -1911,8 +1915,12 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   //  -- rsp[(argc + 1) * 8] : receiver
   // -----------------------------------
 
-  // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || !cell.is_null()) return Handle<Code>::null();
+  // If object is not an array or is observed, bail out to regular call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed()) {
+    return Handle<Code>::null();
+  }
 
   Label miss, return_undefined, call_builtin;
   GenerateNameCheck(name, &miss);

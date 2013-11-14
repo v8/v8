@@ -1736,8 +1736,10 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || !cell.is_null()) {
+  // If object is not an array or is observed, bail out to regular call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed()) {
     return Handle<Code>::null();
   }
 
@@ -1995,8 +1997,10 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || !cell.is_null()) {
+  // If object is not an array or is observed, bail out to regular call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed()) {
     return Handle<Code>::null();
   }
 

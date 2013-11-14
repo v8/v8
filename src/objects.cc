@@ -5612,12 +5612,6 @@ void JSObject::SetObserved(Handle<JSObject> object) {
   if (object->map()->is_observed())
     return;
 
-  if (!object->HasExternalArrayElements()) {
-    // Go to dictionary mode, so that we don't skip map checks.
-    NormalizeElements(object);
-    ASSERT(!object->HasFastElements());
-  }
-
   LookupResult result(isolate);
   object->map()->LookupTransition(*object,
                                   isolate->heap()->observed_symbol(),
@@ -5631,7 +5625,7 @@ void JSObject::SetObserved(Handle<JSObject> object) {
     new_map = Map::CopyForObserved(handle(object->map()));
   } else {
     new_map = Map::Copy(handle(object->map()));
-    new_map->set_is_observed(true);
+    new_map->set_is_observed();
   }
   object->set_map(*new_map);
 }
@@ -6968,7 +6962,7 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 
   map->set_transitions(*transitions);
 
-  new_map->set_is_observed(true);
+  new_map->set_is_observed();
 
   if (map->owns_descriptors()) {
     new_map->InitializeDescriptors(map->instance_descriptors());
@@ -11226,7 +11220,6 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
   ASSERT(!HasExternalArrayElements());
-  ASSERT(!map()->is_observed());
 
   // Allocate a new fast elements backing store.
   FixedArray* new_elements;
@@ -11321,7 +11314,6 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
   ASSERT(!HasExternalArrayElements());
-  ASSERT(!map()->is_observed());
 
   FixedArrayBase* elems;
   { MaybeObject* maybe_obj =
@@ -11470,10 +11462,6 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
   if (!new_length_handle->ToArrayIndex(&new_length))
     return Failure::InternalError();
 
-  // Observed arrays should always be in dictionary mode;
-  // if they were in fast mode, the below is slower than necessary
-  // as it iterates over the array backing store multiple times.
-  ASSERT(self->HasDictionaryElements());
   static const PropertyAttributes kNoAttrFilter = NONE;
   int num_elements = self->NumberOfLocalElements(kNoAttrFilter);
   if (num_elements > 0) {
@@ -11484,6 +11472,8 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
       }
     } else {
       // For sparse arrays, only iterate over existing elements.
+      // TODO(rafaelw): For fast, sparse arrays, we can avoid iterating over
+      // the to-be-removed indices twice.
       Handle<FixedArray> keys = isolate->factory()->NewFixedArray(num_elements);
       self->GetLocalElementKeys(*keys, kNoAttrFilter);
       while (num_elements-- > 0) {
@@ -12890,7 +12880,6 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
 
 
 MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
-  ASSERT(!map()->is_observed());
   ElementsKind from_kind = map()->elements_kind();
 
   if (IsFastHoleyElementsKind(from_kind)) {

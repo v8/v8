@@ -3667,16 +3667,13 @@ bool Map::owns_descriptors() {
 }
 
 
-void Map::set_is_observed(bool is_observed) {
-  ASSERT(instance_type() < FIRST_JS_OBJECT_TYPE ||
-         instance_type() > LAST_JS_OBJECT_TYPE ||
-         has_slow_elements_kind() || has_external_array_elements());
-  set_bit_field3(IsObserved::update(bit_field3(), is_observed));
+void Map::set_has_instance_call_handler() {
+  set_bit_field3(HasInstanceCallHandler::update(bit_field3(), true));
 }
 
 
-bool Map::is_observed() {
-  return IsObserved::decode(bit_field3());
+bool Map::has_instance_call_handler() {
+  return HasInstanceCallHandler::decode(bit_field3());
 }
 
 
