@@ -939,6 +939,8 @@ void Heap::ClearNormalizedMapCaches() {
 
 
 void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
+  if (start_new_space_size == 0) return;
+
   double survival_rate =
       (static_cast<double>(young_survivors_after_last_gc_) * 100) /
       start_new_space_size;

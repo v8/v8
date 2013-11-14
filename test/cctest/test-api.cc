@@ -17131,6 +17131,14 @@ TEST(Regress2107) {
   CHECK_LT(final_size, initial_size + 1);
 }
 
+
+TEST(Regress2333) {
+  LocalContext env;
+  for (int i = 0; i < 3; i++) {
+    CcTest::heap()->PerformScavenge();
+  }
+}
+
 static uint32_t* stack_limit;
 
 static void GetStackLimitCallback(
