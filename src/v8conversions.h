@@ -60,15 +60,10 @@ inline size_t NumberToSize(Isolate* isolate,
                            Object* number) {
   SealHandleScope shs(isolate);
   if (number->IsSmi()) {
-    int value = Smi::cast(number)->value();
-    CHECK_GE(value, 0);
-    ASSERT(Smi::kMaxValue <= std::numeric_limits<size_t>::max());
-    return static_cast<size_t>(value);
+    return Smi::cast(number)->value();
   } else {
     ASSERT(number->IsHeapNumber());
     double value = HeapNumber::cast(number)->value();
-    CHECK(value >= 0 &&
-          value <= std::numeric_limits<size_t>::max());
     return static_cast<size_t>(value);
   }
 }
