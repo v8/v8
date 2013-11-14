@@ -64,12 +64,14 @@ load_outer_template = '''    <script>
 %s
     </script>'''
 
-def generate_html(rule_processor):
+def generate_html(rule_processor, minimize_default):
   scripts = []
   loads = []
   for i, (name, automata) in enumerate(list(rule_processor.automata_iter())):
     (nfa, dfa) = (automata.nfa(), automata.dfa())
-    mdfa = None if name == 'default' else automata.minimal_dfa()
+    mdfa = None
+    if name != 'default' or minimize_default:
+      mdfa = automata.minimal_dfa()
     (nfa_i, dfa_i, mdfa_i) = ("nfa_%d" % i, "dfa_%d" % i, "mdfa_%d" % i)
     scripts.append(script_template % (nfa_i, nfa.to_dot()))
     loads.append(load_template % ("nfa [%s]" % name, nfa_i))
@@ -81,11 +83,11 @@ def generate_html(rule_processor):
     body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
   return file_template % body
 
-def generate_code(rule_processor):
-  return CodeGenerator.rule_processor_to_code(rule_processor)
+def generate_code(rule_processor, minimize_default):
+  return CodeGenerator.rule_processor_to_code(rule_processor, minimize_default)
 
 def lex(rule_processor, string):
-  for t in rule_processor.lex(string + '\0'):
+  for t in rule_processor.default_automata().dfa().lex(string + '\0'):
     print t
 
 if __name__ == '__main__':
@@ -95,23 +97,24 @@ if __name__ == '__main__':
   parser.add_argument('--re', default='src/lexer/lexer_py.re')
   parser.add_argument('--input')
   parser.add_argument('--code')
+  parser.add_argument('--minimize-default', action='store_true')
   args = parser.parse_args()
 
   re_file = args.re
   print "parsing %s" % re_file
   with open(re_file, 'r') as f:
-    rule_processor = RuleProcessor.parse(f.read(), False)
+    rule_processor = RuleProcessor.parse(f.read())
 
   html_file = args.html
   if html_file:
-    html = generate_html(rule_processor)
+    html = generate_html(rule_processor, args.minimize_default)
     with open(args.html, 'w') as f:
       f.write(html)
       print "wrote html to %s" % html_file
 
   code_file = args.code
   if code_file:
-    code = generate_code(rule_processor)
+    code = generate_code(rule_processor, args.minimize_default)
     with open(code_file, 'w') as f:
       f.write(code)
       print "wrote code to %s" % code_file

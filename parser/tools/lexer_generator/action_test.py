@@ -39,10 +39,11 @@ def process_rules(rules):
 
 class ActionTestCase(unittest.TestCase):
 
-    def __verify_last_action(self, dfa, string, expected_code):
-      actions = list(dfa.collect_actions(string))
-      self.assertEqual(actions[-1], Action('TERMINATE'))
-      self.assertEqual(actions[-2].data(), expected_code)
+    def __verify_last_action(self, automata, string, expected_code):
+      for automaton in [automata.dfa(), automata.minimal_dfa()]:
+        actions = list(automaton.collect_actions(string))
+        self.assertEqual(actions[-1], Action('TERMINATE'))
+        self.assertEqual(actions[-2].data(), expected_code)
 
     def test_action_precedence(self):
       rules = '''<default>
@@ -51,13 +52,13 @@ class ActionTestCase(unittest.TestCase):
       automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)
-      dfa = automata_for_conditions['default'].dfa()
+      automata = automata_for_conditions['default']
 
-      self.__verify_last_action(dfa, 'foo', 'ID')
-      self.__verify_last_action(dfa, 'key', 'KEYWORD')
-      self.__verify_last_action(dfa, 'k', 'ID')
-      self.__verify_last_action(dfa, 'ke', 'ID')
-      self.__verify_last_action(dfa, 'keys', 'ID')
+      self.__verify_last_action(automata, 'foo', 'ID')
+      self.__verify_last_action(automata, 'key', 'KEYWORD')
+      self.__verify_last_action(automata, 'k', 'ID')
+      self.__verify_last_action(automata, 'ke', 'ID')
+      self.__verify_last_action(automata, 'keys', 'ID')
 
     def test_wrong_action_precedence(self):
       rules = '''<default>
@@ -66,9 +67,9 @@ class ActionTestCase(unittest.TestCase):
       automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)
-      dfa = automata_for_conditions['default'].dfa()
+      automata = automata_for_conditions['default']
 
       # The keyword is not recognized because of the rule preference order (ID
       # is preferred over KEYWORD).
-      self.__verify_last_action(dfa, 'foo', 'ID')
-      self.__verify_last_action(dfa, 'key', 'ID')
+      self.__verify_last_action(automata, 'foo', 'ID')
+      self.__verify_last_action(automata, 'key', 'ID')

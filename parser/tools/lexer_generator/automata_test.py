@@ -37,7 +37,8 @@ def dfa_from_nfa(nfa):
 
 def build_automata(string):
   nfa = NfaBuilder().nfa(RegexParser.parse(string))
-  return (nfa, dfa_from_nfa(nfa))
+  dfa = dfa_from_nfa(nfa)
+  return (nfa, dfa, dfa.minimize())
 
 class AutomataTestCase(unittest.TestCase):
 
@@ -66,19 +67,18 @@ class AutomataTestCase(unittest.TestCase):
 
     def test_matches(self):
       for (regex, matches, not_matches) in self.__test_data:
-        (nfa, dfa) = build_automata(regex)
+        automata = build_automata(regex)
         for string in matches:
-          self.assertTrue(nfa.matches(string))
-          self.assertTrue(dfa.matches(string))
+          for automaton in automata:
+            self.assertTrue(automaton.matches(string))
         for string in not_matches:
-          self.assertFalse(nfa.matches(string))
-          self.assertFalse(dfa.matches(string))
+          for automaton in automata:
+            self.assertFalse(automaton.matches(string))
 
     def test_can_construct_dot(self):
       for (regex, matches, not_matches) in self.__test_data:
-        (nfa, dfa) = build_automata(regex)
-        nfa.to_dot()
-        dfa.to_dot()
+        for automaton in build_automata(regex):
+          automaton.to_dot()
 
     def test_actions(self):
       left_action = Action("LEFT_ACTION")
@@ -104,10 +104,3 @@ class AutomataTestCase(unittest.TestCase):
       verify_miss("lefta", [l])
       verify_hit("leftrightleftright", [l, r, l, r])
       verify_miss("leftrightleftrightx", [l, r, l, r])
-
-    def test_minimization(self):
-      for (regex, matches, not_matches) in self.__test_data:
-        (nfa, dfa) = build_automata(regex)
-        dfa.minimize()
-
-

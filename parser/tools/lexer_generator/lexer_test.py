@@ -34,10 +34,11 @@ class LexerTestCase(unittest.TestCase):
   def __verify_action_stream(self, rules, string, expected):
     expected = map(lambda (action, s) : (Action('code', action), s), expected)
     expected.append((Action('terminate'), '\0'))
-    rule_processor = RuleProcessor.parse(rules)
-    for i, (action, start, stop) in enumerate(rule_processor.lex(string)):
-      self.assertEquals(expected[i][0], action)
-      self.assertEquals(expected[i][1], string[start : stop])
+    automata = RuleProcessor.parse(rules).default_automata()
+    for automaton in [automata.dfa(), automata.minimal_dfa()]:
+        for i, (action, start, stop) in enumerate(automaton.lex(string)):
+          self.assertEquals(expected[i][0], action)
+          self.assertEquals(expected[i][1], string[start : stop])
 
   def test_simple(self):
     rules = '''

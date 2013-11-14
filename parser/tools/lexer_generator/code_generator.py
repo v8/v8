@@ -95,8 +95,11 @@ code_%s:
     return code
 
   @staticmethod
-  def rule_processor_to_code(rule_processor):
-    dfa = rule_processor.default_automata().dfa()
+  def rule_processor_to_code(rule_processor, use_mdfa):
+    if use_mdfa:
+      dfa = rule_processor.default_automata().minimal_dfa()
+    else:
+      dfa = rule_processor.default_automata().dfa()
     start_node_number = dfa.start_state().node_number()
     code = '''
 #include "lexer/even-more-experimental-scanner.h"
