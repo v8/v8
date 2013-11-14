@@ -5253,9 +5253,9 @@ class Code: public HeapObject {
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       ExtraICState extra_ic_state = kNoExtraICState,
+      InlineCacheHolderFlag holder = OWN_MAP,
       StubType type = NORMAL,
-      int argc = -1,
-      InlineCacheHolderFlag holder = OWN_MAP);
+      int argc = -1);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);

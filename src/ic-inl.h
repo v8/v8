@@ -100,8 +100,7 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
 }
 
 
-InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object,
-                                                JSObject* holder) {
+InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object) {
   if (object->IsJSObject()) return OWN_MAP;
 
   // If the object is a value, we use the prototype map for the cache.
@@ -111,13 +110,12 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object,
 }
 
 
-JSObject* IC::GetCodeCacheHolder(Isolate* isolate,
+HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
                                  Object* object,
                                  InlineCacheHolderFlag holder) {
   Object* map_owner =
       holder == OWN_MAP ? object : object->GetPrototype(isolate);
-  ASSERT(map_owner->IsJSObject());
-  return JSObject::cast(map_owner);
+  return HeapObject::cast(map_owner);
 }
 
 

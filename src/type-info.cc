@@ -298,11 +298,8 @@ void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
   Code::ExtraICState extra_ic_state =
       CallIC::Contextual::encode(call_kind == CALL_AS_FUNCTION);
 
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
-                                                    extra_ic_state,
-                                                    Code::NORMAL,
-                                                    arity,
-                                                    OWN_MAP);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::CALL_IC, extra_ic_state, OWN_MAP, Code::NORMAL, arity);
   CollectReceiverTypes(expr->CallFeedbackId(), name, flags, types);
 }
 

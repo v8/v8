@@ -132,11 +132,13 @@ class IC {
 
   // Determines which map must be used for keeping the code stub.
   // These methods should not be called with undefined or null.
-  static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object,
-                                                            JSObject* holder);
-  static inline JSObject* GetCodeCacheHolder(Isolate* isolate,
-                                             Object* object,
-                                             InlineCacheHolderFlag holder);
+  static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object);
+  // TODO(verwaest): This currently returns a HeapObject rather than JSObject*
+  // since loading the IC for loading the length from strings are stored on
+  // the string map directly, rather than on the JSObject-typed prototype.
+  static inline HeapObject* GetCodeCacheHolder(Isolate* isolate,
+                                               Object* object,
+                                               InlineCacheHolderFlag holder);
 
   static bool IsCleared(Code* code) {
     InlineCacheState state = code->ic_state();
@@ -180,13 +182,14 @@ class IC {
 
   // Compute the handler either by compiling or by retrieving a cached version.
   Handle<Code> ComputeHandler(LookupResult* lookup,
-                              Handle<JSObject> receiver,
+                              Handle<Object> object,
                               Handle<String> name,
                               Handle<Object> value = Handle<Code>::null());
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
+                                      Handle<Object> object,
                                       Handle<String> name,
-                                      Handle<Object> value) {
+                                      Handle<Object> value,
+                                      InlineCacheHolderFlag cache_holder) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
@@ -200,7 +203,7 @@ class IC {
 
   void CopyICToMegamorphicCache(Handle<String> name);
   bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
-  void PatchCache(Handle<HeapObject> receiver,
+  void PatchCache(Handle<Object> object,
                   Handle<String> name,
                   Handle<Code> code);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
@@ -422,9 +425,10 @@ class LoadIC: public IC {
                     Handle<String> name);
 
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
+                                      Handle<Object> object,
                                       Handle<String> name,
-                                      Handle<Object> unused);
+                                      Handle<Object> unused,
+                                      InlineCacheHolderFlag cache_holder);
 
  private:
   // Stub accessors.
@@ -617,9 +621,10 @@ class StoreIC: public IC {
                     Handle<String> name,
                     Handle<Object> value);
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
+                                      Handle<Object> object,
                                       Handle<String> name,
-                                      Handle<Object> value);
+                                      Handle<Object> value,
+                                      InlineCacheHolderFlag cache_holder);
 
  private:
   void set_target(Code* code) {

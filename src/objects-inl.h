@@ -4185,9 +4185,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
+                                          InlineCacheHolderFlag holder,
                                           StubType type,
-                                          int argc,
-                                          InlineCacheHolderFlag holder) {
+                                          int argc) {
   return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 
