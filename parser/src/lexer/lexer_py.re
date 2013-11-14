@@ -32,7 +32,7 @@ identifier_char = [0-9:identifier_start:];
 line_terminator = [\n\r];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
-maybe_exponent = ("e" [\-+]? digit+)?;
+maybe_exponent = ([eE] [\-+]? digit+)?;
 number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)? maybe_exponent));
 
 <default>
