@@ -5246,19 +5246,11 @@ class V8_EXPORT Locker {
 
   ~Locker();
 
-  /**
-   * Start preemption.
-   *
-   * When preemption is started, a timer is fired every n milliseconds
-   * that will switch between multiple threads that are in contention
-   * for the V8 lock.
-   */
-  static void StartPreemption(Isolate* isolate, int every_n_ms);
+  V8_DEPRECATED("This will be remvoed.",
+                static void StartPreemption(Isolate *isolate, int every_n_ms));
 
-  /**
-   * Stop preemption.
-   */
-  static void StopPreemption(Isolate* isolate);
+  V8_DEPRECATED("This will be removed",
+                static void StopPreemption(Isolate* isolate));
 
   /**
    * Returns whether or not the locker for a given isolate, is locked by the
