@@ -68,6 +68,11 @@ code_%s:
        state.node_number())
 
     action = state.action()
+    if (action and action.type() != 'terminate' and
+        action.type() != 'terminate_illegal' and action.type() != 'code' and
+        action.type() != 'push_token' and action.type() != 'skip'):
+      raise Exception("unknown type %s" % action.type())
+
     if action:
       if action.type() == 'terminate':
         code += 'PUSH_TOKEN(Token::EOS); return 0;'
@@ -78,6 +83,8 @@ code_%s:
       elif action.type() == 'skip':
         code += 'SKIP(); goto code_start;'
         return code
+      elif action.type() == 'code':
+        code += '%s\n' % action.data()
 
     code += '''
     //fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
@@ -91,15 +98,12 @@ code_%s:
 ''' % s.node_number()
 
     if action:
-      if action.type() == 'code':
-        code += '%s\n\ngoto code_%s;\n' % (action.data(),
-                                           start_node_number)
-      elif action.type() == 'push_token':
+      if action.type() == 'push_token':
         content = 'PUSH_TOKEN(Token::%s);' % action.data()
         code += '%s\ngoto code_%s;\n' % (content,
                                          start_node_number)
-      else:
-        raise Exception("unknown type %s" % action.type())
+      elif action.type() == 'code':
+        code += 'goto code_start;'
     else:
       code += 'goto default_action;'
     return code
