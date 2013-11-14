@@ -119,7 +119,7 @@ uint32_t EvenMoreExperimentalScanner::push(const void *input, int input_size) {
   if (input_size == 0)
     return 0;
   buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(input));
-  cursor_ = buffer_ - 1;
+  cursor_ = buffer_;
   start_ = buffer_;
   buffer_end_ = buffer_ + input_size;
   return DoLex();

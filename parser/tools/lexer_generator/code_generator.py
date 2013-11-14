@@ -77,24 +77,24 @@ code_%s:
         return code
 
     code += '''
-    yych = *(++cursor_);
     //fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
 
     for key, s in state.transitions().items():
       code += CodeGenerator.key_to_code(key)
       code += ''' {
+        FORWARD();
         goto code_%s;
     }
 ''' % s.node_number()
 
     if action:
       if action.type() == 'code':
-        code += '%s\nBACK();\ngoto code_%s;\n' % (action.data(),
-                                                  start_node_number)
+        code += '%s\n\ngoto code_%s;\n' % (action.data(),
+                                           start_node_number)
       elif action.type() == 'push_token':
         content = 'PUSH_TOKEN(Token::%s);' % action.data()
-        code += '%s\nBACK();\ngoto code_%s;\n' % (content,
-                                                  start_node_number)
+        code += '%s\ngoto code_%s;\n' % (content,
+                                         start_node_number)
       else:
         raise Exception("unknown type %s" % action.type())
     else:
@@ -128,7 +128,8 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
         default_action_code = '''
 default_action:
   //fprintf(stderr, "default action\\n");
-  PUSH_TOKEN(Token::%s)
+  PUSH_TOKEN(Token::%s);
+  FORWARD();
   goto code_%s;''' % (rule_processor.default_action.data(), start_node_number)
       else:
         raise Exception("Default action type %s not supported" % action.type())
