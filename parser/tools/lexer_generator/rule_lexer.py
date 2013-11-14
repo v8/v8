@@ -30,10 +30,8 @@ import ply.lex as lex
 class RuleLexer:
 
   tokens = (
-    'DEFAULT',
     'DEFAULT_ACTION',
     'CATCH_ALL',
-    'PUSH_TOKEN',
 
     'IDENTIFIER',
     'STRING',
@@ -47,8 +45,8 @@ class RuleLexer:
     'STAR',
     'LEFT_PARENTHESIS',
     'RIGHT_PARENTHESIS',
-    'LESS_THAN',
-    'GREATER_THAN',
+    'GRAPH_OPEN',
+    'GRAPH_CLOSE',
     'SEMICOLON',
     'ACTION_OPEN',
     'ACTION_CLOSE',
@@ -71,7 +69,7 @@ class RuleLexer:
     pass
 
   __special_identifiers = set(map(lambda s: s.lower(),
-    ['DEFAULT', 'DEFAULT_ACTION', 'CATCH_ALL', 'PUSH_TOKEN']))
+    ['DEFAULT_ACTION', 'CATCH_ALL']))
 
   def t_IDENTIFIER(self, t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
@@ -90,11 +88,11 @@ class RuleLexer:
   t_EQUALS = '='
   t_LEFT_PARENTHESIS = r'\('
   t_RIGHT_PARENTHESIS = r'\)'
-  t_LESS_THAN = '<'
-  t_GREATER_THAN = '>'
+  t_GRAPH_OPEN = '<<'
+  t_GRAPH_CLOSE = '>>'
   t_SEMICOLON = ';'
-  t_ACTION_OPEN = '<<'
-  t_ACTION_CLOSE = '>>'
+  t_ACTION_OPEN = '<'
+  t_ACTION_CLOSE = '>'
 
   def t_LEFT_BRACKET(self, t):
     r'{'

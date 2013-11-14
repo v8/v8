@@ -40,12 +40,12 @@ class RuleParserTestCase(unittest.TestCase):
    def test_basic(self):
      self.parse('''
 alias = /regex/;
-<cond1> /regex/ <<cond2>>
-<cond1> alias <<cond2>>
-<cond2> /regex/ {body}
-<cond2> alias {body}
-<cond3> /regex/ {body} <<cond1>>
-<cond3> alias {body} <<cond1>>''')
+<<cond1>> /regex/ <||cond2>
+<<cond1>> alias <||cond2>
+<<cond2>> /regex/ <|{body}|>
+<<cond2>> alias <|{body}|>
+<<cond3>> /regex/ <{body}||>
+<<cond3>> alias <{body}||>''')
 
      self.assertTrue(len(self.state.aliases), 1)
      self.assertTrue('alias' in self.state.aliases)
@@ -73,8 +73,8 @@ alias = /regex/;
    def test_more_complicated(self):
      self.parse('''
 alias = "regex;with;semicolon";
-<cond1> "regex3}with}braces}" {body {with} braces }
-<cond1> "regex4{with{braces}" {body {with} braces }''')
+<<cond1>> "regex3}with}braces}" <|{body {with} braces }|>
+<<cond1>> "regex4{with{braces}" <{body {with} braces }||>''')
 
      self.assertEquals(self.state.aliases['alias'],
                        RegexParser.parse("regex;with;semicolon"))
@@ -86,13 +86,13 @@ alias = "regex;with;semicolon";
      #     ('body', 'body {with} braces }'))
 
    def test_body_with_if(self):
-     self.parse('<cond> "regex" { if (foo) { bar } }')
+     self.parse('<<cond>> "regex" <|{ if (foo) { bar } }|>')
      # self.assertEquals(
      #     self.parse['cond']['regex'],
      #     ('body', 'if (foo) { bar }'))
 
    def test_regexp_with_count(self):
-     self.parse('<cond> /regex{1,3}/ { if (foo) { bar } }')
+     self.parse('<<cond>> /regex{1,3}/ <|{ if (foo) { bar } }|>')
      # self.assertEquals(
      #     self.parse['cond']['regex{1,3}'],
      #     ('body', 'if (foo) { bar }'))

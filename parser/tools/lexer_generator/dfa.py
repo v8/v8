@@ -133,7 +133,7 @@ class Dfa(Automaton):
 
   def matches(self, string):
     actions = list(self.collect_actions(string))
-    return actions and actions[-1].type() == 'TERMINATE'
+    return actions and actions[-1].entry_action() == 'TERMINATE'
 
   def lex(self, string):
     state = self.__start

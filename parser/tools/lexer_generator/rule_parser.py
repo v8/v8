@@ -51,8 +51,7 @@ class RuleParser:
 
   tokens = RuleLexer.tokens
   __rule_precedence_counter = 0
-  __keyword_transitions = set([
-      'continue', 'break', 'terminate', 'terminate_illegal', 'skip'])
+  __keyword_transitions = set(['continue'])
 
   def __init__(self):
     self.__state = None
@@ -80,8 +79,7 @@ class RuleParser:
              | empty'''
 
   def p_state_change(self, p):
-    '''state_change : LESS_THAN IDENTIFIER GREATER_THAN
-                    | LESS_THAN DEFAULT GREATER_THAN'''
+    'state_change : GRAPH_OPEN IDENTIFIER GRAPH_CLOSE'
     state = self.__state
     state.current_state = p[2]
     assert state.current_state
@@ -98,41 +96,61 @@ class RuleParser:
                         | empty'''
 
   def p_transition_rule(self, p):
-    '''transition_rule : composite_regex code_or_token action
-                       | composite_regex empty action
-                       | composite_regex code_or_token empty
-                       | DEFAULT_ACTION code_or_token empty
-                       | CATCH_ALL empty action'''
-    transition = p[3]
-    if transition and not transition in self.__keyword_transitions:
-      assert not transition == 'default'
-      self.__state.transitions.add(transition)
+    '''transition_rule : composite_regex action
+                       | DEFAULT_ACTION default_action
+                       | CATCH_ALL action'''
+    precedence = RuleParser.__rule_precedence_counter
     RuleParser.__rule_precedence_counter += 1
+    action = p[2]
+    (entry_action, match_action, transition) = action
+    if transition and not transition in self.__keyword_transitions:
+      assert not transition == 'default', "can't append default graph"
+      self.__state.transitions.add(transition)
     rules = self.__state.rules[self.__state.current_state]
-    code = p[2]
     if p[1] == 'default_action':
       assert self.__state.current_state == 'default'
       assert not rules['default_action']
-      rules['default_action'] = code
+      rules['default_action'] = action
     elif p[1] == 'catch_all':
       assert not rules['catch_all']
-      rules['catch_all'] = transition
+      rules['catch_all'] = (precedence, action)
     else:
-      rule = (p[1], RuleParser.__rule_precedence_counter, code, transition)
-      rules['regex'].append(rule)
-
-  def p_code_or_token(self, p):
-    '''code_or_token : code
-                     | push_token'''
-    p[0] = p[1]
-
-  def p_push_token(self, p):
-    'push_token : PUSH_TOKEN LEFT_PARENTHESIS IDENTIFIER RIGHT_PARENTHESIS'
-    p[0] = (p[1], p[3])
+      regex = p[1]
+      rules['regex'].append((regex, precedence, action))
 
   def p_action(self, p):
-    'action : ACTION_OPEN IDENTIFIER ACTION_CLOSE'
-    p[0] = p[2]
+    '''action : ACTION_OPEN maybe_action_part OR maybe_action_part OR maybe_transition ACTION_CLOSE'''
+    p[0] = (p[2], p[4], p[6])
+
+  def p_default_action(self, p):
+    'default_action : ACTION_OPEN action_part ACTION_CLOSE'
+    p[0] = (None, p[2], None)
+
+  def p_maybe_action_part(self, p):
+    '''maybe_action_part : action_part
+                         | empty'''
+    p[0] = p[1]
+
+  def p_action_part(self, p):
+    '''action_part : code
+                         | identifier_action'''
+    p[0] = p[1]
+
+  def p_maybe_transition(self, p):
+    '''maybe_transition : IDENTIFIER
+                        | empty'''
+    p[0] = p[1]
+
+  def p_identifier_action(self, p):
+    '''identifier_action : IDENTIFIER
+                         | IDENTIFIER LEFT_PARENTHESIS IDENTIFIER RIGHT_PARENTHESIS'''
+    assert p[1] != 'code'
+    if len(p) == 2:
+      p[0] = (p[1], None)
+    elif len(p) == 5:
+      p[0] = (p[1], p[2])
+    else:
+      raise Exception()
 
   def p_composite_regex(self, p):
     '''composite_regex : regex_parts OR regex_parts
@@ -274,36 +292,31 @@ class RuleProcessor(object):
     builder = NfaBuilder()
     builder.set_character_classes(parser_state.character_classes)
     assert 'default' in parser_state.rules
-    def process(k, v):
+    def process(subgraph, v):
       graphs = []
       continues = 0
-      for (graph, precedence, code, transition) in v['regex']:
-        default_code = v['default_action']
-        if code or default_code:
-          (code_type, code_value) = code if code else default_code
-          action = Action(code_type, code_value, precedence)
+      for graph, precedence, action in v['regex']:
+        (entry_action, match_action, transition) = action
+        if entry_action or match_action:
+          action = Action(entry_action, match_action, precedence)
           graph = NfaBuilder.add_action(graph, action)
-        if not transition or transition == 'break':
+        if not transition:
           pass
         elif transition == 'continue':
-          assert not k == 'default'
+          assert not subgraph == 'default'
           continues += 1
           graph = NfaBuilder.add_continue(graph)
-        elif (transition == 'terminate' or
-              transition == 'terminate_illegal' or
-              transition == 'skip'):
-          assert not code
-          graph = NfaBuilder.add_action(graph, Action(transition, None, -1))
         else:
-          assert k == 'default'
-          subgraph_modifier = '*' if code else None
+          assert subgraph == 'default'
+          subgraph_modifier = None
           graph = NfaBuilder.join_subgraph(
             graph, transition, rule_map[transition], subgraph_modifier)
         graphs.append(graph)
       if continues == len(graphs):
         graphs.append(NfaBuilder.epsilon())
       if v['catch_all']:
-        assert v['catch_all'] == 'continue'
+        (precedence, catch_all) = v['catch_all']
+        assert catch_all == (None, None, 'continue'), "unimplemented"
         graphs.append(NfaBuilder.add_continue(NfaBuilder.catch_all()))
       graph = NfaBuilder.or_graphs(graphs)
       rule_map[k] = graph
@@ -315,6 +328,6 @@ class RuleProcessor(object):
     # build the automata
     for rule_name, graph in rule_map.items():
       self.__automata[rule_name] = RuleProcessor.Automata(builder, graph)
-
+    # process default_action
     default_action = parser_state.rules['default']['default_action']
-    self.default_action = Action(default_action[0], default_action[1]) if default_action else None
+    self.default_action = Action(None, default_action[1]) if default_action else None

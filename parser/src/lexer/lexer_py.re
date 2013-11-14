@@ -27,180 +27,194 @@
 
 whitespace_char = [ \t\v\f\r:ws:\240];
 whitespace = whitespace_char+;
-identifier_start = [$_a-zA-Z:lit:];   # TODO add relevant latin1 char codes
+identifier_start = [$_a-zA-Z:lit:];
 identifier_char = [0-9:identifier_start:];
 line_terminator = [\n\r];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
-maybe_exponent = ([eE] [\-+]? digit+)?;
-number = ("0x" hex_digit+) | (("." digit+ maybe_exponent) | (digit+ ("." digit*)? maybe_exponent));
+maybe_exponent = /([eE][\-+]?[:digit:]+)?/;
+number =
+  /0x[:hex_digit:]+/ | (
+  /\.[:digit:]+/ maybe_exponent |
+  /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
 
-<default>
-"|="          push_token(ASSIGN_BIT_OR)
-"^="          push_token(ASSIGN_BIT_XOR)
-"&="          push_token(ASSIGN_BIT_AND)
-"+="          push_token(ASSIGN_ADD)
-"-="          push_token(ASSIGN_SUB)
-"*="          push_token(ASSIGN_MUL)
-"/="          push_token(ASSIGN_DIV)
-"%="          push_token(ASSIGN_MOD)
+# grammar is
+#   regex <action_on_state_entry|action_on_match|transition>
+#
+# actions can be c code enclosed in {} or identifiers to be passed to codegen
+# transition must be in continue or the name of a subgraph
 
-"==="         push_token(EQ_STRICT)
-"=="          push_token(EQ)
-"="           push_token(ASSIGN)
-"!=="         push_token(NE_STRICT)
-"!="          push_token(NE)
-"!"           push_token(NOT)
+<<default>>
+"|="          <|push_token(ASSIGN_BIT_OR)|>
+"^="          <|push_token(ASSIGN_BIT_XOR)|>
+"&="          <|push_token(ASSIGN_BIT_AND)|>
+"+="          <|push_token(ASSIGN_ADD)|>
+"-="          <|push_token(ASSIGN_SUB)|>
+"*="          <|push_token(ASSIGN_MUL)|>
+"/="          <|push_token(ASSIGN_DIV)|>
+"%="          <|push_token(ASSIGN_MOD)|>
 
-"//"          <<SingleLineComment>>
-"/*"          <<MultiLineComment>>
-"<!--"        <<HtmlComment>>
+"==="         <|push_token(EQ_STRICT)|>
+"=="          <|push_token(EQ)|>
+"="           <|push_token(ASSIGN)|>
+"!=="         <|push_token(NE_STRICT)|>
+"!="          <|push_token(NE)|>
+"!"           <|push_token(NOT)|>
+
+"//"          <||SingleLineComment>
+"/*"          <||MultiLineComment>
+"<!--"        <||HtmlComment>
 
 #whitespace* "-->" { if (just_seen_line_terminator_) { YYSETCONDITION(kConditionSingleLineComment); goto yyc_SingleLineComment; } else { --cursor_; send(Token::DEC); start_ = cursor_; goto yyc_Normal; } }
 
-">>>="        push_token(ASSIGN_SHR)
-">>>"         push_token(SHR)
-"<<="         push_token(ASSIGN_SHL)
-">>="         push_token(ASSIGN_SAR)
-"<="          push_token(LTE)
-">="          push_token(GTE)
-"<<"          push_token(SHL)
-">>"          push_token(SAR)
-"<"           push_token(LT)
-">"           push_token(GT)
+">>>="        <|push_token(ASSIGN_SHR)|>
+">>>"         <|push_token(SHR)|>
+"<<="         <|push_token(ASSIGN_SHL)|>
+">>="         <|push_token(ASSIGN_SAR)|>
+"<="          <|push_token(LTE)|>
+">="          <|push_token(GTE)|>
+"<<"          <|push_token(SHL)|>
+">>"          <|push_token(SAR)|>
+"<"           <|push_token(LT)|>
+">"           <|push_token(GT)|>
 
-number        push_token(NUMBER)
-# number identifier_char   push_token(ILLEGAL)
+number        <|push_token(NUMBER)|>
+# is this necessary?
+number identifier_char   <|push_token(ILLEGAL)|>
 
-"("           push_token(LPAREN)
-")"           push_token(RPAREN)
-"["           push_token(LBRACK)
-"]"           push_token(RBRACK)
-"{"           push_token(LBRACE)
-"}"           push_token(RBRACE)
-":"           push_token(COLON)
-";"           push_token(SEMICOLON)
-"."           push_token(PERIOD)
-"?"           push_token(CONDITIONAL)
-"++"          push_token(INC)
-"--"          push_token(DEC)
+"("           <|push_token(LPAREN)|>
+")"           <|push_token(RPAREN)|>
+"["           <|push_token(LBRACK)|>
+"]"           <|push_token(RBRACK)|>
+"{"           <|push_token(LBRACE)|>
+"}"           <|push_token(RBRACE)|>
+":"           <|push_token(COLON)|>
+";"           <|push_token(SEMICOLON)|>
+"."           <|push_token(PERIOD)|>
+"?"           <|push_token(CONDITIONAL)|>
+"++"          <|push_token(INC)|>
+"--"          <|push_token(DEC)|>
 
-"||"          push_token(OR)
-"&&"          push_token(AND)
+"||"          <|push_token(OR)|>
+"&&"          <|push_token(AND)|>
 
-"|"           push_token(BIT_OR)
-"^"           push_token(BIT_XOR)
-"&"           push_token(BIT_AND)
-"+"           push_token(ADD)
-"-"           push_token(SUB)
-"*"           push_token(MUL)
-"/"           push_token(DIV)
-"%"           push_token(MOD)
-"~"           push_token(BIT_NOT)
-","           push_token(COMMA)
+"|"           <|push_token(BIT_OR)|>
+"^"           <|push_token(BIT_XOR)|>
+"&"           <|push_token(BIT_AND)|>
+"+"           <|push_token(ADD)|>
+"-"           <|push_token(SUB)|>
+"*"           <|push_token(MUL)|>
+"/"           <|push_token(DIV)|>
+"%"           <|push_token(MOD)|>
+"~"           <|push_token(BIT_NOT)|>
+","           <|push_token(COMMA)|>
 
-line_terminator+  { PUSH_LINE_TERMINATOR(); }
-whitespace     <<skip>>
+line_terminator+  <|push_line_terminator|>
+whitespace        <|skip|>
 
-"\""           <<DoubleQuoteString>>
-"'"            <<SingleQuoteString>>
+"\""           <||DoubleQuoteString>
+"'"            <||SingleQuoteString>
 
 # all keywords
-"break"       push_token(BREAK)
-"case"        push_token(CASE)
-"catch"       push_token(CATCH)
-"class"       push_token(FUTURE_RESERVED_WORD)
-"const"       push_token(CONST)
-"continue"    push_token(CONTINUE)
-"debugger"    push_token(DEBUGGER)
-"default"     push_token(DEFAULT)
-"delete"      push_token(DELETE)
-"do"          push_token(DO)
-"else"        push_token(ELSE)
-"enum"        push_token(FUTURE_RESERVED_WORD)
-"export"      push_token(FUTURE_RESERVED_WORD)
-"extends"     push_token(FUTURE_RESERVED_WORD)
-"false"       push_token(FALSE_LITERAL)
-"finally"     push_token(FINALLY)
-"for"         push_token(FOR)
-"function"    push_token(FUNCTION)
-"if"          push_token(IF)
-"implements"  push_token(FUTURE_STRICT_RESERVED_WORD)
-"import"      push_token(FUTURE_RESERVED_WORD)
-"in"          push_token(IN)
-"instanceof"  push_token(INSTANCEOF)
-"interface"   push_token(FUTURE_STRICT_RESERVED_WORD)
-"let"         push_token(FUTURE_STRICT_RESERVED_WORD)
-"new"         push_token(NEW)
-"null"        push_token(NULL_LITERAL)
-"package"     push_token(FUTURE_STRICT_RESERVED_WORD)
-"private"     push_token(FUTURE_STRICT_RESERVED_WORD)
-"protected"   push_token(FUTURE_STRICT_RESERVED_WORD)
-"public"      push_token(FUTURE_STRICT_RESERVED_WORD)
-"return"      push_token(RETURN)
-"static"      push_token(FUTURE_STRICT_RESERVED_WORD)
-"super"       push_token(FUTURE_RESERVED_WORD)
-"switch"      push_token(SWITCH)
-"this"        push_token(THIS)
-"throw"       push_token(THROW)
-"true"        push_token(TRUE_LITERAL)
-"try"         push_token(TRY)
-"typeof"      push_token(TYPEOF)
-"var"         push_token(VAR)
-"void"        push_token(VOID)
-"while"       push_token(WHILE)
-"with"        push_token(WITH)
-"yield"       push_token(YIELD)
+"break"       <|push_token(BREAK)|>
+"case"        <|push_token(CASE)|>
+"catch"       <|push_token(CATCH)|>
+"class"       <|push_token(FUTURE_RESERVED_WORD)|>
+"const"       <|push_token(CONST)|>
+"continue"    <|push_token(CONTINUE)|>
+"debugger"    <|push_token(DEBUGGER)|>
+"default"     <|push_token(DEFAULT)|>
+"delete"      <|push_token(DELETE)|>
+"do"          <|push_token(DO)|>
+"else"        <|push_token(ELSE)|>
+"enum"        <|push_token(FUTURE_RESERVED_WORD)|>
+"export"      <|push_token(FUTURE_RESERVED_WORD)|>
+"extends"     <|push_token(FUTURE_RESERVED_WORD)|>
+"false"       <|push_token(FALSE_LITERAL)|>
+"finally"     <|push_token(FINALLY)|>
+"for"         <|push_token(FOR)|>
+"function"    <|push_token(FUNCTION)|>
+"if"          <|push_token(IF)|>
+"implements"  <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"import"      <|push_token(FUTURE_RESERVED_WORD)|>
+"in"          <|push_token(IN)|>
+"instanceof"  <|push_token(INSTANCEOF)|>
+"interface"   <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"let"         <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"new"         <|push_token(NEW)|>
+"null"        <|push_token(NULL_LITERAL)|>
+"package"     <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"private"     <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"protected"   <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"public"      <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"return"      <|push_token(RETURN)|>
+"static"      <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"super"       <|push_token(FUTURE_RESERVED_WORD)|>
+"switch"      <|push_token(SWITCH)|>
+"this"        <|push_token(THIS)|>
+"throw"       <|push_token(THROW)|>
+"true"        <|push_token(TRUE_LITERAL)|>
+"try"         <|push_token(TRY)|>
+"typeof"      <|push_token(TYPEOF)|>
+"var"         <|push_token(VAR)|>
+"void"        <|push_token(VOID)|>
+"while"       <|push_token(WHILE)|>
+"with"        <|push_token(WITH)|>
+"yield"       <|push_token(YIELD)|>
 
-identifier_start push_token(IDENTIFIER) <<Identifier>>
-/\\u[0-9a-fA-F]{4}/ {
+identifier_start <|push_token(IDENTIFIER)|Identifier>
+/\\u[0-9a-fA-F]{4}/ <{
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
     PUSH_TOKEN(Token::ILLEGAL);
+    // need to goto something here
   }
-} <<Identifier>>
+}|push_token(IDENTIFIER)|Identifier>
 
-eof             <<terminate>>
-default_action  push_token(ILLEGAL)
+eof             <|terminate|>
+default_action  <push_token(ILLEGAL)>
 
-<DoubleQuoteString>
-/\\\n\r?/ <<continue>>
-/\\\r\n?/ <<continue>>
-/\\./     <<continue>>
-/\n|\r/   push_token(ILLEGAL)
-"\""      push_token(STRING)
-eof       <<terminate_illegal>>
-catch_all <<continue>>
+<<DoubleQuoteString>>
+/\\\n\r?/ <||continue>
+/\\\r\n?/ <||continue>
+/\\./     <||continue>
+/\n|\r/   <|push_token(ILLEGAL)|>
+"\""      <|push_token(STRING)|>
+eof       <|terminate_illegal|>
+catch_all <||continue>
 
-<SingleQuoteString>
-/\\\n\r?/ <<continue>>
-/\\\r\n?/ <<continue>>
-/\\./     <<continue>>
-/\n|\r/   push_token(ILLEGAL)
-"'"       push_token(STRING)
-eof       <<terminate_illegal>>
-catch_all <<continue>>
+<<SingleQuoteString>>
+/\\\n\r?/ <||continue>
+/\\\r\n?/ <||continue>
+/\\./     <||continue>
+/\n|\r/   <|push_token(ILLEGAL)|>
+"'"       <|push_token(STRING)|>
+eof       <|terminate_illegal|>
+catch_all <||continue>
 
-<Identifier>
-identifier_char push_token(IDENTIFIER) <<continue>>
-/\\u[0-9a-fA-F]{4}/ {
+<<Identifier>>
+identifier_char <|push_token(IDENTIFIER)|continue>
+/\\u[0-9a-fA-F]{4}/ <{
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
     PUSH_TOKEN(Token::ILLEGAL);
+    // need to goto something here
   }
-} <<continue>>
+}|push_token(IDENTIFIER)|continue>
 
-<SingleLineComment>
-line_terminator  { PUSH_LINE_TERMINATOR(); }
-catch_all <<continue>>
+<<SingleLineComment>>
+line_terminator  <|push_line_terminator|>
+catch_all <||continue>
 
-<MultiLineComment>
-"*/"             <<skip>>
-/\*[^\/]/      <<continue>>
-line_terminator { PUSH_LINE_TERMINATOR(); } <<continue>>
-catch_all <<continue>>
+<<MultiLineComment>>
+"*/"             <|skip|>
+# TODO find a way to generate the below rule
+/\*[^\/]/        <||continue>
+line_terminator  <|push_line_terminator|continue>
+catch_all        <||continue>
 
-<HtmlComment>
-"-->"            <<skip>>
-/--./            <<continue>>
-/-./             <<continue>>
-line_terminator { PUSH_LINE_TERMINATOR(); } <<continue>>
-catch_all <<continue>>
+<<HtmlComment>>
+"-->"            <|skip|>
+# TODO find a way to generate the below rules
+/--./            <||continue>
+/-./             <||continue>
+line_terminator  <|push_line_terminator|continue>
+catch_all <||continue>

@@ -32,8 +32,8 @@ from rule_parser import RuleProcessor
 class LexerTestCase(unittest.TestCase):
 
   def __verify_action_stream(self, rules, string, expected):
-    expected = map(lambda (action, s) : (Action('code', action), s), expected)
-    expected.append((Action('terminate'), '\0'))
+    expected = map(lambda (action, s) : (Action(None, (action, None)), s), expected)
+    expected.append((Action(None, ('terminate', None)), '\0'))
     automata = RuleProcessor.parse(rules).default_automata()
     for automaton in [automata.dfa(), automata.minimal_dfa()]:
         for i, (action, start, stop) in enumerate(automaton.lex(string)):
@@ -42,12 +42,12 @@ class LexerTestCase(unittest.TestCase):
 
   def test_simple(self):
     rules = '''
-    <default>
-    "("           { LBRACE }
-    ")"           { RBRACE }
+    <<default>>
+    "("           <|LBRACE|>
+    ")"           <|RBRACE|>
 
-    "foo"         { FOO }
-    eof           <<terminate>>'''
+    "foo"         <|FOO|>
+    eof           <|terminate|>'''
 
     string = 'foo()\0'
     self.__verify_action_stream(rules, string,
@@ -55,11 +55,11 @@ class LexerTestCase(unittest.TestCase):
 
   def test_maximal_matching(self):
     rules = '''
-    <default>
-    "<"           { LT }
-    "<<"          { SHL }
-    " "           { SPACE }
-    eof           <<terminate>>'''
+    <<default>>
+    "<"           <|LT|>
+    "<<"          <|SHL|>
+    " "           <|SPACE|>
+    eof           <|terminate|>'''
 
     string = '<< <\0'
     self.__verify_action_stream(rules, string,
@@ -69,9 +69,9 @@ class LexerTestCase(unittest.TestCase):
     rules = '''
     digit = [0-9];
     number = (digit+ ("." digit+)?);
-    <default>
-    number        { NUMBER }
-    eof           <<terminate>>'''
+    <<default>>
+    number        <|NUMBER|>
+    eof           <|terminate|>'''
 
     string = '555\0'
     self.__verify_action_stream(rules, string, [('NUMBER', '555')])

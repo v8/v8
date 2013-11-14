@@ -40,15 +40,16 @@ def process_rules(rules):
 class ActionTestCase(unittest.TestCase):
 
     def __verify_last_action(self, automata, string, expected_code):
+      expected_code = (expected_code, None)
       for automaton in [automata.dfa(), automata.minimal_dfa()]:
         actions = list(automaton.collect_actions(string))
         self.assertEqual(actions[-1], Action('TERMINATE'))
-        self.assertEqual(actions[-2].data(), expected_code)
+        self.assertEqual(actions[-2].match_action(), expected_code)
 
     def test_action_precedence(self):
-      rules = '''<default>
-                 "key" { KEYWORD } <<break>>
-                 /[a-z]+/ { ID } <<break>>'''
+      rules = '''<<default>>
+                 "key" <|KEYWORD|>
+                 /[a-z]+/ <|ID|>'''
       automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)
@@ -61,9 +62,9 @@ class ActionTestCase(unittest.TestCase):
       self.__verify_last_action(automata, 'keys', 'ID')
 
     def test_wrong_action_precedence(self):
-      rules = '''<default>
-                 /[a-z]+/ { ID } <<break>>
-                 "key" { KEYWORD } <<break>>'''
+      rules = '''<<default>>
+                 /[a-z]+/ <|ID|>
+                 "key" <|KEYWORD|>'''
       automata_for_conditions = process_rules(rules)
       self.assertEqual(len(automata_for_conditions), 1)
       self.assertTrue('default' in automata_for_conditions)

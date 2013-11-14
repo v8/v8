@@ -31,33 +31,31 @@ from transition_keys import TransitionKey
 
 class Action(object):
 
-  def __init__(self, type, data = None, precedence = -1):
+  def __init__(self, entry_action, match_action = None, precedence = -1):
     assert type
-    self.__type = type
-    self.__data = data
+    self.__entry_action = entry_action
+    self.__match_action = match_action
     self.__precedence = precedence
 
-  def type(self):
-    return self.__type
+  def entry_action(self):
+    return self.__entry_action
 
-  def data(self):
-    return self.__data
+  def match_action(self):
+    return self.__match_action
 
   def precedence(self):
     return self.__precedence
 
   def __hash__(self):
-    return hash((self.__type, self.__data))
+    return hash((self.__entry_action, self.__match_action))
 
   def __eq__(self, other):
     return (isinstance(other, self.__class__) and
-            self.__type == other.__type and
-            self.__data == other.__data)
+            self.__entry_action == other.__entry_action and
+            self.__match_action == other.__match_action)
 
   def __str__(self):
-    if not self.__data:
-      return "action<%s>" % self.__type
-    return "action<%s, %s>" % (self.__type, self.__data)
+    return "action<%s, %s>" % (self.__entry_action, self.__match_action)
 
 class AutomatonState(object):
 
@@ -135,14 +133,7 @@ class Automaton(object):
 
     def f(node, (node_content, edge_content)):
       if node.action():
-        action = node.action()
-        if action.type() == 'code':
-          action_text = action.data()
-        elif action.type() == 'push_token':
-          action_text = "token(" + action.data() + ")"
-        else:
-          action_text = action.type()
-        action_text = escape(action_text)
+        action_text = escape(node.action())
         node_content.append('  S_l%s[shape = box, label="%s"];' %
                             (node.node_number(), action_text))
         node_content.append('  S_%s -> S_l%s [arrowhead = none];' %
