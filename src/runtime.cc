@@ -9775,6 +9775,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
 // Used as a fall-back for generated code when the space is full.
 static MaybeObject* Allocate(Isolate* isolate,
                              int size,
+                             bool double_align,
                              AllocationSpace space) {
   Heap* heap = isolate->heap();
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
@@ -9796,24 +9797,19 @@ static MaybeObject* Allocate(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInNewSpace) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), NEW_SPACE);
+  CONVERT_SMI_ARG_CHECKED(size, 0);
+  return Allocate(isolate, size, false, NEW_SPACE);
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldPointerSpace) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInTargetSpace) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), OLD_POINTER_SPACE);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldDataSpace) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), OLD_DATA_SPACE);
+  ASSERT(args.length() == 2);
+  CONVERT_SMI_ARG_CHECKED(size, 0);
+  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  AllocationSpace space = AllocateTargetSpace::decode(flags);
+  return Allocate(isolate, size, double_align, space);
 }
 
 
