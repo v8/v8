@@ -96,12 +96,11 @@ class CodeGenerator:
     }
 
   def __dfa_state_to_code(self, state):
-    start_node_number = self.__start_node_number
     # FIXME: add different check types (if, switch, lookup table)
     # FIXME: add action + break / continue
     # FIXME: add default action
     code = ''
-    if start_node_number == state.node_number():
+    if self.__start_node_number == state.node_number():
       code += '''
 code_start:
 '''
@@ -130,15 +129,14 @@ code_%s:
 
     if match_action:
       code += self.__action_code_map[match_action[0]](match_action[1])
-      code += 'goto code_%s;\n' % start_node_number
+      code += 'goto code_%s;\n' % self.__start_node_number
     else:
-      code += " // FIXME: goto where"
+      code += 'goto default_action;\n'
     return code
 
   def __process(self):
     dfa = self.__dfa
     default_action = self.__default_action
-    start_node_number = self.__start_node_number
     code = '''
 #include "lexer/even-more-experimental-scanner.h"
 
@@ -147,34 +145,28 @@ namespace internal {
 uint32_t EvenMoreExperimentalScanner::DoLex() {
   YYCTYPE yych = *cursor_;
   goto code_%s;
-''' % start_node_number
+''' % self.__start_node_number
     def f(state, code):
       code += self.__dfa_state_to_code(state)
       return code
     code = dfa.visit_all_states(f, code)
 
     default_action_code = ''
-    action = default_action.entry_action() if default_action else None
+    action = default_action.match_action() if default_action else None
     if action:
-      if action[0] == 'push_token':
-        default_action_code = '''
-default_action:
-  //fprintf(stderr, "default action\\n");
-  PUSH_TOKEN(Token::%s);
-  FORWARD();
-  goto code_%s;''' % (default_action, start_node_number)
-      else:
-        raise Exception("Default action type %s not supported" % action[0])
-
+      default_action_code == self.__action_code_map[action[0]](action[1])
     code += '''
   CHECK(false);
-%s
+default_action:
+  //fprintf(stderr, "default action\\n");
+  %s
+  FORWARD();
+  goto code_%s;
   return 0;
 }
-
 }
 }
-''' % default_action_code
+''' % (default_action_code, self.__start_node_number)
     return code
 
   @staticmethod
