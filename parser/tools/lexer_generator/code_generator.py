@@ -28,6 +28,7 @@
 from dfa import Dfa
 
 class CodeGenerator:
+  debug = False
 
   @staticmethod
   def key_to_code(key):
@@ -109,11 +110,15 @@ class CodeGenerator:
       code += '''
 code_start:
 '''
+
     code += '''
 code_%s:
-    //fprintf(stderr, "state %s\\n");
-''' % (state.node_number(),
-       state.node_number())
+''' % state.node_number()
+
+    if CodeGenerator.debug:
+      code += '''
+  fprintf(stderr, "state %s\\n");
+''' % state.node_number()
 
     entry_action = state.action().entry_action() if state.action() else None
     match_action = state.action().match_action() if state.action() else None
@@ -121,8 +126,10 @@ code_%s:
     if entry_action:
       code += self.__action_code_map[entry_action[0]](entry_action[1])
 
-    code += '''
-    //fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
+    if CodeGenerator.debug:
+      code += '''
+  fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);
+'''
 
     for key, s in state.transitions().items():
       code += CodeGenerator.key_to_code(key)
@@ -162,8 +169,12 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
     default_action_code = self.__action_code_map[action[0]](action[1])
     code += '''
   CHECK(false); goto code_start;
-default_action:
-  //fprintf(stderr, "default action\\n");
+default_action:'''
+    if CodeGenerator.debug:
+      code += '''
+fprintf(stderr, "default action\\n");
+'''
+    code += '''
   %s
   FORWARD();
   goto code_%s;
