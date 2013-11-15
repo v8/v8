@@ -2209,15 +2209,12 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
   static const int kLoopUnfoldLimit = 8;
   STATIC_ASSERT(JSArray::kPreallocatedArrayElements <= kLoopUnfoldLimit);
   int initial_capacity = -1;
-  if (from->ActualValue()->IsConstant() && to->ActualValue()->IsConstant()) {
-    HConstant* constant_from = HConstant::cast(from->ActualValue());
-    HConstant* constant_to = HConstant::cast(to->ActualValue());
+  if (from->IsInteger32Constant() && to->IsInteger32Constant()) {
+    int constant_from = from->GetInteger32Constant();
+    int constant_to = to->GetInteger32Constant();
 
-    if (constant_from->HasInteger32Value() &&
-        constant_from->Integer32Value() == 0 &&
-        constant_to->HasInteger32Value() &&
-        constant_to->Integer32Value() <= kLoopUnfoldLimit) {
-      initial_capacity = constant_to->Integer32Value();
+    if (constant_from == 0 && constant_to <= kLoopUnfoldLimit) {
+      initial_capacity = constant_to;
     }
   }
 
