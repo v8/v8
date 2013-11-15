@@ -229,9 +229,9 @@ eof <|skip_and_terminate|>
 catch_all <||continue>
 
 <<MultiLineComment>>
-"*/"             <|skip|>
+/\*+\//             <|skip|>
 # TODO find a way to generate the below rule
-/\*[^\/]/        <||continue>
+/\*+[^\/*]/       <||continue>
 line_terminator  <push_line_terminator||continue>
 eof <|skip_and_terminate|>
 catch_all        <||continue>
