@@ -1,3 +1,14 @@
+2013-11-15: Version 3.23.5
+
+        Fixed missing type feedback check for Generic*String addition.
+        (Chromium issue 318671)
+
+        Fixed duplicate check in DependentCode::Insert.
+        (Chromium issue 318454)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-14: Version 3.23.4
 
         Fixed overflow in TypedArray initialization function.
