@@ -28,6 +28,7 @@
 import unittest
 from automaton import Action
 from regex_parser import RegexParser
+from transition_keys import TransitionKey
 from nfa_builder import NfaBuilder
 from dfa import Dfa
 
@@ -107,3 +108,21 @@ class AutomataTestCase(unittest.TestCase):
       verify_miss("lefta", [l])
       verify_hit("leftrightleftright", [l, r, l, r])
       verify_miss("leftrightleftrightx", [l, r, l, r])
+
+    def test_minimization(self):
+      def empty_node():
+        return { 'transitions' : {}, 'terminal' : False, 'action' : None }
+      mapping = { k : empty_node() for k in ['S_0', 'S_1', 'S_2', 'S_3'] }
+      key_a = TransitionKey.single_char('a')
+      key_b = TransitionKey.single_char('b')
+      key_c = TransitionKey.single_char('c')
+
+      mapping['S_0']['transitions'][key_a] = 'S_1'
+      mapping['S_0']['transitions'][key_b] = 'S_2'
+      mapping['S_1']['transitions'][key_c] = 'S_3'
+      mapping['S_2']['transitions'][key_c] = 'S_3'
+      mapping['S_3']['terminal'] = True
+
+      mdfa = Dfa('S_0', mapping).minimize()
+      self.assertEqual(3, mdfa.node_count())
+

@@ -77,7 +77,7 @@ def generate_html(rule_processor, minimize_default):
     loads.append(load_template % ("nfa [%s]" % name, nfa_i))
     scripts.append(script_template % (dfa_i, dfa.to_dot()))
     loads.append(load_template % ("dfa [%s]" % name, dfa_i))
-    if mdfa and mdfa != dfa:
+    if mdfa and mdfa.node_count() != dfa.node_count():
       scripts.append(script_template % (mdfa_i, mdfa.to_dot()))
       loads.append(load_template % ("mdfa [%s]" % name, mdfa_i))
     body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))

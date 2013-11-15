@@ -220,16 +220,24 @@ class DfaMinimizer:
       if action:
         if state not in terminal_set:
           assert action.entry_action()
-          action = ("nonterminal action", action)
+          key = ("nonterminal action", action)
+        else:
+          key = ("terminal action", action)
       elif state in terminal_set:
-        action = "terminal_set"
-      if not action in action_map:
-        action_map[action] = set()
-      action_map[action].add(state_id)
+        key = ("terminal set",)
+      else:
+        key = ("nonterminal set",)
+      if not key in action_map:
+        action_map[key] = set()
+      action_map[key].add(state_id)
     self.__dfa.visit_all_states(f)
     partitions = set()
-    for p in action_map.values():
-      partitions.add(StatePartition(p))
+    working_set = set()
+    for k, p in action_map.items():
+      p = StatePartition(p)
+      partitions.add(p)
+      if k[0] == "terminal_set" or k[0] == "terminal action" or True:
+        working_set.add(p)
     reverse_id_map = {v : k for k, v in id_map.items()}
     assert len(id_map) == len(reverse_id_map)
     self.__reverse_id_map = reverse_id_map
@@ -259,7 +267,7 @@ class DfaMinimizer:
             else:
               assert transition_id != None
               assert transition_id == reverse_id_map[transition_state]
-    return partitions
+    return (working_set, partitions)
 
   @staticmethod
   def __partition_count(partitions):
@@ -310,13 +318,12 @@ class DfaMinimizer:
     return (start_name, mapping)
 
   def minimize(self):
-    partitions = self.__partition()
+    (working_set, partitions) = self.__partition()
     node_count = self.__dfa.node_count()
     id_map = self.__id_map
     reverse_id_map = self.__reverse_id_map
     transitions = self.__transitions
     key_range = range(0, len(self.__alphabet))
-    working_set = set(partitions)
     while working_set:
       assert working_set <= partitions
       assert self.__partition_count(partitions) == node_count
