@@ -372,6 +372,9 @@ class RelocInfo BASE_EMBEDDED {
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   double data64() const { return data64_; }
+  uint64_t raw_data64() {
+    return BitCast<uint64_t>(data64_);
+  }
   Code* host() const { return host_; }
 
   // Apply a relocation by delta bytes
