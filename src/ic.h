@@ -94,10 +94,6 @@ class IC {
   IC(FrameDepth depth, Isolate* isolate);
   virtual ~IC() {}
 
-  // Get the call-site target; used for determining the state.
-  Handle<Code> target() const { return target_; }
-  Code* raw_target() const { return GetTargetAtAddress(address()); }
-
   State state() const { return state_; }
   inline Address address() const;
 
@@ -130,6 +126,20 @@ class IC {
     return ComputeMode() == RelocInfo::CODE_TARGET_CONTEXT;
   }
 
+#ifdef DEBUG
+  bool IsLoadStub() {
+    return target()->is_load_stub() || target()->is_keyed_load_stub();
+  }
+
+  bool IsStoreStub() {
+    return target()->is_store_stub() || target()->is_keyed_store_stub();
+  }
+
+  bool IsCallStub() {
+    return target()->is_call_stub() || target()->is_keyed_call_stub();
+  }
+#endif
+
   // Determines which map must be used for keeping the code stub.
   // These methods should not be called with undefined or null.
   static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object);
@@ -146,6 +156,9 @@ class IC {
   }
 
  protected:
+  // Get the call-site target; used for determining the state.
+  Handle<Code> target() const { return target_; }
+
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
@@ -229,6 +242,8 @@ class IC {
   void TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name);
 
  private:
+  Code* raw_target() const { return GetTargetAtAddress(address()); }
+
   // Frame pointer for the frame that uses (calls) the IC.
   Address fp_;
 
@@ -391,7 +406,7 @@ class KeyedCallIC: public CallICBase {
 class LoadIC: public IC {
  public:
   explicit LoadIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
-    ASSERT(target()->is_load_stub() || target()->is_keyed_load_stub());
+    ASSERT(IsLoadStub());
   }
 
   // Code generator routines.
@@ -468,9 +483,11 @@ class KeyedLoadIC: public LoadIC {
     ASSERT(target()->is_keyed_load_stub());
   }
 
+  MUST_USE_RESULT MaybeObject* LoadForceGeneric(Handle<Object> object,
+                                                Handle<Object> key);
+
   MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
-                                    Handle<Object> key,
-                                    ICMissMode force_generic);
+                                    Handle<Object> key);
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm, ICMissMode force_generic);
@@ -542,7 +559,7 @@ class StoreIC: public IC {
   StoreIC(FrameDepth depth, Isolate* isolate)
       : IC(depth, isolate),
         strict_mode_(Code::GetStrictMode(target()->extra_ic_state())) {
-    ASSERT(target()->is_store_stub() || target()->is_keyed_store_stub());
+    ASSERT(IsStoreStub());
   }
 
   virtual StrictModeFlag strict_mode() const { return strict_mode_; }
@@ -670,10 +687,12 @@ class KeyedStoreIC: public StoreIC {
     ASSERT(target()->is_keyed_store_stub());
   }
 
+  MUST_USE_RESULT MaybeObject* StoreForceGeneric(Handle<Object> object,
+                                                 Handle<Object> name,
+                                                 Handle<Object> value);
   MUST_USE_RESULT MaybeObject* Store(Handle<Object> object,
                                      Handle<Object> name,
-                                     Handle<Object> value,
-                                     ICMissMode force_generic);
+                                     Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) {
@@ -826,7 +845,7 @@ class CompareIC: public IC {
       : IC(EXTRA_CALL_FRAME, isolate), op_(op) { }
 
   // Update the inline cache for the given operands.
-  void UpdateCaches(Handle<Object> x, Handle<Object> y);
+  Code* UpdateCaches(Handle<Object> x, Handle<Object> y);
 
 
   // Factory method for getting an uninitialized compare stub.
@@ -879,7 +898,7 @@ class ToBooleanIC: public IC {
  public:
   explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
-  MaybeObject* ToBoolean(Handle<Object> object, Code::ExtraICState state);
+  MaybeObject* ToBoolean(Handle<Object> object);
 };
 
 

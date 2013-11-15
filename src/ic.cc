@@ -1346,9 +1346,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
 }
 
 
-MaybeObject* KeyedLoadIC::Load(Handle<Object> object,
-                               Handle<Object> key,
-                               ICMissMode miss_mode) {
+MaybeObject* KeyedLoadIC::LoadForceGeneric(Handle<Object> object,
+                                           Handle<Object> key) {
+  set_target(*generic_stub());
+  return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
+}
+
+
+MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   if (MigrateDeprecated(object)) {
     return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
   }
@@ -1365,20 +1370,18 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object,
     if (maybe_object->IsFailure()) return maybe_object;
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
     ASSERT(!object->IsJSGlobalProxy());
-    if (miss_mode != MISS_FORCE_GENERIC) {
-      if (object->IsString() && key->IsNumber()) {
-        if (state() == UNINITIALIZED) stub = string_stub();
-      } else if (object->IsJSObject()) {
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (receiver->elements()->map() ==
-            isolate()->heap()->non_strict_arguments_elements_map()) {
-          stub = non_strict_arguments_stub();
-        } else if (receiver->HasIndexedInterceptor()) {
-          stub = indexed_interceptor_stub();
-        } else if (!key->ToSmi()->IsFailure() &&
-                   (!target().is_identical_to(non_strict_arguments_stub()))) {
-          stub = LoadElementStub(receiver);
-        }
+    if (object->IsString() && key->IsNumber()) {
+      if (state() == UNINITIALIZED) stub = string_stub();
+    } else if (object->IsJSObject()) {
+      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+      if (receiver->elements()->map() ==
+          isolate()->heap()->non_strict_arguments_elements_map()) {
+        stub = non_strict_arguments_stub();
+      } else if (receiver->HasIndexedInterceptor()) {
+        stub = indexed_interceptor_stub();
+      } else if (!key->ToSmi()->IsFailure() &&
+                 (!target().is_identical_to(non_strict_arguments_stub()))) {
+        stub = LoadElementStub(receiver);
       }
     }
   }
@@ -1928,10 +1931,23 @@ KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
 }
 
 
+MaybeObject* KeyedStoreIC::StoreForceGeneric(Handle<Object> object,
+                                             Handle<Object> key,
+                                             Handle<Object> value) {
+  set_target(*generic_stub());
+  Handle<Object> result = Runtime::SetObjectProperty(isolate(), object,
+                                                     key,
+                                                     value,
+                                                     NONE,
+                                                     strict_mode());
+  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  return *result;
+}
+
+
 MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                  Handle<Object> key,
-                                 Handle<Object> value,
-                                 ICMissMode miss_mode) {
+                                 Handle<Object> value) {
   if (MigrateDeprecated(object)) {
     Handle<Object> result = Runtime::SetObjectProperty(isolate(), object,
                                                        key,
@@ -1970,24 +1986,22 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
     if (use_ic) {
       ASSERT(!object->IsJSGlobalProxy());
 
-      if (miss_mode != MISS_FORCE_GENERIC) {
-        if (object->IsJSObject()) {
-          Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-          bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
-          if (receiver->elements()->map() ==
-              isolate()->heap()->non_strict_arguments_elements_map()) {
-            stub = non_strict_arguments_stub();
-          } else if (key_is_smi_like &&
-                     !(target().is_identical_to(non_strict_arguments_stub()))) {
-            // We should go generic if receiver isn't a dictionary, but our
-            // prototype chain does have dictionary elements. This ensures that
-            // other non-dictionary receivers in the polymorphic case benefit
-            // from fast path keyed stores.
-            if (!(receiver->map()->DictionaryElementsInPrototypeChainOnly())) {
-              KeyedAccessStoreMode store_mode =
-                  GetStoreMode(receiver, key, value);
-              stub = StoreElementStub(receiver, store_mode);
-            }
+      if (object->IsJSObject()) {
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
+        if (receiver->elements()->map() ==
+            isolate()->heap()->non_strict_arguments_elements_map()) {
+          stub = non_strict_arguments_stub();
+        } else if (key_is_smi_like &&
+                   !(target().is_identical_to(non_strict_arguments_stub()))) {
+          // We should go generic if receiver isn't a dictionary, but our
+          // prototype chain does have dictionary elements. This ensures that
+          // other non-dictionary receivers in the polymorphic case benefit
+          // from fast path keyed stores.
+          if (!(receiver->map()->DictionaryElementsInPrototypeChainOnly())) {
+            KeyedAccessStoreMode store_mode =
+                GetStoreMode(receiver, key, value);
+            stub = StoreElementStub(receiver, store_mode);
           }
         }
       }
@@ -2086,7 +2100,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   ic.UpdateState(receiver, key);
-  return ic.Load(receiver, key, MISS);
+  return ic.Load(receiver, key);
 }
 
 
@@ -2097,7 +2111,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   ic.UpdateState(receiver, key);
-  return ic.Load(receiver, key, MISS);
+  return ic.Load(receiver, key);
 }
 
 
@@ -2108,7 +2122,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   ic.UpdateState(receiver, key);
-  return ic.Load(receiver, key, MISS_FORCE_GENERIC);
+  return ic.LoadForceGeneric(receiver, key);
 }
 
 
@@ -2217,7 +2231,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   ic.UpdateState(receiver, key);
-  return ic.Store(receiver, key, args.at<Object>(2), MISS);
+  return ic.Store(receiver, key, args.at<Object>(2));
 }
 
 
@@ -2228,7 +2242,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   ic.UpdateState(receiver, key);
-  return ic.Store(receiver, key, args.at<Object>(2), MISS);
+  return ic.Store(receiver, key, args.at<Object>(2));
 }
 
 
@@ -2273,7 +2287,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   ic.UpdateState(receiver, key);
-  return ic.Store(receiver, key, args.at<Object>(2), MISS_FORCE_GENERIC);
+  return ic.StoreForceGeneric(receiver, key, args.at<Object>(2));
 }
 
 
@@ -2560,7 +2574,7 @@ CompareIC::State CompareIC::TargetState(State old_state,
 }
 
 
-void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
+Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope(isolate());
   State previous_left, previous_right, previous_state;
   ICCompareStub::DecodeMinorKey(target()->stub_info(), &previous_left,
@@ -2574,7 +2588,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
     stub.set_known_map(
         Handle<Map>(Handle<JSObject>::cast(x)->map(), isolate()));
   }
-  set_target(*stub.GetCode(isolate()));
+  Handle<Code> new_target = stub.GetCode(isolate());
+  set_target(*new_target);
 
 #ifdef DEBUG
   if (FLAG_trace_ic) {
@@ -2596,6 +2611,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   if (previous_state == UNINITIALIZED) {
     PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
   }
+
+  return *new_target;
 }
 
 
@@ -2604,8 +2621,7 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
-  ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
-  return ic.raw_target();
+  return ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
 }
 
 
@@ -2716,9 +2732,8 @@ Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op) {
 }
 
 
-MaybeObject* ToBooleanIC::ToBoolean(Handle<Object> object,
-                                    Code::ExtraICState extra_ic_state) {
-  ToBooleanStub stub(extra_ic_state);
+MaybeObject* ToBooleanIC::ToBoolean(Handle<Object> object) {
+  ToBooleanStub stub(target()->extended_extra_ic_state());
   bool to_boolean_value = stub.UpdateStatus(object);
   Handle<Code> code = stub.GetCode(isolate());
   set_target(*code);
@@ -2731,8 +2746,7 @@ RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss) {
   HandleScope scope(isolate);
   Handle<Object> object = args.at<Object>(0);
   ToBooleanIC ic(isolate);
-  Code::ExtraICState extra_ic_state = ic.target()->extended_extra_ic_state();
-  return ic.ToBoolean(object, extra_ic_state);
+  return ic.ToBoolean(object);
 }
 
 
