@@ -81,6 +81,7 @@ const int kFastElementsKindCount = LAST_FAST_ELEMENTS_KIND -
 const int kFastElementsKindPackedToHoley =
     FAST_HOLEY_SMI_ELEMENTS - FAST_SMI_ELEMENTS;
 
+int ElementsKindToShiftSize(ElementsKind elements_kind);
 const char* ElementsKindToString(ElementsKind kind);
 void PrintElementsKind(FILE* out, ElementsKind kind);
 
