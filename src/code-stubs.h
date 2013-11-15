@@ -1839,9 +1839,27 @@ class AllowStubCallsScope {
 };
 
 
-class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
+class KeyedLoadDictionaryElementStub : public HydrogenCodeStub {
  public:
   KeyedLoadDictionaryElementStub() {}
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+ private:
+  Major MajorKey() { return KeyedLoadElement; }
+  int NotMissMinorKey() { return DICTIONARY_ELEMENTS; }
+
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+};
+
+
+class KeyedLoadDictionaryElementPlatformStub : public PlatformCodeStub {
+ public:
+  KeyedLoadDictionaryElementPlatformStub() {}
 
   void Generate(MacroAssembler* masm);
 
@@ -1849,7 +1867,7 @@ class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
   Major MajorKey() { return KeyedLoadElement; }
   int MinorKey() { return DICTIONARY_ELEMENTS; }
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementPlatformStub);
 };
 
 

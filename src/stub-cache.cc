@@ -1480,8 +1480,9 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
         elements_kind).GetCode(isolate());
     __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
   } else {
-    Handle<Code> stub =
-        KeyedLoadDictionaryElementStub().GetCode(isolate());
+    Handle<Code> stub = FLAG_compiled_keyed_dictionary_loads
+        ? KeyedLoadDictionaryElementStub().GetCode(isolate())
+        : KeyedLoadDictionaryElementPlatformStub().GetCode(isolate());
     __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
   }
 

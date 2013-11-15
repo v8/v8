@@ -1405,6 +1405,138 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
 }
 
 
+HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoadHelper(
+    HValue* elements,
+    HValue* key,
+    HValue* hash,
+    HValue* mask,
+    int current_probe) {
+  if (current_probe == kNumberDictionaryProbes) {
+    return NULL;
+  }
+
+  int32_t offset = SeededNumberDictionary::GetProbeOffset(current_probe);
+  HValue* raw_index = (current_probe == 0)
+      ? hash
+      : Add<HAdd>(hash, Add<HConstant>(offset));
+  raw_index = Add<HBitwise>(Token::BIT_AND, raw_index, mask);
+  int32_t entry_size = SeededNumberDictionary::kEntrySize;
+  raw_index = Add<HMul>(raw_index, Add<HConstant>(entry_size));
+  raw_index->ClearFlag(HValue::kCanOverflow);
+
+  int32_t base_offset = SeededNumberDictionary::kElementsStartIndex;
+  HValue* key_index = Add<HAdd>(raw_index, Add<HConstant>(base_offset));
+  key_index->ClearFlag(HValue::kCanOverflow);
+
+  HValue* candidate_key = Add<HLoadKeyed>(elements, key_index,
+                                          static_cast<HValue*>(NULL),
+                                          FAST_SMI_ELEMENTS);
+
+  IfBuilder key_compare(this);
+  key_compare.IfNot<HCompareObjectEqAndBranch>(key, candidate_key);
+  key_compare.Then();
+  {
+    // Key at the current probe doesn't match, try at the next probe.
+    HValue* result = BuildUncheckedDictionaryElementLoadHelper(
+        elements, key, hash, mask, current_probe + 1);
+    if (result == NULL) {
+      key_compare.Deopt("probes exhausted in keyed load dictionary lookup");
+      result = graph()->GetConstantUndefined();
+    } else {
+      Push(result);
+    }
+  }
+  key_compare.Else();
+  {
+    // Key at current probe matches. Details must be zero, otherwise the
+    // dictionary element requires special handling.
+    HValue* details_index = Add<HAdd>(raw_index,
+                                    Add<HConstant>(base_offset + 2));
+    details_index->ClearFlag(HValue::kCanOverflow);
+
+    HValue* details = Add<HLoadKeyed>(elements, details_index,
+                                      static_cast<HValue*>(NULL),
+                                      FAST_SMI_ELEMENTS);
+    IfBuilder details_compare(this);
+    details_compare.If<HCompareNumericAndBranch>(details,
+                                                 graph()->GetConstant0(),
+                                                 Token::NE);
+    details_compare.ThenDeopt("keyed load dictionary element not fast case");
+
+    details_compare.Else();
+    {
+      // Key matches and details are zero --> fast case. Load and return the
+      // value.
+      HValue* result_index = Add<HAdd>(raw_index,
+                                       Add<HConstant>(base_offset + 1));
+      result_index->ClearFlag(HValue::kCanOverflow);
+
+      Push(Add<HLoadKeyed>(elements, result_index,
+                           static_cast<HValue*>(NULL),
+                           FAST_ELEMENTS));
+    }
+    details_compare.End();
+  }
+  key_compare.End();
+
+  return Pop();
+}
+
+
+HValue* HGraphBuilder::BuildElementIndexHash(HValue* index) {
+  int32_t seed_value = static_cast<uint32_t>(isolate()->heap()->HashSeed());
+  HValue* seed = Add<HConstant>(seed_value);
+  HValue* hash = Add<HBitwise>(Token::BIT_XOR, index, seed);
+
+  // hash = ~hash + (hash << 15);
+  HValue* shifted_hash = Add<HShl>(hash, Add<HConstant>(15));
+  HValue* not_hash = Add<HBitwise>(Token::BIT_XOR, hash,
+                                   graph()->GetConstantMinus1());
+  hash = Add<HAdd>(shifted_hash, not_hash);
+
+  // hash = hash ^ (hash >> 12);
+  shifted_hash = Add<HShr>(hash, Add<HConstant>(12));
+  hash = Add<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
+
+  // hash = hash + (hash << 2);
+  shifted_hash = Add<HShl>(hash, Add<HConstant>(2));
+  hash = Add<HAdd>(hash, shifted_hash);
+
+  // hash = hash ^ (hash >> 4);
+  shifted_hash = Add<HShr>(hash, Add<HConstant>(4));
+  hash = Add<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
+
+  // hash = hash * 2057;
+  hash = Add<HMul>(hash, Add<HConstant>(2057));
+  hash->ClearFlag(HValue::kCanOverflow);
+
+  // hash = hash ^ (hash >> 16);
+  shifted_hash = Add<HShr>(hash, Add<HConstant>(16));
+  return Add<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
+}
+
+
+HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
+                                                           HValue* key) {
+  HValue* elements = AddLoadElements(receiver);
+
+  HValue* hash = BuildElementIndexHash(key);
+
+  HValue* capacity = Add<HLoadKeyed>(
+      elements,
+      Add<HConstant>(NameDictionary::kCapacityIndex),
+      static_cast<HValue*>(NULL),
+      FAST_SMI_ELEMENTS);
+
+  HValue* mask = Add<HSub>(capacity, graph()->GetConstant1());
+  mask->ChangeRepresentation(Representation::Integer32());
+  mask->ClearFlag(HValue::kCanOverflow);
+
+  return BuildUncheckedDictionaryElementLoadHelper(elements, key,
+                                                   hash, mask, 0);
+}
+
+
 HValue* HGraphBuilder::BuildNumberToString(HValue* object,
                                            Handle<Type> type) {
   NoObservableSideEffectsScope scope(this);

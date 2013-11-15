@@ -1279,6 +1279,9 @@ class HGraphBuilder {
 
   HValue* BuildNumberToString(HValue* object, Handle<Type> type);
 
+  HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
+                                              HValue* key);
+
   // Computes the size for a sequential string of the given length and encoding.
   HValue* BuildSeqStringSizeFor(HValue* length,
                                 String::Encoding encoding);
@@ -1701,6 +1704,8 @@ class HGraphBuilder {
                                  ElementsKind kind,
                                  int length);
 
+  HValue* BuildElementIndexHash(HValue* index);
+
   void BuildCompareNil(
       HValue* value,
       Handle<Type> type,
@@ -1726,6 +1731,13 @@ class HGraphBuilder {
 
  private:
   HGraphBuilder();
+
+  HValue* BuildUncheckedDictionaryElementLoadHelper(
+      HValue* elements,
+      HValue* key,
+      HValue* hash,
+      HValue* mask,
+      int current_probe);
 
   void PadEnvironmentForContinuation(HBasicBlock* from,
                                      HBasicBlock* continuation);

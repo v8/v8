@@ -964,7 +964,8 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void KeyedLoadDictionaryElementStub::Generate(MacroAssembler* masm) {
+void KeyedLoadDictionaryElementPlatformStub::Generate(
+    MacroAssembler* masm) {
   KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);
 }
 

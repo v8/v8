@@ -114,6 +114,17 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx, rcx };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+    FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {

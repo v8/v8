@@ -1566,8 +1566,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   sub(t1, t1, Operand(1));
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  static const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use t2 for index calculations and keep the hash intact in t0.
     mov(t2, t0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -1584,7 +1583,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     add(t2, elements, Operand(t2, LSL, kPointerSizeLog2));
     ldr(ip, FieldMemOperand(t2, SeededNumberDictionary::kElementsStartOffset));
     cmp(key, Operand(ip));
-    if (i != kProbes - 1) {
+    if (i != kNumberDictionaryProbes - 1) {
       b(eq, &done);
     } else {
       b(ne, miss);

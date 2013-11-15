@@ -1303,4 +1303,139 @@ Handle<Code> FastNewClosureStub::GenerateCode(Isolate* isolate) {
 }
 
 
+template <>
+class CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>
+    : public CodeStubGraphBuilderBase {
+ public:
+  explicit CodeStubGraphBuilder(Isolate* isolate,
+                                KeyedLoadDictionaryElementStub* stub)
+      : CodeStubGraphBuilderBase(isolate, stub) {}
+
+ protected:
+  HValue* BuildCodeStubHelper(HValue* dictionary,
+                              HValue* key,
+                              HValue* hash,
+                              HValue* mask,
+                              int current_probe);
+
+  virtual HValue* BuildCodeStub();
+
+  KeyedLoadDictionaryElementStub* casted_stub() {
+    return static_cast<KeyedLoadDictionaryElementStub*>(stub());
+  }
+};
+
+
+HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::
+    BuildCodeStubHelper(
+    HValue* elements,
+    HValue* key,
+    HValue* hash,
+    HValue* mask,
+    int current_probe) {
+  if (current_probe == kNumberDictionaryProbes) {
+    return NULL;
+  }
+
+  int32_t offset = SeededNumberDictionary::GetProbeOffset(current_probe);
+  HValue* raw_index = (current_probe == 0)
+    ? hash
+    : Add<HAdd>(hash, Add<HConstant>(offset));
+  raw_index = Add<HBitwise>(Token::BIT_AND, raw_index, mask);
+  int32_t entry_size = SeededNumberDictionary::kEntrySize;
+  raw_index = Add<HMul>(raw_index, Add<HConstant>(entry_size));
+  raw_index->ClearFlag(HValue::kCanOverflow);
+
+  int32_t base_offset = SeededNumberDictionary::kElementsStartIndex;
+  HValue* key_index = Add<HAdd>(raw_index, Add<HConstant>(base_offset));
+  key_index->ClearFlag(HValue::kCanOverflow);
+
+  HValue* candidate_key = Add<HLoadKeyed>(elements, key_index,
+                                          static_cast<HValue*>(NULL),
+                                          FAST_SMI_ELEMENTS);
+
+  IfBuilder key_compare(this);
+  key_compare.IfNot<HCompareObjectEqAndBranch>(key, candidate_key);
+  key_compare.Then();
+  {
+    // Key at the current probe doesn't match, try at the next probe.
+    HValue* result = BuildCodeStubHelper(elements, key, hash, mask,
+                                         current_probe + 1);
+    if (result == NULL) {
+      key_compare.Deopt("probes exhausted in keyed load dictionary lookup");
+      result = graph()->GetConstantUndefined();
+    } else {
+      Push(result);
+    }
+  }
+  key_compare.Else();
+  {
+    // Key at current probe matches. Details must be zero, otherwise the
+    // dictionary element requires special handling.
+    HValue* details_index = Add<HAdd>(raw_index,
+                                      Add<HConstant>(base_offset + 2));
+    details_index->ClearFlag(HValue::kCanOverflow);
+
+    HValue* details = Add<HLoadKeyed>(elements, details_index,
+                                      static_cast<HValue*>(NULL),
+                                      FAST_SMI_ELEMENTS);
+    IfBuilder details_compare(this);
+    details_compare.If<HCompareNumericAndBranch>(details,
+                                                 graph()->GetConstant0(),
+                                                 Token::NE);
+    details_compare.ThenDeopt("keyed load dictionary element not fast case");
+
+    details_compare.Else();
+    {
+      // Key matches and details are zero --> fast case. Load and return the
+      // value.
+      HValue* result_index = Add<HAdd>(raw_index,
+                                       Add<HConstant>(base_offset + 1));
+      result_index->ClearFlag(HValue::kCanOverflow);
+
+      Push(Add<HLoadKeyed>(elements, result_index,
+                           static_cast<HValue*>(NULL),
+                           FAST_ELEMENTS));
+    }
+    details_compare.End();
+  }
+  key_compare.End();
+
+  return Pop();
+}
+
+
+HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
+  KeyedLoadDictionaryElementStub* stub = casted_stub();
+
+  HValue* dictionary = GetParameter(0);
+  HValue* key = GetParameter(1);
+  USE(stub);
+  USE(dictionary);
+
+  HValue* elements = AddLoadElements(dictionary);
+
+  Add<HCheckSmi>(key);
+
+  HValue* hash = BuildElementIndexHash(key);
+
+  HValue* capacity = Add<HLoadKeyed>(
+      elements,
+      Add<HConstant>(NameDictionary::kCapacityIndex),
+      static_cast<HValue*>(NULL),
+      FAST_SMI_ELEMENTS);
+
+  HValue* mask = Add<HSub>(capacity, graph()->GetConstant1());
+  mask->ChangeRepresentation(Representation::Integer32());
+  mask->ClearFlag(HValue::kCanOverflow);
+
+  return BuildCodeStubHelper(elements, key, hash, mask, 0);
+}
+
+
+Handle<Code> KeyedLoadDictionaryElementStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
 } }  // namespace v8::internal
