@@ -152,9 +152,9 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
     code = dfa.visit_all_states(f, code)
 
     default_action_code = ''
-    action = default_action.match_action() if default_action else None
-    if action:
-      default_action_code == self.__action_code_map[action[0]](action[1])
+    assert(default_action and default_action.match_action())
+    action = default_action.match_action()
+    default_action_code = self.__action_code_map[action[0]](action[1])
     code += '''
   CHECK(false);
 default_action:
