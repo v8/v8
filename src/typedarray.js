@@ -87,6 +87,9 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   function NAMEConstructByLength(obj, length) {
     var l = IS_UNDEFINED(length) ?
       0 : ToPositiveInteger(length, "invalid_typed_array_length");
+    if (l > %MaxSmi()) {
+      throw MakeRangeError(length, "invalid_typed_array_length");
+    }
     var byteLength = l * ELEMENT_SIZE;
     var buffer = new $ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
