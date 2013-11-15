@@ -63,12 +63,31 @@ number =
 
 "//"          <||SingleLineComment>
 "/*"          <||MultiLineComment>
-"<!--"        <||HtmlComment>
+"<!--"        <||SingleLineComment>
+
+"<!-"        <|{
+  cursor_ -= 2;
+  yych = *(cursor_);
+  PUSH_TOKEN(Token::LT);
+  yych = *(++cursor_);
+  PUSH_TOKEN(Token::NOT);
+  yych = *(++cursor_);
+  PUSH_TOKEN(Token::SUB);
+}|>
+
+"<!"        <|{
+  cursor_ -= 1;
+  yych = *(cursor_);
+  PUSH_TOKEN(Token::LT);
+  yych = *(++cursor_);
+  PUSH_TOKEN(Token::NOT);
+}|>
+
 
 "-->" <{
   if (!just_seen_line_terminator_) {
+    yych = *(--cursor_);
     PUSH_TOKEN(Token::DEC);
-    start_ = cursor_ - 1;
     goto code_start;
   }
 }||SingleLineComment>
@@ -214,12 +233,5 @@ catch_all <||continue>
 # TODO find a way to generate the below rule
 /\*[^\/]/        <||continue>
 line_terminator  <push_line_terminator||continue>
+eof <|skip_and_terminate|>
 catch_all        <||continue>
-
-<<HtmlComment>>
-"-->"            <|skip|>
-# TODO find a way to generate the below rules
-/--./            <||continue>
-/-./             <||continue>
-line_terminator  <push_line_terminator||continue>
-catch_all <||continue>
