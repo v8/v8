@@ -67,6 +67,9 @@
 
   # BUG(2999).
   'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+
+  # BUG(3005).
+  'cctest/test-alloc/CodeRange': [PASS, FLAKY],
 }],  # 'system == windows'
 
 ##############################################################################
