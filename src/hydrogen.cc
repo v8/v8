@@ -605,7 +605,8 @@ void HGraph::Verify(bool do_full_verify) const {
           block->predecessors()->first()->last_environment()->ast_id();
       for (int k = 0; k < block->predecessors()->length(); k++) {
         HBasicBlock* predecessor = block->predecessors()->at(k);
-        ASSERT(predecessor->end()->IsGoto());
+        ASSERT(predecessor->end()->IsGoto() ||
+               predecessor->end()->IsDeoptimize());
         ASSERT(predecessor->last_environment()->ast_id() == id);
       }
     }
@@ -745,19 +746,20 @@ bool HGraph::IsStandardConstant(HConstant* constant) {
 HGraphBuilder::IfBuilder::IfBuilder(HGraphBuilder* builder)
     : builder_(builder),
       finished_(false),
-      deopt_then_(false),
-      deopt_else_(false),
       did_then_(false),
       did_else_(false),
+      did_else_if_(false),
       did_and_(false),
       did_or_(false),
       captured_(false),
       needs_compare_(true),
+      pending_merge_block_(false),
       split_edge_merge_block_(NULL),
-      merge_block_(NULL) {
+      merge_at_join_blocks_(NULL),
+      normal_merge_at_join_block_count_(0),
+      deopt_merge_at_join_block_count_(0) {
   HEnvironment* env = builder->environment();
   first_true_block_ = builder->CreateBasicBlock(env->Copy());
-  last_true_block_ = NULL;
   first_false_block_ = builder->CreateBasicBlock(env->Copy());
 }
 
@@ -767,19 +769,20 @@ HGraphBuilder::IfBuilder::IfBuilder(
     HIfContinuation* continuation)
     : builder_(builder),
       finished_(false),
-      deopt_then_(false),
-      deopt_else_(false),
       did_then_(false),
       did_else_(false),
+      did_else_if_(false),
       did_and_(false),
       did_or_(false),
       captured_(false),
       needs_compare_(false),
+      pending_merge_block_(false),
       first_true_block_(NULL),
-      last_true_block_(NULL),
       first_false_block_(NULL),
       split_edge_merge_block_(NULL),
-      merge_block_(NULL) {
+      merge_at_join_blocks_(NULL),
+      normal_merge_at_join_block_count_(0),
+      deopt_merge_at_join_block_count_(0) {
   continuation->Continue(&first_true_block_,
                          &first_false_block_);
 }
@@ -787,6 +790,20 @@ HGraphBuilder::IfBuilder::IfBuilder(
 
 HControlInstruction* HGraphBuilder::IfBuilder::AddCompare(
     HControlInstruction* compare) {
+  ASSERT(did_then_ == did_else_);
+  if (did_else_) {
+    // Handle if-then-elseif
+    did_else_if_ = true;
+    did_else_ = false;
+    did_then_ = false;
+    did_and_ = false;
+    did_or_ = false;
+    pending_merge_block_ = false;
+    split_edge_merge_block_ = NULL;
+    HEnvironment* env = builder_->environment();
+    first_true_block_ = builder_->CreateBasicBlock(env->Copy());
+    first_false_block_ = builder_->CreateBasicBlock(env->Copy());
+  }
   if (split_edge_merge_block_ != NULL) {
     HEnvironment* env = first_false_block_->last_environment();
     HBasicBlock* split_edge =
@@ -842,29 +859,30 @@ void HGraphBuilder::IfBuilder::And() {
 
 void HGraphBuilder::IfBuilder::CaptureContinuation(
     HIfContinuation* continuation) {
+  ASSERT(!did_else_if_);
   ASSERT(!finished_);
   ASSERT(!captured_);
-  HBasicBlock* true_block = last_true_block_ == NULL
-      ? first_true_block_
-      : last_true_block_;
-  HBasicBlock* false_block = did_else_ && (first_false_block_ != NULL)
-      ? builder_->current_block()
-      : first_false_block_;
+
+  HBasicBlock* true_block = NULL;
+  HBasicBlock* false_block = NULL;
+  Finish(&true_block, &false_block);
+  ASSERT(true_block != NULL);
+  ASSERT(false_block != NULL);
   continuation->Capture(true_block, false_block);
   captured_ = true;
+  builder_->set_current_block(NULL);
   End();
 }
 
 
 void HGraphBuilder::IfBuilder::JoinContinuation(HIfContinuation* continuation) {
+  ASSERT(!did_else_if_);
   ASSERT(!finished_);
   ASSERT(!captured_);
-  ASSERT(did_then_);
-  if (!did_else_) Else();
-  HBasicBlock* true_block = last_true_block_ == NULL
-      ? first_true_block_
-      : last_true_block_;
-  HBasicBlock* false_block = builder_->current_block();
+  HBasicBlock* true_block = NULL;
+  HBasicBlock* false_block = NULL;
+  Finish(&true_block, &false_block);
+  merge_at_join_blocks_ = NULL;
   if (true_block != NULL && !true_block->IsFinished()) {
     ASSERT(continuation->IsTrueReachable());
     builder_->GotoNoSimulate(true_block, continuation->true_branch());
@@ -895,6 +913,7 @@ void HGraphBuilder::IfBuilder::Then() {
     builder_->FinishCurrentBlock(branch);
   }
   builder_->set_current_block(first_true_block_);
+  pending_merge_block_ = true;
 }
 
 
@@ -902,20 +921,17 @@ void HGraphBuilder::IfBuilder::Else() {
   ASSERT(did_then_);
   ASSERT(!captured_);
   ASSERT(!finished_);
-  last_true_block_ = builder_->current_block();
+  AddMergeAtJoinBlock(false);
   builder_->set_current_block(first_false_block_);
+  pending_merge_block_ = true;
   did_else_ = true;
 }
 
 
 void HGraphBuilder::IfBuilder::Deopt(const char* reason) {
   ASSERT(did_then_);
-  if (did_else_) {
-    deopt_else_ = true;
-  } else {
-    deopt_then_ = true;
-  }
   builder_->Add<HDeoptimize>(reason, Deoptimizer::EAGER);
+  AddMergeAtJoinBlock(true);
 }
 
 
@@ -923,51 +939,99 @@ void HGraphBuilder::IfBuilder::Return(HValue* value) {
   HValue* parameter_count = builder_->graph()->GetConstantMinus1();
   builder_->FinishExitCurrentBlock(
       builder_->New<HReturn>(value, parameter_count));
-  if (did_else_) {
-    first_false_block_ = NULL;
-  } else {
-    first_true_block_ = NULL;
+  AddMergeAtJoinBlock(false);
+}
+
+
+void HGraphBuilder::IfBuilder::AddMergeAtJoinBlock(bool deopt) {
+  if (!pending_merge_block_) return;
+  HBasicBlock* block = builder_->current_block();
+  ASSERT(block == NULL || !block->IsFinished());
+  MergeAtJoinBlock* record =
+      new(builder_->zone()) MergeAtJoinBlock(block, deopt,
+                                             merge_at_join_blocks_);
+  merge_at_join_blocks_ = record;
+  if (block != NULL) {
+    ASSERT(block->end() == NULL);
+    if (deopt) {
+      normal_merge_at_join_block_count_++;
+    } else {
+      deopt_merge_at_join_block_count_++;
+    }
   }
+  builder_->set_current_block(NULL);
+  pending_merge_block_ = false;
+}
+
+
+void HGraphBuilder::IfBuilder::Finish() {
+  ASSERT(!finished_);
+  if (!did_then_) {
+    Then();
+  }
+  AddMergeAtJoinBlock(false);
+  if (!did_else_) {
+    Else();
+    AddMergeAtJoinBlock(false);
+  }
+  finished_ = true;
+}
+
+
+void HGraphBuilder::IfBuilder::Finish(HBasicBlock** then_continuation,
+                                      HBasicBlock** else_continuation) {
+  Finish();
+
+  MergeAtJoinBlock* else_record = merge_at_join_blocks_;
+  if (else_continuation != NULL) {
+    *else_continuation = else_record->block_;
+  }
+  MergeAtJoinBlock* then_record = else_record->next_;
+  if (then_continuation != NULL) {
+    *then_continuation = then_record->block_;
+  }
+  ASSERT(then_record->next_ == NULL);
 }
 
 
 void HGraphBuilder::IfBuilder::End() {
-  if (!captured_) {
-    ASSERT(did_then_);
-    if (!did_else_) {
-      last_true_block_ = builder_->current_block();
-    }
-    if (last_true_block_ == NULL || last_true_block_->IsFinished()) {
-      ASSERT(did_else_);
-      // Return on true. Nothing to do, just continue the false block.
-    } else if (first_false_block_ == NULL ||
-               (did_else_ && builder_->current_block()->IsFinished())) {
-      // Deopt on false. Nothing to do except switching to the true block.
-      builder_->set_current_block(last_true_block_);
-    } else {
-      merge_block_ = builder_->graph()->CreateBasicBlock();
-      ASSERT(!finished_);
-      if (!did_else_) Else();
-      ASSERT(!last_true_block_->IsFinished());
-      HBasicBlock* last_false_block = builder_->current_block();
-      ASSERT(!last_false_block->IsFinished());
-      if (deopt_then_) {
-        builder_->GotoNoSimulate(last_false_block, merge_block_);
-        builder_->PadEnvironmentForContinuation(last_true_block_,
-                                                merge_block_);
-        builder_->GotoNoSimulate(last_true_block_, merge_block_);
-      } else {
-        builder_->GotoNoSimulate(last_true_block_, merge_block_);
-        if (deopt_else_) {
-          builder_->PadEnvironmentForContinuation(last_false_block,
-                                                  merge_block_);
-        }
-        builder_->GotoNoSimulate(last_false_block, merge_block_);
+  if (captured_) return;
+  Finish();
+
+  int total_merged_blocks = normal_merge_at_join_block_count_ +
+    deopt_merge_at_join_block_count_;
+  ASSERT(total_merged_blocks >= 1);
+  HBasicBlock* merge_block = total_merged_blocks == 1
+      ? NULL : builder_->graph()->CreateBasicBlock();
+
+  // Merge non-deopt blocks first to ensure environment has right size for
+  // padding.
+  MergeAtJoinBlock* current = merge_at_join_blocks_;
+  while (current != NULL) {
+    if (!current->deopt_ && current->block_ != NULL) {
+      // If there is only one block that makes it through to the end of the
+      // if, then just set it as the current block and continue rather then
+      // creating an unnecessary merge block.
+      if (total_merged_blocks == 1) {
+        builder_->set_current_block(current->block_);
+        return;
       }
-      builder_->set_current_block(merge_block_);
+      builder_->GotoNoSimulate(current->block_, merge_block);
     }
+    current = current->next_;
   }
-  finished_ = true;
+
+  // Merge deopt blocks, padding when necessary.
+  current = merge_at_join_blocks_;
+  while (current != NULL) {
+    if (current->deopt_ && current->block_ != NULL) {
+      builder_->PadEnvironmentForContinuation(current->block_,
+                                              merge_block);
+      builder_->GotoNoSimulate(current->block_, merge_block);
+    }
+    current = current->next_;
+  }
+  builder_->set_current_block(merge_block);
 }
 
 
@@ -1051,6 +1115,7 @@ void HGraphBuilder::LoopBuilder::Break() {
   }
 
   builder_->GotoNoSimulate(exit_trampoline_block_);
+  builder_->set_current_block(NULL);
 }
 
 
@@ -1859,6 +1924,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       HInstruction* result = AddElementAccess(
           external_elements, key, val, bounds_check, elements_kind, is_store);
       negative_checker.ElseDeopt("Negative key encountered");
+      negative_checker.End();
       length_checker.End();
       return result;
     } else {
@@ -1940,9 +2006,10 @@ HValue* HGraphBuilder::BuildAllocateArrayFromLength(
       IsFastPackedElementsKind(array_builder->kind())) {
     // We'll come back later with better (holey) feedback.
     if_builder.Deopt("Holey array despite packed elements_kind feedback");
+  } else {
+    Push(checked_length);         // capacity
+    Push(checked_length);         // length
   }
-  Push(checked_length);         // capacity
-  Push(checked_length);         // length
   if_builder.End();
 
   // Figure out total size

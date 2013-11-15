@@ -953,7 +953,10 @@ class FunctionState V8_FINAL {
 
 class HIfContinuation V8_FINAL {
  public:
-  HIfContinuation() : continuation_captured_(false) {}
+  HIfContinuation()
+    : continuation_captured_(false),
+      true_branch_(NULL),
+      false_branch_(NULL) {}
   HIfContinuation(HBasicBlock* true_branch,
                   HBasicBlock* false_branch)
       : continuation_captured_(true), true_branch_(true_branch),
@@ -1493,6 +1496,10 @@ class HGraphBuilder {
     void End();
 
     void Deopt(const char* reason);
+    void ThenDeopt(const char* reason) {
+      Then();
+      Deopt(reason);
+    }
     void ElseDeopt(const char* reason) {
       Else();
       Deopt(reason);
@@ -1505,21 +1512,41 @@ class HGraphBuilder {
 
     HGraphBuilder* builder() const { return builder_; }
 
+    void AddMergeAtJoinBlock(bool deopt);
+
+    void Finish();
+    void Finish(HBasicBlock** then_continuation,
+                HBasicBlock** else_continuation);
+
+    class MergeAtJoinBlock : public ZoneObject {
+     public:
+      MergeAtJoinBlock(HBasicBlock* block,
+                       bool deopt,
+                       MergeAtJoinBlock* next)
+        : block_(block),
+          deopt_(deopt),
+          next_(next) {}
+      HBasicBlock* block_;
+      bool deopt_;
+      MergeAtJoinBlock* next_;
+    };
+
     HGraphBuilder* builder_;
     bool finished_ : 1;
-    bool deopt_then_ : 1;
-    bool deopt_else_ : 1;
     bool did_then_ : 1;
     bool did_else_ : 1;
+    bool did_else_if_ : 1;
     bool did_and_ : 1;
     bool did_or_ : 1;
     bool captured_ : 1;
     bool needs_compare_ : 1;
+    bool pending_merge_block_ : 1;
     HBasicBlock* first_true_block_;
-    HBasicBlock* last_true_block_;
     HBasicBlock* first_false_block_;
     HBasicBlock* split_edge_merge_block_;
-    HBasicBlock* merge_block_;
+    MergeAtJoinBlock* merge_at_join_blocks_;
+    int normal_merge_at_join_block_count_;
+    int deopt_merge_at_join_block_count_;
   };
 
   class LoopBuilder V8_FINAL {
