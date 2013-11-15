@@ -7830,14 +7830,27 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
   // Special case for string addition here.
   if (op == Token::ADD &&
       (left_type->Is(Type::String()) || right_type->Is(Type::String()))) {
+    // Validate type feedback for left argument.
     if (left_type->Is(Type::String())) {
       IfBuilder if_isstring(this);
       if_isstring.If<HIsStringAndBranch>(left);
       if_isstring.Then();
       if_isstring.ElseDeopt("Expected string for LHS of binary operation");
-    } else if (left_type->Is(Type::Number())) {
+    }
+
+    // Validate type feedback for right argument.
+    if (right_type->Is(Type::String())) {
+      IfBuilder if_isstring(this);
+      if_isstring.If<HIsStringAndBranch>(right);
+      if_isstring.Then();
+      if_isstring.ElseDeopt("Expected string for RHS of binary operation");
+    }
+
+    // Convert left argument as necessary.
+    if (left_type->Is(Type::Number())) {
+      ASSERT(right_type->Is(Type::String()));
       left = BuildNumberToString(left, left_type);
-    } else {
+    } else if (!left_type->Is(Type::String())) {
       ASSERT(right_type->Is(Type::String()));
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_RIGHT);
       Add<HPushArgument>(left);
@@ -7845,14 +7858,11 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       return NewUncasted<HInvokeFunction>(function, 2);
     }
 
-    if (right_type->Is(Type::String())) {
-      IfBuilder if_isstring(this);
-      if_isstring.If<HIsStringAndBranch>(right);
-      if_isstring.Then();
-      if_isstring.ElseDeopt("Expected string for RHS of binary operation");
-    } else if (right_type->Is(Type::Number())) {
+    // Convert right argument as necessary.
+    if (right_type->Is(Type::Number())) {
+      ASSERT(left_type->Is(Type::String()));
       right = BuildNumberToString(right, right_type);
-    } else {
+    } else if (!right_type->Is(Type::String())) {
       ASSERT(left_type->Is(Type::String()));
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_LEFT);
       Add<HPushArgument>(left);
