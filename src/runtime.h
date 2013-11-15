@@ -112,7 +112,6 @@ namespace internal {
   F(FlattenString, 1, 1) \
   F(MigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
-  F(MaxSmi, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

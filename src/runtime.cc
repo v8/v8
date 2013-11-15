@@ -917,12 +917,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   ASSERT(byte_length % element_size == 0);
   size_t length = byte_length / element_size;
 
-  if (length > static_cast<unsigned>(Smi::kMaxValue)) {
-    return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_array_buffer_length",
-            HandleVector<Object>(NULL, 0)));
-  }
-
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
   holder->set_weak_next(buffer->weak_first_view());
@@ -962,9 +956,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = NumberToSize(isolate, *length_obj);
-
-  if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
-      (length > (kMaxInt / element_size))) {
+  if (length > (kMaxInt / element_size)) {
     return isolate->Throw(*isolate->factory()->
           NewRangeError("invalid_array_buffer_length",
             HandleVector<Object>(NULL, 0)));
@@ -14814,11 +14806,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalArrayConstructor) {
                                 constructor,
                                 Handle<AllocationSite>::null(),
                                 caller_args);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
-  return Smi::FromInt(Smi::kMaxValue);
 }
 
 
