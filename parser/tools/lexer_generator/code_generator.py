@@ -59,7 +59,7 @@ class CodeGenerator:
     code = ''
     if start_node_number == state.node_number():
       code += '''
-code_start:
+//code_start:
 '''
     code += '''
 code_%s:
@@ -67,24 +67,28 @@ code_%s:
 ''' % (state.node_number(),
        state.node_number())
 
-    action = state.action()
-    if (action and action.type() != 'terminate' and
-        action.type() != 'terminate_illegal' and action.type() != 'code' and
-        action.type() != 'push_token' and action.type() != 'skip'):
-      raise Exception("unknown type %s" % action.type())
+    entry_action = state.action().entry_action() if state.action() else None
+    match_action = state.action().match_action() if state.action() else None
+    print entry_action
 
-    if action:
-      if action.type() == 'terminate':
+    if (entry_action and entry_action[0] != 'terminate' and
+        entry_action[0] != 'terminate_illegal' and entry_action[0] != 'code' and
+        entry_action[0] != 'push_token' and
+        entry_action[0] != 'push_line_terminator' and entry_action[0] != 'skip'):
+      raise Exception("unknown type %s" % entry_action[0])
+
+    if entry_action:
+      if entry_action[0] == 'terminate':
         code += 'PUSH_TOKEN(Token::EOS); return 0;'
         return code
-      elif action.type() == 'terminate_illegal':
+      elif entry_action[0] == 'terminate_illegal':
         code += 'PUSH_TOKEN(Token::ILLEGAL); return 1;'
         return code
-      elif action.type() == 'skip':
+      elif entry_action[0] == 'skip':
         code += 'SKIP(); goto code_start;'
         return code
-      elif action.type() == 'code':
-        code += '%s\n' % action.data()
+      elif entry_action[0] == 'code':
+        code += '%s\n' % entry_action[1]
 
     code += '''
     //fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
@@ -97,15 +101,12 @@ code_%s:
     }
 ''' % s.node_number()
 
-    if action:
-      if action.type() == 'push_token':
-        content = 'PUSH_TOKEN(Token::%s);' % action.data()
+    if match_action:
+      if match_action[0] == 'push_token':
+        content = 'PUSH_TOKEN(Token::%s);' % match_action[1]
         code += '%s\ngoto code_%s;\n' % (content,
                                          start_node_number)
-      elif action.type() == 'code':
-        code += 'goto code_start;'
-    else:
-      code += 'goto default_action;'
+    code += " // FIXME: goto where"
     return code
 
   @staticmethod
@@ -130,8 +131,9 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
     code = dfa.visit_all_states(f, code)
 
     default_action_code = ''
-    if rule_processor.default_action:
-      if rule_processor.default_action.type() == 'push_token':
+    action = rule_processor.default_action.entry_action() if rule_processor.default_action else None
+    if action:
+      if action[0] == 'push_token':
         default_action_code = '''
 default_action:
   //fprintf(stderr, "default action\\n");
@@ -139,7 +141,7 @@ default_action:
   FORWARD();
   goto code_%s;''' % (rule_processor.default_action.data(), start_node_number)
       else:
-        raise Exception("Default action type %s not supported" % action.type())
+        raise Exception("Default action type %s not supported" % action[0])
 
     code += '''
   CHECK(false);
