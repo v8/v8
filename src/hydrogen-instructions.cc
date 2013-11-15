@@ -3404,7 +3404,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  if (new_dominator_size > Page::kMaxNonCodeHeapObjectSize) {
+  if (new_dominator_size > isolate()->heap()->MaxRegularSpaceAllocationSize()) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
           id(), Mnemonic(), dominator_allocate->id(),
