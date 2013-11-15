@@ -68,6 +68,14 @@ struct InitializeFastElementsKindSequence {
     fast_elements_kind_sequence[3] = FAST_HOLEY_DOUBLE_ELEMENTS;
     fast_elements_kind_sequence[4] = FAST_ELEMENTS;
     fast_elements_kind_sequence[5] = FAST_HOLEY_ELEMENTS;
+
+    // Verify that kFastElementsKindPackedToHoley is correct.
+    STATIC_ASSERT(FAST_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  FAST_HOLEY_SMI_ELEMENTS);
+    STATIC_ASSERT(FAST_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  FAST_HOLEY_DOUBLE_ELEMENTS);
+    STATIC_ASSERT(FAST_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  FAST_HOLEY_ELEMENTS);
   }
 };
 

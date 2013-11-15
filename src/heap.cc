@@ -114,6 +114,7 @@ Heap::Heap()
       amount_of_external_allocated_memory_(0),
       amount_of_external_allocated_memory_at_last_global_gc_(0),
       old_gen_exhausted_(false),
+      inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
       hidden_string_(NULL),
       gc_safe_size_of_old_object_(NULL),
@@ -938,6 +939,8 @@ void Heap::ClearNormalizedMapCaches() {
 
 
 void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
+  if (start_new_space_size == 0) return;
+
   double survival_rate =
       (static_cast<double>(young_survivors_after_last_gc_) * 100) /
       start_new_space_size;
@@ -4598,8 +4601,7 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   // advice
   Map* initial_map = constructor->initial_map();
 
-  Smi* smi = Smi::cast(allocation_site->transition_info());
-  ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
+  ElementsKind to_kind = allocation_site->GetElementsKind();
   AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
   if (to_kind != initial_map->elements_kind()) {
     MaybeObject* maybe_new_map = initial_map->AsElementsKind(to_kind);
@@ -6578,6 +6580,32 @@ intptr_t Heap::PromotedExternalMemorySize() {
       <= amount_of_external_allocated_memory_at_last_global_gc_) return 0;
   return amount_of_external_allocated_memory_
       - amount_of_external_allocated_memory_at_last_global_gc_;
+}
+
+
+void Heap::EnableInlineAllocation() {
+  ASSERT(inline_allocation_disabled_);
+  inline_allocation_disabled_ = false;
+
+  // Update inline allocation limit for new space.
+  new_space()->UpdateInlineAllocationLimit(0);
+}
+
+
+void Heap::DisableInlineAllocation() {
+  ASSERT(!inline_allocation_disabled_);
+  inline_allocation_disabled_ = true;
+
+  // Update inline allocation limit for new space.
+  new_space()->UpdateInlineAllocationLimit(0);
+
+  // Update inline allocation limit for old spaces.
+  PagedSpaces spaces(this);
+  for (PagedSpace* space = spaces.next();
+       space != NULL;
+       space = spaces.next()) {
+    space->EmptyAllocationInfo();
+  }
 }
 
 

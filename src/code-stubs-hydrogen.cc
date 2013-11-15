@@ -694,27 +694,7 @@ HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
   HInstruction* argument = Add<HAccessArgumentsAt>(
       elements, constant_one, constant_zero);
 
-  HConstant* max_alloc_length =
-      Add<HConstant>(JSObject::kInitialMaxFastElementArray);
-  const int initial_capacity = JSArray::kPreallocatedArrayElements;
-  HConstant* initial_capacity_node = Add<HConstant>(initial_capacity);
-
-  HInstruction* checked_arg = Add<HBoundsCheck>(argument, max_alloc_length);
-  IfBuilder if_builder(this);
-  if_builder.If<HCompareNumericAndBranch>(checked_arg, constant_zero,
-                                          Token::EQ);
-  if_builder.Then();
-  Push(initial_capacity_node);  // capacity
-  Push(constant_zero);  // length
-  if_builder.Else();
-  Push(checked_arg);  // capacity
-  Push(checked_arg);  // length
-  if_builder.End();
-
-  // Figure out total size
-  HValue* length = Pop();
-  HValue* capacity = Pop();
-  return array_builder->AllocateArray(capacity, length, true);
+  return BuildAllocateArrayFromLength(array_builder, argument);
 }
 
 
@@ -725,11 +705,16 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
   // the array because they aren't compatible with a smi array.
   // If it's a double array, no problem, and if it's fast then no
   // problem either because doubles are boxed.
+  //
+  // TODO(mvstanton): consider an instruction to memset fill the array
+  // with zero in this case instead.
   HValue* length = GetArgumentsLength();
-  bool fill_with_hole = IsFastSmiElementsKind(kind);
+  JSArrayBuilder::FillMode fill_mode = IsFastSmiElementsKind(kind)
+      ? JSArrayBuilder::FILL_WITH_HOLE
+      : JSArrayBuilder::DONT_FILL_WITH_HOLE;
   HValue* new_object = array_builder->AllocateArray(length,
                                                     length,
-                                                    fill_with_hole);
+                                                    fill_mode);
   HValue* elements = array_builder->GetElementsLocation();
   ASSERT(elements != NULL);
 

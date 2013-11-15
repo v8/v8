@@ -1494,6 +1494,7 @@ class Object : public MaybeObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
+  Map* GetMarkerMap(Isolate* isolate);
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
@@ -2338,24 +2339,10 @@ class JSObject: public JSReceiver {
   AccessorPair* GetLocalPropertyAccessorPair(Name* name);
   AccessorPair* GetLocalElementAccessorPair(uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
-                                              Object* value,
-                                              StrictModeFlag strict_mode,
-                                              bool check_prototype);
-
-  MUST_USE_RESULT MaybeObject* SetDictionaryElement(
-      uint32_t index,
-      Object* value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
-      bool check_prototype,
-      SetPropertyMode set_mode = SET_PROPERTY);
-
-  MUST_USE_RESULT MaybeObject* SetFastDoubleElement(
-      uint32_t index,
-      Object* value,
-      StrictModeFlag strict_mode,
-      bool check_prototype = true);
+  static Handle<Object> SetFastElement(Handle<JSObject> object, uint32_t index,
+                                       Handle<Object> value,
+                                       StrictModeFlag strict_mode,
+                                       bool check_prototype);
 
   static Handle<Object> SetOwnElement(Handle<JSObject> object,
                                       uint32_t index,
@@ -2367,15 +2354,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
-      PropertyAttributes attr,
-      StrictModeFlag strict_mode,
-      bool check_prototype = true,
-      SetPropertyMode set_mode = SET_PROPERTY);
-
-  // A Failure object is returned if GC is needed.
-  MUST_USE_RESULT MaybeObject* SetElement(
-      uint32_t index,
-      Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       bool check_prototype = true,
@@ -2392,6 +2370,11 @@ class JSObject: public JSReceiver {
     kDontAllowSmiElements
   };
 
+  static Handle<FixedArray> SetFastElementsCapacityAndLength(
+      Handle<JSObject> object,
+      int capacity,
+      int length,
+      SetFastElementsCapacitySmiMode smi_mode);
   // Replace the elements' backing store with fast elements of the given
   // capacity.  Update the length for JSArrays.  Returns the new backing
   // store.
@@ -2399,6 +2382,10 @@ class JSObject: public JSReceiver {
       int capacity,
       int length,
       SetFastElementsCapacitySmiMode smi_mode);
+  static void SetFastDoubleElementsCapacityAndLength(
+      Handle<JSObject> object,
+      int capacity,
+      int length);
   MUST_USE_RESULT MaybeObject* SetFastDoubleElementsCapacityAndLength(
       int capacity,
       int length);
@@ -2468,7 +2455,6 @@ class JSObject: public JSReceiver {
                                      ElementsKind to_kind);
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
-  MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
   // TODO(mstarzinger): Both public because of ConvertAnsSetLocalProperty().
   static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
@@ -2659,6 +2645,10 @@ class JSObject: public JSReceiver {
   friend class JSReceiver;
   friend class Object;
 
+  static void UpdateAllocationSite(Handle<JSObject> object,
+                                   ElementsKind to_kind);
+  MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
+
   // Used from Object::GetProperty().
   static Handle<Object> GetPropertyWithFailedAccessCheck(
       Handle<JSObject> object,
@@ -2686,25 +2676,42 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       Handle<JSObject> holder,
       StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(
+  static Handle<Object> SetElementWithInterceptor(
+      Handle<JSObject> object,
       uint32_t index,
-      Object* value,
+      Handle<Object> value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode);
-  MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(
+  static Handle<Object> SetElementWithoutInterceptor(
+      Handle<JSObject> object,
       uint32_t index,
-      Object* value,
+      Handle<Object> value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode);
-  MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
+  static Handle<Object> SetElementWithCallbackSetterInPrototypes(
+      Handle<JSObject> object,
       uint32_t index,
-      Object* value,
+      Handle<Object> value,
       bool* found,
       StrictModeFlag strict_mode);
+  static Handle<Object> SetDictionaryElement(
+      Handle<JSObject> object,
+      uint32_t index,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode,
+      bool check_prototype,
+      SetPropertyMode set_mode = SET_PROPERTY);
+  static Handle<Object> SetFastDoubleElement(
+      Handle<JSObject> object,
+      uint32_t index,
+      Handle<Object> value,
+      StrictModeFlag strict_mode,
+      bool check_prototype = true);
 
   // Searches the prototype chain for property 'name'. If it is found and
   // has a setter, invoke it and set '*done' to true. If it is found and is
@@ -3966,6 +3973,11 @@ class SeededNumberDictionary
 
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
+  MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
+      Handle<SeededNumberDictionary> dictionary,
+      uint32_t key,
+      Handle<Object> value,
+      PropertyDetails details);
   MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key,
                                               Object* value,
                                               PropertyDetails details);
@@ -4590,6 +4602,10 @@ class ExternalByteArray: public ExternalArray {
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int8_t value);
 
+  static Handle<Object> SetValue(Handle<ExternalByteArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
+
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
@@ -4612,6 +4628,10 @@ class ExternalUnsignedByteArray: public ExternalArray {
   inline uint8_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint8_t value);
+
+  static Handle<Object> SetValue(Handle<ExternalUnsignedByteArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
@@ -4636,6 +4656,10 @@ class ExternalShortArray: public ExternalArray {
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int16_t value);
 
+  static Handle<Object> SetValue(Handle<ExternalShortArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
+
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
@@ -4658,6 +4682,10 @@ class ExternalUnsignedShortArray: public ExternalArray {
   inline uint16_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint16_t value);
+
+  static Handle<Object> SetValue(Handle<ExternalUnsignedShortArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
@@ -4682,6 +4710,10 @@ class ExternalIntArray: public ExternalArray {
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int32_t value);
 
+  static Handle<Object> SetValue(Handle<ExternalIntArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
+
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
@@ -4704,6 +4736,10 @@ class ExternalUnsignedIntArray: public ExternalArray {
   inline uint32_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint32_t value);
+
+  static Handle<Object> SetValue(Handle<ExternalUnsignedIntArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
@@ -4728,6 +4764,10 @@ class ExternalFloatArray: public ExternalArray {
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, float value);
 
+  static Handle<Object> SetValue(Handle<ExternalFloatArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
+
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
@@ -4750,6 +4790,10 @@ class ExternalDoubleArray: public ExternalArray {
   inline double get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, double value);
+
+  static Handle<Object> SetValue(Handle<ExternalDoubleArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
@@ -5253,9 +5297,9 @@ class Code: public HeapObject {
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       ExtraICState extra_ic_state = kNoExtraICState,
+      InlineCacheHolderFlag holder = OWN_MAP,
       StubType type = NORMAL,
-      int argc = -1,
-      InlineCacheHolderFlag holder = OWN_MAP);
+      int argc = -1);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
@@ -5565,7 +5609,13 @@ class DependentCode: public FixedArray {
     // Group of code that depends on global property values in property cells
     // not being changed.
     kPropertyCellChangedGroup,
-    kGroupCount = kPropertyCellChangedGroup + 1
+    // Group of code that depends on tenuring information in AllocationSites
+    // not being changed.
+    kAllocationSiteTenuringChangedGroup,
+    // Group of code that depends on element transition information in
+    // AllocationSites not being changed.
+    kAllocationSiteTransitionChangedGroup,
+    kGroupCount = kAllocationSiteTransitionChangedGroup + 1
   };
 
   // Array for holding the index of the first code object of each group.
@@ -5665,7 +5715,7 @@ class Map: public HeapObject {
   class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
   class DictionaryMap:              public BitField<bool, 24,  1> {};
   class OwnsDescriptors:            public BitField<bool, 25,  1> {};
-  class IsObserved:                 public BitField<bool, 26,  1> {};
+  class HasInstanceCallHandler:     public BitField<bool, 26,  1> {};
   class Deprecated:                 public BitField<bool, 27,  1> {};
   class IsFrozen:                   public BitField<bool, 28,  1> {};
   class IsUnstable:                 public BitField<bool, 29,  1> {};
@@ -5728,12 +5778,12 @@ class Map: public HeapObject {
   }
 
   // Tells whether the instance has a call-as-function handler.
-  inline void set_has_instance_call_handler() {
-    set_bit_field(bit_field() | (1 << kHasInstanceCallHandler));
+  inline void set_is_observed() {
+    set_bit_field(bit_field() | (1 << kIsObserved));
   }
 
-  inline bool has_instance_call_handler() {
-    return ((1 << kHasInstanceCallHandler) & bit_field()) != 0;
+  inline bool is_observed() {
+    return ((1 << kIsObserved) & bit_field()) != 0;
   }
 
   inline void set_is_extensible(bool value);
@@ -5742,10 +5792,6 @@ class Map: public HeapObject {
   inline void set_elements_kind(ElementsKind elements_kind) {
     ASSERT(elements_kind < kElementsKindCount);
     ASSERT(kElementsKindCount <= (1 << kElementsKindBitCount));
-    ASSERT(!is_observed() ||
-           elements_kind == DICTIONARY_ELEMENTS ||
-           elements_kind == NON_STRICT_ARGUMENTS_ELEMENTS ||
-           IsExternalArrayElementsKind(elements_kind));
     set_bit_field2((bit_field2() & ~kElementsKindMask) |
         (elements_kind << kElementsKindShift));
     ASSERT(this->elements_kind() == elements_kind);
@@ -5998,8 +6044,8 @@ class Map: public HeapObject {
 
   inline bool owns_descriptors();
   inline void set_owns_descriptors(bool is_shared);
-  inline bool is_observed();
-  inline void set_is_observed(bool is_observed);
+  inline bool has_instance_call_handler();
+  inline void set_has_instance_call_handler();
   inline void freeze();
   inline bool is_frozen();
   inline void mark_unstable();
@@ -6258,7 +6304,7 @@ class Map: public HeapObject {
   static const int kHasNamedInterceptor = 3;
   static const int kHasIndexedInterceptor = 4;
   static const int kIsUndetectable = 5;
-  static const int kHasInstanceCallHandler = 6;
+  static const int kIsObserved = 6;
   static const int kIsAccessCheckNeeded = 7;
 
   // Bit positions for bit field 2
@@ -8087,13 +8133,31 @@ class AllocationSite: public Struct {
   // This method is expensive, it should only be called for reporting.
   bool IsNestedSite();
 
+  class ElementsKindBits:       public BitField<ElementsKind, 0,  15> {};
+  class UnusedBits:             public BitField<int,          15, 14> {};
+  class DoNotInlineBit:         public BitField<bool,         29,  1> {};
+
   ElementsKind GetElementsKind() {
     ASSERT(!SitePointsToLiteral());
-    return static_cast<ElementsKind>(Smi::cast(transition_info())->value());
+    int value = Smi::cast(transition_info())->value();
+    return ElementsKindBits::decode(value);
   }
 
   void SetElementsKind(ElementsKind kind) {
-    set_transition_info(Smi::FromInt(static_cast<int>(kind)));
+    int value = Smi::cast(transition_info())->value();
+    set_transition_info(Smi::FromInt(ElementsKindBits::update(value, kind)),
+                        SKIP_WRITE_BARRIER);
+  }
+
+  bool CanInlineCall() {
+    int value = Smi::cast(transition_info())->value();
+    return DoNotInlineBit::decode(value) == 0;
+  }
+
+  void SetDoNotInlineCall() {
+    int value = Smi::cast(transition_info())->value();
+    set_transition_info(Smi::FromInt(DoNotInlineBit::update(value, true)),
+                        SKIP_WRITE_BARRIER);
   }
 
   bool SitePointsToLiteral() {
@@ -8102,6 +8166,16 @@ class AllocationSite: public Struct {
     // for an object or array literal.
     return transition_info()->IsJSArray() || transition_info()->IsJSObject();
   }
+
+  MaybeObject* DigestTransitionFeedback(ElementsKind to_kind);
+
+  enum Reason {
+    TENURING,
+    TRANSITIONS
+  };
+
+  void AddDependentCompilationInfo(Reason reason, CompilationInfo* info);
+  void AddDependentCode(Reason reason, Handle<Code> code);
 
   DECLARE_PRINTER(AllocationSite)
   DECLARE_VERIFIER(AllocationSite)
@@ -8123,6 +8197,7 @@ class AllocationSite: public Struct {
                               kSize> BodyDescriptor;
 
  private:
+  inline DependentCode::DependencyGroup ToDependencyGroup(Reason reason);
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
 };
 
@@ -9715,6 +9790,10 @@ class JSArray: public JSObject {
   // Overload the length setter to skip write barrier when the length
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Smi* length);
+
+  static void JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
+                                           uint32_t index,
+                                           Handle<Object> value);
 
   MUST_USE_RESULT MaybeObject* JSArrayUpdateLengthFromIndex(uint32_t index,
                                                             Object* value);

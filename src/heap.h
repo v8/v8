@@ -1547,6 +1547,13 @@ class Heap {
     return Min(limit, halfway_to_the_max);
   }
 
+  // Indicates whether inline bump-pointer allocation has been disabled.
+  bool inline_allocation_disabled() { return inline_allocation_disabled_; }
+
+  // Switch whether inline bump-pointer allocation should be used.
+  void EnableInlineAllocation();
+  void DisableInlineAllocation();
+
   // Implements the corresponding V8 API function.
   bool IdleNotification(int hint);
 
@@ -1992,6 +1999,10 @@ class Heap {
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   bool old_gen_exhausted_;
+
+  // Indicates that inline bump-pointer allocation has been globally disabled
+  // for all spaces. This is used to disable allocations in generated code.
+  bool inline_allocation_disabled_;
 
   // Weak list heads, threaded through the objects.
   // List heads are initilized lazily and contain the undefined_value at start.

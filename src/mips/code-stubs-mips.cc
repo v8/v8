@@ -6005,11 +6005,14 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
     }
 
-    // Save the resulting elements kind in type info
-    __ SmiTag(a3);
-    __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
-    __ sw(a3, FieldMemOperand(t1, AllocationSite::kTransitionInfoOffset));
-    __ SmiUntag(a3);
+    // Save the resulting elements kind in type info. We can't just store a3
+    // in the AllocationSite::transition_info field because elements kind is
+    // restricted to a portion of the field...upper bits need to be left alone.
+    STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+    __ lw(t0, FieldMemOperand(t1, AllocationSite::kTransitionInfoOffset));
+    __ Addu(t0, t0, Operand(Smi::FromInt(kFastElementsKindPackedToHoley)));
+    __ sw(t0, FieldMemOperand(t1, AllocationSite::kTransitionInfoOffset));
+
 
     __ bind(&normal_sequence);
     int last_index = GetSequenceIndexFromFastElementsKind(
@@ -6151,6 +6154,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ lw(a3, FieldMemOperand(a3, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(a3);
+  STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+  __ And(a3, a3, Operand(AllocationSite::ElementsKindBits::kMask));
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 
   __ bind(&no_info);

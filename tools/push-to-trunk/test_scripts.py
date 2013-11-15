@@ -384,7 +384,7 @@ class ScriptTest(unittest.TestCase):
        " 2 files changed\n",
         CheckPreparePush],
       ["cl upload -r \"reviewer@chromium.org\" --send-mail", "done\n"],
-      ["cl dcommit -v", "Closing issue\n"],
+      ["cl dcommit -f", "Closing issue\n"],
       ["svn fetch", "fetch result\n"],
       ["checkout svn/bleeding_edge", ""],
       [("log -1 --format=%H --grep=\"Prepare push to trunk.  "

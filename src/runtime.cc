@@ -9821,22 +9821,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldDataSpace) {
 // array.  Returns true if the element was pushed on the stack and
 // false otherwise.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_CHECKED(JSReceiver, element, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, element, 1);
   RUNTIME_ASSERT(array->HasFastSmiOrObjectElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());
   for (int i = 0; i < length; i++) {
-    if (elements->get(i) == element) return isolate->heap()->false_value();
+    if (elements->get(i) == *element) return isolate->heap()->false_value();
   }
-  Object* obj;
+
   // Strict not needed. Used for cycle detection in Array join implementation.
-  { MaybeObject* maybe_obj =
-        array->SetFastElement(length, element, kNonStrictMode, true);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  RETURN_IF_EMPTY_HANDLE(isolate, JSObject::SetFastElement(array, length,
+                                                           element,
+                                                           kNonStrictMode,
+                                                           true));
   return isolate->heap()->true_value();
 }
 
@@ -14688,7 +14688,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
 
 static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
                                            Handle<JSFunction> constructor,
-                                           Handle<Object> type_info,
+                                           Handle<AllocationSite> site,
                                            Arguments* caller_args) {
   bool holey = false;
   bool can_use_type_feedback = true;
@@ -14710,14 +14710,7 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
 
   JSArray* array;
   MaybeObject* maybe_array;
-  if (!type_info.is_null() &&
-      *type_info != isolate->heap()->undefined_value() &&
-      Cell::cast(*type_info)->value()->IsAllocationSite() &&
-      can_use_type_feedback) {
-    Handle<Cell> cell = Handle<Cell>::cast(type_info);
-    Handle<AllocationSite> site = Handle<AllocationSite>(
-        AllocationSite::cast(cell->value()), isolate);
-    ASSERT(!site->SitePointsToLiteral());
+  if (!site.is_null() && can_use_type_feedback) {
     ElementsKind to_kind = site->GetElementsKind();
     if (holey && !IsFastHoleyElementsKind(to_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
@@ -14743,8 +14736,17 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
   maybe_array = isolate->heap()->AllocateJSArrayStorage(array, 0, 0,
       DONT_INITIALIZE_ARRAY_ELEMENTS);
   if (maybe_array->IsFailure()) return maybe_array;
+  ElementsKind old_kind = array->GetElementsKind();
   maybe_array = ArrayConstructInitializeElements(array, caller_args);
   if (maybe_array->IsFailure()) return maybe_array;
+  if (!site.is_null() &&
+      (old_kind != array->GetElementsKind() ||
+       !can_use_type_feedback)) {
+    // The arguments passed in caused a transition. This kind of complexity
+    // can't be dealt with in the inlined hydrogen array constructor case.
+    // We must mark the allocationsite as un-inlinable.
+    site->SetDoNotInlineCall();
+  }
   return array;
 }
 
@@ -14771,9 +14773,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
     ASSERT(arg_count == caller_args->length());
   }
 #endif
+
+  Handle<AllocationSite> site;
+  if (!type_info.is_null() &&
+      *type_info != isolate->heap()->undefined_value() &&
+      Cell::cast(*type_info)->value()->IsAllocationSite()) {
+    site = Handle<AllocationSite>(
+        AllocationSite::cast(Cell::cast(*type_info)->value()), isolate);
+    ASSERT(!site->SitePointsToLiteral());
+  }
+
   return ArrayConstructorCommon(isolate,
                                 constructor,
-                                type_info,
+                                site,
                                 caller_args);
 }
 
@@ -14796,7 +14808,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalArrayConstructor) {
 #endif
   return ArrayConstructorCommon(isolate,
                                 constructor,
-                                Handle<Object>::null(),
+                                Handle<AllocationSite>::null(),
                                 caller_args);
 }
 

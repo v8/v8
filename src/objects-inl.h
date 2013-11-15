@@ -1330,6 +1330,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
 
 
 void AllocationSite::Initialize() {
+  set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
@@ -1364,6 +1365,21 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   return type == JS_ARRAY_TYPE;
+}
+
+
+inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
+    Reason reason) {
+  switch (reason) {
+    case TENURING:
+      return DependentCode::kAllocationSiteTenuringChangedGroup;
+      break;
+    case TRANSITIONS:
+      return DependentCode::kAllocationSiteTransitionChangedGroup;
+      break;
+  }
+  UNREACHABLE();
+  return DependentCode::kAllocationSiteTransitionChangedGroup;
 }
 
 
@@ -3651,16 +3667,13 @@ bool Map::owns_descriptors() {
 }
 
 
-void Map::set_is_observed(bool is_observed) {
-  ASSERT(instance_type() < FIRST_JS_OBJECT_TYPE ||
-         instance_type() > LAST_JS_OBJECT_TYPE ||
-         has_slow_elements_kind() || has_external_array_elements());
-  set_bit_field3(IsObserved::update(bit_field3(), is_observed));
+void Map::set_has_instance_call_handler() {
+  set_bit_field3(HasInstanceCallHandler::update(bit_field3(), true));
 }
 
 
-bool Map::is_observed() {
-  return IsObserved::decode(bit_field3());
+bool Map::has_instance_call_handler() {
+  return HasInstanceCallHandler::decode(bit_field3());
 }
 
 
@@ -4169,9 +4182,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
+                                          InlineCacheHolderFlag holder,
                                           StubType type,
-                                          int argc,
-                                          InlineCacheHolderFlag holder) {
+                                          int argc) {
   return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 

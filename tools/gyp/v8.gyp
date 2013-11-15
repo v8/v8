@@ -217,6 +217,8 @@
         '../../src/allocation.h',
         '../../src/allocation-site-scopes.cc',
         '../../src/allocation-site-scopes.h',
+        '../../src/allocation-tracker.cc',
+        '../../src/allocation-tracker.h',
         '../../src/api.cc',
         '../../src/api.h',
         '../../src/apiutils.h',
