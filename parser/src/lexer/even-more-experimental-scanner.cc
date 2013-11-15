@@ -69,6 +69,7 @@ EvenMoreExperimentalScanner::EvenMoreExperimentalScanner(
       buffer_end_(NULL),
       start_(NULL),
       cursor_(NULL),
+      just_seen_line_terminator_(true),
       sink_(sink) {}
 
 

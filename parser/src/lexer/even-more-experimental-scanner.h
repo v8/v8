@@ -34,10 +34,21 @@
 
 #define YYCTYPE uint8_t
 
-#define PUSH_TOKEN(T) { send(T); start_ = cursor_; }
-#define PUSH_LINE_TERMINATOR(s) { start_ = cursor_; }
-#define FORWARD() { yych = *(++cursor_); }
-#define SKIP() { start_ = cursor_; }
+#define PUSH_TOKEN(T) {               \
+  send(T);                            \
+  start_ = cursor_;                   \
+  just_seen_line_terminator_ = false; \
+}
+#define PUSH_LINE_TERMINATOR(s) {     \
+  start_ = cursor_;                   \
+  just_seen_line_terminator_ = true;  \
+}
+#define FORWARD() {                   \
+  yych = *(++cursor_);                \
+}
+#define SKIP() {                      \
+  start_ = cursor_;                   \
+}
 
 namespace v8 {
 namespace internal {
@@ -68,6 +79,7 @@ class EvenMoreExperimentalScanner {
   YYCTYPE* buffer_end_;
   YYCTYPE* start_;
   YYCTYPE* cursor_;
+  bool just_seen_line_terminator_;
 
   YYCTYPE yych;
   ExperimentalScanner* sink_;

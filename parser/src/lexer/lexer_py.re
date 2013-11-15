@@ -65,7 +65,13 @@ number =
 "/*"          <||MultiLineComment>
 "<!--"        <||HtmlComment>
 
-#whitespace* "-->" { if (just_seen_line_terminator_) { YYSETCONDITION(kConditionSingleLineComment); goto yyc_SingleLineComment; } else { --cursor_; send(Token::DEC); start_ = cursor_; goto yyc_Normal; } }
+whitespace? "-->" <{
+  if (!just_seen_line_terminator_) {
+    PUSH_TOKEN(Token::DEC);
+    start_ = cursor_ - 1;
+    goto code_start;
+  }
+}||SingleLineComment>
 
 ">>>="        <|push_token(ASSIGN_SHR)|>
 ">>>"         <|push_token(SHR)|>
@@ -165,8 +171,7 @@ whitespace        <|skip|>
 identifier_start <|push_token(IDENTIFIER)|Identifier>
 /\\u[0-9a-fA-F]{4}/ <{
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
-    PUSH_TOKEN(Token::ILLEGAL);
-    // need to goto something here
+    goto default_action;
   }
 }|push_token(IDENTIFIER)|Identifier>
 
@@ -194,9 +199,8 @@ catch_all <||continue>
 <<Identifier>>
 identifier_char <|push_token(IDENTIFIER)|continue>
 /\\u[0-9a-fA-F]{4}/ <{
-  if (V8_UNLIKELY(!ValidIdentifierStart())) {
-    PUSH_TOKEN(Token::ILLEGAL);
-    // need to goto something here
+  if (V8_UNLIKELY(!ValidIdentifierPart())) {
+    goto default_action;
   }
 }|push_token(IDENTIFIER)|continue>
 
