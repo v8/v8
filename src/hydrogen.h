@@ -1610,7 +1610,7 @@ class HGraphBuilder {
 
     JSArrayBuilder(HGraphBuilder* builder,
                    ElementsKind kind,
-                   HValue* constructor_function);
+                   HValue* constructor_function = NULL);
 
     enum FillMode {
       DONT_FILL_WITH_HOLE,
@@ -1623,6 +1623,7 @@ class HGraphBuilder {
     HValue* AllocateArray(HValue* capacity, HValue* length_field,
                           FillMode fill_mode = FILL_WITH_HOLE);
     HValue* GetElementsLocation() { return elements_location_; }
+    HValue* EmitMapCode();
 
    private:
     Zone* zone() const { return builder_->zone(); }
@@ -1636,7 +1637,6 @@ class HGraphBuilder {
       return JSArray::kPreallocatedArrayElements;
     }
 
-    HValue* EmitMapCode();
     HValue* EmitInternalMapCode();
     HValue* EstablishEmptyArrayAllocationSize();
     HValue* EstablishAllocationSize(HValue* length_node);

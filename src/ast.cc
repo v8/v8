@@ -776,7 +776,7 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   if (property == NULL) {
     // Function call.  Specialize for monomorphic calls.
     if (is_monomorphic_) target_ = oracle->GetCallTarget(this);
-  } else {
+  } else if (property->key()->IsPropertyName()) {
     // Method call.  Specialize for the receiver types seen at runtime.
     Literal* key = property->key()->AsLiteral();
     ASSERT(key != NULL && key->value()->IsString());
@@ -802,6 +802,10 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     if (is_monomorphic_) {
       Handle<Map> map = receiver_types_.first();
       is_monomorphic_ = ComputeTarget(map, name);
+    }
+  } else {
+    if (is_monomorphic_) {
+      keyed_array_call_is_holey_ = oracle->KeyedArrayCallIsHoley(this);
     }
   }
 }

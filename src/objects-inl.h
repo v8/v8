@@ -3901,6 +3901,7 @@ int Code::major_key() {
          kind() == STORE_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
+         kind() == KEYED_CALL_IC ||
          kind() == TO_BOOLEAN_IC);
   return StubMajorKeyField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
@@ -3917,6 +3918,7 @@ void Code::set_major_key(int major) {
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||
          kind() == KEYED_STORE_IC ||
+         kind() == KEYED_CALL_IC ||
          kind() == TO_BOOLEAN_IC);
   ASSERT(0 <= major && major < 256);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
