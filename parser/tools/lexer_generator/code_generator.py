@@ -64,7 +64,7 @@ class CodeGenerator:
   @staticmethod
   def __skip_code(value):
     assert value == None
-    return 'SKIP(); goto code_start;'
+    return 'SKIP();'
 
   @staticmethod
   def __push_line_terminator_code(value):
@@ -81,6 +81,10 @@ class CodeGenerator:
     assert value != None
     return '%s\n' % value
 
+  @staticmethod
+  def __skip_and_terminate_code(value):
+    return 'SKIP(); --start_; ' + CodeGenerator.__terminate_code(value)
+
   def __init__(self, dfa, default_action):
     self.__dfa = dfa
     self.__start_node_number = dfa.start_state().node_number()
@@ -93,6 +97,7 @@ class CodeGenerator:
       "push_line_terminator" : self.__push_line_terminator_code,
       "skip" : self.__skip_code,
       "code" : self.__code_code,
+      "skip_and_terminate" : self.__skip_and_terminate_code,
     }
 
   def __dfa_state_to_code(self, state):
@@ -156,7 +161,7 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
     action = default_action.match_action()
     default_action_code = self.__action_code_map[action[0]](action[1])
     code += '''
-  CHECK(false);
+  CHECK(false); goto code_start;
 default_action:
   //fprintf(stderr, "default action\\n");
   %s

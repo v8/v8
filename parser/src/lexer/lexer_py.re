@@ -65,7 +65,7 @@ number =
 "/*"          <||MultiLineComment>
 "<!--"        <||HtmlComment>
 
-whitespace? "-->" <{
+"-->" <{
   if (!just_seen_line_terminator_) {
     PUSH_TOKEN(Token::DEC);
     start_ = cursor_ - 1;
@@ -206,6 +206,7 @@ identifier_char <|push_token(IDENTIFIER)|continue>
 
 <<SingleLineComment>>
 line_terminator  <|push_line_terminator|>
+eof <|skip_and_terminate|>
 catch_all <||continue>
 
 <<MultiLineComment>>
