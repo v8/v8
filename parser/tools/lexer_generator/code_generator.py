@@ -52,14 +52,58 @@ class CodeGenerator:
     return code
 
   @staticmethod
-  def dfa_state_to_code(state, start_node_number):
+  def __terminate_code(value):
+    assert value == None
+    return 'PUSH_TOKEN(Token::EOS); return 0;'
+
+  @staticmethod
+  def __terminate_illegal_code(value):
+    assert value == None
+    return 'PUSH_TOKEN(Token::ILLEGAL); return 1;'
+
+  @staticmethod
+  def __skip_code(value):
+    assert value == None
+    return 'SKIP(); goto code_start;'
+
+  @staticmethod
+  def __push_line_terminator_code(value):
+    assert value == None
+    return 'PUSH_LINE_TERMINATOR();'
+
+  @staticmethod
+  def __push_token_code(value):
+    assert value != None
+    return 'PUSH_TOKEN(Token::%s);' % value
+
+  @staticmethod
+  def __code_code(value):
+    assert value != None
+    return '%s\n' % value
+
+  def __init__(self, dfa, default_action):
+    self.__dfa = dfa
+    self.__start_node_number = dfa.start_state().node_number()
+    self.__default_action = default_action
+    # make this better
+    self.__action_code_map = {
+      "terminate" : self.__terminate_code,
+      "terminate_illegal" : self.__terminate_illegal_code,
+      "push_token" : self.__push_token_code,
+      "push_line_terminator" : self.__push_line_terminator_code,
+      "skip" : self.__skip_code,
+      "code" : self.__code_code,
+    }
+
+  def __dfa_state_to_code(self, state):
+    start_node_number = self.__start_node_number
     # FIXME: add different check types (if, switch, lookup table)
     # FIXME: add action + break / continue
     # FIXME: add default action
     code = ''
     if start_node_number == state.node_number():
       code += '''
-//code_start:
+code_start:
 '''
     code += '''
 code_%s:
@@ -69,26 +113,9 @@ code_%s:
 
     entry_action = state.action().entry_action() if state.action() else None
     match_action = state.action().match_action() if state.action() else None
-    print entry_action
-
-    if (entry_action and entry_action[0] != 'terminate' and
-        entry_action[0] != 'terminate_illegal' and entry_action[0] != 'code' and
-        entry_action[0] != 'push_token' and
-        entry_action[0] != 'push_line_terminator' and entry_action[0] != 'skip'):
-      raise Exception("unknown type %s" % entry_action[0])
 
     if entry_action:
-      if entry_action[0] == 'terminate':
-        code += 'PUSH_TOKEN(Token::EOS); return 0;'
-        return code
-      elif entry_action[0] == 'terminate_illegal':
-        code += 'PUSH_TOKEN(Token::ILLEGAL); return 1;'
-        return code
-      elif entry_action[0] == 'skip':
-        code += 'SKIP(); goto code_start;'
-        return code
-      elif entry_action[0] == 'code':
-        code += '%s\n' % entry_action[1]
+      code += self.__action_code_map[entry_action[0]](entry_action[1])
 
     code += '''
     //fprintf(stderr, "char at hand is %c (%d)\\n", yych, yych);\n'''
@@ -102,20 +129,16 @@ code_%s:
 ''' % s.node_number()
 
     if match_action:
-      if match_action[0] == 'push_token':
-        content = 'PUSH_TOKEN(Token::%s);' % match_action[1]
-        code += '%s\ngoto code_%s;\n' % (content,
-                                         start_node_number)
-    code += " // FIXME: goto where"
+      code += self.__action_code_map[match_action[0]](match_action[1])
+      code += 'goto code_%s;\n' % start_node_number
+    else:
+      code += " // FIXME: goto where"
     return code
 
-  @staticmethod
-  def rule_processor_to_code(rule_processor, use_mdfa):
-    if use_mdfa:
-      dfa = rule_processor.default_automata().minimal_dfa()
-    else:
-      dfa = rule_processor.default_automata().dfa()
-    start_node_number = dfa.start_state().node_number()
+  def __process(self):
+    dfa = self.__dfa
+    default_action = self.__default_action
+    start_node_number = self.__start_node_number
     code = '''
 #include "lexer/even-more-experimental-scanner.h"
 
@@ -126,12 +149,12 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
   goto code_%s;
 ''' % start_node_number
     def f(state, code):
-      code += CodeGenerator.dfa_state_to_code(state, start_node_number)
+      code += self.__dfa_state_to_code(state)
       return code
     code = dfa.visit_all_states(f, code)
 
     default_action_code = ''
-    action = rule_processor.default_action.entry_action() if rule_processor.default_action else None
+    action = default_action.entry_action() if default_action else None
     if action:
       if action[0] == 'push_token':
         default_action_code = '''
@@ -139,7 +162,7 @@ default_action:
   //fprintf(stderr, "default action\\n");
   PUSH_TOKEN(Token::%s);
   FORWARD();
-  goto code_%s;''' % (rule_processor.default_action.data(), start_node_number)
+  goto code_%s;''' % (default_action, start_node_number)
       else:
         raise Exception("Default action type %s not supported" % action[0])
 
@@ -153,3 +176,11 @@ default_action:
 }
 ''' % default_action_code
     return code
+
+  @staticmethod
+  def rule_processor_to_code(rule_processor, use_mdfa):
+    if use_mdfa:
+      dfa = rule_processor.default_automata().minimal_dfa()
+    else:
+      dfa = rule_processor.default_automata().dfa()
+    return CodeGenerator(dfa, rule_processor.default_action).__process()

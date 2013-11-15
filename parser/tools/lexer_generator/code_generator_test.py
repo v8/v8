@@ -34,9 +34,9 @@ class CodeGeneratorTestCase(unittest.TestCase):
   def test_simple(self):
     rules = '''
     <<default>>
-    "("           <|LBRACE|>
-    ")"           <|RBRACE|>
+    "("           <|{LBRACE}|>
+    ")"           <|{RBRACE}|>
 
-    "foo"         <|FOO|>
+    "foo"         <|{FOO}|>
     eof           <|terminate|>'''
     CodeGenerator.rule_processor_to_code(RuleProcessor.parse(rules), False)
