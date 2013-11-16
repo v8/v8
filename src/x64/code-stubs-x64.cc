@@ -117,7 +117,7 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { rdx, rcx };
+  static Register registers[] = { rdx, rax };
   descriptor->register_param_count_ = 2;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
