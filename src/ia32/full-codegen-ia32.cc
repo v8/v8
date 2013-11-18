@@ -1114,7 +1114,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
   __ CmpObjectType(ecx, LAST_JS_PROXY_TYPE, ecx);
   __ j(above, &non_proxy);
-  __ mov(ebx, Immediate(Smi::FromInt(0)));  // Zero indicates proxy
+  __ Set(ebx, Immediate(Smi::FromInt(0)));  // Zero indicates proxy
   __ bind(&non_proxy);
   __ push(ebx);  // Smi
   __ push(eax);  // Array

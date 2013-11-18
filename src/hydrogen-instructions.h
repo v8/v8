@@ -4487,20 +4487,27 @@ class HTypeofIsAndBranch V8_FINAL : public HUnaryControlInstruction {
   DECLARE_INSTRUCTION_FACTORY_P2(HTypeofIsAndBranch, HValue*, Handle<String>);
 
   Handle<String> type_literal() { return type_literal_; }
+  bool compares_number_type() { return compares_number_type_; }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(TypeofIsAndBranch)
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
+    return Representation::None();
   }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
  private:
   HTypeofIsAndBranch(HValue* value, Handle<String> type_literal)
       : HUnaryControlInstruction(value, NULL, NULL),
-        type_literal_(type_literal) { }
+        type_literal_(type_literal) {
+    Heap* heap = type_literal->GetHeap();
+    compares_number_type_ = type_literal->Equals(heap->number_string());
+  }
 
   Handle<String> type_literal_;
+  bool compares_number_type_ : 1;
 };
 
 

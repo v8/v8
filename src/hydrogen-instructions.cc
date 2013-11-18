@@ -1184,6 +1184,20 @@ void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (value()->representation().IsSpecialization()) {
+    if (compares_number_type()) {
+      *block = FirstSuccessor();
+    } else {
+      *block = SecondSuccessor();
+    }
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
 void HCheckMapValue::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
