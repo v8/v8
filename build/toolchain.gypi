@@ -376,7 +376,7 @@
         'target_conditions': [
           ['_toolset=="host"', {
             'variables': {
-              'm32flag': '<!((echo | $(echo ${CXX_host:-$(which g++)}) -m32 -E - > /dev/null 2>&1) && echo "-m32" || true)',
+              'm32flag': '<!(($(echo ${CXX_host:-$(which g++)}) -m32 -E - > /dev/null 2>&1 < /dev/null) && echo "-m32" || true)',
             },
             'cflags': [ '<(m32flag)' ],
             'ldflags': [ '<(m32flag)' ],
@@ -386,7 +386,7 @@
           }],
           ['_toolset=="target"', {
             'variables': {
-              'm32flag': '<!((echo | $(echo ${CXX_target:-<(CXX)}) -m32 -E - > /dev/null 2>&1) && echo "-m32" || true)',
+              'm32flag': '<!(($(echo ${CXX_target:-<(CXX)}) -m32 -E - > /dev/null 2>&1 < /dev/null) && echo "-m32" || true)',
               'clang%': 0,
             },
             'conditions': [
@@ -408,14 +408,14 @@
         'target_conditions': [
           ['_toolset=="host"', {
             'variables': {
-              'm64flag': '<!((echo | $(echo ${CXX_host:-$(which g++)}) -m64 -E - > /dev/null 2>&1) && echo "-m64" || true)',
+              'm64flag': '<!(($(echo ${CXX_host:-$(which g++)}) -m64 -E - > /dev/null 2>&1 < /dev/null) && echo "-m64" || true)',
             },
             'cflags': [ '<(m64flag)' ],
             'ldflags': [ '<(m64flag)' ],
           }],
           ['_toolset=="target"', {
             'variables': {
-              'm64flag': '<!((echo | $(echo ${CXX_target:-<(CXX)}) -m64 -E - > /dev/null 2>&1) && echo "-m64" || true)',
+              'm64flag': '<!(($(echo ${CXX_target:-<(CXX)}) -m64 -E - > /dev/null 2>&1 < /dev/null) && echo "-m64" || true)',
             },
             'cflags': [ '<(m64flag)' ],
             'ldflags': [ '<(m64flag)' ],
