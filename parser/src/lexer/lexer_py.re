@@ -32,11 +32,14 @@ identifier_char = [0-9:identifier_start:];
 line_terminator = [\n\r];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
+single_escape_char = ['"\\bfnrtva];
 maybe_exponent = /([eE][\-+]?[:digit:]+)?/;
 number =
   /0[xX][:hex_digit:]+/ | (
   /\.[:digit:]+/ maybe_exponent |
   /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
+# TODO this is incomplete/incorrect
+line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
 
 # grammar is
 #   regex <action_on_state_entry|action_on_match|transition>
@@ -104,7 +107,6 @@ number =
 ">"           <|push_token(GT)|>
 
 number        <|push_token(NUMBER)|>
-# is this necessary?
 number identifier_char   <|push_token(ILLEGAL)|>
 
 "("           <|push_token(LPAREN)|>
@@ -188,7 +190,7 @@ whitespace        <|skip|>
 "yield"       <|push_token(YIELD)|>
 
 identifier_start <|push_token(IDENTIFIER)|Identifier>
-/\\u[0-9a-fA-F]{4}/ <{
+/\\u[:hex_digit:]{4}/ <{
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
     goto default_action;
   }
@@ -198,28 +200,31 @@ eof             <|terminate|>
 default_action  <push_token(ILLEGAL)>
 
 <<DoubleQuoteString>>
-/\\\n\r?/ <||continue>
-/\\\r\n?/ <||continue>
-/\\[xX][:hex_digit:]{2}/ <||continue>
-/\\[^xX\r\n]/     <||continue>
-/\n|\r/   <|push_token(ILLEGAL)|>
-"\""      <|push_token(STRING)|>
-eof       <|terminate_illegal|>
-catch_all <||continue>
+"\\" line_terminator_sequence <||continue>
+/\\[xX][:hex_digit:]{2}/      <||continue>
+/\\[u][:hex_digit:]{4}/       <||continue>
+/\\[^xXu\r\n]/                <||continue>
+"\\"                          <|push_token(ILLEGAL)|>
+/\n|\r/                       <|push_token(ILLEGAL)|>
+"\""                          <|push_token(STRING)|>
+eof                           <|terminate_illegal|>
+catch_all                     <||continue>
 
 <<SingleQuoteString>>
-/\\\n\r?/ <||continue>
-/\\\r\n?/ <||continue>
-/\\[xX][:hex_digit:]{2}/ <||continue>
-/\\[^xX\r\n]/     <||continue>
-/\n|\r/   <|push_token(ILLEGAL)|>
-"'"       <|push_token(STRING)|>
-eof       <|terminate_illegal|>
-catch_all <||continue>
+# TODO subgraph for '\'
+"\\" line_terminator_sequence <||continue>
+/\\[xX][:hex_digit:]{2}/      <||continue>
+/\\[u][:hex_digit:]{4}/       <||continue>
+/\\[^xXu\r\n]/                <||continue>
+"\\"                          <|push_token(ILLEGAL)|>
+/\n|\r/                       <|push_token(ILLEGAL)|>
+"'"                           <|push_token(STRING)|>
+eof                           <|terminate_illegal|>
+catch_all                     <||continue>
 
 <<Identifier>>
 identifier_char <|push_token(IDENTIFIER)|continue>
-/\\u[0-9a-fA-F]{4}/ <{
+/\\u[:hex_digit:]{4}/ <{
   if (V8_UNLIKELY(!ValidIdentifierPart())) {
     goto default_action;
   }

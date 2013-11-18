@@ -69,7 +69,7 @@ class RegexLexer:
     ('repeat','exclusive'),
   )
 
-  __escaped_literals = build_escape_map("(){}[]?+.*|\\")
+  __escaped_literals = build_escape_map("(){}[]?+.*|'\"\\")
 
   def t_ESCAPED_LITERAL(self, t):
     r'\\.'
@@ -115,7 +115,7 @@ class RegexLexer:
     t.value = RegexLexer.__escaped_class_literals[t.value]
     return t
 
-  t_class_CLASS_LITERAL = r'[\w *$_+\'/]'
+  t_class_CLASS_LITERAL = r'[\w *$_+\'\"/]'
 
   def t_REPEAT_BEGIN(self, t):
     r'\{'
