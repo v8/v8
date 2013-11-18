@@ -72,18 +72,12 @@ line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
   cursor_ -= 2;
   yych = *(cursor_);
   PUSH_TOKEN(Token::LT);
-  yych = *(++cursor_);
-  PUSH_TOKEN(Token::NOT);
-  yych = *(++cursor_);
-  PUSH_TOKEN(Token::SUB);
 }|>
 
 "<!"        <|{
   cursor_ -= 1;
   yych = *(cursor_);
   PUSH_TOKEN(Token::LT);
-  yych = *(++cursor_);
-  PUSH_TOKEN(Token::NOT);
 }|>
 
 
@@ -91,7 +85,6 @@ line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
   if (!just_seen_line_terminator_) {
     yych = *(--cursor_);
     PUSH_TOKEN(Token::DEC);
-    goto code_start;
   }
 }||SingleLineComment>
 
@@ -197,7 +190,7 @@ identifier_start <|push_token(IDENTIFIER)|Identifier>
 }|push_token(IDENTIFIER)|Identifier>
 
 eof             <|terminate|>
-default_action  <push_token(ILLEGAL)>
+default_action  <push_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
 "\\" line_terminator_sequence <||continue>

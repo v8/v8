@@ -44,6 +44,7 @@
 #include "string-stream.h"
 #include "scanner.h"
 
+#include "even-more-experimental-scanner.h"
 #include "experimental-scanner.h"
 #include "lexer.h"
 
@@ -163,15 +164,14 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  std::vector<TokenWithLocation>* tokens,
                                  int repeat) {
   ElapsedTimer timer;
-  ExperimentalScanner scanner(fname, true, isolate, repeat);
+  EvenMoreExperimentalScanner scanner(fname, isolate, repeat);
   timer.Start();
   Token::Value token;
+  int beg, end;
   do {
-    token = scanner.Next();
-    ExperimentalScanner::Location location = scanner.location();
+    token = scanner.Next(&beg, &end);
     if (dump_tokens) {
-      tokens->push_back(
-          TokenWithLocation(token, location.beg_pos, location.end_pos));
+      tokens->push_back(TokenWithLocation(token, beg, end));
     }
   } while (token != Token::EOS);
   return timer.Elapsed();

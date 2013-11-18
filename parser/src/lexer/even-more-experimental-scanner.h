@@ -42,16 +42,18 @@ class UnicodeCache;
 
 class EvenMoreExperimentalScanner {
  public:
-  explicit EvenMoreExperimentalScanner(ExperimentalScanner* sink,
-                                       UnicodeCache* unicode_cache);
+  explicit EvenMoreExperimentalScanner(
+      const char* fname,
+      Isolate* isolate,
+      int repeat);
 
   ~EvenMoreExperimentalScanner();
 
-  void send(v8::internal::Token::Value token);
-  uint32_t push(const void *input, int input_size);
+  Token::Value Next(int* beg_pos, int* end_pos);
 
  private:
-  uint32_t DoLex();
+  void Next(Token::Value* token_to_return, int* beg_pos_to_return,
+            int* end_pos_to_return);
 
   bool ValidIdentifierStart();
   bool ValidIdentifierPart();
@@ -66,7 +68,6 @@ class EvenMoreExperimentalScanner {
   bool just_seen_line_terminator_;
 
   YYCTYPE yych;
-  ExperimentalScanner* sink_;
 };
 
 } }

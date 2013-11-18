@@ -26,11 +26,9 @@
   {%- if type == 'code' %}
     {{value}}
   {% elif type == 'terminate' %}
-    PUSH_TOKEN(Token::EOS);
-    return 0;
+    PUSH_EOS();
   {% elif type == 'terminate_illegal' %}
-    PUSH_TOKEN(Token::EOS);
-    return 1;
+    PUSH_EOS();
   {% elif type == 'skip' %}
     SKIP();
   {% elif type == 'skip_and_terminate' %}
@@ -41,6 +39,8 @@
     PUSH_LINE_TERMINATOR();
   {% elif type == 'push_token' %}
     PUSH_TOKEN(Token::{{value}})
+  {% elif type == 'push_token_and_go_forward' %}
+    PUSH_TOKEN_AND_GO_FORWARD(Token::{{value}})
   {% else %}
     uncompilable code for {{type}}
   {% endif -%}
@@ -87,11 +87,28 @@
 
 {%- endmacro %}
 
-
-#define PUSH_TOKEN(T) {               \
-  send(T);                            \
+#define PREPARE_PUSH_TOKEN(T) {        \
+  *token_to_return = T;                \
+  *beg_pos_to_return = start_ - buffer_; \
+  *end_pos_to_return = cursor_ - buffer_; \
   start_ = cursor_;                   \
   just_seen_line_terminator_ = false; \
+}
+
+#define PUSH_TOKEN(T) {               \
+  PREPARE_PUSH_TOKEN(T);              \
+  return;                             \
+}
+
+#define PUSH_TOKEN_AND_GO_FORWARD(T) {\
+  PREPARE_PUSH_TOKEN(T);              \
+  FORWARD();                          \
+  return;                             \
+}
+
+#define PUSH_EOS() {                  \
+  --cursor_;                          \
+  PUSH_TOKEN(Token::EOS);             \
 }
 
 #define PUSH_LINE_TERMINATOR(s) {     \
@@ -109,7 +126,8 @@
 
 namespace v8 {
 namespace internal {
-uint32_t EvenMoreExperimentalScanner::DoLex() {
+void EvenMoreExperimentalScanner::Next(Token::Value* token_to_return, int* beg_pos_to_return,
+            int* end_pos_to_return) {
   // Setup environment.
   YYCTYPE yych = *cursor_;
 
@@ -128,7 +146,7 @@ uint32_t EvenMoreExperimentalScanner::DoLex() {
     {{dispatch_action(default_action[0], default_action[1])}}
   FORWARD();
   goto code_start;
-  return 0;
+  return;
 
   fell_through:
   CHECK(false);

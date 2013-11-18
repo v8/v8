@@ -79,10 +79,7 @@ class ExperimentalScanner {
   size_t current_;
   size_t fetched_;
   FILE* file_;
-  // python generated version
-  EvenMoreExperimentalScanner* scanner_;
-  // re2c version
-  // PushScanner* scanner_;
+  PushScanner* scanner_;
   bool read_all_at_once_;
   bool already_pushed_;
   const v8::internal::byte* source_;

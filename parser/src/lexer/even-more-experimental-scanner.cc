@@ -62,18 +62,21 @@ namespace v8 {
 namespace internal {
 
 EvenMoreExperimentalScanner::EvenMoreExperimentalScanner(
-    ExperimentalScanner* sink,
-    UnicodeCache* unicode_cache)
-    : unicode_cache_(unicode_cache),
-      buffer_(NULL),
-      buffer_end_(NULL),
-      start_(NULL),
-      cursor_(NULL),
-      just_seen_line_terminator_(true),
-      sink_(sink) {}
+    const char* fname,
+    Isolate* isolate,
+    int repeat)
+    : unicode_cache_(isolate->unicode_cache()) {
+  int size = 0;
+  buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(
+      ReadFile(fname, isolate, &size, repeat)));
+  buffer_end_ = buffer_ + size;
+  start_ = buffer_;
+  cursor_ = buffer_;
+}
 
 
 EvenMoreExperimentalScanner::~EvenMoreExperimentalScanner() {
+  delete[] buffer_;
 }
 
 
@@ -103,24 +106,11 @@ bool EvenMoreExperimentalScanner::ValidIdentifierStart() {
 }
 
 
-uint32_t EvenMoreExperimentalScanner::push(const void *input, int input_size) {
-  // FIXME: for now, we can only push once and that'll read the input.
-  if (input_size == 0)
-    return 0;
-  buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(input));
-  cursor_ = buffer_;
-  start_ = buffer_;
-  buffer_end_ = buffer_ + input_size;
-  return DoLex();
+Token::Value EvenMoreExperimentalScanner::Next(int* beg_pos, int* end_pos) {
+  Token::Value token;
+  Next(&token, beg_pos, end_pos);
+  return token;
 }
-
-
-void EvenMoreExperimentalScanner::send(Token::Value token) {
-  int beg = start_ - buffer_;
-  int end = cursor_ - buffer_;
-  sink_->Record(token, beg, end);
-}
-
 
 }
 }
