@@ -642,6 +642,7 @@ class HValue : public ZoneObject {
   virtual ~HValue() {}
 
   virtual int position() const { return RelocInfo::kNoPosition; }
+  virtual int operand_position(int index) const { return position(); }
 
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
@@ -1105,6 +1106,102 @@ class HValue : public ZoneObject {
   }
 
 
+// A helper class to represent per-operand position information attached to
+// the HInstruction in the compact form. Uses tagging to distinguish between
+// case when only instruction's position is available and case when operands'
+// positions are also available.
+// In the first case it contains intruction's position as a tagged value.
+// In the second case it points to an array which contains instruction's
+// position and operands' positions.
+// TODO(vegorov): what we really want to track here is a combination of
+// source position and a script id because cross script inlining can easily
+// result in optimized functions composed of several scripts.
+class HPositionInfo {
+ public:
+  explicit HPositionInfo(int pos) : data_(TagPosition(pos)) { }
+
+  int position() const {
+    if (has_operand_positions()) {
+      return static_cast<int>(operand_positions()[kInstructionPosIndex]);
+    }
+    return static_cast<int>(UntagPosition(data_));
+  }
+
+  void set_position(int pos) {
+    if (has_operand_positions()) {
+      operand_positions()[kInstructionPosIndex] = pos;
+    } else {
+      data_ = TagPosition(pos);
+    }
+  }
+
+  void ensure_storage_for_operand_positions(Zone* zone, int operand_count) {
+    if (has_operand_positions()) {
+      return;
+    }
+
+    const int length = kFirstOperandPosIndex + operand_count;
+    intptr_t* positions =
+        zone->NewArray<intptr_t>(length);
+    for (int i = 0; i < length; i++) {
+      positions[i] = RelocInfo::kNoPosition;
+    }
+
+    const int pos = position();
+    data_ = reinterpret_cast<intptr_t>(positions);
+    set_position(pos);
+
+    ASSERT(has_operand_positions());
+  }
+
+  int operand_position(int idx) const {
+    if (!has_operand_positions()) {
+      return position();
+    }
+    return static_cast<int>(*operand_position_slot(idx));
+  }
+
+  void set_operand_position(int idx, int pos) {
+    *operand_position_slot(idx) = pos;
+  }
+
+ private:
+  static const intptr_t kInstructionPosIndex = 0;
+  static const intptr_t kFirstOperandPosIndex = 1;
+
+  intptr_t* operand_position_slot(int idx) const {
+    ASSERT(has_operand_positions());
+    return &(operand_positions()[kFirstOperandPosIndex + idx]);
+  }
+
+  bool has_operand_positions() const {
+    return !IsTaggedPosition(data_);
+  }
+
+  intptr_t* operand_positions() const {
+    ASSERT(has_operand_positions());
+    return reinterpret_cast<intptr_t*>(data_);
+  }
+
+  static const intptr_t kPositionTag = 1;
+  static const intptr_t kPositionShift = 1;
+  static bool IsTaggedPosition(intptr_t val) {
+    return (val & kPositionTag) != 0;
+  }
+  static intptr_t UntagPosition(intptr_t val) {
+    ASSERT(IsTaggedPosition(val));
+    return val >> kPositionShift;
+  }
+  static intptr_t TagPosition(intptr_t val) {
+    const intptr_t result = (val << kPositionShift) | kPositionTag;
+    ASSERT(UntagPosition(result) == val);
+    return result;
+  }
+
+  intptr_t data_;
+};
+
+
 class HInstruction : public HValue {
  public:
   HInstruction* next() const { return next_; }
@@ -1119,12 +1216,26 @@ class HInstruction : public HValue {
   void InsertAfter(HInstruction* previous);
 
   // The position is a write-once variable.
-  virtual int position() const V8_OVERRIDE { return position_; }
-  bool has_position() const { return position_ != RelocInfo::kNoPosition; }
+  virtual int position() const V8_OVERRIDE {
+    return position_.position();
+  }
+  bool has_position() const {
+    return position_.position() != RelocInfo::kNoPosition;
+  }
   void set_position(int position) {
     ASSERT(!has_position());
     ASSERT(position != RelocInfo::kNoPosition);
-    position_ = position;
+    position_.set_position(position);
+  }
+
+  virtual int operand_position(int index) const V8_OVERRIDE {
+    const int pos = position_.operand_position(index);
+    return (pos != RelocInfo::kNoPosition) ? pos : position();
+  }
+  void set_operand_position(Zone* zone, int index, int pos) {
+    ASSERT(0 <= index && index < OperandCount());
+    position_.ensure_storage_for_operand_positions(zone, OperandCount());
+    position_.set_operand_position(index, pos);
   }
 
   bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
@@ -1160,7 +1271,7 @@ class HInstruction : public HValue {
 
   HInstruction* next_;
   HInstruction* previous_;
-  int position_;
+  HPositionInfo position_;
 
   friend class HBasicBlock;
 };
@@ -3704,6 +3815,11 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     return representation();
   }
 
+  void SetOperandPositions(Zone* zone, int left_pos, int right_pos) {
+    set_operand_position(zone, 1, left_pos);
+    set_operand_position(zone, 2, right_pos);
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
  private:
@@ -4136,6 +4252,11 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
     return observed_input_representation_[index];
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  void SetOperandPositions(Zone* zone, int left_pos, int right_pos) {
+    set_operand_position(zone, 0, left_pos);
+    set_operand_position(zone, 1, right_pos);
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
