@@ -3370,10 +3370,6 @@ class DescriptorArray: public FixedArray {
   bool IsEqualTo(DescriptorArray* other);
 #endif
 
-  // The maximum number of descriptors we want in a descriptor array (should
-  // fit in a page).
-  static const int kMaxNumberOfDescriptors = 1024 + 512;
-
   // Returns the fixed array length required to hold number_of_descriptors
   // descriptors.
   static int LengthFor(int number_of_descriptors) {
@@ -5709,17 +5705,20 @@ class Map: public HeapObject {
   inline uint32_t bit_field3();
   inline void set_bit_field3(uint32_t bits);
 
-  class EnumLengthBits:             public BitField<int,   0, 11> {};
-  class NumberOfOwnDescriptorsBits: public BitField<int,  11, 11> {};
-  class IsShared:                   public BitField<bool, 22,  1> {};
-  class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
-  class DictionaryMap:              public BitField<bool, 24,  1> {};
-  class OwnsDescriptors:            public BitField<bool, 25,  1> {};
-  class HasInstanceCallHandler:     public BitField<bool, 26,  1> {};
-  class Deprecated:                 public BitField<bool, 27,  1> {};
-  class IsFrozen:                   public BitField<bool, 28,  1> {};
-  class IsUnstable:                 public BitField<bool, 29,  1> {};
-  class IsMigrationTarget:          public BitField<bool, 30,  1> {};
+  class EnumLengthBits:             public BitField<int,
+      0, kDescriptorIndexBitCount> {};  // NOLINT
+  class NumberOfOwnDescriptorsBits: public BitField<int,
+      kDescriptorIndexBitCount, kDescriptorIndexBitCount> {};  // NOLINT
+  STATIC_ASSERT(kDescriptorIndexBitCount + kDescriptorIndexBitCount == 20);
+  class IsShared:                   public BitField<bool, 20,  1> {};
+  class FunctionWithPrototype:      public BitField<bool, 21,  1> {};
+  class DictionaryMap:              public BitField<bool, 22,  1> {};
+  class OwnsDescriptors:            public BitField<bool, 23,  1> {};
+  class HasInstanceCallHandler:     public BitField<bool, 24,  1> {};
+  class Deprecated:                 public BitField<bool, 25,  1> {};
+  class IsFrozen:                   public BitField<bool, 26,  1> {};
+  class IsUnstable:                 public BitField<bool, 27,  1> {};
+  class IsMigrationTarget:          public BitField<bool, 28,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -6034,7 +6033,7 @@ class Map: public HeapObject {
   }
 
   void SetEnumLength(int length) {
-    if (length != kInvalidEnumCache) {
+    if (length != kInvalidEnumCacheSentinel) {
       ASSERT(length >= 0);
       ASSERT(length == 0 || instance_descriptors()->HasEnumCache());
       ASSERT(length <= NumberOfOwnDescriptors());
@@ -6251,9 +6250,6 @@ class Map: public HeapObject {
                                             Handle<Map> target_map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
-
-  // Constant for denoting that the enum cache is not yet initialized.
-  static const int kInvalidEnumCache = EnumLengthBits::kMax;
 
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;

@@ -4915,7 +4915,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
 
   EnumLength(rdx, rbx);
-  Cmp(rdx, Smi::FromInt(Map::kInvalidEnumCache));
+  Cmp(rdx, Smi::FromInt(kInvalidEnumCacheSentinel));
   j(equal, call_runtime);
 
   jmp(&start);

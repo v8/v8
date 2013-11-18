@@ -3800,7 +3800,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
 
   EnumLength(r3, r1);
-  cmp(r3, Operand(Smi::FromInt(Map::kInvalidEnumCache)));
+  cmp(r3, Operand(Smi::FromInt(kInvalidEnumCacheSentinel)));
   b(eq, call_runtime);
 
   jmp(&start);
