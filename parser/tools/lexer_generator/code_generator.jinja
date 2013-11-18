@@ -53,13 +53,22 @@
 {%- endmacro -%}
 
 
-{%- macro do_dfa_state(state) -%}
+{%- macro do_dfa_state(node_number, inline) -%}
 
-  {%- if start_node_number == state.node_number %}
-    code_start:
-  {% else %}
-    code_{{state.node_number}}:
-  {% endif %}
+  {%- set state = dfa_states[node_number] -%}
+
+  {%- if not inline -%}
+    {%- if state['inline'] -%}
+      bad generated code for {{node_number}}
+    {%- endif -%}
+    {%- if start_node_number == node_number -%}
+      code_start:
+    {%- else -%}
+      code_{{node_number}}:
+    {%- endif -%}
+  {%- else -%}
+    // inlined state {{node_number}}
+  {%- endif %}
 
   {% if debug_print %}
     fprintf(stderr, "state {{state.node_number}}\n");
@@ -72,13 +81,17 @@
 
   {%- if debug_print %}
     fprintf(stderr, "char at hand is %c (%d)\n", yych, yych);
-  {% endif %}
+  {% endif -%}
 
-  // matchers
-  {%- for match_key, match_state in state.transitions %}
-    if ({{do_key(match_key)}}) {
-      FORWARD();
-      goto code_{{match_state}};
+  {%- for key, transition_state_id in state.transitions %}
+    {%- set inline_transition = dfa_states[transition_state_id]['inline'] -%}
+    if ({{do_key(key)}}) {
+        FORWARD();
+      {%- if inline_transition %}
+        {{ do_dfa_state(transition_state_id, True) }}
+      {% else %}
+        goto code_{{transition_state_id}};
+      {% endif %}
     }
   {% endfor -%}
 
@@ -142,7 +155,10 @@ Token::Value EvenMoreExperimentalScanner::Next(int* beg_pos_to_return,
 
 {# first node is start node #}
 {% for dfa_state in dfa_states -%}
-  {{ do_dfa_state(dfa_state) }}
+  {%- set inline = dfa_state['inline'] -%}
+  {%- if not inline %}
+    {{ do_dfa_state(dfa_state['node_number'], False) }}
+  {%- endif -%}
 {%- endfor %}
 
   // Should never fall off the edge.

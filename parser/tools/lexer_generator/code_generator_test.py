@@ -40,4 +40,4 @@ class CodeGeneratorTestCase(unittest.TestCase):
     "foo"         <|{FOO}|>
     eof           <|terminate|>
     default_action <{DEFAULT}>'''
-    CodeGenerator(RuleProcessor.parse(rules), False)
+    CodeGenerator(RuleProcessor.parse(rules))

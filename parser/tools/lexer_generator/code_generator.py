@@ -33,8 +33,13 @@ from transition_keys import TransitionKey
 
 class CodeGenerator:
 
-  def __init__(self, rule_processor, use_mdfa, debug_print = False):
-    if use_mdfa:
+  def __init__(self,
+               rule_processor,
+               minimize_default = True,
+               inline = True,
+               debug_print = False,
+               log = False):
+    if minimize_default:
       dfa = rule_processor.default_automata().minimal_dfa()
     else:
       dfa = rule_processor.default_automata().dfa()
@@ -42,6 +47,8 @@ class CodeGenerator:
     self.__default_action = rule_processor.default_action
     self.__debug_print = debug_print
     self.__start_node_number = self.__dfa.start_state().node_number()
+    self.__log = log
+    self.__inline = inline
 
   def __state_cmp(self, left, right):
     if left['original_node_number'] == self.__start_node_number:
@@ -109,7 +116,7 @@ class CodeGenerator:
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
       'disjoint_keys' : keys,
-      'inline' : False,
+      'inline' : None,
       'depth' : None,
       'action' : action,
       'entry_action' : entry_action,
@@ -124,6 +131,15 @@ class CodeGenerator:
     state['depth'] = depth
     for (k, transition_node) in state['transitions']:
       CodeGenerator.__compute_depths(transition_node, depth + 1, id_map)
+
+  @staticmethod
+  def __set_inline(count, state):
+    assert state['inline'] == None
+    inline = False
+    if not state['transitions']:
+      inline = True
+    state['inline'] = inline
+    return count + 1 if inline else count
 
   def __canonicalize_traversal(self):
     dfa_states = []
@@ -140,16 +156,21 @@ class CodeGenerator:
     for state in dfa_states:
       state['transitions'] = map(f, state['transitions'])
     assert id_map[self.__start_node_number]['node_number'] == 0
+    assert len(dfa_states) == self.__dfa.node_count()
+    # set nodes to inline
+    if self.__inline:
+      inlined = reduce(CodeGenerator.__set_inline, dfa_states, 0)
+      if self.__log:
+        print "inlined %s" % inlined
+    elif self.__log:
+      print "no inlining"
     self.__dfa_states = dfa_states
 
   def process(self):
 
     self.__canonicalize_traversal()
 
-    start_node_number = self.__start_node_number
     dfa_states = self.__dfa_states
-    assert len(dfa_states) == self.__dfa.node_count()
-    assert dfa_states[0]['node_number'] == 0
 
     default_action = self.__default_action
     assert(default_action and default_action.match_action())

@@ -99,6 +99,7 @@ if __name__ == '__main__':
   parser.add_argument('--code')
   parser.add_argument('--no-minimize-default', action='store_true')
   parser.add_argument('--no-verify-default', action='store_true')
+  parser.add_argument('--no-inline', action='store_true')
   parser.add_argument('--verbose', action='store_true')
   parser.add_argument('--debug-code', action='store_true')
   args = parser.parse_args()
@@ -133,8 +134,10 @@ if __name__ == '__main__':
   code_file = args.code
   if code_file:
     code_generator = CodeGenerator(rule_processor,
-                                   minimize_default,
-                                   args.debug_code)
+                                   minimize_default = minimize_default,
+                                   log = verbose,
+                                   inline = not args.no_inline,
+                                   debug_print = args.debug_code)
     code = code_generator.process()
     with open(code_file, 'w') as f:
       f.write(code)
