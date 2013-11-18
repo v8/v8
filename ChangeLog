@@ -1,3 +1,14 @@
+2013-11-18: Version 3.23.6
+
+        Limit size of dehoistable array indices.
+        (Chromium issues 319835, 319860)
+
+        Limit the size for typed arrays to MaxSmi.
+        (Chromium issue 319722)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-15: Version 3.23.5
 
         Fixed missing type feedback check for Generic*String addition.
