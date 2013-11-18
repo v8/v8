@@ -200,7 +200,8 @@ default_action  <push_token(ILLEGAL)>
 <<DoubleQuoteString>>
 /\\\n\r?/ <||continue>
 /\\\r\n?/ <||continue>
-/\\./     <||continue>
+/\\[xX][:hex_digit:]{2}/ <||continue>
+/\\[^xX\r\n]/     <||continue>
 /\n|\r/   <|push_token(ILLEGAL)|>
 "\""      <|push_token(STRING)|>
 eof       <|terminate_illegal|>
@@ -209,7 +210,8 @@ catch_all <||continue>
 <<SingleQuoteString>>
 /\\\n\r?/ <||continue>
 /\\\r\n?/ <||continue>
-/\\./     <||continue>
+/\\[xX][:hex_digit:]{2}/ <||continue>
+/\\[^xX\r\n]/     <||continue>
 /\n|\r/   <|push_token(ILLEGAL)|>
 "'"       <|push_token(STRING)|>
 eof       <|terminate_illegal|>
