@@ -34,7 +34,7 @@ digit = [0-9];
 hex_digit = [0-9a-fA-F];
 maybe_exponent = /([eE][\-+]?[:digit:]+)?/;
 number =
-  /0x[:hex_digit:]+/ | (
+  /0[xX][:hex_digit:]+/ | (
   /\.[:digit:]+/ maybe_exponent |
   /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
 
