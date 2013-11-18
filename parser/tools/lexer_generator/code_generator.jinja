@@ -1,0 +1,131 @@
+#include "lexer/even-more-experimental-scanner.h"
+
+
+// TODO implement CLASS checks
+{%- macro do_key(key) -%}
+  {%- for r in key.range_iter() -%}
+    {%- if not loop.first %} || {% endif -%}
+    {%- if r[0] == 'LATIN_1' -%}
+      ({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
+    {%- else -%}
+      false
+    {%- endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+
+{% macro dispatch_action(type, value) -%}
+  {%- if type == 'code' %}
+    {{value}}
+  {% elif type == 'terminate' %}
+    PUSH_TOKEN(Token::EOS);
+    return 0;
+  {% elif type == 'terminate_illegal' %}
+    PUSH_TOKEN(Token::EOS);
+    return 1;
+  {% elif type == 'skip' %}
+    SKIP();
+  {% elif type == 'skip_and_terminate' %}
+    SKIP();
+    --start_;
+    {{dispatch_action('terminate', None)}}
+  {% elif type == 'push_line_terminator' %}
+    PUSH_LINE_TERMINATOR();
+  {% elif type == 'push_token' %}
+    PUSH_TOKEN(Token::{{value}})
+  {% else %}
+    uncompilable code for {{type}}
+  {% endif -%}
+{%- endmacro -%}
+
+
+{%- macro do_dfa_state(state) -%}
+
+  {%- if start_node_number == state.node_number() %}
+    code_start:
+  {% endif %}
+    code_{{state.node_number()}}:
+
+  {% if debug_print %}
+    fprintf(stderr, "state {{state.node_number()}}\n");
+  {% endif -%}
+
+  {%- set entry_action = state.action().entry_action() if state.action() else None -%}
+  {%- if entry_action %}
+    {{ dispatch_action(entry_action[0], entry_action[1]) }}
+  {%- endif %}
+
+  {%- if debug_print %}
+    fprintf(stderr, "char at hand is %c (%d)\n", yych, yych);
+  {% endif %}
+
+  // matchers
+  {%- for match_key, match_state in state.transitions().items() %}
+    if ({{do_key(match_key)}}) {
+      FORWARD();
+      goto code_{{match_state.node_number()}};
+    }
+  {% endfor -%}
+
+  {%- set match_action = state.action().match_action() if state.action() else None -%}
+
+  {%- if match_action %}
+    {{ dispatch_action(match_action[0], match_action[1]) }}
+    goto code_start;
+  {% else %}
+    goto default_action;
+  {%- endif %}
+
+{%- endmacro %}
+
+
+#define PUSH_TOKEN(T) {               \
+  send(T);                            \
+  start_ = cursor_;                   \
+  just_seen_line_terminator_ = false; \
+}
+
+#define PUSH_LINE_TERMINATOR(s) {     \
+  start_ = cursor_;                   \
+  just_seen_line_terminator_ = true;  \
+}
+
+#define FORWARD() {                   \
+  yych = *(++cursor_);                \
+}
+
+#define SKIP() {                      \
+  start_ = cursor_;                   \
+}
+
+namespace v8 {
+namespace internal {
+uint32_t EvenMoreExperimentalScanner::DoLex() {
+  // Setup environment.
+  YYCTYPE yych = *cursor_;
+  //FORWARD();
+  // Jump into the start node
+  // FIXME - put the start code here
+  goto code_{{start_node_number}};
+
+{% for dfa_state in dfa_states -%}
+  {{ do_dfa_state(dfa_state) }}
+{%- endfor %}
+
+  // Should never fall off the edge.
+  goto fell_through;
+  // Execute the default action.
+  default_action:
+{%- if debug_print %}
+    fprintf(stderr, "default action\n");
+{% endif -%}
+    {{dispatch_action(default_action[0], default_action[1])}}
+  FORWARD();
+  goto code_start;
+  return 0;
+
+  fell_through:
+  CHECK(false);
+}
+} }
+

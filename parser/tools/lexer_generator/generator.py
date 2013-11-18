@@ -97,36 +97,49 @@ if __name__ == '__main__':
   parser.add_argument('--re', default='src/lexer/lexer_py.re')
   parser.add_argument('--input')
   parser.add_argument('--code')
-  parser.add_argument('--minimize-default', action='store_true')
+  parser.add_argument('--no-minimize-default', action='store_true')
   parser.add_argument('--no-verify-default', action='store_true')
+  parser.add_argument('--verbose', action='store_true')
+  parser.add_argument('--debug-code', action='store_true')
   args = parser.parse_args()
 
+  minimize_default = not args.no_minimize_default
+  verbose = args.verbose
+
   re_file = args.re
-  print "parsing %s" % re_file
+  if verbose:
+    print "parsing %s" % re_file
   with open(re_file, 'r') as f:
     rule_processor = RuleProcessor.parse(f.read())
 
-  if args.minimize_default:
+  if minimize_default:
     if args.no_verify_default:
       DfaMinimizer.set_verify(False)
     dfa = rule_processor.default_automata().dfa()
     mdfa = rule_processor.default_automata().minimal_dfa()
-    print "nodes reduced from %s to %s" % (dfa.node_count(), mdfa.node_count())
+    if verbose:
+      print "nodes reduced from %s to %s" % (
+        dfa.node_count(), mdfa.node_count())
     DfaMinimizer.set_verify(True)
 
   html_file = args.html
   if html_file:
-    html = generate_html(rule_processor, args.minimize_default)
+    html = generate_html(rule_processor, minimize_default)
     with open(args.html, 'w') as f:
       f.write(html)
-      print "wrote html to %s" % html_file
+      if verbose:
+        print "wrote html to %s" % html_file
 
   code_file = args.code
   if code_file:
-    code = generate_code(rule_processor, args.minimize_default)
+    code_generator = CodeGenerator(rule_processor,
+                                   minimize_default,
+                                   args.debug_code)
+    code = code_generator.process()
     with open(code_file, 'w') as f:
       f.write(code)
-      print "wrote code to %s" % code_file
+      if verbose:
+        print "wrote code to %s" % code_file
 
   input_file = args.input
   if input_file:

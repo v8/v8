@@ -38,5 +38,6 @@ class CodeGeneratorTestCase(unittest.TestCase):
     ")"           <|{RBRACE}|>
 
     "foo"         <|{FOO}|>
-    eof           <|terminate|>'''
-    CodeGenerator.rule_processor_to_code(RuleProcessor.parse(rules), False)
+    eof           <|terminate|>
+    default_action <{DEFAULT}>'''
+    CodeGenerator(RuleProcessor.parse(rules), False)

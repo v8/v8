@@ -85,6 +85,7 @@
           'inputs': [
             '../../src/lexer/lexer_py.re',
             '../../tools/lexer_generator/*.py',
+            '../../tools/lexer_generator/*.jinja',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
@@ -94,7 +95,6 @@
             '../../tools/lexer_generator/generator.py',
             '--re=../../src/lexer/lexer_py.re',
             '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
-            '--minimize-default',
           ],
         },
       ],
