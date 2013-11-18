@@ -25,10 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from dfa import Dfa
-import jinja2
 import os
 import sys
+import jinja2
+from dfa import Dfa
+from transition_keys import TransitionKey
 
 class CodeGenerator:
 
@@ -43,18 +44,103 @@ class CodeGenerator:
     self.__start_node_number = self.__dfa.start_state().node_number()
 
   def __state_cmp(self, left, right):
-    if left == right:
-      return 0
-    if left.node_number() == self.__start_node_number:
+    if left['original_node_number'] == self.__start_node_number:
       return -1
-    if right.node_number() == self.__start_node_number:
+    if right['original_node_number'] == self.__start_node_number:
       return 1
-    return cmp(left.node_number(), right.node_number())
+    c = cmp(len(left['disjoint_keys']), len(right['disjoint_keys']))
+    if c:
+      return c
+    c = cmp(left['disjoint_keys'], right['disjoint_keys'])
+    if c:
+      return c
+    c = cmp(len(left['transitions']), len(right['transitions']))
+    if c:
+      return c
+    c = cmp(left['depth'], right['depth'])
+    if c:
+      return c
+    left_precendence = left['action'].precedence() if left['action'] else -1
+    right_precendence = right['action'].precedence() if right['action'] else -1
+    c = cmp(left_precendence, right_precendence)
+    if c:
+      return c
+    # if left['original_node_number'] != right['original_node_number']:
+    #   # TODO fix
+    #   print "noncanonical node ordering %d %d" % (left['original_node_number'],
+    #                                               right['original_node_number'])
+    return cmp(left['original_node_number'], right['original_node_number'])
+
+  @staticmethod
+  def __range_cmp(left, right):
+    if left[0] == 'LATIN_1':
+      if right[0] == 'LATIN_1':
+        return cmp(left[1], right[1])
+      assert right[0] == 'CLASS'
+      return -1
+    assert left[0] == 'CLASS'
+    if right[0] == 'LATIN_1':
+      return 1
+    # TODO store numeric values and cmp
+    return cmp(left[1], right[1])
+
+  @staticmethod
+  def __transform_state(state):
+    # action data
+    action = state.action()
+    entry_action = None if not action else action.entry_action()
+    match_action = None if not action else action.match_action()
+    # compute disjoint ranges
+    keys = TransitionKey.disjoint_keys(list(state.key_iter()))
+    def f(key):
+      ranges = list(key.range_iter())
+      assert len(ranges) == 1
+      return ranges[0]
+    keys = sorted(map(f, keys), CodeGenerator.__range_cmp)
+    # generate ordered transitions
+    transitions = map(lambda (k, v) : (k, v.node_number()),
+                      state.transitions().items())
+    def cmp(left, right):
+      return TransitionKey.canonical_compare(left[0], right[0])
+    transitions = sorted(transitions, cmp)
+    # dictionary object representing state
+    return {
+      'node_number' : state.node_number(),
+      'original_node_number' : state.node_number(),
+      'transitions' : transitions,
+      'disjoint_keys' : keys,
+      'inline' : False,
+      'depth' : None,
+      'action' : action,
+      'entry_action' : entry_action,
+      'match_action' : match_action,
+    }
+
+  @staticmethod
+  def __compute_depths(node_number, depth, id_map):
+    state = id_map[node_number]
+    if state['depth'] != None:
+      return
+    state['depth'] = depth
+    for (k, transition_node) in state['transitions']:
+      CodeGenerator.__compute_depths(transition_node, depth + 1, id_map)
 
   def __canonicalize_traversal(self):
     dfa_states = []
     self.__dfa.visit_all_states(lambda state, acc: dfa_states.append(state))
-    self.__dfa_states = sorted(dfa_states, cmp=self.__state_cmp)
+    dfa_states = map(CodeGenerator.__transform_state, dfa_states)
+    id_map = {x['original_node_number'] : x for x in dfa_states}
+    CodeGenerator.__compute_depths(self.__start_node_number, 1, id_map)
+    dfa_states = sorted(dfa_states, cmp=self.__state_cmp)
+    # remap all node numbers
+    for i, state in enumerate(dfa_states):
+      state['node_number'] = i
+    def f((key, original_node_number)):
+      return (key, id_map[original_node_number]['node_number'])
+    for state in dfa_states:
+      state['transitions'] = map(f, state['transitions'])
+    assert id_map[self.__start_node_number]['node_number'] == 0
+    self.__dfa_states = dfa_states
 
   def process(self):
 
@@ -63,7 +149,7 @@ class CodeGenerator:
     start_node_number = self.__start_node_number
     dfa_states = self.__dfa_states
     assert len(dfa_states) == self.__dfa.node_count()
-    assert dfa_states[0].node_number() == start_node_number
+    assert dfa_states[0]['node_number'] == 0
 
     default_action = self.__default_action
     assert(default_action and default_action.match_action())
@@ -76,7 +162,7 @@ class CodeGenerator:
     template = template_env.get_template('code_generator.jinja')
 
     return template.render(
-      start_node_number = start_node_number,
+      start_node_number = 0,
       debug_print = self.__debug_print,
       default_action = default_action,
       dfa_states = dfa_states)

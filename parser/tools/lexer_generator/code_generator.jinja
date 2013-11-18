@@ -49,17 +49,17 @@
 
 {%- macro do_dfa_state(state) -%}
 
-  {%- if start_node_number == state.node_number() %}
+  {%- if start_node_number == state.node_number %}
     code_start:
   {% else %}
-    code_{{state.node_number()}}:
+    code_{{state.node_number}}:
   {% endif %}
 
   {% if debug_print %}
-    fprintf(stderr, "state {{state.node_number()}}\n");
+    fprintf(stderr, "state {{state.node_number}}\n");
   {% endif -%}
 
-  {%- set entry_action = state.action().entry_action() if state.action() else None -%}
+  {%- set entry_action = state.entry_action -%}
   {%- if entry_action %}
     {{ dispatch_action(entry_action[0], entry_action[1]) }}
   {%- endif %}
@@ -69,14 +69,14 @@
   {% endif %}
 
   // matchers
-  {%- for match_key, match_state in state.transitions().items() %}
+  {%- for match_key, match_state in state.transitions %}
     if ({{do_key(match_key)}}) {
       FORWARD();
-      goto code_{{match_state.node_number()}};
+      goto code_{{match_state}};
     }
   {% endfor -%}
 
-  {%- set match_action = state.action().match_action() if state.action() else None -%}
+  {%- set match_action = state.match_action -%}
 
   {%- if match_action %}
     {{ dispatch_action(match_action[0], match_action[1]) }}

@@ -174,6 +174,22 @@ class TransitionKey:
         matches = True
     return matches
 
+  @staticmethod
+  def canonical_compare(left, right):
+    i = 0
+    left_length = len(left.__ranges)
+    right_length = len(right.__ranges)
+    while i < left_length and i < right_length:
+      l = left.__ranges[i]
+      r = right.__ranges[i]
+      c = cmp(l, r)
+      if c:
+        return c
+      i += 1
+    if i == left_length and i == right_length:
+      return 0
+    return 1 if i != left_length else -1
+
   def __hash__(self):
     if self.__cached_hash == None:
       initial_hash = hash((-1, TransitionKey.__upper_bound + 1))
