@@ -3149,12 +3149,12 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- a0     : key
   //  -- a1     : receiver
   // -----------------------------------
-  Label slow, miss_force_generic;
+  Label slow, miss;
 
   Register key = a0;
   Register receiver = a1;
 
-  __ JumpIfNotSmi(key, &miss_force_generic);
+  __ JumpIfNotSmi(key, &miss);
   __ lw(t0, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ sra(a2, a0, kSmiTagSize);
   __ LoadFromNumberDictionary(&slow, t0, a0, v0, a2, a3, t1);
@@ -3174,14 +3174,14 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   // Miss case, call the runtime.
-  __ bind(&miss_force_generic);
+  __ bind(&miss);
 
   // ---------- S t a t e --------------
   //  -- ra     : return address
   //  -- a0     : key
   //  -- a1     : receiver
   // -----------------------------------
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_MissForceGeneric);
+  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 
 

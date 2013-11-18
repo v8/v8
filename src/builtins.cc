@@ -1351,12 +1351,7 @@ static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
 
 
 static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, MISS);
-}
-
-
-static void Generate_KeyedLoadIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
+  KeyedLoadIC::GenerateMiss(masm);
 }
 
 

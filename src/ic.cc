@@ -1364,13 +1364,6 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
 }
 
 
-MaybeObject* KeyedLoadIC::LoadForceGeneric(Handle<Object> object,
-                                           Handle<Object> key) {
-  set_target(*generic_stub());
-  return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
-}
-
-
 MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   if (MigrateDeprecated(object)) {
     return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
@@ -2116,17 +2109,6 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure) {
   Handle<Object> key = args.at<Object>(1);
   ic.UpdateState(receiver, key);
   return ic.Load(receiver, key);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  ic.UpdateState(receiver, key);
-  return ic.LoadForceGeneric(receiver, key);
 }
 
 
