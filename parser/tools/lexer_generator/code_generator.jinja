@@ -1,7 +1,7 @@
 #include "lexer/even-more-experimental-scanner.h"
 
 
-// TODO implement CLASS checks
+{# TODO implement CLASS checks #}
 {%- macro do_key(key) -%}
   {%- for r in key.range_iter() -%}
     {%- if not loop.first %} || {% endif -%}
@@ -51,8 +51,9 @@
 
   {%- if start_node_number == state.node_number() %}
     code_start:
-  {% endif %}
+  {% else %}
     code_{{state.node_number()}}:
+  {% endif %}
 
   {% if debug_print %}
     fprintf(stderr, "state {{state.node_number()}}\n");
@@ -111,11 +112,8 @@ namespace internal {
 uint32_t EvenMoreExperimentalScanner::DoLex() {
   // Setup environment.
   YYCTYPE yych = *cursor_;
-  //FORWARD();
-  // Jump into the start node
-  // FIXME - put the start code here
-  goto code_{{start_node_number}};
 
+{# first node is start node #}
 {% for dfa_state in dfa_states -%}
   {{ do_dfa_state(dfa_state) }}
 {%- endfor %}

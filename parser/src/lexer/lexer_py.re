@@ -32,7 +32,7 @@ identifier_char = [0-9:identifier_start:];
 line_terminator = [\n\r];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
-single_escape_char = ['"\\bfnrtva];
+single_escape_char = ['"\\bfnrtv];
 maybe_exponent = /([eE][\-+]?[:digit:]+)?/;
 number =
   /0[xX][:hex_digit:]+/ | (

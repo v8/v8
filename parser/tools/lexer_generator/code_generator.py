@@ -40,13 +40,30 @@ class CodeGenerator:
     self.__dfa = dfa
     self.__default_action = rule_processor.default_action
     self.__debug_print = debug_print
+    self.__start_node_number = self.__dfa.start_state().node_number()
+
+  def __state_cmp(self, left, right):
+    if left == right:
+      return 0
+    if left.node_number() == self.__start_node_number:
+      return -1
+    if right.node_number() == self.__start_node_number:
+      return 1
+    return cmp(left.node_number(), right.node_number())
+
+  def __canonicalize_traversal(self):
+    dfa_states = []
+    self.__dfa.visit_all_states(lambda state, acc: dfa_states.append(state))
+    self.__dfa_states = sorted(dfa_states, cmp=self.__state_cmp)
 
   def process(self):
 
-    start_node_number = self.__dfa.start_state().node_number()
+    self.__canonicalize_traversal()
 
-    dfa_states = []
-    self.__dfa.visit_all_states(lambda state, acc: dfa_states.append(state))
+    start_node_number = self.__start_node_number
+    dfa_states = self.__dfa_states
+    assert len(dfa_states) == self.__dfa.node_count()
+    assert dfa_states[0].node_number() == start_node_number
 
     default_action = self.__default_action
     assert(default_action and default_action.match_action())
