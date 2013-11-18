@@ -27,6 +27,8 @@
 
 from dfa import Dfa
 import jinja2
+import os
+import sys
 
 class CodeGenerator:
 
@@ -50,6 +52,7 @@ class CodeGenerator:
     assert(default_action and default_action.match_action())
     default_action = default_action.match_action()
 
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     template_env = jinja2.Environment(
       loader = jinja2.PackageLoader('lexer_generator', '.'),
       undefined = jinja2.StrictUndefined)
