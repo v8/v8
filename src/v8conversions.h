@@ -84,7 +84,7 @@ inline bool TryNumberToSize(Isolate* isolate,
 // Converts a number into size_t.
 inline size_t NumberToSize(Isolate* isolate,
                            Object* number) {
-  size_t result;
+  size_t result = 0;
   bool is_valid = TryNumberToSize(isolate, number, &result);
   CHECK(is_valid);
   return result;
