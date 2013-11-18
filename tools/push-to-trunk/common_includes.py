@@ -244,8 +244,10 @@ class Step(object):
     if self.Git("svn fetch") is None:
       self.Die("'git svn fetch' failed.")
 
+  def PrepareBranch(self):
     # Get ahold of a safe temporary branch and check it out.
-    if current_branch != self._config[TEMP_BRANCH]:
+    self.RestoreIfUnset("current_branch")
+    if self._state["current_branch"] != self._config[TEMP_BRANCH]:
       self.DeleteBranch(self._config[TEMP_BRANCH])
       self.Git("checkout -b %s" % self._config[TEMP_BRANCH])
 
@@ -323,3 +325,26 @@ class UploadStep(Step):
     args = "cl upload -r \"%s\" --send-mail" % reviewer
     if self.Git(args,pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
+
+
+def RunScript(step_classes,
+              config,
+              options,
+              side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+  state = {}
+  steps = []
+  number = 0
+
+  for step_class in step_classes:
+    # TODO(machenbach): Factory methods.
+    step = step_class()
+    step.SetNumber(number)
+    step.SetConfig(config)
+    step.SetOptions(options)
+    step.SetState(state)
+    step.SetSideEffectHandler(side_effect_handler)
+    steps.append(step)
+    number += 1
+
+  for step in steps[options.s:]:
+    step.Run()

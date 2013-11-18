@@ -59,6 +59,7 @@ class Preparation(Step):
   def RunStep(self):
     self.InitialEnvironmentChecks()
     self.CommonPrepare()
+    self.PrepareBranch()
     self.DeleteBranch(self.Config(TRUNKBRANCH))
 
 
@@ -487,9 +488,9 @@ class CleanUp(Step):
       self.Git("branch -D %s" % self.Config(TRUNKBRANCH))
 
 
-def RunScript(config,
-              options,
-              side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+def RunPushToTrunk(config,
+                   options,
+                   side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
   step_classes = [
     Preparation,
     FreshBranch,
@@ -517,23 +518,7 @@ def RunScript(config,
     CleanUp,
   ]
 
-  state = {}
-  steps = []
-  number = 0
-
-  for step_class in step_classes:
-    # TODO(machenbach): Factory methods.
-    step = step_class()
-    step.SetNumber(number)
-    step.SetConfig(config)
-    step.SetOptions(options)
-    step.SetState(state)
-    step.SetSideEffectHandler(side_effect_handler)
-    steps.append(step)
-    number += 1
-
-  for step in steps[options.s:]:
-    step.Run()
+  RunScript(step_classes, config, options, side_effect_handler)
 
 
 def BuildOptions():

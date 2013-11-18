@@ -160,6 +160,7 @@ class ScriptTest(unittest.TestCase):
     ]
     self._rl_recipe = ["Y"]
     self.MakeStep().CommonPrepare()
+    self.MakeStep().PrepareBranch()
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
 
   def testCommonPrepareNoConfirm(self):
@@ -170,7 +171,8 @@ class ScriptTest(unittest.TestCase):
       ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
     ]
     self._rl_recipe = ["n"]
-    self.assertRaises(Exception, self.MakeStep().CommonPrepare)
+    self.MakeStep().CommonPrepare()
+    self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
 
   def testCommonPrepareDeleteBranchFailure(self):
@@ -182,7 +184,8 @@ class ScriptTest(unittest.TestCase):
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], None],
     ]
     self._rl_recipe = ["Y"]
-    self.assertRaises(Exception, self.MakeStep().CommonPrepare)
+    self.MakeStep().CommonPrepare()
+    self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
 
   def testInitialEnvironmentChecks(self):
@@ -428,7 +431,7 @@ class ScriptTest(unittest.TestCase):
     options.s = 0
     options.l = None
     options.c = TEST_CONFIG[CHROMIUM]
-    RunScript(TEST_CONFIG, options, self)
+    RunPushToTrunk(TEST_CONFIG, options, self)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
     self.assertTrue(re.search("\"v8_revision\": \"123456\"", deps))
