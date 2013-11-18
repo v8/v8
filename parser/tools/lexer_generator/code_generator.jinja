@@ -15,6 +15,12 @@
       {%- else -%}
 	({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
       {%- endif -%}
+    {%- elif r[0] == 'CLASS' -%}
+      {%- if r[1] == 'eof' -%}
+	(yych == 0 && cursor_ == buffer_end_)
+      {%- else -%}
+	false
+      {%- endif -%}
     {%- else -%}
       false
     {%- endif -%}

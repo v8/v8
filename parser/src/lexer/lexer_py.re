@@ -40,6 +40,7 @@ number =
   /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
 # TODO this is incomplete/incorrect
 line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
+eof = [:eof:];
 
 # grammar is
 #   regex <action_on_state_entry|action_on_match|transition>

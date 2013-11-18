@@ -36,9 +36,7 @@ from transition_keys import TransitionKey
 class RuleParserState:
 
   def __init__(self):
-    self.aliases = {
-      'eof' : RegexParser.parse("[\\0]"),
-    }
+    self.aliases = {}
     self.character_classes = {}
     self.current_state = None
     self.rules = {}
