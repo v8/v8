@@ -101,6 +101,7 @@ line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
 
 number        <|push_token(NUMBER)|>
 number identifier_char   <|push_token(ILLEGAL)|>
+number "\\"   <|push_token(ILLEGAL)|>
 
 "("           <|push_token(LPAREN)|>
 ")"           <|push_token(RPAREN)|>
