@@ -106,11 +106,5 @@ bool EvenMoreExperimentalScanner::ValidIdentifierStart() {
 }
 
 
-Token::Value EvenMoreExperimentalScanner::Next(int* beg_pos, int* end_pos) {
-  Token::Value token;
-  Next(&token, beg_pos, end_pos);
-  return token;
-}
-
 }
 }

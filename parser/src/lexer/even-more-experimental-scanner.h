@@ -52,9 +52,6 @@ class EvenMoreExperimentalScanner {
   Token::Value Next(int* beg_pos, int* end_pos);
 
  private:
-  void Next(Token::Value* token_to_return, int* beg_pos_to_return,
-            int* end_pos_to_return);
-
   bool ValidIdentifierStart();
   bool ValidIdentifierPart();
   uc32 ScanHexNumber(int length);

@@ -87,8 +87,7 @@
 
 {%- endmacro %}
 
-#define PREPARE_PUSH_TOKEN(T) {        \
-  *token_to_return = T;                \
+#define PREPARE_PUSH_TOKEN() {        \
   *beg_pos_to_return = start_ - buffer_; \
   *end_pos_to_return = cursor_ - buffer_; \
   start_ = cursor_;                   \
@@ -96,14 +95,14 @@
 }
 
 #define PUSH_TOKEN(T) {               \
-  PREPARE_PUSH_TOKEN(T);              \
-  return;                             \
+  PREPARE_PUSH_TOKEN();               \
+  return T;                           \
 }
 
 #define PUSH_TOKEN_AND_GO_FORWARD(T) {\
-  PREPARE_PUSH_TOKEN(T);              \
+  PREPARE_PUSH_TOKEN();               \
   FORWARD();                          \
-  return;                             \
+  return T;                           \
 }
 
 #define PUSH_EOS() {                  \
@@ -126,8 +125,8 @@
 
 namespace v8 {
 namespace internal {
-void EvenMoreExperimentalScanner::Next(Token::Value* token_to_return, int* beg_pos_to_return,
-            int* end_pos_to_return) {
+Token::Value EvenMoreExperimentalScanner::Next(int* beg_pos_to_return,
+                                               int* end_pos_to_return) {
   // Setup environment.
   YYCTYPE yych = *cursor_;
 
@@ -146,7 +145,6 @@ void EvenMoreExperimentalScanner::Next(Token::Value* token_to_return, int* beg_p
     {{dispatch_action(default_action[0], default_action[1])}}
   FORWARD();
   goto code_start;
-  return;
 
   fell_through:
   CHECK(false);
