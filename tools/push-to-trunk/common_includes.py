@@ -75,6 +75,34 @@ def GetLastChangeLogEntries(change_log_file):
   return "".join(result)
 
 
+def MakeChangeLogBody(commit_generator):
+  result = ""
+  for (title, body, author) in commit_generator():
+    # Add the commit's title line.
+    result += "%s\n" % title.rstrip()
+
+    # Grep for "BUG=xxxx" lines in the commit message and convert them to
+    # "(issue xxxx)".
+    out = body.splitlines()
+    out = filter(lambda x: re.search(r"^BUG=", x), out)
+    out = filter(lambda x: not re.search(r"BUG=$", x), out)
+    out = filter(lambda x: not re.search(r"BUG=none$", x), out)
+
+    # TODO(machenbach): Handle multiple entries (e.g. BUG=123, 234).
+    def FormatIssue(text):
+      text = re.sub(r"BUG=v8:(.*)$", r"(issue \1)", text)
+      text = re.sub(r"BUG=chromium:(.*)$", r"(Chromium issue \1)", text)
+      text = re.sub(r"BUG=(.*)$", r"(Chromium issue \1)", text)
+      return "        %s\n" % text
+
+    for line in map(FormatIssue, out):
+      result += line
+
+    # Append the commit's author for reference.
+    result += "%s\n\n" % author.rstrip()
+  return result
+
+
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
 def Command(cmd, args="", prefix="", pipe=True):

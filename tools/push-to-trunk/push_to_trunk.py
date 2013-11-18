@@ -110,36 +110,21 @@ class PrepareChangeLog(Step):
 
     args = "log %s..HEAD --format=%%H" % self._state["last_push"]
     commits = self.Git(args).strip()
-    for commit in commits.splitlines():
-      # Get the commit's title line.
-      args = "log -1 %s --format=\"%%w(80,8,8)%%s\"" % commit
-      title = "%s\n" % self.Git(args).rstrip()
-      AppendToFile(title, self.Config(CHANGELOG_ENTRY_FILE))
 
-      # Grep for "BUG=xxxx" lines in the commit message and convert them to
-      # "(issue xxxx)".
-      out = self.Git("log -1 %s --format=\"%%B\"" % commit).splitlines()
-      out = filter(lambda x: re.search(r"^BUG=", x), out)
-      out = filter(lambda x: not re.search(r"BUG=$", x), out)
-      out = filter(lambda x: not re.search(r"BUG=none$", x), out)
+    def GetCommitMessages():
+      for commit in commits.splitlines():
+        yield [
+          self.Git("log -1 %s --format=\"%%w(80,8,8)%%s\"" % commit),
+          self.Git("log -1 %s --format=\"%%B\"" % commit),
+          self.Git("log -1 %s --format=\"%%w(80,8,8)(%%an)\"" % commit),
+        ]
 
-      # TODO(machenbach): Handle multiple entries (e.g. BUG=123, 234).
-      def FormatIssue(text):
-        text = re.sub(r"BUG=v8:(.*)$", r"(issue \1)", text)
-        text = re.sub(r"BUG=chromium:(.*)$", r"(Chromium issue \1)", text)
-        text = re.sub(r"BUG=(.*)$", r"(Chromium issue \1)", text)
-        return "        %s\n" % text
-
-      for line in map(FormatIssue, out):
-        AppendToFile(line, self.Config(CHANGELOG_ENTRY_FILE))
-
-      # Append the commit's author for reference.
-      args = "log -1 %s --format=\"%%w(80,8,8)(%%an)\"" % commit
-      author = self.Git(args).rstrip()
-      AppendToFile("%s\n\n" % author, self.Config(CHANGELOG_ENTRY_FILE))
+    body = MakeChangeLogBody(GetCommitMessages)
+    AppendToFile(body, self.Config(CHANGELOG_ENTRY_FILE))
 
     msg = "        Performance and stability improvements on all platforms.\n"
     AppendToFile(msg, self.Config(CHANGELOG_ENTRY_FILE))
+
 
 class EditChangeLog(Step):
   def __init__(self):
