@@ -1443,7 +1443,8 @@ class Assembler : public AssemblerBase {
   static const int kMaxDistToIntPool = 4*KB;
   static const int kMaxDistToFPPool = 1*KB;
   // All relocations could be integer, it therefore acts as the limit.
-  static const int kMaxNumPendingRelocInfo = kMaxDistToIntPool/kInstrSize;
+  static const int kMaxNumPending32RelocInfo = kMaxDistToIntPool/kInstrSize;
+  static const int kMaxNumPending64RelocInfo = kMaxDistToFPPool/kInstrSize;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1481,11 +1482,16 @@ class Assembler : public AssemblerBase {
   // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
     if (--const_pool_blocked_nesting_ == 0) {
+#ifdef DEBUG
+      // Max pool start (if we need a jump and an alignment).
+      int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
-      ASSERT((num_pending_reloc_info_ == 0) ||
-             (pc_offset() < (first_const_pool_use_ + kMaxDistToIntPool)));
+      ASSERT((num_pending_32_bit_reloc_info_ == 0) ||
+             (start + num_pending_64_bit_reloc_info_ * kDoubleSize <
+              (first_const_pool_32_use_ + kMaxDistToIntPool)));
       ASSERT((num_pending_64_bit_reloc_info_ == 0) ||
-             (pc_offset() < (first_const_pool_use_ + kMaxDistToFPPool)));
+             (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
+#endif
       // Two cases:
       //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
       //    still blocked
@@ -1534,7 +1540,8 @@ class Assembler : public AssemblerBase {
 
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
-  int first_const_pool_use_;
+  int first_const_pool_32_use_;
+  int first_const_pool_64_use_;
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -1548,12 +1555,12 @@ class Assembler : public AssemblerBase {
   // If every instruction in a long sequence is accessing the pool, we need one
   // pending relocation entry per instruction.
 
-  // the buffer of pending relocation info
-  RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
-  // number of pending reloc info entries in the buffer
-  int num_pending_reloc_info_;
-  // Number of pending reloc info entries included above which also happen to
-  // be 64-bit.
+  // The buffers of pending relocation info.
+  RelocInfo pending_32_bit_reloc_info_[kMaxNumPending32RelocInfo];
+  RelocInfo pending_64_bit_reloc_info_[kMaxNumPending64RelocInfo];
+  // Number of pending reloc info entries in the 32 bits buffer.
+  int num_pending_32_bit_reloc_info_;
+  // Number of pending reloc info entries in the 64 bits buffer.
   int num_pending_64_bit_reloc_info_;
 
   // The bound position, before this we cannot do instruction elimination.

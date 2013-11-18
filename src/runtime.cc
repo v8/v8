@@ -917,6 +917,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   ASSERT(byte_length % element_size == 0);
   size_t length = byte_length / element_size;
 
+  if (length > static_cast<unsigned>(Smi::kMaxValue)) {
+    return isolate->Throw(*isolate->factory()->
+          NewRangeError("invalid_typed_array_length",
+            HandleVector<Object>(NULL, 0)));
+  }
+
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
   holder->set_weak_next(buffer->weak_first_view());
@@ -956,9 +962,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = NumberToSize(isolate, *length_obj);
-  if (length > (kMaxInt / element_size)) {
+
+  if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
+      (length > (kMaxInt / element_size))) {
     return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_array_buffer_length",
+          NewRangeError("invalid_typed_array_length",
             HandleVector<Object>(NULL, 0)));
   }
   size_t byte_length = length * element_size;
@@ -9775,6 +9783,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
 // Used as a fall-back for generated code when the space is full.
 static MaybeObject* Allocate(Isolate* isolate,
                              int size,
+                             bool double_align,
                              AllocationSpace space) {
   Heap* heap = isolate->heap();
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
@@ -9796,24 +9805,19 @@ static MaybeObject* Allocate(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInNewSpace) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), NEW_SPACE);
+  CONVERT_SMI_ARG_CHECKED(size, 0);
+  return Allocate(isolate, size, false, NEW_SPACE);
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldPointerSpace) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInTargetSpace) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), OLD_POINTER_SPACE);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldDataSpace) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), OLD_DATA_SPACE);
+  ASSERT(args.length() == 2);
+  CONVERT_SMI_ARG_CHECKED(size, 0);
+  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  AllocationSpace space = AllocateTargetSpace::decode(flags);
+  return Allocate(isolate, size, double_align, space);
 }
 
 
@@ -14810,6 +14814,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalArrayConstructor) {
                                 constructor,
                                 Handle<AllocationSite>::null(),
                                 caller_args);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
+  return Smi::FromInt(Smi::kMaxValue);
 }
 
 

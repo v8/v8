@@ -144,17 +144,22 @@ class Type : public Object {
   TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
   #undef DEFINE_TYPE_CONSTRUCTOR
 
-  static Type* Class(Handle<Map> map) { return from_handle(map); }
-  static Type* Constant(Handle<HeapObject> value) {
+  static Type* Class(Handle<i::Map> map) { return from_handle(map); }
+  static Type* Constant(Handle<i::HeapObject> value) {
     return Constant(value, value->GetIsolate());
   }
-  static Type* Constant(Handle<v8::internal::Object> value, Isolate* isolate) {
+  static Type* Constant(Handle<i::Object> value, Isolate* isolate) {
     return from_handle(isolate->factory()->NewBox(value));
   }
 
   static Type* Union(Handle<Type> type1, Handle<Type> type2);
   static Type* Intersect(Handle<Type> type1, Handle<Type> type2);
   static Type* Optional(Handle<Type> type);  // type \/ Undefined
+
+  static Type* Of(Handle<i::Object> value) {
+    return from_bitset(LubBitset(*value));
+  }
+  static Type* CurrentOf(Handle<i::Object> value);
 
   bool Is(Type* that) { return (this == that) ? true : SlowIs(that); }
   bool Is(Handle<Type> that) { return this->Is(*that); }
@@ -163,8 +168,8 @@ class Type : public Object {
 
   bool IsClass() { return is_class(); }
   bool IsConstant() { return is_constant(); }
-  Handle<Map> AsClass() { return as_class(); }
-  Handle<v8::internal::Object> AsConstant() { return as_constant(); }
+  Handle<i::Map> AsClass() { return as_class(); }
+  Handle<i::Object> AsConstant() { return as_constant(); }
 
   int NumClasses();
   int NumConstants();
@@ -191,16 +196,16 @@ class Type : public Object {
     int index_;
   };
 
-  Iterator<Map> Classes() {
-    if (this->is_bitset()) return Iterator<Map>();
-    return Iterator<Map>(this->handle());
+  Iterator<i::Map> Classes() {
+    if (this->is_bitset()) return Iterator<i::Map>();
+    return Iterator<i::Map>(this->handle());
   }
-  Iterator<v8::internal::Object> Constants() {
-    if (this->is_bitset()) return Iterator<v8::internal::Object>();
-    return Iterator<v8::internal::Object>(this->handle());
+  Iterator<i::Object> Constants() {
+    if (this->is_bitset()) return Iterator<i::Object>();
+    return Iterator<i::Object>(this->handle());
   }
 
-  static Type* cast(v8::internal::Object* object) {
+  static Type* cast(i::Object* object) {
     Type* t = static_cast<Type*>(object);
     ASSERT(t->is_bitset() || t->is_class() ||
            t->is_constant() || t->is_union());
@@ -235,24 +240,24 @@ class Type : public Object {
   bool SlowIs(Type* that);
 
   int as_bitset() { return Smi::cast(this)->value(); }
-  Handle<Map> as_class() { return Handle<Map>::cast(handle()); }
-  Handle<v8::internal::Object> as_constant() {
-    Handle<Box> box = Handle<Box>::cast(handle());
-    return v8::internal::handle(box->value(), box->GetIsolate());
+  Handle<i::Map> as_class() { return Handle<i::Map>::cast(handle()); }
+  Handle<i::Object> as_constant() {
+    Handle<i::Box> box = Handle<i::Box>::cast(handle());
+    return i::handle(box->value(), box->GetIsolate());
   }
   Handle<Unioned> as_union() { return Handle<Unioned>::cast(handle()); }
 
   Handle<Type> handle() { return handle_via_isolate_of(this); }
   Handle<Type> handle_via_isolate_of(Type* type) {
     ASSERT(type->IsHeapObject());
-    return v8::internal::handle(this, HeapObject::cast(type)->GetIsolate());
+    return i::handle(this, i::HeapObject::cast(type)->GetIsolate());
   }
 
   static Type* from_bitset(int bitset) {
-    return static_cast<Type*>(Object::cast(Smi::FromInt(bitset)));
+    return static_cast<Type*>(i::Object::cast(i::Smi::FromInt(bitset)));
   }
-  static Type* from_handle(Handle<HeapObject> handle) {
-    return static_cast<Type*>(Object::cast(*handle));
+  static Type* from_handle(Handle<i::HeapObject> handle) {
+    return static_cast<Type*>(i::Object::cast(*handle));
   }
 
   static Handle<Type> union_get(Handle<Unioned> unioned, int i) {
@@ -263,6 +268,10 @@ class Type : public Object {
 
   int LubBitset();  // least upper bound that's a bitset
   int GlbBitset();  // greatest lower bound that's a bitset
+
+  static int LubBitset(i::Object* value);
+  static int LubBitset(i::Map* map);
+
   bool InUnion(Handle<Unioned> unioned, int current_size);
   int ExtendUnion(Handle<Unioned> unioned, int current_size);
   int ExtendIntersection(

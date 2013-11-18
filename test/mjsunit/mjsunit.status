@@ -99,6 +99,10 @@
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
   'regress/regress-2073': [SKIP],
+
+  ##############################################################################
+  # Needs to allocate 1Gb of memory.
+  'regress/regress-319722-ArrayBuffer': [PASS, ['system == windows or system == macos or arch == arm or arch == android_arm or arch == android_ia32', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################

@@ -1465,8 +1465,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   int output_frame_size = height_in_bytes + fixed_frame_size;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
-           "  translating %s => StubFailureTrampolineStub, height=%d\n",
+           "  translating %s => StubFailure%sTrampolineStub, height=%d\n",
            CodeStub::MajorName(static_cast<CodeStub::Major>(major_key), false),
+           descriptor->HasTailCallContinuation() ? "TailCall" : "",
            height_in_bytes);
   }
 
@@ -1538,7 +1539,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
            top_address + output_frame_offset, output_frame_offset, value);
   }
 
-  intptr_t caller_arg_count = 0;
+  intptr_t caller_arg_count = descriptor->HasTailCallContinuation()
+      ? compiled_code_->arguments_count() + 1 : 0;
   bool arg_count_known = !descriptor->stack_parameter_count_.is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
@@ -1634,9 +1636,13 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   // Compute this frame's PC, state, and continuation.
   Code* trampoline = NULL;
-  StubFunctionMode function_mode = descriptor->function_mode_;
-  StubFailureTrampolineStub(function_mode).FindCodeInCache(&trampoline,
-                                                           isolate_);
+  if (descriptor->HasTailCallContinuation()) {
+    StubFailureTailCallTrampolineStub().FindCodeInCache(&trampoline, isolate_);
+  } else {
+    StubFunctionMode function_mode = descriptor->function_mode_;
+    StubFailureTrampolineStub(function_mode).FindCodeInCache(&trampoline,
+                                                             isolate_);
+  }
   ASSERT(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));

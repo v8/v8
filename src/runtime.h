@@ -103,8 +103,7 @@ namespace internal {
   F(CompileForOnStackReplacement, 2, 1) \
   F(SetAllocationTimeout, 2, 1) \
   F(AllocateInNewSpace, 1, 1) \
-  F(AllocateInOldPointerSpace, 1, 1) \
-  F(AllocateInOldDataSpace, 1, 1) \
+  F(AllocateInTargetSpace, 2, 1) \
   F(SetNativeFlag, 1, 1) \
   F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
@@ -113,6 +112,7 @@ namespace internal {
   F(FlattenString, 1, 1) \
   F(MigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
+  F(MaxSmi, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -843,6 +843,9 @@ class Runtime : public AllStatic {
 
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
+
+class AllocateDoubleAlignFlag:    public BitField<bool,            0, 1> {};
+class AllocateTargetSpace:        public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag:     public BitField<bool,         0, 1> {};
 class DeclareGlobalsNativeFlag:   public BitField<bool,         1, 1> {};

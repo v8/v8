@@ -617,9 +617,6 @@ class Heap {
     return old_data_space_->allocation_limit_address();
   }
 
-  // Uncommit unused semi space.
-  bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
-
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1175,19 +1172,6 @@ class Heap {
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
 
-  // Code that should be run before and after each GC.  Includes some
-  // reporting/verification activities when compiled with DEBUG set.
-  void GarbageCollectionPrologue();
-  void GarbageCollectionEpilogue();
-
-  // Performs garbage collection operation.
-  // Returns whether there is a chance that another major GC could
-  // collect more garbage.
-  bool CollectGarbage(AllocationSpace space,
-                      GarbageCollector collector,
-                      const char* gc_reason,
-                      const char* collector_reason);
-
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
@@ -1429,9 +1413,6 @@ class Heap {
 #endif
   }
 
-  // Fill in bogus values in from space
-  void ZapFromSpace();
-
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
@@ -1474,9 +1455,6 @@ class Heap {
   // the heap's from space.
   static inline void ScavengePointer(HeapObject** p);
   static inline void ScavengeObject(HeapObject** p, HeapObject* object);
-
-  // Commits from space if it is uncommitted.
-  void EnsureFromSpaceIsCommitted();
 
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
@@ -2086,9 +2064,22 @@ class Heap {
     gc_safe_size_of_old_object_ = &GcSafeSizeOfOldObject;
   }
 
+  // Code that should be run before and after each GC.  Includes some
+  // reporting/verification activities when compiled with DEBUG set.
+  void GarbageCollectionPrologue();
+  void GarbageCollectionEpilogue();
+
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           const char** reason);
+
+  // Performs garbage collection operation.
+  // Returns whether there is a chance that another major GC could
+  // collect more garbage.
+  bool CollectGarbage(AllocationSpace space,
+                      GarbageCollector collector,
+                      const char* gc_reason,
+                      const char* collector_reason);
 
   // Performs garbage collection
   // Returns whether there is a chance another major GC could
@@ -2135,6 +2126,7 @@ class Heap {
   NO_INLINE(void CreateJSConstructEntryStub());
 
   void CreateFixedStubs();
+  void CreateStubsRequiringBuiltins();
 
   MUST_USE_RESULT MaybeObject* CreateOddball(const char* to_string,
                                              Object* to_number,
@@ -2167,6 +2159,15 @@ class Heap {
 
   // Performs a minor collection in new generation.
   void Scavenge();
+
+  // Commits from space if it is uncommitted.
+  void EnsureFromSpaceIsCommitted();
+
+  // Uncommit unused semi space.
+  bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
+
+  // Fill in bogus values in from space
+  void ZapFromSpace();
 
   static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
       Heap* heap,

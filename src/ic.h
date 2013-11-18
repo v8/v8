@@ -910,6 +910,7 @@ DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);

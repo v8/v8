@@ -2230,3 +2230,84 @@ TEST(TrackHeapAllocations) {
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
   heap_profiler->StopRecordingHeapAllocations();
 }
+
+
+static const char* inline_heap_allocation_source =
+"function f_0(x) {\n"
+"  return f_1(x+1);\n"
+"}\n"
+"%NeverOptimizeFunction(f_0);\n"
+"function f_1(x) {\n"
+"  return new f_2(x+1);\n"
+"}\n"
+"function f_2(x) {\n"
+"  this.foo = x;\n"
+"}\n"
+"var instances = [];\n"
+"function start() {\n"
+"  instances.push(f_0(0));\n"
+"}\n"
+"\n"
+"for (var i = 0; i < 100; i++) start();\n";
+
+
+TEST(TrackBumpPointerAllocations) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  const char* names[] = { "(anonymous function)", "start", "f_0", "f_1" };
+  // First check that normally all allocations are recorded.
+  {
+    heap_profiler->StartRecordingHeapAllocations();
+
+    CompileRun(inline_heap_allocation_source);
+
+    const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
+        v8::String::New("Test2"));
+    i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
+    AllocationTracker* tracker = collection->allocation_tracker();
+    CHECK_NE(NULL, tracker);
+    // Resolve all function locations.
+    tracker->PrepareForSerialization();
+    // Print for better diagnostics in case of failure.
+    tracker->trace_tree()->Print(tracker);
+
+    AllocationTraceNode* node =
+        FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+    CHECK_NE(NULL, node);
+    CHECK_GE(node->allocation_count(), 100);
+    CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
+    heap_profiler->StopRecordingHeapAllocations();
+  }
+
+  {
+    heap_profiler->StartRecordingHeapAllocations();
+
+    // Now check that not all allocations are tracked if we manually reenable
+    // inline allocations.
+    CHECK(CcTest::heap()->inline_allocation_disabled());
+    CcTest::heap()->EnableInlineAllocation();
+
+    CompileRun(inline_heap_allocation_source);
+
+    const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
+        v8::String::New("Test1"));
+    i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
+    AllocationTracker* tracker = collection->allocation_tracker();
+    CHECK_NE(NULL, tracker);
+    // Resolve all function locations.
+    tracker->PrepareForSerialization();
+    // Print for better diagnostics in case of failure.
+    tracker->trace_tree()->Print(tracker);
+
+    AllocationTraceNode* node =
+        FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+    CHECK_NE(NULL, node);
+    CHECK_LT(node->allocation_count(), 100);
+
+    CcTest::heap()->DisableInlineAllocation();
+    heap_profiler->StopRecordingHeapAllocations();
+  }
+}

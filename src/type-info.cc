@@ -200,7 +200,15 @@ bool TypeFeedbackOracle::StoreIsKeyedPolymorphic(TypeFeedbackId ast_id) {
 bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
   Handle<Object> value = GetInfo(expr->CallFeedbackId());
   return value->IsMap() || value->IsAllocationSite() || value->IsJSFunction() ||
-      value->IsSmi();
+      value->IsSmi() ||
+      (value->IsCode() && Handle<Code>::cast(value)->ic_state() == MONOMORPHIC);
+}
+
+
+bool TypeFeedbackOracle::KeyedArrayCallIsHoley(Call* expr) {
+  Handle<Object> value = GetInfo(expr->CallFeedbackId());
+  Handle<Code> code = Handle<Code>::cast(value);
+  return KeyedArrayCallStub::IsHoley(code);
 }
 
 
@@ -617,7 +625,6 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
       case Code::LOAD_IC:
       case Code::STORE_IC:
       case Code::CALL_IC:
-      case Code::KEYED_CALL_IC:
         if (target->ic_state() == MONOMORPHIC) {
           if (target->kind() == Code::CALL_IC &&
               target->check_type() != RECEIVER_MAP_CHECK) {
@@ -637,6 +644,7 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
         }
         break;
 
+      case Code::KEYED_CALL_IC:
       case Code::KEYED_LOAD_IC:
       case Code::KEYED_STORE_IC:
       case Code::BINARY_OP_IC:

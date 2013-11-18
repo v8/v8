@@ -521,12 +521,19 @@ bool HValue::CanReplaceWithDummyUses() {
 
 
 bool HValue::IsInteger32Constant() {
-  return IsConstant() && HConstant::cast(this)->HasInteger32Value();
+  HValue* value_to_check = IsForceRepresentation()
+      ? HForceRepresentation::cast(this)->value()
+      : this;
+  return value_to_check->IsConstant() &&
+      HConstant::cast(value_to_check)->HasInteger32Value();
 }
 
 
 int32_t HValue::GetInteger32Constant() {
-  return HConstant::cast(this)->Integer32Value();
+  HValue* constant_value = IsForceRepresentation()
+      ? HForceRepresentation::cast(this)->value()
+      : this;
+  return HConstant::cast(constant_value)->Integer32Value();
 }
 
 
@@ -3397,7 +3404,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  if (new_dominator_size > Page::kMaxNonCodeHeapObjectSize) {
+  if (new_dominator_size > isolate()->heap()->MaxRegularSpaceAllocationSize()) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
           id(), Mnemonic(), dominator_allocate->id(),

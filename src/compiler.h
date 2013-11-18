@@ -98,6 +98,10 @@ class CompilationInfo {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
+  void set_parameter_count(int parameter_count) {
+    ASSERT(IsStub());
+    parameter_count_ = parameter_count;
+  }
   void SetLanguageMode(LanguageMode language_mode) {
     ASSERT(this->language_mode() == CLASSIC_MODE ||
            this->language_mode() == language_mode ||
@@ -441,6 +445,9 @@ class CompilationInfo {
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.
   int opt_count_;
+
+  // Number of parameters used for compilation of stubs that require arguments.
+  int parameter_count_;
 
   Handle<Foreign> object_wrapper_;
 

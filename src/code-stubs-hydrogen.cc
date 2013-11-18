@@ -210,7 +210,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 template <class Stub>
 class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
  public:
-  explicit CodeStubGraphBuilder(Isolate* isolate, Stub* stub)
+  CodeStubGraphBuilder(Isolate* isolate, Stub* stub)
       : CodeStubGraphBuilderBase(isolate, stub) {}
 
  protected:
@@ -590,6 +590,32 @@ HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
 
 
 Handle<Code> KeyedLoadFieldStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<KeyedArrayCallStub>::BuildCodeStub() {
+  int argc = casted_stub()->argc() + 1;
+  info()->set_parameter_count(argc);
+
+  HValue* receiver = Add<HParameter>(1);
+
+  // Load the expected initial array map from the context.
+  JSArrayBuilder array_builder(this, casted_stub()->elements_kind());
+  HValue* map = array_builder.EmitMapCode();
+
+  HValue* checked_receiver = Add<HCheckMapValue>(receiver, map);
+
+  HValue* function = BuildUncheckedMonomorphicElementAccess(
+      checked_receiver, GetParameter(0),
+      NULL, true, casted_stub()->elements_kind(),
+      false, NEVER_RETURN_HOLE, STANDARD_STORE);
+  return Add<HCallFunction>(function, argc, TAIL_CALL);
+}
+
+
+Handle<Code> KeyedArrayCallStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 
@@ -1273,6 +1299,22 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
 
 
 Handle<Code> FastNewClosureStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(0);
+  HValue* key = GetParameter(1);
+
+  Add<HCheckSmi>(key);
+
+  return BuildUncheckedDictionaryElementLoad(receiver, key);
+}
+
+
+Handle<Code> KeyedLoadDictionaryElementStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 
