@@ -37,6 +37,7 @@ class CodeGenerator:
                rule_processor,
                minimize_default = True,
                inline = True,
+               switching = True,
                debug_print = False,
                log = False):
     if minimize_default:
@@ -49,6 +50,7 @@ class CodeGenerator:
     self.__start_node_number = self.__dfa.start_state().node_number()
     self.__log = log
     self.__inline = inline
+    self.__switching = switching
 
   def __state_cmp(self, left, right):
     if left['original_node_number'] == self.__start_node_number:
@@ -97,25 +99,27 @@ class CodeGenerator:
     action = state.action()
     entry_action = None if not action else action.entry_action()
     match_action = None if not action else action.match_action()
-    # compute disjoint ranges
-    keys = TransitionKey.disjoint_keys(list(state.key_iter()))
-    def f(key):
-      ranges = list(key.range_iter())
-      assert len(ranges) == 1
-      return ranges[0]
-    keys = sorted(map(f, keys), CodeGenerator.__range_cmp)
     # generate ordered transitions
     transitions = map(lambda (k, v) : (k, v.node_number()),
                       state.transitions().items())
     def cmp(left, right):
       return TransitionKey.canonical_compare(left[0], right[0])
     transitions = sorted(transitions, cmp)
+    # map transition keys to disjoint ranges
+    disjoint_keys = {'value' : []}
+    def f((key, state)):
+      ranges = list(key.range_iter())
+      disjoint_keys['value'] += ranges
+      return (ranges, state)
+    transitions = map(f, transitions)
+    disjoint_keys = sorted(disjoint_keys['value'], CodeGenerator.__range_cmp)
     # dictionary object representing state
     return {
       'node_number' : state.node_number(),
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
-      'disjoint_keys' : keys,
+      'switch_transitions' : [],
+      'disjoint_keys' : disjoint_keys,
       'inline' : None,
       'depth' : None,
       'action' : action,
@@ -138,8 +142,39 @@ class CodeGenerator:
     inline = False
     if not state['transitions']:
       inline = True
+    # TODO add in 1 or 2 element if blocks
     state['inline'] = inline
     return count + 1 if inline else count
+
+  @staticmethod
+  def __split_transitions(split_count, state):
+    assert not state['switch_transitions']
+    (class_keys, distinct_keys, ranges) = (0, 0, 0)
+    for (t, r) in state['disjoint_keys']:
+      if t == 'CLASS':
+        class_keys += 1
+      elif t == 'LATIN_1':
+        distinct_keys += r[1] - r[0] + 1
+        ranges += 1
+      else:
+        raise Exception()
+    if distinct_keys <= 7 or float(distinct_keys)/float(ranges) >= 7.0:
+      return split_count
+    switch_transitions = []
+    if_transitions = []
+    for (ranges, node_id) in state['transitions']:
+      i = []
+      for r in ranges:
+        if r[0] == 'CLASS':
+          i.append(r)
+        else:
+          for x in range(r[1][0], r[1][1] + 1):
+            switch_transitions.append((x, node_id))
+      if i:
+        if_transitions.append((i, node_id))
+    state['transitions'] = if_transitions
+    state['switch_transitions'] = switch_transitions
+    return split_count + 1
 
   def __canonicalize_traversal(self):
     dfa_states = []
@@ -164,6 +199,14 @@ class CodeGenerator:
         print "inlined %s" % inlined
     elif self.__log:
       print "no inlining"
+    # split transitions
+    if self.__switching:
+      switched = reduce(CodeGenerator.__split_transitions, dfa_states, 0)
+      if self.__log:
+        print "switched states %s" % inlined
+    elif self.__log:
+      print "no switching"
+    # store states
     self.__dfa_states = dfa_states
 
   def process(self):

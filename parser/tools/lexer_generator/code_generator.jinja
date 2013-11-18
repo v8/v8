@@ -3,7 +3,7 @@
 
 {# TODO implement CLASS checks #}
 {%- macro do_key(key) -%}
-  {%- for r in key.range_iter() -%}
+  {%- for r in key -%}
     {%- if not loop.first %} || {% endif -%}
     {%- if r[0] == 'LATIN_1' -%}
       {%- if r[1][0] == r[1][1] -%}
@@ -83,10 +83,25 @@
     fprintf(stderr, "char at hand is %c (%d)\n", yych, yych);
   {% endif -%}
 
+  {%- if state['switch_transitions'] -%}
+    switch(yych) {
+    {%- for key, transition_state_id in state['switch_transitions'] %}
+        case {{key}}:
+      {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
+      FORWARD();
+      {%- if inline_transition %}
+        {{ do_dfa_state(transition_state_id, True) }}
+      {% else %}
+        goto code_{{transition_state_id}};
+      {% endif %}
+    {% endfor -%}
+    }
+  {%- endif -%}
+
   {%- for key, transition_state_id in state.transitions %}
-    {%- set inline_transition = dfa_states[transition_state_id]['inline'] -%}
     if ({{do_key(key)}}) {
-        FORWARD();
+      {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
+      FORWARD();
       {%- if inline_transition %}
         {{ do_dfa_state(transition_state_id, True) }}
       {% else %}
