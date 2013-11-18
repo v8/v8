@@ -6,7 +6,15 @@
   {%- for r in key.range_iter() -%}
     {%- if not loop.first %} || {% endif -%}
     {%- if r[0] == 'LATIN_1' -%}
-      ({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
+      {%- if r[1][0] == r[1][1] -%}
+	yych == {{r[1][0]}}
+      {%- elif r[1][0] == 0 -%}
+	yych <= {{r[1][1]}}
+      {%- elif r[1][1] == 255 -%}
+	yych >= {{r[1][0]}}
+      {%- else -%}
+	({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
+      {%- endif -%}
     {%- else -%}
       false
     {%- endif -%}
