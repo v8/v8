@@ -2154,6 +2154,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   bool IsCallNewArrayInlineable(CallNew* expr);
   void BuildInlinedCallNewArray(CallNew* expr);
 
+  void VisitDataViewInitialize(CallRuntime* expr);
+
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(Isolate* isolate, Handle<Map> map, Handle<String> name)

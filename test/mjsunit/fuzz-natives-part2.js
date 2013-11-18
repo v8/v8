@@ -209,6 +209,7 @@ var knownProblems = {
   "_GeneratorThrow": true,
 
   // Only applicable to DataViews.
+  "DataViewInitialize": true,
   "DataViewGetBuffer": true,
   "DataViewGetByteLength": true,
   "DataViewGetByteOffset": true

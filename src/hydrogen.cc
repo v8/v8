@@ -8052,6 +8052,52 @@ const HOptimizedGraphBuilder::InlineFunctionGenerator
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
 
+void HOptimizedGraphBuilder::VisitDataViewInitialize(
+    CallRuntime* expr) {
+  ZoneList<Expression*>* arguments = expr->arguments();
+
+  NoObservableSideEffectsScope scope(this);
+  ASSERT(arguments->length()== 4);
+  CHECK_ALIVE(VisitForValue(arguments->at(0)));
+  HValue* obj = Pop();
+
+  CHECK_ALIVE(VisitForValue(arguments->at(1)));
+  HValue* buffer = Pop();
+
+  CHECK_ALIVE(VisitForValue(arguments->at(2)));
+  HValue* byte_offset = Pop();
+
+  CHECK_ALIVE(VisitForValue(arguments->at(3)));
+  HValue* byte_length = Pop();
+
+  for (int offset = JSDataView::kSize;
+        offset < JSDataView::kSizeWithInternalFields;
+        offset += kPointerSize) {
+    Add<HStoreNamedField>(obj,
+        HObjectAccess::ForJSObjectOffset(offset),
+        Add<HConstant>(static_cast<int32_t>(0)));
+  }
+
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kBufferOffset), buffer);
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kByteOffsetOffset),
+      byte_offset);
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kByteLengthOffset),
+      byte_length);
+
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kWeakNextOffset),
+      Add<HLoadNamedField>(buffer,
+          HObjectAccess::ForJSObjectOffset(
+            JSArrayBuffer::kWeakFirstViewOffset)));
+  Add<HStoreNamedField>(buffer,
+      HObjectAccess::ForJSObjectOffset(JSArrayBuffer::kWeakFirstViewOffset),
+      obj);
+}
+
+
 void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -8062,6 +8108,11 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
+
+  if (function->function_id == Runtime::kDataViewInitialize) {
+      return VisitDataViewInitialize(expr);
+  }
+
   if (function->intrinsic_type == Runtime::INLINE) {
     ASSERT(expr->name()->length() > 0);
     ASSERT(expr->name()->Get(0) == '_');
