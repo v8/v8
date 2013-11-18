@@ -10550,7 +10550,23 @@ void Code::FindAllMaps(MapHandleList* maps) {
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) maps->Add(Handle<Map>(Map::cast(object)));
+    if (object->IsMap()) maps->Add(handle(Map::cast(object)));
+  }
+}
+
+
+void Code::FindAllTypes(TypeHandleList* types) {
+  ASSERT(is_inline_cache_stub());
+  DisallowHeapAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  Isolate* isolate = GetIsolate();
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Object* object = info->target_object();
+    if (object->IsMap()) {
+      Handle<Map> map(Map::cast(object));
+      types->Add(handle(IC::MapToType(map), isolate));
+    }
   }
 }
 

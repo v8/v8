@@ -134,37 +134,40 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 
 
 Handle<Code> StubCache::ComputeMonomorphicIC(Handle<Name> name,
-                                             Handle<Object> object,
+                                             Handle<Type> type,
                                              Handle<Code> handler,
                                              StrictModeFlag strict_mode) {
   Code::Kind kind = handler->handler_kind();
-  // Use the same cache holder for the IC as for the handler.
-  InlineCacheHolderFlag cache_holder =
-      Code::ExtractCacheHolderFromFlags(handler->flags());
-  Handle<HeapObject> stub_holder(IC::GetCodeCacheHolder(
-      isolate(), *object, cache_holder));
-  Handle<Map> stub_holder_map(stub_holder->map());
-  Handle<Code> ic = FindIC(
-      name, stub_holder_map, kind, strict_mode, cache_holder);
-  if (!ic.is_null()) return ic;
+  InlineCacheHolderFlag flag = IC::GetCodeCacheFlag(*type);
 
-  Handle<Map> map(object->GetMarkerMap(isolate()));
+  Handle<Map> stub_holder;
+  Handle<Code> ic;
+  // There are multiple string maps that all use the same prototype. That
+  // prototype cannot hold multiple handlers, one for each of the string maps,
+  // for a single name. Hence, turn off caching of the IC.
+  bool can_be_cached = !type->Is(Type::String());
+  if (can_be_cached) {
+    stub_holder = IC::GetCodeCacheHolder(flag, *type, isolate());
+    ic = FindIC(name, stub_holder, kind, strict_mode, flag);
+    if (!ic.is_null()) return ic;
+  }
+
   if (kind == Code::LOAD_IC) {
-    LoadStubCompiler ic_compiler(isolate(), cache_holder);
-    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+    LoadStubCompiler ic_compiler(isolate(), flag);
+    ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else if (kind == Code::KEYED_LOAD_IC) {
-    KeyedLoadStubCompiler ic_compiler(isolate(), cache_holder);
-    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+    KeyedLoadStubCompiler ic_compiler(isolate(), flag);
+    ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else if (kind == Code::STORE_IC) {
     StoreStubCompiler ic_compiler(isolate(), strict_mode);
-    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+    ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else {
     ASSERT(kind == Code::KEYED_STORE_IC);
     KeyedStoreStubCompiler ic_compiler(isolate(), strict_mode, STANDARD_STORE);
-    ic = ic_compiler.CompileMonomorphicIC(map, handler, name);
+    ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   }
 
-  HeapObject::UpdateMapCodeCache(stub_holder, name, ic);
+  if (can_be_cached) Map::UpdateCodeCache(stub_holder, name, ic);
   return ic;
 }
 
@@ -584,6 +587,7 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
 }
 
 
+// TODO(verwaest): Change this method so it takes in a TypeHandleList.
 Handle<Code> StubCache::ComputeLoadElementPolymorphic(
     MapHandleList* receiver_maps) {
   Code::Flags flags = Code::ComputeFlags(Code::KEYED_LOAD_IC, POLYMORPHIC);
@@ -592,12 +596,15 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
+  TypeHandleList types(receiver_maps->length());
+  for (int i = 0; i < receiver_maps->length(); i++) {
+    types.Add(handle(Type::Class(receiver_maps->at(i)), isolate()));
+  }
   CodeHandleList handlers(receiver_maps->length());
   KeyedLoadStubCompiler compiler(isolate_);
   compiler.CompileElementHandlers(receiver_maps, &handlers);
   Handle<Code> code = compiler.CompilePolymorphicIC(
-      receiver_maps, &handlers, factory()->empty_string(),
-      Code::NORMAL, ELEMENT);
+      &types, &handlers, factory()->empty_string(), Code::NORMAL, ELEMENT);
 
   isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
 
@@ -606,24 +613,24 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 }
 
 
-Handle<Code> StubCache::ComputePolymorphicIC(MapHandleList* receiver_maps,
+Handle<Code> StubCache::ComputePolymorphicIC(TypeHandleList* types,
                                              CodeHandleList* handlers,
-                                             int number_of_valid_maps,
+                                             int number_of_valid_types,
                                              Handle<Name> name,
                                              StrictModeFlag strict_mode) {
   Handle<Code> handler = handlers->at(0);
   Code::Kind kind = handler->handler_kind();
-  Code::StubType type = number_of_valid_maps == 1 ? handler->type()
-                                                  : Code::NORMAL;
+  Code::StubType type = number_of_valid_types == 1 ? handler->type()
+                                                   : Code::NORMAL;
   if (kind == Code::LOAD_IC) {
     LoadStubCompiler ic_compiler(isolate_);
     return ic_compiler.CompilePolymorphicIC(
-        receiver_maps, handlers, name, type, PROPERTY);
+        types, handlers, name, type, PROPERTY);
   } else {
     ASSERT(kind == Code::STORE_IC);
     StoreStubCompiler ic_compiler(isolate_, strict_mode);
     return ic_compiler.CompilePolymorphicIC(
-        receiver_maps, handlers, name, type, PROPERTY);
+        types, handlers, name, type, PROPERTY);
   }
 }
 
@@ -1181,12 +1188,9 @@ Register StoreStubCompiler::HandlerFrontendHeader(
 }
 
 
-bool BaseLoadStoreStubCompiler::HasHeapNumberMap(MapHandleList* receiver_maps) {
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    Handle<Map> map = receiver_maps->at(i);
-    if (map.is_identical_to(isolate()->factory()->heap_number_map())) {
-      return true;
-    }
+bool BaseLoadStoreStubCompiler::IncludesNumberType(TypeHandleList* types) {
+  for (int i = 0; i < types->length(); ++i) {
+    if (types->at(i)->Is(Type::Number())) return true;
   }
   return false;
 }
@@ -1353,15 +1357,15 @@ void LoadStubCompiler::GenerateLoadPostInterceptor(
 
 
 Handle<Code> BaseLoadStoreStubCompiler::CompileMonomorphicIC(
-    Handle<Map> receiver_map,
+    Handle<Type> type,
     Handle<Code> handler,
     Handle<Name> name) {
-  MapHandleList receiver_maps(1);
-  receiver_maps.Add(receiver_map);
+  TypeHandleList types(1);
   CodeHandleList handlers(1);
+  types.Add(type);
   handlers.Add(handler);
-  Code::StubType type = handler->type();
-  return CompilePolymorphicIC(&receiver_maps, &handlers, name, type, PROPERTY);
+  Code::StubType stub_type = handler->type();
+  return CompilePolymorphicIC(&types, &handlers, name, stub_type, PROPERTY);
 }
 
 

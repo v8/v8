@@ -93,7 +93,7 @@ class StubCache {
                            StrictModeFlag strict_mode = kNonStrictMode);
 
   Handle<Code> ComputeMonomorphicIC(Handle<Name> name,
-                                    Handle<Object> receiver,
+                                    Handle<Type> type,
                                     Handle<Code> handler,
                                     StrictModeFlag strict_mode);
 
@@ -173,7 +173,7 @@ class StubCache {
                                               KeyedAccessStoreMode store_mode,
                                               StrictModeFlag strict_mode);
 
-  Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+  Handle<Code> ComputePolymorphicIC(TypeHandleList* types,
                                     CodeHandleList* handlers,
                                     int number_of_valid_maps,
                                     Handle<Name> name,
@@ -532,11 +532,11 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   }
   virtual ~BaseLoadStoreStubCompiler() { }
 
-  Handle<Code> CompileMonomorphicIC(Handle<Map> receiver_map,
+  Handle<Code> CompileMonomorphicIC(Handle<Type> type,
                                     Handle<Code> handler,
                                     Handle<Name> name);
 
-  Handle<Code> CompilePolymorphicIC(MapHandleList* receiver_maps,
+  Handle<Code> CompilePolymorphicIC(TypeHandleList* types,
                                     CodeHandleList* handlers,
                                     Handle<Name> name,
                                     Code::StubType type,
@@ -608,7 +608,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
 
   void InitializeRegisters();
 
-  bool HasHeapNumberMap(MapHandleList* receiver_maps);
+  bool IncludesNumberType(TypeHandleList* types);
 
   Code::Kind kind_;
   InlineCacheHolderFlag cache_holder_;

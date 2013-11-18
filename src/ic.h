@@ -148,10 +148,23 @@ class IC {
                                                Object* object,
                                                InlineCacheHolderFlag holder);
 
+  static inline InlineCacheHolderFlag GetCodeCacheFlag(Type* type);
+  static inline Handle<Map> GetCodeCacheHolder(InlineCacheHolderFlag flag,
+                                               Type* type,
+                                               Isolate* isolate);
+
   static bool IsCleared(Code* code) {
     InlineCacheState state = code->ic_state();
     return state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
+
+  // Utility functions to convert maps to types and back. There are two special
+  // cases:
+  // - The heap_number_map is used as a marker which includes heap numbers as
+  //   well as smis.
+  // - The oddball map is only used for booleans.
+  static Handle<Map> TypeToMap(Type* type, Isolate* isolate);
+  static Type* MapToType(Handle<Map> type);
 
  protected:
   // Get the call-site target; used for determining the state.
@@ -204,20 +217,22 @@ class IC {
     UNREACHABLE();
     return Handle<Code>::null();
   }
-  void UpdateMonomorphicIC(Handle<Object> receiver,
+
+  void UpdateMonomorphicIC(Handle<Type> type,
                            Handle<Code> handler,
                            Handle<String> name);
 
-  bool UpdatePolymorphicIC(Handle<Object> receiver,
+  bool UpdatePolymorphicIC(Handle<Type> type,
                            Handle<String> name,
                            Handle<Code> code);
 
+  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code);
+
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
-  void PatchCache(Handle<Object> object,
+  bool IsTransitionOfMonomorphicTarget(Type* type);
+  void PatchCache(Handle<Type> type,
                   Handle<String> name,
                   Handle<Code> code);
-  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
   virtual Code::Kind kind() const {
     UNREACHABLE();
     return Code::STUB;
@@ -512,7 +527,7 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
 
  private:
   // Stub accessors.
@@ -693,7 +708,7 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
 
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate(), strict_mode());
