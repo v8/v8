@@ -72,6 +72,7 @@ EvenMoreExperimentalScanner::EvenMoreExperimentalScanner(
   buffer_end_ = buffer_ + size;
   start_ = buffer_;
   cursor_ = buffer_;
+  marker_ = buffer_;
 }
 
 

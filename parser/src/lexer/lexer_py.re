@@ -65,7 +65,7 @@ line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
 "!"           <|push_token(NOT)|>
 
 "//"          <||SingleLineComment>
-"/*"          <||MultiLineComment>
+"/*"          <{marker_ = cursor_ - 2;}||MultiLineComment>
 "<!--"        <||SingleLineComment>
 
 "<!-"        <|{
@@ -195,9 +195,9 @@ default_action  <push_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
 "\\" line_terminator_sequence <||continue>
-/\\[xX][:hex_digit:]{2}/      <||continue>
+/\\[x][:hex_digit:]{2}/       <||continue>
 /\\[u][:hex_digit:]{4}/       <||continue>
-/\\[^xXu\r\n]/                <||continue>
+/\\[^xu\r\n]/                 <||continue>
 "\\"                          <|push_token(ILLEGAL)|>
 /\n|\r/                       <|push_token(ILLEGAL)|>
 "\""                          <|push_token(STRING)|>
@@ -207,9 +207,9 @@ catch_all                     <||continue>
 <<SingleQuoteString>>
 # TODO subgraph for '\'
 "\\" line_terminator_sequence <||continue>
-/\\[xX][:hex_digit:]{2}/      <||continue>
+/\\[x][:hex_digit:]{2}/       <||continue>
 /\\[u][:hex_digit:]{4}/       <||continue>
-/\\[^xXu\r\n]/                <||continue>
+/\\[^xu\r\n]/                 <||continue>
 "\\"                          <|push_token(ILLEGAL)|>
 /\n|\r/                       <|push_token(ILLEGAL)|>
 "'"                           <|push_token(STRING)|>
@@ -234,5 +234,5 @@ catch_all <||continue>
 # TODO find a way to generate the below rule
 /\*+[^\/*]/       <||continue>
 line_terminator  <push_line_terminator||continue>
-eof <|skip_and_terminate|>
+eof <|{start_ = marker_; BACKWARD(); PUSH_TOKEN(Token::ILLEGAL);}|>
 catch_all        <||continue>

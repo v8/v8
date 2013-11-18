@@ -62,6 +62,7 @@ class EvenMoreExperimentalScanner {
   YYCTYPE* buffer_end_;
   YYCTYPE* start_;
   YYCTYPE* cursor_;
+  YYCTYPE* marker_;
   bool just_seen_line_terminator_;
 
   YYCTYPE yych;

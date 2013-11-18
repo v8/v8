@@ -119,6 +119,10 @@
   yych = *(++cursor_);                \
 }
 
+#define BACKWARD() {                  \
+  yych = *(--cursor_);                \
+}
+
 #define SKIP() {                      \
   start_ = cursor_;                   \
 }
