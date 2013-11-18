@@ -1212,7 +1212,10 @@ inline static bool DataViewGetValue(
     Handle<Object> byte_offset_obj,
     bool is_little_endian,
     T* result) {
-  size_t byte_offset = NumberToSize(isolate, *byte_offset_obj);
+  size_t byte_offset = 0;
+  if (!TryNumberToSize(isolate, *byte_offset_obj, &byte_offset)) {
+    return false;
+  }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()));
 
   size_t data_view_byte_offset =
@@ -1253,7 +1256,10 @@ static bool DataViewSetValue(
     Handle<Object> byte_offset_obj,
     bool is_little_endian,
     T data) {
-  size_t byte_offset = NumberToSize(isolate, *byte_offset_obj);
+  size_t byte_offset = 0;
+  if (!TryNumberToSize(isolate, *byte_offset_obj, &byte_offset)) {
+    return false;
+  }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()));
 
   size_t data_view_byte_offset =
