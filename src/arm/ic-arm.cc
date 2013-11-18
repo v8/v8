@@ -856,7 +856,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ RecordWrite(r3, r6, r9, kLRHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret();
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -1164,7 +1164,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -1175,10 +1175,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // Push receiver, key and value for runtime call.
   __ Push(r2, r1, r0);
 
-  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
-      ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
-                          masm->isolate())
-      : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

@@ -1476,12 +1476,7 @@ static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, MISS);
-}
-
-
-static void Generate_KeyedStoreIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
+  KeyedStoreIC::GenerateMiss(masm);
 }
 
 

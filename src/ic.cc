@@ -1949,20 +1949,6 @@ KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
 }
 
 
-MaybeObject* KeyedStoreIC::StoreForceGeneric(Handle<Object> object,
-                                             Handle<Object> key,
-                                             Handle<Object> value) {
-  set_target(*generic_stub());
-  Handle<Object> result = Runtime::SetObjectProperty(isolate(), object,
-                                                     key,
-                                                     value,
-                                                     NONE,
-                                                     strict_mode());
-  RETURN_IF_EMPTY_HANDLE(isolate(), result);
-  return *result;
-}
-
-
 MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                  Handle<Object> key,
                                  Handle<Object> value) {
@@ -2317,17 +2303,6 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
                                                      strict_mode);
   RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  ic.UpdateState(receiver, key);
-  return ic.StoreForceGeneric(receiver, key, args.at<Object>(2));
 }
 
 

@@ -1310,7 +1310,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
                  INLINE_SMI_CHECK);
   __ Ret();
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -1612,7 +1612,7 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : key
@@ -1627,10 +1627,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.
-  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
-    ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
-                        masm->isolate())
-    : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

@@ -48,7 +48,6 @@ namespace internal {
   ICU(StoreIC_Slow)                                   \
   ICU(SharedStoreIC_ExtendStorage)                    \
   ICU(KeyedStoreIC_Miss)                              \
-  ICU(KeyedStoreIC_MissForceGeneric)                  \
   ICU(KeyedStoreIC_Slow)                              \
   /* Utilities for IC stubs. */                       \
   ICU(StoreCallbackProperty)                          \
@@ -687,21 +686,16 @@ class KeyedStoreIC: public StoreIC {
     ASSERT(target()->is_keyed_store_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* StoreForceGeneric(Handle<Object> object,
-                                                 Handle<Object> name,
-                                                 Handle<Object> value);
   MUST_USE_RESULT MaybeObject* Store(Handle<Object> object,
                                      Handle<Object> name,
                                      Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm) {
-    GenerateMiss(masm, MISS);
-  }
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm, MISS);
+    GenerateMiss(masm);
   }
-  static void GenerateMiss(MacroAssembler* masm, ICMissMode force_generic);
+  static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);

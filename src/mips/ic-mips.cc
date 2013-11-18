@@ -861,7 +861,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -1457,7 +1457,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- a0     : value
   //  -- a1     : key
@@ -1468,10 +1468,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // Push receiver, key and value for runtime call.
   __ Push(a2, a1, a0);
 
-  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
-      ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
-                          masm->isolate())
-      : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

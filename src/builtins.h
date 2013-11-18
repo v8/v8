@@ -125,8 +125,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(KeyedStoreIC_Miss,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(KeyedStoreIC_MissForceGeneric,  BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
   V(LoadIC_Initialize,              LOAD_IC, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(LoadIC_PreMonomorphic,          LOAD_IC, PREMONOMORPHIC,            \
