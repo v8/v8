@@ -131,22 +131,6 @@ v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
 }
 
 
-int SystemThreadManager::NumberOfParallelSystemThreads(
-    ParallelSystemComponent type) {
-  int number_of_threads = Min(CPU::NumberOfProcessorsOnline(), kMaxThreads);
-  ASSERT(number_of_threads > 0);
-  if (number_of_threads ==  1) {
-    return 0;
-  }
-  if (type == PARALLEL_SWEEPING) {
-    return number_of_threads;
-  } else if (type == CONCURRENT_SWEEPING) {
-    return number_of_threads - 1;
-  }
-  return 1;
-}
-
-
 // Create a dummy thread that will wait forever on a semaphore. The only
 // purpose for this thread is to have some stack area to save essential data
 // into for use by a stacks only core dump (aka minidump).
@@ -1790,6 +1774,8 @@ Isolate::Isolate()
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(NULL),
       sweeper_thread_(NULL),
+      num_sweeper_threads_(0),
+      max_available_threads_(0),
       stress_deopt_count_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
@@ -1882,18 +1868,20 @@ void Isolate::Deinit() {
     debugger()->UnloadDebugger();
 #endif
 
-    if (FLAG_concurrent_recompilation) {
+    if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();
       delete optimizing_compiler_thread_;
+      optimizing_compiler_thread_ = NULL;
     }
 
-    if (FLAG_sweeper_threads > 0) {
-      for (int i = 0; i < FLAG_sweeper_threads; i++) {
-        sweeper_thread_[i]->Stop();
-        delete sweeper_thread_[i];
-      }
-      delete[] sweeper_thread_;
+    for (int i = 0; i < num_sweeper_threads_; i++) {
+      sweeper_thread_[i]->Stop();
+      delete sweeper_thread_[i];
+      sweeper_thread_[i] = NULL;
     }
+    delete[] sweeper_thread_;
+    sweeper_thread_ = NULL;
+
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
@@ -2217,11 +2205,6 @@ bool Isolate::Init(Deserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData(memory_allocator_);
 
-  if (FLAG_concurrent_recompilation) {
-    optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
-    optimizing_compiler_thread_->Start();
-  }
-
   const bool create_heap_objects = (des == NULL);
   if (create_heap_objects && !heap_.CreateHeapObjects()) {
     V8::FatalProcessOutOfMemory("heap object creation");
@@ -2239,6 +2222,31 @@ bool Isolate::Init(Deserializer* des) {
   builtins_.SetUp(this, create_heap_objects);
 
   if (create_heap_objects) heap_.CreateStubsRequiringBuiltins();
+
+  // Set default value if not yet set.
+  // TODO(yangguo): move this to ResourceConstraints::ConfigureDefaults
+  // once ResourceConstraints becomes an argument to the Isolate constructor.
+  if (max_available_threads_ < 1) {
+    // Choose the default between 1 and 4.
+    max_available_threads_ = Max(Min(CPU::NumberOfProcessorsOnline(), 4), 1);
+  }
+
+  num_sweeper_threads_ = SweeperThread::NumberOfThreads(max_available_threads_);
+
+  if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
+    PrintF("Concurrent recompilation has been disabled for tracing.\n");
+  } else if (OptimizingCompilerThread::Enabled(max_available_threads_)) {
+    optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
+    optimizing_compiler_thread_->Start();
+  }
+
+  if (num_sweeper_threads_ > 0) {
+    sweeper_thread_ = new SweeperThread*[num_sweeper_threads_];
+    for (int i = 0; i < num_sweeper_threads_; i++) {
+      sweeper_thread_[i] = new SweeperThread(this);
+      sweeper_thread_[i]->Start();
+    }
+  }
 
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {
@@ -2332,14 +2340,6 @@ bool Isolate::Init(Deserializer* des) {
     FastNewClosureStub::InstallDescriptors(this);
     NumberToStringStub::InstallDescriptors(this);
     NewStringAddStub::InstallDescriptors(this);
-  }
-
-  if (FLAG_sweeper_threads > 0) {
-    sweeper_thread_ = new SweeperThread*[FLAG_sweeper_threads];
-    for (int i = 0; i < FLAG_sweeper_threads; i++) {
-      sweeper_thread_[i] = new SweeperThread(this);
-      sweeper_thread_[i]->Start();
-    }
   }
 
   initialized_from_snapshot_ = (des != NULL);

@@ -8424,7 +8424,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
     return isolate->heap()->undefined_value();
   }
   function->shared()->code()->set_profiler_ticks(0);
-  ASSERT(FLAG_concurrent_recompilation);
+  ASSERT(isolate->concurrent_recompilation_enabled());
   if (!Compiler::RecompileConcurrent(function)) {
     function->ReplaceCode(function->shared()->code());
   }
@@ -8561,7 +8561,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConcurrentRecompilationSupported) {
   HandleScope scope(isolate);
-  return FLAG_concurrent_recompilation
+  return isolate->concurrent_recompilation_enabled()
       ? isolate->heap()->true_value() : isolate->heap()->false_value();
 }
 
@@ -8619,7 +8619,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
     }
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_concurrent_recompilation && sync_with_compiler_thread) {
+  if (isolate->concurrent_recompilation_enabled() &&
+      sync_with_compiler_thread) {
     while (function->IsInRecompileQueue()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
@@ -8697,7 +8698,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   Handle<Code> result = Handle<Code>::null();
   BailoutId ast_id = BailoutId::None();
 
-  if (FLAG_concurrent_osr) {
+  if (isolate->concurrent_osr_enabled()) {
     if (isolate->optimizing_compiler_thread()->
             IsQueuedForOSR(function, pc_offset)) {
       // Still waiting for the optimizing compiler thread to finish.  Carry on.

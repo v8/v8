@@ -2906,7 +2906,7 @@ HBasicBlock* HGraph::CreateBasicBlock() {
 
 void HGraph::FinalizeUniqueness() {
   DisallowHeapAllocation no_gc;
-  ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+  ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
   for (int i = 0; i < blocks()->length(); ++i) {
     for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
       it.Current()->FinalizeUniqueness();
@@ -10331,7 +10331,7 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
-  ASSERT(!FLAG_concurrent_recompilation);
+  ASSERT(!chunk->isolate()->concurrent_recompilation_enabled());
   AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, chunk->graph(), chunk);
@@ -10339,7 +10339,7 @@ void HTracer::TraceLithium(const char* name, LChunk* chunk) {
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
-  ASSERT(!FLAG_concurrent_recompilation);
+  ASSERT(!graph->isolate()->concurrent_recompilation_enabled());
   AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, graph, NULL);

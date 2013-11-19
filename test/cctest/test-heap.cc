@@ -2963,8 +2963,6 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
   // after the first time the accessor is fired.  We use external string
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
-  FLAG_use_ic = false;  // ICs retain objects.
-  FLAG_concurrent_recompilation = false;
   v8::HandleScope scope(CcTest::isolate());
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
@@ -2987,6 +2985,8 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
 
 
 TEST(ReleaseStackTraceData) {
+  FLAG_use_ic = false;  // ICs retain objects.
+  FLAG_concurrent_recompilation = false;
   CcTest::InitializeVM();
   static const char* source1 = "var error = null;            "
   /* Normal Error */           "try {                        "

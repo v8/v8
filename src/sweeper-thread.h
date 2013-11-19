@@ -51,6 +51,8 @@ class SweeperThread : public Thread {
   void WaitForSweeperThread();
   intptr_t StealMemory(PagedSpace* space);
 
+  static int NumberOfThreads(int max_available);
+
  private:
   Isolate* isolate_;
   Heap* heap_;

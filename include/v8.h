@@ -3817,17 +3817,23 @@ class V8_EXPORT ResourceConstraints {
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
-  int max_executable_size() { return max_executable_size_; }
+  int max_executable_size() const { return max_executable_size_; }
   void set_max_executable_size(int value) { max_executable_size_ = value; }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
+  int max_available_threads() const { return max_available_threads_; }
+  // Set the number of threads available to V8, assuming at least 1.
+  void set_max_available_threads(int value) {
+    max_available_threads_ = value;
+  }
 
  private:
   int max_young_space_size_;
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
+  int max_available_threads_;
 };
 
 

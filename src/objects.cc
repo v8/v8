@@ -9498,7 +9498,7 @@ void JSFunction::MarkForConcurrentRecompilation() {
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(!shared()->is_generator());
-  ASSERT(FLAG_concurrent_recompilation);
+  ASSERT(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
@@ -9516,7 +9516,7 @@ void JSFunction::MarkInRecompileQueue() {
   ASSERT(!GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(IsMarkedForConcurrentRecompilation() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_concurrent_recompilation);
+  ASSERT(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queueing ");
     PrintName();

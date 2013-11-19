@@ -563,7 +563,8 @@ ResourceConstraints::ResourceConstraints()
   : max_young_space_size_(0),
     max_old_space_size_(0),
     max_executable_size_(0),
-    stack_limit_(NULL) { }
+    stack_limit_(NULL),
+    max_available_threads_(0) { }
 
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
@@ -599,6 +600,8 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
     set_max_old_space_size(700 * lump_of_memory);
     set_max_executable_size(256 * lump_of_memory);
   }
+
+  set_max_available_threads(0);
 }
 
 
@@ -627,6 +630,8 @@ bool SetResourceConstraints(Isolate* v8_isolate,
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
+
+  isolate->set_max_available_threads(constraints->max_available_threads());
   return true;
 }
 

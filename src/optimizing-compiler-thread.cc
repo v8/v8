@@ -370,8 +370,13 @@ void OptimizingCompilerThread::AddToOsrBuffer(RecompileJob* job) {
 
 
 #ifdef DEBUG
+bool OptimizingCompilerThread::IsOptimizerThread(Isolate* isolate) {
+  return isolate->concurrent_recompilation_enabled() &&
+         isolate->optimizing_compiler_thread()->IsOptimizerThread();
+}
+
+
 bool OptimizingCompilerThread::IsOptimizerThread() {
-  if (!FLAG_concurrent_recompilation) return false;
   LockGuard<Mutex> lock_guard(&thread_id_mutex_);
   return ThreadId::Current().ToInteger() == thread_id_;
 }
