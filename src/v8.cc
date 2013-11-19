@@ -52,7 +52,6 @@ V8_DECLARE_ONCE(init_once);
 
 List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
-v8::Platform* V8::platform_ = NULL;
 
 
 bool V8::Initialize(Deserializer* des) {
@@ -193,24 +192,6 @@ void V8::InitializeOncePerProcessImpl() {
 
 void V8::InitializeOncePerProcess() {
   CallOnce(&init_once, &InitializeOncePerProcessImpl);
-}
-
-
-void V8::InitializePlatform(v8::Platform* platform) {
-  ASSERT(platform);
-  platform_ = platform;
-}
-
-
-void V8::ShutdownPlatform() {
-  ASSERT(platform_);
-  platform_ = NULL;
-}
-
-
-v8::Platform* V8::GetCurrentPlatform() {
-  ASSERT(platform_);
-  return platform_;
 }
 
 } }  // namespace v8::internal

@@ -281,8 +281,6 @@
         '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
-        '../../src/default-platform.cc',
-        '../../src/default-platform.h',
         '../../src/deoptimizer.cc',
         '../../src/deoptimizer.h',
         '../../src/disasm.h',
@@ -891,12 +889,6 @@
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icudata',
-          ],
-        }],
-        ['v8_use_default_platform==0', {
-          'sources!': [
-            '../../src/default-platform.cc',
-            '../../src/default-platform.h',
           ],
         }],
       ],

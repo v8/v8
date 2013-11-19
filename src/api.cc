@@ -40,9 +40,6 @@
 #include "counters.h"
 #include "cpu-profiler.h"
 #include "debug.h"
-#ifdef V8_USE_DEFAULT_PLATFORM
-#include "default-platform.h"
-#endif
 #include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
@@ -5055,32 +5052,11 @@ static void* ExternalValue(i::Object* obj) {
 // --- E n v i r o n m e n t ---
 
 
-void v8::V8::InitializePlatform(Platform* platform) {
-#ifdef V8_USE_DEFAULT_PLATFORM
-  FATAL("Can't override v8::Platform when using default implementation");
-#else
-  i::V8::InitializePlatform(platform);
-#endif
-}
-
-
-void v8::V8::ShutdownPlatform() {
-#ifdef V8_USE_DEFAULT_PLATFORM
-  FATAL("Can't override v8::Platform when using default implementation");
-#else
-  i::V8::ShutdownPlatform();
-#endif
-}
-
-
 bool v8::V8::Initialize() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
-#ifdef V8_USE_DEFAULT_PLATFORM
-  i::V8::InitializePlatform(new i::DefaultPlatform);
-#endif
   return InitializeHelper(isolate);
 }
 
@@ -5145,12 +5121,6 @@ bool v8::V8::Dispose() {
     return false;
   }
   i::V8::TearDown();
-#ifdef V8_USE_DEFAULT_PLATFORM
-  i::DefaultPlatform* platform =
-      static_cast<i::DefaultPlatform*>(i::V8::GetCurrentPlatform());
-  i::V8::ShutdownPlatform();
-  delete platform;
-#endif
   return true;
 }
 

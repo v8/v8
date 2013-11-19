@@ -105,7 +105,6 @@ class NumberObject;
 class Object;
 class ObjectOperationDescriptor;
 class ObjectTemplate;
-class Platform;
 class Primitive;
 class RawOperationDescriptor;
 class Signature;
@@ -4783,18 +4782,6 @@ class V8_EXPORT V8 {
    * invoke this method when using the bundled ICU. Returns true on success.
    */
   static bool InitializeICU();
-
-  /**
-   * Sets the v8::Platform to use. This should be invoked before V8 is
-   * initialized.
-   */
-  static void InitializePlatform(Platform* platform);
-
-  /**
-   * Clears all references to the v8::Platform. This should be invoked after
-   * V8 was disposed.
-   */
-  static void ShutdownPlatform();
 
  private:
   V8();

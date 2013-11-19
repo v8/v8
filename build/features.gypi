@@ -58,9 +58,6 @@
 
     # Enable compiler warnings when using V8_DEPRECATED apis.
     'v8_deprecation_warnings%': 0,
-
-    # Use the v8 provided v8::Platform implementation.
-    'v8_use_default_platform%': 1,
   },
   'target_defaults': {
     'conditions': [
@@ -87,9 +84,6 @@
       }],
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_I18N_SUPPORT',],
-      }],
-      ['v8_use_default_platform==1', {
-        'defines': ['V8_USE_DEFAULT_PLATFORM',],
       }],
       ['v8_compress_startup_data=="bz2"', {
         'defines': [
