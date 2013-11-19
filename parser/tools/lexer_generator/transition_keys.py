@@ -30,12 +30,13 @@ from string import printable
 class TransitionKey:
 
   __class_bounds = {
-    "latin_1" : (1, 255),
-    # These are not "real" ranges; they just need to be separate.
-    "whitespace" : (256, 256),
-    "literal" : (257, 257),
-    "eos" : (258, 258),
-    "zero" : (259, 259),
+    'latin_1' : (1, 255),
+    # These are not real ranges; they just need to be separate from any real
+    # ranges.
+    'whitespace' : (256, 256),
+    'literal' : (257, 257),
+    'eos' : (258, 258),
+    'zero' : (259, 259),
   }
   __lower_bound = 1
   __upper_bound = reduce(lambda acc, (k, v): max(acc, v[1]), __class_bounds.items(), 0)
@@ -46,7 +47,7 @@ class TransitionKey:
 
   @staticmethod
   def __in_latin_1(char):
-    bound = TransitionKey.__class_bounds["latin_1"]
+    bound = TransitionKey.__class_bounds['latin_1']
     return (bound[0] <= char and char <= bound[1])
 
   @staticmethod
@@ -68,6 +69,7 @@ class TransitionKey:
       assert r[1] <= TransitionKey.__upper_bound
       assert r[0] <= r[1]
       r_is_class = TransitionKey.__is_class_range(r)
+      # Assert that the ranges are in order.
       if last != None and check_merged:
         assert last[1] + 1 < r[0] or r_is_class
       if not TransitionKey.__in_latin_1(r[0]):
@@ -101,12 +103,15 @@ class TransitionKey:
 
   @staticmethod
   def epsilon():
-    return TransitionKey.__cached_key("epsilon", lambda name : [])
+    return TransitionKey.__cached_key('epsilon', lambda name : [])
 
   @staticmethod
   def any():
-    return TransitionKey.__cached_key("any",
-      lambda name : TransitionKey.__class_bounds.values())
+    def bounds_getter(name):
+      bounds = TransitionKey.__class_bounds.values()
+      bounds.sort()
+      return bounds
+    return TransitionKey.__cached_key('any', bounds_getter)
 
   @staticmethod
   def single_char(char):
@@ -120,7 +125,7 @@ class TransitionKey:
       bound = TransitionKey.__unique_key_counter
       TransitionKey.__unique_key_counter -= 1
       return [(bound, bound)]
-    name = "__" + name
+    name = '__' + name
     return TransitionKey.__cached_key(name, get_bounds)
 
   @staticmethod
@@ -146,9 +151,9 @@ class TransitionKey:
       elif class_name in key_map:
         ranges += key_map[class_name].__ranges
       else:
-        raise Exception("unknown character class [%s]" % graph[1])
+        raise Exception('unknown character class [%s]' % graph[1])
     else:
-      raise Exception("bad key [%s]" % key)
+      raise Exception('bad key [%s]' % key)
 
   @staticmethod
   def character_class(graph, key_map):
@@ -238,14 +243,14 @@ class TransitionKey:
         TransitionKey.__printable_cache[x] = res
       return TransitionKey.__printable_cache[x]
     if r[0] == r[1]:
-      return "%s" % to_str(r[0])
+      return '%s' % to_str(r[0])
     else:
-      return "[%s-%s]" % (to_str(r[0]), to_str(r[1]))
+      return '[%s-%s]' % (to_str(r[0]), to_str(r[1]))
 
   def __str__(self):
     if self.__name:
       return self.__name
-    return ", ".join(TransitionKey.__range_str(x) for x in self.__ranges)
+    return ', '.join(TransitionKey.__range_str(x) for x in self.__ranges)
 
   @staticmethod
   def __disjoint_keys(range_map):
@@ -340,7 +345,7 @@ class TransitionKey:
     inverted = []
     last = None
     classes = set(TransitionKey.__class_bounds.values())
-    latin_1 = TransitionKey.__class_bounds["latin_1"]
+    latin_1 = TransitionKey.__class_bounds['latin_1']
     classes.remove(latin_1)
     for r in ranges:
       assert not TransitionKey.__is_unique_range(r)

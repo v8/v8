@@ -33,11 +33,12 @@ class CodeGeneratorTestCase(unittest.TestCase):
 
   def test_simple(self):
     rules = '''
+    eos = [:eos:];
     <<default>>
     "("           <|{LBRACE}|>
     ")"           <|{RBRACE}|>
 
     "foo"         <|{FOO}|>
-    eof           <|terminate|>
+    eos           <|terminate|>
     default_action <{DEFAULT}>'''
     CodeGenerator(RuleProcessor.parse(rules))
