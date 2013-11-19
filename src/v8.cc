@@ -197,7 +197,6 @@ void V8::InitializeOncePerProcess() {
 
 
 void V8::InitializePlatform(v8::Platform* platform) {
-  ASSERT(!platform_);
   ASSERT(platform);
   platform_ = platform;
 }
