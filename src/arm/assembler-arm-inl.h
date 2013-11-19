@@ -57,6 +57,11 @@ int DwVfpRegister::NumRegisters() {
 }
 
 
+int DwVfpRegister::NumReservedRegisters() {
+  return kNumReservedRegisters;
+}
+
+
 int DwVfpRegister::NumAllocatableRegisters() {
   return NumRegisters() - kNumReservedRegisters;
 }
