@@ -1108,7 +1108,7 @@ class Isolate {
     return optimizing_compiler_thread_ != NULL;
   }
 
-  bool concurrent_osr_enabled() {
+  bool concurrent_osr_enabled() const {
     // Thread is only available with flag enabled.
     ASSERT(optimizing_compiler_thread_ == NULL ||
            FLAG_concurrent_recompilation);
@@ -1119,7 +1119,7 @@ class Isolate {
     return optimizing_compiler_thread_;
   }
 
-  bool num_sweeper_threads() {
+  int num_sweeper_threads() const {
     return num_sweeper_threads_;
   }
 
