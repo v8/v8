@@ -164,14 +164,16 @@ class CodeGenerator:
     if_transitions = []
     for (ranges, node_id) in state['transitions']:
       i = []
+      s = []
       for r in ranges:
         if r[0] == 'CLASS':
           i.append(r)
         else:
-          for x in range(r[1][0], r[1][1] + 1):
-            switch_transitions.append((x, node_id))
+          s.append(r[1])
       if i:
         if_transitions.append((i, node_id))
+      if s:
+        switch_transitions.append((s, node_id))
     state['transitions'] = if_transitions
     state['switch_transitions'] = switch_transitions
     return split_count + 1

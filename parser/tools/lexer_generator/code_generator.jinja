@@ -83,30 +83,32 @@
     fprintf(stderr, "char at hand is %c (%d)\n", yych, yych);
   {% endif -%}
 
+  {%- macro do_transition(transition_state_id) -%}
+    {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
+    FORWARD();
+    {%- if inline_transition %}
+      {{ do_dfa_state(transition_state_id, True) }}
+    {% else %}
+      goto code_{{transition_state_id}};
+    {% endif %}
+  {%- endmacro -%}
+
   {%- if state['switch_transitions'] -%}
     switch(yych) {
-    {%- for key, transition_state_id in state['switch_transitions'] %}
-        case {{key}}:
-      {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
-      FORWARD();
-      {%- if inline_transition %}
-        {{ do_dfa_state(transition_state_id, True) }}
-      {% else %}
-        goto code_{{transition_state_id}};
-      {% endif %}
+    {%- for ranges, transition_state_id in state['switch_transitions'] %}
+      {%- for r in ranges -%}
+        {%- for key in range(r[0], r[1] + 1) -%}
+          case {{key}}:
+        {% endfor %}
+      {%- endfor -%}
+      {{ do_transition(transition_state_id) }}
     {% endfor -%}
     }
   {%- endif -%}
 
   {%- for key, transition_state_id in state.transitions %}
     if ({{do_key(key)}}) {
-      {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
-      FORWARD();
-      {%- if inline_transition %}
-        {{ do_dfa_state(transition_state_id, True) }}
-      {% else %}
-        goto code_{{transition_state_id}};
-      {% endif %}
+      {{ do_transition(transition_state_id) }}
     }
   {% endfor -%}
 
