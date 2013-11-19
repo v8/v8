@@ -161,7 +161,7 @@ class TransitionKey:
     already constructed aliases for character classes (they can be used in the
     new character class). It is a map from strings (character class names) to
     TransitionKeys. For example, graph might represent the character class
-    [a-z:digit:] where 'digit' is a previously constructed characte class found
+    [a-z:digit:] where 'digit' is a previously constructed character class found
     in "key_map".'''
     ranges = []
     assert graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS'
@@ -316,7 +316,12 @@ class TransitionKey:
   def disjoint_keys(key_set):
     '''Takes a set of possibly overlapping TransitionKeys, returns a list of
     TransitionKeys which don't overlap and whose union is the same as the union
-    of the original key_set. key_set is a set of TransitionKeys.'''
+    of the original key_set. In addition, TransitionKeys are not merged, only
+    split.
+
+    For example, if key_set contains two TransitionKeys for ranges [1-10] and
+    [5-15], disjoint_keys returns a set of three TransitionKeys: [1-4], [5-10],
+    [11-16].'''
     ranges = TransitionKey.__disjoint_ranges_from_key_set(key_set)
     return map(lambda x : TransitionKey([x]), ranges)
 

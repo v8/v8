@@ -77,3 +77,12 @@ class TransitionKeyTestCase(unittest.TestCase):
     graph = RegexParser.parse("[^:self_defined:]")
     key = TransitionKey.character_class(graph, classes)
     self.assertTrue(key.matches_char('A'))
+
+
+  def test_disjoint_keys(self):
+    key1 = TransitionKey([(1, 10)])
+    key2 = TransitionKey([(5, 15)])
+    disjoint_set = TransitionKey.disjoint_keys(set([key1, key2]))
+    self.assertTrue(TransitionKey([(1, 4)]) in disjoint_set)
+    self.assertTrue(TransitionKey([(5, 10)]) in disjoint_set)
+    self.assertTrue(TransitionKey([(11, 15)]) in disjoint_set)
