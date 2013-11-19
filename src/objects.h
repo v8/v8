@@ -8189,6 +8189,12 @@ class AllocationSite: public Struct {
   static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 
+  // During mark compact we need to take special care for the dependent code
+  // field.
+  static const int kPointerFieldsBeginOffset = kTransitionInfoOffset;
+  static const int kPointerFieldsEndOffset = kDependentCodeOffset;
+
+  // For other visitors, use the fixed body descriptor below.
   typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
                               kDependentCodeOffset + kPointerSize,
                               kSize> BodyDescriptor;

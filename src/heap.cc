@@ -1784,6 +1784,8 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
       mark_compact_collector()->is_compacting();
   ProcessArrayBuffers(retainer, record_slots);
   ProcessNativeContexts(retainer, record_slots);
+  // TODO(mvstanton): AllocationSites only need to be processed during
+  // MARK_COMPACT, as they live in old space. Verify and address.
   ProcessAllocationSites(retainer, record_slots);
 }
 
@@ -1889,7 +1891,7 @@ struct WeakListVisitor<AllocationSite> {
   }
 
   static void VisitLiveObject(Heap* heap,
-                              AllocationSite* array_buffer,
+                              AllocationSite* site,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {}
 

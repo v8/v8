@@ -2541,6 +2541,17 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 
+  // Iterate over allocation sites, removing dependent code that is not
+  // otherwise kept alive by strong references.
+  Object* undefined = heap()->undefined_value();
+  for (Object* site = heap()->allocation_sites_list();
+       site != undefined;
+       site = AllocationSite::cast(site)->weak_next()) {
+    if (IsMarked(site)) {
+      ClearNonLiveDependentCode(AllocationSite::cast(site)->dependent_code());
+    }
+  }
+
   if (heap_->weak_object_to_code_table()->IsHashTable()) {
     WeakHashTable* table =
         WeakHashTable::cast(heap_->weak_object_to_code_table());
