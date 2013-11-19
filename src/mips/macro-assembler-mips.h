@@ -967,6 +967,12 @@ class MacroAssembler: public Assembler {
   // handler chain.
   void ThrowUncatchable(Register value);
 
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason, Register rs, Operand rt);
+
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
@@ -1451,6 +1457,12 @@ class MacroAssembler: public Assembler {
                                               Label* failure);
 
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
+
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 Register scratch,
+                                 uint32_t encoding_mask);
 
   // Test that both first and second are sequential ASCII strings.
   // Assume that they are non-smis.
