@@ -3809,8 +3809,13 @@ class V8_EXPORT ResourceConstraints {
    *
    * \param physical_memory The total amount of physical memory on the current
    *   device, in bytes.
+   * \param number_of_processors The number of CPUs available on the current
+   *   device.
    */
-  void ConfigureDefaults(uint64_t physical_memory);
+  void ConfigureDefaults(uint64_t physical_memory,
+                         uint32_t number_of_processors);
+  V8_DEPRECATED("Will be removed",
+                void ConfigureDefaults(uint64_t physical_memory));
 
   int max_young_space_size() const { return max_young_space_size_; }
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }

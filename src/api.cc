@@ -566,8 +566,8 @@ ResourceConstraints::ResourceConstraints()
     stack_limit_(NULL),
     max_available_threads_(0) { }
 
-
-void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
+                                            uint32_t number_of_processors) {
   const int lump_of_memory = (i::kPointerSize / 4) * i::MB;
 #if V8_OS_ANDROID
   // Android has higher physical memory requirements before raising the maximum
@@ -601,7 +601,12 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
     set_max_executable_size(256 * lump_of_memory);
   }
 
-  set_max_available_threads(0);
+  set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
+}
+
+
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
+  ConfigureDefaults(physical_memory, i::CPU::NumberOfProcessorsOnline());
 }
 
 
