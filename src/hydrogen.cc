@@ -2078,7 +2078,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   // deopt, leaving the backing store in an invalid state.
   if (is_store && IsFastSmiElementsKind(elements_kind) &&
       !val->type().IsSmi()) {
-    val = Add<HForceRepresentation>(val, Representation::Smi());
+    val = AddUncasted<HForceRepresentation>(val, Representation::Smi());
   }
 
   if (IsGrowStoreMode(store_mode)) {
@@ -2195,7 +2195,7 @@ HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
     HValue* capacity) {
   // The HForceRepresentation is to prevent possible deopt on int-smi
   // conversion after allocation but before the new object fields are set.
-  capacity = Add<HForceRepresentation>(capacity, Representation::Smi());
+  capacity = AddUncasted<HForceRepresentation>(capacity, Representation::Smi());
   HValue* new_elements = BuildAllocateElements(kind, capacity);
   BuildInitializeElementsHeader(new_elements, kind, capacity);
   return new_elements;
@@ -2714,10 +2714,12 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   // These HForceRepresentations are because we store these as fields in the
   // objects we construct, and an int32-to-smi HChange could deopt. Accept
   // the deopt possibility now, before allocation occurs.
-  capacity = builder()->Add<HForceRepresentation>(capacity,
-                                                  Representation::Smi());
-  length_field = builder()->Add<HForceRepresentation>(length_field,
-                                                      Representation::Smi());
+  capacity =
+      builder()->AddUncasted<HForceRepresentation>(capacity,
+                                                   Representation::Smi());
+  length_field =
+      builder()->AddUncasted<HForceRepresentation>(length_field,
+                                                   Representation::Smi());
   // Allocate (dealing with failure appropriately)
   HAllocate* new_object = builder()->Add<HAllocate>(size_in_bytes,
       HType::JSArray(), NOT_TENURED, JS_ARRAY_TYPE);
@@ -8267,7 +8269,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     // actual HChange instruction we need is (sometimes) added in a later
     // phase, so it is not available now to be used as an input to HAdd and
     // as the return value.
-    HInstruction* number_input = Add<HForceRepresentation>(Pop(), rep);
+    HInstruction* number_input = AddUncasted<HForceRepresentation>(Pop(), rep);
     if (!rep.IsDouble()) {
       number_input->SetFlag(HInstruction::kFlexibleRepresentation);
       number_input->SetFlag(HInstruction::kCannotBeTagged);
@@ -8514,10 +8516,11 @@ bool CanBeZero(HValue* right) {
 HValue* HGraphBuilder::EnforceNumberType(HValue* number,
                                          Handle<Type> expected) {
   if (expected->Is(Type::Smi())) {
-    return Add<HForceRepresentation>(number, Representation::Smi());
+    return AddUncasted<HForceRepresentation>(number, Representation::Smi());
   }
   if (expected->Is(Type::Signed32())) {
-    return Add<HForceRepresentation>(number, Representation::Integer32());
+    return AddUncasted<HForceRepresentation>(number,
+                                             Representation::Integer32());
   }
   return number;
 }

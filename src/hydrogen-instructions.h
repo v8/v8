@@ -1675,7 +1675,8 @@ class HUseConst V8_FINAL : public HUnaryOperation {
 
 class HForceRepresentation V8_FINAL : public HTemplateInstruction<1> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HForceRepresentation, HValue*, Representation);
+  static HInstruction* New(Zone* zone, HValue* context, HValue* value,
+                           Representation required_representation);
 
   HValue* value() { return OperandAt(0); }
 
