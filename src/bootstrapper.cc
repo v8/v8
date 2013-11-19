@@ -2426,8 +2426,8 @@ bool Genesis::ConfigureGlobalObjects(
 bool Genesis::ConfigureApiObject(Handle<JSObject> object,
     Handle<ObjectTemplateInfo> object_template) {
   ASSERT(!object_template.is_null());
-  ASSERT(object->IsInstanceOf(
-      FunctionTemplateInfo::cast(object_template->constructor())));
+  ASSERT(FunctionTemplateInfo::cast(object_template->constructor())
+             ->IsTemplateFor(object->map()));;
 
   bool pending_exception = false;
   Handle<JSObject> obj =

@@ -203,6 +203,31 @@ bool Object::ToUint32(uint32_t* value) {
 }
 
 
+bool FunctionTemplateInfo::IsTemplateFor(Object* object) {
+  if (!object->IsHeapObject()) return false;
+  return IsTemplateFor(HeapObject::cast(object)->map());
+}
+
+
+bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
+  // There is a constraint on the object; check.
+  if (!map->IsJSObjectMap()) return false;
+  // Fetch the constructor function of the object.
+  Object* cons_obj = map->constructor();
+  if (!cons_obj->IsJSFunction()) return false;
+  JSFunction* fun = JSFunction::cast(cons_obj);
+  // Iterate through the chain of inheriting function templates to
+  // see if the required one occurs.
+  for (Object* type = fun->shared()->function_data();
+       type->IsFunctionTemplateInfo();
+       type = FunctionTemplateInfo::cast(type)->parent_template()) {
+    if (type == this) return true;
+  }
+  // Didn't find the required type in the inheritance chain.
+  return false;
+}
+
+
 template<typename To>
 static inline To* CheckedCast(void *from) {
   uintptr_t temp = reinterpret_cast<uintptr_t>(from);

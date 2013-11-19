@@ -1274,7 +1274,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
   i::Handle<i::TypeSwitchInfo> info = Utils::OpenHandle(this);
   i::FixedArray* types = i::FixedArray::cast(info->types());
   for (int i = 0; i < types->length(); i++) {
-    if (obj->IsInstanceOf(i::FunctionTemplateInfo::cast(types->get(i))))
+    if (i::FunctionTemplateInfo::cast(types->get(i))->IsTemplateFor(*obj))
       return i + 1;
   }
   return 0;
@@ -3356,7 +3356,7 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
   ENTER_V8(isolate);
   i::JSObject* object = *Utils::OpenHandle(this);
   i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
-  while (!object->IsInstanceOf(tmpl_info)) {
+  while (!tmpl_info->IsTemplateFor(object)) {
     i::Object* prototype = object->GetPrototype();
     if (!prototype->IsJSObject()) return Local<Object>();
     object = i::JSObject::cast(prototype);
@@ -5437,7 +5437,7 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
   ON_BAILOUT(i::Isolate::Current(), "v8::FunctionTemplate::HasInstanceOf()",
              return false);
   i::Object* obj = *Utils::OpenHandle(*value);
-  return obj->IsInstanceOf(*Utils::OpenHandle(this));
+  return Utils::OpenHandle(this)->IsTemplateFor(obj);
 }
 
 

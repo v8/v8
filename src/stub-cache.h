@@ -1037,7 +1037,7 @@ class CallOptimization BASE_EMBEDDED {
   bool IsCompatibleReceiver(Object* receiver) {
     ASSERT(is_simple_api_call());
     if (expected_receiver_type_.is_null()) return true;
-    return receiver->IsInstanceOf(*expected_receiver_type_);
+    return expected_receiver_type_->IsTemplateFor(receiver);
   }
 
  private:
