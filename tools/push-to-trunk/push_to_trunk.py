@@ -548,7 +548,7 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
-  RunScript(CONFIG, options)
+  RunPushToTrunk(CONFIG, options)
 
 if __name__ == "__main__":
   sys.exit(Main())
