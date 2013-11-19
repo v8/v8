@@ -66,7 +66,7 @@ class DfaState(AutomatonState):
     return self.__matches(lambda k, v : k.matches_char(v), value)
 
   def key_matches(self, value):
-    return self.__matches(lambda k, v : k.matches_key(v), value)
+    return self.__matches(lambda k, v : k.is_superset_of_key(v), value)
 
 class Dfa(Automaton):
 

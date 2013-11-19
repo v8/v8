@@ -28,6 +28,13 @@
 from string import printable
 
 class TransitionKey:
+  '''Represents a transition from a state in DFA or NFA to another state.
+
+  A transition key has a list of character ranges and a list of class ranges
+  (e.g., "whitespace"), defining for which characters the transition
+  happens. When we generate code based on the transition key, the character
+  ranges generate simple checks and the class ranges generate more complicated
+  conditions, e.g., function calls.'''
 
   __class_bounds = {
     'latin_1' : (1, 255),
@@ -39,7 +46,7 @@ class TransitionKey:
     'zero' : (259, 259),
   }
   __lower_bound = 1
-  __upper_bound = reduce(lambda acc, (k, v): max(acc, v[1]), __class_bounds.items(), 0)
+  __upper_bound = max(__class_bounds.values(), key=lambda item: item[1])[1]
 
   __cached_keys = {}
 
@@ -78,19 +85,6 @@ class TransitionKey:
         assert r_is_class
       last = r
 
-  @staticmethod
-  def __create(ranges, name = None):
-    if not ranges:
-      assert name == 'epsilon'
-      assert not name in TransitionKey.__cached_keys
-    else:
-      TransitionKey.__verify_ranges(ranges, True)
-    key = TransitionKey()
-    key.__ranges = tuple(ranges) # immutable
-    key.__name = name
-    key.__cached_hash = None
-    return key
-
   def __is_unique(self):
     return len(self.__ranges) == 1 and self.__is_unique_range(self.__ranges[0])
 
@@ -98,15 +92,17 @@ class TransitionKey:
   def __cached_key(name, bounds_getter):
     if not name in TransitionKey.__cached_keys:
       bounds = bounds_getter(name)
-      TransitionKey.__cached_keys[name] = TransitionKey.__create(bounds, name)
+      TransitionKey.__cached_keys[name] = TransitionKey(bounds, name)
     return TransitionKey.__cached_keys[name]
 
   @staticmethod
   def epsilon():
+    '''Returns a TransitionKey for the epsilon (empty) transition.'''
     return TransitionKey.__cached_key('epsilon', lambda name : [])
 
   @staticmethod
   def any():
+    '''Returns a TransitionKey which matches any character.'''
     def bounds_getter(name):
       bounds = TransitionKey.__class_bounds.values()
       bounds.sort()
@@ -115,12 +111,17 @@ class TransitionKey:
 
   @staticmethod
   def single_char(char):
+    '''Returns a TransitionKey for a single-character transition.'''
     char = ord(char)
     assert TransitionKey.__in_latin_1(char)
-    return TransitionKey.__create([(char, char)])
+    return TransitionKey([(char, char)])
 
   @staticmethod
   def unique(name):
+    '''Returns a unique TransitionKey for the given name (and creates it if it
+    doesn't exist yet). The TransitionKey won't have any real character range,
+    but a newly-created "mock" character range which is separate from all other
+    character ranges.'''
     def get_bounds(name):
       bound = TransitionKey.__unique_key_counter
       TransitionKey.__unique_key_counter -= 1
@@ -157,6 +158,13 @@ class TransitionKey:
 
   @staticmethod
   def character_class(graph, key_map):
+    '''Processes 'graph' (a representation of a character class in the rule
+    file), and constructs a TransitionKey based on it. 'key_map' contains
+    already constructed aliases for character classes (they can be used in the
+    new character class). It is a map from strings (character class names) to
+    TransitionKeys. For example, graph might represent the character class
+    [a-z:digit:] where 'digit' is a previously constructed characte class found
+    in "key_map".'''
     ranges = []
     assert graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS'
     invert = graph[0] == 'NOT_CLASS'
@@ -170,7 +178,8 @@ class TransitionKey:
       if r[0] <= char and char <= r[1]: return True
     return False
 
-  def matches_key(self, key):
+  def is_superset_of_key(self, key):
+    '''Returns true if 'key' is a sub-key of this TransitionKey.'''
     assert isinstance(key, self.__class__)
     assert key != TransitionKey.epsilon() and not key.__is_unique()
     assert len(key.__ranges) == 1
@@ -247,6 +256,16 @@ class TransitionKey:
     else:
       return '[%s-%s]' % (to_str(r[0]), to_str(r[1]))
 
+  def __init__(self, ranges, name = None):
+    if not ranges:
+      assert name == 'epsilon'
+      assert not name in TransitionKey.__cached_keys
+    else:
+      TransitionKey.__verify_ranges(ranges, True)
+    self.__name = name
+    self.__ranges = tuple(ranges) # immutable
+    self.__cached_hash = None
+
   def __str__(self):
     if self.__name:
       return self.__name
@@ -254,6 +273,9 @@ class TransitionKey:
 
   @staticmethod
   def __disjoint_keys(range_map):
+    '''Takes a set of possibly overlapping ranges, returns a list of ranges
+    which don't overlap and which cover the same points as the original
+    set. range_map is a map from lower bounds to a list of upper bounds.'''
     sort = lambda x : sorted(set(x))
     range_map = sorted(map(lambda (k, v): (k, sort(v)), range_map.items()))
     ranges = []
@@ -294,16 +316,24 @@ class TransitionKey:
 
   @staticmethod
   def disjoint_keys(key_set):
+    '''Takes a set of possibly overlapping TransitionKeys, returns a list of
+    TransitionKeys which don't overlap and whose union is the same as the union
+    of the original key_set. key_set is a set of TransitionKeys.'''
     ranges = TransitionKey.__disjoint_ranges_from_key_set(key_set)
-    return map(lambda x : TransitionKey.__create([x]), ranges)
+    return map(lambda x : TransitionKey([x]), ranges)
 
   @staticmethod
   def inverse_key(key_set):
+    '''Returns a TransitionKey which matches represents the inverse of the union
+    of 'key_set'. The TransitionKeys contain a set of character ranges and a set
+    of classes. The character ranges are inverted in relation to the latin_1
+    character range, and the character classes are inverted in relation to all
+    character classes in __class_bounds.'''
     ranges = TransitionKey.__disjoint_ranges_from_key_set(key_set)
     inverse = TransitionKey.__invert_ranges(ranges)
     if not inverse:
       return None
-    return TransitionKey.__create(inverse)
+    return TransitionKey(inverse)
 
   @staticmethod
   def __key_from_ranges(invert, ranges):
@@ -316,7 +346,7 @@ class TransitionKey:
     ranges = TransitionKey.__merge_ranges(ranges)
     if invert:
       ranges = TransitionKey.__invert_ranges(ranges)
-    return TransitionKey.__create(ranges)
+    return TransitionKey(ranges)
 
   @staticmethod
   def __merge_ranges(ranges):
@@ -344,6 +374,9 @@ class TransitionKey:
   def __invert_ranges(ranges):
     inverted = []
     last = None
+    # Extract character classes (as opposed to character ranges) from
+    # __class_bounds. Since latin_1 is the only real character range, we can do
+    # this.
     classes = set(TransitionKey.__class_bounds.values())
     latin_1 = TransitionKey.__class_bounds['latin_1']
     classes.remove(latin_1)
