@@ -3476,10 +3476,10 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(value);
-  __ pop(index);
   VisitForAccumulatorValue(args->at(0));  // string
 
+  __ pop(value);
+  __ pop(index);
 
   if (FLAG_debug_code) {
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
@@ -3504,9 +3504,9 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
+  VisitForAccumulatorValue(args->at(0));  // string
   __ pop(value);
   __ pop(index);
-  VisitForAccumulatorValue(args->at(0));  // string
 
   if (FLAG_debug_code) {
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
