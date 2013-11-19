@@ -72,7 +72,7 @@ class RuleLexer:
     ['DEFAULT_ACTION', 'CATCH_ALL']))
 
   def t_IDENTIFIER(self, t):
-    r'[a-zA-Z][a-zA-Z0-9_]*'
+    r'[a-zA-Z0-9_]+'
     if t.value in self.__special_identifiers:
       t.type = t.value.upper()
     return t

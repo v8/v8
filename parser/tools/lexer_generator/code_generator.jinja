@@ -35,7 +35,7 @@
   {% elif type == 'terminate' %}
     PUSH_EOS();
   {% elif type == 'terminate_illegal' %}
-    PUSH_EOS();
+    start_ = marker_; BACKWARD(); PUSH_TOKEN(Token::ILLEGAL);
   {% elif type == 'skip' %}
     SKIP();
   {% elif type == 'skip_and_terminate' %}
@@ -48,6 +48,8 @@
     PUSH_TOKEN(Token::{{value}})
   {% elif type == 'push_token_and_go_forward' %}
     PUSH_TOKEN_AND_GO_FORWARD(Token::{{value}})
+  {% elif type == 'set_marker' %}
+    marker_ = cursor_ - {{value}};
   {% else %}
     uncompilable code for {{type}}
   {% endif -%}
@@ -143,8 +145,7 @@
 }
 
 #define PUSH_EOS() {                  \
-  --start_;                           \
-  cursor_ -= 2;                       \
+  cursor_ -= 1;                       \
   PUSH_TOKEN(Token::EOS);             \
 }
 
@@ -172,7 +173,9 @@ namespace internal {
 Token::Value EvenMoreExperimentalScanner::Next(int* beg_pos_to_return,
                                                int* end_pos_to_return) {
   // Setup environment.
-  YYCTYPE yych = *cursor_;
+  YYCTYPE yych;
+  if (cursor_ >= buffer_end_) yych = 0;
+  else yych = *(cursor_);
 
 {# first node is start node #}
 {% for dfa_state in dfa_states -%}

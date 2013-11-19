@@ -66,7 +66,7 @@ eos = [:eos:];
 "!"           <|push_token(NOT)|>
 
 "//"          <||SingleLineComment>
-"/*"          <{marker_ = cursor_ - 2;}||MultiLineComment>
+"/*"          <set_marker(2)||MultiLineComment>
 "<!--"        <||SingleLineComment>
 
 "<!-"        <|{
@@ -134,8 +134,8 @@ number "\\"   <|push_token(ILLEGAL)|>
 line_terminator+  <|push_line_terminator|>
 whitespace        <|skip|>
 
-"\""           <||DoubleQuoteString>
-"'"            <||SingleQuoteString>
+"\""           <set_marker(1)||DoubleQuoteString>
+"'"            <set_marker(1)||SingleQuoteString>
 
 # all keywords
 "break"       <|push_token(BREAK)|>
@@ -235,5 +235,5 @@ catch_all <||continue>
 # TODO find a way to generate the below rule
 /\*+[^\/*]/       <||continue>
 line_terminator  <push_line_terminator||continue>
-eos <|{start_ = marker_; PUSH_TOKEN(Token::ILLEGAL);}|>
+eos <|terminate_illegal|>
 catch_all        <||continue>
