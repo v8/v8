@@ -3584,7 +3584,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
     // One allocation site should have been created.
     int new_count = AllocationSitesCount(heap);
-    ASSERT(new_count == (count + 1));
+    CHECK_EQ(new_count, (count + 1));
     site = Handle<AllocationSite>::cast(
         global_handles->Create(
             AllocationSite::cast(heap->allocation_sites_list())));
@@ -3592,15 +3592,15 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
 
     DependentCode::GroupStartIndexes starts(site->dependent_code());
-    ASSERT(starts.number_of_entries() >= 1);
+    CHECK_GE(starts.number_of_entries(), 1);
     int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-    ASSERT(site->dependent_code()->is_code_at(index));
+    CHECK(site->dependent_code()->is_code_at(index));
     Code* function_bar = site->dependent_code()->code_at(index);
     Handle<JSFunction> bar_handle =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
                 CcTest::global()->Get(v8_str("bar"))));
-    ASSERT(bar_handle->code() == function_bar);
+    CHECK_EQ(bar_handle->code(), function_bar);
   }
 
   // Now make sure that a gc should get rid of the function, even though we
@@ -3613,5 +3613,5 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   // longer referred to by dependent_code().
   DependentCode::GroupStartIndexes starts(site->dependent_code());
   int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-  ASSERT(!(site->dependent_code()->is_code_at(index)));
+  CHECK(!(site->dependent_code()->is_code_at(index)));
 }
