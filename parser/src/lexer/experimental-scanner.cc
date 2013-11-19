@@ -51,7 +51,7 @@ const byte* ReadFile(const char* name, Isolate* isolate,
 
   *size = file_size * repeat;
 
-  byte* chars = new byte[*size + 1];
+  byte* chars = new byte[*size];
   for (int i = 0; i < file_size;) {
     int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
     i += read;
@@ -61,7 +61,6 @@ const byte* ReadFile(const char* name, Isolate* isolate,
   for (int i = file_size; i < *size; i++) {
     chars[i] = chars[i - file_size];
   }
-  chars[*size] = 0;
 
   return chars;
 }

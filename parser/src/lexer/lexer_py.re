@@ -40,7 +40,7 @@ number =
   /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
 # TODO this is incomplete/incorrect
 line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
-eof = [:eof:];
+eos = [:eos:];
 
 # grammar is
 #   regex <action_on_state_entry|action_on_match|transition>
@@ -191,7 +191,7 @@ identifier_start <|push_token(IDENTIFIER)|Identifier>
   }
 }|push_token(IDENTIFIER)|Identifier>
 
-eof             <|terminate|>
+eos             <|terminate|>
 default_action  <push_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
@@ -202,7 +202,7 @@ default_action  <push_token_and_go_forward(ILLEGAL)>
 "\\"                          <|push_token(ILLEGAL)|>
 /\n|\r/                       <|push_token(ILLEGAL)|>
 "\""                          <|push_token(STRING)|>
-eof                           <|terminate_illegal|>
+eos                           <|terminate_illegal|>
 catch_all                     <||continue>
 
 <<SingleQuoteString>>
@@ -214,7 +214,7 @@ catch_all                     <||continue>
 "\\"                          <|push_token(ILLEGAL)|>
 /\n|\r/                       <|push_token(ILLEGAL)|>
 "'"                           <|push_token(STRING)|>
-eof                           <|terminate_illegal|>
+eos                           <|terminate_illegal|>
 catch_all                     <||continue>
 
 <<Identifier>>
@@ -227,7 +227,7 @@ identifier_char <|push_token(IDENTIFIER)|continue>
 
 <<SingleLineComment>>
 line_terminator  <|push_line_terminator|>
-eof <|skip_and_terminate|>
+eos <|skip_and_terminate|>
 catch_all <||continue>
 
 <<MultiLineComment>>
@@ -235,5 +235,5 @@ catch_all <||continue>
 # TODO find a way to generate the below rule
 /\*+[^\/*]/       <||continue>
 line_terminator  <push_line_terminator||continue>
-eof <|{start_ = marker_; BACKWARD(); PUSH_TOKEN(Token::ILLEGAL);}|>
+eos <|{start_ = marker_; PUSH_TOKEN(Token::ILLEGAL);}|>
 catch_all        <||continue>

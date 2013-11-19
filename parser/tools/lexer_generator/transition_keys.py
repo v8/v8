@@ -30,13 +30,14 @@ from string import printable
 class TransitionKey:
 
   __class_bounds = {
-    "latin_1" : (0, 255),
+    "latin_1" : (1, 255),
     # These are not "real" ranges; they just need to be separate.
     "whitespace" : (256, 256),
     "literal" : (257, 257),
-    "eof" : (258, 258),
+    "eos" : (258, 258),
+    "zero" : (259, 259),
   }
-  __lower_bound = 0
+  __lower_bound = 1
   __upper_bound = reduce(lambda acc, (k, v): max(acc, v[1]), __class_bounds.items(), 0)
 
   __cached_keys = {}
@@ -135,11 +136,13 @@ class TransitionKey:
     elif key == 'CHARACTER_CLASS':
       class_name = graph[1]
       if class_name == 'ws':
-        ranges.append(TransitionKey.__class_bounds["whitespace"])
+        ranges.append(TransitionKey.__class_bounds['whitespace'])
       elif class_name == 'lit':
-        ranges.append(TransitionKey.__class_bounds["literal"])
-      elif class_name == 'eof':
-        ranges.append(TransitionKey.__class_bounds["eof"])
+        ranges.append(TransitionKey.__class_bounds['literal'])
+      elif class_name == 'eos':
+        ranges.append(TransitionKey.__class_bounds['eos'])
+      elif class_name == 'zero':
+        ranges.append(TransitionKey.__class_bounds['zero'])
       elif class_name in key_map:
         ranges += key_map[class_name].__ranges
       else:

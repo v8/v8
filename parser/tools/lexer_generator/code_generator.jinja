@@ -1,6 +1,5 @@
 #include "lexer/even-more-experimental-scanner.h"
 
-
 {# TODO implement CLASS checks #}
 {%- macro do_key(key) -%}
   {%- for r in key -%}
@@ -16,8 +15,10 @@
 	({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
       {%- endif -%}
     {%- elif r[0] == 'CLASS' -%}
-      {%- if r[1] == 'eof' -%}
-	(yych == 0 && cursor_ == buffer_end_)
+      {%- if r[1] == 'eos' -%}
+	(yych == 0 && cursor_ >= buffer_end_)
+      {%- elif r[1] == 'zero' -%}
+	(yych == 0 && cursor_ < buffer_end_)
       {%- else -%}
 	false
       {%- endif -%}
@@ -142,7 +143,8 @@
 }
 
 #define PUSH_EOS() {                  \
-  --cursor_;                          \
+  --start_;                           \
+  cursor_ -= 2;                       \
   PUSH_TOKEN(Token::EOS);             \
 }
 
@@ -152,11 +154,13 @@
 }
 
 #define FORWARD() {                   \
-  yych = *(++cursor_);                \
+  if (++cursor_ >= buffer_end_) yych = 0; \
+  else yych = *(cursor_);                 \
 }
 
 #define BACKWARD() {                  \
-  yych = *(--cursor_);                \
+  if (--cursor_ >= buffer_end_) yych = 0; \
+  else yych = *(cursor_);                 \
 }
 
 #define SKIP() {                      \
