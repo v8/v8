@@ -2056,7 +2056,7 @@ void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
-    if (FLAG_concurrent_recompilation) {
+    if (isolate_->concurrent_recompilation_enabled()) {
       isolate_->optimizing_compiler_thread()->Flush();
     }
 
