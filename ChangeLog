@@ -1,3 +1,16 @@
+2013-11-19: Version 3.23.7
+
+        Bugfix: dependent code field in AllocationSite was keeping code objects
+        alive even after context death.
+        (Chromium issue 320532)
+
+        Fixed data view accessors to throw execptions on offsets bigger than
+        size_t.
+        (issue 3013)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-18: Version 3.23.6
 
         Limit size of dehoistable array indices.
