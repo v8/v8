@@ -1196,6 +1196,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kNonSmiIndex, "Non-smi index")                                            \
   V(kNonSmiKeyInArrayLiteral, "Non-smi key in array literal")                 \
   V(kNonSmiValue, "Non-smi value")                                            \
+  V(kNonObject, "Non-object value")                                           \
   V(kNotEnoughVirtualRegistersForValues,                                      \
     "not enough virtual registers for values")                                \
   V(kNotEnoughSpillSlotsForOsr,                                               \

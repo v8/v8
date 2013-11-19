@@ -661,6 +661,12 @@ class MacroAssembler: public Assembler {
   // handler chain.
   void ThrowUncatchable(Register value);
 
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
+
   // ---------------------------------------------------------------------------
   // Inline caching support
 
@@ -1340,6 +1346,11 @@ class MacroAssembler: public Assembler {
                                               Label* failure);
 
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
+
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
 
   // ---------------------------------------------------------------------------
   // Patching helpers.

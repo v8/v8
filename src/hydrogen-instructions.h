@@ -7282,31 +7282,35 @@ class HSeqStringGetChar V8_FINAL : public HTemplateInstruction<2> {
 };
 
 
-class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<3> {
+class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<4> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P4(HSeqStringSetChar, String::Encoding,
-                                 HValue*, HValue*, HValue*);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(
+      HSeqStringSetChar, String::Encoding,
+      HValue*, HValue*, HValue*);
 
   String::Encoding encoding() { return encoding_; }
-  HValue* string() { return OperandAt(0); }
-  HValue* index() { return OperandAt(1); }
-  HValue* value() { return OperandAt(2); }
+  HValue* context() { return OperandAt(0); }
+  HValue* string() { return OperandAt(1); }
+  HValue* index() { return OperandAt(2); }
+  HValue* value() { return OperandAt(3); }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return (index == 0) ? Representation::Tagged()
+    return (index <= 1) ? Representation::Tagged()
                         : Representation::Integer32();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar)
 
  private:
-  HSeqStringSetChar(String::Encoding encoding,
+  HSeqStringSetChar(HValue* context,
+                    String::Encoding encoding,
                     HValue* string,
                     HValue* index,
                     HValue* value) : encoding_(encoding) {
-    SetOperandAt(0, string);
-    SetOperandAt(1, index);
-    SetOperandAt(2, value);
+    SetOperandAt(0, context);
+    SetOperandAt(1, string);
+    SetOperandAt(2, index);
+    SetOperandAt(3, value);
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesStringChars);
   }

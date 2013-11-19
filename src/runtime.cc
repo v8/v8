@@ -9449,6 +9449,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowNotDateError) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowMessage) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  const char* message = GetBailoutReason(
+      static_cast<BailoutReason>(message_id));
+  Handle<Name> message_handle =
+      isolate->factory()->NewStringFromAscii(CStrVector(message));
+  return isolate->Throw(*message_handle);
+}
+
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
   SealHandleScope shs(isolate);

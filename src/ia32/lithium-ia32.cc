@@ -1892,13 +1892,36 @@ LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
 }
 
 
+LOperand* LChunkBuilder::GetSeqStringSetCharOperand(HSeqStringSetChar* instr) {
+  if (instr->encoding() == String::ONE_BYTE_ENCODING) {
+    if (FLAG_debug_code) {
+      return UseFixed(instr->value(), eax);
+    } else {
+      return UseFixedOrConstant(instr->value(), eax);
+    }
+  } else {
+    if (FLAG_debug_code) {
+      return UseRegisterAtStart(instr->value());
+    } else {
+      return UseRegisterOrConstantAtStart(instr->value());
+    }
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
   LOperand* string = UseRegisterAtStart(instr->string());
-  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
-  LOperand* value = (instr->encoding() == String::ONE_BYTE_ENCODING)
-      ? UseFixedOrConstant(instr->value(), eax)
-      : UseRegisterOrConstantAtStart(instr->value());
-  return new(zone()) LSeqStringSetChar(string, index, value);
+  LOperand* index = FLAG_debug_code
+      ? UseRegisterAtStart(instr->index())
+      : UseRegisterOrConstantAtStart(instr->index());
+  LOperand* value = GetSeqStringSetCharOperand(instr);
+  LOperand* context = FLAG_debug_code ? UseFixed(instr->context(), esi) : NULL;
+  LInstruction* result = new(zone()) LSeqStringSetChar(context, string,
+                                                       index, value);
+  if (FLAG_debug_code) {
+    result = MarkAsCall(result, instr);
+  }
+  return result;
 }
 
 

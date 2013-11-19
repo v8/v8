@@ -1869,6 +1869,11 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
           // We can safely skip the write barrier for storing map here.
           AddStoreMapConstantNoWriteBarrier(string, map);
 
+          // Length must be stored into the string before we copy characters to
+          // make debug verification code happy.
+          Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
+                                length);
+
           // Copy bytes from the left string.
           BuildCopySeqStringChars(
               left, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
@@ -1900,6 +1905,11 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
           // We can safely skip the write barrier for storing map here.
           AddStoreMapConstantNoWriteBarrier(string, map);
 
+          // Length must be stored into the string before we copy characters to
+          // make debug verification code happy.
+          Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
+                                length);
+
           // Copy bytes from the left string.
           BuildCopySeqStringChars(
               left, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
@@ -1921,8 +1931,6 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
         HValue* string = Pop();
         Add<HStoreNamedField>(string, HObjectAccess::ForStringHashField(),
                               Add<HConstant>(String::kEmptyHashField));
-        Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
-                              length);
         Push(string);
       }
       if_sameencodingandsequential.JoinContinuation(&handled);
@@ -9715,9 +9723,10 @@ void HOptimizedGraphBuilder::GenerateOneByteSeqStringSetChar(
   HValue* value = Pop();
   HValue* index = Pop();
   HValue* string = Pop();
-  HSeqStringSetChar* result = New<HSeqStringSetChar>(
-      String::ONE_BYTE_ENCODING, string, index, value);
-  return ast_context()->ReturnInstruction(result, call->id());
+  Add<HSeqStringSetChar>(String::ONE_BYTE_ENCODING, string,
+                         index, value);
+  Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
 
 
@@ -9730,9 +9739,10 @@ void HOptimizedGraphBuilder::GenerateTwoByteSeqStringSetChar(
   HValue* value = Pop();
   HValue* index = Pop();
   HValue* string = Pop();
-  HSeqStringSetChar* result = New<HSeqStringSetChar>(
-      String::TWO_BYTE_ENCODING, string, index, value);
-  return ast_context()->ReturnInstruction(result, call->id());
+  Add<HSeqStringSetChar>(String::TWO_BYTE_ENCODING, string,
+                         index, value);
+  Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
 
 
