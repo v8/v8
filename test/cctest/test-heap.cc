@@ -3549,3 +3549,69 @@ TEST(DisableInlineAllocation) {
   CcTest::heap()->EnableInlineAllocation();
   CompileRun("run()");
 }
+
+
+static int AllocationSitesCount(Heap* heap) {
+  int count = 0;
+  for (Object* site = heap->allocation_sites_list();
+       !(site->IsUndefined());
+       site = AllocationSite::cast(site)->weak_next()) {
+    count++;
+  }
+  return count;
+}
+
+
+TEST(EnsureAllocationSiteDependentCodesProcessed) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+  GlobalHandles* global_handles = isolate->global_handles();
+
+  // The allocation site at the head of the list is ours.
+  Handle<AllocationSite> site;
+  {
+    LocalContext context;
+    v8::HandleScope scope(context->GetIsolate());
+
+    int count = AllocationSitesCount(heap);
+    CompileRun("var bar = function() { return (new Array()); };"
+               "var a = bar();"
+               "bar();"
+               "bar();");
+
+    // One allocation site should have been created.
+    int new_count = AllocationSitesCount(heap);
+    ASSERT(new_count == (count + 1));
+    site = Handle<AllocationSite>::cast(
+        global_handles->Create(
+            AllocationSite::cast(heap->allocation_sites_list())));
+
+    CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
+
+    DependentCode::GroupStartIndexes starts(site->dependent_code());
+    ASSERT(starts.number_of_entries() >= 1);
+    int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
+    ASSERT(site->dependent_code()->is_code_at(index));
+    Code* function_bar = site->dependent_code()->code_at(index);
+    Handle<JSFunction> bar_handle =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("bar"))));
+    ASSERT(bar_handle->code() == function_bar);
+  }
+
+  // Now make sure that a gc should get rid of the function, even though we
+  // still have the allocation site alive.
+  for (int i = 0; i < 4; i++) {
+    heap->CollectAllGarbage(false);
+  }
+
+  // The site still exists because of our global handle, but the code is no
+  // longer referred to by dependent_code().
+  DependentCode::GroupStartIndexes starts(site->dependent_code());
+  int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
+  ASSERT(!(site->dependent_code()->is_code_at(index)));
+}
