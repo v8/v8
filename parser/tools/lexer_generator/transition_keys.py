@@ -103,11 +103,9 @@ class TransitionKey:
   @staticmethod
   def any():
     '''Returns a TransitionKey which matches any character.'''
-    def bounds_getter(name):
-      bounds = TransitionKey.__class_bounds.values()
-      bounds.sort()
-      return bounds
-    return TransitionKey.__cached_key('any', bounds_getter)
+    return TransitionKey.__cached_key(
+        'any',
+        lambda name : sorted(TransitionKey.__class_bounds.values()))
 
   @staticmethod
   def single_char(char):

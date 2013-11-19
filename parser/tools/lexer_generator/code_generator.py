@@ -148,6 +148,8 @@ class CodeGenerator:
 
   @staticmethod
   def __split_transitions(split_count, state):
+    '''Goes through the transitions for 'state' and decides which of them should
+    use the if statement and which should use the switch statement.'''
     assert not state['switch_transitions']
     (class_keys, distinct_keys, ranges) = (0, 0, 0)
     for (t, r) in state['disjoint_keys']:
@@ -198,14 +200,14 @@ class CodeGenerator:
     if self.__inline:
       inlined = reduce(CodeGenerator.__set_inline, dfa_states, 0)
       if self.__log:
-        print "inlined %s" % inlined
+        print "%s states inlined" % inlined
     elif self.__log:
       print "no inlining"
     # split transitions
     if self.__switching:
       switched = reduce(CodeGenerator.__split_transitions, dfa_states, 0)
       if self.__log:
-        print "switched states %s" % inlined
+        print "%s states use switch (instead of if)" % switched
     elif self.__log:
       print "no switching"
     # store states

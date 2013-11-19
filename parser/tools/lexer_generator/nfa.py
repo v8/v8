@@ -98,10 +98,12 @@ class NfaState(AutomatonState):
       self.__add_transition(TransitionKey.epsilon(), end)
 
   def __matches(self, match_func, value):
-    f = lambda acc, (k, vs): acc | vs if match_func(k, value) else acc
+    # f collects states whose corresponding TransitionKey matches 'value'.
+    f = (lambda acc, (key, states):
+           acc | states if match_func(key, value) else acc)
     return reduce(f, self.__transitions.items(), set())
 
-  def char_matches(self, value):
+  def next_states_with_char(self, value):
     return self.__matches(lambda k, v : k.matches_char(v), value)
 
   def key_matches(self, value):
@@ -136,7 +138,7 @@ class Nfa(Automaton):
   def matches(self, string):
     valid_states = Nfa.__close(set([self.__start]))
     for c in string:
-      f = lambda acc, state: acc | state.char_matches(c)
+      f = lambda acc, state: acc | state.next_states_with_char(c)
       transitions = reduce(f, valid_states, set())
       if not transitions:
         return False
