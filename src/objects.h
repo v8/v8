@@ -5033,12 +5033,7 @@ class Code: public HeapObject {
   // Types of stubs.
   enum StubType {
     NORMAL,
-    FIELD,
-    CONSTANT,
-    CALLBACKS,
-    INTERCEPTOR,
-    TRANSITION,
-    NONEXISTENT
+    FAST
   };
 
   typedef int ExtraICState;
@@ -5464,7 +5459,7 @@ class Code: public HeapObject {
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
-  class TypeField: public BitField<StubType, 3, 3> {};
+  class TypeField: public BitField<StubType, 3, 1> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
   class KindField: public BitField<Kind, 7, 4> {};
   class IsPregeneratedField: public BitField<bool, 11, 1> {};

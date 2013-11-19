@@ -11075,12 +11075,7 @@ const char* Code::ICState2String(InlineCacheState state) {
 const char* Code::StubType2String(StubType type) {
   switch (type) {
     case NORMAL: return "NORMAL";
-    case FIELD: return "FIELD";
-    case CONSTANT: return "CONSTANT";
-    case CALLBACKS: return "CALLBACKS";
-    case INTERCEPTOR: return "INTERCEPTOR";
-    case TRANSITION: return "TRANSITION";
-    case NONEXISTENT: return "NONEXISTENT";
+    case FAST: return "FAST";
   }
   UNREACHABLE();  // keep the compiler happy
   return NULL;
