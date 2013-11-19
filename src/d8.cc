@@ -1364,6 +1364,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--stress-deopt") == 0) {
       options.stress_deopt = true;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--mock-arraybuffer-allocator") == 0) {
+      options.mock_arraybuffer_allocator = true;
+      argv[i] = NULL;
     } else if (strcmp(argv[i], "--noalways-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
       options.stress_opt = false;
@@ -1673,6 +1676,19 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 
+class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t) V8_OVERRIDE {
+    return malloc(0);
+  }
+  virtual void* AllocateUninitialized(size_t length) V8_OVERRIDE {
+    return malloc(0);
+  }
+  virtual void Free(void*, size_t) V8_OVERRIDE {
+  }
+};
+
+
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU();
@@ -1683,7 +1699,12 @@ int Shell::Main(int argc, char* argv[]) {
   SetStandaloneFlagsViaCommandLine();
 #endif
   ShellArrayBufferAllocator array_buffer_allocator;
-  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+  MockArrayBufferAllocator mock_arraybuffer_allocator;
+  if (options.mock_arraybuffer_allocator) {
+    v8::V8::SetArrayBufferAllocator(&mock_arraybuffer_allocator);
+  } else {
+    v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+  }
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
 #ifndef V8_SHARED

@@ -24,35 +24,19 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
+// Flags: --track-allocation-sites --noalways-opt
+// Flags: --stress-runs=8 --send-idle-notification --gc-global
 
-// Flags: --nostress-opt --allow-natives-syntax --mock-arraybuffer-allocator
-var maxSize = %MaxSmi() + 1;
-var ab;
 
-// Allocate the largest ArrayBuffer we can on this architecture.
-for (k = 8; k >= 1 && ab == null; k = k/2) {
-  try {
-    ab = new ArrayBuffer(maxSize * k);
-  } catch (e) {
-    ab = null;
-  }
-}
-
-assertTrue(ab != null);
-
-function TestArray(constr) {
-  assertThrows(function() {
-    new constr(ab, 0, maxSize);
-  }, RangeError);
-}
-
-TestArray(Uint8Array);
-TestArray(Int8Array);
-TestArray(Uint16Array);
-TestArray(Int16Array);
-TestArray(Uint32Array);
-TestArray(Int32Array);
-TestArray(Float32Array);
-TestArray(Float64Array);
-TestArray(Uint8ClampedArray);
-
+function bar() { return new Array(); }
+bar();
+bar();
+%OptimizeFunctionOnNextCall(bar);
+a = bar();
+function foo(len) { return new Array(len); }
+foo(0);
+foo(0);
+%OptimizeFunctionOnNextCall(bar);
+foo(0);

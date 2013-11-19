@@ -399,6 +399,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
   INLINE(static void VisitPropertyCell(Map* map, HeapObject* object));
+  INLINE(static void VisitAllocationSite(Map* map, HeapObject* object));
   INLINE(static void VisitCodeEntry(Heap* heap, Address entry_address));
   INLINE(static void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitCell(Heap* heap, RelocInfo* rinfo));

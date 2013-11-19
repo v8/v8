@@ -1784,6 +1784,8 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
       mark_compact_collector()->is_compacting();
   ProcessArrayBuffers(retainer, record_slots);
   ProcessNativeContexts(retainer, record_slots);
+  // TODO(mvstanton): AllocationSites only need to be processed during
+  // MARK_COMPACT, as they live in old space. Verify and address.
   ProcessAllocationSites(retainer, record_slots);
 }
 
@@ -1889,7 +1891,7 @@ struct WeakListVisitor<AllocationSite> {
   }
 
   static void VisitLiveObject(Heap* heap,
-                              AllocationSite* array_buffer,
+                              AllocationSite* site,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {}
 
@@ -2482,7 +2484,7 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
-  int bit_field3 = Map::EnumLengthBits::encode(Map::kInvalidEnumCache) |
+  int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptors::encode(true);
   reinterpret_cast<Map*>(result)->set_bit_field3(bit_field3);
   return result;
@@ -2514,7 +2516,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  int bit_field3 = Map::EnumLengthBits::encode(Map::kInvalidEnumCache) |
+  int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptors::encode(true);
   map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);

@@ -620,22 +620,26 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
   // Number of d-regs not known at snapshot time.
   ASSERT(!Serializer::enabled());
   PushSafepointRegisters();
-  sub(sp, sp, Operand(DwVfpRegister::NumAllocatableRegisters() *
-                      kDoubleSize));
-  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); i++) {
-    vstr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
+  // Only save allocatable registers.
+  ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
+  ASSERT(DwVfpRegister::NumReservedRegisters() == 2);
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    vstm(db_w, sp, d16, d31);
   }
+  vstm(db_w, sp, d0, d13);
 }
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
   // Number of d-regs not known at snapshot time.
   ASSERT(!Serializer::enabled());
-  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); i++) {
-    vldr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
+  // Only save allocatable registers.
+  ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
+  ASSERT(DwVfpRegister::NumReservedRegisters() == 2);
+  vldm(ia_w, sp, d0, d13);
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    vldm(ia_w, sp, d16, d31);
   }
-  add(sp, sp, Operand(DwVfpRegister::NumAllocatableRegisters() *
-                      kDoubleSize));
   PopSafepointRegisters();
 }
 
@@ -3800,7 +3804,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
 
   EnumLength(r3, r1);
-  cmp(r3, Operand(Smi::FromInt(Map::kInvalidEnumCache)));
+  cmp(r3, Operand(Smi::FromInt(kInvalidEnumCacheSentinel)));
   b(eq, call_runtime);
 
   jmp(&start);

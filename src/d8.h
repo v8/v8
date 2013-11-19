@@ -233,6 +233,7 @@ class ShellOptions {
      test_shell(false),
      dump_heap_constants(false),
      expected_to_throw(false),
+     mock_arraybuffer_allocator(false),
      num_isolates(1),
      isolate_sources(NULL) { }
 
@@ -258,6 +259,7 @@ class ShellOptions {
   bool test_shell;
   bool dump_heap_constants;
   bool expected_to_throw;
+  bool mock_arraybuffer_allocator;
   int num_isolates;
   SourceGroup* isolate_sources;
 };

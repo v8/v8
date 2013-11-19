@@ -75,6 +75,34 @@ def GetLastChangeLogEntries(change_log_file):
   return "".join(result)
 
 
+def MakeChangeLogBody(commit_generator):
+  result = ""
+  for (title, body, author) in commit_generator():
+    # Add the commit's title line.
+    result += "%s\n" % title.rstrip()
+
+    # Grep for "BUG=xxxx" lines in the commit message and convert them to
+    # "(issue xxxx)".
+    out = body.splitlines()
+    out = filter(lambda x: re.search(r"^BUG=", x), out)
+    out = filter(lambda x: not re.search(r"BUG=$", x), out)
+    out = filter(lambda x: not re.search(r"BUG=none$", x), out)
+
+    # TODO(machenbach): Handle multiple entries (e.g. BUG=123, 234).
+    def FormatIssue(text):
+      text = re.sub(r"BUG=v8:(.*)$", r"(issue \1)", text)
+      text = re.sub(r"BUG=chromium:(.*)$", r"(Chromium issue \1)", text)
+      text = re.sub(r"BUG=(.*)$", r"(Chromium issue \1)", text)
+      return "        %s\n" % text
+
+    for line in map(FormatIssue, out):
+      result += line
+
+    # Append the commit's author for reference.
+    result += "%s\n\n" % author.rstrip()
+  return result
+
+
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
 def Command(cmd, args="", prefix="", pipe=True):
@@ -216,8 +244,10 @@ class Step(object):
     if self.Git("svn fetch") is None:
       self.Die("'git svn fetch' failed.")
 
+  def PrepareBranch(self):
     # Get ahold of a safe temporary branch and check it out.
-    if current_branch != self._config[TEMP_BRANCH]:
+    self.RestoreIfUnset("current_branch")
+    if self._state["current_branch"] != self._config[TEMP_BRANCH]:
       self.DeleteBranch(self._config[TEMP_BRANCH])
       self.Git("checkout -b %s" % self._config[TEMP_BRANCH])
 
@@ -295,3 +325,26 @@ class UploadStep(Step):
     args = "cl upload -r \"%s\" --send-mail" % reviewer
     if self.Git(args,pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
+
+
+def RunScript(step_classes,
+              config,
+              options,
+              side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+  state = {}
+  steps = []
+  number = 0
+
+  for step_class in step_classes:
+    # TODO(machenbach): Factory methods.
+    step = step_class()
+    step.SetNumber(number)
+    step.SetConfig(config)
+    step.SetOptions(options)
+    step.SetState(state)
+    step.SetSideEffectHandler(side_effect_handler)
+    steps.append(step)
+    number += 1
+
+  for step in steps[options.s:]:
+    step.Run()

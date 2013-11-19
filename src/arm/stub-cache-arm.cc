@@ -3051,7 +3051,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
 
 Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
-    MapHandleList* receiver_maps,
+    TypeHandleList* types,
     CodeHandleList* handlers,
     Handle<Name> name,
     Code::StubType type,
@@ -3063,22 +3063,22 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   }
 
   Label number_case;
-  Label* smi_target = HasHeapNumberMap(receiver_maps) ? &number_case : &miss;
+  Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
   __ JumpIfSmi(receiver(), smi_target);
 
   Register map_reg = scratch1();
 
-  int receiver_count = receiver_maps->length();
+  int receiver_count = types->length();
   int number_of_handled_maps = 0;
   __ ldr(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
-  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = receiver_maps->at(current);
+    Handle<Type> type = types->at(current);
+    Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
-      __ mov(ip, Operand(receiver_maps->at(current)));
+      __ mov(ip, Operand(map));
       __ cmp(map_reg, ip);
-      if (map.is_identical_to(heap_number_map)) {
+      if (type->Is(Type::Number())) {
         ASSERT(!number_case.is_unused());
         __ bind(&number_case);
       }
@@ -3140,12 +3140,12 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- r0     : key
   //  -- r1     : receiver
   // -----------------------------------
-  Label slow, miss_force_generic;
+  Label slow, miss;
 
   Register key = r0;
   Register receiver = r1;
 
-  __ UntagAndJumpIfNotSmi(r2, key, &miss_force_generic);
+  __ UntagAndJumpIfNotSmi(r2, key, &miss);
   __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ LoadFromNumberDictionary(&slow, r4, key, r0, r2, r3, r5);
   __ Ret();
@@ -3163,14 +3163,14 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   // Miss case, call the runtime.
-  __ bind(&miss_force_generic);
+  __ bind(&miss);
 
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
   //  -- r1     : receiver
   // -----------------------------------
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_MissForceGeneric);
+  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 
 

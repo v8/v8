@@ -2137,8 +2137,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
 
   if (object->HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
-    if (object->map()->NumberOfOwnDescriptors() <
-        DescriptorArray::kMaxNumberOfDescriptors) {
+    if (object->map()->NumberOfOwnDescriptors() <= kMaxNumberOfDescriptors) {
       // TODO(verwaest): Support other constants.
       // if (mode == ALLOW_AS_CONSTANT &&
       //     !value->IsTheHole() &&
@@ -2560,7 +2559,7 @@ void Map::DeprecateTarget(Name* key, DescriptorArray* new_descriptors) {
   DescriptorArray* to_replace = instance_descriptors();
   Map* current = this;
   while (current->instance_descriptors() == to_replace) {
-    current->SetEnumLength(Map::kInvalidEnumCache);
+    current->SetEnumLength(kInvalidEnumCacheSentinel);
     current->set_instance_descriptors(new_descriptors);
     Object* next = current->GetBackPointer();
     if (next->IsUndefined()) break;
@@ -5915,7 +5914,7 @@ bool JSReceiver::IsSimpleEnum() {
     if (!o->IsJSObject()) return false;
     JSObject* curr = JSObject::cast(o);
     int enum_length = curr->map()->EnumLength();
-    if (enum_length == Map::kInvalidEnumCache) return false;
+    if (enum_length == kInvalidEnumCacheSentinel) return false;
     ASSERT(!curr->HasNamedInterceptor());
     ASSERT(!curr->HasIndexedInterceptor());
     ASSERT(!curr->IsAccessCheckNeeded());
@@ -6169,8 +6168,7 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
   bool only_attribute_changes = getter->IsNull() && setter->IsNull();
   if (object->HasFastProperties() && !only_attribute_changes &&
       access_control == v8::DEFAULT &&
-      (object->map()->NumberOfOwnDescriptors() <
-       DescriptorArray::kMaxNumberOfDescriptors)) {
+      (object->map()->NumberOfOwnDescriptors() <= kMaxNumberOfDescriptors)) {
     bool getterOk = getter->IsNull() ||
         DefineFastAccessor(object, name, ACCESSOR_GETTER, getter, attributes);
     bool setterOk = !getterOk || setter->IsNull() ||
@@ -6687,7 +6685,8 @@ MaybeObject* Map::RawCopy(int instance_size) {
   int new_bit_field3 = bit_field3();
   new_bit_field3 = OwnsDescriptors::update(new_bit_field3, true);
   new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
-  new_bit_field3 = EnumLengthBits::update(new_bit_field3, kInvalidEnumCache);
+  new_bit_field3 = EnumLengthBits::update(new_bit_field3,
+                                          kInvalidEnumCacheSentinel);
   new_bit_field3 = Deprecated::update(new_bit_field3, false);
   new_bit_field3 = IsUnstable::update(new_bit_field3, false);
   result->set_bit_field3(new_bit_field3);
@@ -9315,7 +9314,7 @@ void String::PrintOn(FILE* file) {
 
 static void TrimEnumCache(Heap* heap, Map* map, DescriptorArray* descriptors) {
   int live_enum = map->EnumLength();
-  if (live_enum == Map::kInvalidEnumCache) {
+  if (live_enum == kInvalidEnumCacheSentinel) {
     live_enum = map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
   }
   if (live_enum == 0) return descriptors->ClearEnumCache();
@@ -10551,7 +10550,23 @@ void Code::FindAllMaps(MapHandleList* maps) {
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) maps->Add(Handle<Map>(Map::cast(object)));
+    if (object->IsMap()) maps->Add(handle(Map::cast(object)));
+  }
+}
+
+
+void Code::FindAllTypes(TypeHandleList* types) {
+  ASSERT(is_inline_cache_stub());
+  DisallowHeapAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  Isolate* isolate = GetIsolate();
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Object* object = info->target_object();
+    if (object->IsMap()) {
+      Handle<Map> map(Map::cast(object));
+      types->Add(handle(IC::MapToType(map), isolate));
+    }
   }
 }
 
@@ -13401,7 +13416,7 @@ int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
     if (filter == NONE) return map->NumberOfOwnDescriptors();
     if (filter & DONT_ENUM) {
       int result = map->EnumLength();
-      if (result != Map::kInvalidEnumCache) return result;
+      if (result != kInvalidEnumCacheSentinel) return result;
     }
     return map->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter);
   }
@@ -15768,7 +15783,7 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
   // Make sure we preserve dictionary representation if there are too many
   // descriptors.
   int number_of_elements = NumberOfElements();
-  if (number_of_elements > DescriptorArray::kMaxNumberOfDescriptors) return obj;
+  if (number_of_elements > kMaxNumberOfDescriptors) return obj;
 
   if (number_of_elements != NextEnumerationIndex()) {
     MaybeObject* maybe_result = GenerateNewEnumerationIndices();

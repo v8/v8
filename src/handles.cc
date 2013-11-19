@@ -637,7 +637,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
       // present enum cache. The first step to using the cache is to set the
       // enum length of the map by counting the number of own descriptors that
       // are not DONT_ENUM or SYMBOLIC.
-      if (own_property_count == Map::kInvalidEnumCache) {
+      if (own_property_count == kInvalidEnumCacheSentinel) {
         own_property_count = object->map()->NumberOfDescribedProperties(
             OWN_DESCRIPTORS, DONT_SHOW);
 

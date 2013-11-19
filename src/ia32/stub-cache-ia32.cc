@@ -3156,7 +3156,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
 
 Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
-    MapHandleList* receiver_maps,
+    TypeHandleList* types,
     CodeHandleList* handlers,
     Handle<Name> name,
     Code::StubType type,
@@ -3168,20 +3168,20 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   }
 
   Label number_case;
-  Label* smi_target = HasHeapNumberMap(receiver_maps) ? &number_case : &miss;
+  Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
   __ JumpIfSmi(receiver(), smi_target);
 
   Register map_reg = scratch1();
   __ mov(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
-  int receiver_count = receiver_maps->length();
+  int receiver_count = types->length();
   int number_of_handled_maps = 0;
-  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = receiver_maps->at(current);
+    Handle<Type> type = types->at(current);
+    Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
       __ cmp(map_reg, map);
-      if (map.is_identical_to(heap_number_map)) {
+      if (type->Is(Type::Number())) {
         ASSERT(!number_case.is_unused());
         __ bind(&number_case);
       }
@@ -3211,11 +3211,11 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label slow, miss_force_generic;
+  Label slow, miss;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
-  __ JumpIfNotSmi(ecx, &miss_force_generic);
+  __ JumpIfNotSmi(ecx, &miss);
   __ mov(ebx, ecx);
   __ SmiUntag(ebx);
   __ mov(eax, FieldOperand(edx, JSObject::kElementsOffset));
@@ -3238,13 +3238,13 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
-  __ bind(&miss_force_generic);
+  __ bind(&miss);
   // ----------- S t a t e -------------
   //  -- ecx    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_MissForceGeneric);
+  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 
 

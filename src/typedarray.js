@@ -309,7 +309,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     if (!IS_ARRAYBUFFER(buffer)) {
       throw MakeTypeError('data_view_not_array_buffer', []);
     }
-    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
+    var bufferByteLength = buffer.byteLength;
     var offset = IS_UNDEFINED(byteOffset) ?
       0 : ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
     if (offset > bufferByteLength) {

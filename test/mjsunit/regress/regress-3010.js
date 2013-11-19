@@ -25,34 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nostress-opt --allow-natives-syntax --mock-arraybuffer-allocator
-var maxSize = %MaxSmi() + 1;
-var ab;
-
-// Allocate the largest ArrayBuffer we can on this architecture.
-for (k = 8; k >= 1 && ab == null; k = k/2) {
-  try {
-    ab = new ArrayBuffer(maxSize * k);
-  } catch (e) {
-    ab = null;
+(function() {
+  function testOneSize(current_size) {
+    var eval_string = 'obj = {';
+    for (var current = 0; current <= current_size; ++current) {
+      eval_string += 'k' + current + ':' + current + ','
+    }
+    eval_string += '};';
+    eval(eval_string);
+    for (var i = 0; i <= current_size; i++) {
+      assertEquals(i, obj['k'+i]);
+    }
+    var current_number = 0;
+    for (var x in obj) {
+      assertEquals(current_number, obj[x]);
+      current_number++;
+    }
   }
-}
 
-assertTrue(ab != null);
+  testOneSize(127);
+  testOneSize(128);
+  testOneSize(129);
 
-function TestArray(constr) {
-  assertThrows(function() {
-    new constr(ab, 0, maxSize);
-  }, RangeError);
-}
+  testOneSize(255);
+  testOneSize(256);
+  testOneSize(257);
 
-TestArray(Uint8Array);
-TestArray(Int8Array);
-TestArray(Uint16Array);
-TestArray(Int16Array);
-TestArray(Uint32Array);
-TestArray(Int32Array);
-TestArray(Float32Array);
-TestArray(Float64Array);
-TestArray(Uint8ClampedArray);
+  testOneSize(511);
+  testOneSize(512);
+  testOneSize(513);
 
+  testOneSize(1023);
+  testOneSize(1024);
+  testOneSize(1025);
+
+  testOneSize(2047);
+  testOneSize(2048);
+  testOneSize(2049);
+}())
