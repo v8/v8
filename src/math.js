@@ -217,16 +217,19 @@ var InitTrigonometricFunctions;
 // Also define the initialization function that populates the lookup table
 // and then wires up the function definitions.
 function SetupTrigonometricFunctions() {
-  // TODO(yangguo): The following table size has been chosen to satisfy
-  // Sunspider's brittle result verification.  Reconsider relevance.
-  var samples = 4489;
-  var pi = 3.1415926535897932;
-  var pi_half = pi / 2;
-  var inverse_pi_half = 2 / pi;
-  var two_pi = 2 * pi;
-  var four_pi = 4 * pi;
-  var interval = pi_half / samples;
-  var inverse_interval = samples / pi_half;
+  var samples = 1800;   // Table size.  Do not change arbitrarily.
+  var inverse_pi_half      = 0.636619772367581343;      // 2 / pi
+  var inverse_pi_half_s_26 = 9.48637384723993156e-9;    // 2 / pi / (2^26)
+  var s_26 = 1 << 26;
+  var two_step_threshold   = 1 << 27;
+  var index_convert        = 1145.915590261646418;      // samples / (pi / 2)
+  // pi / 2 rounded up
+  var pi_half              = 1.570796326794896780;      // 0x192d4454fb21f93f
+  // We use two parts for pi/2 to emulate a higher precision.
+  // pi_half_1 only has 26 significant bits for mantissa.
+  // Note that pi_half > pi_half_1 + pi_half_2
+  var pi_half_1            = 1.570796325802803040;      // 0x00000054fb21f93f
+  var pi_half_2            = 9.920935796805404252e-10;  // 0x3326a611460b113e
   var table_sin;
   var table_cos_interval;
 
@@ -234,6 +237,9 @@ function SetupTrigonometricFunctions() {
   // 1) Multiplication takes care of to-number conversion.
   // 2) Reduce x to the first quadrant [0, pi/2].
   //    Conveniently enough, in case of +/-Infinity, we get NaN.
+  //    Note that we try to use only 26 instead of 52 significant bits for
+  //    mantissa to avoid rounding errors when multiplying.  For very large
+  //    input we therefore have additional steps.
   // 3) Replace x by (pi/2-x) if x was in the 2nd or 4th quadrant.
   // 4) Do a table lookup for the closest samples to the left and right of x.
   // 5) Find the derivatives at those sampling points by table lookup:
@@ -241,8 +247,30 @@ function SetupTrigonometricFunctions() {
   // 6) Use cubic spline interpolation to approximate sin(x).
   // 7) Negate the result if x was in the 3rd or 4th quadrant.
   // 8) Get rid of -0 by adding 0.
-  var Interpolation = function(x) {
-    var double_index = x * inverse_interval;
+  var Interpolation = function(x, phase) {
+    if (x < 0 || x > pi_half) {
+      var multiple;
+      while (x < -two_step_threshold || x > two_step_threshold) {
+        // Let's assume this loop does not terminate.
+        // All numbers x in each loop forms a set S.
+        // (1) abs(x) > 2^27 for all x in S.
+        // (2) abs(multiple) != 0 since (2^27 * inverse_pi_half_s26) > 1
+        // (3) multiple is rounded down in 2^26 steps, so the rounding error is
+        //     at most max(ulp, 2^26).
+        // (4) so for x > 2^27, we subtract at most (1+pi/4)x and at least
+        //     (1-pi/4)x
+        // (5) The subtraction results in x' so that abs(x') <= abs(x)*pi/4.
+        //     Note that this difference cannot be simply rounded off.
+        // Set S cannot exist since (5) violates (1).  Loop must terminate.
+        multiple = MathFloor(x * inverse_pi_half_s_26) * s_26;
+        x = x - multiple * pi_half_1 - multiple * pi_half_2;
+      }
+      multiple = MathFloor(x * inverse_pi_half);
+      x = x - multiple * pi_half_1 - multiple * pi_half_2;
+      phase += multiple;
+    }
+    var double_index = x * index_convert;
+    if (phase & 1) double_index = samples - double_index;
     var index = double_index | 0;
     var t1 = double_index - index;
     var t2 = 1 - t1;
@@ -251,26 +279,20 @@ function SetupTrigonometricFunctions() {
     var dy = y2 - y1;
     return (t2 * y1 + t1 * y2 +
                 t1 * t2 * ((table_cos_interval[index] - dy) * t2 +
-                           (dy - table_cos_interval[index + 1]) * t1));
+                           (dy - table_cos_interval[index + 1]) * t1))
+           * (1 - (phase & 2)) + 0;
   }
 
   var MathSinInterpolation = function(x) {
-    // This is to make Sunspider's result verification happy.
-    if (x > four_pi) x -= four_pi;
-    var multiple = MathFloor(x * inverse_pi_half);
-    if (%_IsMinusZero(multiple)) return multiple;
-    x = (multiple & 1) * pi_half +
-        (1 - ((multiple & 1) << 1)) * (x - multiple * pi_half);
-    return Interpolation(x) * (1 - (multiple & 2)) + 0;
+    x = x * 1;  // Convert to number and deal with -0.
+    if (%_IsMinusZero(x)) return x;
+    return Interpolation(x, 0);
   }
 
-  // Cosine is sine with a phase offset of pi/2.
+  // Cosine is sine with a phase offset.
   var MathCosInterpolation = function(x) {
-    var multiple = MathFloor(x * inverse_pi_half);
-    var phase = multiple + 1;
-    x = (phase & 1) * pi_half +
-        (1 - ((phase & 1) << 1)) * (x - multiple * pi_half);
-    return Interpolation(x) * (1 - (phase & 2)) + 0;
+    x = MathAbs(x);  // Convert to number and get rid of -0.
+    return Interpolation(x, 1);
   };
 
   %SetInlineBuiltinFlag(Interpolation);

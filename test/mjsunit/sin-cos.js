@@ -27,6 +27,8 @@
 
 // Test Math.sin and Math.cos.
 
+// Flags: --allow-natives-syntax
+
 function sinTest() {
   assertEquals(0, Math.sin(0));
   assertEquals(1, Math.sin(Math.PI / 2));
@@ -97,7 +99,7 @@ function abs_error(fun, ref, x) {
 
 var test_inputs = [];
 for (var i = -10000; i < 10000; i += 177) test_inputs.push(i/1257);
-var epsilon = 0.000001;
+var epsilon = 0.0000001;
 
 test_inputs.push(0);
 test_inputs.push(0 + epsilon);
@@ -117,8 +119,8 @@ for (var i = 0; i < test_inputs.length; i++) {
   var x = test_inputs[i];
   var err_sin = abs_error(Math.sin, sin, x);
   var err_cos = abs_error(Math.cos, cos, x)
-  assertTrue(err_sin < 1E-13);
-  assertTrue(err_cos < 1E-13);
+  assertEqualsDelta(0, err_sin, 1E-13);
+  assertEqualsDelta(0, err_cos, 1E-13);
   squares.push(err_sin*err_sin + err_cos*err_cos);
 }
 
@@ -132,7 +134,7 @@ while (squares.length > 1) {
 }
 
 var err_rms = Math.sqrt(squares[0] / test_inputs.length / 2);
-assertTrue(err_rms < 1E-14);
+assertEqualsDelta(0, err_rms, 1E-14);
 
 assertEquals(-1, Math.cos({ valueOf: function() { return Math.PI; } }));
 assertEquals(0, Math.sin("0x00000"));
@@ -141,3 +143,40 @@ assertTrue(isNaN(Math.sin(Infinity)));
 assertTrue(isNaN(Math.cos("-Infinity")));
 assertEquals("Infinity", String(Math.tan(Math.PI/2)));
 assertEquals("-Infinity", String(Math.tan(-Math.PI/2)));
+assertEquals("-Infinity", String(1/Math.sin("-0")));
+
+// Assert that the remainder after division by pi is reasonably precise.
+function assertError(expected, x, epsilon) {
+  assertTrue(Math.abs(x - expected) < epsilon);
+}
+
+assertEqualsDelta(0.9367521275331447,  Math.cos(1e06),  1e-15);
+assertEqualsDelta(0.8731196226768560,  Math.cos(1e10),  1e-08);
+assertEqualsDelta(0.9367521275331447,  Math.cos(-1e06), 1e-15);
+assertEqualsDelta(0.8731196226768560,  Math.cos(-1e10), 1e-08);
+assertEqualsDelta(-0.3499935021712929, Math.sin(1e06),  1e-15);
+assertEqualsDelta(-0.4875060250875106, Math.sin(1e10),  1e-08);
+assertEqualsDelta(0.3499935021712929,  Math.sin(-1e06), 1e-15);
+assertEqualsDelta(0.4875060250875106,  Math.sin(-1e10), 1e-08);
+assertEqualsDelta(0.7796880066069787,  Math.sin(1e16),  1e-05);
+assertEqualsDelta(-0.6261681981330861, Math.cos(1e16),  1e-05);
+
+// Assert that remainder calculation terminates.
+for (var i = -1024; i < 1024; i++) {
+  assertFalse(isNaN(Math.sin(Math.pow(2, i))));
+}
+
+assertFalse(isNaN(Math.cos(1.57079632679489700)));
+assertFalse(isNaN(Math.cos(-1e-100)));
+assertFalse(isNaN(Math.cos(-1e-323)));
+
+
+function no_deopt_on_minus_zero(x) {
+  return Math.sin(x) + Math.cos(x) + Math.tan(x);
+}
+
+no_deopt_on_minus_zero(1);
+no_deopt_on_minus_zero(1);
+%OptimizeFunctionOnNextCall(no_deopt_on_minus_zero);
+no_deopt_on_minus_zero(-0);
+assertOptimized(no_deopt_on_minus_zero);
