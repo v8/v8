@@ -96,7 +96,7 @@ EvenMoreExperimentalScanner::EvenMoreExperimentalScanner(
   int size = 0;
   buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(
       ReadFile(fname, isolate, &size, repeat)));
-  buffer_end_ = buffer_ + size;
+  buffer_end_ = buffer_ + size / sizeof(YYCTYPE);
   start_ = buffer_;
   cursor_ = buffer_;
   marker_ = buffer_;
