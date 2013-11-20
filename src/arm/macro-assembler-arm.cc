@@ -867,7 +867,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
-    add(fp, sp, Operand(2 * kPointerSize));
+    add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(
         this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
@@ -883,7 +883,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
       nop(ip.code());
       // Adjust FP to point to saved FP.
-      add(fp, sp, Operand(2 * kPointerSize));
+      add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     }
   }
 }
@@ -896,7 +896,9 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ip);
   mov(ip, Operand(CodeObject()));
   push(ip);
-  add(fp, sp, Operand(3 * kPointerSize));  // Adjust FP to point to saved FP.
+  // Adjust FP to point to saved FP.
+  add(fp, sp,
+      Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }
 
 
