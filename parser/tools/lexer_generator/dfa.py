@@ -68,8 +68,10 @@ class DfaState(AutomatonState):
   def next_state_with_char(self, value):
     return self.__matches(lambda k, v : k.matches_char(v), value)
 
-  def key_matches(self, value):
-    return self.__matches(lambda k, v : k.is_superset_of_key(v), value)
+  def transition_state_with_key(self, key):
+    # 'key' can be a subkey of one of the TransitionKeys for this state, but it
+    # cannot partially overlap a TransitionKey for this state.
+    return self.__matches(lambda k, v : k.is_superset_of_key(v), key)
 
 class Dfa(Automaton):
 
@@ -207,14 +209,27 @@ class DfaMinimizer:
     self.__reverse_id_map = None
     self.__alphabet = None
 
-  def __partition(self):
+  def __create_initial_partitions(self):
     assert not self.__id_map
     assert not self.__reverse_id_map
     assert not self.__alphabet
-    action_map = {}
+
+    # For the minimization, we associate each state with an ID. A set of states
+    # is represented as a set of state IDs.
     id_map = {}
+
+    # First we partition the states into the following groups:
+    # - terminal states without action
+    # - nonterminal states without action
+    # - one group per action: terminal states which have the action
+    # - one group per action: nonterminal states which have the action
+    # These are the keys of initial_partitions. The values are lists of state
+    # IDs.
+    initial_partitions = {}
     terminal_set = self.__dfa.terminal_set()
-    all_keys = []
+    all_keys = [] # Will contain all TransitionKeys in the dfa.
+
+    # f fills in initial_partitions, id_map and all_keys.
     def f(state, visitor_state):
       state_id = len(id_map)
       id_map[state_id] = state
@@ -230,29 +245,43 @@ class DfaMinimizer:
         key = ("terminal set",)
       else:
         key = ("nonterminal set",)
-      if not key in action_map:
-        action_map[key] = set()
-      action_map[key].add(state_id)
+      if not key in initial_partitions:
+        initial_partitions[key] = set()
+      initial_partitions[key].add(state_id)
     self.__dfa.visit_all_states(f)
     partitions = set()
     working_set = set()
-    for k, p in action_map.items():
+
+    # Create StatePartition objects:
+    for k, p in initial_partitions.items():
       p = StatePartition(p)
       partitions.add(p)
-      if k[0] == "terminal_set" or k[0] == "terminal action" or True:
-        working_set.add(p)
+      working_set.add(p)
     reverse_id_map = {v : k for k, v in id_map.items()}
     assert len(id_map) == len(reverse_id_map)
     self.__reverse_id_map = reverse_id_map
     self.__id_map = id_map
+
+    # The alphabet defines the TransitionKeys we need to check when dedicing if
+    # to states of the dfa can be in the same partition. See the doc string of
+    # TransitionKey.disjoint_keys.
+
+    # For example, if the TransitionKeys are {[a-d], [c-h]}, the alphabet is
+    # {[a-b], [c-d], [e-h]}. If state S1 has a transition to S2 with
+    # TransitionKey [a-d], and state S3 has a transition to S4 with
+    # TransitionKey [c-h], S1 and S3 cannot be in the same partition. This will
+    # become clear when we check the transition for TransitionKey [c-d] (S1 has
+    # a transition to S2, S3 has a transition to S4).
     self.__alphabet = list(TransitionKey.disjoint_keys(chain(*all_keys)))
-    # map transitions wrt alphabet mapping
+
+    # For each state and each TransitionKey in the alphabet, find out which
+    # transition we take from the state with the TransitionKey.
     transitions = {}
     for state_id, state in id_map.items():
       def f((key_id, key)):
-        transition = state.key_matches(key)
-        if transition:
-          return reverse_id_map[transition]
+        transition_state = state.transition_state_with_key(key)
+        if transition_state:
+          return reverse_id_map[transition_state]
         return None
       transitions[state_id] = map(f, enumerate(self.__alphabet))
     self.__transitions = transitions
@@ -260,16 +289,16 @@ class DfaMinimizer:
     if self.__verify:
       for partition in partitions:
         for state_id in partition:
-          transition_array = transitions[state_id]
+          transition_state_array = transitions[state_id]
           state = id_map[state_id]
           for key_id, key in enumerate(self.__alphabet):
-            transition_id = transition_array[key_id]
-            transition_state = state.key_matches(key)
+            transition_state_id = transition_state_array[key_id]
+            transition_state = state.transition_state_with_key(key)
             if not transition_state:
-              assert transition_id == None
+              assert transition_state_id == None
             else:
-              assert transition_id != None
-              assert transition_id == reverse_id_map[transition_state]
+              assert transition_state_id != None
+              assert transition_state_id == reverse_id_map[transition_state]
     return (working_set, partitions)
 
   @staticmethod
@@ -303,15 +332,15 @@ class DfaMinimizer:
         transition_id = transition_array[key_id]
         if transition_id == None:
           if verify:
-            assert not state.key_matches(key)
+            assert not state.transition_state_with_key(key)
             for s_id in state_ids:
-              assert not id_map[s_id].key_matches(key)
+              assert not id_map[s_id].transition_state_with_key(key)
           continue
         transition_partition = reverse_partition_map[transition_id]
         assert transition_partition
         if verify:
           for s_id in state_ids:
-            transition = id_map[s_id].key_matches(key)
+            transition = id_map[s_id].transition_state_with_key(key)
             assert transition
             test_partition = reverse_partition_map[reverse_id_map[transition]]
             assert test_partition == transition_partition
@@ -321,7 +350,11 @@ class DfaMinimizer:
     return (start_name, mapping)
 
   def minimize(self):
-    (working_set, partitions) = self.__partition()
+    '''Minimize the dfa. For the general idea of minimizing automata, see
+    http://en.wikipedia.org/wiki/DFA_minimization. In addition, we need to take
+    account the actions associated to stages, i.e., we cannot merge two states
+    which have different actions.'''
+    (working_set, partitions) = self.__create_initial_partitions()
     node_count = self.__dfa.node_count()
     id_map = self.__id_map
     reverse_id_map = self.__reverse_id_map
