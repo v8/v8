@@ -457,7 +457,8 @@ class UploadCL(Step):
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
-    if self.Git("cl upload --send-mail", pipe=False) is None:
+    force_flag = " -f" if self._options.f else ""
+    if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
 

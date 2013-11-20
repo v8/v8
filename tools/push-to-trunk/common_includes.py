@@ -370,15 +370,18 @@ class UploadStep(Step):
     Step.__init__(self, "Upload for code review.")
 
   def RunStep(self):
-    if self._options and self._options.r:
+    if self._options.r:
       print "Using account %s for review." % self._options.r
       reviewer = self._options.r
     else:
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieInForcedMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    args = "cl upload -r \"%s\" --send-mail" % reviewer
-    if self.Git(args,pipe=False) is None:
+    force_flag = " -f" if self._options.f else ""
+    args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
+    # TODO(machenbach): Check output in forced mode. Verify that all required
+    # base files were uploaded, if not retry.
+    if self.Git(args, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
 
 

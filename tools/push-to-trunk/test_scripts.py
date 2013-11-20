@@ -461,6 +461,7 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
+    force_flag = " -f" if force else ""
     self._git_recipe = [
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch\n"],
@@ -481,7 +482,8 @@ class ScriptTest(unittest.TestCase):
         "Now working on version 3.22.6.\""),
        " 2 files changed\n",
         CheckPreparePush],
-      ["cl upload -r \"reviewer@chromium.org\" --send-mail", "done\n"],
+      ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
+       "done\n"],
       ["cl dcommit -f", "Closing issue\n"],
       ["svn fetch", "fetch result\n"],
       ["checkout svn/bleeding_edge", ""],
@@ -502,7 +504,7 @@ class ScriptTest(unittest.TestCase):
       [("commit -am \"Update V8 to version 3.22.5.\n\n"
         "TBR=reviewer@chromium.org\""),
        ""],
-      ["cl upload --send-mail", ""],
+      ["cl upload --send-mail%s" % force_flag, ""],
       ["checkout -f some_branch", ""],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
