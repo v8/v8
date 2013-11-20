@@ -5082,8 +5082,8 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   lw(at, FieldMemOperand(string, String::kLengthOffset));
   ThrowIf(ge, kIndexIsTooLarge, index, Operand(at));
 
-  li(at, Operand(Smi::FromInt(0)));
-  ThrowIf(lt, kIndexIsNegative, index, Operand(at));
+  ASSERT(Smi::FromInt(0) == 0);
+  ThrowIf(lt, kIndexIsNegative, index, Operand(zero_reg));
 
   SmiUntag(index, index);
 }
