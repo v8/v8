@@ -156,6 +156,7 @@ TimeDelta RunBaselineScanner(const char* fname,
 }
 
 
+template<typename YYCTYPE>
 TimeDelta RunExperimentalScanner(const char* fname,
                                  Isolate* isolate,
                                  Encoding encoding,
@@ -163,7 +164,7 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  std::vector<TokenWithLocation>* tokens,
                                  int repeat) {
   ElapsedTimer timer;
-  EvenMoreExperimentalScanner<uint8_t> scanner(fname, isolate, repeat);
+  EvenMoreExperimentalScanner<YYCTYPE> scanner(fname, isolate, repeat);
   timer.Start();
   Token::Value token;
   int beg, end;
@@ -210,9 +211,22 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
         &baseline_tokens, repeat);
   }
   if (run_experimental) {
-    experimental_time = RunExperimentalScanner(
-        fname, isolate, encoding, print_tokens || check_tokens,
-        &experimental_tokens, repeat);
+    switch (encoding) {
+      case LATIN1:
+        experimental_time = RunExperimentalScanner<uint8_t>(
+            fname, isolate, encoding, print_tokens || check_tokens,
+            &experimental_tokens, repeat);
+        break;
+      case UTF16:
+        experimental_time = RunExperimentalScanner<uint16_t>(
+            fname, isolate, encoding, print_tokens || check_tokens,
+            &experimental_tokens, repeat);
+        break;
+      default:
+        printf("Encoding not supported by the experimental scanner\n");
+        exit(1);
+        break;
+    }
   }
   if (print_tokens && !run_experimental) {
     PrintTokens("Baseline", baseline_tokens);
