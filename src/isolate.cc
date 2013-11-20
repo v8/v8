@@ -1524,8 +1524,8 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 
 
 Isolate::Isolate()
-    : state_(UNINITIALIZED),
-      embedder_data_(NULL),
+    : embedder_data_(),
+      state_(UNINITIALIZED),
       entry_stack_(NULL),
       stack_trace_nesting_level_(0),
       incomplete_message_(NULL),

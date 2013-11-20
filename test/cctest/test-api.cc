@@ -19937,16 +19937,28 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
   v8::Isolate* isolate = v8::Isolate::New();
   isolate->Enter();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  CHECK_EQ(NULL, isolate->GetData());
-  CHECK_EQ(NULL, i_isolate->GetData());
-  static void* data1 = reinterpret_cast<void*>(0xacce55ed);
-  isolate->SetData(data1);
-  CHECK_EQ(data1, isolate->GetData());
-  CHECK_EQ(data1, i_isolate->GetData());
-  static void* data2 = reinterpret_cast<void*>(0xdecea5ed);
-  i_isolate->SetData(data2);
-  CHECK_EQ(data2, isolate->GetData());
-  CHECK_EQ(data2, i_isolate->GetData());
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    CHECK_EQ(NULL, isolate->GetData(slot));
+    CHECK_EQ(NULL, i_isolate->GetData(slot));
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xacce55ed + slot);
+    isolate->SetData(slot, data);
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xacce55ed + slot);
+    CHECK_EQ(data, isolate->GetData(slot));
+    CHECK_EQ(data, i_isolate->GetData(slot));
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xdecea5ed + slot);
+    isolate->SetData(slot, data);
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xdecea5ed + slot);
+    CHECK_EQ(data, isolate->GetData(slot));
+    CHECK_EQ(data, i_isolate->GetData(slot));
+  }
   isolate->Exit();
   isolate->Dispose();
 }
