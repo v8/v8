@@ -166,6 +166,7 @@ class Step(object):
   def __init__(self, text="", requires=None):
     self._text = text
     self._number = -1
+    self._options = None
     self._requires = requires
     self._side_effect_handler = DEFAULT_SIDE_EFFECT_HANDLER
 
@@ -202,8 +203,13 @@ class Step(object):
   def RunStep(self):
     raise NotImplementedError
 
-  def ReadLine(self):
-    return self._side_effect_handler.ReadLine()
+  def ReadLine(self, default=None):
+    # Don't prompt in forced mode.
+    if self._options and self._options.f and default is not None:
+      print "%s (forced)" % default
+      return default
+    else:
+      return self._side_effect_handler.ReadLine()
 
   def Git(self, args="", prefix="", pipe=True):
     return self._side_effect_handler.Command("git", args, prefix, pipe)
@@ -218,9 +224,14 @@ class Step(object):
     print "Exiting"
     raise Exception(msg)
 
+  def DieInForcedMode(self, msg=""):
+    if self._options and self._options.f:
+      msg = msg or "Not implemented in forced mode."
+      self.Die(msg)
+
   def Confirm(self, msg):
     print "%s [Y/n] " % msg,
-    answer = self.ReadLine()
+    answer = self.ReadLine(default="Y")
     return answer == "" or answer == "Y" or answer == "y"
 
   def DeleteBranch(self, name):
@@ -254,6 +265,8 @@ class Step(object):
     if not os.path.exists(self._config[DOT_GIT_LOCATION]):
       self.Die("This is not a git checkout, this script won't work for you.")
 
+    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
+    # well tested.
     # Cancel if EDITOR is unset or not executable.
     if (not os.environ.get("EDITOR") or
         Command("which", os.environ["EDITOR"]) is None):
@@ -325,6 +338,8 @@ class Step(object):
     answer = ""
     while answer != "LGTM":
       print "> ",
+      # TODO(machenbach): Add default="LGTM" to avoid prompt when script is
+      # well tested and when prepare push cl has TBR flag.
       answer = self.ReadLine()
       if answer != "LGTM":
         print "That was not 'LGTM'."
@@ -333,6 +348,7 @@ class Step(object):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
           "'git add', and type \"RESOLVED<Return>\"")
+    self.DieInForcedMode()
     answer = ""
     while answer != "RESOLVED":
       if answer == "ABORT":
@@ -354,8 +370,13 @@ class UploadStep(Step):
     Step.__init__(self, "Upload for code review.")
 
   def RunStep(self):
-    print "Please enter the email address of a V8 reviewer for your patch: ",
-    reviewer = self.ReadLine()
+    if self._options and self._options.r:
+      print "Using account %s for review." % self._options.r
+      reviewer = self._options.r
+    else:
+      print "Please enter the email address of a V8 reviewer for your patch: ",
+      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      reviewer = self.ReadLine()
     args = "cl upload -r \"%s\" --send-mail" % reviewer
     if self.Git(args,pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")

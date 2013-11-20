@@ -135,8 +135,10 @@ class EditChangeLog(Step):
     print ("Please press <Return> to have your EDITOR open the ChangeLog "
            "entry, then edit its contents to your liking. When you're done, "
            "save the file and exit your EDITOR. ")
-    self.ReadLine()
+    self.ReadLine(default="")
 
+    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
+    # well tested.
     self.Editor(self.Config(CHANGELOG_ENTRY_FILE))
     handle, new_changelog = tempfile.mkstemp()
     os.close(handle)
@@ -354,6 +356,7 @@ class CommitSVN(Step):
       print("Sorry, grepping for the SVN revision failed. Please look for it "
             "in the last command's output above and provide it manually (just "
             "the number, without the leading \"r\").")
+      self.DieInForcedMode("Can't prompt in forced mode.")
       while not trunk_revision:
         print "> ",
         trunk_revision = self.ReadLine()
@@ -380,6 +383,8 @@ class CheckChromium(Step):
   def Run(self):
     chrome_path = self._options.c
     if not chrome_path:
+      self.DieInForcedMode("Please specify the path to a Chromium checkout in "
+                          "forced mode.")
       print ("Do you have a \"NewGit\" Chromium checkout and want "
           "this script to automate creation of the roll CL? If yes, enter the "
           "path to (and including) the \"src\" directory here, otherwise just "
@@ -442,8 +447,13 @@ class UploadCL(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    print "Please enter the email address of a reviewer for the roll CL: ",
-    rev = self.ReadLine()
+    if self._options and self._options.r:
+      print "Using account %s for review." % self._options.r
+      rev = self._options.r
+    else:
+      print "Please enter the email address of a reviewer for the roll CL: ",
+      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      rev = self.ReadLine()
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
@@ -523,15 +533,20 @@ def RunPushToTrunk(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
-  result.add_option("-s", "--step", dest="s",
-                    help="Specify the step where to start work. Default: 0.",
-                    default=0, type="int")
-  result.add_option("-l", "--last-push", dest="l",
-                    help=("Manually specify the git commit ID "
-                          "of the last push to trunk."))
   result.add_option("-c", "--chromium", dest="c",
                     help=("Specify the path to your Chromium src/ "
                           "directory to automate the V8 roll."))
+  result.add_option("-f", "--force", dest="f",
+                    help="Don't prompt the user.",
+                    default=False, action="store_true")
+  result.add_option("-l", "--last-push", dest="l",
+                    help=("Manually specify the git commit ID "
+                          "of the last push to trunk."))
+  result.add_option("-r", "--reviewer", dest="r",
+                    help=("Specify the account name to be used for reviews."))
+  result.add_option("-s", "--step", dest="s",
+                    help="Specify the step where to start work. Default: 0.",
+                    default=0, type="int")
   return result
 
 

@@ -430,7 +430,7 @@ class ScriptTest(unittest.TestCase):
     patch = FileToText(TEST_CONFIG[ PATCH_FILE])
     self.assertTrue(re.search(r"patch content", patch))
 
-  def testPushToTrunk(self):
+  def _PushToTrunk(self, force=False):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
@@ -518,6 +518,12 @@ class ScriptTest(unittest.TestCase):
       "Y",  # Sanity check.
       "reviewer@chromium.org",  # Chromium reviewer.
     ]
+    if force:
+      # TODO(machenbach): The lgtm for the prepare push is just temporary.
+      # There should be no user input in "force" mode.
+      self._rl_recipe = [
+        "LGTM",  # Enter LGTM for V8 CL.
+      ]
 
     class Options( object ):
       pass
@@ -525,6 +531,8 @@ class ScriptTest(unittest.TestCase):
     options = Options()
     options.s = 0
     options.l = None
+    options.f = force
+    options.r = "reviewer@chromium.org" if force else None
     options.c = TEST_CONFIG[CHROMIUM]
     RunPushToTrunk(TEST_CONFIG, options, self)
 
@@ -540,3 +548,9 @@ class ScriptTest(unittest.TestCase):
     # Note: The version file is on build number 5 again in the end of this test
     # since the git command that merges to the bleeding edge branch is mocked
     # out.
+
+  def testPushToTrunk(self):
+    self._PushToTrunk()
+
+  def testPushToTrunkForced(self):
+    self._PushToTrunk(force=True)
