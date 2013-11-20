@@ -99,15 +99,15 @@ class NfaState(AutomatonState):
 
   def __matches(self, match_func, value):
     # f collects states whose corresponding TransitionKey matches 'value'.
-    f = (lambda acc, (key, states):
-           acc | states if match_func(key, value) else acc)
-    return reduce(f, self.__transitions.items(), set())
+    items = self.__transitions.items()
+    iters = [iter(states) for (key, states) in items if match_func(key, value)]
+    return chain(*iters)
 
   def transition_state_iter_for_char(self, value):
-    return iter(self.__matches(lambda k, v : k.matches_char(v), value))
+    return self.__matches(lambda k, v : k.matches_char(v), value)
 
   def transition_state_iter_for_key(self, value):
-    return iter(self.__matches(lambda k, v : k.is_superset_of_key(v), value))
+    return self.__matches(lambda k, v : k.is_superset_of_key(v), value)
 
 class Nfa(Automaton):
 

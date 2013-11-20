@@ -59,10 +59,8 @@ class DfaState(AutomatonState):
 
   # TODO abstract state matching
   def __matches(self, match_func, value):
-    # f collects states whose corresponding TransitionKey matches 'value'.
-    f = (lambda acc, (key, state):
-           acc | set([state]) if match_func(key, value) else acc)
-    return reduce(f, self.__transitions.items(), set())
+    items = self.__transitions.items()
+    return [state for (key, state) in items if match_func(key, value)]
 
   def transition_state_iter_for_char(self, value):
     return iter(self.__matches(lambda k, v : k.matches_char(v), value))
@@ -76,7 +74,7 @@ class DfaState(AutomatonState):
       return None
     # Since this is a dfa, we should have at most one such state. Return it.
     assert len(matches) == 1
-    return iter(matches).next()
+    return matches[0]
 
 class Dfa(Automaton):
 
