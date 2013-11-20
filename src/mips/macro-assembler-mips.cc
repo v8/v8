@@ -5051,6 +5051,44 @@ int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
 }
 
 
+void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
+                                               Register index,
+                                               Register value,
+                                               Register scratch,
+                                               uint32_t encoding_mask) {
+  Label is_object;
+  And(at, string, Operand(kSmiTagMask));
+  ThrowIf(eq, kNonObject, at, Operand(zero_reg));
+
+  lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
+  lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
+
+  andi(at, at, kStringRepresentationMask | kStringEncodingMask);
+  li(scratch, Operand(encoding_mask));
+  ThrowIf(ne, kUnexpectedStringType, at, Operand(scratch));
+
+  // The index is assumed to be untagged coming in, tag it to compare with the
+  // string length without using a temp register, it is restored at the end of
+  // this function.
+  Label index_tag_ok, index_tag_bad;
+  // On ARM TrySmiTag is used here.
+  AdduAndCheckForOverflow(index, index, index, scratch);
+  BranchOnOverflow(&index_tag_bad, scratch);
+  Branch(&index_tag_ok);
+  bind(&index_tag_bad);
+  Throw(kIndexIsTooLarge);
+  bind(&index_tag_ok);
+
+  lw(at, FieldMemOperand(string, String::kLengthOffset));
+  ThrowIf(ge, kIndexIsTooLarge, index, Operand(at));
+
+  li(at, Operand(Smi::FromInt(0)));
+  ThrowIf(lt, kIndexIsNegative, index, Operand(at));
+
+  SmiUntag(index, index);
+}
+
+
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           int num_double_arguments,
                                           Register scratch) {
@@ -5428,6 +5466,57 @@ void MacroAssembler::EnsureNotWhite(
   sw(t8, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
 
   bind(&done);
+}
+
+
+void MacroAssembler::Throw(BailoutReason reason) {
+  Label throw_start;
+  bind(&throw_start);
+#ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
+  if (msg != NULL) {
+    RecordComment("Throw message: ");
+    RecordComment(msg);
+  }
+#endif
+
+  li(a0, Operand(Smi::FromInt(reason)));
+  push(a0);
+  // Disable stub call restrictions to always allow calls to throw.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kThrowMessage, 1);
+  } else {
+    CallRuntime(Runtime::kThrowMessage, 1);
+  }
+  // will not return here
+  if (is_trampoline_pool_blocked()) {
+    // If the calling code cares throw the exact number of
+    // instructions generated, we insert padding here to keep the size
+    // of the ThrowMessage macro constant.
+    // Currently in debug mode with debug_code enabled the number of
+    // generated instructions is 14, so we use this as a maximum value.
+    static const int kExpectedThrowMessageInstructions = 14;
+    int throw_instructions = InstructionsGeneratedSince(&throw_start);
+    ASSERT(throw_instructions <= kExpectedThrowMessageInstructions);
+    while (throw_instructions++ < kExpectedThrowMessageInstructions) {
+      nop();
+    }
+  }
+}
+
+
+void MacroAssembler::ThrowIf(Condition cc,
+                             BailoutReason reason,
+                             Register rs,
+                             Operand rt) {
+  Label L;
+  Branch(&L, NegateCondition(cc), rs, rt);
+  Throw(reason);
+  // will not return here
+  bind(&L);
 }
 
 

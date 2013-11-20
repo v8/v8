@@ -179,38 +179,6 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_new_space_size = (1 << (kPageSizeBits - 10)) * 2;
   }
 
-  if (FLAG_concurrent_recompilation &&
-      (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs)) {
-    FLAG_concurrent_recompilation = false;
-    FLAG_concurrent_osr = false;
-    PrintF("Concurrent recompilation has been disabled for tracing.\n");
-  }
-
-  if (FLAG_sweeper_threads <= 0) {
-    if (FLAG_concurrent_sweeping) {
-      FLAG_sweeper_threads = SystemThreadManager::
-          NumberOfParallelSystemThreads(
-              SystemThreadManager::CONCURRENT_SWEEPING);
-    } else if (FLAG_parallel_sweeping) {
-      FLAG_sweeper_threads = SystemThreadManager::
-          NumberOfParallelSystemThreads(
-              SystemThreadManager::PARALLEL_SWEEPING);
-    }
-    if (FLAG_sweeper_threads == 0) {
-      FLAG_concurrent_sweeping = false;
-      FLAG_parallel_sweeping = false;
-    }
-  } else if (!FLAG_concurrent_sweeping && !FLAG_parallel_sweeping) {
-    FLAG_sweeper_threads = 0;
-  }
-
-  if (FLAG_concurrent_recompilation &&
-      SystemThreadManager::NumberOfParallelSystemThreads(
-          SystemThreadManager::CONCURRENT_RECOMPILATION) == 0) {
-    FLAG_concurrent_recompilation = false;
-    FLAG_concurrent_osr = false;
-  }
-
   Sampler::SetUp();
   CPU::SetUp();
   OS::PostSetUp();

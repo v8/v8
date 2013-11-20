@@ -1196,6 +1196,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kNonSmiIndex, "Non-smi index")                                            \
   V(kNonSmiKeyInArrayLiteral, "Non-smi key in array literal")                 \
   V(kNonSmiValue, "Non-smi value")                                            \
+  V(kNonObject, "Non-object value")                                           \
   V(kNotEnoughVirtualRegistersForValues,                                      \
     "not enough virtual registers for values")                                \
   V(kNotEnoughSpillSlotsForOsr,                                               \
@@ -1350,10 +1351,6 @@ class Object : public MaybeObject {
   inline bool IsFixedArrayBase();
   inline bool IsExternal();
   inline bool IsAccessorInfo();
-
-  // Returns true if this object is an instance of the specified
-  // function template.
-  inline bool IsInstanceOf(FunctionTemplateInfo* type);
 
   inline bool IsStruct();
 #define DECLARE_STRUCT_PREDICATE(NAME, Name, name) inline bool Is##Name();
@@ -5033,12 +5030,7 @@ class Code: public HeapObject {
   // Types of stubs.
   enum StubType {
     NORMAL,
-    FIELD,
-    CONSTANT,
-    CALLBACKS,
-    INTERCEPTOR,
-    TRANSITION,
-    NONEXISTENT
+    FAST
   };
 
   typedef int ExtraICState;
@@ -5464,7 +5456,7 @@ class Code: public HeapObject {
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
-  class TypeField: public BitField<StubType, 3, 3> {};
+  class TypeField: public BitField<StubType, 3, 1> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
   class KindField: public BitField<Kind, 7, 4> {};
   class IsPregeneratedField: public BitField<bool, 11, 1> {};
@@ -10271,6 +10263,10 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
   static const int kLengthOffset = kFlagOffset + kPointerSize;
   static const int kSize = kLengthOffset + kPointerSize;
+
+  // Returns true if |object| is an instance of this function template.
+  bool IsTemplateFor(Object* object);
+  bool IsTemplateFor(Map* map);
 
  private:
   // Bit position in the flag, from least significant bit position.

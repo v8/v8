@@ -52,6 +52,101 @@ TEST_CONFIG = {
 }
 
 
+class ToplevelTest(unittest.TestCase):
+  def testMakeChangeLogBodySimple(self):
+    commits = lambda: [
+          ["        Title text 1",
+           "Title text 1\n\nBUG=\n",
+           "        author1@chromium.org"],
+          ["        Title text 2",
+           "Title text 2\n\nBUG=1234\n",
+           "        author2@chromium.org"],
+        ]
+    self.assertEquals("        Title text 1\n"
+                      "        author1@chromium.org\n\n"
+                      "        Title text 2\n"
+                      "        (Chromium issue 1234)\n"
+                      "        author2@chromium.org\n\n",
+                      MakeChangeLogBody(commits))
+
+  def testMakeChangeLogBodyEmpty(self):
+    commits = lambda: []
+    self.assertEquals("", MakeChangeLogBody(commits))
+
+  def testMakeChangeLogBugReferenceEmpty(self):
+    self.assertEquals("", MakeChangeLogBugReference(""))
+    self.assertEquals("", MakeChangeLogBugReference("LOG="))
+    self.assertEquals("", MakeChangeLogBugReference(" BUG ="))
+    self.assertEquals("", MakeChangeLogBugReference("BUG=none\t"))
+
+  def testMakeChangeLogBugReferenceSimple(self):
+    self.assertEquals("        (issue 987654)\n",
+                      MakeChangeLogBugReference("BUG = v8:987654"))
+    self.assertEquals("        (Chromium issue 987654)\n",
+                      MakeChangeLogBugReference("BUG=987654 "))
+
+  def testMakeChangeLogBugReferenceFromBody(self):
+    self.assertEquals("        (Chromium issue 1234567)\n",
+                      MakeChangeLogBugReference("Title\n\nTBR=\nBUG=\n"
+                                                " BUG=\tchromium:1234567\t\n"
+                                                "R=somebody\n"))
+
+  def testMakeChangeLogBugReferenceMultiple(self):
+    # All issues should be sorted and grouped. Multiple references to the same
+    # issue should be filtered.
+    self.assertEquals("        (issues 123, 234, Chromium issue 345)\n",
+                      MakeChangeLogBugReference("Title\n\n"
+                                                "BUG=v8:234\n"
+                                                "  BUG\t= 345, \tv8:234,\n"
+                                                "BUG=v8:123\n"
+                                                "R=somebody\n"))
+    self.assertEquals("        (Chromium issues 123, 234)\n",
+                      MakeChangeLogBugReference("Title\n\n"
+                                                "BUG=234,,chromium:123 \n"
+                                                "R=somebody\n"))
+    self.assertEquals("        (Chromium issues 123, 234)\n",
+                      MakeChangeLogBugReference("Title\n\n"
+                                                "BUG=chromium:234, , 123\n"
+                                                "R=somebody\n"))
+    self.assertEquals("        (issues 345, 456)\n",
+                      MakeChangeLogBugReference("Title\n\n"
+                                                "\t\tBUG=v8:345,v8:456\n"
+                                                "R=somebody\n"))
+    self.assertEquals("        (issue 123, Chromium issues 345, 456)\n",
+                      MakeChangeLogBugReference("Title\n\n"
+                                                "BUG=chromium:456\n"
+                                                "BUG = none\n"
+                                                "R=somebody\n"
+                                                "BUG=456,v8:123, 345"))
+
+  def testMakeChangeLogBugReferenceLong(self):
+    # -----------------00--------10--------20--------30--------
+    self.assertEquals("        (issues 234, 1234567890, 1234567"
+                      "8901234567890, Chromium issues 12345678,\n"
+                      "        123456789)\n",
+                      MakeChangeLogBugReference("BUG=v8:234\n"
+                                                "BUG=v8:1234567890\n"
+                                                "BUG=v8:12345678901234567890\n"
+                                                "BUG=123456789\n"
+                                                "BUG=12345678\n"))
+    # -----------------00--------10--------20--------30--------
+    self.assertEquals("        (issues 234, 1234567890, 1234567"
+                      "8901234567890, Chromium issues\n"
+                      "        123456789, 1234567890)\n",
+                      MakeChangeLogBugReference("BUG=v8:234\n"
+                                                "BUG=v8:12345678901234567890\n"
+                                                "BUG=v8:1234567890\n"
+                                                "BUG=123456789\n"
+                                                "BUG=1234567890\n"))
+    # -----------------00--------10--------20--------30--------
+    self.assertEquals("        (Chromium issues 234, 1234567890"
+                      ", 12345678901234567,\n"
+                      "        1234567890123456789)\n",
+                      MakeChangeLogBugReference("BUG=234\n"
+                                                "BUG=12345678901234567\n"
+                                                "BUG=1234567890123456789\n"
+                                                "BUG=1234567890\n"))
+
 class ScriptTest(unittest.TestCase):
   def MakeEmptyTempFile(self):
     handle, name = tempfile.mkstemp()
@@ -335,7 +430,7 @@ class ScriptTest(unittest.TestCase):
     patch = FileToText(TEST_CONFIG[ PATCH_FILE])
     self.assertTrue(re.search(r"patch content", patch))
 
-  def testPushToTrunk(self):
+  def _PushToTrunk(self, force=False):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
@@ -423,6 +518,12 @@ class ScriptTest(unittest.TestCase):
       "Y",  # Sanity check.
       "reviewer@chromium.org",  # Chromium reviewer.
     ]
+    if force:
+      # TODO(machenbach): The lgtm for the prepare push is just temporary.
+      # There should be no user input in "force" mode.
+      self._rl_recipe = [
+        "LGTM",  # Enter LGTM for V8 CL.
+      ]
 
     class Options( object ):
       pass
@@ -430,6 +531,8 @@ class ScriptTest(unittest.TestCase):
     options = Options()
     options.s = 0
     options.l = None
+    options.f = force
+    options.r = "reviewer@chromium.org" if force else None
     options.c = TEST_CONFIG[CHROMIUM]
     RunPushToTrunk(TEST_CONFIG, options, self)
 
@@ -445,3 +548,9 @@ class ScriptTest(unittest.TestCase):
     # Note: The version file is on build number 5 again in the end of this test
     # since the git command that merges to the bleeding edge branch is mocked
     # out.
+
+  def testPushToTrunk(self):
+    self._PushToTrunk()
+
+  def testPushToTrunkForced(self):
+    self._PushToTrunk(force=True)

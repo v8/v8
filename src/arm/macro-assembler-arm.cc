@@ -3391,6 +3391,42 @@ int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
 }
 
 
+void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
+                                               Register index,
+                                               Register value,
+                                               uint32_t encoding_mask) {
+  Label is_object;
+  SmiTst(string);
+  ThrowIf(eq, kNonObject);
+
+  ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
+  ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
+
+  and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
+  cmp(ip, Operand(encoding_mask));
+  ThrowIf(ne, kUnexpectedStringType);
+
+  // The index is assumed to be untagged coming in, tag it to compare with the
+  // string length without using a temp register, it is restored at the end of
+  // this function.
+  Label index_tag_ok, index_tag_bad;
+  TrySmiTag(index, index, &index_tag_bad);
+  b(&index_tag_ok);
+  bind(&index_tag_bad);
+  Throw(kIndexIsTooLarge);
+  bind(&index_tag_ok);
+
+  ldr(ip, FieldMemOperand(string, String::kLengthOffset));
+  cmp(index, ip);
+  ThrowIf(ge, kIndexIsTooLarge);
+
+  cmp(index, Operand(Smi::FromInt(0)));
+  ThrowIf(lt, kIndexIsNegative);
+
+  SmiUntag(index, index);
+}
+
+
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           int num_double_arguments,
                                           Register scratch) {
@@ -3771,6 +3807,52 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   // Restore FPSCR.
   vmsr(ip);
   bind(&done);
+}
+
+
+void MacroAssembler::Throw(BailoutReason reason) {
+  Label throw_start;
+  bind(&throw_start);
+#ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
+  if (msg != NULL) {
+    RecordComment("Throw message: ");
+    RecordComment(msg);
+  }
+#endif
+
+  mov(r0, Operand(Smi::FromInt(reason)));
+  push(r0);
+  // Disable stub call restrictions to always allow calls to throw.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kThrowMessage, 1);
+  } else {
+    CallRuntime(Runtime::kThrowMessage, 1);
+  }
+  // will not return here
+  if (is_const_pool_blocked()) {
+    // If the calling code cares throw the exact number of
+    // instructions generated, we insert padding here to keep the size
+    // of the ThrowMessage macro constant.
+    static const int kExpectedThrowMessageInstructions = 10;
+    int throw_instructions = InstructionsGeneratedSince(&throw_start);
+    ASSERT(throw_instructions <= kExpectedThrowMessageInstructions);
+    while (throw_instructions++ < kExpectedThrowMessageInstructions) {
+      nop();
+    }
+  }
+}
+
+
+void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+  Label L;
+  b(NegateCondition(cc), &L);
+  Throw(reason);
+  // will not return here
+  bind(&L);
 }
 
 

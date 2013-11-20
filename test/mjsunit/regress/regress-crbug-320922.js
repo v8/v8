@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,48 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SWEEPER_THREAD_H_
-#define V8_SWEEPER_THREAD_H_
+// Flags: --allow-natives-syntax
 
-#include "atomicops.h"
-#include "flags.h"
-#include "platform.h"
-#include "v8utils.h"
+var string = "hello world";
+var expected = "Hello " + "world";
+function Capitalize() {
+  %_OneByteSeqStringSetChar(string, 0, 0x48);
+}
+Capitalize();
+assertEquals(expected, string);
+Capitalize();
+assertEquals(expected, string);
 
-#include "spaces.h"
+var twobyte = "\u20ACello world";
 
-#include "heap.h"
-
-namespace v8 {
-namespace internal {
-
-class SweeperThread : public Thread {
- public:
-  explicit SweeperThread(Isolate* isolate);
-  ~SweeperThread() {}
-
-  void Run();
-  void Stop();
-  void StartSweeping();
-  void WaitForSweeperThread();
-  intptr_t StealMemory(PagedSpace* space);
-
-  static int NumberOfThreads(int max_available);
-
- private:
-  Isolate* isolate_;
-  Heap* heap_;
-  MarkCompactCollector* collector_;
-  Semaphore start_sweeping_semaphore_;
-  Semaphore end_sweeping_semaphore_;
-  Semaphore stop_semaphore_;
-  FreeList free_list_old_data_space_;
-  FreeList free_list_old_pointer_space_;
-  FreeList private_free_list_old_data_space_;
-  FreeList private_free_list_old_pointer_space_;
-  volatile AtomicWord stop_thread_;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_SWEEPER_THREAD_H_
+function TwoByteCapitalize() {
+  %_TwoByteSeqStringSetChar(twobyte, 0, 0x48);
+}
+TwoByteCapitalize();
+assertEquals(expected, twobyte);
+TwoByteCapitalize();
+assertEquals(expected, twobyte);

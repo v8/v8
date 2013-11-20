@@ -150,25 +150,6 @@ bool Object::IsAccessorInfo() {
 }
 
 
-bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
-  // There is a constraint on the object; check.
-  if (!this->IsJSObject()) return false;
-  // Fetch the constructor function of the object.
-  Object* cons_obj = JSObject::cast(this)->map()->constructor();
-  if (!cons_obj->IsJSFunction()) return false;
-  JSFunction* fun = JSFunction::cast(cons_obj);
-  // Iterate through the chain of inheriting function templates to
-  // see if the required one occurs.
-  for (Object* type = fun->shared()->function_data();
-       type->IsFunctionTemplateInfo();
-       type = FunctionTemplateInfo::cast(type)->parent_template()) {
-    if (type == expected) return true;
-  }
-  // Didn't find the required type in the inheritance chain.
-  return false;
-}
-
-
 bool Object::IsSmi() {
   return HAS_SMI_TAG(this);
 }
@@ -5957,7 +5938,7 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
 bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
   Object* function_template = expected_receiver_type();
   if (!function_template->IsFunctionTemplateInfo()) return true;
-  return receiver->IsInstanceOf(FunctionTemplateInfo::cast(function_template));
+  return FunctionTemplateInfo::cast(function_template)->IsTemplateFor(receiver);
 }
 
 

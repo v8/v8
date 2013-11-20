@@ -302,12 +302,12 @@ class CompilationInfo {
   }
 
   void AbortDueToDependencyChange() {
-    ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+    ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     abort_due_to_dependency_ = true;
   }
 
   bool HasAbortedDueToDependencyChange() {
-    ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+    ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     return abort_due_to_dependency_;
   }
 

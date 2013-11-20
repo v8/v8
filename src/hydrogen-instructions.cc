@@ -521,19 +521,12 @@ bool HValue::CanReplaceWithDummyUses() {
 
 
 bool HValue::IsInteger32Constant() {
-  HValue* value_to_check = IsForceRepresentation()
-      ? HForceRepresentation::cast(this)->value()
-      : this;
-  return value_to_check->IsConstant() &&
-      HConstant::cast(value_to_check)->HasInteger32Value();
+  return IsConstant() && HConstant::cast(this)->HasInteger32Value();
 }
 
 
 int32_t HValue::GetInteger32Constant() {
-  HValue* constant_value = IsForceRepresentation()
-      ? HForceRepresentation::cast(this)->value()
-      : this;
-  return HConstant::cast(constant_value)->Integer32Value();
+  return HConstant::cast(this)->Integer32Value();
 }
 
 
@@ -1339,6 +1332,23 @@ HValue* HWrapReceiver::Canonicalize() {
 
 void HTypeof::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
+}
+
+
+HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
+       HValue* value, Representation required_representation) {
+  if (FLAG_fold_constants && value->IsConstant()) {
+    HConstant* c = HConstant::cast(value);
+    if (c->HasNumberValue()) {
+      double double_res = c->DoubleValue();
+      if (TypeInfo::IsInt32Double(double_res)) {
+        return HConstant::New(zone, context,
+                              static_cast<int32_t>(double_res),
+                              required_representation);
+      }
+    }
+  }
+  return new(zone) HForceRepresentation(value, required_representation);
 }
 
 

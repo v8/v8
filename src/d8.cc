@@ -62,6 +62,7 @@
 #ifndef V8_SHARED
 #include "api.h"
 #include "checks.h"
+#include "cpu.h"
 #include "d8-debug.h"
 #include "debug.h"
 #include "natives.h"
@@ -1709,7 +1710,8 @@ int Shell::Main(int argc, char* argv[]) {
   Isolate* isolate = Isolate::GetCurrent();
 #ifndef V8_SHARED
   v8::ResourceConstraints constraints;
-  constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory());
+  constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory(),
+                                i::CPU::NumberOfProcessorsOnline());
   v8::SetResourceConstraints(isolate, &constraints);
 #endif
   DumbLineEditor dumb_line_editor(isolate);

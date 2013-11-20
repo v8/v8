@@ -563,10 +563,11 @@ ResourceConstraints::ResourceConstraints()
   : max_young_space_size_(0),
     max_old_space_size_(0),
     max_executable_size_(0),
-    stack_limit_(NULL) { }
+    stack_limit_(NULL),
+    max_available_threads_(0) { }
 
-
-void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
+                                            uint32_t number_of_processors) {
   const int lump_of_memory = (i::kPointerSize / 4) * i::MB;
 #if V8_OS_ANDROID
   // Android has higher physical memory requirements before raising the maximum
@@ -599,6 +600,13 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
     set_max_old_space_size(700 * lump_of_memory);
     set_max_executable_size(256 * lump_of_memory);
   }
+
+  set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
+}
+
+
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
+  ConfigureDefaults(physical_memory, i::CPU::NumberOfProcessorsOnline());
 }
 
 
@@ -627,6 +635,8 @@ bool SetResourceConstraints(Isolate* v8_isolate,
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
+
+  isolate->set_max_available_threads(constraints->max_available_threads());
   return true;
 }
 
@@ -1264,7 +1274,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
   i::Handle<i::TypeSwitchInfo> info = Utils::OpenHandle(this);
   i::FixedArray* types = i::FixedArray::cast(info->types());
   for (int i = 0; i < types->length(); i++) {
-    if (obj->IsInstanceOf(i::FunctionTemplateInfo::cast(types->get(i))))
+    if (i::FunctionTemplateInfo::cast(types->get(i))->IsTemplateFor(*obj))
       return i + 1;
   }
   return 0;
@@ -3346,7 +3356,7 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
   ENTER_V8(isolate);
   i::JSObject* object = *Utils::OpenHandle(this);
   i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
-  while (!object->IsInstanceOf(tmpl_info)) {
+  while (!tmpl_info->IsTemplateFor(object)) {
     i::Object* prototype = object->GetPrototype();
     if (!prototype->IsJSObject()) return Local<Object>();
     object = i::JSObject::cast(prototype);
@@ -5427,7 +5437,7 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
   ON_BAILOUT(i::Isolate::Current(), "v8::FunctionTemplate::HasInstanceOf()",
              return false);
   i::Object* obj = *Utils::OpenHandle(*value);
-  return obj->IsInstanceOf(*Utils::OpenHandle(this));
+  return Utils::OpenHandle(this)->IsTemplateFor(obj);
 }
 
 

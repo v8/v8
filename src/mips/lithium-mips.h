@@ -1381,19 +1381,21 @@ class LSeqStringGetChar V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 3, 0> {
+class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 4, 0> {
  public:
-  LSeqStringSetChar(LOperand* string,
+  LSeqStringSetChar(LOperand* context,
+                    LOperand* string,
                     LOperand* index,
                     LOperand* value) {
-    inputs_[0] = string;
-    inputs_[1] = index;
-    inputs_[2] = value;
+    inputs_[0] = context;
+    inputs_[1] = string;
+    inputs_[2] = index;
+    inputs_[3] = value;
   }
 
-  LOperand* string() { return inputs_[0]; }
-  LOperand* index() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
+  LOperand* string() { return inputs_[1]; }
+  LOperand* index() { return inputs_[2]; }
+  LOperand* value() { return inputs_[3]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
   DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)

@@ -292,7 +292,7 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   }
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, cache_holder, Code::CONSTANT, argc);
+      kind, extra_state, cache_holder, Code::FAST, argc);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -334,7 +334,7 @@ Handle<Code> StubCache::ComputeCallField(int argc,
   }
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, cache_holder, Code::FIELD, argc);
+      kind, extra_state, cache_holder, Code::FAST, argc);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -372,7 +372,7 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   }
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, cache_holder, Code::INTERCEPTOR, argc);
+      kind, extra_state, cache_holder, Code::FAST, argc);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -1259,7 +1259,7 @@ Handle<Code> LoadStubCompiler::CompileLoadField(
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::FIELD, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1272,7 +1272,7 @@ Handle<Code> LoadStubCompiler::CompileLoadConstant(
   GenerateLoadConstant(value);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CONSTANT, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1286,7 +1286,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   GenerateLoadCallback(reg, callback);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1301,7 +1301,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   GenerateLoadCallback(call_optimization);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1318,7 +1318,7 @@ Handle<Code> LoadStubCompiler::CompileLoadInterceptor(
   GenerateLoadInterceptor(reg, object, holder, &lookup, name);
 
   // Return the generated code.
-  return GetCode(kind(), Code::INTERCEPTOR, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1378,7 +1378,7 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
   GenerateLoadViaGetter(masm(), receiver(), getter);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1435,7 +1435,7 @@ Handle<Code> StoreStubCompiler::CompileStoreTransition(
   TailCallBuiltin(masm(), SlowBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::TRANSITION, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1458,7 +1458,7 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::FIELD, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1470,7 +1470,7 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
   HandlerFrontend(object, receiver(), holder, name);
   GenerateStoreViaSetter(masm(), setter);
 
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -1757,7 +1757,7 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
   if (function->shared()->name()->IsString()) {
     function_name = Handle<String>(String::cast(function->shared()->name()));
   }
-  return GetCode(Code::CONSTANT, function_name);
+  return GetCode(Code::FAST, function_name);
 }
 
 
@@ -1785,12 +1785,12 @@ int CallOptimization::GetPrototypeDepthOfExpectedType(
   if (expected_receiver_type_.is_null()) return 0;
   int depth = 0;
   while (!object.is_identical_to(holder)) {
-    if (object->IsInstanceOf(*expected_receiver_type_)) return depth;
+    if (expected_receiver_type_->IsTemplateFor(object->map())) return depth;
     object = Handle<JSObject>(JSObject::cast(object->GetPrototype()));
     if (!object->map()->is_hidden_prototype()) return kInvalidProtoDepth;
     ++depth;
   }
-  if (holder->IsInstanceOf(*expected_receiver_type_)) return depth;
+  if (expected_receiver_type_->IsTemplateFor(holder->map())) return depth;
   return kInvalidProtoDepth;
 }
 

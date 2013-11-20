@@ -1820,16 +1820,13 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
 
   if (FLAG_debug_code) {
     Register scratch = scratch0();
-    __ lw(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-
-    __ And(scratch, scratch,
-           Operand(kStringRepresentationMask | kStringEncodingMask));
+    Register index = ToRegister(instr->index());
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ Subu(at, scratch, Operand(encoding == String::ONE_BYTE_ENCODING
-                                ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(eq, kUnexpectedStringType, at, Operand(zero_reg));
+    int encoding_mask =
+        instr->hydrogen()->encoding() == String::ONE_BYTE_ENCODING
+        ? one_byte_seq_type : two_byte_seq_type;
+    __ EmitSeqStringSetCharCheck(string, index, value, scratch, encoding_mask);
   }
 
   MemOperand operand = BuildSeqStringOperand(string, instr->index(), encoding);

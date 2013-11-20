@@ -1699,12 +1699,7 @@ class Heap {
            old_pointer_space()->IsLazySweepingComplete();
   }
 
-  bool AdvanceSweepers(int step_size) {
-    ASSERT(!FLAG_parallel_sweeping && !FLAG_concurrent_sweeping);
-    bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
-    sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
-    return sweeping_complete;
-  }
+  bool AdvanceSweepers(int step_size);
 
   bool EnsureSweepersProgressed(int step_size) {
     bool sweeping_complete = old_data_space()->EnsureSweeperProgress(step_size);
@@ -1833,22 +1828,18 @@ class Heap {
   // only when FLAG_concurrent_recompilation is true.
   class RelocationLock {
    public:
-    explicit RelocationLock(Heap* heap);
-
-    ~RelocationLock() {
+    explicit RelocationLock(Heap* heap) : heap_(heap) {
       if (FLAG_concurrent_recompilation) {
-#ifdef DEBUG
-        heap_->relocation_mutex_locked_by_optimizer_thread_ = false;
-#endif  // DEBUG
-        heap_->relocation_mutex_->Unlock();
+        heap_->relocation_mutex_->Lock();
       }
     }
 
-#ifdef DEBUG
-    static bool IsLockedByOptimizerThread(Heap* heap) {
-      return heap->relocation_mutex_locked_by_optimizer_thread_;
+
+    ~RelocationLock() {
+      if (FLAG_concurrent_recompilation) {
+        heap_->relocation_mutex_->Unlock();
+      }
     }
-#endif  // DEBUG
 
    private:
     Heap* heap_;

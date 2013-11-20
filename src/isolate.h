@@ -301,20 +301,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 
-class SystemThreadManager {
- public:
-  enum ParallelSystemComponent {
-    PARALLEL_SWEEPING,
-    CONCURRENT_SWEEPING,
-    CONCURRENT_RECOMPILATION
-  };
-
-  static int NumberOfParallelSystemThreads(ParallelSystemComponent type);
-
-  static const int kMaxThreads = 4;
-};
-
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
@@ -1111,18 +1097,40 @@ class Isolate {
   bool IsDeferredHandle(Object** location);
 #endif  // DEBUG
 
+  void set_max_available_threads(int value) {
+    max_available_threads_ = value;
+  }
+
+  bool concurrent_recompilation_enabled() {
+    // Thread is only available with flag enabled.
+    ASSERT(optimizing_compiler_thread_ == NULL ||
+           FLAG_concurrent_recompilation);
+    return optimizing_compiler_thread_ != NULL;
+  }
+
+  bool concurrent_osr_enabled() const {
+    // Thread is only available with flag enabled.
+    ASSERT(optimizing_compiler_thread_ == NULL ||
+           FLAG_concurrent_recompilation);
+    return optimizing_compiler_thread_ != NULL && FLAG_concurrent_osr;
+  }
+
   OptimizingCompilerThread* optimizing_compiler_thread() {
     return optimizing_compiler_thread_;
+  }
+
+  int num_sweeper_threads() const {
+    return num_sweeper_threads_;
+  }
+
+  SweeperThread** sweeper_threads() {
+    return sweeper_thread_;
   }
 
   // PreInits and returns a default isolate. Needed when a new thread tries
   // to create a Locker for the first time (the lock itself is in the isolate).
   // TODO(svenpanne) This method is on death row...
   static v8::Isolate* GetDefaultIsolateForLocking();
-
-  SweeperThread** sweeper_threads() {
-    return sweeper_thread_;
-  }
 
   int id() const { return static_cast<int>(id_); }
 
@@ -1373,6 +1381,11 @@ class Isolate {
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread* optimizing_compiler_thread_;
   SweeperThread** sweeper_thread_;
+  int num_sweeper_threads_;
+
+  // TODO(yangguo): This will become obsolete once ResourceConstraints
+  // becomes an argument to Isolate constructor.
+  int max_available_threads_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;

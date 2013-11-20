@@ -203,6 +203,31 @@ bool Object::ToUint32(uint32_t* value) {
 }
 
 
+bool FunctionTemplateInfo::IsTemplateFor(Object* object) {
+  if (!object->IsHeapObject()) return false;
+  return IsTemplateFor(HeapObject::cast(object)->map());
+}
+
+
+bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
+  // There is a constraint on the object; check.
+  if (!map->IsJSObjectMap()) return false;
+  // Fetch the constructor function of the object.
+  Object* cons_obj = map->constructor();
+  if (!cons_obj->IsJSFunction()) return false;
+  JSFunction* fun = JSFunction::cast(cons_obj);
+  // Iterate through the chain of inheriting function templates to
+  // see if the required one occurs.
+  for (Object* type = fun->shared()->function_data();
+       type->IsFunctionTemplateInfo();
+       type = FunctionTemplateInfo::cast(type)->parent_template()) {
+    if (type == this) return true;
+  }
+  // Didn't find the required type in the inheritance chain.
+  return false;
+}
+
+
 template<typename To>
 static inline To* CheckedCast(void *from) {
   uintptr_t temp = reinterpret_cast<uintptr_t>(from);
@@ -9498,7 +9523,7 @@ void JSFunction::MarkForConcurrentRecompilation() {
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(!shared()->is_generator());
-  ASSERT(FLAG_concurrent_recompilation);
+  ASSERT(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
@@ -9516,7 +9541,7 @@ void JSFunction::MarkInRecompileQueue() {
   ASSERT(!GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(IsMarkedForConcurrentRecompilation() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_concurrent_recompilation);
+  ASSERT(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queueing ");
     PrintName();
@@ -11075,12 +11100,7 @@ const char* Code::ICState2String(InlineCacheState state) {
 const char* Code::StubType2String(StubType type) {
   switch (type) {
     case NORMAL: return "NORMAL";
-    case FIELD: return "FIELD";
-    case CONSTANT: return "CONSTANT";
-    case CALLBACKS: return "CALLBACKS";
-    case INTERCEPTOR: return "INTERCEPTOR";
-    case TRANSITION: return "TRANSITION";
-    case NONEXISTENT: return "NONEXISTENT";
+    case FAST: return "FAST";
   }
   UNREACHABLE();  // keep the compiler happy
   return NULL;

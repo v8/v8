@@ -2130,17 +2130,14 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   Register string = ToRegister(instr->string());
 
   if (FLAG_debug_code) {
-    __ push(string);
-    __ mov(string, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzx_b(string, FieldOperand(string, Map::kInstanceTypeOffset));
-
-    __ and_(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    Register value = ToRegister(instr->value());
+    Register index = ToRegister(instr->index());
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(string, Immediate(encoding == String::ONE_BYTE_ENCODING
-                             ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, kUnexpectedStringType);
-    __ pop(string);
+    int encoding_mask =
+        instr->hydrogen()->encoding() == String::ONE_BYTE_ENCODING
+        ? one_byte_seq_type : two_byte_seq_type;
+    __ EmitSeqStringSetCharCheck(string, index, value, encoding_mask);
   }
 
   Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);

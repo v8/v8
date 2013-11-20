@@ -564,7 +564,7 @@ void MarkCompactCollector::ClearMarkbits() {
 
 void MarkCompactCollector::StartSweeperThreads() {
   sweeping_pending_ = true;
-  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
   }
 }
@@ -572,7 +572,7 @@ void MarkCompactCollector::StartSweeperThreads() {
 
 void MarkCompactCollector::WaitUntilSweepingCompleted() {
   ASSERT(sweeping_pending_ == true);
-  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
   sweeping_pending_ = false;
@@ -586,7 +586,7 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
 intptr_t MarkCompactCollector::
              StealMemoryFromSweeperThreads(PagedSpace* space) {
   intptr_t freed_bytes = 0;
-  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     freed_bytes += isolate()->sweeper_threads()[i]->StealMemory(space);
   }
   space->AddToAccountingStats(freed_bytes);
@@ -4112,8 +4112,10 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
   SweeperType how_to_sweep =
       FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
-  if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
-  if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
+  if (isolate()->num_sweeper_threads() > 0) {
+    if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
+    if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
+  }
   if (FLAG_expose_gc) how_to_sweep = CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
 

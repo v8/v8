@@ -931,7 +931,7 @@ class LoadFieldStub: public HandlerStub {
     return UnboxedDoubleBits::decode(bit_field_);
   }
 
-  virtual Code::StubType GetStubType() { return Code::FIELD; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
 
  protected:
   LoadFieldStub() : HandlerStub() { }

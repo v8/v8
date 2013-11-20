@@ -3065,6 +3065,40 @@ void MacroAssembler::Abort(BailoutReason reason) {
 }
 
 
+void MacroAssembler::Throw(BailoutReason reason) {
+#ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
+  if (msg != NULL) {
+    RecordComment("Throw message: ");
+    RecordComment(msg);
+  }
+#endif
+
+  push(eax);
+  push(Immediate(Smi::FromInt(reason)));
+  // Disable stub call restrictions to always allow calls to throw.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kThrowMessage, 1);
+  } else {
+    CallRuntime(Runtime::kThrowMessage, 1);
+  }
+  // will not return here
+  int3();
+}
+
+
+void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+  Label L;
+  j(NegateCondition(cc), &L);
+  Throw(reason);
+  // will not return here
+  bind(&L);
+}
+
+
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   mov(descriptors, FieldOperand(map, Map::kDescriptorsOffset));
@@ -3227,6 +3261,42 @@ void MacroAssembler::JumpIfNotUniqueName(Operand operand,
   j(not_equal, not_unique_name, distance);
 
   bind(&succeed);
+}
+
+
+void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
+                                               Register index,
+                                               Register value,
+                                               uint32_t encoding_mask) {
+  Label is_object;
+  JumpIfNotSmi(string, &is_object, Label::kNear);
+  Throw(kNonObject);
+  bind(&is_object);
+
+  push(value);
+  mov(value, FieldOperand(string, HeapObject::kMapOffset));
+  movzx_b(value, FieldOperand(value, Map::kInstanceTypeOffset));
+
+  and_(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+  cmp(value, Immediate(encoding_mask));
+  pop(value);
+  ThrowIf(not_equal, kUnexpectedStringType);
+
+  // The index is assumed to be untagged coming in, tag it to compare with the
+  // string length without using a temp register, it is restored at the end of
+  // this function.
+  SmiTag(index);
+  // Can't use overflow here directly, compiler can't seem to disambiguate.
+  ThrowIf(NegateCondition(no_overflow), kIndexIsTooLarge);
+
+  cmp(index, FieldOperand(string, String::kLengthOffset));
+  ThrowIf(greater_equal, kIndexIsTooLarge);
+
+  cmp(index, Immediate(Smi::FromInt(0)));
+  ThrowIf(less, kIndexIsNegative);
+
+  // Restore the index
+  SmiUntag(index);
 }
 
 
