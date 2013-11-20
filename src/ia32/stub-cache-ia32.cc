@@ -451,22 +451,16 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
 }
 
 
+static void GenerateFastApiCallBody(MacroAssembler* masm,
+                                    const CallOptimization& optimization,
+                                    int argc,
+                                    bool restore_context);
+
+
 // Generates call to API function.
 static void GenerateFastApiCall(MacroAssembler* masm,
                                 const CallOptimization& optimization,
-                                int argc,
-                                bool restore_context) {
-  // ----------- S t a t e -------------
-  //  -- esp[0]              : return address
-  //  -- esp[4] - esp[28]    : FunctionCallbackInfo, incl.
-  //                         :  object passing the type check
-  //                            (set by CheckPrototypes)
-  //  -- esp[32]             : last argument
-  //  -- ...
-  //  -- esp[(argc + 7) * 4] : first argument
-  //  -- esp[(argc + 8) * 4] : receiver
-  // -----------------------------------
-
+                                int argc) {
   typedef FunctionCallbackArguments FCA;
   // Save calling context.
   __ mov(Operand(esp, (1 + FCA::kContextSaveIndex) * kPointerSize), esi);
@@ -499,6 +493,110 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   STATIC_ASSERT(kFastApiCallArguments == 7);
   __ lea(eax, Operand(esp, 1 * kPointerSize));
 
+  GenerateFastApiCallBody(masm, optimization, argc, false);
+}
+
+
+// Generate call to api function.
+// This function uses push() to generate smaller, faster code than
+// the version above. It is an optimization that should will be removed
+// when api call ICs are generated in hydrogen.
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Register receiver,
+                                Register scratch1,
+                                Register scratch2,
+                                Register scratch3,
+                                int argc,
+                                Register* values) {
+  ASSERT(optimization.is_simple_api_call());
+
+  // Copy return value.
+  __ pop(scratch1);
+
+  // receiver
+  __ push(receiver);
+
+  // Write the arguments to stack frame.
+  for (int i = 0; i < argc; i++) {
+    Register arg = values[argc-1-i];
+    ASSERT(!receiver.is(arg));
+    ASSERT(!scratch1.is(arg));
+    ASSERT(!scratch2.is(arg));
+    ASSERT(!scratch3.is(arg));
+    __ push(arg);
+  }
+
+  typedef FunctionCallbackArguments FCA;
+
+  STATIC_ASSERT(FCA::kHolderIndex == 0);
+  STATIC_ASSERT(FCA::kIsolateIndex == 1);
+  STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(FCA::kReturnValueOffset == 3);
+  STATIC_ASSERT(FCA::kDataIndex == 4);
+  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
+  STATIC_ASSERT(FCA::kArgsLength == 7);
+
+  // context save
+  __ push(esi);
+
+  // Get the function and setup the context.
+  Handle<JSFunction> function = optimization.constant_function();
+  __ LoadHeapObject(scratch2, function);
+  __ mov(esi, FieldOperand(scratch2, JSFunction::kContextOffset));
+  // callee
+  __ push(scratch2);
+
+  Isolate* isolate = masm->isolate();
+  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
+  Handle<Object> call_data(api_call_info->data(), isolate);
+  // Push data from ExecutableAccessorInfo.
+  if (isolate->heap()->InNewSpace(*call_data)) {
+    __ mov(scratch2, api_call_info);
+    __ mov(scratch3, FieldOperand(scratch2, CallHandlerInfo::kDataOffset));
+    __ push(scratch3);
+  } else {
+    __ push(Immediate(call_data));
+  }
+  // return value
+  __ push(Immediate(isolate->factory()->undefined_value()));
+  // return value default
+  __ push(Immediate(isolate->factory()->undefined_value()));
+  // isolate
+  __ push(Immediate(reinterpret_cast<int>(isolate)));
+  // holder
+  __ push(receiver);
+
+  // store receiver address for GenerateFastApiCallBody
+  ASSERT(!scratch1.is(eax));
+  __ mov(eax, esp);
+
+  // return address
+  __ push(scratch1);
+
+  GenerateFastApiCallBody(masm, optimization, argc, true);
+}
+
+
+static void GenerateFastApiCallBody(MacroAssembler* masm,
+                                    const CallOptimization& optimization,
+                                    int argc,
+                                    bool restore_context) {
+  // ----------- S t a t e -------------
+  //  -- esp[0]              : return address
+  //  -- esp[4] - esp[28]    : FunctionCallbackInfo, incl.
+  //                         :  object passing the type check
+  //                            (set by CheckPrototypes)
+  //  -- esp[32]             : last argument
+  //  -- ...
+  //  -- esp[(argc + 7) * 4] : first argument
+  //  -- esp[(argc + 8) * 4] : receiver
+  //
+  //  -- eax : receiver address
+  // -----------------------------------
+  typedef FunctionCallbackArguments FCA;
+
   // API function gets reference to the v8::Arguments. If CPU profiler
   // is enabled wrapper function will be called and we need to pass
   // address of the callback as additional parameter, always allocate
@@ -508,6 +606,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
+
+  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
@@ -540,40 +640,6 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                               return_value_operand,
                               restore_context ?
                                   &context_restore_operand : NULL);
-}
-
-
-// Generate call to api function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                Register receiver,
-                                Register scratch,
-                                int argc,
-                                Register* values) {
-  ASSERT(optimization.is_simple_api_call());
-  ASSERT(!receiver.is(scratch));
-
-  const int stack_space = kFastApiCallArguments + argc + 1;
-  const int kHolderIndex = FunctionCallbackArguments::kHolderIndex + 1;
-  // Copy return value.
-  __ mov(scratch, Operand(esp, 0));
-  // Assign stack space for the call arguments.
-  __ sub(esp, Immediate(stack_space * kPointerSize));
-  // Move the return address on top of the stack.
-  __ mov(Operand(esp, 0), scratch);
-  // Write holder to stack frame.
-  __ mov(Operand(esp, kHolderIndex * kPointerSize), receiver);
-  // Write receiver to stack frame.
-  int index = stack_space;
-  __ mov(Operand(esp, index-- * kPointerSize), receiver);
-  // Write the arguments to stack frame.
-  for (int i = 0; i < argc; i++) {
-    ASSERT(!receiver.is(values[i]));
-    ASSERT(!scratch.is(values[i]));
-    __ mov(Operand(esp, index-- * kPointerSize), values[i]);
-  }
-
-  GenerateFastApiCall(masm, optimization, argc, true);
 }
 
 
@@ -687,7 +753,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Invoke function.
     if (can_do_fast_api_call) {
-      GenerateFastApiCall(masm, optimization, arguments_.immediate(), false);
+      GenerateFastApiCall(masm, optimization, arguments_.immediate());
     } else {
       CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
           ? CALL_AS_FUNCTION
@@ -1370,7 +1436,8 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
 void LoadStubCompiler::GenerateLoadCallback(
     const CallOptimization& call_optimization) {
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(), scratch3(), 0, NULL);
+      masm(), call_optimization, receiver(), scratch1(),
+      scratch2(), name(), 0, NULL);
 }
 
 
@@ -2603,7 +2670,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
 
   // esp[2 * kPointerSize] is uninitialized, esp[3 * kPointerSize] contains
   // duplicate of return address and will be overwritten.
-  GenerateFastApiCall(masm(), optimization, argc, false);
+  GenerateFastApiCall(masm(), optimization, argc);
 
   __ bind(&miss);
   __ add(esp, Immediate(kFastApiCallArguments * kPointerSize));
@@ -2920,7 +2987,8 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
   Register values[] = { value() };
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(), scratch1(), 1, values);
+      masm(), call_optimization, receiver(), scratch1(),
+      scratch2(), this->name(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
