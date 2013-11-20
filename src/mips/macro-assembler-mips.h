@@ -1371,12 +1371,35 @@ class MacroAssembler: public Assembler {
     Addu(dst, src, src);
   }
 
+  // Try to convert int32 to smi. If the value is to large, preserve
+  // the original value and jump to not_a_smi. Destroys scratch and
+  // sets flags.
+  void TrySmiTag(Register reg, Register scratch, Label* not_a_smi) {
+    TrySmiTag(reg, reg, scratch, not_a_smi);
+  }
+  void TrySmiTag(Register dst,
+                 Register src,
+                 Register scratch,
+                 Label* not_a_smi) {
+    SmiTagCheckOverflow(at, src, scratch);
+    BranchOnOverflow(not_a_smi, scratch);
+    mov(dst, at);
+  }
+
   void SmiUntag(Register reg) {
     sra(reg, reg, kSmiTagSize);
   }
 
   void SmiUntag(Register dst, Register src) {
     sra(dst, src, kSmiTagSize);
+  }
+
+  // Test if the register contains a smi.
+  inline void SmiTst(Register value, Register scratch) {
+    And(scratch, value, Operand(kSmiTagMask));
+  }
+  inline void NonNegativeSmiTst(Register value, Register scratch) {
+    And(scratch, value, Operand(kSmiTagMask | kSmiSignMask));
   }
 
   // Untag the source value into destination and jump if source is a smi.

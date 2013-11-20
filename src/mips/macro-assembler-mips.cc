@@ -4845,7 +4845,7 @@ void MacroAssembler::AssertSmi(Register object) {
 void MacroAssembler::AssertString(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
-    And(t0, object, Operand(kSmiTagMask));
+    SmiTst(object, t0);
     Check(ne, kOperandIsASmiAndNotAString, t0, Operand(zero_reg));
     push(object);
     lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -4859,7 +4859,7 @@ void MacroAssembler::AssertString(Register object) {
 void MacroAssembler::AssertName(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
-    And(t0, object, Operand(kSmiTagMask));
+    SmiTst(object, t0);
     Check(ne, kOperandIsASmiAndNotAName, t0, Operand(zero_reg));
     push(object);
     lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -5059,7 +5059,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
                                                Register scratch,
                                                uint32_t encoding_mask) {
   Label is_object;
-  And(at, string, Operand(kSmiTagMask));
+  SmiTst(string, at);
   ThrowIf(eq, kNonObject, at, Operand(zero_reg));
 
   lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
@@ -5073,9 +5073,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   // string length without using a temp register, it is restored at the end of
   // this function.
   Label index_tag_ok, index_tag_bad;
-  // On ARM TrySmiTag is used here.
-  AdduAndCheckForOverflow(index, index, index, scratch);
-  BranchOnOverflow(&index_tag_bad, scratch);
+  TrySmiTag(index, scratch, &index_tag_bad);
   Branch(&index_tag_ok);
   bind(&index_tag_bad);
   Throw(kIndexIsTooLarge);

@@ -2914,7 +2914,7 @@ void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ And(t0, v0, Operand(kSmiTagMask));
+  __ SmiTst(v0, t0);
   Split(eq, t0, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2935,7 +2935,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ And(at, v0, Operand(kSmiTagMask | 0x80000000));
+  __ NonNegativeSmiTst(v0, at);
   Split(eq, at, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -3528,9 +3528,9 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(index, value);
 
   if (FLAG_debug_code) {
-    __ And(at, value, Operand(kSmiTagMask));
+    __ SmiTst(value, at);
     __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
-    __ And(at, index, Operand(kSmiTagMask));
+    __ SmiTst(index, at);
     __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
     __ SmiUntag(index, index);
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
@@ -3565,9 +3565,9 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(index, value);
 
   if (FLAG_debug_code) {
-    __ And(at, value, Operand(kSmiTagMask));
+    __ SmiTst(value, at);
     __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
-    __ And(at, index, Operand(kSmiTagMask));
+    __ SmiTst(index, at);
     __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
     __ SmiUntag(index, index);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
