@@ -46,12 +46,8 @@
       'sources': [
         'even-more-experimental-scanner.cc',
         'even-more-experimental-scanner.h',
-        'experimental-scanner.cc',
-        'experimental-scanner.h',
         'lexer-shell.cc',
-        'lexer.h',
         '<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {
@@ -62,24 +58,6 @@
         }],
       ],
       'actions': [
-        {
-          'action_name': 're2c',
-          'inputs': [
-            '../../src/lexer/lexer.re',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
-          ],
-          'action': [
-            're2c',
-            '-f',
-            '-c',
-            '-b',
-            '--output',
-            '<(SHARED_INTERMEDIATE_DIR)/lexer.cc',
-            '../../src/lexer/lexer.re',
-          ],
-        },
         {
           'action_name': 'codegen',
           'inputs': [

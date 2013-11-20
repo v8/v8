@@ -68,6 +68,8 @@ class EvenMoreExperimentalScanner {
   YYCTYPE yych;
 };
 
+const byte* ReadFile(const char* name, Isolate* isolate, int* size, int repeat);
+
 } }
 
 #endif  // V8_LEXER_LEXER_H

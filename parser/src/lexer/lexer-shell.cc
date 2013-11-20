@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <vector>
 #include "v8.h"
 
 #include "api.h"
@@ -45,8 +46,6 @@
 #include "scanner.h"
 
 #include "even-more-experimental-scanner.h"
-#include "experimental-scanner.h"
-#include "lexer.h"
 
 using namespace v8::internal;
 

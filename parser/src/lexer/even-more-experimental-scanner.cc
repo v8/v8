@@ -61,6 +61,33 @@ using namespace v8::internal;
 namespace v8 {
 namespace internal {
 
+const byte* ReadFile(const char* name, Isolate* isolate,
+                     int* size, int repeat) {
+  FILE* file = fopen(name, "rb");
+  *size = 0;
+  if (file == NULL) return NULL;
+
+  fseek(file, 0, SEEK_END);
+  int file_size = ftell(file);
+  rewind(file);
+
+  *size = file_size * repeat;
+
+  byte* chars = new byte[*size];
+  for (int i = 0; i < file_size;) {
+    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
+    i += read;
+  }
+  fclose(file);
+
+  for (int i = file_size; i < *size; i++) {
+    chars[i] = chars[i - file_size];
+  }
+
+  return chars;
+}
+
+
 EvenMoreExperimentalScanner::EvenMoreExperimentalScanner(
     const char* fname,
     Isolate* isolate,
