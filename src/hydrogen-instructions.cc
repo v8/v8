@@ -3930,8 +3930,7 @@ HInstruction* HMathMinMax::New(
 HInstruction* HMod::New(Zone* zone,
                         HValue* context,
                         HValue* left,
-                        HValue* right,
-                        Maybe<int> fixed_right_arg) {
+                        HValue* right) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -3950,7 +3949,7 @@ HInstruction* HMod::New(Zone* zone,
       }
     }
   }
-  return new(zone) HMod(context, left, right, fixed_right_arg);
+  return new(zone) HMod(context, left, right);
 }
 
 
