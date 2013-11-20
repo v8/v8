@@ -90,8 +90,6 @@ class HeapProfiler {
     return snapshots_->FindUntrackedObjects();
   }
 
-  void DropCompiledCode();
-
  private:
   Heap* heap() const { return snapshots_->heap(); }
 
