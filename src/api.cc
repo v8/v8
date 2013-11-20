@@ -610,13 +610,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
 }
 
 
-bool SetResourceConstraints(ResourceConstraints* constraints) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
-  return SetResourceConstraints(reinterpret_cast<Isolate*>(isolate),
-                                constraints);
-}
-
-
 bool SetResourceConstraints(Isolate* v8_isolate,
                             ResourceConstraints* constraints) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
