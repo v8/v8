@@ -30,6 +30,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 TEMP_BRANCH = "TEMP_BRANCH"
@@ -67,6 +68,11 @@ def MSub(rexp, replacement, text):
   return re.sub(rexp, replacement, text, flags=re.MULTILINE)
 
 
+def Fill80(line):
+  return textwrap.fill(line, width=80, initial_indent="        ",
+                       subsequent_indent="        ")
+
+
 def GetLastChangeLogEntries(change_log_file):
   result = []
   for line in LinesInFile(change_log_file):
@@ -81,26 +87,54 @@ def MakeChangeLogBody(commit_generator):
     # Add the commit's title line.
     result += "%s\n" % title.rstrip()
 
-    # Grep for "BUG=xxxx" lines in the commit message and convert them to
-    # "(issue xxxx)".
-    out = body.splitlines()
-    out = filter(lambda x: re.search(r"^BUG=", x), out)
-    out = filter(lambda x: not re.search(r"BUG=$", x), out)
-    out = filter(lambda x: not re.search(r"BUG=none$", x), out)
-
-    # TODO(machenbach): Handle multiple entries (e.g. BUG=123, 234).
-    def FormatIssue(text):
-      text = re.sub(r"BUG=v8:(.*)$", r"(issue \1)", text)
-      text = re.sub(r"BUG=chromium:(.*)$", r"(Chromium issue \1)", text)
-      text = re.sub(r"BUG=(.*)$", r"(Chromium issue \1)", text)
-      return "        %s\n" % text
-
-    for line in map(FormatIssue, out):
-      result += line
+    # Add bug references.
+    result += MakeChangeLogBugReference(body)
 
     # Append the commit's author for reference.
     result += "%s\n\n" % author.rstrip()
   return result
+
+
+def MakeChangeLogBugReference(body):
+  """Grep for "BUG=xxxx" lines in the commit message and convert them to
+  "(issue xxxx)".
+  """
+  crbugs = []
+  v8bugs = []
+
+  def AddIssues(text):
+    ref = re.match(r"^BUG[ \t]*=[ \t]*(.+)$", text.strip())
+    if not ref:
+      return
+    for bug in ref.group(1).split(","):
+      bug = bug.strip()
+      match = re.match(r"^v8:(\d+)$", bug)
+      if match: v8bugs.append(int(match.group(1)))
+      else:
+        match = re.match(r"^(?:chromium:)?(\d+)$", bug)
+        if match: crbugs.append(int(match.group(1)))
+
+  # Add issues to crbugs and v8bugs.
+  map(AddIssues, body.splitlines())
+
+  # Filter duplicates, sort, stringify.
+  crbugs = map(str, sorted(set(crbugs)))
+  v8bugs = map(str, sorted(set(v8bugs)))
+
+  bug_groups = []
+  def FormatIssues(prefix, bugs):
+    if len(bugs) > 0:
+      plural = "s" if len(bugs) > 1 else ""
+      bug_groups.append("%sissue%s %s" % (prefix, plural, ", ".join(bugs)))
+
+  FormatIssues("", v8bugs)
+  FormatIssues("Chromium ", crbugs)
+
+  if len(bug_groups) > 0:
+    # Format with 8 characters indentation and max 80 character lines.
+    return "%s\n" % Fill80("(%s)" % ", ".join(bug_groups))
+  else:
+    return ""
 
 
 # Some commands don't like the pipe, e.g. calling vi from within the script or
