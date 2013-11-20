@@ -146,16 +146,12 @@ class NfaBuilder(object):
     return self.__key_state(TransitionKey.unique('catch_all'))
 
   def __join(self, graph):
-    (graph, name, subgraph, modifier) = graph[1:]
+    (graph, name, subgraph) = graph[1:]
     subgraphs = self.__peek_state()['subgraphs']
     if not name in subgraphs:
       subgraphs[name] = self.__nfa(subgraph)
     (subgraph_start, subgraph_end, nodes_in_subgraph) = subgraphs[name]
     (start, ends) = self.__process(graph)
-    if modifier:
-      assert modifier == 'ZERO_OR_MORE'
-      for end in ends:
-        end.add_epsilon_transition(subgraph_end)
     self.__patch_ends(ends, subgraph_start)
     end = self.__new_state()
     subgraph_end.add_epsilon_transition(end)
@@ -214,7 +210,8 @@ class NfaBuilder(object):
       is_epsilon = lambda k: k == TransitionKey.epsilon()
       state_iter = lambda node : node.state_iter(key_filter = is_epsilon)
       edge = set(state_iter(node))
-      closure = Automaton.visit_states(edge, inner, state_iter=state_iter, visit_state=set())
+      closure = Automaton.visit_states(
+          edge, inner, state_iter=state_iter, visit_state=set())
       node.set_epsilon_closure(closure)
     Automaton.visit_states(set([start_state]), outer)
 
@@ -260,10 +257,8 @@ class NfaBuilder(object):
     return ('EPSILON',)
 
   @staticmethod
-  def join_subgraph(graph, name, subgraph, modifier):
-    if modifier:
-      modifier = NfaBuilder.__modifer_map[modifier]
-    return ('JOIN', graph, name, subgraph, modifier)
+  def join_subgraph(graph, name, subgraph):
+    return ('JOIN', graph, name, subgraph)
 
   @staticmethod
   def or_graphs(graphs):

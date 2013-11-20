@@ -306,9 +306,8 @@ class RuleProcessor(object):
           graph = NfaBuilder.add_continue(graph)
         else:
           assert subgraph == 'default'
-          subgraph_modifier = None
           graph = NfaBuilder.join_subgraph(
-            graph, transition, rule_map[transition], subgraph_modifier)
+            graph, transition, rule_map[transition])
         graphs.append(graph)
       if continues == len(graphs):
         graphs.append(NfaBuilder.epsilon())

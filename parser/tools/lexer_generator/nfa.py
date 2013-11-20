@@ -61,11 +61,6 @@ class NfaState(AutomatonState):
     assert self.is_closed()
     return self.__transitions
 
-  def next_states(self, key_filter):
-    assert self.is_closed()
-    f = lambda acc, (k, v) : acc if not key_filter(k) else acc | set(v)
-    return reduce(f, self.__transitions.items(), set())
-
   def __add_transition(self, key, next_state):
     if next_state == None:
       assert not self.is_closed(), "already closed"
