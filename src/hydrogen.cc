@@ -5948,12 +5948,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     HValue* right = Pop();
     HValue* left = Pop();
 
-    HInstruction* instr = BuildBinaryOperation(operation, left, right);
-    AddInstruction(instr);
-    Push(instr);
-    if (instr->HasObservableSideEffects()) {
-      Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
-    }
+    Push(BuildBinaryOperation(operation, left, right));
     BuildStore(expr, prop, expr->id(),
                expr->AssignmentId(), expr->IsUninitialized());
   } else {
@@ -8589,7 +8584,7 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
+HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
     HValue* right) {
@@ -8598,12 +8593,22 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
 
-  return HGraphBuilder::BuildBinaryOperation(expr->op(), left, right,
-      left_type, right_type, result_type, fixed_right_arg);
+  HValue* result = HGraphBuilder::BuildBinaryOperation(
+      expr->op(), left, right, left_type, right_type,
+      result_type, fixed_right_arg);
+  // Add a simulate after instructions with observable side effects, and
+  // after phis, which are the result of BuildBinaryOperation when we
+  // inlined some complex subgraph.
+  if (result->HasObservableSideEffects() || result->IsPhi()) {
+    Push(result);
+    Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+    Drop(1);
+  }
+  return result;
 }
 
 
-HInstruction* HGraphBuilder::BuildBinaryOperation(
+HValue* HGraphBuilder::BuildBinaryOperation(
     Token::Value op,
     HValue* left,
     HValue* right,
@@ -8664,7 +8669,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_RIGHT);
       Add<HPushArgument>(left);
       Add<HPushArgument>(right);
-      return NewUncasted<HInvokeFunction>(function, 2);
+      return AddUncasted<HInvokeFunction>(function, 2);
     }
 
     // Convert right argument as necessary.
@@ -8676,10 +8681,10 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_LEFT);
       Add<HPushArgument>(left);
       Add<HPushArgument>(right);
-      return NewUncasted<HInvokeFunction>(function, 2);
+      return AddUncasted<HInvokeFunction>(function, 2);
     }
 
-    return NewUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
+    return AddUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
   }
 
   if (binop_stub) {
@@ -8700,51 +8705,51 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     HValue* function = AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op));
     Add<HPushArgument>(left);
     Add<HPushArgument>(right);
-    instr = NewUncasted<HInvokeFunction>(function, 2);
+    instr = AddUncasted<HInvokeFunction>(function, 2);
   } else {
     switch (op) {
       case Token::ADD:
-        instr = NewUncasted<HAdd>(left, right);
+        instr = AddUncasted<HAdd>(left, right);
         break;
       case Token::SUB:
-        instr = NewUncasted<HSub>(left, right);
+        instr = AddUncasted<HSub>(left, right);
         break;
       case Token::MUL:
-        instr = NewUncasted<HMul>(left, right);
+        instr = AddUncasted<HMul>(left, right);
         break;
       case Token::MOD:
-        instr = NewUncasted<HMod>(left, right, fixed_right_arg);
+        instr = AddUncasted<HMod>(left, right, fixed_right_arg);
         break;
       case Token::DIV:
-        instr = NewUncasted<HDiv>(left, right);
+        instr = AddUncasted<HDiv>(left, right);
         break;
       case Token::BIT_XOR:
       case Token::BIT_AND:
-        instr = NewUncasted<HBitwise>(op, left, right);
+        instr = AddUncasted<HBitwise>(op, left, right);
         break;
       case Token::BIT_OR: {
         HValue* operand, *shift_amount;
         if (left_type->Is(Type::Signed32()) &&
             right_type->Is(Type::Signed32()) &&
             MatchRotateRight(left, right, &operand, &shift_amount)) {
-          instr = NewUncasted<HRor>(operand, shift_amount);
+          instr = AddUncasted<HRor>(operand, shift_amount);
         } else {
-          instr = NewUncasted<HBitwise>(op, left, right);
+          instr = AddUncasted<HBitwise>(op, left, right);
         }
         break;
       }
       case Token::SAR:
-        instr = NewUncasted<HSar>(left, right);
+        instr = AddUncasted<HSar>(left, right);
         break;
       case Token::SHR:
-        instr = NewUncasted<HShr>(left, right);
+        instr = AddUncasted<HShr>(left, right);
         if (FLAG_opt_safe_uint32_operations && instr->IsShr() &&
             CanBeZero(right)) {
           graph()->RecordUint32Instruction(instr);
         }
         break;
       case Token::SHL:
-        instr = NewUncasted<HShl>(left, right);
+        instr = AddUncasted<HShl>(left, right);
         break;
       default:
         UNREACHABLE();
@@ -8920,12 +8925,12 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
   SetSourcePosition(expr->position());
   HValue* right = Pop();
   HValue* left = Pop();
-  HInstruction* instr = BuildBinaryOperation(expr, left, right);
-  if (FLAG_emit_opt_code_positions && instr->IsBinaryOperation()) {
-    HBinaryOperation::cast(instr)->SetOperandPositions(
+  HValue* result = BuildBinaryOperation(expr, left, right);
+  if (FLAG_emit_opt_code_positions && result->IsBinaryOperation()) {
+    HBinaryOperation::cast(result)->SetOperandPositions(
         zone(), expr->left()->position(), expr->right()->position());
   }
-  return ast_context()->ReturnInstruction(instr, expr->id());
+  return ast_context()->ReturnValue(result);
 }
 
 
