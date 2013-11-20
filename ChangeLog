@@ -1,3 +1,17 @@
+2013-11-20: Version 3.23.8
+
+        Fixed crashes exposed though fuzzing.
+        (Chromium issue 320948)
+
+        Deprecated v8::External::New without Isolate parameter.
+
+        Made number of available threads isolate-dependent and exposed it to
+        ResourceConstraints.
+        (issue 2991)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-19: Version 3.23.7
 
         Bugfix: dependent code field in AllocationSite was keeping code objects
