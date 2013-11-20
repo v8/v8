@@ -54,8 +54,6 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 
-#include "experimental-scanner.h"
-
 using namespace v8::internal;
 
 namespace v8 {
