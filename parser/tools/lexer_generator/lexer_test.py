@@ -35,7 +35,7 @@ class LexerTestCase(unittest.TestCase):
     expected = map(lambda (action, s) : (Action(None, (action, None)), s), expected)
     expected.append((Action(None, ('terminate', None)), '\0'))
     automata = RuleProcessor.parse(rules).default_automata()
-    for automaton in [automata.dfa(), automata.minimal_dfa()]:
+    for automaton in [automata.nfa(), automata.dfa(), automata.minimal_dfa()]:
         for i, (action, start, stop) in enumerate(automaton.lex(string)):
           self.assertEquals(expected[i][0], action)
           self.assertEquals(expected[i][1], string[start : stop])

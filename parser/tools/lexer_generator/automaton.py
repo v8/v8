@@ -31,6 +31,21 @@ from transition_keys import TransitionKey
 
 class Action(object):
 
+  @staticmethod
+  def dominant_action(state_set):
+    action = None
+    for state in state_set:
+      if not state.action():
+        continue
+      if not action:
+        action = state.action()
+        continue
+      if state.action().precedence() == action.precedence():
+        assert state.action() == action
+      elif state.action().precedence() < action.precedence():
+        action = state.action()
+    return action
+
   def __init__(self, entry_action, match_action, precedence = -1):
     for action in [entry_action, match_action]:
       if action == None:
@@ -133,8 +148,51 @@ class Automaton(object):
       edge = next_edge - visited
     return visit_state
 
+  def start_set(self):
+    return set([self.start_state()])
+
   def visit_all_states(self, visitor, visit_state = None, state_iter = None):
     return self.visit_states(self.start_set(), visitor, visit_state, state_iter)
+
+  # TODO use iters
+  @staticmethod
+  def epsilon_closure(states):
+    f = lambda acc, node: acc | node.epsilon_closure()
+    return reduce(f, states, set(iter(states)))
+
+  @staticmethod
+  def __transition_states_for_char(valid_states, c):
+    f = lambda state : state.transition_state_iter_for_char(c)
+    return set(chain(*map(f, Automaton.epsilon_closure(valid_states))))
+
+  def matches(self, string):
+    valid_states = self.start_set()
+    for c in string:
+      valid_states = Automaton.__transition_states_for_char(valid_states, c)
+      if not valid_states:
+        return False
+    valid_states = self.epsilon_closure(valid_states)
+    return len(self.terminal_set().intersection(valid_states)) > 0
+
+  def lex(self, string):
+    last_position = 0
+    valid_states = self.start_set()
+    for pos, c in enumerate(string):
+      transitions = Automaton.__transition_states_for_char(valid_states, c)
+      if transitions:
+        valid_states = transitions
+        continue
+      action = Action.dominant_action(valid_states)
+      assert action # must invoke default action here
+      yield (action, last_position, pos)
+      last_position = pos
+      # lex next token
+      valid_states = Automaton.__transition_states_for_char(self.start_set(), c)
+      assert valid_states
+    valid_states = self.epsilon_closure(valid_states)
+    action = Action.dominant_action(valid_states)
+    assert action # must invoke default action here
+    yield (action, last_position, len(string))
 
   def to_dot(self):
 

@@ -103,11 +103,11 @@ class NfaState(AutomatonState):
            acc | states if match_func(key, value) else acc)
     return reduce(f, self.__transitions.items(), set())
 
-  def next_states_with_char(self, value):
-    return self.__matches(lambda k, v : k.matches_char(v), value)
+  def transition_state_iter_for_char(self, value):
+    return iter(self.__matches(lambda k, v : k.matches_char(v), value))
 
-  def key_matches(self, value):
-    return self.__matches(lambda k, v : k.is_superset_of_key(v), value)
+  def transition_state_iter_for_key(self, value):
+    return iter(self.__matches(lambda k, v : k.is_superset_of_key(v), value))
 
 class Nfa(Automaton):
 
@@ -117,8 +117,8 @@ class Nfa(Automaton):
     self.__end = end
     self.__verify(nodes_created)
 
-  def start_set(self):
-    return set([self.__start])
+  def start_state(self):
+    return self.__start
 
   def terminal_set(self):
     return set([self.__end])
@@ -131,44 +131,14 @@ class Nfa(Automaton):
     assert count == nodes_created
 
   @staticmethod
-  def __close(states):
-    f = lambda acc, node: acc | node.epsilon_closure()
-    return reduce(f, states, set(states))
-
-  def matches(self, string):
-    valid_states = Nfa.__close(set([self.__start]))
-    for c in string:
-      f = lambda acc, state: acc | state.next_states_with_char(c)
-      transitions = reduce(f, valid_states, set())
-      if not transitions:
-        return False
-      valid_states = Nfa.__close(transitions)
-    return self.__end in valid_states
-
-  @staticmethod
   def __gather_transition_keys(state_set):
     keys = set(chain(*map(lambda state: state.key_iter(), state_set)))
     keys.discard(TransitionKey.epsilon())
     return TransitionKey.disjoint_keys(keys)
 
   @staticmethod
-  def __gather_actions(states):
-    action = None
-    for state in states:
-      if not state.action():
-        continue
-      if not action:
-        action = state.action()
-        continue
-      if state.action().precedence() == action.precedence():
-        assert state.action() == action
-      elif state.action().precedence() < action.precedence():
-        action = state.action()
-    return action
-
-  @staticmethod
   def __to_dfa(nfa_state_set, dfa_nodes, end_node):
-    nfa_state_set = Nfa.__close(nfa_state_set)
+    nfa_state_set = Automaton.epsilon_closure(nfa_state_set)
     assert nfa_state_set
     name = ".".join(str(x.node_number()) for x in sorted(nfa_state_set))
     if name in dfa_nodes:
@@ -176,12 +146,11 @@ class Nfa(Automaton):
     dfa_nodes[name] = {
       'transitions': {},
       'terminal': end_node in nfa_state_set,
-      'action' : Nfa.__gather_actions(nfa_state_set)}
+      'action' : Action.dominant_action(nfa_state_set)}
     for key in Nfa.__gather_transition_keys(nfa_state_set):
       match_states = set()
-      f = lambda acc, state: acc | state.key_matches(key)
-      for state in reduce(f, nfa_state_set, set()):
-        match_states.add(state)
+      f = lambda state: state.transition_state_iter_for_key(key)
+      match_states |= set(chain(*map(f, nfa_state_set)))
       transition_state = Nfa.__to_dfa(match_states, dfa_nodes, end_node)
       dfa_nodes[name]['transitions'][key] = transition_state
     return name

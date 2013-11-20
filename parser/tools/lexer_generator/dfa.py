@@ -47,31 +47,36 @@ class DfaState(AutomatonState):
     return self.__action
 
   def add_transition(self, key, state):
+    assert not key == TransitionKey.epsilon()
     assert not self.__transitions.has_key(key)
     self.__transitions[key] = state
 
   def transitions(self):
     return self.__transitions
 
+  def epsilon_closure(self):
+    return set([self])
+
   # TODO abstract state matching
   def __matches(self, match_func, value):
     # f collects states whose corresponding TransitionKey matches 'value'.
     f = (lambda acc, (key, state):
            acc | set([state]) if match_func(key, value) else acc)
-    matches = reduce(f, self.__transitions.items(), set())
-    # Since this is a dfa, we should have at most one such state. Return it.
+    return reduce(f, self.__transitions.items(), set())
+
+  def transition_state_iter_for_char(self, value):
+    return iter(self.__matches(lambda k, v : k.matches_char(v), value))
+
+  def transition_state_iter_for_key(self, value):
+    return iter(self.__matches(lambda k, v : k.is_superset_of_key(v), value))
+
+  def transition_state_for_key(self, value):
+    matches = self.__matches(lambda k, v : k.is_superset_of_key(v), value)
     if not matches:
       return None
+    # Since this is a dfa, we should have at most one such state. Return it.
     assert len(matches) == 1
     return iter(matches).next()
-
-  def next_state_with_char(self, value):
-    return self.__matches(lambda k, v : k.matches_char(v), value)
-
-  def transition_state_with_key(self, key):
-    # 'key' can be a subkey of one of the TransitionKeys for this state, but it
-    # cannot partially overlap a TransitionKey for this state.
-    return self.__matches(lambda k, v : k.is_superset_of_key(v), key)
 
 class Dfa(Automaton):
 
@@ -109,60 +114,8 @@ class Dfa(Automaton):
   def start_state(self):
     return self.__start
 
-  def start_set(self):
-    return set([self.__start])
-
   def terminal_set(self):
     return set(self.__terminal_set)
-
-  @staticmethod
-  def __match_char(state, char):
-    match = list(state.state_iter(key_filter = lambda k: k.matches_char(char)))
-    if not match: return None
-    assert len(match) == 1
-    return match[0]
-
-  @staticmethod
-  def terminal_action():
-    return Action(None, ('TERMINATE', None))
-
-  @staticmethod
-  def miss_action():
-    return Action(None, ('Miss', None))
-
-  def collect_actions(self, string):
-    state = self.__start
-    for c in string:
-      state = Dfa.__match_char(state, c)
-      if not state:
-        yield self.miss_action()
-        return
-      if state.action():
-        yield state.action()
-    if state in self.__terminal_set:
-      yield self.terminal_action()
-    else:
-      yield self.miss_action()
-
-  def matches(self, string):
-    actions = list(self.collect_actions(string))
-    return actions and actions[-1] == self.terminal_action()
-
-  def lex(self, string):
-    state = self.__start
-    last_position = 0
-    for pos, c in enumerate(string):
-      next = Dfa.__match_char(state, c)
-      if not next:
-        assert state.action() # must invoke default action here
-        yield (state.action(), last_position, pos)
-        last_position = pos
-        # lex next token
-        next = Dfa.__match_char(self.__start, c)
-        assert next
-      state = next
-    assert state.action() # must invoke default action here
-    yield (state.action(), last_position, len(string))
 
   def minimize(self):
     return DfaMinimizer(self).minimize()
@@ -279,7 +232,7 @@ class DfaMinimizer:
     transitions = {}
     for state_id, state in id_map.items():
       def f((key_id, key)):
-        transition_state = state.transition_state_with_key(key)
+        transition_state = state.transition_state_for_key(key)
         if transition_state:
           return reverse_id_map[transition_state]
         return None
@@ -293,7 +246,7 @@ class DfaMinimizer:
           state = id_map[state_id]
           for key_id, key in enumerate(self.__alphabet):
             transition_state_id = transition_state_array[key_id]
-            transition_state = state.transition_state_with_key(key)
+            transition_state = state.transition_state_for_key(key)
             if not transition_state:
               assert transition_state_id == None
             else:
@@ -332,15 +285,15 @@ class DfaMinimizer:
         transition_id = transition_array[key_id]
         if transition_id == None:
           if verify:
-            assert not state.transition_state_with_key(key)
+            assert not state.transition_state_for_key(key)
             for s_id in state_ids:
-              assert not id_map[s_id].transition_state_with_key(key)
+              assert not id_map[s_id].transition_state_for_key(key)
           continue
         transition_partition = reverse_partition_map[transition_id]
         assert transition_partition
         if verify:
           for s_id in state_ids:
-            transition = id_map[s_id].transition_state_with_key(key)
+            transition = id_map[s_id].transition_state_for_key(key)
             assert transition
             test_partition = reverse_partition_map[reverse_id_map[transition]]
             assert test_partition == transition_partition

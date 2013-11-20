@@ -84,31 +84,6 @@ class AutomataTestCase(unittest.TestCase):
         for automaton in build_automata(regex):
           automaton.to_dot()
 
-    def test_actions(self):
-      left_action = simple_action("LEFT_ACTION")
-      right_action = simple_action("RIGHT_ACTION")
-      left = RegexParser.parse("left")
-      right = RegexParser.parse("right")
-      left = NfaBuilder.add_action(left, left_action)
-      right = NfaBuilder.add_action(right, right_action)
-      composite = ('ONE_OR_MORE', NfaBuilder.or_graphs([left, right]))
-      nfa = NfaBuilder().nfa(composite)
-      dfa = dfa_from_nfa(nfa)
-      def verify(string, expected):
-        actions = list(dfa.collect_actions(string))
-        self.assertEqual(len(expected), len(actions))
-        for i, action in enumerate(actions):
-          self.assertEqual(action, expected[i])
-      def verify_miss(string, expected):
-        verify(string, expected + [Dfa.miss_action()])
-      def verify_hit(string, expected):
-        verify(string, expected + [Dfa.terminal_action()])
-      (l, r) = left_action, right_action
-      verify_hit("left", [l])
-      verify_miss("lefta", [l])
-      verify_hit("leftrightleftright", [l, r, l, r])
-      verify_miss("leftrightleftrightx", [l, r, l, r])
-
     def test_minimization(self):
       def empty_node():
         return { 'transitions' : {}, 'terminal' : False, 'action' : None }
