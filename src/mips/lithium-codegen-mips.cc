@@ -1091,35 +1091,6 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&left_is_not_negative);
     __ And(result_reg, left_reg, divisor - 1);
     __ bind(&done);
-
-  } else if (hmod->fixed_right_arg().has_value) {
-    const Register left_reg = ToRegister(instr->left());
-    const Register result_reg = ToRegister(instr->result());
-    const Register right_reg = ToRegister(instr->right());
-
-    int32_t divisor = hmod->fixed_right_arg().value;
-    ASSERT(IsPowerOf2(divisor));
-
-    // Check if our assumption of a fixed right operand still holds.
-    DeoptimizeIf(ne, instr->environment(), right_reg, Operand(divisor));
-
-    Label left_is_not_negative, done;
-    if (left->CanBeNegative()) {
-      __ Branch(left_reg.is(result_reg) ? PROTECT : USE_DELAY_SLOT,
-                &left_is_not_negative, ge, left_reg, Operand(zero_reg));
-      __ subu(result_reg, zero_reg, left_reg);
-      __ And(result_reg, result_reg, divisor - 1);
-      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(eq, instr->environment(), result_reg, Operand(zero_reg));
-      }
-      __ Branch(USE_DELAY_SLOT, &done);
-      __ subu(result_reg, zero_reg, result_reg);
-    }
-
-    __ bind(&left_is_not_negative);
-    __ And(result_reg, left_reg, divisor - 1);
-    __ bind(&done);
-
   } else {
     const Register scratch = scratch0();
     const Register left_reg = ToRegister(instr->left());

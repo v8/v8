@@ -1460,10 +1460,6 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->fixed_right_arg().has_value) {
-      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
-                                     UseRegisterAtStart(right));
-      return AssignEnvironment(DefineAsRegister(mod));
     } else {
       LModI* mod = new(zone()) LModI(UseRegister(left),
                                      UseRegister(right),
