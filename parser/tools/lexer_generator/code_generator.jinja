@@ -19,7 +19,8 @@
       {%- elif r[1] == 'zero' -%}
 	(yych == 0 && cursor_ < buffer_end_)
       {%- elif r[1] == 'whitespace' and encoding == 'utf16'-%}
-        unicode_cache_->IsWhiteSpace(yych)
+        {# FIXME: Add and use unicode_cache_->InNonAsciiWhitespace #}
+        (yych != ' ' && yych != '\t' && yych != '\v' && yych != '\f' && yych != '\r' && yych != '\n' && unicode_cache_->IsWhiteSpace(yych))
       {%- elif r[1] == 'letter' and encoding == 'utf16'-%}
         {# FIXME: Add and use unicode_cache_->InNonAsciiLetter #}
         (!(yych >= 'a' && yych <= 'z') && !(yych >= 'A' && yych <= 'Z') &&  unicode_cache_->IsLetter(yych))
