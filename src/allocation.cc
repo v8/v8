@@ -100,24 +100,4 @@ char* StrNDup(const char* str, int n) {
   return result;
 }
 
-
-void PreallocatedStorage::LinkTo(PreallocatedStorage* other) {
-  next_ = other->next_;
-  other->next_->previous_ = this;
-  previous_ = other;
-  other->next_ = this;
-}
-
-
-void PreallocatedStorage::Unlink() {
-  next_->previous_ = previous_;
-  previous_->next_ = next_;
-}
-
-
-PreallocatedStorage::PreallocatedStorage(size_t size)
-  : size_(size) {
-  previous_ = next_ = this;
-}
-
 } }  // namespace v8::internal
