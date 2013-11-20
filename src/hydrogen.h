@@ -1256,6 +1256,7 @@ class HGraphBuilder {
 
   HValue* BuildCheckHeapObject(HValue* object);
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
+  HValue* BuildCheckString(HValue* object, const char* failure_reason);
   HValue* BuildWrapReceiver(HValue* object, HValue* function);
 
   // Building common constructs

@@ -1273,6 +1273,20 @@ HValue* HGraphBuilder::BuildCheckMap(HValue* obj, Handle<Map> map) {
 }
 
 
+HValue* HGraphBuilder::BuildCheckString(
+    HValue* object, const char* failure_reason) {
+  if (!object->type().IsString()) {
+    ASSERT(!object->IsConstant() ||
+           !HConstant::cast(object)->HasStringValue());
+    IfBuilder if_isstring(this);
+    if_isstring.If<HIsStringAndBranch>(object);
+    if_isstring.Then();
+    if_isstring.ElseDeopt(failure_reason);
+  }
+  return object;
+}
+
+
 HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
   if (object->type().IsJSObject()) return object;
   return Add<HWrapReceiver>(object, function);
@@ -8631,18 +8645,14 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       (left_type->Is(Type::String()) || right_type->Is(Type::String()))) {
     // Validate type feedback for left argument.
     if (left_type->Is(Type::String())) {
-      IfBuilder if_isstring(this);
-      if_isstring.If<HIsStringAndBranch>(left);
-      if_isstring.Then();
-      if_isstring.ElseDeopt("Expected string for LHS of binary operation");
+      left = BuildCheckString(
+          left, "Expected string for LHS of binary operation");
     }
 
     // Validate type feedback for right argument.
     if (right_type->Is(Type::String())) {
-      IfBuilder if_isstring(this);
-      if_isstring.If<HIsStringAndBranch>(right);
-      if_isstring.Then();
-      if_isstring.ElseDeopt("Expected string for RHS of binary operation");
+      right = BuildCheckString(
+          right, "Expected string for RHS of binary operation");
     }
 
     // Convert left argument as necessary.
