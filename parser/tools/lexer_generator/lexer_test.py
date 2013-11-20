@@ -33,12 +33,14 @@ class LexerTestCase(unittest.TestCase):
 
   def __verify_action_stream(self, rules, string, expected):
     expected = map(lambda (action, s) : (Action(None, (action, None)), s), expected)
-    expected.append((Action(None, ('terminate', None)), '\0'))
     automata = RuleProcessor.parse(rules).default_automata()
     for automaton in [automata.nfa(), automata.dfa(), automata.minimal_dfa()]:
         for i, (action, start, stop) in enumerate(automaton.lex(string)):
           self.assertEquals(expected[i][0], action)
           self.assertEquals(expected[i][1], string[start : stop])
+
+  def __terminate(self):
+    return (Action(None, ('terminate', None)), '\0')
 
   def test_simple(self):
     rules = '''
@@ -52,7 +54,7 @@ class LexerTestCase(unittest.TestCase):
 
     string = 'foo()'
     self.__verify_action_stream(rules, string,
-        [('FOO', 'foo'), ('LBRACE', '('), ('RBRACE', ')')])
+        [('FOO', 'foo'), ('LBRACE', '('), ('RBRACE', ')'), self.__terminate()])
 
   def test_maximal_matching(self):
     rules = '''
@@ -65,7 +67,7 @@ class LexerTestCase(unittest.TestCase):
 
     string = '<< <'
     self.__verify_action_stream(rules, string,
-        [('SHL', '<<'), ('SPACE', ' '), ('LT', '<')])
+        [('SHL', '<<'), ('SPACE', ' '), ('LT', '<'), self.__terminate()])
 
   def test_consecutive_epsilon_transitions(self):
     rules = '''
@@ -73,8 +75,29 @@ class LexerTestCase(unittest.TestCase):
     digit = [0-9];
     number = (digit+ ("." digit+)?);
     <<default>>
-    number        <|NUMBER|>
-    eos           <|terminate|>'''
+    number        <|NUMBER|>'''
 
     string = '555'
     self.__verify_action_stream(rules, string, [('NUMBER', '555')])
+
+  def test_action_precedence(self):
+    rules = '''
+    <<default>>
+    "key" <|KEYWORD|>
+    /[a-z]+/ <|ID|>'''
+
+    self.__verify_action_stream(rules, 'ke', [('ID', 'ke')])
+    self.__verify_action_stream(rules, 'key', [('KEYWORD', 'key')])
+    self.__verify_action_stream(rules, 'keys', [('ID', 'keys')])
+
+  def test_wrong_action_precedence(self):
+    rules = '''
+    <<default>>
+    /[a-z]+/ <|ID|>
+    "key" <|KEYWORD|>'''
+
+    # The keyword is not recognized because of the rule preference order (ID
+    # is preferred over KEYWORD).
+    self.__verify_action_stream(rules, 'ke', [('ID', 'ke')])
+    self.__verify_action_stream(rules, 'key', [('ID', 'key')])
+    self.__verify_action_stream(rules, 'keys', [('ID', 'keys')])

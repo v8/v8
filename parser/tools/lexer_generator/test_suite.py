@@ -40,7 +40,6 @@ if __name__ == "__main__":
     loader.loadTestsFromTestCase(TransitionKeyTestCase),
     loader.loadTestsFromTestCase(AutomataTestCase),
     loader.loadTestsFromTestCase(RuleParserTestCase),
-    loader.loadTestsFromTestCase(ActionTestCase),
     loader.loadTestsFromTestCase(LexerTestCase),
     loader.loadTestsFromTestCase(CodeGeneratorTestCase),
   ))
