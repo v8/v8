@@ -47,7 +47,8 @@
         'even-more-experimental-scanner.cc',
         'even-more-experimental-scanner.h',
         'lexer-shell.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {
@@ -59,20 +60,39 @@
       ],
       'actions': [
         {
-          'action_name': 'codegen',
+          'action_name': 'codegen_8',
           'inputs': [
             '../../src/lexer/lexer_py.re',
             '../../tools/lexer_generator/*.py',
             '../../tools/lexer_generator/*.jinja',
           ],
           'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
           ],
           'action': [
             'python',
             '../../tools/lexer_generator/generator.py',
             '--re=../../src/lexer/lexer_py.re',
-            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer.cc',
+            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
+            '--char-type=uint8_t',
+          ],
+        },
+        {
+          'action_name': 'codegen_16',
+          'inputs': [
+            '../../src/lexer/lexer_py.re',
+            '../../tools/lexer_generator/*.py',
+            '../../tools/lexer_generator/*.jinja',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/lexer_generator/generator.py',
+            '--re=../../src/lexer/lexer_py.re',
+            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
+            '--char-type=uint16_t',
           ],
         },
       ],

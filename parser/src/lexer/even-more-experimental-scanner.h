@@ -32,7 +32,28 @@
 #include "flags.h"
 #include "v8stdint.h"
 
-#define YYCTYPE uint8_t
+// FIXME: some of this is probably not needed.
+#include "allocation.h"
+#include "ast.h"
+#include "preparse-data-format.h"
+#include "preparse-data.h"
+#include "scopes.h"
+#include "preparser.h"
+#include "api.h"
+#include "ast.h"
+#include "bootstrapper.h"
+#include "char-predicates-inl.h"
+#include "codegen.h"
+#include "compiler.h"
+#include "func-name-inferrer.h"
+#include "messages.h"
+#include "parser.h"
+#include "platform.h"
+#include "preparser.h"
+#include "runtime.h"
+#include "scanner-character-streams.h"
+#include "scopeinfo.h"
+#include "string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -40,6 +61,7 @@ namespace internal {
 class ExperimentalScanner;
 class UnicodeCache;
 
+template<typename YYCTYPE>
 class EvenMoreExperimentalScanner {
  public:
   explicit EvenMoreExperimentalScanner(
@@ -69,6 +91,56 @@ class EvenMoreExperimentalScanner {
 };
 
 const byte* ReadFile(const char* name, Isolate* isolate, int* size, int repeat);
+
+template<typename YYCTYPE>
+EvenMoreExperimentalScanner<YYCTYPE>::EvenMoreExperimentalScanner(
+    const char* fname,
+    Isolate* isolate,
+    int repeat)
+    : unicode_cache_(isolate->unicode_cache()) {
+  int size = 0;
+  buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(
+      ReadFile(fname, isolate, &size, repeat)));
+  buffer_end_ = buffer_ + size / sizeof(YYCTYPE);
+  start_ = buffer_;
+  cursor_ = buffer_;
+  marker_ = buffer_;
+}
+
+
+template<typename YYCTYPE>
+EvenMoreExperimentalScanner<YYCTYPE>::~EvenMoreExperimentalScanner() {
+  delete[] buffer_;
+}
+
+
+template<typename YYCTYPE>
+uc32 EvenMoreExperimentalScanner<YYCTYPE>::ScanHexNumber(int length) {
+  // We have seen \uXXXX, let's see what it is.
+  // FIXME: we never end up in here if only a subset of the 4 chars are valid
+  // hex digits -> handle the case where they're not.
+  uc32 x = 0;
+  for (YYCTYPE* s = cursor_ - length; s != cursor_; ++s) {
+    int d = HexValue(*s);
+    if (d < 0) {
+      return -1;
+    }
+    x = x * 16 + d;
+  }
+  return x;
+}
+
+
+template<typename YYCTYPE>
+bool EvenMoreExperimentalScanner<YYCTYPE>::ValidIdentifierPart() {
+  return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
+}
+
+
+template<typename YYCTYPE>
+bool EvenMoreExperimentalScanner<YYCTYPE>::ValidIdentifierStart() {
+  return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
+}
 
 } }
 

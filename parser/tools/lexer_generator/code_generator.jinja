@@ -170,10 +170,11 @@
 
 namespace v8 {
 namespace internal {
-Token::Value EvenMoreExperimentalScanner::Next(int* beg_pos_to_return,
-                                               int* end_pos_to_return) {
+template<>
+Token::Value EvenMoreExperimentalScanner<{{char_type}}>::Next(int* beg_pos_to_return,
+                                                              int* end_pos_to_return) {
   // Setup environment.
-  YYCTYPE yych;
+  {{char_type}} yych;
   if (cursor_ >= buffer_end_) yych = 0;
   else yych = *(cursor_);
 

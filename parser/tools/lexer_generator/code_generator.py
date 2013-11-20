@@ -35,6 +35,7 @@ class CodeGenerator:
 
   def __init__(self,
                rule_processor,
+               char_type,
                minimize_default = True,
                inline = True,
                switching = True,
@@ -51,6 +52,7 @@ class CodeGenerator:
     self.__log = log
     self.__inline = inline
     self.__switching = switching
+    self.__char_type = char_type
 
   def __state_cmp(self, left, right):
     if left['original_node_number'] == self.__start_node_number:
@@ -244,4 +246,5 @@ class CodeGenerator:
       start_node_number = 0,
       debug_print = self.__debug_print,
       default_action = default_action,
-      dfa_states = dfa_states)
+      dfa_states = dfa_states,
+      char_type = self.__char_type)

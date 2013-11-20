@@ -86,51 +86,6 @@ const byte* ReadFile(const char* name, Isolate* isolate,
 }
 
 
-EvenMoreExperimentalScanner::EvenMoreExperimentalScanner(
-    const char* fname,
-    Isolate* isolate,
-    int repeat)
-    : unicode_cache_(isolate->unicode_cache()) {
-  int size = 0;
-  buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(
-      ReadFile(fname, isolate, &size, repeat)));
-  buffer_end_ = buffer_ + size / sizeof(YYCTYPE);
-  start_ = buffer_;
-  cursor_ = buffer_;
-  marker_ = buffer_;
-}
-
-
-EvenMoreExperimentalScanner::~EvenMoreExperimentalScanner() {
-  delete[] buffer_;
-}
-
-
-uc32 EvenMoreExperimentalScanner::ScanHexNumber(int length) {
-  // We have seen \uXXXX, let's see what it is.
-  // FIXME: we never end up in here if only a subset of the 4 chars are valid
-  // hex digits -> handle the case where they're not.
-  uc32 x = 0;
-  for (YYCTYPE* s = cursor_ - length; s != cursor_; ++s) {
-    int d = HexValue(*s);
-    if (d < 0) {
-      return -1;
-    }
-    x = x * 16 + d;
-  }
-  return x;
-}
-
-
-bool EvenMoreExperimentalScanner::ValidIdentifierPart() {
-  return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
-}
-
-
-bool EvenMoreExperimentalScanner::ValidIdentifierStart() {
-  return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
-}
-
 
 }
 }

@@ -163,7 +163,7 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  std::vector<TokenWithLocation>* tokens,
                                  int repeat) {
   ElapsedTimer timer;
-  EvenMoreExperimentalScanner scanner(fname, isolate, repeat);
+  EvenMoreExperimentalScanner<uint8_t> scanner(fname, isolate, repeat);
   timer.Start();
   Token::Value token;
   int beg, end;
