@@ -1555,6 +1555,13 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
                                            Handle<Type> type) {
   NoObservableSideEffectsScope scope(this);
 
+  // Convert constant numbers at compile time.
+  if (object->IsConstant() && HConstant::cast(object)->HasNumberValue()) {
+    Handle<Object> number = HConstant::cast(object)->handle(isolate());
+    Handle<String> result = isolate()->factory()->NumberToString(number);
+    return Add<HConstant>(result);
+  }
+
   // Create a joinable continuation.
   HIfContinuation found(graph()->CreateBasicBlock(),
                         graph()->CreateBasicBlock());
