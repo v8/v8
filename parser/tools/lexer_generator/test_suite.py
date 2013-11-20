@@ -27,7 +27,6 @@
 
 from unittest import TestLoader, TextTestRunner, TestSuite
 
-from action_test import *
 from automata_test import *
 from code_generator_test import *
 from lexer_test import *
