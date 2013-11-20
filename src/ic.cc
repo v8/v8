@@ -1237,15 +1237,12 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
       return isolate()->builtins()->LoadIC_Normal();
     case CALLBACKS: {
       // Use simple field loads for some well-known callback properties.
-      int object_offset;
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
         Handle<Map> map(receiver->map());
+        int object_offset;
         if (Accessors::IsJSObjectFieldAccessor(map, name, &object_offset)) {
-          PropertyIndex index =
-              PropertyIndex::NewHeaderIndex(object_offset / kPointerSize);
-          return compiler.CompileLoadField(
-              receiver, receiver, name, index, Representation::Tagged());
+          return SimpleFieldLoad(object_offset / kPointerSize);
         }
       }
 
