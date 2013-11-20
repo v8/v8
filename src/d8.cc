@@ -49,7 +49,6 @@
 #endif  // !V8_SHARED
 
 #ifdef V8_SHARED
-#include "../include/v8-defaults.h"
 #include "../include/v8-testing.h"
 #endif  // V8_SHARED
 
@@ -68,7 +67,6 @@
 #include "natives.h"
 #include "platform.h"
 #include "v8.h"
-#include "v8-defaults.h"
 #endif  // V8_SHARED
 
 #if !defined(_WIN32) && !defined(_WIN64)
