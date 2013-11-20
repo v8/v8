@@ -1,6 +1,5 @@
 #include "lexer/even-more-experimental-scanner.h"
 
-{# TODO implement CLASS checks #}
 {%- macro do_key(key) -%}
   {%- for r in key -%}
     {%- if not loop.first %} || {% endif -%}
@@ -19,8 +18,15 @@
 	(yych == 0 && cursor_ >= buffer_end_)
       {%- elif r[1] == 'zero' -%}
 	(yych == 0 && cursor_ < buffer_end_)
+      {%- elif r[1] == 'whitespace' and encoding == 'utf16'-%}
+        unicode_cache_->IsWhiteSpace(yych)
+      {%- elif r[1] == 'letter' and encoding == 'utf16'-%}
+        {# FIXME: Add and use unicode_cache_->InNonAsciiLetter #}
+        (!(yych >= 'a' && yych <= 'z') && !(yych >= 'A' && yych <= 'Z') &&  unicode_cache_->IsLetter(yych))
+      {%- elif r[1] == 'identifier_part_not_letter' and encoding == 'utf16'-%}
+        unicode_cache_->IsIdentifierPartNotLetter(yych)
       {%- else -%}
-	false
+	false /* {{r[1]}} */
       {%- endif -%}
     {%- else -%}
       false

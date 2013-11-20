@@ -51,7 +51,7 @@ class TransitionKeyTestCase(unittest.TestCase):
       ("1-2", "12", "ab"),
       ("a-zA-Z", "abyzABYZ" , "123"),
       ("a-zA-Z0g" , "abyzABYZ0" , "123"),
-      ("a-z:ws::lit:" , "abc" , "123"),
+      ("a-z:whitespace::letter:" , "abc" , "123"),
     ]
     classes = {}
     for (string, match, no_match) in data:

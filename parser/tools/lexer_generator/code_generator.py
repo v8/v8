@@ -35,7 +35,7 @@ class CodeGenerator:
 
   def __init__(self,
                rule_processor,
-               char_type,
+               encoding = 'latin1',
                minimize_default = True,
                inline = True,
                switching = True,
@@ -52,7 +52,7 @@ class CodeGenerator:
     self.__log = log
     self.__inline = inline
     self.__switching = switching
-    self.__char_type = char_type
+    self.__encoding = encoding
 
   def __state_cmp(self, left, right):
     if left['original_node_number'] == self.__start_node_number:
@@ -242,9 +242,16 @@ class CodeGenerator:
       undefined = jinja2.StrictUndefined)
     template = template_env.get_template('code_generator.jinja')
 
+    if self.__encoding == 'latin1':
+      char_type = 'uint8_t'
+    elif self.__encoding == 'utf16':
+      char_type = 'uint16_t'
+    else:
+      raise Exception('Unsupported encoding %s' % encoding)
     return template.render(
       start_node_number = 0,
       debug_print = self.__debug_print,
       default_action = default_action,
       dfa_states = dfa_states,
-      char_type = self.__char_type)
+      encoding = self.__encoding,
+      char_type = char_type)

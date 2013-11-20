@@ -74,7 +74,7 @@
             '../../tools/lexer_generator/generator.py',
             '--re=../../src/lexer/lexer_py.re',
             '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
-            '--char-type=uint8_t',
+            '--encoding=latin1',
           ],
         },
         {
@@ -92,7 +92,7 @@
             '../../tools/lexer_generator/generator.py',
             '--re=../../src/lexer/lexer_py.re',
             '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
-            '--char-type=uint16_t',
+            '--encoding=utf16',
           ],
         },
       ],

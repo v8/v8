@@ -97,7 +97,7 @@ if __name__ == '__main__':
   parser.add_argument('--re', default='src/lexer/lexer_py.re')
   parser.add_argument('--input')
   parser.add_argument('--code')
-  parser.add_argument('--char-type')
+  parser.add_argument('--encoding', default='latin1')
   parser.add_argument('--no-minimize-default', action='store_true')
   parser.add_argument('--no-verify-default', action='store_true')
   parser.add_argument('--no-inline', action='store_true')
@@ -133,13 +133,9 @@ if __name__ == '__main__':
         print "wrote html to %s" % html_file
 
   code_file = args.code
-  char_type = args.char_type
-  if not char_type:
-    char_type = 'uint8_t'
-
   if code_file:
     code_generator = CodeGenerator(rule_processor,
-                                   char_type,
+                                   encoding = args.encoding,
                                    minimize_default = minimize_default,
                                    log = verbose,
                                    inline = not args.no_inline,

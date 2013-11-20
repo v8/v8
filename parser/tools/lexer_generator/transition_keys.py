@@ -41,9 +41,10 @@ class TransitionKey:
     # These are not real ranges; they just need to be separate from any real
     # ranges.
     'whitespace' : (256, 256),
-    'literal' : (257, 257),
-    'eos' : (258, 258),
-    'zero' : (259, 259),
+    'letter' : (257, 257),
+    'identifier_part_not_letter' : (258, 258),
+    'eos' : (259, 259),
+    'zero' : (260, 260),
   }
   __lower_bound = 1
   __upper_bound = max(__class_bounds.values(), key=lambda item: item[1])[1]
@@ -139,14 +140,8 @@ class TransitionKey:
         TransitionKey.__process_graph(x, ranges, key_map)
     elif key == 'CHARACTER_CLASS':
       class_name = graph[1]
-      if class_name == 'ws':
-        ranges.append(TransitionKey.__class_bounds['whitespace'])
-      elif class_name == 'lit':
-        ranges.append(TransitionKey.__class_bounds['literal'])
-      elif class_name == 'eos':
-        ranges.append(TransitionKey.__class_bounds['eos'])
-      elif class_name == 'zero':
-        ranges.append(TransitionKey.__class_bounds['zero'])
+      if class_name in TransitionKey.__class_bounds.keys():
+        ranges.append(TransitionKey.__class_bounds[class_name])
       elif class_name in key_map:
         ranges += key_map[class_name].__ranges
       else:

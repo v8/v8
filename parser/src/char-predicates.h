@@ -66,6 +66,16 @@ struct IdentifierPart {
   }
 };
 
+struct IdentifierPartNotLetter {
+  static inline bool Is(uc32 c) {
+    return unibrow::Number::Is(c)
+        || c == 0x200C  // U+200C is Zero-Width Non-Joiner.
+        || c == 0x200D  // U+200D is Zero-Width Joiner.
+        || unibrow::CombiningMark::Is(c)
+        || unibrow::ConnectorPunctuation::Is(c);
+  }
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_CHAR_PREDICATES_H_

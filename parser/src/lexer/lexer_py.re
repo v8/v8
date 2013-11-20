@@ -25,10 +25,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-whitespace_char = [ \t\v\f\r:ws:\240];
+whitespace_char = [ \t\v\f\r:whitespace:\240];
 whitespace = whitespace_char+;
-identifier_start = [$_a-zA-Z:lit:];
-identifier_char = [0-9:identifier_start:];
+identifier_start = [$_a-zA-Z:letter:];
+identifier_char = [0-9:identifier_part_not_letter::identifier_start:];
 line_terminator = [\n\r];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
