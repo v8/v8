@@ -114,6 +114,15 @@ class CodeGenerator:
     transitions = map(f, transitions)
     disjoint_keys = sorted(disjoint_keys['value'], CodeGenerator.__range_cmp)
     # dictionary object representing state
+    (class_keys, distinct_keys, ranges) = (0, 0, 0)
+    for (t, r) in disjoint_keys:
+      if t == 'CLASS':
+        class_keys += 1
+      elif t == 'LATIN_1':
+        distinct_keys += r[1] - r[0] + 1
+        ranges += 1
+      else:
+        raise Exception()
     return {
       'node_number' : state.node_number(),
       'original_node_number' : state.node_number(),
@@ -125,6 +134,9 @@ class CodeGenerator:
       'action' : action,
       'entry_action' : entry_action,
       'match_action' : match_action,
+      'class_keys' : class_keys,
+      'distinct_keys' : distinct_keys,
+      'ranges' : ranges
     }
 
   @staticmethod
@@ -136,13 +148,20 @@ class CodeGenerator:
     for (k, transition_node) in state['transitions']:
       CodeGenerator.__compute_depths(transition_node, depth + 1, id_map)
 
-  @staticmethod
-  def __set_inline(count, state):
+  def __set_inline(self, count, state):
     assert state['inline'] == None
     inline = False
+    # inline terminal states
     if not state['transitions']:
       inline = True
-    # TODO add in 1 or 2 element if blocks
+    # inline next to terminal states with 1 or 2 transitions
+    elif state['distinct_keys'] < 3 and state['class_keys'] == 0:
+      inline = True
+      # ensure state terminates in 1 step
+      for key, state_id in state['transitions']:
+        if self.__dfa_states[state_id]['transitions']:
+          inline = False
+          break
     state['inline'] = inline
     return count + 1 if inline else count
 
@@ -151,15 +170,7 @@ class CodeGenerator:
     '''Goes through the transitions for 'state' and decides which of them should
     use the if statement and which should use the switch statement.'''
     assert not state['switch_transitions']
-    (class_keys, distinct_keys, ranges) = (0, 0, 0)
-    for (t, r) in state['disjoint_keys']:
-      if t == 'CLASS':
-        class_keys += 1
-      elif t == 'LATIN_1':
-        distinct_keys += r[1] - r[0] + 1
-        ranges += 1
-      else:
-        raise Exception()
+    (distinct_keys, ranges) = (state['distinct_keys'], state['ranges'])
     if distinct_keys <= 7 or float(distinct_keys)/float(ranges) >= 7.0:
       return split_count
     switch_transitions = []
@@ -196,9 +207,11 @@ class CodeGenerator:
       state['transitions'] = map(f, state['transitions'])
     assert id_map[self.__start_node_number]['node_number'] == 0
     assert len(dfa_states) == self.__dfa.node_count()
+    # store states
+    self.__dfa_states = dfa_states
     # set nodes to inline
     if self.__inline:
-      inlined = reduce(CodeGenerator.__set_inline, dfa_states, 0)
+      inlined = reduce(self.__set_inline, dfa_states, 0)
       if self.__log:
         print "%s states inlined" % inlined
     elif self.__log:
@@ -210,8 +223,6 @@ class CodeGenerator:
         print "%s states use switch (instead of if)" % switched
     elif self.__log:
       print "no switching"
-    # store states
-    self.__dfa_states = dfa_states
 
   def process(self):
 
