@@ -3570,6 +3570,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   v8::internal::Heap* heap = CcTest::heap();
   GlobalHandles* global_handles = isolate->global_handles();
 
+  if (!isolate->use_crankshaft()) return;
+
   // The allocation site at the head of the list is ours.
   Handle<AllocationSite> site;
   {
