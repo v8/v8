@@ -1050,14 +1050,8 @@ class Isolate {
     thread_local_top_.current_vm_state_ = state;
   }
 
-  void SetData(uint32_t slot, void* data) {
-    ASSERT(slot < Internals::kNumIsolateDataSlots);
-    embedder_data_[slot] = data;
-  }
-  void* GetData(uint32_t slot) {
-    ASSERT(slot < Internals::kNumIsolateDataSlots);
-    return embedder_data_[slot];
-  }
+  void SetData(void* data) { embedder_data_ = data; }
+  void* GetData() { return embedder_data_; }
 
   LookupResult* top_lookup_result() {
     return thread_local_top_.top_lookup_result_;
@@ -1171,7 +1165,7 @@ class Isolate {
   // with v8::internal::Internals (in include/v8.h) constants. This is also
   // verified in Isolate::Init() using runtime checks.
   State state_;  // Will be padded to kApiPointerSize.
-  void* embedder_data_[Internals::kNumIsolateDataSlots];
+  void* embedder_data_;
   Heap heap_;
 
   // The per-process lock should be acquired before the ThreadDataTable is
