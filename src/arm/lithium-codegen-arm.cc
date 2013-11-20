@@ -3186,20 +3186,35 @@ void LCodeGen::DoLoadExternalArrayPointer(
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
-  if (instr->length()->IsConstantOperand() &&
-      instr->index()->IsConstantOperand()) {
-    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+  // There are two words between the frame pointer and the last argument.
+  // Subtracting from length accounts for one of them add one more.
+  if (instr->length()->IsConstantOperand()) {
     int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    int index = (const_length - const_index) + 1;
-    __ ldr(result, MemOperand(arguments, index * kPointerSize));
-  } else {
+    if (instr->index()->IsConstantOperand()) {
+      int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+      int index = (const_length - const_index) + 1;
+      __ ldr(result, MemOperand(arguments, index * kPointerSize));
+    } else {
+      Register index = ToRegister(instr->index());
+      __ rsb(result, index, Operand(const_length + 1));
+      __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
+    }
+  } else if (instr->index()->IsConstantOperand()) {
+      Register length = ToRegister(instr->length());
+      int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+      int loc = const_index - 1;
+      if (loc != 0) {
+        __ sub(result, length, Operand(loc));
+        __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
+      } else {
+        __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+      }
+    } else {
     Register length = ToRegister(instr->length());
     Register index = ToRegister(instr->index());
-    // There are two words between the frame pointer and the last argument.
-    // Subtracting from length accounts for one of them add one more.
-    __ sub(length, length, index);
-    __ add(length, length, Operand(1));
-    __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+    __ sub(result, length, index);
+    __ add(result, result, Operand(1));
+    __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
   }
 }
 
