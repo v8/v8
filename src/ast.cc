@@ -262,7 +262,7 @@ bool ObjectLiteral::IsBoilerplateProperty(ObjectLiteral::Property* property) {
 }
 
 
-void ObjectLiteral::BuildConstantProperties(Isolate* isolate, int* depth) {
+void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   if (!constant_properties_.is_null()) return;
 
   // Allocate a fixed array to hold all the constant properties.
@@ -283,9 +283,8 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate, int* depth) {
     }
     MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
     if (m_literal != NULL) {
-      int inner_depth = 1;
-      m_literal->BuildConstants(isolate, &inner_depth);
-      if (inner_depth >= depth_acc) depth_acc = inner_depth + 1;
+      m_literal->BuildConstants(isolate);
+      if (m_literal->depth() >= depth_acc) depth_acc = m_literal->depth() + 1;
     }
 
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
@@ -334,11 +333,11 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate, int* depth) {
   fast_elements_ =
       (max_element_index <= 32) || ((2 * elements) >= max_element_index);
   set_is_simple(is_simple);
-  if (depth != NULL) *depth = depth_acc;
+  set_depth(depth_acc);
 }
 
 
-void ArrayLiteral::BuildConstantElements(Isolate* isolate, int* depth) {
+void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   if (!constant_elements_.is_null()) return;
 
   // Allocate a fixed array to hold all the object literals.
@@ -355,9 +354,10 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate, int* depth) {
     Expression* element = values()->at(i);
     MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
     if (m_literal != NULL) {
-      int inner_depth = 1;
-      m_literal->BuildConstants(isolate, &inner_depth);
-      if (inner_depth + 1 > depth_acc) depth_acc = inner_depth + 1;
+      m_literal->BuildConstants(isolate);
+      if (m_literal->depth() + 1 > depth_acc) {
+        depth_acc = m_literal->depth() + 1;
+      }
     }
     Handle<Object> boilerplate_value = GetBoilerplateValue(element, isolate);
     if (boilerplate_value->IsTheHole()) {
@@ -392,7 +392,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate, int* depth) {
 
   constant_elements_ = literals;
   set_is_simple(is_simple);
-  if (depth != NULL) *depth = depth_acc;
+  set_depth(depth_acc);
 }
 
 
@@ -408,14 +408,15 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
 }
 
 
-void MaterializedLiteral::BuildConstants(Isolate* isolate, int* depth) {
+void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   if (IsArrayLiteral()) {
-    return AsArrayLiteral()->BuildConstantElements(isolate, depth);
+    return AsArrayLiteral()->BuildConstantElements(isolate);
   }
   if (IsObjectLiteral()) {
-    return AsObjectLiteral()->BuildConstantProperties(isolate, depth);
+    return AsObjectLiteral()->BuildConstantProperties(isolate);
   }
   ASSERT(IsRegExpLiteral());
+  ASSERT(depth() >= 1);  // Depth should be initialized.
 }
 
 
