@@ -224,7 +224,7 @@ class NfaBuilder(object):
     transitions = state.transitions()
     if not catch_all in transitions:
       return
-    f = lambda acc, state: acc | state.epsilon_closure()
+    f = lambda acc, state: acc | set(state.epsilon_closure_iter())
     reachable_states = reduce(f, transitions[catch_all], set())
     f = lambda acc, state: acc | set(state.transitions().keys())
     keys = reduce(f, reachable_states, set())

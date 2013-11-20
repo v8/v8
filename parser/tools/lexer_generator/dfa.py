@@ -54,8 +54,8 @@ class DfaState(AutomatonState):
   def transitions(self):
     return self.__transitions
 
-  def epsilon_closure(self):
-    return set([self])
+  def epsilon_closure_iter(self):
+    return iter([])
 
   # TODO abstract state matching
   def __matches(self, match_func, value):

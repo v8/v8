@@ -154,11 +154,10 @@ class Automaton(object):
   def visit_all_states(self, visitor, visit_state = None, state_iter = None):
     return self.visit_states(self.start_set(), visitor, visit_state, state_iter)
 
-  # TODO use iters
   @staticmethod
   def epsilon_closure(states):
-    f = lambda acc, node: acc | node.epsilon_closure()
-    return reduce(f, states, set(iter(states)))
+    f = lambda state : state.epsilon_closure_iter()
+    return set(chain(iter(states), *map(f, states)))
 
   @staticmethod
   def __transition_states_for_char(valid_states, c):

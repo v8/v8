@@ -32,19 +32,14 @@ from transition_keys import TransitionKey
 from nfa_builder import NfaBuilder
 from dfa import Dfa
 
-def dfa_from_nfa(nfa):
-  (start_name, dfa_nodes) = nfa.compute_dfa()
-  return Dfa(start_name, dfa_nodes)
-
-def build_automata(string):
-  nfa = NfaBuilder().nfa(RegexParser.parse(string))
-  dfa = dfa_from_nfa(nfa)
-  return (nfa, dfa, dfa.minimize())
-
-def simple_action(string):
-  return Action(None, (string, None))
-
 class AutomataTestCase(unittest.TestCase):
+
+  @staticmethod
+  def __build_automata(string):
+    nfa = NfaBuilder().nfa(RegexParser.parse(string))
+    (start_name, dfa_nodes) = nfa.compute_dfa()
+    dfa = Dfa(start_name, dfa_nodes)
+    return (nfa, dfa, dfa.minimize())
 
     # (pattern, should match, should not match)
     __test_data = [
@@ -71,7 +66,7 @@ class AutomataTestCase(unittest.TestCase):
 
     def test_matches(self):
       for (regex, matches, not_matches) in self.__test_data:
-        automata = build_automata(regex)
+        automata = self.__build_automata(regex)
         for string in matches:
           for automaton in automata:
             self.assertTrue(automaton.matches(string))
@@ -81,7 +76,7 @@ class AutomataTestCase(unittest.TestCase):
 
     def test_can_construct_dot(self):
       for (regex, matches, not_matches) in self.__test_data:
-        for automaton in build_automata(regex):
+        for automaton in self.__build_automata(regex):
           automaton.to_dot()
 
     def test_minimization(self):
@@ -100,4 +95,3 @@ class AutomataTestCase(unittest.TestCase):
 
       mdfa = Dfa('S_0', mapping).minimize()
       self.assertEqual(3, mdfa.node_count())
-

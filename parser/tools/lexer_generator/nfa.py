@@ -40,8 +40,8 @@ class NfaState(AutomatonState):
   def transitions_to_multiple_states(self):
     return True
 
-  def epsilon_closure(self):
-    return self.__epsilon_closure
+  def epsilon_closure_iter(self):
+    return iter(self.__epsilon_closure)
 
   def set_epsilon_closure(self, closure):
     assert self.is_closed()

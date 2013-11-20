@@ -39,7 +39,8 @@ class LexerTestCase(unittest.TestCase):
           self.assertEquals(expected[i][0], action)
           self.assertEquals(expected[i][1], string[start : stop])
 
-  def __terminate(self):
+  @staticmethod
+  def __terminate():
     return (Action(None, ('terminate', None)), '\0')
 
   def test_simple(self):
