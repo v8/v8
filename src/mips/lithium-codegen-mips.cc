@@ -257,7 +257,7 @@ bool LCodeGen::GenerateDeferredCode() {
         __ MultiPush(cp.bit() | fp.bit() | ra.bit());
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ Addu(fp, sp, Operand(2 * kPointerSize));
+        __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -309,7 +309,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         ASSERT(info()->IsStub());
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ Addu(fp, sp, Operand(2 * kPointerSize));
+        __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         __ Call(t9);
       }
     } else {
