@@ -74,6 +74,10 @@ class EvenMoreExperimentalScanner {
 
   Token::Value Next(int* beg_pos, int* end_pos);
 
+  void SetHarmonyNumericLiterals(bool numeric_literals) {
+    harmony_numeric_literals_ = numeric_literals;
+  }
+
  private:
   bool ValidIdentifierStart();
   bool ValidIdentifierPart();
@@ -89,6 +93,8 @@ class EvenMoreExperimentalScanner {
   bool just_seen_line_terminator_;
 
   YYCTYPE yych;
+
+  bool harmony_numeric_literals_;
 };
 
 const byte* ReadFile(const char* name, Isolate* isolate, int* size, int repeat);
@@ -99,7 +105,8 @@ EvenMoreExperimentalScanner<YYCTYPE>::EvenMoreExperimentalScanner(
     Isolate* isolate,
     int repeat,
     bool convert_to_utf16)
-    : unicode_cache_(isolate->unicode_cache()) {
+    : unicode_cache_(isolate->unicode_cache()),
+      harmony_numeric_literals_(false) {
   int size = 0;
   buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(
       ReadFile(fname, isolate, &size, repeat)));

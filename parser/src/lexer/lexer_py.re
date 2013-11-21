@@ -36,6 +36,7 @@ number =
   /0[xX][:hex_digit:]+/ | (
   /\.[:digit:]+/ maybe_exponent |
   /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
+harmony_number = "0"[bBoO][:digit:]+;
 line_terminator_sequence = /[:line_terminator:]|\r\n/;
 eos = [:eos:];
 
@@ -100,6 +101,17 @@ eos = [:eos:];
 number        <|push_token(NUMBER)|>
 number identifier_char   <|push_token(ILLEGAL)|>
 number "\\"   <|push_token(ILLEGAL)|>
+
+harmony_number        <|{
+if (harmony_numeric_literals_) {
+   PUSH_TOKEN(Token::NUMBER);
+} else {
+   PUSH_TOKEN(Token::ILLEGAL);
+}
+}|>
+
+harmony_number identifier_char   <|push_token(ILLEGAL)|>
+harmony_number "\\"   <|push_token(ILLEGAL)|>
 
 "("           <|push_token(LPAREN)|>
 ")"           <|push_token(RPAREN)|>

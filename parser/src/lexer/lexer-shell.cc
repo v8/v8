@@ -63,12 +63,14 @@ class BaselineScanner {
                   Isolate* isolate,
                   Encoding encoding,
                   ElapsedTimer* timer,
-                  int repeat)
+                  int repeat,
+                  bool harmony_numeric_literals)
       : stream_(NULL) {
     int length = 0;
     source_ = ReadFile(fname, isolate, &length, repeat);
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
+    scanner_->SetHarmonyNumericLiterals(harmony_numeric_literals);
     switch (encoding) {
       case UTF8:
       case UTF8TO16:
@@ -143,9 +145,11 @@ TimeDelta RunBaselineScanner(const char* fname,
                              Encoding encoding,
                              bool dump_tokens,
                              std::vector<TokenWithLocation>* tokens,
-                             int repeat) {
+                             int repeat,
+                             bool harmony_numeric_literals) {
   ElapsedTimer timer;
-  BaselineScanner scanner(fname, isolate, encoding, &timer, repeat);
+  BaselineScanner scanner(fname, isolate, encoding, &timer, repeat,
+                          harmony_numeric_literals);
   Token::Value token;
   int beg, end;
   do {
@@ -164,10 +168,13 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  Encoding encoding,
                                  bool dump_tokens,
                                  std::vector<TokenWithLocation>* tokens,
-                                 int repeat) {
+                                 int repeat,
+                                 bool harmony_numeric_literals) {
   ElapsedTimer timer;
   EvenMoreExperimentalScanner<YYCTYPE> scanner(fname, isolate, repeat,
                                                encoding == UTF8TO16);
+  scanner.SetHarmonyNumericLiterals(harmony_numeric_literals);
+
   timer.Start();
   Token::Value token;
   int beg, end;
@@ -201,7 +208,8 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
     bool print_tokens,
     bool check_tokens,
     bool break_after_illegal,
-    int repeat) {
+    int repeat,
+    bool harmony_numeric_literals) {
   if (print_tokens) {
     printf("Processing file %s\n", fname);
   }
@@ -211,24 +219,24 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
   if (run_baseline) {
     baseline_time = RunBaselineScanner(
         fname, isolate, encoding, print_tokens || check_tokens,
-        &baseline_tokens, repeat);
+        &baseline_tokens, repeat, harmony_numeric_literals);
   }
   if (run_experimental) {
     switch (encoding) {
       case LATIN1:
         experimental_time = RunExperimentalScanner<uint8_t>(
             fname, isolate, encoding, print_tokens || check_tokens,
-            &experimental_tokens, repeat);
+            &experimental_tokens, repeat, harmony_numeric_literals);
         break;
       case UTF16:
         experimental_time = RunExperimentalScanner<uint16_t>(
             fname, isolate, encoding, print_tokens || check_tokens,
-            &experimental_tokens, repeat);
+            &experimental_tokens, repeat, harmony_numeric_literals);
         break;
       case UTF8TO16:
         experimental_time = RunExperimentalScanner<uint16_t>(
             fname, isolate, encoding, print_tokens || check_tokens,
-            &experimental_tokens, repeat);
+            &experimental_tokens, repeat, harmony_numeric_literals);
         break;
       default:
         printf("Encoding not supported by the experimental scanner\n");
@@ -288,6 +296,7 @@ int main(int argc, char* argv[]) {
   std::vector<std::string> fnames;
   std::string benchmark;
   int repeat = 1;
+  bool harmony_numeric_literals = false;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
       encoding = LATIN1;
@@ -307,6 +316,8 @@ int main(int argc, char* argv[]) {
       check_tokens = false;
     } else if (strcmp(argv[i], "--break-after-illegal") == 0) {
       break_after_illegal = true;
+    } else if (strcmp(argv[i], "--use-harmony-numeric-literals") == 0) {
+      harmony_numeric_literals = true;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
       benchmark = std::string(argv[i]).substr(12);
     } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
@@ -331,7 +342,8 @@ int main(int argc, char* argv[]) {
         check_tokens = check_tokens && run_baseline && run_experimental;
         times = ProcessFile(fnames[i].c_str(), encoding, isolate, run_baseline,
                             run_experimental, print_tokens, check_tokens,
-                            break_after_illegal, repeat);
+                            break_after_illegal, repeat,
+                            harmony_numeric_literals);
         baseline_total += times.first.InMillisecondsF();
         experimental_total += times.second.InMillisecondsF();
       }
