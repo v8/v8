@@ -716,10 +716,8 @@ class Isolate {
   }
 
   void PrintCurrentStackTrace(FILE* out);
-  void PrintStackTrace(FILE* out, char* thread_data);
   void PrintStack(StringStream* accumulator);
   void PrintStack(FILE* out);
-  void PrintStack();
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,
@@ -1245,7 +1243,6 @@ class Isolate {
 
   void InitializeThreadLocal();
 
-  void PrintStackTrace(FILE* out, ThreadLocalTop* thread);
   void MarkCompactPrologue(bool is_compacting,
                            ThreadLocalTop* archived_thread_data);
   void MarkCompactEpilogue(bool is_compacting,

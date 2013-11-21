@@ -653,11 +653,6 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 }
 
 
-void Isolate::PrintStack() {
-  PrintStack(stdout);
-}
-
-
 void Isolate::PrintStack(FILE* out) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
