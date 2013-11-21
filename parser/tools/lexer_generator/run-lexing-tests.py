@@ -31,7 +31,8 @@ import sys
 if __name__ == '__main__':
   if len(sys.argv) < 4:
     error_message = ('Usage:' + sys.argv[0] +
-                     'LEXER_SHELL_PATH FILE_LIST_FILE PARALLEL_PROCESS_COUNT')
+                     'LEXER_SHELL_PATH FILE_LIST_FILE PARALLEL_PROCESS_COUNT ' +
+                     '[OTHER_ARGS]')
     print >> sys.stderr, error_message
     sys.exit(1)
   lexer_shell = sys.argv[1]
@@ -43,7 +44,8 @@ if __name__ == '__main__':
   with open('/dev/null', 'w') as dev_null:
     processes = []
     for i, f in enumerate(test_files):
-      processes.append((f, subprocess.Popen([lexer_shell, f, '--break-after-illegal'], stdout=dev_null)))
+      lexer_shell_args = [lexer_shell, f, '--break-after-illegal'] + sys.argv[4:]
+      processes.append((f, subprocess.Popen(lexer_shell_args, stdout=dev_null)))
       if i % process_count == process_count - 1:
         for p in processes:
           if p[1].wait():

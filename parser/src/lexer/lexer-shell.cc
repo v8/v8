@@ -52,7 +52,8 @@ using namespace v8::internal;
 enum Encoding {
   LATIN1,
   UTF8,
-  UTF16
+  UTF16,
+  UTF8TO16  // Read as UTF8, convert to UTF16 before giving it to the lexers.
 };
 
 
@@ -70,6 +71,7 @@ class BaselineScanner {
     scanner_ = new Scanner(unicode_cache_);
     switch (encoding) {
       case UTF8:
+      case UTF8TO16:
         stream_ = new Utf8ToUtf16CharacterStream(source_, length);
         break;
       case UTF16: {
@@ -164,7 +166,8 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  std::vector<TokenWithLocation>* tokens,
                                  int repeat) {
   ElapsedTimer timer;
-  EvenMoreExperimentalScanner<YYCTYPE> scanner(fname, isolate, repeat);
+  EvenMoreExperimentalScanner<YYCTYPE> scanner(fname, isolate, repeat,
+                                               encoding == UTF8TO16);
   timer.Start();
   Token::Value token;
   int beg, end;
@@ -218,6 +221,11 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
             &experimental_tokens, repeat);
         break;
       case UTF16:
+        experimental_time = RunExperimentalScanner<uint16_t>(
+            fname, isolate, encoding, print_tokens || check_tokens,
+            &experimental_tokens, repeat);
+        break;
+      case UTF8TO16:
         experimental_time = RunExperimentalScanner<uint16_t>(
             fname, isolate, encoding, print_tokens || check_tokens,
             &experimental_tokens, repeat);
@@ -287,6 +295,8 @@ int main(int argc, char* argv[]) {
       encoding = UTF8;
     } else if (strcmp(argv[i], "--utf16") == 0) {
       encoding = UTF16;
+    } else if (strcmp(argv[i], "--utf8to16") == 0) {
+      encoding = UTF8TO16;
     } else if (strcmp(argv[i], "--print-tokens") == 0) {
       print_tokens = true;
     } else if (strcmp(argv[i], "--no-baseline") == 0) {

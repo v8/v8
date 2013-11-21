@@ -67,7 +67,8 @@ class EvenMoreExperimentalScanner {
   explicit EvenMoreExperimentalScanner(
       const char* fname,
       Isolate* isolate,
-      int repeat);
+      int repeat,
+      bool convert_to_utf16);
 
   ~EvenMoreExperimentalScanner();
 
@@ -96,12 +97,30 @@ template<typename YYCTYPE>
 EvenMoreExperimentalScanner<YYCTYPE>::EvenMoreExperimentalScanner(
     const char* fname,
     Isolate* isolate,
-    int repeat)
+    int repeat,
+    bool convert_to_utf16)
     : unicode_cache_(isolate->unicode_cache()) {
   int size = 0;
   buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(
       ReadFile(fname, isolate, &size, repeat)));
-  buffer_end_ = buffer_ + size / sizeof(YYCTYPE);
+
+  if (convert_to_utf16) {
+    Utf8ToUtf16CharacterStream stream(reinterpret_cast<const byte*>(buffer_),
+                                      size);
+    uint16_t* new_buffer = new uint16_t[size];
+    uint16_t* cursor = new_buffer;
+    uc32 c;
+    // The 32-bit char type is probably only so that we can have -1 as a return
+    // value. If the char is not -1, it should fit into 16 bits.
+    while ((c = stream.Advance()) != -1)
+      *cursor++ = c;
+    delete[] buffer_;
+    buffer_ = reinterpret_cast<YYCTYPE*>(new_buffer);
+    buffer_end_ = reinterpret_cast<YYCTYPE*>(cursor);
+  } else {
+    buffer_end_ = buffer_ + size / sizeof(YYCTYPE);
+  }
+
   start_ = buffer_;
   cursor_ = buffer_;
   marker_ = buffer_;
