@@ -2784,7 +2784,6 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   Handle<Map> new_map = split_map;
   for (; descriptor < descriptors; descriptor++) {
     new_map = Map::CopyInstallDescriptors(new_map, descriptor, new_descriptors);
-    new_map->set_migration_target(true);
   }
 
   new_map->set_owns_descriptors(true);
@@ -3875,6 +3874,7 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
   Handle<Map> original_map(object->map());
   GeneralizeFieldRepresentation(
       object, 0, Representation::None(), ALLOW_AS_CONSTANT);
+  object->map()->set_migration_target(true);
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
   }
