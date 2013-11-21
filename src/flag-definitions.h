@@ -611,10 +611,6 @@ DEFINE_int(hash_seed, 0,
 DEFINE_bool(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 
-// v8.cc
-DEFINE_bool(preemption, false,
-            "activate a 100ms timer that switches between V8 threads")
-
 // Regexp
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
 

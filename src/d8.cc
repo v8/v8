@@ -1379,43 +1379,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--send-idle-notification") == 0) {
       options.send_idle_notification = true;
       argv[i] = NULL;
-    } else if (strcmp(argv[i], "--preemption") == 0) {
-#ifdef V8_SHARED
-      printf("D8 with shared library does not support multi-threading\n");
-      return false;
-#else
-      options.use_preemption = true;
-      argv[i] = NULL;
-#endif  // V8_SHARED
-    } else if (strcmp(argv[i], "--nopreemption") == 0) {
-#ifdef V8_SHARED
-      printf("D8 with shared library does not support multi-threading\n");
-      return false;
-#else
-      options.use_preemption = false;
-      argv[i] = NULL;
-#endif  // V8_SHARED
-    } else if (strcmp(argv[i], "--preemption-interval") == 0) {
-#ifdef V8_SHARED
-      printf("D8 with shared library does not support multi-threading\n");
-      return false;
-#else
-      if (++i < argc) {
-        argv[i-1] = NULL;
-        char* end = NULL;
-        options.preemption_interval = strtol(argv[i], &end, 10);  // NOLINT
-        if (options.preemption_interval <= 0
-            || *end != '\0'
-            || errno == ERANGE) {
-          printf("Invalid value for --preemption-interval '%s'\n", argv[i]);
-          return false;
-        }
-        argv[i] = NULL;
-      } else {
-        printf("Missing value for --preemption-interval\n");
-        return false;
-      }
-#endif  // V8_SHARED
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
@@ -1554,14 +1517,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
         V8::IdleNotification(kLongIdlePauseInMs);
       }
     }
-
-#ifndef V8_SHARED
-    // Start preemption if threads have been created and preemption is enabled.
-    if (threads.length() > 0
-        && options.use_preemption) {
-      Locker::StartPreemption(isolate, options.preemption_interval);
-    }
-#endif  // V8_SHARED
   }
 
 #ifndef V8_SHARED
@@ -1573,11 +1528,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
     i::Thread* thread = threads[i];
     thread->Join();
     delete thread;
-  }
-
-  if (threads.length() > 0 && options.use_preemption) {
-    Locker lock(isolate);
-    Locker::StopPreemption(isolate);
   }
 #endif  // V8_SHARED
   return 0;

@@ -58,7 +58,6 @@ struct CodeStubInterfaceDescriptor;
 class CodeTracer;
 class CompilationCache;
 class ContextSlotCache;
-class ContextSwitcher;
 class Counters;
 class CpuFeatures;
 class CpuProfiler;
@@ -919,12 +918,6 @@ class Isolate {
 
   ThreadManager* thread_manager() { return thread_manager_; }
 
-  ContextSwitcher* context_switcher() { return context_switcher_; }
-
-  void set_context_switcher(ContextSwitcher* switcher) {
-    context_switcher_ = switcher;
-  }
-
   StringTracker* string_tracker() { return string_tracker_; }
 
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize>* jsregexp_uncanonicalize() {
@@ -1293,7 +1286,6 @@ class Isolate {
   ConsStringIteratorOp* write_iterator_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
-  ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   bool fp_stubs_generated_;

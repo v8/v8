@@ -219,8 +219,6 @@ class ShellOptions {
  public:
   ShellOptions() :
 #ifndef V8_SHARED
-     use_preemption(true),
-     preemption_interval(10),
      num_parallel_files(0),
      parallel_files(NULL),
 #endif  // V8_SHARED
@@ -245,8 +243,6 @@ class ShellOptions {
   }
 
 #ifndef V8_SHARED
-  bool use_preemption;
-  int preemption_interval;
   int num_parallel_files;
   char** parallel_files;
 #endif  // V8_SHARED

@@ -1549,7 +1549,6 @@ Isolate::Isolate()
       write_iterator_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
-      context_switcher_(NULL),
       thread_manager_(NULL),
       fp_stubs_generated_(false),
       has_installed_extensions_(false),
@@ -1690,10 +1689,6 @@ void Isolate::Deinit() {
 
     delete deoptimizer_data_;
     deoptimizer_data_ = NULL;
-    if (FLAG_preemption) {
-      v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-      v8::Locker::StopPreemption(reinterpret_cast<v8::Isolate*>(this));
-    }
     builtins_.TearDown();
     bootstrapper_->TearDown();
 
@@ -1805,8 +1800,6 @@ Isolate::~Isolate() {
   delete write_iterator_;
   write_iterator_ = NULL;
 
-  delete context_switcher_;
-  context_switcher_ = NULL;
   delete thread_manager_;
   thread_manager_ = NULL;
 
@@ -2036,11 +2029,6 @@ bool Isolate::Init(Deserializer* des) {
       sweeper_thread_[i] = new SweeperThread(this);
       sweeper_thread_[i]->Start();
     }
-  }
-
-  if (FLAG_preemption) {
-    v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-    v8::Locker::StartPreemption(reinterpret_cast<v8::Isolate*>(this), 100);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

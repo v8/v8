@@ -5271,12 +5271,6 @@ class V8_EXPORT Locker {
 
   ~Locker();
 
-  V8_DEPRECATED("This will be remvoed.",
-                static void StartPreemption(Isolate *isolate, int every_n_ms));
-
-  V8_DEPRECATED("This will be removed",
-                static void StopPreemption(Isolate* isolate));
-
   /**
    * Returns whether or not the locker for a given isolate, is locked by the
    * current thread.
