@@ -46,6 +46,7 @@ class TransitionKey:
     'non_latin1_line_terminator' : (259, 259),
     'eos' : (260, 260),
     'zero' : (261, 261),
+    'byte_order_mark' : (262, 262),
   }
   __lower_bound = min(__class_bounds.values(), key=lambda item: item[0])[0]
   __upper_bound = max(__class_bounds.values(), key=lambda item: item[1])[1]

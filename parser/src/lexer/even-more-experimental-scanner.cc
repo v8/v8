@@ -69,31 +69,18 @@ const byte* ReadFile(const char* name, Isolate* isolate,
   int file_size = ftell(file);
   rewind(file);
 
-  byte* file_contents = new byte[file_size];
+  *size = file_size * repeat;
+
+  byte* chars = new byte[*size];
   for (int i = 0; i < file_size;) {
-    int read =
-        static_cast<int>(fread(&file_contents[i], 1, file_size - i, file));
+    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
     i += read;
   }
   fclose(file);
 
-  // If the file contains the UTF16 little endian magic bytes, skip them.
-  // FIXME: what if we see big endian magic bytes? Do we do the right thing for
-  // big endian anyway?
-  byte* start = file_contents;
-  if (*start == 0xff && *(start + 1) == 0xfe) {
-    start += 2;
-    file_size -= 2;
+  for (int i = file_size; i < *size; i++) {
+    chars[i] = chars[i - file_size];
   }
-
-  *size = file_size * repeat;
-  byte* chars = new byte[*size];
-
-  for (int i = 0; i < *size; i++) {
-    chars[i] = start[i % file_size];
-  }
-
-  delete file_contents;
 
   return chars;
 }

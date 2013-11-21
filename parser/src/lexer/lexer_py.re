@@ -26,7 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 whitespace_char = [:whitespace:];
-whitespace = whitespace_char+;
+byte_order_mark_char = [:byte_order_mark:];
+whitespace = whitespace_char+|byte_order_mark_char+;
 identifier_start = [$_:letter:];
 identifier_char = [:identifier_start::identifier_part_not_letter:];
 line_terminator = [:line_terminator:];

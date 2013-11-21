@@ -18,6 +18,8 @@
 	      (yych == 0 && cursor_ >= buffer_end_)
       {%- elif r[1] == 'zero' -%}
 	      (yych == 0 && cursor_ < buffer_end_)
+      {%- elif r[1] == 'byte_order_mark' and encoding == 'utf16'-%}
+        (yych == 0xfffe || yych == 0xfeff)
       {%- elif r[1] == 'non_latin_1_whitespace' and encoding == 'utf16'-%}
         {# FIXME: Add and use unicode_cache_->InNonAsciiWhitespace #}
         (yych > 255 && unicode_cache_->IsWhiteSpace(yych))
