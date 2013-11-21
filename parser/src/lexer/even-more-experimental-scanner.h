@@ -78,6 +78,14 @@ class EvenMoreExperimentalScanner {
     harmony_numeric_literals_ = numeric_literals;
   }
 
+  void SetHarmonyModules(bool modules) {
+    harmony_modules_ = modules;
+  }
+
+  void SetHarmonyScoping(bool scoping) {
+    harmony_scoping_ = scoping;
+  }
+
  private:
   bool ValidIdentifierStart();
   bool ValidIdentifierPart();
@@ -95,6 +103,8 @@ class EvenMoreExperimentalScanner {
   YYCTYPE yych;
 
   bool harmony_numeric_literals_;
+  bool harmony_modules_;
+  bool harmony_scoping_;
 };
 
 const byte* ReadFile(const char* name, Isolate* isolate, int* size, int repeat);

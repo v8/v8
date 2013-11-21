@@ -141,11 +141,22 @@ class RuleParser:
 
   def p_identifier_action(self, p):
     '''identifier_action : IDENTIFIER
-                         | IDENTIFIER LEFT_PARENTHESIS IDENTIFIER RIGHT_PARENTHESIS'''
+                         | IDENTIFIER LEFT_PARENTHESIS RIGHT_PARENTHESIS
+                         | IDENTIFIER LEFT_PARENTHESIS action_params RIGHT_PARENTHESIS'''
     assert p[1] != 'code'
-    if len(p) == 2:
+    if len(p) == 2 or len(p) == 4:
       p[0] = (p[1], None)
     elif len(p) == 5:
+      p[0] = (p[1], p[3])
+    else:
+      raise Exception()
+
+  def p_action_params(self, p):
+    '''action_params : IDENTIFIER
+                     | IDENTIFIER COMMA action_params'''
+    if len(p) == 2:
+      p[0] = p[1]
+    elif len(p) == 4:
       p[0] = (p[1], p[3])
     else:
       raise Exception()

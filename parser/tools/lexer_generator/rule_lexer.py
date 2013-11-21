@@ -55,6 +55,8 @@ class RuleLexer:
     'RIGHT_BRACKET',
 
     'CODE_FRAGMENT',
+
+    'COMMA',
   )
 
   states = (
@@ -93,6 +95,7 @@ class RuleLexer:
   t_SEMICOLON = ';'
   t_ACTION_OPEN = '<'
   t_ACTION_CLOSE = '>'
+  t_COMMA = ','
 
   def t_LEFT_BRACKET(self, t):
     r'{'

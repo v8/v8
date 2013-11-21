@@ -102,14 +102,7 @@ number        <|push_token(NUMBER)|>
 number identifier_char   <|push_token(ILLEGAL)|>
 number "\\"   <|push_token(ILLEGAL)|>
 
-harmony_number        <|{
-if (harmony_numeric_literals_) {
-   PUSH_TOKEN(Token::NUMBER);
-} else {
-   PUSH_TOKEN(Token::ILLEGAL);
-}
-}|>
-
+harmony_number        <|push_harmony_token(numeric_literals, NUMBER, ILLEGAL)|>
 harmony_number identifier_char   <|push_token(ILLEGAL)|>
 harmony_number "\\"   <|push_token(ILLEGAL)|>
 
@@ -159,7 +152,7 @@ line_terminator+                     <|push_line_terminator|>
 "do"          <|push_token(DO)|>
 "else"        <|push_token(ELSE)|>
 "enum"        <|push_token(FUTURE_RESERVED_WORD)|>
-"export"      <|push_token(FUTURE_RESERVED_WORD)|>
+"export"      <|push_harmony_token(modules, EXPORT, FUTURE_STRICT_RESERVED_WORD)|>
 "extends"     <|push_token(FUTURE_RESERVED_WORD)|>
 "false"       <|push_token(FALSE_LITERAL)|>
 "finally"     <|push_token(FINALLY)|>
@@ -167,11 +160,11 @@ line_terminator+                     <|push_line_terminator|>
 "function"    <|push_token(FUNCTION)|>
 "if"          <|push_token(IF)|>
 "implements"  <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"import"      <|push_token(FUTURE_RESERVED_WORD)|>
+"import"      <|push_harmony_token(modules, IMPORT, FUTURE_STRICT_RESERVED_WORD)|>
 "in"          <|push_token(IN)|>
 "instanceof"  <|push_token(INSTANCEOF)|>
 "interface"   <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"let"         <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
+"let"         <|push_harmony_token(scoping, LET, FUTURE_STRICT_RESERVED_WORD)|>
 "new"         <|push_token(NEW)|>
 "null"        <|push_token(NULL_LITERAL)|>
 "package"     <|push_token(FUTURE_STRICT_RESERVED_WORD)|>

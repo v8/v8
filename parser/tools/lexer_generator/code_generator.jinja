@@ -72,6 +72,12 @@
     PUSH_TOKEN(Token::{{value}})
   {% elif type == 'push_token_and_go_forward' %}
     PUSH_TOKEN_AND_GO_FORWARD(Token::{{value}})
+  {% elif type == 'push_harmony_token' %}
+    if (harmony_{{value[0]}}_) {
+      PUSH_TOKEN(Token::{{value[1][0]}});
+    } else {
+      PUSH_TOKEN(Token::{{value[1][1]}});
+    }
   {% elif type == 'set_marker' %}
     marker_ = cursor_ - {{value}};
   {% else %}
