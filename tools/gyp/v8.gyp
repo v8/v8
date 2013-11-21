@@ -132,7 +132,6 @@
         }],
       ],
       'dependencies': [
-        'generate_trig_table',
         'v8_base.<(v8_target_arch)',
       ],
       'include_dirs+': [
@@ -176,7 +175,6 @@
       'target_name': 'v8_nosnapshot.<(v8_target_arch)',
       'type': 'static_library',
       'dependencies': [
-        'generate_trig_table',
         'v8_base.<(v8_target_arch)',
       ],
       'include_dirs+': [
@@ -206,6 +204,13 @@
     },
     { 'target_name': 'generate_trig_table',
       'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
       'actions': [
         {
           'action_name': 'generate',
@@ -226,6 +231,9 @@
     {
       'target_name': 'v8_base.<(v8_target_arch)',
       'type': 'static_library',
+      'dependencies': [
+        'generate_trig_table',
+      ],
       'variables': {
         'optimize': 'max',
       },
