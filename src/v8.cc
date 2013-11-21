@@ -32,6 +32,9 @@
 #include "elements.h"
 #include "bootstrapper.h"
 #include "debug.h"
+#ifdef V8_USE_DEFAULT_PLATFORM
+#include "default-platform.h"
+#endif
 #include "deoptimizer.h"
 #include "frames.h"
 #include "heap-profiler.h"
@@ -52,6 +55,7 @@ V8_DECLARE_ONCE(init_once);
 
 List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
+v8::Platform* V8::platform_ = NULL;
 
 
 bool V8::Initialize(Deserializer* des) {
@@ -100,6 +104,12 @@ void V8::TearDown() {
   call_completed_callbacks_ = NULL;
 
   Sampler::TearDown();
+
+#ifdef V8_USE_DEFAULT_PLATFORM
+  DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
+  platform_ = NULL;
+  delete platform;
+#endif
 }
 
 
@@ -160,6 +170,9 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_new_space_size = (1 << (kPageSizeBits - 10)) * 2;
   }
 
+#ifdef V8_USE_DEFAULT_PLATFORM
+  platform_ = new DefaultPlatform;
+#endif
   Sampler::SetUp();
   CPU::SetUp();
   OS::PostSetUp();
@@ -173,6 +186,25 @@ void V8::InitializeOncePerProcessImpl() {
 
 void V8::InitializeOncePerProcess() {
   CallOnce(&init_once, &InitializeOncePerProcessImpl);
+}
+
+
+void V8::InitializePlatform(v8::Platform* platform) {
+  ASSERT(!platform_);
+  ASSERT(platform);
+  platform_ = platform;
+}
+
+
+void V8::ShutdownPlatform() {
+  ASSERT(platform_);
+  platform_ = NULL;
+}
+
+
+v8::Platform* V8::GetCurrentPlatform() {
+  ASSERT(platform_);
+  return platform_;
 }
 
 } }  // namespace v8::internal

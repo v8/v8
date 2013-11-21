@@ -5045,6 +5045,24 @@ static void* ExternalValue(i::Object* obj) {
 // --- E n v i r o n m e n t ---
 
 
+void v8::V8::InitializePlatform(Platform* platform) {
+#ifdef V8_USE_DEFAULT_PLATFORM
+  FATAL("Can't override v8::Platform when using default implementation");
+#else
+  i::V8::InitializePlatform(platform);
+#endif
+}
+
+
+void v8::V8::ShutdownPlatform() {
+#ifdef V8_USE_DEFAULT_PLATFORM
+  FATAL("Can't override v8::Platform when using default implementation");
+#else
+  i::V8::ShutdownPlatform();
+#endif
+}
+
+
 bool v8::V8::Initialize() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate != NULL && isolate->IsInitialized()) {
