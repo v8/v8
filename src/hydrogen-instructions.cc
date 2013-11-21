@@ -1218,8 +1218,15 @@ static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
 
 
 HValue* HAdd::Canonicalize() {
-  if (IsIdentityOperation(left(), right(), 0)) return left();
-  if (IsIdentityOperation(right(), left(), 0)) return right();
+  // Adding 0 is an identity operation except in case of -0: -0 + 0 = +0
+  if (IsIdentityOperation(left(), right(), 0) &&
+      !left()->representation().IsDouble()) {  // Left could be -0.
+    return left();
+  }
+  if (IsIdentityOperation(right(), left(), 0) &&
+      !left()->representation().IsDouble()) {  // Right could be -0.
+    return right();
+  }
   return this;
 }
 
