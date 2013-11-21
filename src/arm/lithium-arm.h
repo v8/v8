@@ -155,6 +155,7 @@ class LCodeGen;
   V(Parameter)                                  \
   V(Power)                                      \
   V(PushArgument)                               \
+  V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
   V(SeqStringGetChar)                           \
@@ -1477,6 +1478,28 @@ class LPower V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(Power, "power")
   DECLARE_HYDROGEN_ACCESSOR(Power)
+};
+
+
+class LRandom V8_FINAL : public LTemplateInstruction<1, 1, 3> {
+ public:
+  LRandom(LOperand* global_object,
+          LOperand* scratch,
+          LOperand* scratch2,
+          LOperand* scratch3) {
+    inputs_[0] = global_object;
+    temps_[0] = scratch;
+    temps_[1] = scratch2;
+    temps_[2] = scratch3;
+  }
+
+  LOperand* global_object() const { return inputs_[0]; }
+  LOperand* scratch() const { return temps_[0]; }
+  LOperand* scratch2() const { return temps_[1]; }
+  LOperand* scratch3() const { return temps_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Random, "random")
+  DECLARE_HYDROGEN_ACCESSOR(Random)
 };
 
 

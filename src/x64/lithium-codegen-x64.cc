@@ -3698,6 +3698,66 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
+void LCodeGen::DoRandom(LRandom* instr) {
+  // Assert that register size is twice the size of each seed.
+  static const int kSeedSize = sizeof(uint32_t);
+  STATIC_ASSERT(kPointerSize == 2 * kSeedSize);
+
+  // Load native context
+  Register global_object = ToRegister(instr->global_object());
+  Register native_context = global_object;
+  __ movq(native_context, FieldOperand(
+          global_object, GlobalObject::kNativeContextOffset));
+
+  // Load state (FixedArray of the native context's random seeds)
+  static const int kRandomSeedOffset =
+      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
+  Register state = native_context;
+  __ movq(state, FieldOperand(native_context, kRandomSeedOffset));
+
+  // Load state[0].
+  Register state0 = ToRegister(instr->scratch());
+  __ movl(state0, FieldOperand(state, ByteArray::kHeaderSize));
+  // Load state[1].
+  Register state1 = ToRegister(instr->scratch2());
+  __ movl(state1, FieldOperand(state, ByteArray::kHeaderSize + kSeedSize));
+
+  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
+  Register scratch3 = ToRegister(instr->scratch3());
+  __ movzxwl(scratch3, state0);
+  __ imull(scratch3, scratch3, Immediate(18273));
+  __ shrl(state0, Immediate(16));
+  __ addl(state0, scratch3);
+  // Save state[0].
+  __ movl(FieldOperand(state, ByteArray::kHeaderSize), state0);
+
+  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
+  __ movzxwl(scratch3, state1);
+  __ imull(scratch3, scratch3, Immediate(36969));
+  __ shrl(state1, Immediate(16));
+  __ addl(state1, scratch3);
+  // Save state[1].
+  __ movl(FieldOperand(state, ByteArray::kHeaderSize + kSeedSize), state1);
+
+  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
+  Register random = state0;
+  __ shll(random, Immediate(14));
+  __ andl(state1, Immediate(0x3FFFF));
+  __ addl(random, state1);
+
+  // Convert 32 random bits in rax to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  XMMRegister result = ToDoubleRegister(instr->result());
+  XMMRegister scratch4 = double_scratch0();
+  __ movq(scratch3, V8_INT64_C(0x4130000000000000));  // 1.0 x 2^20 as double
+  __ movq(scratch4, scratch3);
+  __ movd(result, random);
+  __ xorps(result, scratch4);
+  __ subsd(result, scratch4);
+}
+
+
 void LCodeGen::DoMathExp(LMathExp* instr) {
   XMMRegister input = ToDoubleRegister(instr->value());
   XMMRegister result = ToDoubleRegister(instr->result());

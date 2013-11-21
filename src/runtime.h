@@ -190,6 +190,7 @@ namespace internal {
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
+  F(PopulateTrigonometricTable, 3, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -622,6 +623,7 @@ namespace internal {
   F(OneByteSeqStringSetChar, 3, 1)                                           \
   F(TwoByteSeqStringSetChar, 3, 1)                                           \
   F(ObjectEquals, 2, 1)                                                      \
+  F(RandomHeapNumber, 0, 1)                                                  \
   F(IsObject, 1, 1)                                                          \
   F(IsFunction, 1, 1)                                                        \
   F(IsUndetectableObject, 1, 1)                                              \

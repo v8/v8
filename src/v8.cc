@@ -119,6 +119,25 @@ void V8::SetReturnAddressLocationResolver(
 }
 
 
+// Used by JavaScript APIs
+uint32_t V8::Random(Context* context) {
+  ASSERT(context->IsNativeContext());
+  ByteArray* seed = context->random_seed();
+  uint32_t* state = reinterpret_cast<uint32_t*>(seed->GetDataStartAddress());
+
+  // When we get here, the RNG must have been initialized,
+  // see the Genesis constructor in file bootstrapper.cc.
+  ASSERT_NE(0, state[0]);
+  ASSERT_NE(0, state[1]);
+
+  // Mix the bits.  Never replaces state[i] with 0 if it is nonzero.
+  state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16);
+  state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16);
+
+  return (state[0] << 14) + (state[1] & 0x3FFFF);
+}
+
+
 void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (call_completed_callbacks_ == NULL) {  // Lazy init.
     call_completed_callbacks_ = new List<CallCompletedCallback>();

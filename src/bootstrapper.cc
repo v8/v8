@@ -40,7 +40,6 @@
 #include "objects-visiting.h"
 #include "platform.h"
 #include "snapshot.h"
-#include "trig-table.h"
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
 #include "extensions/statistics-extension.h"
@@ -1309,6 +1308,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   // Initialize the embedder data slot.
   Handle<FixedArray> embedder_data = factory->NewFixedArray(2);
   native_context()->set_embedder_data(*embedder_data);
+
+  // Allocate the random seed slot.
+  Handle<ByteArray> random_seed = factory->NewByteArray(kRandomStateSize);
+  native_context()->set_random_seed(*random_seed);
 }
 
 
@@ -2632,71 +2635,13 @@ Genesis::Genesis(Isolate* isolate,
   InitializeExperimentalGlobal();
   if (!InstallExperimentalNatives()) return;
 
-  // We can't (de-)serialize typed arrays currently, but we are lucky: The state
-  // of the random number generator and the trigonometric lookup tables needs no
-  // initialization during snapshot creation time.
-  uint32_t* state = NULL;
-  if (!Serializer::enabled()) {
-    // Initially seed the per-context random number generator using the
-    // per-isolate random number generator.
-    const int num_elems = 2;
-    state = new uint32_t[num_elems];
-    const int num_bytes = num_elems * sizeof(*state);
-
-    do {
-      isolate->random_number_generator()->NextBytes(state, num_bytes);
-    } while (state[0] == 0 || state[1] == 0);
-
-    v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(state, num_bytes);
-    v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
-    Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("rngstate")),
-                     Utils::OpenHandle(*ta),
-                     NONE);
-
-    // Initialize trigonometric lookup tables and constants.
-    const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
-    v8::Local<v8::ArrayBuffer> sin_buffer = v8::ArrayBuffer::New(
-        TrigonometricLookupTable::sin_table(), table_num_bytes);
-    v8::Local<v8::ArrayBuffer> cos_buffer = v8::ArrayBuffer::New(
-        TrigonometricLookupTable::cos_x_interval_table(), table_num_bytes);
-    v8::Local<v8::Float64Array> sin_table = v8::Float64Array::New(
-        sin_buffer, 0, TrigonometricLookupTable::table_size());
-    v8::Local<v8::Float64Array> cos_table = v8::Float64Array::New(
-        cos_buffer, 0, TrigonometricLookupTable::table_size());
-
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kSinTable")),
-                     Utils::OpenHandle(*sin_table),
-                     NONE);
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kCosXIntervalTable")),
-                     Utils::OpenHandle(*cos_table),
-                     NONE);
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kSamples")),
-                     factory()->NewHeapNumber(
-                         TrigonometricLookupTable::samples()),
-                     NONE);
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kIndexConvert")),
-                     factory()->NewHeapNumber(
-                         TrigonometricLookupTable::samples_over_pi_half()),
-                     NONE);
-  }
-  // TODO(svenpanne) We have to delete the state when the context dies, so we
-  // remember it in the context (encoded as a Smi, our usual technique for
-  // aligned pointers) and do the cleanup in
-  // WeakListVisitor<Context>::VisitPhantomObject(). This hack can go away when
-  // we have a way to allocate the backing store of typed arrays on the heap.
-  ASSERT(reinterpret_cast<Smi*>(state)->IsSmi());
-  native_context()->set_random_state(reinterpret_cast<Smi*>(state));
+  // Initially seed the per-context random number generator
+  // using the per-isolate random number generator.
+  uint32_t* state = reinterpret_cast<uint32_t*>(
+      native_context()->random_seed()->GetDataStartAddress());
+  do {
+    isolate->random_number_generator()->NextBytes(state, kRandomStateSize);
+  } while (state[0] == 0 || state[1] == 0);
 
   result_ = native_context();
 }

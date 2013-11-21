@@ -1765,9 +1765,7 @@ struct WeakListVisitor<Context> {
     }
   }
 
-  static void VisitPhantomObject(Heap*, Context* context) {
-    // A bit of a hack, see the comment at the end of Genesis::Genesis().
-    delete[] reinterpret_cast<uint32_t*>(context->random_state());
+  static void VisitPhantomObject(Heap*, Context*) {
   }
 
   static int WeakNextOffset() {
