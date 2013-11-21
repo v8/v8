@@ -8,7 +8,7 @@
         yych == {{r[1][0]}}
       {%- elif r[1][0] == 0 -%}
         yych <= {{r[1][1]}}
-      {%- elif r[1][1] == 255 -%}
+      {%- elif r[1][1] == 255 and encoding == 'latin1'-%}
         yych >= {{r[1][0]}}
       {%- else -%}
         ({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
