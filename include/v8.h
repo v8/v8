@@ -4102,7 +4102,7 @@ class V8_EXPORT Isolate {
    *   kept alive by JavaScript objects.
    * \returns the adjusted value.
    */
-  intptr_t AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes);
+  int64_t AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
 
   /**
    * Returns heap profiler for this isolate. Will return NULL until the isolate
@@ -4685,8 +4685,8 @@ class V8_EXPORT V8 {
 
   V8_DEPRECATED(
       "Use Isolate::AdjustAmountOfExternalAllocatedMemory instead",
-      static intptr_t AdjustAmountOfExternalAllocatedMemory(
-          intptr_t change_in_bytes));
+      static int64_t AdjustAmountOfExternalAllocatedMemory(
+          int64_t change_in_bytes));
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
