@@ -2634,19 +2634,13 @@ Genesis::Genesis(Isolate* isolate,
   // We can't (de-)serialize typed arrays currently, but we are lucky: The state
   // of the random number generator needs no initialization during snapshot
   // creation time.
+  uint32_t* state = NULL;
   if (!Serializer::enabled()) {
     // Initially seed the per-context random number generator using the
     // per-isolate random number generator.
     const int num_elems = 2;
-    uint32_t* state = new uint32_t[num_elems];
+    state = new uint32_t[num_elems];
     const int num_bytes = num_elems * sizeof(*state);
-    // We have to delete the state when the context dies, so we remember it in
-    // the context (encoded as a Smi, our usual technique for aligned pointers)
-    // and do the cleanup in WeakListVisitor<Context>::VisitPhantomObject().
-    // This hack can go away when we have a way to allocate the backing store of
-    // typed arrays on the heap.
-    native_context()->set_random_state(reinterpret_cast<Smi*>(state));
-    ASSERT(native_context()->random_state()->IsSmi());
 
     do {
       isolate->random_number_generator()->NextBytes(state, num_bytes);
@@ -2661,6 +2655,13 @@ Genesis::Genesis(Isolate* isolate,
                      Utils::OpenHandle(*ta),
                      NONE);
   }
+  // TODO(svenpanne) We have to delete the state when the context dies, so we
+  // remember it in the context (encoded as a Smi, our usual technique for
+  // aligned pointers) and do the cleanup in
+  // WeakListVisitor<Context>::VisitPhantomObject(). This hack can go away when
+  // we have a way to allocate the backing store of typed arrays on the heap.
+  ASSERT(reinterpret_cast<Smi*>(state)->IsSmi());
+  native_context()->set_random_state(reinterpret_cast<Smi*>(state));
 
   result_ = native_context();
 }
