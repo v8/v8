@@ -42,11 +42,12 @@ class TransitionKey:
     # ranges.
     'non_latin_1_whitespace' : (256, 256),
     'non_latin_1_letter' : (257, 257),
-    'non_latin1_identifier_part_not_letter' : (258, 258),
-    'non_latin1_line_terminator' : (259, 259),
+    'non_latin_1_identifier_part_not_letter' : (258, 258),
+    'non_latin_1_line_terminator' : (259, 259),
     'eos' : (260, 260),
     'zero' : (261, 261),
     'byte_order_mark' : (262, 262),
+    'non_latin_1_everything_else' : (263, 263),
   }
   __lower_bound = min(__class_bounds.values(), key=lambda item: item[0])[0]
   __upper_bound = max(__class_bounds.values(), key=lambda item: item[1])[1]
@@ -65,10 +66,10 @@ class TransitionKey:
         __class_bounds['non_latin_1_letter']],
     'line_terminator' : [
         (10, 10), (13, 13),
-        __class_bounds['non_latin1_line_terminator']],
+        __class_bounds['non_latin_1_line_terminator']],
     'identifier_part_not_letter' : [
         (48, 57), (95, 95),
-        __class_bounds['non_latin1_identifier_part_not_letter']],
+        __class_bounds['non_latin_1_identifier_part_not_letter']],
   }
 
   @staticmethod

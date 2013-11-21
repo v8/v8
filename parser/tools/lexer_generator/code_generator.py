@@ -130,6 +130,7 @@ class CodeGenerator:
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
       'switch_transitions' : [],
+      'deferred_transitions' : [],
       'disjoint_keys' : disjoint_keys,
       'inline' : None,
       'depth' : None,
@@ -167,21 +168,24 @@ class CodeGenerator:
     state['inline'] = inline
     return count + 1 if inline else count
 
-  @staticmethod
-  def __split_transitions(split_count, state):
+  def __split_transitions(self, split_count, state):
     '''Goes through the transitions for 'state' and decides which of them should
     use the if statement and which should use the switch statement.'''
     assert not state['switch_transitions']
     (distinct_keys, ranges) = (state['distinct_keys'], state['ranges'])
-    if distinct_keys <= 7 or float(distinct_keys)/float(ranges) >= 7.0:
-      return split_count
-    switch_transitions = []
+    no_switch = distinct_keys <= 7 or float(distinct_keys)/float(ranges) >= 7.0
     if_transitions = []
+    switch_transitions = []
+    deferred_transitions = []
     for (ranges, node_id) in state['transitions']:
       i = []
       s = []
+      d = []
       for r in ranges:
+        # all class checks will be deferred to after all other checks
         if r[0] == 'CLASS':
+          d.append(r)
+        elif no_switch:
           i.append(r)
         else:
           s.append(r[1])
@@ -189,9 +193,12 @@ class CodeGenerator:
         if_transitions.append((i, node_id))
       if s:
         switch_transitions.append((s, node_id))
+      if d:
+        deferred_transitions.append((d, node_id))
     state['transitions'] = if_transitions
     state['switch_transitions'] = switch_transitions
-    return split_count + 1
+    state['deferred_transitions'] = deferred_transitions
+    return split_count + (0 if no_switch else 1)
 
   def __canonicalize_traversal(self):
     dfa_states = []
@@ -219,12 +226,9 @@ class CodeGenerator:
     elif self.__log:
       print "no inlining"
     # split transitions
-    if self.__switching:
-      switched = reduce(CodeGenerator.__split_transitions, dfa_states, 0)
-      if self.__log:
-        print "%s states use switch (instead of if)" % switched
-    elif self.__log:
-      print "no switching"
+    switched = reduce(self.__split_transitions, dfa_states, 0)
+    if self.__log:
+      print "%s states use switch (instead of if)" % switched
 
   def process(self):
 

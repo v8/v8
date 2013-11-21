@@ -18,23 +18,36 @@
         (yych == 0 && cursor_ >= buffer_end_)
       {%- elif r[1] == 'zero' -%}
         (yych == 0 && cursor_ < buffer_end_)
-      {%- elif r[1] == 'byte_order_mark' and encoding == 'utf16'-%}
-        (yych == 0xfffe || yych == 0xfeff)
-      {%- elif r[1] == 'non_latin_1_whitespace' and encoding == 'utf16'-%}
-        {# FIXME: Add and use unicode_cache_->InNonAsciiWhitespace #}
-        (yych > 255 && unicode_cache_->IsWhiteSpace(yych))
-      {%- elif r[1] == 'non_latin_1_letter' and encoding == 'utf16'-%}
-        {# FIXME: Add and use unicode_cache_->InNonAsciiLetter #}
-        (yych > 255 &&  unicode_cache_->IsLetter(yych))
-      {%- elif r[1] == 'non_latin1_identifier_part_not_letter' and encoding == 'utf16'-%}
-        (yych > 255 &&  unicode_cache_->IsIdentifierPartNotLetter(yych))
-      {%- elif r[1] == 'non_latin1_line_terminator' and encoding == 'utf16'-%}
-        (yych > 255 &&  unicode_cache_->IsLineTerminator(yych))
-      {%- else -%}
+      {%- elif encoding == 'latin1' -%}
         false /* {{r[1]}} */
+      {%- elif encoding == 'utf16' -%}
+        {%- if r[1] == 'byte_order_mark' -%}
+          (yych == 0xfffe || yych == 0xfeff)
+        {%- elif r[1] == 'non_latin_1_whitespace' -%}
+          {# FIXME: Add and use unicode_cache_->InNonAsciiWhitespace #}
+          (yych > 255 && unicode_cache_->IsWhiteSpace(yych))
+        {%- elif r[1] == 'non_latin_1_letter' -%}
+          {# FIXME: Add and use unicode_cache_->InNonAsciiLetter #}
+          (yych > 255 &&  unicode_cache_->IsLetter(yych))
+        {%- elif r[1] == 'non_latin_1_identifier_part_not_letter' -%}
+          (yych > 255 &&  unicode_cache_->IsIdentifierPartNotLetter(yych))
+        {%- elif r[1] == 'non_latin_1_line_terminator' -%}
+          (yych > 255 &&  unicode_cache_->IsLineTerminator(yych))
+        {%- elif r[1] == 'non_latin_1_everything_else' -%}
+          {# FIXME: Optimize this away #}
+          (yych > 255 &&
+           !unicode_cache_->IsWhiteSpace(yych) &&
+           !unicode_cache_->IsLetter(yych) &&
+           !unicode_cache_->IsIdentifierPartNotLetter(yych) &&
+           !unicode_cache_->IsLineTerminator(yych))
+        {%- else %}
+          uncompilable code for {{encoding}} {{r[0]}} {{r[1]}}
+        {%- endif -%}
+      {%- else -%}
+        uncompilable code for {{encoding}} {{r[0]}} {{r[1]}}
       {%- endif -%}
     {%- else -%}
-      false
+      uncompilable code for {{encoding}} {{r[0]}} {{r[1]}}
     {%- endif -%}
   {%- endfor -%}
 {%- endmacro -%}
@@ -122,6 +135,12 @@
 
   {%- for key, transition_state_id in state.transitions %}
     if ({{do_key(key)}}) {
+      {{ do_transition(transition_state_id) }}
+    }
+  {% endfor -%}
+
+  {%- for key, transition_state_id in state['deferred_transitions'] %}
+    if ({{do_key(key)}}) { // deferred transition
       {{ do_transition(transition_state_id) }}
     }
   {% endfor -%}
