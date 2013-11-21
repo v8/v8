@@ -174,7 +174,7 @@ function MathRandom() {
   rngstate[0] = r0;
   var r1 = (MathImul(36969, rngstate[1] & 0xFFFF) + (rngstate[1] >>> 16)) | 0;
   rngstate[1] = r1;
-  var x = ((r0 << 14) + (r1 & 0x3FFFF)) | 0;
+  var x = ((r0 << 16) + (r1 & 0xFFFF)) | 0;
   // Division by 0x100000000 through multiplication by reciprocal.
   return (x < 0 ? (x + 0x100000000) : x) * 2.3283064365386962890625e-10;
 }
