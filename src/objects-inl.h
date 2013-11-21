@@ -3874,37 +3874,33 @@ inline void Code::set_is_crankshafted(bool value) {
 
 
 int Code::major_key() {
-  ASSERT(kind() == STUB ||
-         kind() == HANDLER ||
-         kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC ||
-         kind() == COMPARE_NIL_IC ||
-         kind() == STORE_IC ||
-         kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC ||
-         kind() == KEYED_CALL_IC ||
-         kind() == TO_BOOLEAN_IC);
+  ASSERT(has_major_key());
   return StubMajorKeyField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
 void Code::set_major_key(int major) {
-  ASSERT(kind() == STUB ||
-         kind() == HANDLER ||
-         kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC ||
-         kind() == COMPARE_NIL_IC ||
-         kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC ||
-         kind() == STORE_IC ||
-         kind() == KEYED_STORE_IC ||
-         kind() == KEYED_CALL_IC ||
-         kind() == TO_BOOLEAN_IC);
+  ASSERT(has_major_key());
   ASSERT(0 <= major && major < 256);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = StubMajorKeyField::update(previous, major);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+}
+
+
+bool Code::has_major_key() {
+  return kind() == STUB ||
+      kind() == HANDLER ||
+      kind() == BINARY_OP_IC ||
+      kind() == COMPARE_IC ||
+      kind() == COMPARE_NIL_IC ||
+      kind() == LOAD_IC ||
+      kind() == KEYED_LOAD_IC ||
+      kind() == STORE_IC ||
+      kind() == KEYED_STORE_IC ||
+      kind() == KEYED_CALL_IC ||
+      kind() == TO_BOOLEAN_IC;
 }
 
 
