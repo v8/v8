@@ -1469,11 +1469,6 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->fixed_right_arg().has_value) {
-      LModI* mod = new(zone()) LModI(UseRegister(left),
-                                     UseRegisterAtStart(right),
-                                     NULL);
-      return AssignEnvironment(DefineSameAsFirst(mod));
     } else {
       // The temporary operand is necessary to ensure that right is not
       // allocated into edx.

@@ -58,6 +58,14 @@ static void AddNumber(v8::Local<v8::Object> object,
 }
 
 
+static void AddNumber64(v8::Local<v8::Object> object,
+                        int64_t value,
+                        const char* name) {
+  object->Set(v8::String::New(name),
+              v8::Number::New(static_cast<double>(value)));
+}
+
+
 void StatisticsExtension::GetCounters(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
@@ -145,8 +153,8 @@ void StatisticsExtension::GetCounters(
             "lo_space_available_bytes");
   AddNumber(result, heap->lo_space()->CommittedMemory(),
             "lo_space_commited_bytes");
-  AddNumber(result, heap->amount_of_external_allocated_memory(),
-            "amount_of_external_allocated_memory");
+  AddNumber64(result, heap->amount_of_external_allocated_memory(),
+              "amount_of_external_allocated_memory");
   args.GetReturnValue().Set(result);
 }
 

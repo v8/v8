@@ -35,8 +35,6 @@
 #include "messages.h"
 #include "scopeinfo.h"
 
-#include "allocation-inl.h"
-
 namespace v8 {
 namespace internal {
 

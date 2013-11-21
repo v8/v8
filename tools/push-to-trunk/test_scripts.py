@@ -53,8 +53,20 @@ TEST_CONFIG = {
 
 
 class ToplevelTest(unittest.TestCase):
+  def testMakeComment(self):
+    self.assertEquals("#   Line 1\n#   Line 2\n#",
+                      MakeComment("    Line 1\n    Line 2\n"))
+    self.assertEquals("#Line 1\n#Line 2",
+                      MakeComment("Line 1\n Line 2"))
+
+  def testStripComments(self):
+    self.assertEquals("    Line 1\n    Line 3\n",
+        StripComments("    Line 1\n#   Line 2\n    Line 3\n#\n"))
+    self.assertEquals("\nLine 2 ### Test\n #",
+        StripComments("###\n# \n\n#  Line 1\nLine 2 ### Test\n #"))
+
   def testMakeChangeLogBodySimple(self):
-    commits = lambda: [
+    commits = [
           ["        Title text 1",
            "Title text 1\n\nBUG=\n",
            "        author1@chromium.org"],
@@ -70,8 +82,27 @@ class ToplevelTest(unittest.TestCase):
                       MakeChangeLogBody(commits))
 
   def testMakeChangeLogBodyEmpty(self):
-    commits = lambda: []
-    self.assertEquals("", MakeChangeLogBody(commits))
+    self.assertEquals("", MakeChangeLogBody([]))
+
+  def testMakeChangeLogBodyAutoFormat(self):
+    commits = [
+          ["        Title text 1",
+           "Title text 1\nLOG=y\nBUG=\n",
+           "        author1@chromium.org"],
+          ["        Title text 2",
+           "Title text 2\n\nBUG=1234\n",
+           "        author2@chromium.org"],
+          ["        Title text 3",
+           "Title text 3\n\nBUG=1234\nLOG = Yes\n",
+           "        author3@chromium.org"],
+          ["        Title text 3",
+           "Title text 4\n\nBUG=1234\nLOG=\n",
+           "        author4@chromium.org"],
+        ]
+    self.assertEquals("        Title text 1\n\n"
+                      "        Title text 3\n"
+                      "        (Chromium issue 1234)\n\n",
+                      MakeChangeLogBody(commits, True))
 
   def testMakeChangeLogBugReferenceEmpty(self):
     self.assertEquals("", MakeChangeLogBugReference(""))
@@ -327,28 +358,55 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
     self._git_recipe = [
-      ["log 1234..HEAD --format=%H", "rev1\nrev2"],
+      ["log 1234..HEAD --format=%H", "rev1\nrev2\nrev3"],
       ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Title text 1"],
-      ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\n"],
+      ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\nLOG=y\n"],
       ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
        "        author1@chromium.org"],
       ["log -1 rev2 --format=\"%w(80,8,8)%s\"", "        Title text 2"],
-      ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=321\n"],
+      ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=123\nLOG= \n"],
       ["log -1 rev2 --format=\"%w(80,8,8)(%an)\"",
        "        author2@chromium.org"],
+      ["log -1 rev3 --format=\"%w(80,8,8)%s\"", "        Title text 3"],
+      ["log -1 rev3 --format=\"%B\"", "Title\n\nBUG=321\nLOG=true\n"],
+      ["log -1 rev3 --format=\"%w(80,8,8)(%an)\"",
+       "        author3@chromium.org"],
     ]
 
     self.MakeStep().Persist("last_push", "1234")
     self.MakeStep(PrepareChangeLog).Run()
 
-    cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
-    self.assertTrue(re.search(r"\d+\-\d+\-\d+: Version 3\.22\.5", cl))
-    self.assertTrue(re.search(r"        Title text 1", cl))
-    self.assertTrue(re.search(r"        Title text 2", cl))
-    self.assertTrue(re.search(r"        author1@chromium.org", cl))
-    self.assertTrue(re.search(r"        author2@chromium.org", cl))
-    self.assertTrue(re.search(r"        \(Chromium issue 321\)", cl))
-    self.assertFalse(re.search(r"BUG=", cl))
+    actual_cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
+
+    # TODO(machenbach): Mock out call to date() in order to make a fixed
+    # comparison here instead of a regexp match.
+    expected_cl = """\\d+\\-\\d+\\-\\d+: Version 3\\.22\\.5
+
+        Title text 1
+
+        Title text 3
+        \\(Chromium issue 321\\)
+
+        Performance and stability improvements on all platforms\\.
+#
+# The change log above is auto-generated\\. Please review if all relevant
+# commit messages from the list below are included\\.
+# All lines starting with # will be stripped\\.
+#
+#       Title text 1
+#       author1@chromium\\.org
+#
+#       Title text 2
+#       \\(Chromium issue 123\\)
+#       author2@chromium\\.org
+#
+#       Title text 3
+#       \\(Chromium issue 321\\)
+#       author3@chromium\\.org
+#
+#"""
+
+    self.assertTrue(re.match(expected_cl, actual_cl))
     self.assertEquals("3", self.MakeStep().Restore("major"))
     self.assertEquals("22", self.MakeStep().Restore("minor"))
     self.assertEquals("5", self.MakeStep().Restore("build"))
@@ -447,8 +505,16 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"Version 3.22.5", cl))
       self.assertTrue(re.search(r"        Log text 1", cl))
       self.assertTrue(re.search(r"        \(issue 321\)", cl))
+      self.assertFalse(re.search(r"        author1@chromium\.org", cl))
+
+      # Make sure all comments got stripped.
+      self.assertFalse(re.search(r"^#", cl, flags=re.M))
+
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+6", version))
+
+    def CheckUpload():
+      cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
 
     def CheckSVNCommit():
       commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
@@ -461,6 +527,7 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
+    force_flag = " -f" if force else ""
     self._git_recipe = [
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch\n"],
@@ -474,14 +541,15 @@ class ScriptTest(unittest.TestCase):
       ["log -1 1234", "Last push ouput\n"],
       ["log 1234..HEAD --format=%H", "rev1\n"],
       ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Log text 1.\n"],
-      ["log -1 rev1 --format=\"%B\"", "Text\nBUG=v8:321\nText\n"],
+      ["log -1 rev1 --format=\"%B\"", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
       ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
        "        author1@chromium.org\n"],
       [("commit -a -m \"Prepare push to trunk.  "
         "Now working on version 3.22.6.\""),
        " 2 files changed\n",
         CheckPreparePush],
-      ["cl upload -r \"reviewer@chromium.org\" --send-mail", "done\n"],
+      ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
+       "done\n"],
       ["cl dcommit -f", "Closing issue\n"],
       ["svn fetch", "fetch result\n"],
       ["checkout svn/bleeding_edge", ""],
@@ -502,7 +570,7 @@ class ScriptTest(unittest.TestCase):
       [("commit -am \"Update V8 to version 3.22.5.\n\n"
         "TBR=reviewer@chromium.org\""),
        ""],
-      ["cl upload --send-mail", ""],
+      ["cl upload --send-mail%s" % force_flag, ""],
       ["checkout -f some_branch", ""],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],

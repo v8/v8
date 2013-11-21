@@ -700,7 +700,7 @@ void Runtime::FreeArrayBuffer(Isolate* isolate,
       isolate, phantom_array_buffer->byte_length());
 
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<intptr_t>(allocated_length));
+      -static_cast<int64_t>(allocated_length));
   CHECK(V8::ArrayBufferAllocator() != NULL);
   V8::ArrayBufferAllocator()->Free(
       phantom_array_buffer->backing_store(),

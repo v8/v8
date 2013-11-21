@@ -237,7 +237,8 @@ int StackSlotOffset(int index) {
   if (index >= 0) {
     // Local or spill slot. Skip the frame pointer, function, and
     // context in the fixed part of the frame.
-    return -(index + 3) * kPointerSize;
+    return -(index + 1) * kPointerSize -
+        StandardFrameConstants::kFixedFrameSizeFromFp;
   } else {
     // Incoming parameter. Skip the return address.
     return -(index + 1) * kPointerSize + kFPOnStackSize + kPCOnStackSize;

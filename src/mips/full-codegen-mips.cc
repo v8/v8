@@ -1645,8 +1645,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ lw(a3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
@@ -1661,7 +1660,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ li(a0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      depth > 1 || Serializer::enabled() ||
+      expr->depth() > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ Push(a3, a2, a1, a0);
@@ -1780,8 +1779,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
 
@@ -1808,7 +1806,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
         1, a1, a2);
-  } else if (depth > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ Push(a3, a2, a1);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
@@ -2916,7 +2914,7 @@ void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ And(t0, v0, Operand(kSmiTagMask));
+  __ SmiTst(v0, t0);
   Split(eq, t0, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2937,7 +2935,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ And(at, v0, Operand(kSmiTagMask | 0x80000000));
+  __ NonNegativeSmiTst(v0, at);
   Split(eq, at, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -3530,9 +3528,9 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(index, value);
 
   if (FLAG_debug_code) {
-    __ And(at, value, Operand(kSmiTagMask));
+    __ SmiTst(value, at);
     __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
-    __ And(at, index, Operand(kSmiTagMask));
+    __ SmiTst(index, at);
     __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
     __ SmiUntag(index, index);
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
@@ -3567,9 +3565,9 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(index, value);
 
   if (FLAG_debug_code) {
-    __ And(at, value, Operand(kSmiTagMask));
+    __ SmiTst(value, at);
     __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
-    __ And(at, index, Operand(kSmiTagMask));
+    __ SmiTst(index, at);
     __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
     __ SmiUntag(index, index);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;

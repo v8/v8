@@ -122,7 +122,7 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray functions should be maps.
     __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-    __ And(t0, a2, Operand(kSmiTagMask));
+    __ SmiTst(a2, t0);
     __ Assert(ne, kUnexpectedInitialMapForInternalArrayFunction,
               t0, Operand(zero_reg));
     __ GetObjectType(a2, a3, t0);
@@ -152,7 +152,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // Initial map for the builtin Array functions should be maps.
     __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-    __ And(t0, a2, Operand(kSmiTagMask));
+    __ SmiTst(a2, t0);
     __ Assert(ne, kUnexpectedInitialMapForArrayFunction1,
               t0, Operand(zero_reg));
     __ GetObjectType(a2, a3, t0);
@@ -879,7 +879,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
 
   // Perform prologue operations usually performed by the young code stub.
   __ Push(ra, fp, cp, a1);
-  __ Addu(fp, sp, Operand(2 * kPointerSize));
+  __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
   // Jump to point after the code-age stub.
   __ Addu(a0, a0, Operand((kNoCodeAgeSequenceLength) * Assembler::kInstrSize));
@@ -1208,11 +1208,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
 
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
-  const int kIndexOffset    = -5 * kPointerSize;
-  const int kLimitOffset    = -4 * kPointerSize;
-  const int kArgsOffset     =  2 * kPointerSize;
-  const int kRecvOffset     =  3 * kPointerSize;
-  const int kFunctionOffset =  4 * kPointerSize;
+  const int kIndexOffset    =
+      StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
+  const int kLimitOffset    =
+      StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
+  const int kArgsOffset     = 2 * kPointerSize;
+  const int kRecvOffset     = 3 * kPointerSize;
+  const int kFunctionOffset = 4 * kPointerSize;
 
   {
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
@@ -1371,7 +1373,8 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ sll(a0, a0, kSmiTagSize);
   __ li(t0, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ MultiPush(a0.bit() | a1.bit() | t0.bit() | fp.bit() | ra.bit());
-  __ Addu(fp, sp, Operand(3 * kPointerSize));
+  __ Addu(fp, sp,
+      Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }
 
 
@@ -1381,7 +1384,8 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // -----------------------------------
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then tear down the parameters.
-  __ lw(a1, MemOperand(fp, -3 * kPointerSize));
+  __ lw(a1, MemOperand(fp, -(StandardFrameConstants::kFixedFrameSizeFromFp +
+                             kPointerSize)));
   __ mov(sp, fp);
   __ MultiPop(fp.bit() | ra.bit());
   __ sll(t0, a1, kPointerSizeLog2 - kSmiTagSize);
@@ -1479,7 +1483,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
     __ sll(t2, a2, kPointerSizeLog2);
     __ Subu(a2, fp, Operand(t2));
-    __ Addu(a2, a2, Operand(-4 * kPointerSize));  // Adjust for frame.
+    // Adjust for frame.
+    __ Subu(a2, a2, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
+                            2 * kPointerSize));
 
     Label fill;
     __ bind(&fill);

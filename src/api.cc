@@ -610,13 +610,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
 }
 
 
-bool SetResourceConstraints(ResourceConstraints* constraints) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
-  return SetResourceConstraints(reinterpret_cast<Isolate*>(isolate),
-                                constraints);
-}
-
-
 bool SetResourceConstraints(Isolate* v8_isolate,
                             ResourceConstraints* constraints) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -6396,14 +6389,14 @@ void V8::SetFailedAccessCheckCallbackFunction(
 }
 
 
-intptr_t Isolate::AdjustAmountOfExternalAllocatedMemory(
-    intptr_t change_in_bytes) {
+int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
+    int64_t change_in_bytes) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   return heap->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 }
 
 
-intptr_t V8::AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes) {
+int64_t V8::AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes) {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate == NULL || !isolate->IsInitialized()) {
     return 0;

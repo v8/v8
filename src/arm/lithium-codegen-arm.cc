@@ -260,7 +260,7 @@ bool LCodeGen::GenerateDeferredCode() {
         __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
         __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ add(fp, sp, Operand(2 * kPointerSize));
+        __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -325,7 +325,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         ASSERT(info()->IsStub());
         __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ add(fp, sp, Operand(2 * kPointerSize));
+        __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         __ mov(lr, Operand(pc), LeaveCC, al);
         __ mov(pc, ip);
       }
@@ -1133,36 +1133,6 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&left_is_not_negative);
     __ and_(result_reg, left_reg, Operand(divisor - 1));
     __ bind(&done);
-
-  } else if (hmod->fixed_right_arg().has_value) {
-    Register left_reg = ToRegister(instr->left());
-    Register right_reg = ToRegister(instr->right());
-    Register result_reg = ToRegister(instr->result());
-
-    int32_t divisor = hmod->fixed_right_arg().value;
-    ASSERT(IsPowerOf2(divisor));
-
-    // Check if our assumption of a fixed right operand still holds.
-    __ cmp(right_reg, Operand(divisor));
-    DeoptimizeIf(ne, instr->environment());
-
-    Label left_is_not_negative, done;
-    if (left->CanBeNegative()) {
-      __ cmp(left_reg, Operand::Zero());
-      __ b(pl, &left_is_not_negative);
-      __ rsb(result_reg, left_reg, Operand::Zero());
-      __ and_(result_reg, result_reg, Operand(divisor - 1));
-      __ rsb(result_reg, result_reg, Operand::Zero(), SetCC);
-      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(eq, instr->environment());
-      }
-      __ b(&done);
-    }
-
-    __ bind(&left_is_not_negative);
-    __ and_(result_reg, left_reg, Operand(divisor - 1));
-    __ bind(&done);
-
   } else if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm(), SUDIV);
 
@@ -3216,20 +3186,35 @@ void LCodeGen::DoLoadExternalArrayPointer(
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
-  if (instr->length()->IsConstantOperand() &&
-      instr->index()->IsConstantOperand()) {
-    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+  // There are two words between the frame pointer and the last argument.
+  // Subtracting from length accounts for one of them add one more.
+  if (instr->length()->IsConstantOperand()) {
     int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    int index = (const_length - const_index) + 1;
-    __ ldr(result, MemOperand(arguments, index * kPointerSize));
-  } else {
+    if (instr->index()->IsConstantOperand()) {
+      int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+      int index = (const_length - const_index) + 1;
+      __ ldr(result, MemOperand(arguments, index * kPointerSize));
+    } else {
+      Register index = ToRegister(instr->index());
+      __ rsb(result, index, Operand(const_length + 1));
+      __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
+    }
+  } else if (instr->index()->IsConstantOperand()) {
+      Register length = ToRegister(instr->length());
+      int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+      int loc = const_index - 1;
+      if (loc != 0) {
+        __ sub(result, length, Operand(loc));
+        __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
+      } else {
+        __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+      }
+    } else {
     Register length = ToRegister(instr->length());
     Register index = ToRegister(instr->index());
-    // There are two words between the frame pointer and the last argument.
-    // Subtracting from length accounts for one of them add one more.
-    __ sub(length, length, index);
-    __ add(length, length, Operand(1));
-    __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+    __ sub(result, length, index);
+    __ add(result, result, Operand(1));
+    __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
   }
 }
 

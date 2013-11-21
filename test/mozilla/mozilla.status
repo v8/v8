@@ -599,10 +599,6 @@
   # Negative hexadecimal literals are parsed as NaN. This test is outdated.
   'ecma/TypeConversion/9.3.1-3': [FAIL_OK],
 
-
-  # Math.tan expectations are more strict than the spec.
-  'ecma/Math/15.8.2.18': [FAIL_OK],
-
   ##################### FAILING TESTS #####################
 
   # This section is for tests that fail in V8 and pass in JSC.

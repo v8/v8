@@ -1483,10 +1483,6 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->fixed_right_arg().has_value) {
-      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
-                                     UseRegisterAtStart(right));
-      return AssignEnvironment(DefineAsRegister(mod));
     } else if (CpuFeatures::IsSupported(SUDIV)) {
       LModI* mod = new(zone()) LModI(UseRegister(left),
                                      UseRegister(right));
@@ -2554,15 +2550,8 @@ LInstruction* LChunkBuilder::DoCapturedObject(HCapturedObject* instr) {
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   info()->MarkAsRequiresFrame();
   LOperand* args = UseRegister(instr->arguments());
-  LOperand* length;
-  LOperand* index;
-  if (instr->length()->IsConstant() && instr->index()->IsConstant()) {
-    length = UseRegisterOrConstant(instr->length());
-    index = UseOrConstant(instr->index());
-  } else {
-    length = UseTempRegister(instr->length());
-    index = UseRegisterAtStart(instr->index());
-  }
+  LOperand* length = UseRegisterOrConstantAtStart(instr->length());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
   return DefineAsRegister(new(zone()) LAccessArgumentsAt(args, length, index));
 }
 

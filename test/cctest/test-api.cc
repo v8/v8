@@ -4263,7 +4263,7 @@ TEST(OutOfMemory) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(5 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // Execute a script that causes out of memory.
   LocalContext context;
@@ -4304,7 +4304,7 @@ TEST(OutOfMemoryNested) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(5 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   v8::HandleScope scope(CcTest::isolate());
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -4333,7 +4333,7 @@ TEST(HugeConsStringOutOfMemory) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(4 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // Execute a script that causes out of memory.
   v8::V8::IgnoreOutOfMemoryException();
@@ -13748,20 +13748,17 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 }
 
 
-static int64_t cast(intptr_t x) { return static_cast<int64_t>(x); }
-
-
 THREADED_TEST(ExternalAllocatedMemory) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer(isolate);
   v8::Local<Context> env(Context::New(isolate));
   CHECK(!env.IsEmpty());
-  const intptr_t kSize = 1024*1024;
-  int64_t baseline = cast(isolate->AdjustAmountOfExternalAllocatedMemory(0));
-  CHECK_EQ(baseline + cast(kSize),
-           cast(isolate->AdjustAmountOfExternalAllocatedMemory(kSize)));
+  const int64_t kSize = 1024*1024;
+  int64_t baseline = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  CHECK_EQ(baseline + kSize,
+           isolate->AdjustAmountOfExternalAllocatedMemory(kSize));
   CHECK_EQ(baseline,
-           cast(isolate->AdjustAmountOfExternalAllocatedMemory(-kSize)));
+           isolate->AdjustAmountOfExternalAllocatedMemory(-kSize));
 }
 
 
@@ -17172,7 +17169,7 @@ TEST(SetResourceConstraints) {
   // Set stack limit.
   v8::ResourceConstraints constraints;
   constraints.set_stack_limit(set_limit);
-  CHECK(v8::SetResourceConstraints(&constraints));
+  CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
 
   // Execute a script.
   LocalContext env;
@@ -17196,7 +17193,7 @@ TEST(SetResourceConstraintsInThread) {
     // Set stack limit.
     v8::ResourceConstraints constraints;
     constraints.set_stack_limit(set_limit);
-    CHECK(v8::SetResourceConstraints(&constraints));
+    CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
 
     // Execute a script.
     v8::HandleScope scope(CcTest::isolate());
@@ -18646,7 +18643,7 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
       v8::ResourceConstraints constraints;
       constraints.set_max_young_space_size(256 * K);
       constraints.set_max_old_space_size(4 * K * K);
-      v8::SetResourceConstraints(&constraints);
+      v8::SetResourceConstraints(CcTest::isolate(), &constraints);
       break;
     }
 
@@ -19937,16 +19934,28 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
   v8::Isolate* isolate = v8::Isolate::New();
   isolate->Enter();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  CHECK_EQ(NULL, isolate->GetData());
-  CHECK_EQ(NULL, i_isolate->GetData());
-  static void* data1 = reinterpret_cast<void*>(0xacce55ed);
-  isolate->SetData(data1);
-  CHECK_EQ(data1, isolate->GetData());
-  CHECK_EQ(data1, i_isolate->GetData());
-  static void* data2 = reinterpret_cast<void*>(0xdecea5ed);
-  i_isolate->SetData(data2);
-  CHECK_EQ(data2, isolate->GetData());
-  CHECK_EQ(data2, i_isolate->GetData());
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    CHECK_EQ(NULL, isolate->GetData(slot));
+    CHECK_EQ(NULL, i_isolate->GetData(slot));
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xacce55ed + slot);
+    isolate->SetData(slot, data);
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xacce55ed + slot);
+    CHECK_EQ(data, isolate->GetData(slot));
+    CHECK_EQ(data, i_isolate->GetData(slot));
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xdecea5ed + slot);
+    isolate->SetData(slot, data);
+  }
+  for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
+    void* data = reinterpret_cast<void*>(0xdecea5ed + slot);
+    CHECK_EQ(data, isolate->GetData(slot));
+    CHECK_EQ(data, i_isolate->GetData(slot));
+  }
   isolate->Exit();
   isolate->Dispose();
 }

@@ -541,10 +541,10 @@ MaybeObject* Heap::PrepareForCompare(String* str) {
 }
 
 
-intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
-    intptr_t change_in_bytes) {
+int64_t Heap::AdjustAmountOfExternalAllocatedMemory(
+    int64_t change_in_bytes) {
   ASSERT(HasBeenSetUp());
-  intptr_t amount = amount_of_external_allocated_memory_ + change_in_bytes;
+  int64_t amount = amount_of_external_allocated_memory_ + change_in_bytes;
   if (change_in_bytes > 0) {
     // Avoid overflow.
     if (amount > amount_of_external_allocated_memory_) {
@@ -554,7 +554,7 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
       amount_of_external_allocated_memory_ = 0;
       amount_of_external_allocated_memory_at_last_global_gc_ = 0;
     }
-    intptr_t amount_since_last_global_gc = PromotedExternalMemorySize();
+    int64_t amount_since_last_global_gc = PromotedExternalMemorySize();
     if (amount_since_last_global_gc > external_allocation_limit_) {
       CollectAllGarbage(kNoGCFlags, "external memory allocation limit reached");
     }
@@ -573,9 +573,9 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
     PrintF("Adjust amount of external memory: delta=%6" V8_PTR_PREFIX "d KB, "
            "amount=%6" V8_PTR_PREFIX "d KB, since_gc=%6" V8_PTR_PREFIX "d KB, "
            "isolate=0x%08" V8PRIxPTR ".\n",
-           change_in_bytes / KB,
-           amount_of_external_allocated_memory_ / KB,
-           PromotedExternalMemorySize() / KB,
+           static_cast<intptr_t>(change_in_bytes / KB),
+           static_cast<intptr_t>(amount_of_external_allocated_memory_ / KB),
+           static_cast<intptr_t>(PromotedExternalMemorySize() / KB),
            reinterpret_cast<intptr_t>(isolate()));
   }
   ASSERT(amount_of_external_allocated_memory_ >= 0);

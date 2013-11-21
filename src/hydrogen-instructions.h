@@ -4901,10 +4901,7 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
   static HInstruction* New(Zone* zone,
                            HValue* context,
                            HValue* left,
-                           HValue* right,
-                           Maybe<int> fixed_right_arg);
-
-  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
+                           HValue* right);
 
   bool HasPowerOf2Divisor() {
     if (right()->IsConstant() &&
@@ -4938,15 +4935,10 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
  private:
   HMod(HValue* context,
        HValue* left,
-       HValue* right,
-       Maybe<int> fixed_right_arg)
-      : HArithmeticBinaryOperation(context, left, right),
-        fixed_right_arg_(fixed_right_arg) {
+       HValue* right) : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
   }
-
-  const Maybe<int> fixed_right_arg_;
 };
 
 

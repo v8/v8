@@ -2969,7 +2969,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the RegExp has been compiled (data contains a fixed array).
   __ lw(regexp_data, FieldMemOperand(a0, JSRegExp::kDataOffset));
   if (FLAG_debug_code) {
-    __ And(t0, regexp_data, Operand(kSmiTagMask));
+    __ SmiTst(regexp_data, t0);
     __ Check(nz,
              kUnexpectedTypeForRegExpDataFixedArrayExpected,
              t0,
@@ -6164,7 +6164,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Initial map for the builtin Array function should be a map.
     __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
-    __ And(at, a3, Operand(kSmiTagMask));
+    __ SmiTst(a3, at);
     __ Assert(ne, kUnexpectedInitialMapForArrayFunction,
         at, Operand(zero_reg));
     __ GetObjectType(a3, a3, t0);
@@ -6253,7 +6253,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Initial map for the builtin Array function should be a map.
     __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
-    __ And(at, a3, Operand(kSmiTagMask));
+    __ SmiTst(a3, at);
     __ Assert(ne, kUnexpectedInitialMapForArrayFunction,
         at, Operand(zero_reg));
     __ GetObjectType(a3, a3, t0);

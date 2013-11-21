@@ -412,7 +412,7 @@ void Heap::PrintShortHeapStatistics() {
            this->Available() / KB,
            this->CommittedMemory() / KB);
   PrintPID("External memory reported: %6" V8_PTR_PREFIX "d KB\n",
-           amount_of_external_allocated_memory_ / KB);
+           static_cast<intptr_t>(amount_of_external_allocated_memory_ / KB));
   PrintPID("Total time spent in GC  : %.1f ms\n", total_gc_time_ms_);
 }
 
@@ -6591,7 +6591,7 @@ bool Heap::AdvanceSweepers(int step_size) {
 }
 
 
-intptr_t Heap::PromotedExternalMemorySize() {
+int64_t Heap::PromotedExternalMemorySize() {
   if (amount_of_external_allocated_memory_
       <= amount_of_external_allocated_memory_at_last_global_gc_) return 0;
   return amount_of_external_allocated_memory_

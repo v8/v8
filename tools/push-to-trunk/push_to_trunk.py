@@ -112,19 +112,28 @@ class PrepareChangeLog(Step):
     args = "log %s..HEAD --format=%%H" % self._state["last_push"]
     commits = self.Git(args).strip()
 
-    def GetCommitMessages():
-      for commit in commits.splitlines():
-        yield [
-          self.Git("log -1 %s --format=\"%%w(80,8,8)%%s\"" % commit),
-          self.Git("log -1 %s --format=\"%%B\"" % commit),
-          self.Git("log -1 %s --format=\"%%w(80,8,8)(%%an)\"" % commit),
-        ]
+    # Cache raw commit messages.
+    commit_messages = [
+      [
+        self.Git("log -1 %s --format=\"%%w(80,8,8)%%s\"" % commit),
+        self.Git("log -1 %s --format=\"%%B\"" % commit),
+        self.Git("log -1 %s --format=\"%%w(80,8,8)(%%an)\"" % commit),
+      ] for commit in commits.splitlines()
+    ]
 
-    body = MakeChangeLogBody(GetCommitMessages)
+    # Auto-format commit messages.
+    body = MakeChangeLogBody(commit_messages, auto_format=True)
     AppendToFile(body, self.Config(CHANGELOG_ENTRY_FILE))
 
-    msg = "        Performance and stability improvements on all platforms.\n"
+    msg = ("        Performance and stability improvements on all platforms."
+           "\n#\n# The change log above is auto-generated. Please review if "
+           "all relevant\n# commit messages from the list below are included."
+           "\n# All lines starting with # will be stripped.\n#\n")
     AppendToFile(msg, self.Config(CHANGELOG_ENTRY_FILE))
+
+    # Include unformatted commit messages as a reference in a comment.
+    comment_body = MakeComment(MakeChangeLogBody(commit_messages))
+    AppendToFile(comment_body, self.Config(CHANGELOG_ENTRY_FILE))
 
 
 class EditChangeLog(Step):
@@ -143,9 +152,10 @@ class EditChangeLog(Step):
     handle, new_changelog = tempfile.mkstemp()
     os.close(handle)
 
-    # (1) Eliminate tabs, (2) fix too little and (3) too much indentation, and
-    # (4) eliminate trailing whitespace.
+    # (1) Strip comments, (2) eliminate tabs, (3) fix too little and (4) too
+    # much indentation, and (5) eliminate trailing whitespace.
     changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE)).rstrip()
+    changelog_entry = StripComments(changelog_entry)
     changelog_entry = MSub(r"\t", r"        ", changelog_entry)
     changelog_entry = MSub(r"^ {1,7}([^ ])", r"        \1", changelog_entry)
     changelog_entry = MSub(r"^ {9,80}([^ ])", r"        \1", changelog_entry)
@@ -457,7 +467,8 @@ class UploadCL(Step):
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
-    if self.Git("cl upload --send-mail", pipe=False) is None:
+    force_flag = " -f" if self._options.f else ""
+    if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
 

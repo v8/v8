@@ -49,7 +49,6 @@
 #endif  // !V8_SHARED
 
 #ifdef V8_SHARED
-#include "../include/v8-defaults.h"
 #include "../include/v8-testing.h"
 #endif  // V8_SHARED
 
@@ -68,7 +67,6 @@
 #include "natives.h"
 #include "platform.h"
 #include "v8.h"
-#include "v8-defaults.h"
 #endif  // V8_SHARED
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -92,15 +90,15 @@ class PerIsolateData {
  public:
   explicit PerIsolateData(Isolate* isolate) : isolate_(isolate), realms_(NULL) {
     HandleScope scope(isolate);
-    isolate->SetData(this);
+    isolate->SetData(0, this);
   }
 
   ~PerIsolateData() {
-    isolate_->SetData(NULL);  // Not really needed, just to be sure...
+    isolate_->SetData(0, NULL);  // Not really needed, just to be sure...
   }
 
   inline static PerIsolateData* Get(Isolate* isolate) {
-    return reinterpret_cast<PerIsolateData*>(isolate->GetData());
+    return reinterpret_cast<PerIsolateData*>(isolate->GetData(0));
   }
 
   class RealmScope {

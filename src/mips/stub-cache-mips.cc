@@ -2316,7 +2316,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   // If the argument is a smi, just return.
   STATIC_ASSERT(kSmiTag == 0);
-  __ And(t0, v0, Operand(kSmiTagMask));
+  __ SmiTst(v0, t0);
   __ DropAndRet(argc + 1, eq, t0, Operand(zero_reg));
 
   __ CheckMap(v0, a1, Heap::kHeapNumberMapRootIndex, &slow, DONT_DO_SMI_CHECK);

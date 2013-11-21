@@ -257,7 +257,7 @@ bool LCodeGen::GenerateDeferredCode() {
         __ MultiPush(cp.bit() | fp.bit() | ra.bit());
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ Addu(fp, sp, Operand(2 * kPointerSize));
+        __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -309,7 +309,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         ASSERT(info()->IsStub());
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ Addu(fp, sp, Operand(2 * kPointerSize));
+        __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         __ Call(t9);
       }
     } else {
@@ -1091,35 +1091,6 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&left_is_not_negative);
     __ And(result_reg, left_reg, divisor - 1);
     __ bind(&done);
-
-  } else if (hmod->fixed_right_arg().has_value) {
-    const Register left_reg = ToRegister(instr->left());
-    const Register result_reg = ToRegister(instr->result());
-    const Register right_reg = ToRegister(instr->right());
-
-    int32_t divisor = hmod->fixed_right_arg().value;
-    ASSERT(IsPowerOf2(divisor));
-
-    // Check if our assumption of a fixed right operand still holds.
-    DeoptimizeIf(ne, instr->environment(), right_reg, Operand(divisor));
-
-    Label left_is_not_negative, done;
-    if (left->CanBeNegative()) {
-      __ Branch(left_reg.is(result_reg) ? PROTECT : USE_DELAY_SLOT,
-                &left_is_not_negative, ge, left_reg, Operand(zero_reg));
-      __ subu(result_reg, zero_reg, left_reg);
-      __ And(result_reg, result_reg, divisor - 1);
-      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(eq, instr->environment(), result_reg, Operand(zero_reg));
-      }
-      __ Branch(USE_DELAY_SLOT, &done);
-      __ subu(result_reg, zero_reg, result_reg);
-    }
-
-    __ bind(&left_is_not_negative);
-    __ And(result_reg, left_reg, divisor - 1);
-    __ bind(&done);
-
   } else {
     const Register scratch = scratch0();
     const Register left_reg = ToRegister(instr->left());
@@ -1733,7 +1704,7 @@ void LCodeGen::DoDateField(LDateField* instr) {
   ASSERT(!scratch.is(scratch0()));
   ASSERT(!scratch.is(object));
 
-  __ And(at, object, Operand(kSmiTagMask));
+  __ SmiTst(object, at);
   DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
   __ GetObjectType(object, scratch, scratch);
   DeoptimizeIf(ne, instr->environment(), scratch, Operand(JS_DATE_TYPE));
@@ -2144,7 +2115,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
       } else if (expected.NeedsMap()) {
         // If we need a map later and have a Smi -> deopt.
-        __ And(at, reg, Operand(kSmiTagMask));
+        __ SmiTst(reg, at);
         DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
       }
 
@@ -3237,7 +3208,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
     if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
-      __ And(scratch, result, Operand(kSmiTagMask));
+      __ SmiTst(result, scratch);
       DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
     } else {
       __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
@@ -3386,7 +3357,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ Branch(&global_object, eq, receiver, Operand(scratch));
 
   // Deoptimize if the receiver is not a JS object.
-  __ And(scratch, receiver, Operand(kSmiTagMask));
+  __ SmiTst(receiver, scratch);
   DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
 
   __ GetObjectType(receiver, scratch, scratch);
@@ -4164,7 +4135,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     Register value = ToRegister(instr->value());
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
-      __ And(scratch, value, Operand(kSmiTagMask));
+      __ SmiTst(value, scratch);
       DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
     }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
@@ -5159,7 +5130,7 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
-  __ And(at, ToRegister(input), Operand(kSmiTagMask));
+  __ SmiTst(ToRegister(input), at);
   DeoptimizeIf(ne, instr->environment(), at, Operand(zero_reg));
 }
 
@@ -5167,7 +5138,7 @@ void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   if (!instr->hydrogen()->value()->IsHeapObject()) {
     LOperand* input = instr->value();
-    __ And(at, ToRegister(input), Operand(kSmiTagMask));
+    __ SmiTst(ToRegister(input), at);
     DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
   }
 }
@@ -5240,7 +5211,7 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
         instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(v0, scratch0());
   }
-  __ And(at, scratch0(), Operand(kSmiTagMask));
+  __ SmiTst(scratch0(), at);
   DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
 }
 

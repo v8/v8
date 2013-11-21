@@ -1409,13 +1409,20 @@ class MaterializedLiteral : public Expression {
 
   int literal_index() { return literal_index_; }
 
+  int depth() const {
+    // only callable after initialization.
+    ASSERT(depth_ >= 1);
+    return depth_;
+  }
+
  protected:
   MaterializedLiteral(Isolate* isolate,
                       int literal_index,
                       int pos)
       : Expression(isolate, pos),
         literal_index_(literal_index),
-        is_simple_(false) {}
+        is_simple_(false),
+        depth_(0) {}
 
   // A materialized literal is simple if the values consist of only
   // constants and simple object and array literals.
@@ -1423,8 +1430,13 @@ class MaterializedLiteral : public Expression {
   void set_is_simple(bool is_simple) { is_simple_ = is_simple; }
   friend class CompileTimeValue;
 
+  void set_depth(int depth) {
+    ASSERT(depth >= 1);
+    depth_ = depth;
+  }
+
   // Populate the constant properties/elements fixed array.
-  void BuildConstants(Isolate* isolate, int* depth);
+  void BuildConstants(Isolate* isolate);
   friend class ArrayLiteral;
   friend class ObjectLiteral;
 
@@ -1438,6 +1450,7 @@ class MaterializedLiteral : public Expression {
  private:
   int literal_index_;
   bool is_simple_;
+  int depth_;
 };
 
 
@@ -1505,7 +1518,7 @@ class ObjectLiteral V8_FINAL : public MaterializedLiteral {
   static bool IsBoilerplateProperty(Property* property);
 
   // Populate the constant properties fixed array.
-  void BuildConstantProperties(Isolate* isolate, int* depth = NULL);
+  void BuildConstantProperties(Isolate* isolate);
 
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
@@ -1564,7 +1577,9 @@ class RegExpLiteral V8_FINAL : public MaterializedLiteral {
                 int pos)
       : MaterializedLiteral(isolate, literal_index, pos),
         pattern_(pattern),
-        flags_(flags) {}
+        flags_(flags) {
+    set_depth(1);
+  }
 
  private:
   Handle<String> pattern_;
@@ -1587,7 +1602,7 @@ class ArrayLiteral V8_FINAL : public MaterializedLiteral {
   }
 
   // Populate the constant elements fixed array.
-  void BuildConstantElements(Isolate* isolate, int* depth = NULL);
+  void BuildConstantElements(Isolate* isolate);
 
  protected:
   ArrayLiteral(Isolate* isolate,

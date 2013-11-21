@@ -1635,8 +1635,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
@@ -1651,7 +1650,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ mov(r0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      depth > 1 || Serializer::enabled() ||
+      expr->depth() > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ Push(r3, r2, r1, r0);
@@ -1770,8 +1769,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1795,7 +1793,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(
         isolate()->counters()->cow_arrays_created_stub(), 1, r1, r2);
-  } else if (depth > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ Push(r3, r2, r1);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
