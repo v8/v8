@@ -81,17 +81,50 @@ def GetLastChangeLogEntries(change_log_file):
   return "".join(result)
 
 
-def MakeChangeLogBody(commit_generator):
+def MakeComment(text):
+  return MSub(r"^( ?)", "#", text)
+
+
+def StripComments(text):
+  # Use split not splitlines to keep terminal newlines.
+  return "\n".join(filter(lambda x: not x.startswith("#"), text.split("\n")))
+
+
+def MakeChangeLogBody(commit_messages, auto_format=False):
   result = ""
-  for (title, body, author) in commit_generator():
+  added_titles = set()
+  for (title, body, author) in commit_messages:
+    # TODO(machenbach): Reload the commit description from rietveld in order to
+    # catch late changes.
+    title = title.rstrip()
+    if auto_format:
+      # Only add commits that set the LOG flag correctly.
+      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:Y(?:ES)?)|TRUE"
+      if not re.search(log_exp, body, flags=re.I | re.M):
+        continue
+      # Never include reverts.
+      if title.startswith("Revert "):
+        continue
+      # Don't include duplicates.
+      if title in added_titles:
+        continue
+
+    # TODO(machenbach): Let python do all formatting. Get raw git title, attach
+    # issue and add/move dot to the end - all in one line. Make formatting and
+    # indentation afterwards.
+
     # Add the commit's title line.
-    result += "%s\n" % title.rstrip()
+    result += "%s\n" % title
+    added_titles.add(title)
 
     # Add bug references.
     result += MakeChangeLogBugReference(body)
 
-    # Append the commit's author for reference.
-    result += "%s\n\n" % author.rstrip()
+    # Append the commit's author for reference if not in auto-format mode.
+    if not auto_format:
+      result += "%s\n" % author.rstrip()
+
+    result += "\n"
   return result
 
 
