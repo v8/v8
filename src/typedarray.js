@@ -86,8 +86,8 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 
   function NAMEConstructByLength(obj, length) {
     var l = IS_UNDEFINED(length) ?
-      0 : ToPositiveInteger(length, "invalid_typed_array_length");
-    if (l > %MaxSmi()) {
+        0 : ToPositiveInteger(length, "invalid_typed_array_length");
+    if (!%_IsSmi(l)) {
       throw MakeRangeError("invalid_typed_array_length");
     }
     var byteLength = l * ELEMENT_SIZE;
@@ -98,7 +98,7 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   function NAMEConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
     var l = ToPositiveInteger(length, "invalid_typed_array_length");
-    if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
+    if (!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
       for (var i = 0; i < l; i++) {
         // It is crucial that we let any execptions from arrayLike[i]
         // propagate outside the function.
@@ -108,7 +108,6 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   }
 
   function NAMEConstructor(arg1, arg2, arg3) {
-
     if (%_IsConstructCall()) {
       if (IS_ARRAYBUFFER(arg1)) {
         NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
