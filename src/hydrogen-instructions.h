@@ -155,7 +155,6 @@ class LChunkBuilder;
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
-  V(Random)                                    \
   V(RegExpLiteral)                             \
   V(Return)                                    \
   V(Ror)                                       \
@@ -4721,28 +4720,6 @@ class HPower V8_FINAL : public HTemplateInstruction<2> {
   virtual bool IsDeletable() const V8_OVERRIDE {
     return !right()->representation().IsTagged();
   }
-};
-
-
-class HRandom V8_FINAL : public HTemplateInstruction<1> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HRandom, HValue*);
-
-  HValue* global_object() { return OperandAt(0); }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(Random)
-
- private:
-  explicit HRandom(HValue* global_object) {
-    SetOperandAt(0, global_object);
-    set_representation(Representation::Double());
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
 

@@ -3829,68 +3829,6 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
-void LCodeGen::DoRandom(LRandom* instr) {
-  // Assert that the register size is indeed the size of each seed.
-  static const int kSeedSize = sizeof(uint32_t);
-  STATIC_ASSERT(kPointerSize == kSeedSize);
-
-  // Load native context.
-  Register global_object = ToRegister(instr->global_object());
-  Register native_context = global_object;
-  __ lw(native_context, FieldMemOperand(
-          global_object, GlobalObject::kNativeContextOffset));
-
-  // Load state (FixedArray of the native context's random seeds).
-  static const int kRandomSeedOffset =
-      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  Register state = native_context;
-  __ lw(state, FieldMemOperand(native_context, kRandomSeedOffset));
-
-  // Load state[0].
-  Register state0 = ToRegister(instr->scratch());
-  __ lw(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
-  // Load state[1].
-  Register state1 = ToRegister(instr->scratch2());
-  __ lw(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
-
-  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  Register scratch3 = ToRegister(instr->scratch3());
-  Register scratch4 = scratch0();
-  __ And(scratch3, state0, Operand(0xFFFF));
-  __ li(scratch4, Operand(18273));
-  __ Mul(scratch3, scratch3, scratch4);
-  __ srl(state0, state0, 16);
-  __ Addu(state0, scratch3, state0);
-  // Save state[0].
-  __ sw(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
-
-  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ And(scratch3, state1, Operand(0xFFFF));
-  __ li(scratch4, Operand(36969));
-  __ Mul(scratch3, scratch3, scratch4);
-  __ srl(state1, state1, 16),
-  __ Addu(state1, scratch3, state1);
-  // Save state[1].
-  __ sw(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
-
-  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  Register random = scratch4;
-  __ And(random, state1, Operand(0x3FFFF));
-  __ sll(state0, state0, 14);
-  __ Addu(random, random, state0);
-
-  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-  __ li(scratch3, Operand(0x41300000));
-  // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
-  DoubleRegister result = ToDoubleRegister(instr->result());
-  __ Move(result, random, scratch3);
-  // Move 0x4130000000000000 to FPU.
-  DoubleRegister scratch5 = double_scratch0();
-  __ Move(scratch5, zero_reg, scratch3);
-  __ sub_d(result, result, scratch5);
-}
-
-
 void LCodeGen::DoMathExp(LMathExp* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());

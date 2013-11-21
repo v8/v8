@@ -185,7 +185,7 @@ enum BindingFlags {
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, \
     generator_object_prototype_map) \
   V(GENERATOR_RESULT_MAP_INDEX, Map, generator_result_map) \
-  V(RANDOM_SEED_INDEX, ByteArray, random_seed)
+  V(RANDOM_STATE_INDEX, Smi, random_state)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -332,7 +332,7 @@ class Context: public FixedArray {
     STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
     GENERATOR_RESULT_MAP_INDEX,
-    RANDOM_SEED_INDEX,
+    RANDOM_STATE_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
