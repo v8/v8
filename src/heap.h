@@ -1783,7 +1783,7 @@ class Heap {
 
   bool flush_monomorphic_ics() { return flush_monomorphic_ics_; }
 
-  intptr_t amount_of_external_allocated_memory() {
+  int64_t amount_of_external_allocated_memory() {
     return amount_of_external_allocated_memory_;
   }
 
