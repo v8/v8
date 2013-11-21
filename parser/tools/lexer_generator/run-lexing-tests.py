@@ -28,6 +28,13 @@
 import subprocess
 import sys
 
+def wait_processes(processes):
+  for p in processes:
+    if p[1].wait():
+      print p[0], 'failed'
+    else:
+      print p[0], 'ok'
+
 if __name__ == '__main__':
   if len(sys.argv) < 4:
     error_message = ('Usage:' + sys.argv[0] +
@@ -47,9 +54,7 @@ if __name__ == '__main__':
       lexer_shell_args = [lexer_shell, f, '--break-after-illegal'] + sys.argv[4:]
       processes.append((f, subprocess.Popen(lexer_shell_args, stdout=dev_null)))
       if i % process_count == process_count - 1:
-        for p in processes:
-          if p[1].wait():
-            print p[0], 'failed'
-          else:
-            print p[0], 'ok'
+        wait_processes(processes)
         processes = []
+
+    wait_processes(processes)

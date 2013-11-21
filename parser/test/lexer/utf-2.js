@@ -25,7 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This file is in utf-16, and contains weird letters.
+// This file is in utf-8, and contains weird letters.
 
+// These letters are ok in identifiers.
 var fööbar = 16; // ö in latin1, but not in ascii.
 var fooķar = 17; // ķ not in latin1.
+
+var inside_strings = "öķ";
+var inside_strings2 = 'öķ';
+
+// And inside a comment: öķ
+
+/* And a multi-line comment öķ */
+
+<!-- And an html comment öķ -->

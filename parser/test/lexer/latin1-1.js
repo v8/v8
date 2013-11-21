@@ -25,7 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This file is in utf-8 (or rather, ASCII), but doesn't contain any weird
-// characters.
+// This file is in latin1, and contains weird letters.
 
-var foobar = 16;
+// ö is ok in identifiers.
+var fööbar = 16; // ö in latin1, but not in ascii.
+
+var inside_strings = "ö";
+var inside_strings2 = 'ö';
+
+// And inside a comment: ö
+
+/* And a multi-line comment ö */
+
+<!-- And an html comment ö -->

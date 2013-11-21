@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This file is in utf-16, and contains weird characters in strings and
+// This file is in utf-8, and contains weird characters in strings and
 // comments.
 
 var here_it_is = "☃";
