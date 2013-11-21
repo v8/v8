@@ -40,18 +40,35 @@ class TransitionKey:
     'latin_1' : (1, 255),
     # These are not real ranges; they just need to be separate from any real
     # ranges.
-    'whitespace' : (256, 256),
-    'letter' : (257, 257),
-    'identifier_part_not_letter' : (258, 258),
-    'eos' : (259, 259),
-    'zero' : (260, 260),
+    'non_latin_1_whitespace' : (256, 256),
+    'non_latin_1_letter' : (257, 257),
+    'non_latin1_identifier_part_not_letter' : (258, 258),
+    'non_latin1_line_terminator' : (259, 259),
+    'eos' : (260, 260),
+    'zero' : (261, 261),
   }
-  __lower_bound = 1
+  __lower_bound = min(__class_bounds.values(), key=lambda item: item[0])[0]
   __upper_bound = max(__class_bounds.values(), key=lambda item: item[1])[1]
 
   __cached_keys = {}
 
   __unique_key_counter = -1
+
+  __predefined_ranges = {
+    'whitespace' : [
+        (9, 9), (11, 12), (32, 32), (133, 133), (160, 160),
+        __class_bounds['non_latin_1_whitespace']],
+    'letter' : [
+        (65, 90), (97, 122), (170, 170), (181, 181),
+        (186, 186), (192, 214), (216, 246), (248, 255),
+        __class_bounds['non_latin_1_letter']],
+    'line_terminator' : [
+        (10, 10), (13, 13),
+        __class_bounds['non_latin1_line_terminator']],
+    'identifier_part_not_letter' : [
+        (48, 57), (95, 95),
+        __class_bounds['non_latin1_identifier_part_not_letter']],
+  }
 
   @staticmethod
   def __in_latin_1(char):
@@ -140,8 +157,16 @@ class TransitionKey:
         TransitionKey.__process_graph(x, ranges, key_map)
     elif key == 'CHARACTER_CLASS':
       class_name = graph[1]
-      if class_name in TransitionKey.__class_bounds.keys():
+      if class_name in TransitionKey.__class_bounds:
+        if class_name in key_map:
+          assert (key_map[class_name] ==
+              TransitionKey([TransitionKey.__class_bounds[class_name]]))
         ranges.append(TransitionKey.__class_bounds[class_name])
+      elif class_name in TransitionKey.__predefined_ranges:
+        if class_name in key_map:
+          assert (key_map[class_name] ==
+              TransitionKey(TransitionKey.__predefined_ranges[class_name]))
+        ranges += TransitionKey.__predefined_ranges[class_name]
       elif class_name in key_map:
         ranges += key_map[class_name].__ranges
       else:

@@ -5,29 +5,31 @@
     {%- if not loop.first %} || {% endif -%}
     {%- if r[0] == 'LATIN_1' -%}
       {%- if r[1][0] == r[1][1] -%}
-	yych == {{r[1][0]}}
+	      yych == {{r[1][0]}}
       {%- elif r[1][0] == 0 -%}
-	yych <= {{r[1][1]}}
+	      yych <= {{r[1][1]}}
       {%- elif r[1][1] == 255 -%}
-	yych >= {{r[1][0]}}
+	      yych >= {{r[1][0]}}
       {%- else -%}
-	({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
+	      ({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
       {%- endif -%}
     {%- elif r[0] == 'CLASS' -%}
       {%- if r[1] == 'eos' -%}
-	(yych == 0 && cursor_ >= buffer_end_)
+	      (yych == 0 && cursor_ >= buffer_end_)
       {%- elif r[1] == 'zero' -%}
-	(yych == 0 && cursor_ < buffer_end_)
-      {%- elif r[1] == 'whitespace' and encoding == 'utf16'-%}
+	      (yych == 0 && cursor_ < buffer_end_)
+      {%- elif r[1] == 'non_latin_1_whitespace' and encoding == 'utf16'-%}
         {# FIXME: Add and use unicode_cache_->InNonAsciiWhitespace #}
-        (yych != ' ' && yych != '\t' && yych != '\v' && yych != '\f' && yych != '\r' && yych != '\n' && unicode_cache_->IsWhiteSpace(yych))
-      {%- elif r[1] == 'letter' and encoding == 'utf16'-%}
+        (yych > 255 && unicode_cache_->IsWhiteSpace(yych))
+      {%- elif r[1] == 'non_latin_1_letter' and encoding == 'utf16'-%}
         {# FIXME: Add and use unicode_cache_->InNonAsciiLetter #}
-        (!(yych >= 'a' && yych <= 'z') && !(yych >= 'A' && yych <= 'Z') &&  unicode_cache_->IsLetter(yych))
-      {%- elif r[1] == 'identifier_part_not_letter' and encoding == 'utf16'-%}
-        unicode_cache_->IsIdentifierPartNotLetter(yych)
+        (yych > 255 &&  unicode_cache_->IsLetter(yych))
+      {%- elif r[1] == 'non_latin1_identifier_part_not_letter' and encoding == 'utf16'-%}
+        (yych > 255 &&  unicode_cache_->IsIdentifierPartNotLetter(yych))
+      {%- elif r[1] == 'non_latin1_line_terminator' and encoding == 'utf16'-%}
+        (yych > 255 &&  unicode_cache_->IsLineTerminator(yych))
       {%- else -%}
-	false /* {{r[1]}} */
+	      false /* {{r[1]}} */
       {%- endif -%}
     {%- else -%}
       false

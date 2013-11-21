@@ -25,11 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-whitespace_char = [ \t\v\f\r:whitespace:\240];
+whitespace_char = [:whitespace:];
 whitespace = whitespace_char+;
-identifier_start = [$_a-zA-Z:letter:];
-identifier_char = [0-9:identifier_part_not_letter::identifier_start:];
-line_terminator = [\n\r];
+identifier_start = [$_:letter:];
+identifier_char = [:identifier_start::identifier_part_not_letter:];
+line_terminator = [:line_terminator:];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
 single_escape_char = ['"\\bfnrtv];
@@ -38,8 +38,7 @@ number =
   /0[xX][:hex_digit:]+/ | (
   /\.[:digit:]+/ maybe_exponent |
   /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
-# TODO this is incomplete/incorrect
-line_terminator_sequence = (/\n\r?/)|(/\r\n?/);
+line_terminator_sequence = /[:line_terminator:]|\r\n/;
 eos = [:eos:];
 
 # grammar is
