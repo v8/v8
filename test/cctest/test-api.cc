@@ -13748,20 +13748,17 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 }
 
 
-static int64_t cast(intptr_t x) { return static_cast<int64_t>(x); }
-
-
 THREADED_TEST(ExternalAllocatedMemory) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer(isolate);
   v8::Local<Context> env(Context::New(isolate));
   CHECK(!env.IsEmpty());
-  const intptr_t kSize = 1024*1024;
-  int64_t baseline = cast(isolate->AdjustAmountOfExternalAllocatedMemory(0));
-  CHECK_EQ(baseline + cast(kSize),
-           cast(isolate->AdjustAmountOfExternalAllocatedMemory(kSize)));
+  const int64_t kSize = 1024*1024;
+  int64_t baseline = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  CHECK_EQ(baseline + kSize,
+           isolate->AdjustAmountOfExternalAllocatedMemory(kSize));
   CHECK_EQ(baseline,
-           cast(isolate->AdjustAmountOfExternalAllocatedMemory(-kSize)));
+           isolate->AdjustAmountOfExternalAllocatedMemory(-kSize));
 }
 
 
