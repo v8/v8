@@ -40,6 +40,7 @@
 #include "objects-visiting.h"
 #include "platform.h"
 #include "snapshot.h"
+#include "trig-table.h"
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
 #include "extensions/statistics-extension.h"
@@ -2632,8 +2633,8 @@ Genesis::Genesis(Isolate* isolate,
   if (!InstallExperimentalNatives()) return;
 
   // We can't (de-)serialize typed arrays currently, but we are lucky: The state
-  // of the random number generator needs no initialization during snapshot
-  // creation time.
+  // of the random number generator and the trigonometric lookup tables needs no
+  // initialization during snapshot creation time.
   uint32_t* state = NULL;
   if (!Serializer::enabled()) {
     // Initially seed the per-context random number generator using the
@@ -2653,6 +2654,40 @@ Genesis::Genesis(Isolate* isolate,
                      factory()->InternalizeOneByteString(
                          STATIC_ASCII_VECTOR("rngstate")),
                      Utils::OpenHandle(*ta),
+                     NONE);
+
+    // Initialize trigonometric lookup tables and constants.
+    const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
+    v8::Local<v8::ArrayBuffer> sin_buffer = v8::ArrayBuffer::New(
+        TrigonometricLookupTable::sin_table(), table_num_bytes);
+    v8::Local<v8::ArrayBuffer> cos_buffer = v8::ArrayBuffer::New(
+        TrigonometricLookupTable::cos_x_interval_table(), table_num_bytes);
+    v8::Local<v8::Float64Array> sin_table = v8::Float64Array::New(
+        sin_buffer, 0, TrigonometricLookupTable::table_size());
+    v8::Local<v8::Float64Array> cos_table = v8::Float64Array::New(
+        cos_buffer, 0, TrigonometricLookupTable::table_size());
+
+    ForceSetProperty(builtins,
+                     factory()->InternalizeOneByteString(
+                         STATIC_ASCII_VECTOR("kSinTable")),
+                     Utils::OpenHandle(*sin_table),
+                     NONE);
+    ForceSetProperty(builtins,
+                     factory()->InternalizeOneByteString(
+                         STATIC_ASCII_VECTOR("kCosXIntervalTable")),
+                     Utils::OpenHandle(*cos_table),
+                     NONE);
+    ForceSetProperty(builtins,
+                     factory()->InternalizeOneByteString(
+                         STATIC_ASCII_VECTOR("kSamples")),
+                     factory()->NewHeapNumber(
+                         TrigonometricLookupTable::samples()),
+                     NONE);
+    ForceSetProperty(builtins,
+                     factory()->InternalizeOneByteString(
+                         STATIC_ASCII_VECTOR("kIndexConvert")),
+                     factory()->NewHeapNumber(
+                         TrigonometricLookupTable::samples_over_pi_half()),
                      NONE);
   }
   // TODO(svenpanne) We have to delete the state when the context dies, so we

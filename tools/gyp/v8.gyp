@@ -132,6 +132,7 @@
         }],
       ],
       'dependencies': [
+        'generate_trig_table',
         'v8_base.<(v8_target_arch)',
       ],
       'include_dirs+': [
@@ -140,6 +141,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
@@ -174,6 +176,7 @@
       'target_name': 'v8_nosnapshot.<(v8_target_arch)',
       'type': 'static_library',
       'dependencies': [
+        'generate_trig_table',
         'v8_base.<(v8_target_arch)',
       ],
       'include_dirs+': [
@@ -182,6 +185,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
@@ -198,6 +202,25 @@
             'V8_SHARED',
           ],
         }],
+      ]
+    },
+    { 'target_name': 'generate_trig_table',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'generate',
+          'inputs': [
+            '../../tools/generate-trig-table.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/generate-trig-table.py',
+            '<@(_outputs)',
+          ],
+        },
       ]
     },
     {
