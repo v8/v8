@@ -25,12 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-whitespace_char = [:whitespace:];
-byte_order_mark_char = [:byte_order_mark:];
-whitespace = whitespace_char+|byte_order_mark_char+;
+line_terminator = [:line_terminator:];
 identifier_start = [$_:letter:];
 identifier_char = [:identifier_start::identifier_part_not_letter:];
-line_terminator = [:line_terminator:];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
 single_escape_char = ['"\\bfnrtv];
@@ -131,8 +128,8 @@ number "\\"   <|push_token(ILLEGAL)|>
 "~"           <|push_token(BIT_NOT)|>
 ","           <|push_token(COMMA)|>
 
-line_terminator+  <|push_line_terminator|>
-whitespace        <|skip|>
+line_terminator+                     <|push_line_terminator|>
+/[:whitespace::byte_order_mark:]+/   <|skip|>
 
 "\""           <set_marker(1)||DoubleQuoteString>
 "'"            <set_marker(1)||SingleQuoteString>
@@ -198,9 +195,9 @@ default_action  <push_token_and_go_forward(ILLEGAL)>
 "\\" line_terminator_sequence <||continue>
 /\\[x][:hex_digit:]{2}/       <||continue>
 /\\[u][:hex_digit:]{4}/       <||continue>
-/\\[^xu\r\n]/                 <||continue>
+/\\[^xu:line_terminator:]/    <||continue>
 "\\"                          <|push_token(ILLEGAL)|>
-/\n|\r/                       <|push_token(ILLEGAL)|>
+line_terminator               <|push_token(ILLEGAL)|>
 "\""                          <|push_token(STRING)|>
 eos                           <|terminate_illegal|>
 catch_all                     <||continue>
@@ -210,9 +207,9 @@ catch_all                     <||continue>
 "\\" line_terminator_sequence <||continue>
 /\\[x][:hex_digit:]{2}/       <||continue>
 /\\[u][:hex_digit:]{4}/       <||continue>
-/\\[^xu\r\n]/                 <||continue>
+/\\[^xu:line_terminator:]/    <||continue>
 "\\"                          <|push_token(ILLEGAL)|>
-/\n|\r/                       <|push_token(ILLEGAL)|>
+line_terminator               <|push_token(ILLEGAL)|>
 "'"                           <|push_token(STRING)|>
 eos                           <|terminate_illegal|>
 catch_all                     <||continue>
