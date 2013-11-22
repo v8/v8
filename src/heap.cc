@@ -7816,7 +7816,13 @@ void ExternalStringTable::CleanUp() {
 
 
 void ExternalStringTable::TearDown() {
+  for (int i = 0; i < new_space_strings_.length(); ++i) {
+    heap_->FinalizeExternalString(ExternalString::cast(new_space_strings_[i]));
+  }
   new_space_strings_.Free();
+  for (int i = 0; i < old_space_strings_.length(); ++i) {
+    heap_->FinalizeExternalString(ExternalString::cast(old_space_strings_[i]));
+  }
   old_space_strings_.Free();
 }
 

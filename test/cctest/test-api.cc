@@ -17188,6 +17188,26 @@ TEST(VisitExternalStrings) {
 }
 
 
+TEST(ExternalStringCollectedAtTearDown) {
+  int destroyed = 0;
+  v8::Isolate* isolate = v8::Isolate::New();
+  { v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    const char* s = "One string to test them all, one string to find them.";
+    TestAsciiResource* inscription =
+        new TestAsciiResource(i::StrDup(s), &destroyed);
+    v8::Local<v8::String> ring = v8::String::NewExternal(inscription);
+    // Ring is still alive.  Orcs are roaming freely across our lands.
+    CHECK_EQ(0, destroyed);
+    USE(ring);
+  }
+
+  isolate->Dispose();
+  // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
+  CHECK_EQ(1, destroyed);
+}
+
+
 static double DoubleFromBits(uint64_t value) {
   double target;
   i::OS::MemCopy(&target, &value, sizeof(target));
