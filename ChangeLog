@@ -1,4 +1,4 @@
-        2013-11-22: Version 3.23.10
+2013-11-22: Version 3.23.10
 
         Remove preemption thread and API.
         (issue 3004)
