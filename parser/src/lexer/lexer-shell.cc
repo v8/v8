@@ -281,6 +281,11 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
   }
   if (run_experimental) {
     switch (encoding) {
+      case UTF8:
+        experimental_time = RunExperimentalScanner<int8_t>(
+            fname, isolate, encoding, print_tokens || check_tokens,
+            &experimental_tokens, repeat, harmony_settings);
+        break;
       case LATIN1:
         experimental_time = RunExperimentalScanner<uint8_t>(
             fname, isolate, encoding, print_tokens || check_tokens,

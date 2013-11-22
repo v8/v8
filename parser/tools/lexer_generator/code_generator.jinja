@@ -74,6 +74,34 @@
 {%- endmacro -%}
 
 
+{%- macro long_char_check() -%}
+  {%- if encoding == 'utf16'-%}
+    primary_char > {{upper_bound}}
+  {%- elif encoding == 'utf8'-%}
+    primary_char < 0
+  {%- else -%}
+    uncompilable code for {{encoding}}
+  {%- endif -%}
+{%- endmacro -%}
+
+
+{%- macro long_char_create() -%}
+  {%- if encoding == 'utf16'-%}
+    const uint32_t long_char = primary_char;
+  {%- elif encoding == 'utf8'-%}
+    unsigned bytes_read = 0;
+    const uint32_t long_char = unibrow::Utf8::CalculateValue(
+        reinterpret_cast<uint8_t*>(cursor_),
+        buffer_end_ - cursor_,
+        &bytes_read);
+    cursor_ += bytes_read;
+    if (long_char == unibrow::Utf8::kBadChar) goto default_action;
+  {%- else -%}
+    uncompilable code for {{encoding}}
+  {%- endif -%}
+{%- endmacro -%}
+
+
 {%- macro do_dfa_state(node_number, inline) -%}
 
   {%- set state = dfa_states[node_number] -%}
@@ -140,9 +168,8 @@
   {% endfor -%}
 
   {%- if state['long_char_transitions'] -%}
-    {# TODO macro this up for utf8 #}
-    if (primary_char > {{upper_bound}}) {
-      uint32_t long_char = primary_char;
+    if ({{long_char_check()}}) {
+      {{long_char_create()}}
       {%- for key, transition_state_id in state['long_char_transitions'] %}
         if ({{do_key(key)}}) { // long_char transition
           {{ do_transition(transition_state_id) }}
