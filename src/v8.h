@@ -96,8 +96,6 @@ class V8 : public AllStatic {
       ReturnAddressLocationResolver resolver);
   // Support for entry hooking JITed code.
   static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
-  // Random number generation support. Not cryptographically safe.
-  static uint32_t Random(Context* context);
 
   static void AddCallCompletedCallback(CallCompletedCallback callback);
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);

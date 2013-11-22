@@ -3296,57 +3296,6 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-
-  __ AllocateHeapNumber(edi, ebx, ecx, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
-
-  __ bind(&slow_allocate_heapnumber);
-  // Allocate a heap number.
-  __ CallRuntime(Runtime::kNumberAlloc, 0);
-  __ mov(edi, eax);
-
-  __ bind(&heapnumber_allocated);
-
-  __ PrepareCallCFunction(1, ebx);
-  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ mov(eax, FieldOperand(eax, GlobalObject::kNativeContextOffset));
-  __ mov(Operand(esp, 0), eax);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
-  // Convert 32 random bits in eax to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  // This is implemented on both SSE2 and FPU.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope fscope(masm(), SSE2);
-    __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-    __ movd(xmm1, ebx);
-    __ movd(xmm0, eax);
-    __ cvtss2sd(xmm1, xmm1);
-    __ xorps(xmm0, xmm1);
-    __ subsd(xmm0, xmm1);
-    __ movsd(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
-  } else {
-    // 0x4130000000000000 is 1.0 x 2^20 as a double.
-    __ mov(FieldOperand(edi, HeapNumber::kExponentOffset),
-           Immediate(0x41300000));
-    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), eax);
-    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
-    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), Immediate(0));
-    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
-    __ fsubp(1);
-    __ fstp_d(FieldOperand(edi, HeapNumber::kValueOffset));
-  }
-  __ mov(eax, edi);
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   // Load the arguments on the stack and call the stub.
   SubStringStub stub;

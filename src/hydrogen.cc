@@ -7486,16 +7486,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         return true;
       }
       break;
-    case kMathRandom:
-      if (argument_count == 1 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
-        Drop(1);  // Receiver.
-        HGlobalObject* global_object = Add<HGlobalObject>();
-        HRandom* result = New<HRandom>(global_object);
-        ast_context()->ReturnInstruction(result, expr->id());
-        return true;
-      }
-      break;
     case kMathMax:
     case kMathMin:
       if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
@@ -9865,14 +9855,6 @@ void HOptimizedGraphBuilder::GenerateObjectEquals(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateLog(CallRuntime* call) {
   // %_Log is ignored in optimized code.
   return ast_context()->ReturnValue(graph()->GetConstantUndefined());
-}
-
-
-// Fast support for Math.random().
-void HOptimizedGraphBuilder::GenerateRandomHeapNumber(CallRuntime* call) {
-  HGlobalObject* global_object = Add<HGlobalObject>();
-  HRandom* result = New<HRandom>(global_object);
-  return ast_context()->ReturnInstruction(result, call->id());
 }
 
 

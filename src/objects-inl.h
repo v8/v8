@@ -5459,6 +5459,16 @@ void JSArrayBuffer::set_is_external(bool value) {
 }
 
 
+bool JSArrayBuffer::should_be_freed() {
+  return BooleanBit::get(flag(), kShouldBeFreed);
+}
+
+
+void JSArrayBuffer::set_should_be_freed(bool value) {
+  set_flag(BooleanBit::set(flag(), kShouldBeFreed, value));
+}
+
+
 ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
 ACCESSORS(JSArrayBuffer, weak_first_view, Object, kWeakFirstViewOffset)
 

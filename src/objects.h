@@ -6507,7 +6507,6 @@ class Script: public Struct {
   V(Math, exp, MathExp)                             \
   V(Math, sqrt, MathSqrt)                           \
   V(Math, pow, MathPow)                             \
-  V(Math, random, MathRandom)                       \
   V(Math, max, MathMax)                             \
   V(Math, min, MathMin)                             \
   V(Math, imul, MathImul)
@@ -9630,6 +9629,9 @@ class JSArrayBuffer: public JSObject {
   inline bool is_external();
   inline void set_is_external(bool value);
 
+  inline bool should_be_freed();
+  inline void set_should_be_freed(bool value);
+
   // [weak_next]: linked list of array buffers.
   DECL_ACCESSORS(weak_next, Object)
 
@@ -9659,6 +9661,7 @@ class JSArrayBuffer: public JSObject {
  private:
   // Bit position in a flag
   static const int kIsExternalBit = 0;
+  static const int kShouldBeFreed = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
 };
