@@ -275,6 +275,12 @@ void MacroAssembler::RecordWrite(Register object,
         eq, kWrongAddressOrValuePassedToRecordWrite, at, Operand(value));
   }
 
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  // TODO(mstarzinger): Dynamic counter missing.
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of smis and stores into the young generation.
   Label done;
 
   if (smi_check == INLINE_SMI_CHECK) {
