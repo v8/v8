@@ -1526,6 +1526,15 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                        AllocationSite::kTransitionInfoOffset);
   SetInternalReference(site, entry, "nested_site", site->nested_site(),
                        AllocationSite::kNestedSiteOffset);
+  SetInternalReference(site, entry, "memento_found_count",
+                       site->memento_found_count(),
+                       AllocationSite::kMementoFoundCountOffset);
+  SetInternalReference(site, entry, "memento_create_count",
+                       site->memento_create_count(),
+                       AllocationSite::kMementoCreateCountOffset);
+  SetInternalReference(site, entry, "pretenure_decision",
+                       site->pretenure_decision(),
+                       AllocationSite::kPretenureDecisionOffset);
   SetInternalReference(site, entry, "dependent_code", site->dependent_code(),
                        AllocationSite::kDependentCodeOffset);
 }

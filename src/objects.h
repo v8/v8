@@ -8111,6 +8111,9 @@ class AllocationSite: public Struct {
   // walked in a particular order. So [[1, 2], 1, 2] will have one
   // nested_site, but [[1, 2], 3, [4]] will have a list of two.
   DECL_ACCESSORS(nested_site, Object)
+  DECL_ACCESSORS(memento_found_count, Smi)
+  DECL_ACCESSORS(memento_create_count, Smi)
+  DECL_ACCESSORS(pretenure_decision, Smi)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
@@ -8178,7 +8181,13 @@ class AllocationSite: public Struct {
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
   static const int kNestedSiteOffset = kTransitionInfoOffset + kPointerSize;
-  static const int kDependentCodeOffset = kNestedSiteOffset + kPointerSize;
+  static const int kMementoFoundCountOffset = kNestedSiteOffset + kPointerSize;
+  static const int kMementoCreateCountOffset =
+      kMementoFoundCountOffset + kPointerSize;
+  static const int kPretenureDecisionOffset =
+      kMementoCreateCountOffset + kPointerSize;
+  static const int kDependentCodeOffset =
+      kPretenureDecisionOffset + kPointerSize;
   static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 
