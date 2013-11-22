@@ -95,7 +95,7 @@ namespace internal {
 // a concurrent compilation context.
 
 
-#define PRIMITIVE_TYPE_LIST(V)           \
+#define BITSET_TYPE_LIST(V)              \
   V(None,                0)              \
   V(Null,                1 << 0)         \
   V(Undefined,           1 << 1)         \
@@ -113,9 +113,8 @@ namespace internal {
   V(RegExp,              1 << 13)        \
   V(OtherObject,         1 << 14)        \
   V(Proxy,               1 << 15)        \
-  V(Internal,            1 << 16)
-
-#define COMPOSED_TYPE_LIST(V)                                       \
+  V(Internal,            1 << 16)        \
+  \
   V(Oddball,         kBoolean | kNull | kUndefined)                 \
   V(Signed32,        kSmi | kOtherSigned32)                         \
   V(Number,          kSigned32 | kUnsigned32 | kDouble)             \
@@ -131,17 +130,12 @@ namespace internal {
   V(NonNumber,       kAny - kNumber)                                \
   V(Detectable,      kAllocated - kUndetectable)
 
-#define TYPE_LIST(V)     \
-  PRIMITIVE_TYPE_LIST(V) \
-  COMPOSED_TYPE_LIST(V)
-
-
 
 class Type : public Object {
  public:
   #define DEFINE_TYPE_CONSTRUCTOR(type, value)           \
     static Type* type() { return from_bitset(k##type); }
-  TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
+  BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
   #undef DEFINE_TYPE_CONSTRUCTOR
 
   static Type* Class(Handle<i::Map> map) { return from_handle(map); }
@@ -226,7 +220,7 @@ class Type : public Object {
 
   enum {
     #define DECLARE_TYPE(type, value) k##type = (value),
-    TYPE_LIST(DECLARE_TYPE)
+    BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
     kUnusedEOL = 0
   };
@@ -277,29 +271,7 @@ class Type : public Object {
   int ExtendIntersection(
       Handle<Unioned> unioned, Handle<Type> type, int current_size);
 
-  static const char* GetComposedName(int type) {
-    switch (type) {
-      #define PRINT_COMPOSED_TYPE(type, value)  \
-      case k##type:                             \
-        return # type;
-      COMPOSED_TYPE_LIST(PRINT_COMPOSED_TYPE)
-      #undef PRINT_COMPOSED_TYPE
-    }
-    return NULL;
-  }
-
-  static const char* GetPrimitiveName(int type) {
-    switch (type) {
-      #define PRINT_PRIMITIVE_TYPE(type, value)  \
-      case k##type:                              \
-        return # type;
-      PRIMITIVE_TYPE_LIST(PRINT_PRIMITIVE_TYPE)
-      #undef PRINT_PRIMITIVE_TYPE
-      default:
-        UNREACHABLE();
-        return "InvalidType";
-    }
-  }
+  static const char* bitset_name(int bitset);
 };
 
 
