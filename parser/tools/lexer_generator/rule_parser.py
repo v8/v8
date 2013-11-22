@@ -31,16 +31,17 @@ from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
 from dfa import Dfa
-from transition_keys import TransitionKey
+from transition_keys import TransitionKey, KeyEncoding
 
 class RuleParserState:
 
-  def __init__(self):
+  def __init__(self, encoding):
     self.aliases = {}
     self.character_classes = {}
     self.current_state = None
     self.rules = {}
     self.transitions = set()
+    self.encoding = encoding
 
   def parse(self, string):
     return RuleParser.parse(string, self)
@@ -70,7 +71,8 @@ class RuleParser:
     if graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS':
       classes = state.character_classes
       assert not p[1] in classes
-      classes[p[1]] = TransitionKey.character_class(graph, classes)
+      encoding = state.encoding
+      classes[p[1]] = TransitionKey.character_class(encoding, graph, classes)
 
   def p_rules(self, p):
     '''rules : state_change transition_rules rules
@@ -260,8 +262,8 @@ class RuleProcessor(object):
     self.__process_parser_state(parser_state)
 
   @staticmethod
-  def parse(string):
-    parser_state = RuleParserState()
+  def parse(string, encoding_name):
+    parser_state = RuleParserState(KeyEncoding.get(encoding_name))
     RuleParser.parse(string, parser_state)
     return RuleProcessor(parser_state)
 
@@ -288,7 +290,7 @@ class RuleProcessor(object):
     def dfa(self):
       if not self.__dfa:
         (start, dfa_nodes) = self.nfa().compute_dfa()
-        self.__dfa = Dfa(start, dfa_nodes)
+        self.__dfa = Dfa(self.nfa().encoding(), start, dfa_nodes)
       return self.__dfa
 
     def minimal_dfa(self):
@@ -298,8 +300,7 @@ class RuleProcessor(object):
 
   def __process_parser_state(self, parser_state):
     rule_map = {}
-    builder = NfaBuilder()
-    builder.set_character_classes(parser_state.character_classes)
+    builder = NfaBuilder(parser_state.encoding, parser_state.character_classes)
     assert 'default' in parser_state.rules
     def process(subgraph, v):
       graphs = []

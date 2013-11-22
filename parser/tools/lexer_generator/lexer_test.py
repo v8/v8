@@ -33,7 +33,7 @@ class LexerTestCase(unittest.TestCase):
 
   def __verify_action_stream(self, rules, string, expected):
     expected = map(lambda (action, s) : (Action(None, (action, None)), s), expected)
-    automata = RuleProcessor.parse(rules).default_automata()
+    automata = RuleProcessor.parse(rules, 'latin1').default_automata()
     for automaton in [automata.nfa(), automata.dfa(), automata.minimal_dfa()]:
         for i, (action, start, stop) in enumerate(automaton.lex(string)):
           self.assertEquals(expected[i][0], action)

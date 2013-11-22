@@ -112,7 +112,7 @@ if __name__ == '__main__':
   if verbose:
     print "parsing %s" % re_file
   with open(re_file, 'r') as f:
-    rule_processor = RuleProcessor.parse(f.read())
+    rule_processor = RuleProcessor.parse(f.read(), args.encoding)
 
   if minimize_default:
     if args.no_verify_default:
@@ -135,7 +135,6 @@ if __name__ == '__main__':
   code_file = args.code
   if code_file:
     code_generator = CodeGenerator(rule_processor,
-                                   encoding = args.encoding,
                                    minimize_default = minimize_default,
                                    log = verbose,
                                    inline = not args.no_inline,

@@ -78,8 +78,8 @@ class DfaState(AutomatonState):
 
 class Dfa(Automaton):
 
-  def __init__(self, start_name, mapping):
-    super(Dfa, self).__init__()
+  def __init__(self, encoding, start_name, mapping):
+    super(Dfa, self).__init__(encoding)
     self.__terminal_set = set()
     name_map = {}
     for name, node_data in mapping.items():
@@ -95,7 +95,7 @@ class Dfa(Automaton):
           inversion[state] = []
         inversion[state].append(key)
       for state, keys in inversion.items():
-        merged_key = TransitionKey.merged_key(keys)
+        merged_key = TransitionKey.merged_key(encoding, keys)
         node.add_transition(merged_key, name_map[state])
     self.__start = name_map[start_name]
     self.__node_count = len(mapping)
@@ -223,7 +223,9 @@ class DfaMinimizer:
     # TransitionKey [c-h], S1 and S3 cannot be in the same partition. This will
     # become clear when we check the transition for TransitionKey [c-d] (S1 has
     # a transition to S2, S3 has a transition to S4).
-    self.__alphabet = list(TransitionKey.disjoint_keys(chain(*all_keys)))
+    encoding = self.__dfa.encoding()
+    self.__alphabet = list(
+        TransitionKey.disjoint_keys(encoding, chain(*all_keys)))
 
     # For each state and each TransitionKey in the alphabet, find out which
     # transition we take from the state with the TransitionKey.
@@ -388,4 +390,4 @@ class DfaMinimizer:
         if new_partitions:
           partitions |= new_partitions
     (start_name, mapping) = self.__create_states_from_partitions(partitions)
-    return Dfa(start_name, mapping)
+    return Dfa(self.__dfa.encoding(), start_name, mapping)

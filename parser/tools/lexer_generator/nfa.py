@@ -106,8 +106,8 @@ class NfaState(AutomatonState):
 
 class Nfa(Automaton):
 
-  def __init__(self, start, end, nodes_created):
-    super(Nfa, self).__init__()
+  def __init__(self, encoding, start, end, nodes_created):
+    super(Nfa, self).__init__(encoding)
     self.__start = start
     self.__end = end
     self.__verify(nodes_created)
@@ -126,13 +126,12 @@ class Nfa(Automaton):
     assert count == nodes_created
 
   @staticmethod
-  def __gather_transition_keys(state_set):
+  def __gather_transition_keys(encoding, state_set):
     keys = set(chain(*map(lambda state: state.key_iter(), state_set)))
     keys.discard(TransitionKey.epsilon())
-    return TransitionKey.disjoint_keys(keys)
+    return TransitionKey.disjoint_keys(encoding, keys)
 
-  @staticmethod
-  def __to_dfa(nfa_state_set, dfa_nodes, end_node):
+  def __to_dfa(self, nfa_state_set, dfa_nodes, end_node):
     nfa_state_set = Automaton.epsilon_closure(nfa_state_set)
     assert nfa_state_set
     name = ".".join(str(x.node_number()) for x in sorted(nfa_state_set))
@@ -142,11 +141,11 @@ class Nfa(Automaton):
       'transitions': {},
       'terminal': end_node in nfa_state_set,
       'action' : Action.dominant_action(nfa_state_set)}
-    for key in Nfa.__gather_transition_keys(nfa_state_set):
+    for key in Nfa.__gather_transition_keys(self.encoding(), nfa_state_set):
       match_states = set()
       f = lambda state: state.transition_state_iter_for_key(key)
       match_states |= set(chain(*map(f, nfa_state_set)))
-      transition_state = Nfa.__to_dfa(match_states, dfa_nodes, end_node)
+      transition_state = self.__to_dfa(match_states, dfa_nodes, end_node)
       dfa_nodes[name]['transitions'][key] = transition_state
     return name
 

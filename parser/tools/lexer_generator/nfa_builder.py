@@ -31,15 +31,13 @@ from nfa import *
 
 class NfaBuilder(object):
 
-  def __init__(self):
+  def __init__(self, encoding, character_classes = {}):
     self.__node_number = 0
     self.__operation_map = {}
     self.__members = getmembers(self)
-    self.__character_classes = {}
+    self.__encoding = encoding
+    self.__character_classes = character_classes
     self.__states = []
-
-  def set_character_classes(self, classes):
-    self.__character_classes = classes
 
   def __new_state(self):
     self.__node_number += 1
@@ -107,18 +105,19 @@ class NfaBuilder(object):
     return (state, [state])
 
   def __literal(self, graph):
-    return self.__key_state(TransitionKey.single_char(graph[1]))
+    return self.__key_state(
+      TransitionKey.single_char(self.__encoding, graph[1]))
 
   def __class(self, graph):
-    return self.__key_state(
-      TransitionKey.character_class(graph, self.__character_classes))
+    return self.__key_state(TransitionKey.character_class(
+      self.__encoding, graph, self.__character_classes))
 
   def __not_class(self, graph):
-    return self.__key_state(
-      TransitionKey.character_class(graph, self.__character_classes))
+    return self.__key_state(TransitionKey.character_class(
+      self.__encoding, graph, self.__character_classes))
 
   def __any(self, graph):
-    return self.__key_state(TransitionKey.any())
+    return self.__key_state(TransitionKey.any(self.__encoding))
 
   def __epsilon(self, graph):
     start = self.__new_state()
@@ -216,7 +215,7 @@ class NfaBuilder(object):
     Automaton.visit_states(set([start_state]), outer)
 
   @staticmethod
-  def __replace_catch_all(state):
+  def __replace_catch_all(encoding, state):
     catch_all = TransitionKey.unique('catch_all')
     transitions = state.transitions()
     if not catch_all in transitions:
@@ -227,7 +226,7 @@ class NfaBuilder(object):
     keys = reduce(f, reachable_states, set())
     keys.discard(TransitionKey.epsilon())
     keys.discard(catch_all)
-    inverse_key = TransitionKey.inverse_key(keys)
+    inverse_key = TransitionKey.inverse_key(encoding, keys)
     if inverse_key:
       transitions[inverse_key] = transitions[catch_all]
     del transitions[catch_all]
@@ -236,9 +235,9 @@ class NfaBuilder(object):
     (start, end, nodes_created) = self.__nfa(graph)
     end.close(None)
     self.__compute_epsilon_closures(start)
-    f = lambda node, state: self.__replace_catch_all(node)
+    f = lambda node, state: self.__replace_catch_all(self.__encoding, node)
     Automaton.visit_states(set([start]), f)
-    return Nfa(start, end, nodes_created)
+    return Nfa(self.__encoding, start, end, nodes_created)
 
   @staticmethod
   def add_action(graph, action):

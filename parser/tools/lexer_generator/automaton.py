@@ -132,6 +132,12 @@ class AutomatonState(object):
 
 class Automaton(object):
 
+  def __init__(self, encoding):
+    self.__encoding = encoding
+
+  def encoding(self):
+    return self.__encoding
+
   @staticmethod
   def visit_states(edge, visitor, visit_state = None, state_iter = None):
     if not state_iter:

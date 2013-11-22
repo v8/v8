@@ -35,7 +35,6 @@ class CodeGenerator:
 
   def __init__(self,
                rule_processor,
-               encoding = 'latin1',
                minimize_default = True,
                inline = True,
                switching = True,
@@ -52,7 +51,6 @@ class CodeGenerator:
     self.__log = log
     self.__inline = inline
     self.__switching = switching
-    self.__encoding = encoding
 
   def __state_cmp(self, left, right):
     if left['original_node_number'] == self.__start_node_number:
@@ -96,7 +94,7 @@ class CodeGenerator:
     return cmp(left[1], right[1])
 
   @staticmethod
-  def __transform_state(state):
+  def __transform_state(encoding, state):
     # action data
     action = state.action()
     entry_action = None if not action else action.entry_action()
@@ -110,7 +108,7 @@ class CodeGenerator:
     # map transition keys to disjoint ranges
     disjoint_keys = {'value' : []}
     def f((key, state)):
-      ranges = list(key.range_iter())
+      ranges = list(key.range_iter(encoding))
       disjoint_keys['value'] += ranges
       return (ranges, state)
     transitions = map(f, transitions)
@@ -203,7 +201,9 @@ class CodeGenerator:
   def __canonicalize_traversal(self):
     dfa_states = []
     self.__dfa.visit_all_states(lambda state, acc: dfa_states.append(state))
-    dfa_states = map(CodeGenerator.__transform_state, dfa_states)
+    encoding = self.__dfa.encoding()
+    f = lambda state : CodeGenerator.__transform_state(encoding, state)
+    dfa_states = map(f, dfa_states)
     id_map = {x['original_node_number'] : x for x in dfa_states}
     CodeGenerator.__compute_depths(self.__start_node_number, 1, id_map)
     dfa_states = sorted(dfa_states, cmp=self.__state_cmp)
@@ -246,9 +246,10 @@ class CodeGenerator:
       undefined = jinja2.StrictUndefined)
     template = template_env.get_template('code_generator.jinja')
 
-    if self.__encoding == 'latin1':
+    encoding = self.__dfa.encoding().name()
+    if encoding == 'latin1':
       char_type = 'uint8_t'
-    elif self.__encoding == 'utf16':
+    elif encoding == 'utf16':
       char_type = 'uint16_t'
     else:
       raise Exception('Unsupported encoding %s' % encoding)
@@ -257,5 +258,5 @@ class CodeGenerator:
       debug_print = self.__debug_print,
       default_action = default_action,
       dfa_states = dfa_states,
-      encoding = self.__encoding,
+      encoding = encoding,
       char_type = char_type)

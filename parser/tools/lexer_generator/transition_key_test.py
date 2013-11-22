@@ -26,15 +26,18 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from transition_keys import TransitionKey
+from transition_keys import TransitionKey, KeyEncoding
 from regex_parser import RegexParser
 
 class TransitionKeyTestCase(unittest.TestCase):
 
+  __encoding = KeyEncoding.get('latin1')
+
   __equal_pairs = [
     (TransitionKey.epsilon(), TransitionKey.epsilon()),
-    (TransitionKey.any(), TransitionKey.any()),
-    (TransitionKey.single_char('a'), TransitionKey.single_char('a')),
+    (TransitionKey.any(__encoding), TransitionKey.any(__encoding)),
+    (TransitionKey.single_char(__encoding, 'a'),
+     TransitionKey.single_char(__encoding, 'a')),
   ]
 
   def test_eq(self):
@@ -54,6 +57,7 @@ class TransitionKeyTestCase(unittest.TestCase):
       ("a-z:whitespace::letter:" , "abc" , "123"),
     ]
     classes = {}
+    encoding = self.__encoding
     for (string, match, no_match) in data:
       for invert in [False, True]:
         if invert:
@@ -64,25 +68,26 @@ class TransitionKeyTestCase(unittest.TestCase):
           token = "CLASS"
         graph = RegexParser.parse(regex)
         assert graph[0] == token
-        key = TransitionKey.character_class(graph, classes)
+        key = TransitionKey.character_class(encoding, graph, classes)
         for c in match:
           self.assertEqual(invert, not key.matches_char(c))
         for c in no_match:
           self.assertEqual(invert, key.matches_char(c))
 
   def test_self_defined_classes(self):
+    encoding = self.__encoding
     graph = RegexParser.parse("[a-z]")
     classes = {
-      'self_defined' : TransitionKey.character_class(graph, {})}
+      'self_defined' : TransitionKey.character_class(encoding, graph, {})}
     graph = RegexParser.parse("[^:self_defined:]")
-    key = TransitionKey.character_class(graph, classes)
+    key = TransitionKey.character_class(encoding, graph, classes)
     self.assertTrue(key.matches_char('A'))
 
-
   def test_disjoint_keys(self):
-    key1 = TransitionKey([(1, 10)])
-    key2 = TransitionKey([(5, 15)])
-    disjoint_set = TransitionKey.disjoint_keys(set([key1, key2]))
-    self.assertTrue(TransitionKey([(1, 4)]) in disjoint_set)
-    self.assertTrue(TransitionKey([(5, 10)]) in disjoint_set)
-    self.assertTrue(TransitionKey([(11, 15)]) in disjoint_set)
+    encoding = self.__encoding
+    key1 = TransitionKey(encoding, [(1, 10)])
+    key2 = TransitionKey(encoding, [(5, 15)])
+    disjoint_set = TransitionKey.disjoint_keys(encoding, set([key1, key2]))
+    self.assertTrue(TransitionKey(encoding, [(1, 4)]) in disjoint_set)
+    self.assertTrue(TransitionKey(encoding, [(5, 10)]) in disjoint_set)
+    self.assertTrue(TransitionKey(encoding, [(11, 15)]) in disjoint_set)

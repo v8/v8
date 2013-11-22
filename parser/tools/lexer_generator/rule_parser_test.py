@@ -26,13 +26,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
+from transition_keys import KeyEncoding
 from rule_parser import RuleParserState
 from regex_parser import RegexParser
 
 class RuleParserTestCase(unittest.TestCase):
 
    def setUp(self):
-     self.state = RuleParserState()
+     self.state = RuleParserState(KeyEncoding.get('latin1'))
 
    def parse(self, string):
     return self.state.parse(string)
