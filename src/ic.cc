@@ -783,7 +783,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       : Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate())),
                          isolate());
 
-  PatchCache(handle(Type::CurrentOf(cache_object), isolate()), name, code);
+  PatchCache(handle(Type::OfCurrently(cache_object), isolate()), name, code);
   TRACE_IC("CallIC", name);
 }
 
@@ -1148,7 +1148,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = ComputeHandler(lookup, object, name);
   }
 
-  PatchCache(handle(Type::CurrentOf(object), isolate()), name, code);
+  PatchCache(handle(Type::OfCurrently(object), isolate()), name, code);
   TRACE_IC("LoadIC", name);
 }
 
@@ -1609,7 +1609,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
   Handle<Code> code = ComputeHandler(lookup, receiver, name, value);
 
-  PatchCache(handle(Type::CurrentOf(receiver), isolate()), name, code);
+  PatchCache(handle(Type::OfCurrently(receiver), isolate()), name, code);
   TRACE_IC("StoreIC", name);
 }
 

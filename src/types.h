@@ -153,12 +153,17 @@ class Type : public Object {
   static Type* Of(Handle<i::Object> value) {
     return from_bitset(LubBitset(*value));
   }
-  static Type* CurrentOf(Handle<i::Object> value);
 
-  bool Is(Type* that) { return (this == that) ? true : SlowIs(that); }
+  bool Is(Type* that) { return this == that || SlowIs(that); }
   bool Is(Handle<Type> that) { return this->Is(*that); }
   bool Maybe(Type* that);
   bool Maybe(Handle<Type> that) { return this->Maybe(*that); }
+
+  // State-dependent versions of Of and Is that consider subtyping between
+  // a constant and its map class.
+  static Type* OfCurrently(Handle<i::Object> value);
+  bool IsCurrently(Type* that);
+  bool IsCurrently(Handle<Type> that)  { return this->IsCurrently(*that); }
 
   bool IsClass() { return is_class(); }
   bool IsConstant() { return is_constant(); }

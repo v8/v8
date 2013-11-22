@@ -244,7 +244,7 @@ int Type::GlbBitset() {
 
 
 // Most precise _current_ type of a value (usually its class).
-Type* Type::CurrentOf(Handle<i::Object> value) {
+Type* Type::OfCurrently(Handle<i::Object> value) {
   if (value->IsSmi()) return Smi();
   i::Map* map = i::HeapObject::cast(*value)->map();
   if (map->instance_type() == HEAP_NUMBER_TYPE ||
@@ -294,6 +294,14 @@ bool Type::SlowIs(Type* that) {
   }
 
   return false;
+}
+
+
+bool Type::IsCurrently(Type* that) {
+  return this->Is(that) ||
+      (this->is_constant() && that->is_class() &&
+       this->as_constant()->IsHeapObject() &&
+       i::HeapObject::cast(*this->as_constant())->map() == *that->as_class());
 }
 
 
