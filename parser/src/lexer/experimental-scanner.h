@@ -63,6 +63,20 @@ class UnicodeCache;
 template<typename YYCTYPE>
 class ExperimentalScanner {
  public:
+  struct Location {
+    Location(int b, int e) : beg_pos(b), end_pos(e) { }
+    Location() : beg_pos(0), end_pos(0) { }
+
+    bool IsValid() const {
+      return beg_pos >= 0 && end_pos >= beg_pos;
+    }
+
+    static Location invalid() { return Location(-1, -1); }
+
+    int beg_pos;
+    int end_pos;
+  };
+
   explicit ExperimentalScanner(
       YYCTYPE* source,
       YYCTYPE* source_end,
@@ -70,7 +84,15 @@ class ExperimentalScanner {
 
   ~ExperimentalScanner();
 
-  Token::Value Next(int* beg_pos, int* end_pos);
+  Token::Value Next() {
+    current_ = next_;
+    Scan();  // will fill in next_.
+    return current_.token;
+  }
+
+  Location location() {
+    return Location(current_.beg_pos, current_.end_pos);
+  }
 
   void SetHarmonyNumericLiterals(bool numeric_literals) {
     harmony_numeric_literals_ = numeric_literals;
@@ -85,6 +107,15 @@ class ExperimentalScanner {
   }
 
  private:
+  struct TokenDesc {
+    Token::Value token;
+    int beg_pos;
+    int end_pos;
+    LiteralBuffer* literal_chars;
+  };
+
+  void Scan();
+
   bool ValidIdentifierStart();
   bool ValidIdentifierPart();
   uc32 ScanHexNumber(int length);
@@ -99,6 +130,9 @@ class ExperimentalScanner {
   bool just_seen_line_terminator_;
 
   YYCTYPE yych;
+
+  TokenDesc current_;  // desc for current token (as returned by Next())
+  TokenDesc next_;     // desc for next token (one token look-ahead)
 
   bool harmony_numeric_literals_;
   bool harmony_modules_;
@@ -122,6 +156,7 @@ ExperimentalScanner<YYCTYPE>::ExperimentalScanner(
   start_ = buffer_;
   cursor_ = buffer_;
   marker_ = buffer_;
+  Scan();
 }
 
 

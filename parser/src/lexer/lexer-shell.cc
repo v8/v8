@@ -156,16 +156,10 @@ class BaselineScanner {
     delete[] source_;
   }
 
-  Token::Value Next(int* beg_pos, int* end_pos) {
-    Token::Value res = scanner_->Next();
-    *beg_pos = scanner_->location().beg_pos;
-    *end_pos = scanner_->location().end_pos;
-    return res;
-  }
+  Scanner* scanner_;
 
  private:
   UnicodeCache* unicode_cache_;
-  Scanner* scanner_;
   const byte* source_;
   BufferedUtf16CharacterStream* stream_;
 };
@@ -205,7 +199,9 @@ TimeDelta RunBaselineScanner(const char* fname,
   Token::Value token;
   int beg, end;
   do {
-    token = scanner.Next(&beg, &end);
+    token = scanner.scanner_->Next();
+    beg = scanner.scanner_->location().beg_pos;
+    end = scanner.scanner_->location().end_pos;
     if (dump_tokens) {
       tokens->push_back(TokenWithLocation(token, beg, end));
     }
@@ -227,17 +223,19 @@ TimeDelta RunExperimentalScanner(const char* fname,
   YYCTYPE* buffer = reinterpret_cast<YYCTYPE*>(
       ReadFile(fname, &buffer_end, repeat, encoding == UTF8TO16));
 
+  timer.Start();
   ExperimentalScanner<YYCTYPE> scanner(
       buffer, reinterpret_cast<YYCTYPE*>(buffer_end), isolate);
   scanner.SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
   scanner.SetHarmonyModules(harmony_settings.modules);
   scanner.SetHarmonyScoping(harmony_settings.scoping);
 
-  timer.Start();
   Token::Value token;
   int beg, end;
   do {
-    token = scanner.Next(&beg, &end);
+    token = scanner.Next();
+    beg = scanner.location().beg_pos;
+    end = scanner.location().end_pos;
     if (dump_tokens) {
       tokens->push_back(TokenWithLocation(token, beg, end));
     }

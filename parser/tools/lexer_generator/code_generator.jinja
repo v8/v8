@@ -190,21 +190,23 @@
 {%- endmacro %}
 
 #define PREPARE_PUSH_TOKEN() {        \
-  *beg_pos_to_return = start_ - buffer_; \
-  *end_pos_to_return = cursor_ - buffer_; \
+  next_.beg_pos = start_ - buffer_;   \
+  next_.end_pos = cursor_ - buffer_;  \
   start_ = cursor_;                   \
   just_seen_line_terminator_ = false; \
 }
 
 #define PUSH_TOKEN(T) {               \
   PREPARE_PUSH_TOKEN();               \
-  return T;                           \
+  next_.token = T;                    \
+  return;                             \
 }
 
 #define PUSH_TOKEN_AND_GO_FORWARD(T) {\
   PREPARE_PUSH_TOKEN();               \
   FORWARD();                          \
-  return T;                           \
+  next_.token = T;                    \
+  return;                             \
 }
 
 #define PUSH_EOS() {                  \
@@ -235,8 +237,7 @@
 namespace v8 {
 namespace internal {
 template<>
-Token::Value ExperimentalScanner<{{char_type}}>::Next(int* beg_pos_to_return,
-                                                      int* end_pos_to_return) {
+void ExperimentalScanner<{{char_type}}>::Scan() {
   // Setup environment.
   {{char_type}} primary_char;
   if (cursor_ >= buffer_end_) primary_char = 0;
