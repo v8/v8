@@ -915,14 +915,14 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, stub->fixed_right_arg(), true));
+                    result_type, stub->fixed_right_arg()));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true));
+                    stub->fixed_right_arg()));
       }
       if_leftisstring.End();
       result = Pop();
@@ -934,14 +934,14 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, stub->fixed_right_arg(), true));
+                    result_type, stub->fixed_right_arg()));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true));
+                    stub->fixed_right_arg()));
       }
       if_rightisstring.End();
       result = Pop();
@@ -950,7 +950,7 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
     result = BuildBinaryOperation(
             stub->operation(), left, right,
             left_type, right_type, result_type,
-            stub->fixed_right_arg(), true);
+            stub->fixed_right_arg());
   }
 
   // If we encounter a generic argument, the number conversion is

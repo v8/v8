@@ -1345,8 +1345,7 @@ class HGraphBuilder {
                                Handle<Type> left_type,
                                Handle<Type> right_type,
                                Handle<Type> result_type,
-                               Maybe<int> fixed_right_arg,
-                               bool binop_stub = false);
+                               Maybe<int> fixed_right_arg);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 

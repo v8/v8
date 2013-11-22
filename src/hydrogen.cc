@@ -8609,8 +8609,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Handle<Type> left_type,
     Handle<Type> right_type,
     Handle<Type> result_type,
-    Maybe<int> fixed_right_arg,
-    bool binop_stub) {
+    Maybe<int> fixed_right_arg) {
 
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
@@ -8679,7 +8678,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     return AddUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
   }
 
-  if (binop_stub) {
+  if (graph()->info()->IsStub()) {
     left = EnforceNumberType(left, left_type);
     right = EnforceNumberType(right, right_type);
   }
@@ -8693,7 +8692,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   // Only the stub is allowed to call into the runtime, since otherwise we would
   // inline several instructions (including the two pushes) for every tagged
   // operation in optimized code, which is more expensive, than a stub call.
-  if (binop_stub && is_non_primitive) {
+  if (graph()->info()->IsStub() && is_non_primitive) {
     HValue* function = AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op));
     Add<HPushArgument>(left);
     Add<HPushArgument>(right);
@@ -8768,7 +8767,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     binop->set_observed_input_representation(1, left_rep);
     binop->set_observed_input_representation(2, right_rep);
     binop->initialize_output_representation(result_rep);
-    if (binop_stub) {
+    if (graph()->info()->IsStub()) {
       // Stub should not call into stub.
       instr->SetFlag(HValue::kCannotBeTagged);
       // And should truncate on HForceRepresentation already.
