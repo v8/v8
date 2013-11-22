@@ -57,7 +57,6 @@ class KeyEncoding(object):
     return self.__name
 
   def add_predefined_range(self, name, ranges):
-    # TODO verify disjointness
     self.__predefined_ranges[name] = ranges
 
   def lower_bound(self):
@@ -75,6 +74,9 @@ class KeyEncoding(object):
 
   def class_range_iter(self):
     return self.__class_ranges.iteritems()
+
+  def class_name_iter(self):
+    return self.__class_ranges.iterkeys()
 
   def class_value_iter(self):
     return self.__class_ranges.itervalues()
@@ -463,7 +465,7 @@ class Latin1Encoding(KeyEncoding):
     super(Latin1Encoding, self).__init__(
       'latin1',
       (1, 255),
-      ['eos', 'zero', 'byte_order_mark'])
+      ['eos', 'zero'])
     self.add_predefined_range(
       'whitespace', [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160)])
     self.add_predefined_range(
@@ -481,27 +483,28 @@ class Utf16Encoding(KeyEncoding):
       'utf16',
       (1, 255),
       ['eos', 'zero', 'byte_order_mark',
-       'non_latin_1_whitespace',
-       'non_latin_1_letter',
-       'non_latin_1_identifier_part_not_letter',
-       'non_latin_1_line_terminator',
-       'non_latin_1_everything_else'])
+       'non_primary_whitespace',
+       'non_primary_letter',
+       'non_primary_identifier_part_not_letter',
+       'non_primary_line_terminator',
+       'non_primary_everything_else'])
     self.add_predefined_range(
       'whitespace',
       [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160),
-       self.class_range('non_latin_1_whitespace')])
+       self.class_range('byte_order_mark'),
+       self.class_range('non_primary_whitespace')])
     self.add_predefined_range(
       'letter', [
         (65, 90), (97, 122), (170, 170), (181, 181),
         (186, 186), (192, 214), (216, 246), (248, 255),
-        self.class_range('non_latin_1_letter')])
+        self.class_range('non_primary_letter')])
     self.add_predefined_range(
       'line_terminator',
-      [(10, 10), (13, 13), self.class_range('non_latin_1_line_terminator')])
+      [(10, 10), (13, 13), self.class_range('non_primary_line_terminator')])
     self.add_predefined_range(
       'identifier_part_not_letter',
       [(48, 57), (95, 95),
-       self.class_range('non_latin_1_identifier_part_not_letter')])
+       self.class_range('non_primary_identifier_part_not_letter')])
 
 class Utf8Encoding(KeyEncoding):
 
@@ -510,20 +513,22 @@ class Utf8Encoding(KeyEncoding):
       'utf8',
       (1, 127),
       ['eos', 'zero', 'byte_order_mark',
-       'non_ascii_whitespace',
-       'non_ascii_letter',
-       'non_ascii_identifier_part_not_letter',
-       'non_ascii_line_terminator',
-       'non_ascii_everything_else'])
+       'non_primary_whitespace',
+       'non_primary_letter',
+       'non_primary_identifier_part_not_letter',
+       'non_primary_line_terminator',
+       'non_primary_everything_else'])
     self.add_predefined_range(
       'whitespace',
-      [(9, 9), (11, 12), (32, 32), self.class_range('non_ascii_whitespace')])
+      [(9, 9), (11, 12), (32, 32),
+        self.class_range('byte_order_mark'),
+        self.class_range('non_primary_whitespace')])
     self.add_predefined_range(
-      'letter', [(65, 90), (97, 122), self.class_range('non_ascii_letter')])
+      'letter', [(65, 90), (97, 122), self.class_range('non_primary_letter')])
     self.add_predefined_range(
       'line_terminator',
-      [(10, 10), (13, 13), self.class_range('non_ascii_line_terminator')])
+      [(10, 10), (13, 13), self.class_range('non_primary_line_terminator')])
     self.add_predefined_range(
       'identifier_part_not_letter',
       [(48, 57), (95, 95),
-       self.class_range('non_ascii_identifier_part_not_letter')])
+       self.class_range('non_primary_identifier_part_not_letter')])

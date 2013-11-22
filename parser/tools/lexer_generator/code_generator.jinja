@@ -5,43 +5,32 @@
     {%- if not loop.first %} || {% endif -%}
     {%- if r[0] == 'PRIMARY_RANGE' -%}
       {%- if r[1][0] == r[1][1] -%}
-        yych == {{r[1][0]}}
+        primary_char == {{r[1][0]}}
       {%- elif r[1][0] == 0 -%}
-        yych <= {{r[1][1]}}
+        primary_char <= {{r[1][1]}}
       {%- elif r[1][1] == upper_bound and not encoding == 'utf16'-%}
-        yych >= {{r[1][0]}}
+        primary_char >= {{r[1][0]}}
       {%- else -%}
-        ({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
+        ({{r[1][0]}} <= primary_char && primary_char <= {{r[1][1]}})
       {%- endif -%}
     {%- elif r[0] == 'CLASS' -%}
       {%- if r[1] == 'eos' -%}
-        (yych == 0 && cursor_ >= buffer_end_)
+        (primary_char == 0 && cursor_ >= buffer_end_)
       {%- elif r[1] == 'zero' -%}
-        (yych == 0 && cursor_ < buffer_end_)
-      {%- elif encoding == 'latin1' -%}
-        false /* {{r[1]}} */
-      {%- elif encoding == 'utf16' -%}
-        {%- if r[1] == 'byte_order_mark' -%}
-          (yych == 0xfffe || yych == 0xfeff)
-        {%- elif r[1] == 'non_latin_1_whitespace' -%}
-          (yych > {{upper_bound}} && unicode_cache_->IsWhiteSpace(yych))
-        {%- elif r[1] == 'non_latin_1_letter' -%}
-          (yych > {{upper_bound}} &&  unicode_cache_->IsLetter(yych))
-        {%- elif r[1] == 'non_latin_1_identifier_part_not_letter' -%}
-          (yych > {{upper_bound}} &&
-            unicode_cache_->IsIdentifierPartNotLetter(yych))
-        {%- elif r[1] == 'non_latin_1_line_terminator' -%}
-          (yych > {{upper_bound}} &&  unicode_cache_->IsLineTerminator(yych))
-        {%- elif r[1] == 'non_latin_1_everything_else' -%}
-          {# FIXME: Optimize this away #}
-          (yych > {{upper_bound}} &&
-           !unicode_cache_->IsWhiteSpace(yych) &&
-           !unicode_cache_->IsLetter(yych) &&
-           !unicode_cache_->IsIdentifierPartNotLetter(yych) &&
-           !unicode_cache_->IsLineTerminator(yych))
-        {%- else %}
-          uncompilable code for {{encoding}} {{r[0]}} {{r[1]}}
-        {%- endif -%}
+        (primary_char == 0 && cursor_ < buffer_end_)
+      {%- else %}
+        uncompilable code for {{encoding}} {{r[0]}} {{r[1]}}
+      {%- endif -%}
+    {# These classes require long_char and to be outside the primary range #}
+    {%- elif r[0] == 'LONG_CHAR_CLASS' and encoding in ['utf16', 'utf8'] -%}
+      {%- if r[1] == 'byte_order_mark' -%}
+        (long_char == 0xfffe || long_char == 0xfeff)
+      {%- elif r[1] == 'call' -%}
+        unicode_cache_->{{r[2]}}(long_char)
+      {%- elif r[1] == 'invert' -%}
+        !({{do_key(r[2])}})
+      {%- elif r[1] == 'catch_all' -%}
+        (true || long_char == 0) /* {{r[1]}} */
       {%- else -%}
         uncompilable code for {{encoding}} {{r[0]}} {{r[1]}}
       {%- endif -%}
@@ -58,7 +47,7 @@
   {% elif type == 'terminate' %}
     PUSH_EOS();
   {% elif type == 'terminate_illegal' %}
-    start_ = marker_; BACKWARD(); PUSH_TOKEN(Token::ILLEGAL);
+    start_ = marker_; BACKWARD(1); PUSH_TOKEN(Token::ILLEGAL);
   {% elif type == 'skip' %}
     SKIP();
   {% elif type == 'skip_and_terminate' %}
@@ -112,7 +101,7 @@
   {%- endif %}
 
   {%- if debug_print %}
-    fprintf(stderr, "char at hand is %c (%d)\n", yych, yych);
+    fprintf(stderr, "char at hand is %c (%d)\n", primary_char, primary_char);
   {% endif -%}
 
   {%- macro do_transition(transition_state_id) -%}
@@ -126,7 +115,7 @@
   {%- endmacro -%}
 
   {%- if state['switch_transitions'] -%}
-    switch(yych) {
+    switch(primary_char) {
     {%- for ranges, transition_state_id in state['switch_transitions'] %}
       {%- for r in ranges -%}
         {%- for key in range(r[0], r[1] + 1) -%}
@@ -139,7 +128,7 @@
   {%- endif -%}
 
   {%- for key, transition_state_id in state.transitions %}
-    if ({{do_key(key)}}) {
+    if ({{do_key(key)}}) { // normal if transition
       {{ do_transition(transition_state_id) }}
     }
   {% endfor -%}
@@ -149,6 +138,18 @@
       {{ do_transition(transition_state_id) }}
     }
   {% endfor -%}
+
+  {%- if state['long_char_transitions'] -%}
+    {# TODO macro this up for utf8 #}
+    if (primary_char > {{upper_bound}}) {
+      uint32_t long_char = primary_char;
+      {%- for key, transition_state_id in state['long_char_transitions'] %}
+        if ({{do_key(key)}}) { // long_char transition
+          {{ do_transition(transition_state_id) }}
+        }
+      {% endfor -%}
+    }
+  {%- endif-%}
 
   {%- set match_action = state.match_action -%}
 
@@ -189,14 +190,15 @@
   just_seen_line_terminator_ = true;  \
 }
 
-#define FORWARD() {                   \
-  if (++cursor_ >= buffer_end_) yych = 0; \
-  else yych = *(cursor_);                 \
+#define FORWARD() {                               \
+  if (++cursor_ >= buffer_end_) primary_char = 0; \
+  else primary_char = *(cursor_);                 \
 }
 
-#define BACKWARD() {                  \
-  if (--cursor_ >= buffer_end_) yych = 0; \
-  else yych = *(cursor_);                 \
+#define BACKWARD(n) {                             \
+  cursor_ -= n;                                   \
+  if (cursor_ >= buffer_end_) primary_char = 0;   \
+  else primary_char = *(cursor_);                 \
 }
 
 #define SKIP() {                      \
@@ -209,9 +211,9 @@ template<>
 Token::Value ExperimentalScanner<{{char_type}}>::Next(int* beg_pos_to_return,
                                                       int* end_pos_to_return) {
   // Setup environment.
-  {{char_type}} yych;
-  if (cursor_ >= buffer_end_) yych = 0;
-  else yych = *(cursor_);
+  {{char_type}} primary_char;
+  if (cursor_ >= buffer_end_) primary_char = 0;
+  else primary_char = *(cursor_);
 
 {# first node is start node #}
 {% for dfa_state in dfa_states -%}

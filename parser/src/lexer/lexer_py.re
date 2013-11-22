@@ -68,21 +68,19 @@ eos = [:eos:];
 "<!--"        <||SingleLineComment>
 
 "<!-"        <|{
-  cursor_ -= 2;
-  yych = *(cursor_);
+  BACKWARD(2);
   PUSH_TOKEN(Token::LT);
 }|>
 
 "<!"        <|{
-  cursor_ -= 1;
-  yych = *(cursor_);
+  BACKWARD(1);
   PUSH_TOKEN(Token::LT);
 }|>
 
 
 "-->" <{
   if (!just_seen_line_terminator_) {
-    yych = *(--cursor_);
+    BACKWARD(1);
     PUSH_TOKEN(Token::DEC);
   }
 }||SingleLineComment>
@@ -134,7 +132,7 @@ harmony_number "\\"   <|push_token(ILLEGAL)|>
 ","           <|push_token(COMMA)|>
 
 line_terminator+                     <|push_line_terminator|>
-/[:whitespace::byte_order_mark:]+/   <|skip|>
+/[:whitespace:]+/   <|skip|>
 
 "\""           <set_marker(1)||DoubleQuoteString>
 "'"            <set_marker(1)||SingleQuoteString>

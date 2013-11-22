@@ -129,6 +129,7 @@ class CodeGenerator:
       'transitions' : transitions,
       'switch_transitions' : [],
       'deferred_transitions' : [],
+      'long_char_transitions' : [],
       'disjoint_keys' : disjoint_keys,
       'inline' : None,
       'depth' : None,
@@ -198,6 +199,75 @@ class CodeGenerator:
     state['deferred_transitions'] = deferred_transitions
     return split_count + (0 if no_switch else 1)
 
+  __call_map = {
+    'non_primary_whitespace' : 'IsWhiteSpace',
+    'non_primary_letter' : 'IsLetter',
+    'non_primary_identifier_part_not_letter' : 'IsIdentifierPartNotLetter',
+    'non_primary_line_terminator' : 'IsLineTerminator',
+  }
+
+  def __rewrite_deferred_transitions(self, state):
+    assert not state['long_char_transitions']
+    transitions = state['deferred_transitions']
+    if not transitions:
+      return
+    encoding = self.__dfa.encoding()
+    bom = 'byte_order_mark'
+    catch_all = 'non_primary_everything_else'
+    all_classes = set(encoding.class_name_iter())
+    fast_classes = set(['eos', 'zero'])
+    call_classes = all_classes - fast_classes - set([bom, catch_all])
+    def remap_transition(class_name):
+      if class_name in call_classes:
+        return ('LONG_CHAR_CLASS', 'call', self.__call_map[class_name])
+      if class_name == bom:
+        return ('LONG_CHAR_CLASS', class_name)
+      raise Exception(class_name)
+    fast_transitions = []
+    long_class_transitions = []
+    long_class_map = {}
+    catchall_transition = None
+    # loop through and remove catch_all_transitions
+    for (classes, transition_node_id) in transitions:
+      ft = []
+      lct = []
+      has_catch_all = False
+      for (class_type, class_name) in classes:
+        if class_name in fast_classes:
+          ft.append((class_type, class_name))
+        else:
+          assert not class_name in long_class_map
+          long_class_map[class_name] = transition_node_id
+          if class_name == catch_all:
+            assert not has_catch_all
+            assert catchall_transition == None
+            has_catch_all = True
+          else:
+            lct.append(remap_transition(class_name))
+      if ft:
+        fast_transitions.append((ft, transition_node_id))
+      if has_catch_all:
+        catchall_transition = (lct, transition_node_id)
+      elif lct:
+        long_class_transitions.append((lct, transition_node_id))
+    # all transitions are fast
+    if not long_class_map:
+      return
+    if catchall_transition:
+      catchall_transitions = all_classes - fast_classes
+      for class_name in long_class_map.iterkeys():
+        catchall_transitions.remove(class_name)
+      assert not catchall_transitions, "class inversion not unimplemented"
+    # split deferred transitions
+    state['deferred_transitions'] = fast_transitions
+    if catchall_transition:
+      catchall_transition = [
+        ([('LONG_CHAR_CLASS', 'catch_all')], catchall_transition[1])]
+    else:
+      catchall_transition = []
+    state['long_char_transitions'] = (long_class_transitions +
+                                      catchall_transition) # must be last
+
   def __canonicalize_traversal(self):
     dfa_states = []
     self.__dfa.visit_all_states(lambda state, acc: dfa_states.append(state))
@@ -229,6 +299,9 @@ class CodeGenerator:
     switched = reduce(self.__split_transitions, dfa_states, 0)
     if self.__log:
       print "%s states use switch (instead of if)" % switched
+    # rewrite deferred transitions
+    for state in dfa_states:
+      self.__rewrite_deferred_transitions(state)
 
   def process(self):
 
