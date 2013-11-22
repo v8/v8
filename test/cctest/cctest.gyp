@@ -30,6 +30,12 @@
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
   },
+  'target_defaults': {
+    'variables': {
+      # TODO(jochen): enable warnings.
+      'v8_deprecation_warnings': 0,
+    },
+  },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
     {

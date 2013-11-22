@@ -30,6 +30,12 @@
     'v8_code': 1,
     'v8_random_seed%': 314159265,
   },
+  'target_defaults': {
+    'variables': {
+      # TODO(jochen): enable warnings.
+      'v8_deprecation_warnings': 0,
+    },
+  },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
     {

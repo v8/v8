@@ -39,6 +39,10 @@
     'include_dirs': [
       '../include',
     ],
+    'variables': {
+      # TODO(jochen): enable warnings.
+      'v8_deprecation_warnings': 0,
+    },
     'conditions': [
       ['v8_enable_i18n_support==1', {
         'dependencies': [

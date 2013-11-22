@@ -1736,7 +1736,7 @@ class V8_EXPORT String : public Primitive {
    * the function calls 'strlen' to determine the buffer length.
    */
   V8_DEPRECATED(
-      "Use NewFromOneByte instead",
+      "Use NewFromUtf8 instead",
       V8_INLINE static Local<String> New(const char* data, int length = -1));
 
   /** Allocates a new string from 16-bit character codes.*/
@@ -2535,7 +2535,7 @@ class V8_EXPORT Function : public Object {
   /**
    * Returns scriptId object.
    */
-  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId()) const;
+  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId() const);
 
   /**
    * Returns scriptId.
@@ -2899,7 +2899,7 @@ class V8_EXPORT Date : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      double NumberValue()) const { return ValueOf(); }
+      double NumberValue() const) { return ValueOf(); }
 
   /**
    * A specialization of Value::NumberValue that is more efficient
@@ -2937,7 +2937,7 @@ class V8_EXPORT NumberObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      double NumberValue()) const { return ValueOf(); }
+      double NumberValue() const) { return ValueOf(); }
 
   /**
    * Returns the Number held by the object.
@@ -2960,7 +2960,7 @@ class V8_EXPORT BooleanObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      bool BooleanValue()) const { return ValueOf(); }
+      bool BooleanValue() const) { return ValueOf(); }
 
   /**
    * Returns the Boolean held by the object.
@@ -2983,7 +2983,7 @@ class V8_EXPORT StringObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      Local<String> StringValue()) const { return ValueOf(); }
+      Local<String> StringValue() const) { return ValueOf(); }
 
   /**
    * Returns the String held by the object.
@@ -3008,7 +3008,7 @@ class V8_EXPORT SymbolObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      Local<Symbol> SymbolValue()) const { return ValueOf(); }
+      Local<Symbol> SymbolValue() const) { return ValueOf(); }
 
   /**
    * Returns the Symbol held by the object.
@@ -6047,7 +6047,7 @@ Handle<Boolean> Boolean::New(bool value) {
 
 
 void Template::Set(const char* name, v8::Handle<Data> value) {
-  Set(v8::String::New(name), value);
+  Set(v8::String::NewFromUtf8(Isolate::GetCurrent(), name), value);
 }
 
 

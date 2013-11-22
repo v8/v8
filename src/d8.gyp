@@ -33,6 +33,12 @@
     'v8_enable_vtunejit%': 0,
     'v8_enable_i18n_support%': 1,
   },
+  'target_defaults': {
+    'variables': {
+      # TODO(jochen): enable warnings.
+      'v8_deprecation_warnings': 0,
+    },
+  },
   'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
   'targets': [
     {
