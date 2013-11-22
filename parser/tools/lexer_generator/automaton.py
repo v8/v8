@@ -80,7 +80,7 @@ class Action(object):
       part = ""
       if action:
         part += action[0]
-        if action[1]:
+        if action[1] and isinstance(action[1], str):
           part += "(%s)" % action[1]
       parts.append(part)
     return "action< %s >" % " | ".join(parts)
