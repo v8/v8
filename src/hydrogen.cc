@@ -1273,17 +1273,14 @@ HValue* HGraphBuilder::BuildCheckMap(HValue* obj, Handle<Map> map) {
 }
 
 
-HValue* HGraphBuilder::BuildCheckString(
-    HValue* object, const char* failure_reason) {
-  if (!object->type().IsString()) {
-    ASSERT(!object->IsConstant() ||
-           !HConstant::cast(object)->HasStringValue());
-    IfBuilder if_isstring(this);
-    if_isstring.If<HIsStringAndBranch>(object);
-    if_isstring.Then();
-    if_isstring.ElseDeopt(failure_reason);
+HValue* HGraphBuilder::BuildCheckString(HValue* string) {
+  if (!string->type().IsString()) {
+    ASSERT(!string->IsConstant() ||
+           !HConstant::cast(string)->HasStringValue());
+    BuildCheckHeapObject(string);
+    return Add<HCheckInstanceType>(string, HCheckInstanceType::IS_STRING);
   }
-  return object;
+  return string;
 }
 
 
@@ -8657,14 +8654,12 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       (left_type->Is(Type::String()) || right_type->Is(Type::String()))) {
     // Validate type feedback for left argument.
     if (left_type->Is(Type::String())) {
-      left = BuildCheckString(
-          left, "Expected string for LHS of binary operation");
+      left = BuildCheckString(left);
     }
 
     // Validate type feedback for right argument.
     if (right_type->Is(Type::String())) {
-      right = BuildCheckString(
-          right, "Expected string for RHS of binary operation");
+      right = BuildCheckString(right);
     }
 
     // Convert left argument as necessary.

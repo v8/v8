@@ -1314,6 +1314,9 @@ void AllocationSite::Initialize() {
   set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::FromInt(0));
+  set_memento_create_count(Smi::FromInt(0));
+  set_memento_found_count(Smi::FromInt(0));
+  set_pretenure_decision(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
                      SKIP_WRITE_BARRIER);
 }
@@ -3874,37 +3877,33 @@ inline void Code::set_is_crankshafted(bool value) {
 
 
 int Code::major_key() {
-  ASSERT(kind() == STUB ||
-         kind() == HANDLER ||
-         kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC ||
-         kind() == COMPARE_NIL_IC ||
-         kind() == STORE_IC ||
-         kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC ||
-         kind() == KEYED_CALL_IC ||
-         kind() == TO_BOOLEAN_IC);
+  ASSERT(has_major_key());
   return StubMajorKeyField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
 void Code::set_major_key(int major) {
-  ASSERT(kind() == STUB ||
-         kind() == HANDLER ||
-         kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC ||
-         kind() == COMPARE_NIL_IC ||
-         kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC ||
-         kind() == STORE_IC ||
-         kind() == KEYED_STORE_IC ||
-         kind() == KEYED_CALL_IC ||
-         kind() == TO_BOOLEAN_IC);
+  ASSERT(has_major_key());
   ASSERT(0 <= major && major < 256);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = StubMajorKeyField::update(previous, major);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+}
+
+
+bool Code::has_major_key() {
+  return kind() == STUB ||
+      kind() == HANDLER ||
+      kind() == BINARY_OP_IC ||
+      kind() == COMPARE_IC ||
+      kind() == COMPARE_NIL_IC ||
+      kind() == LOAD_IC ||
+      kind() == KEYED_LOAD_IC ||
+      kind() == STORE_IC ||
+      kind() == KEYED_STORE_IC ||
+      kind() == KEYED_CALL_IC ||
+      kind() == TO_BOOLEAN_IC;
 }
 
 
@@ -4552,6 +4551,10 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
+ACCESSORS_TO_SMI(AllocationSite, memento_found_count, kMementoFoundCountOffset)
+ACCESSORS_TO_SMI(AllocationSite, memento_create_count,
+                 kMementoCreateCountOffset)
+ACCESSORS_TO_SMI(AllocationSite, pretenure_decision, kPretenureDecisionOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)

@@ -33,6 +33,7 @@
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "codegen.h"
+#include "code-stubs.h"
 #include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
@@ -11135,6 +11136,10 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
 
 void Code::Disassemble(const char* name, FILE* out) {
   PrintF(out, "kind = %s\n", Kind2String(kind()));
+  if (has_major_key()) {
+    PrintF(out, "major_key = %s\n",
+           CodeStub::MajorName(CodeStub::GetMajorKey(this), true));
+  }
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
     PrintExtraICState(out, kind(), needs_extended_extra_ic_state(kind()) ?

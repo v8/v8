@@ -34,6 +34,7 @@ import common_includes
 from common_includes import *
 import push_to_trunk
 from push_to_trunk import *
+import auto_roll
 
 
 TEST_CONFIG = {
@@ -67,18 +68,18 @@ class ToplevelTest(unittest.TestCase):
 
   def testMakeChangeLogBodySimple(self):
     commits = [
-          ["        Title text 1",
+          ["Title text 1",
            "Title text 1\n\nBUG=\n",
-           "        author1@chromium.org"],
-          ["        Title text 2",
+           "author1@chromium.org"],
+          ["Title text 2",
            "Title text 2\n\nBUG=1234\n",
-           "        author2@chromium.org"],
+           "author2@chromium.org"],
         ]
     self.assertEquals("        Title text 1\n"
-                      "        author1@chromium.org\n\n"
+                      "        (author1@chromium.org)\n\n"
                       "        Title text 2\n"
                       "        (Chromium issue 1234)\n"
-                      "        author2@chromium.org\n\n",
+                      "        (author2@chromium.org)\n\n",
                       MakeChangeLogBody(commits))
 
   def testMakeChangeLogBodyEmpty(self):
@@ -86,18 +87,18 @@ class ToplevelTest(unittest.TestCase):
 
   def testMakeChangeLogBodyAutoFormat(self):
     commits = [
-          ["        Title text 1",
+          ["Title text 1",
            "Title text 1\nLOG=y\nBUG=\n",
-           "        author1@chromium.org"],
-          ["        Title text 2",
+           "author1@chromium.org"],
+          ["Title text 2",
            "Title text 2\n\nBUG=1234\n",
-           "        author2@chromium.org"],
-          ["        Title text 3",
+           "author2@chromium.org"],
+          ["Title text 3",
            "Title text 3\n\nBUG=1234\nLOG = Yes\n",
-           "        author3@chromium.org"],
-          ["        Title text 3",
+           "author3@chromium.org"],
+          ["Title text 3",
            "Title text 4\n\nBUG=1234\nLOG=\n",
-           "        author4@chromium.org"],
+           "author4@chromium.org"],
         ]
     self.assertEquals("        Title text 1\n\n"
                       "        Title text 3\n"
@@ -178,6 +179,51 @@ class ToplevelTest(unittest.TestCase):
                                                 "BUG=1234567890123456789\n"
                                                 "BUG=1234567890\n"))
 
+
+class SimpleMock(object):
+  def __init__(self, name):
+    self._name = name
+    self._recipe = []
+    self._index = -1
+
+  def Expect(self, recipe):
+    self._recipe = recipe
+
+  def Call(self, *args):
+    self._index += 1
+    try:
+      expected_call = self._recipe[self._index]
+    except IndexError:
+      raise Exception("Calling %s %s" % (name, " ".join(args)))
+
+    # Pack expectations without arguments into a list.
+    if not isinstance(expected_call, list):
+      expected_call = [expected_call]
+
+    # The number of arguments in the expectation must match the actual
+    # arguments.
+    if len(args) > len(expected_call):
+      raise Exception("When calling %s with arguments, the expectations "
+                      "must consist of at least as many arguments.")
+
+    # Compare expected and actual arguments.
+    for (expected_arg, actual_arg) in zip(expected_call, args):
+      if expected_arg != actual_arg:
+        raise Exception("Expected: %s - Actual: %s"
+                        % (expected_arg, actual_arg))
+
+    # The expectation list contains a mandatory return value and an optional
+    # callback for checking the context at the time of the call.
+    if len(expected_call) == len(args) + 2:
+      expected_call[len(args) + 1]()
+    return expected_call[len(args)]
+
+  def AssertFinished(self):
+    if self._index < len(self._recipe) -1:
+      raise Exception("Called %s too seldom: %d vs. %d"
+                      % (self._name, self._index, len(self._recipe)))
+
+
 class ScriptTest(unittest.TestCase):
   def MakeEmptyTempFile(self):
     handle, name = tempfile.mkstemp()
@@ -199,26 +245,12 @@ class ScriptTest(unittest.TestCase):
     return name
 
   def MakeStep(self, step_class=Step, state=None):
-    state = state or {}
-    step = step_class()
-    step.SetConfig(TEST_CONFIG)
-    step.SetState(state)
-    step.SetNumber(0)
-    step.SetSideEffectHandler(self)
-    return step
+    """Convenience wrapper."""
+    return MakeStep(step_class=step_class, number=0, state=state,
+                    config=TEST_CONFIG, options=None, side_effect_handler=self)
 
   def GitMock(self, cmd, args="", pipe=True):
-    self._git_index += 1
-    try:
-      git_invocation = self._git_recipe[self._git_index]
-    except IndexError:
-      raise Exception("Calling git %s" % args)
-    if git_invocation[0] != args:
-      raise Exception("Expected: %s - Actual: %s" % (git_invocation[0], args))
-    if len(git_invocation) == 3:
-      # Run optional function checking the context during this git command.
-      git_invocation[2]()
-    return git_invocation[1]
+    return self._git_mock.Call(args)
 
   def LogMock(self, cmd, args=""):
     print "Log: %s %s" % (cmd, args)
@@ -232,17 +264,27 @@ class ScriptTest(unittest.TestCase):
     return ScriptTest.MOCKS[cmd](self, cmd, args)
 
   def ReadLine(self):
-    self._rl_index += 1
-    try:
-      return self._rl_recipe[self._rl_index]
-    except IndexError:
-      raise Exception("Calling readline too often")
+    return self._rl_mock.Call()
+
+  def ReadURL(self, url):
+    return self._url_mock.Call(url)
+
+  def ExpectGit(self, *args):
+    """Convenience wrapper."""
+    self._git_mock.Expect(*args)
+
+  def ExpectReadline(self, *args):
+    """Convenience wrapper."""
+    self._rl_mock.Expect(*args)
+
+  def ExpectReadURL(self, *args):
+    """Convenience wrapper."""
+    self._url_mock.Expect(*args)
 
   def setUp(self):
-    self._git_recipe = []
-    self._git_index = -1
-    self._rl_recipe = []
-    self._rl_index = -1
+    self._git_mock = SimpleMock("git")
+    self._rl_mock = SimpleMock("readline")
+    self._url_mock = SimpleMock("readurl")
     self._tmp_files = []
 
   def tearDown(self):
@@ -253,12 +295,9 @@ class ScriptTest(unittest.TestCase):
       if os.path.exists(name):
         os.remove(name)
 
-    if self._git_index < len(self._git_recipe) -1:
-      raise Exception("Called git too seldom: %d vs. %d" %
-                      (self._git_index, len(self._git_recipe)))
-    if self._rl_index < len(self._rl_recipe) -1:
-      raise Exception("Too little input: %d vs. %d" %
-                      (self._rl_index, len(self._rl_recipe)))
+    self._git_mock.AssertFinished()
+    self._rl_mock.AssertFinished()
+    self._url_mock.AssertFinished()
 
   def testPersistRestore(self):
     self.MakeStep().Persist("test1", "")
@@ -270,12 +309,12 @@ class ScriptTest(unittest.TestCase):
     self.assertTrue(Command("git", "--version").startswith("git version"))
 
   def testGitMock(self):
-    self._git_recipe = [["--version", "git version 1.2.3"], ["dummy", ""]]
+    self.ExpectGit([["--version", "git version 1.2.3"], ["dummy", ""]])
     self.assertEquals("git version 1.2.3", self.MakeStep().Git("--version"))
     self.assertEquals("", self.MakeStep().Git("dummy"))
 
   def testCommonPrepareDefault(self):
-    self._git_recipe = [
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch"],
       ["svn fetch", ""],
@@ -283,33 +322,33 @@ class ScriptTest(unittest.TestCase):
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch", ""],
-    ]
-    self._rl_recipe = ["Y"]
+    ])
+    self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.MakeStep().PrepareBranch()
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
 
   def testCommonPrepareNoConfirm(self):
-    self._git_recipe = [
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch"],
       ["svn fetch", ""],
       ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
-    ]
-    self._rl_recipe = ["n"]
+    ])
+    self.ExpectReadline(["n"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
 
   def testCommonPrepareDeleteBranchFailure(self):
-    self._git_recipe = [
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch"],
       ["svn fetch", ""],
       ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], None],
-    ]
-    self._rl_recipe = ["Y"]
+    ])
+    self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
@@ -357,21 +396,18 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
-    self._git_recipe = [
+    self.ExpectGit([
       ["log 1234..HEAD --format=%H", "rev1\nrev2\nrev3"],
-      ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Title text 1"],
+      ["log -1 rev1 --format=\"%s\"", "Title text 1"],
       ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\nLOG=y\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
-       "        author1@chromium.org"],
-      ["log -1 rev2 --format=\"%w(80,8,8)%s\"", "        Title text 2"],
+      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org"],
+      ["log -1 rev2 --format=\"%s\"", "Title text 2"],
       ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=123\nLOG= \n"],
-      ["log -1 rev2 --format=\"%w(80,8,8)(%an)\"",
-       "        author2@chromium.org"],
-      ["log -1 rev3 --format=\"%w(80,8,8)%s\"", "        Title text 3"],
+      ["log -1 rev2 --format=\"%an\"", "author2@chromium.org"],
+      ["log -1 rev3 --format=\"%s\"", "Title text 3"],
       ["log -1 rev3 --format=\"%B\"", "Title\n\nBUG=321\nLOG=true\n"],
-      ["log -1 rev3 --format=\"%w(80,8,8)(%an)\"",
-       "        author3@chromium.org"],
-    ]
+      ["log -1 rev3 --format=\"%an\"", "author3@chromium.org"],
+    ])
 
     self.MakeStep().Persist("last_push", "1234")
     self.MakeStep(PrepareChangeLog).Run()
@@ -394,15 +430,15 @@ class ScriptTest(unittest.TestCase):
 # All lines starting with # will be stripped\\.
 #
 #       Title text 1
-#       author1@chromium\\.org
+#       \\(author1@chromium\\.org\\)
 #
 #       Title text 2
 #       \\(Chromium issue 123\\)
-#       author2@chromium\\.org
+#       \\(author2@chromium\\.org\\)
 #
 #       Title text 3
 #       \\(Chromium issue 321\\)
-#       author3@chromium\\.org
+#       \\(author3@chromium\\.org\\)
 #
 #"""
 
@@ -419,9 +455,9 @@ class ScriptTest(unittest.TestCase):
     TextToFile("  New  \n\tLines  \n", TEST_CONFIG[CHANGELOG_ENTRY_FILE])
     os.environ["EDITOR"] = "vi"
 
-    self._rl_recipe = [
+    self.ExpectReadline([
       "",  # Open editor.
-    ]
+    ])
 
     self.MakeStep(EditChangeLog).Run()
 
@@ -432,9 +468,9 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     self.MakeStep().Persist("build", "5")
 
-    self._rl_recipe = [
+    self.ExpectReadline([
       "Y",  # Increment build number.
-    ]
+    ])
 
     self.MakeStep(IncrementVersion).Run()
 
@@ -470,9 +506,9 @@ class ScriptTest(unittest.TestCase):
       f.write("        Performance and stability improvements on all "
               "platforms.\n")
 
-    self._git_recipe = [
+    self.ExpectGit([
       ["diff svn/trunk hash1", "patch content"],
-    ]
+    ])
 
     self.MakeStep().Persist("prepare_commit_hash", "hash1")
     self.MakeStep().Persist("date", "1999-11-11")
@@ -505,7 +541,7 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"Version 3.22.5", cl))
       self.assertTrue(re.search(r"        Log text 1", cl))
       self.assertTrue(re.search(r"        \(issue 321\)", cl))
-      self.assertFalse(re.search(r"        author1@chromium\.org", cl))
+      self.assertFalse(re.search(r"        \(author1@chromium\.org\)", cl))
 
       # Make sure all comments got stripped.
       self.assertFalse(re.search(r"^#", cl, flags=re.M))
@@ -528,7 +564,7 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
     force_flag = " -f" if force else ""
-    self._git_recipe = [
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch\n"],
       ["svn fetch", ""],
@@ -540,10 +576,9 @@ class ScriptTest(unittest.TestCase):
       ["log -1 --format=%H ChangeLog", "1234\n"],
       ["log -1 1234", "Last push ouput\n"],
       ["log 1234..HEAD --format=%H", "rev1\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Log text 1.\n"],
+      ["log -1 rev1 --format=\"%s\"", "Log text 1.\n"],
       ["log -1 rev1 --format=\"%B\"", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
-       "        author1@chromium.org\n"],
+      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org\n"],
       [("commit -a -m \"Prepare push to trunk.  "
         "Now working on version 3.22.6.\""),
        " 2 files changed\n",
@@ -575,8 +610,8 @@ class ScriptTest(unittest.TestCase):
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
       ["branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""],
-    ]
-    self._rl_recipe = [
+    ])
+    self.ExpectReadline([
       "Y",  # Confirm last push.
       "",  # Open editor.
       "Y",  # Increment build number.
@@ -585,13 +620,13 @@ class ScriptTest(unittest.TestCase):
       "LGTM",  # Enter LGTM for V8 CL.
       "Y",  # Sanity check.
       "reviewer@chromium.org",  # Chromium reviewer.
-    ]
+    ])
     if force:
       # TODO(machenbach): The lgtm for the prepare push is just temporary.
       # There should be no user input in "force" mode.
-      self._rl_recipe = [
+      self.ExpectReadline([
         "LGTM",  # Enter LGTM for V8 CL.
-      ]
+      ])
 
     class Options( object ):
       pass
@@ -622,3 +657,32 @@ class ScriptTest(unittest.TestCase):
 
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
+
+  def testAutoRoll(self):
+    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+
+    # TODO(machenbach): Get rid of the editor check in automatic mode.
+    os.environ["EDITOR"] = "vi"
+
+    self.ExpectReadURL([
+      ["https://v8-status.appspot.com/lkgr", "100"],
+    ])
+
+    self.ExpectGit([
+      ["status -s -uno", ""],
+      ["status -s -b -uno", "## some_branch\n"],
+      ["svn fetch", ""],
+      ["svn log -1 --oneline", "r101 | Text"],
+    ])
+
+    # TODO(machenbach): Make a convenience wrapper for this.
+    class Options( object ):
+      pass
+
+    options = Options()
+    options.s = 0
+
+    auto_roll.RunAutoRoll(TEST_CONFIG, options, self)
+
+    self.assertEquals("100", self.MakeStep().Restore("lkgr"))
+    self.assertEquals("101", self.MakeStep().Restore("latest"))

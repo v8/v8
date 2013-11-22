@@ -1125,6 +1125,12 @@ void AllocationSite::AllocationSitePrint(FILE* out) {
   dependent_code()->ShortPrint(out);
   PrintF(out, "\n - nested site: ");
   nested_site()->ShortPrint(out);
+  PrintF(out, "\n - memento found count: ");
+  memento_found_count()->ShortPrint(out);
+  PrintF(out, "\n - memento create count: ");
+  memento_create_count()->ShortPrint(out);
+  PrintF(out, "\n - pretenure decision: ");
+  pretenure_decision()->ShortPrint(out);
   PrintF(out, "\n - transition_info: ");
   if (transition_info()->IsSmi()) {
     ElementsKind kind = GetElementsKind();

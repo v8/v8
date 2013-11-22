@@ -814,8 +814,6 @@ static Object* RuntimePreempt(Isolate* isolate) {
   // Clear the preempt request flag.
   isolate->stack_guard()->Continue(PREEMPT);
 
-  ContextSwitcher::PreemptionReceived();
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (isolate->debug()->InDebugger()) {
     // If currently in the debugger don't do any actual preemption but record

@@ -511,6 +511,22 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
                             AllocationSite::kNestedSiteOffset),
                         graph()->GetConstant0());
 
+  // Pretenuring calculation fields.
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kMementoFoundCountOffset),
+                        graph()->GetConstant0());
+
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kMementoCreateCountOffset),
+                        graph()->GetConstant0());
+
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kPretenureDecisionOffset),
+                        graph()->GetConstant0());
+
   // Store an empty fixed array for the code dependency.
   HConstant* empty_fixed_array =
     Add<HConstant>(isolate()->factory()->empty_fixed_array());
@@ -992,16 +1008,10 @@ HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    IfBuilder if_leftnotstring(this);
-    if_leftnotstring.IfNot<HIsStringAndBranch>(left);
-    if_leftnotstring.Then();
-    if_leftnotstring.Deopt("Expected string for LHS of string addition");
+    left = BuildCheckString(left);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    IfBuilder if_rightnotstring(this);
-    if_rightnotstring.IfNot<HIsStringAndBranch>(right);
-    if_rightnotstring.Then();
-    if_rightnotstring.Deopt("Expected string for RHS of string addition");
+    right = BuildCheckString(right);
   }
 
   return BuildStringAdd(left, right, pretenure_flag);
