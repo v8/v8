@@ -94,7 +94,7 @@
         reinterpret_cast<uint8_t*>(cursor_),
         buffer_end_ - cursor_,
         &bytes_read);
-    cursor_ += bytes_read;
+    cursor_ += bytes_read - 1;
     if (long_char == unibrow::Utf8::kBadChar) goto default_action;
   {%- else -%}
     uncompilable code for {{encoding}}
