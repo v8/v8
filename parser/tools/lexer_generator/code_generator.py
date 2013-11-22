@@ -82,13 +82,13 @@ class CodeGenerator:
 
   @staticmethod
   def __range_cmp(left, right):
-    if left[0] == 'LATIN_1':
-      if right[0] == 'LATIN_1':
+    if left[0] == 'PRIMARY_RANGE':
+      if right[0] == 'PRIMARY_RANGE':
         return cmp(left[1], right[1])
       assert right[0] == 'CLASS'
       return -1
     assert left[0] == 'CLASS'
-    if right[0] == 'LATIN_1':
+    if right[0] == 'PRIMARY_RANGE':
       return 1
     # TODO store numeric values and cmp
     return cmp(left[1], right[1])
@@ -118,7 +118,7 @@ class CodeGenerator:
     for (t, r) in disjoint_keys:
       if t == 'CLASS':
         class_keys += 1
-      elif t == 'LATIN_1':
+      elif t == 'PRIMARY_RANGE':
         distinct_keys += r[1] - r[0] + 1
         ranges += 1
       else:
@@ -246,14 +246,15 @@ class CodeGenerator:
       undefined = jinja2.StrictUndefined)
     template = template_env.get_template('code_generator.jinja')
 
-    encoding = self.__dfa.encoding().name()
+    encoding = self.__dfa.encoding()
     char_types = {'latin1': 'uint8_t', 'utf16': 'uint16_t', 'utf8': 'int8_t'}
-    char_type = char_types[encoding]
+    char_type = char_types[encoding.name()]
 
     return template.render(
       start_node_number = 0,
       debug_print = self.__debug_print,
       default_action = default_action,
       dfa_states = dfa_states,
-      encoding = encoding,
-      char_type = char_type)
+      encoding = encoding.name(),
+      char_type = char_type,
+      upper_bound = encoding.primary_range()[1])

@@ -3,12 +3,12 @@
 {%- macro do_key(key) -%}
   {%- for r in key -%}
     {%- if not loop.first %} || {% endif -%}
-    {%- if r[0] == 'LATIN_1' -%}
+    {%- if r[0] == 'PRIMARY_RANGE' -%}
       {%- if r[1][0] == r[1][1] -%}
         yych == {{r[1][0]}}
       {%- elif r[1][0] == 0 -%}
         yych <= {{r[1][1]}}
-      {%- elif r[1][1] == 255 and encoding == 'latin1'-%}
+      {%- elif r[1][1] == upper_bound and not encoding == 'utf16'-%}
         yych >= {{r[1][0]}}
       {%- else -%}
         ({{r[1][0]}} <= yych && yych <= {{r[1][1]}})
@@ -24,18 +24,17 @@
         {%- if r[1] == 'byte_order_mark' -%}
           (yych == 0xfffe || yych == 0xfeff)
         {%- elif r[1] == 'non_latin_1_whitespace' -%}
-          {# FIXME: Add and use unicode_cache_->InNonAsciiWhitespace #}
-          (yych > 255 && unicode_cache_->IsWhiteSpace(yych))
+          (yych > {{upper_bound}} && unicode_cache_->IsWhiteSpace(yych))
         {%- elif r[1] == 'non_latin_1_letter' -%}
-          {# FIXME: Add and use unicode_cache_->InNonAsciiLetter #}
-          (yych > 255 &&  unicode_cache_->IsLetter(yych))
+          (yych > {{upper_bound}} &&  unicode_cache_->IsLetter(yych))
         {%- elif r[1] == 'non_latin_1_identifier_part_not_letter' -%}
-          (yych > 255 &&  unicode_cache_->IsIdentifierPartNotLetter(yych))
+          (yych > {{upper_bound}} &&
+            unicode_cache_->IsIdentifierPartNotLetter(yych))
         {%- elif r[1] == 'non_latin_1_line_terminator' -%}
-          (yych > 255 &&  unicode_cache_->IsLineTerminator(yych))
+          (yych > {{upper_bound}} &&  unicode_cache_->IsLineTerminator(yych))
         {%- elif r[1] == 'non_latin_1_everything_else' -%}
           {# FIXME: Optimize this away #}
-          (yych > 255 &&
+          (yych > {{upper_bound}} &&
            !unicode_cache_->IsWhiteSpace(yych) &&
            !unicode_cache_->IsLetter(yych) &&
            !unicode_cache_->IsIdentifierPartNotLetter(yych) &&

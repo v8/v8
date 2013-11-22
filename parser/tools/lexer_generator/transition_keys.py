@@ -285,7 +285,7 @@ class TransitionKey(object):
       if encoding.is_class_range(r):
         yield ('CLASS', TransitionKey.__class_name(encoding, r))
       else:
-        yield ('LATIN_1', r)
+        yield ('PRIMARY_RANGE', r)
 
   __printable_cache = {
     ord('\t') : '\\t',
