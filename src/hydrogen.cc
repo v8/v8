@@ -1195,7 +1195,7 @@ void HGraphBuilder::AddIncrementCounter(StatsCounter* counter) {
     HValue* reference = Add<HConstant>(ExternalReference(counter));
     HValue* old_value = Add<HLoadNamedField>(reference,
                                              HObjectAccess::ForCounter());
-    HValue* new_value = Add<HAdd>(old_value, graph()->GetConstant1());
+    HValue* new_value = AddUncasted<HAdd>(old_value, graph()->GetConstant1());
     new_value->ClearFlag(HValue::kCanOverflow);  // Ignore counter overflow
     Add<HStoreNamedField>(reference, HObjectAccess::ForCounter(),
                           new_value);
@@ -1539,7 +1539,7 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
       static_cast<HValue*>(NULL),
       FAST_SMI_ELEMENTS);
 
-  HValue* mask = Add<HSub>(capacity, graph()->GetConstant1());
+  HValue* mask = AddUncasted<HSub>(capacity, graph()->GetConstant1());
   mask->ChangeRepresentation(Representation::Integer32());
   mask->ClearFlag(HValue::kCanOverflow);
 
@@ -1571,8 +1571,8 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
   // contains two elements (number and string) for each cache entry.
   HValue* mask = AddLoadFixedArrayLength(number_string_cache);
   mask->set_type(HType::Smi());
-  mask = Add<HSar>(mask, graph()->GetConstant1());
-  mask = Add<HSub>(mask, graph()->GetConstant1());
+  mask = AddUncasted<HSar>(mask, graph()->GetConstant1());
+  mask = AddUncasted<HSub>(mask, graph()->GetConstant1());
 
   // Check whether object is a smi.
   IfBuilder if_objectissmi(this);
@@ -1716,7 +1716,8 @@ void HGraphBuilder::BuildCopySeqStringChars(HValue* src,
   HValue* index = loop.BeginBody(graph()->GetConstant0(), length, Token::LT);
   {
     HValue* src_index = AddUncasted<HAdd>(src_offset, index);
-    HValue* value = Add<HSeqStringGetChar>(src_encoding, src, src_index);
+    HValue* value =
+        AddUncasted<HSeqStringGetChar>(src_encoding, src, src_index);
     HValue* dst_index = AddUncasted<HAdd>(dst_offset, index);
     Add<HSeqStringSetChar>(dst_encoding, dst, dst_index, value);
   }
@@ -9853,7 +9854,8 @@ void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
   HValue* right = Pop();
   HValue* left = Pop();
-  HInstruction* result = New<HStringAdd>(left, right, STRING_ADD_CHECK_BOTH);
+  HInstruction* result =
+      NewUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_BOTH);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -9982,7 +9984,7 @@ void HOptimizedGraphBuilder::GenerateMathSqrt(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
-  HInstruction* result = New<HUnaryMathOperation>(value, kMathSqrt);
+  HInstruction* result = NewUncasted<HUnaryMathOperation>(value, kMathSqrt);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

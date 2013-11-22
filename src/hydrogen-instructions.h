@@ -1434,11 +1434,11 @@ class HGoto V8_FINAL : public HTemplateControlInstruction<1, 0> {
 
 class HDeoptimize V8_FINAL : public HTemplateControlInstruction<1, 0> {
  public:
-  static HInstruction* New(Zone* zone,
-                           HValue* context,
-                           const char* reason,
-                           Deoptimizer::BailoutType type,
-                           HBasicBlock* unreachable_continuation) {
+  static HDeoptimize* New(Zone* zone,
+                          HValue* context,
+                          const char* reason,
+                          Deoptimizer::BailoutType type,
+                          HBasicBlock* unreachable_continuation) {
     return new(zone) HDeoptimize(reason, type, unreachable_continuation);
   }
 
