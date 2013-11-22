@@ -992,16 +992,10 @@ HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    IfBuilder if_leftnotstring(this);
-    if_leftnotstring.IfNot<HIsStringAndBranch>(left);
-    if_leftnotstring.Then();
-    if_leftnotstring.Deopt("Expected string for LHS of string addition");
+    left = BuildCheckString(left);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    IfBuilder if_rightnotstring(this);
-    if_rightnotstring.IfNot<HIsStringAndBranch>(right);
-    if_rightnotstring.Then();
-    if_rightnotstring.Deopt("Expected string for RHS of string addition");
+    right = BuildCheckString(right);
   }
 
   return BuildStringAdd(left, right, pretenure_flag);
