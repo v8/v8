@@ -377,7 +377,8 @@ class Shell : public i::AllStatic {
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void AddOSMethods(Handle<ObjectTemplate> os_template);
+  static void AddOSMethods(v8::Isolate* isolate,
+                           Handle<ObjectTemplate> os_template);
 
   static const char* kPrompt;
   static ShellOptions options;
