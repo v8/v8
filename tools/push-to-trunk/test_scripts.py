@@ -68,18 +68,18 @@ class ToplevelTest(unittest.TestCase):
 
   def testMakeChangeLogBodySimple(self):
     commits = [
-          ["        Title text 1",
+          ["Title text 1",
            "Title text 1\n\nBUG=\n",
-           "        author1@chromium.org"],
-          ["        Title text 2",
+           "author1@chromium.org"],
+          ["Title text 2",
            "Title text 2\n\nBUG=1234\n",
-           "        author2@chromium.org"],
+           "author2@chromium.org"],
         ]
     self.assertEquals("        Title text 1\n"
-                      "        author1@chromium.org\n\n"
+                      "        (author1@chromium.org)\n\n"
                       "        Title text 2\n"
                       "        (Chromium issue 1234)\n"
-                      "        author2@chromium.org\n\n",
+                      "        (author2@chromium.org)\n\n",
                       MakeChangeLogBody(commits))
 
   def testMakeChangeLogBodyEmpty(self):
@@ -87,18 +87,18 @@ class ToplevelTest(unittest.TestCase):
 
   def testMakeChangeLogBodyAutoFormat(self):
     commits = [
-          ["        Title text 1",
+          ["Title text 1",
            "Title text 1\nLOG=y\nBUG=\n",
-           "        author1@chromium.org"],
-          ["        Title text 2",
+           "author1@chromium.org"],
+          ["Title text 2",
            "Title text 2\n\nBUG=1234\n",
-           "        author2@chromium.org"],
-          ["        Title text 3",
+           "author2@chromium.org"],
+          ["Title text 3",
            "Title text 3\n\nBUG=1234\nLOG = Yes\n",
-           "        author3@chromium.org"],
-          ["        Title text 3",
+           "author3@chromium.org"],
+          ["Title text 3",
            "Title text 4\n\nBUG=1234\nLOG=\n",
-           "        author4@chromium.org"],
+           "author4@chromium.org"],
         ]
     self.assertEquals("        Title text 1\n\n"
                       "        Title text 3\n"
@@ -245,13 +245,9 @@ class ScriptTest(unittest.TestCase):
     return name
 
   def MakeStep(self, step_class=Step, state=None):
-    state = state or {}
-    step = step_class()
-    step.SetConfig(TEST_CONFIG)
-    step.SetState(state)
-    step.SetNumber(0)
-    step.SetSideEffectHandler(self)
-    return step
+    """Convenience wrapper."""
+    return MakeStep(step_class=step_class, number=0, state=state,
+                    config=TEST_CONFIG, options=None, side_effect_handler=self)
 
   def GitMock(self, cmd, args="", pipe=True):
     return self._git_mock.Call(args)
@@ -402,18 +398,15 @@ class ScriptTest(unittest.TestCase):
 
     self.ExpectGit([
       ["log 1234..HEAD --format=%H", "rev1\nrev2\nrev3"],
-      ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Title text 1"],
+      ["log -1 rev1 --format=\"%s\"", "Title text 1"],
       ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\nLOG=y\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
-       "        author1@chromium.org"],
-      ["log -1 rev2 --format=\"%w(80,8,8)%s\"", "        Title text 2"],
+      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org"],
+      ["log -1 rev2 --format=\"%s\"", "Title text 2"],
       ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=123\nLOG= \n"],
-      ["log -1 rev2 --format=\"%w(80,8,8)(%an)\"",
-       "        author2@chromium.org"],
-      ["log -1 rev3 --format=\"%w(80,8,8)%s\"", "        Title text 3"],
+      ["log -1 rev2 --format=\"%an\"", "author2@chromium.org"],
+      ["log -1 rev3 --format=\"%s\"", "Title text 3"],
       ["log -1 rev3 --format=\"%B\"", "Title\n\nBUG=321\nLOG=true\n"],
-      ["log -1 rev3 --format=\"%w(80,8,8)(%an)\"",
-       "        author3@chromium.org"],
+      ["log -1 rev3 --format=\"%an\"", "author3@chromium.org"],
     ])
 
     self.MakeStep().Persist("last_push", "1234")
@@ -437,15 +430,15 @@ class ScriptTest(unittest.TestCase):
 # All lines starting with # will be stripped\\.
 #
 #       Title text 1
-#       author1@chromium\\.org
+#       \\(author1@chromium\\.org\\)
 #
 #       Title text 2
 #       \\(Chromium issue 123\\)
-#       author2@chromium\\.org
+#       \\(author2@chromium\\.org\\)
 #
 #       Title text 3
 #       \\(Chromium issue 321\\)
-#       author3@chromium\\.org
+#       \\(author3@chromium\\.org\\)
 #
 #"""
 
@@ -548,7 +541,7 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"Version 3.22.5", cl))
       self.assertTrue(re.search(r"        Log text 1", cl))
       self.assertTrue(re.search(r"        \(issue 321\)", cl))
-      self.assertFalse(re.search(r"        author1@chromium\.org", cl))
+      self.assertFalse(re.search(r"        \(author1@chromium\.org\)", cl))
 
       # Make sure all comments got stripped.
       self.assertFalse(re.search(r"^#", cl, flags=re.M))
@@ -583,10 +576,9 @@ class ScriptTest(unittest.TestCase):
       ["log -1 --format=%H ChangeLog", "1234\n"],
       ["log -1 1234", "Last push ouput\n"],
       ["log 1234..HEAD --format=%H", "rev1\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Log text 1.\n"],
+      ["log -1 rev1 --format=\"%s\"", "Log text 1.\n"],
       ["log -1 rev1 --format=\"%B\"", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
-       "        author1@chromium.org\n"],
+      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org\n"],
       [("commit -a -m \"Prepare push to trunk.  "
         "Now working on version 3.22.6.\""),
        " 2 files changed\n",

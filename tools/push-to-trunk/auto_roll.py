@@ -39,8 +39,7 @@ CONFIG = {
 
 
 class Preparation(Step):
-  def __init__(self):
-    Step.__init__(self, "Preparation.")
+  MESSAGE = "Preparation."
 
   def RunStep(self):
     self.InitialEnvironmentChecks()
@@ -48,8 +47,7 @@ class Preparation(Step):
 
 
 class FetchLatestRevision(Step):
-  def __init__(self):
-    Step.__init__(self, "Fetching latest V8 revision.")
+  MESSAGE = "Fetching latest V8 revision."
 
   def RunStep(self):
     log = self.Git("svn log -1 --oneline").strip()
@@ -60,8 +58,7 @@ class FetchLatestRevision(Step):
 
 
 class FetchLKGR(Step):
-  def __init__(self):
-    Step.__init__(self, "Fetching V8 LKGR.")
+  MESSAGE = "Fetching V8 LKGR."
 
   def RunStep(self):
     lkgr_url = "https://v8-status.appspot.com/lkgr"
@@ -69,8 +66,7 @@ class FetchLKGR(Step):
 
 
 class PushToTrunk(Step):
-  def __init__(self):
-    Step.__init__(self, "Pushing to trunk if possible.")
+  MESSAGE = "Pushing to trunk if possible."
 
   def RunStep(self):
     self.RestoreIfUnset("latest")

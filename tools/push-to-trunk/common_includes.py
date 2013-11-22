@@ -70,6 +70,10 @@ def MSub(rexp, replacement, text):
 
 
 def Fill80(line):
+  # Replace tabs and remove surrounding space.
+  line = re.sub(r"\t", r"        ", line.strip())
+
+  # Format with 8 characters indentation and line width 80.
   return textwrap.fill(line, width=80, initial_indent="        ",
                        subsequent_indent="        ")
 
@@ -97,7 +101,7 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
   for (title, body, author) in commit_messages:
     # TODO(machenbach): Reload the commit description from rietveld in order to
     # catch late changes.
-    title = title.rstrip()
+    title = title.strip()
     if auto_format:
       # Only add commits that set the LOG flag correctly.
       log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:Y(?:ES)?)|TRUE"
@@ -115,7 +119,7 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
     # indentation afterwards.
 
     # Add the commit's title line.
-    result += "%s\n" % title
+    result += "%s\n" % Fill80(title)
     added_titles.add(title)
 
     # Add bug references.
@@ -123,7 +127,7 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
 
     # Append the commit's author for reference if not in auto-format mode.
     if not auto_format:
-      result += "%s\n" % author.rstrip()
+      result += "%s\n" % Fill80("(%s)" % author.strip())
 
     result += "\n"
   return result
@@ -205,36 +209,23 @@ DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
 class Step(object):
-  def __init__(self, text="", requires=None):
+  def __init__(self, text, requires, number, config, state, options, handler):
     self._text = text
-    self._number = -1
-    self._options = None
     self._requires = requires
-    self._side_effect_handler = DEFAULT_SIDE_EFFECT_HANDLER
-
-  def SetNumber(self, number):
     self._number = number
-
-  def SetConfig(self, config):
     self._config = config
-
-  def SetState(self, state):
     self._state = state
-
-  def SetOptions(self, options):
     self._options = options
-
-  def SetSideEffectHandler(self, handler):
     self._side_effect_handler = handler
+    assert self._number >= 0
+    assert self._config is not None
+    assert self._state is not None
+    assert self._side_effect_handler is not None
 
   def Config(self, key):
     return self._config[key]
 
   def Run(self):
-    assert self._number >= 0
-    assert self._config is not None
-    assert self._state is not None
-    assert self._side_effect_handler is not None
     if self._requires:
       self.RestoreIfUnset(self._requires)
       if not self._state[self._requires]:
@@ -411,8 +402,7 @@ class Step(object):
 
 
 class UploadStep(Step):
-  def __init__(self):
-    Step.__init__(self, "Upload for code review.")
+  MESSAGE = "Upload for code review."
 
   def RunStep(self):
     if self._options.r:
@@ -430,24 +420,35 @@ class UploadStep(Step):
       self.Die("'git cl upload' failed, please try again.")
 
 
+def MakeStep(step_class=Step, number=0, state=None, config=None,
+             options=None, side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+    # Allow to pass in empty dictionaries.
+    state = state if state is not None else {}
+    config = config if config is not None else {}
+
+    try:
+      message = step_class.MESSAGE
+    except AttributeError:
+      message = step_class.__name__
+    try:
+      requires = step_class.REQUIRES
+    except AttributeError:
+      requires = None
+
+    return step_class(message, requires, number=number, config=config,
+                      state=state, options=options,
+                      handler=side_effect_handler)
+
+
 def RunScript(step_classes,
               config,
               options,
               side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
   state = {}
   steps = []
-  number = 0
-
-  for step_class in step_classes:
-    # TODO(machenbach): Factory methods.
-    step = step_class()
-    step.SetNumber(number)
-    step.SetConfig(config)
-    step.SetOptions(options)
-    step.SetState(state)
-    step.SetSideEffectHandler(side_effect_handler)
-    steps.append(step)
-    number += 1
+  for (number, step_class) in enumerate(step_classes):
+    steps.append(MakeStep(step_class, number, state, config,
+                          options, side_effect_handler))
 
   for step in steps[options.s:]:
     step.Run()
