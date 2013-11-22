@@ -47,6 +47,7 @@ class DfaState(AutomatonState):
     return self.__action
 
   def add_transition(self, key, state):
+    assert key != None
     assert not key == TransitionKey.epsilon()
     assert not self.__transitions.has_key(key)
     self.__transitions[key] = state

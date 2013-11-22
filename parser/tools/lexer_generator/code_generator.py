@@ -247,12 +247,9 @@ class CodeGenerator:
     template = template_env.get_template('code_generator.jinja')
 
     encoding = self.__dfa.encoding().name()
-    if encoding == 'latin1':
-      char_type = 'uint8_t'
-    elif encoding == 'utf16':
-      char_type = 'uint16_t'
-    else:
-      raise Exception('Unsupported encoding %s' % encoding)
+    char_types = {'latin1': 'uint8_t', 'utf16': 'uint16_t', 'utf8': 'int8_t'}
+    char_type = char_types[encoding]
+
     return template.render(
       start_node_number = 0,
       debug_print = self.__debug_print,

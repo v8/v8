@@ -37,6 +37,7 @@ class KeyEncoding(object):
     if not KeyEncoding.__encodings:
       Latin1Encoding()
       Utf16Encoding()
+      Utf8Encoding()
     return KeyEncoding.__encodings[name]
 
   def __init__(self, name, primary_range, class_names):
@@ -501,3 +502,28 @@ class Utf16Encoding(KeyEncoding):
       'identifier_part_not_letter',
       [(48, 57), (95, 95),
        self.class_range('non_latin_1_identifier_part_not_letter')])
+
+class Utf8Encoding(KeyEncoding):
+
+  def __init__(self):
+    super(Utf8Encoding, self).__init__(
+      'utf8',
+      (1, 127),
+      ['eos', 'zero', 'byte_order_mark',
+       'non_ascii_whitespace',
+       'non_ascii_letter',
+       'non_ascii_identifier_part_not_letter',
+       'non_ascii_line_terminator',
+       'non_ascii_everything_else'])
+    self.add_predefined_range(
+      'whitespace',
+      [(9, 9), (11, 12), (32, 32), self.class_range('non_ascii_whitespace')])
+    self.add_predefined_range(
+      'letter', [(65, 90), (97, 122), self.class_range('non_ascii_letter')])
+    self.add_predefined_range(
+      'line_terminator',
+      [(10, 10), (13, 13), self.class_range('non_ascii_line_terminator')])
+    self.add_predefined_range(
+      'identifier_part_not_letter',
+      [(48, 57), (95, 95),
+       self.class_range('non_ascii_identifier_part_not_letter')])

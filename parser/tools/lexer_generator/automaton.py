@@ -217,6 +217,8 @@ class Automaton(object):
       for key, state in node.key_state_iter():
         if key == TransitionKey.epsilon():
           key = "&epsilon;"
+        else:
+          key = key.to_string(self.encoding())
         edge_content.append("  S_%s -> S_%s [ label = \"%s\" ];" % (
             node.node_number(), state.node_number(), escape(key)))
       return (node_content, edge_content)
