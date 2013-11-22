@@ -79,7 +79,7 @@ eos = [:eos:];
 
 
 "-->" <{
-  if (!just_seen_line_terminator_) {
+  if (!has_line_terminator_before_next_) {
     BACKWARD(1);
     PUSH_TOKEN(Token::DEC);
   }

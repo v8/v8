@@ -84,26 +84,55 @@ class ExperimentalScanner {
 
   ~ExperimentalScanner();
 
+  // Returns the next token and advances input.
   Token::Value Next() {
+    has_line_terminator_before_next_ = false;
     current_ = next_;
     Scan();  // will fill in next_.
     return current_.token;
   }
 
+  // Returns the current token again.
+  Token::Value current_token() { return current_.token; }
+
+  // Returns the location information for the current token
+  // (the token last returned by Next()).
   Location location() {
     return Location(current_.beg_pos, current_.end_pos);
   }
 
+  // One token look-ahead (past the token returned by Next()).
+  Token::Value peek() const { return next_.token; }
+
+  Location peek_location() const { return next_.location; }
+
+  UnicodeCache* unicode_cache() { return unicode_cache_; }
+
+  bool HarmonyScoping() const {
+    return harmony_scoping_;
+  }
+  void SetHarmonyScoping(bool scoping) {
+    harmony_scoping_ = scoping;
+  }
+  bool HarmonyModules() const {
+    return harmony_modules_;
+  }
+  void SetHarmonyModules(bool modules) {
+    harmony_modules_ = modules;
+  }
+  bool HarmonyNumericLiterals() const {
+    return harmony_numeric_literals_;
+  }
   void SetHarmonyNumericLiterals(bool numeric_literals) {
     harmony_numeric_literals_ = numeric_literals;
   }
 
-  void SetHarmonyModules(bool modules) {
-    harmony_modules_ = modules;
-  }
-
-  void SetHarmonyScoping(bool scoping) {
-    harmony_scoping_ = scoping;
+  // Returns true if there was a line terminator before the peek'ed token,
+  // possibly inside a multi-line comment.
+  bool HasAnyLineTerminatorBeforeNext() const {
+    return has_line_terminator_before_next_;
+    // FIXME: do we need to distinguish between newlines inside and outside
+    // multiline comments? Atm doesn't look like we need to.
   }
 
  private:
@@ -127,7 +156,7 @@ class ExperimentalScanner {
   YYCTYPE* start_;
   YYCTYPE* cursor_;
   YYCTYPE* marker_;
-  bool just_seen_line_terminator_;
+  bool has_line_terminator_before_next_;
 
   YYCTYPE yych;
 
@@ -147,7 +176,7 @@ ExperimentalScanner<YYCTYPE>::ExperimentalScanner(
     YYCTYPE* source_end,
     Isolate* isolate)
     : unicode_cache_(isolate->unicode_cache()),
-      just_seen_line_terminator_(true),
+      has_line_terminator_before_next_(true),
       harmony_numeric_literals_(false),
       harmony_modules_(false),
       harmony_scoping_(false) {
