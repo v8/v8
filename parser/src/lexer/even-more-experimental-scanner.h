@@ -116,6 +116,7 @@ EvenMoreExperimentalScanner<YYCTYPE>::EvenMoreExperimentalScanner(
     int repeat,
     bool convert_to_utf16)
     : unicode_cache_(isolate->unicode_cache()),
+      just_seen_line_terminator_(true),
       harmony_numeric_literals_(false) {
   int size = 0;
   buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(

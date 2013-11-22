@@ -152,7 +152,7 @@ line_terminator+                     <|push_line_terminator|>
 "do"          <|push_token(DO)|>
 "else"        <|push_token(ELSE)|>
 "enum"        <|push_token(FUTURE_RESERVED_WORD)|>
-"export"      <|push_harmony_token(modules, EXPORT, FUTURE_STRICT_RESERVED_WORD)|>
+"export"      <|push_harmony_token(modules, EXPORT, FUTURE_RESERVED_WORD)|>
 "extends"     <|push_token(FUTURE_RESERVED_WORD)|>
 "false"       <|push_token(FALSE_LITERAL)|>
 "finally"     <|push_token(FINALLY)|>
@@ -160,7 +160,7 @@ line_terminator+                     <|push_line_terminator|>
 "function"    <|push_token(FUNCTION)|>
 "if"          <|push_token(IF)|>
 "implements"  <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"import"      <|push_harmony_token(modules, IMPORT, FUTURE_STRICT_RESERVED_WORD)|>
+"import"      <|push_harmony_token(modules, IMPORT, FUTURE_RESERVED_WORD)|>
 "in"          <|push_token(IN)|>
 "instanceof"  <|push_token(INSTANCEOF)|>
 "interface"   <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
