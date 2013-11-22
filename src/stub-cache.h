@@ -87,7 +87,7 @@ class StubCache {
                       InlineCacheHolderFlag cache_holder = OWN_MAP);
 
   Handle<Code> FindHandler(Handle<Name> name,
-                           Handle<HeapObject> stub_holder,
+                           Handle<Map> map,
                            Code::Kind kind,
                            InlineCacheHolderFlag cache_holder = OWN_MAP,
                            StrictModeFlag strict_mode = kNonStrictMode);
@@ -97,7 +97,7 @@ class StubCache {
                                     Handle<Code> handler,
                                     StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeLoadNonexistent(Handle<Name> name, Handle<Object> object);
+  Handle<Code> ComputeLoadNonexistent(Handle<Name> name, Handle<Type> type);
 
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
@@ -549,7 +549,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   }
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<Object> object,
+  virtual Register HandlerFrontendHeader(Handle<Type> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
@@ -557,7 +557,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
 
   virtual void HandlerFrontendFooter(Handle<Name> name, Label* miss) = 0;
 
-  Register HandlerFrontend(Handle<Object> object,
+  Register HandlerFrontend(Handle<Type> type,
                            Register object_reg,
                            Handle<JSObject> holder,
                            Handle<Name> name);
@@ -615,32 +615,32 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
       : BaseLoadStoreStubCompiler(isolate, kind, cache_holder) { }
   virtual ~LoadStubCompiler() { }
 
-  Handle<Code> CompileLoadField(Handle<Object> object,
+  Handle<Code> CompileLoadField(Handle<Type> type,
                                 Handle<JSObject> holder,
                                 Handle<Name> name,
                                 PropertyIndex index,
                                 Representation representation);
 
-  Handle<Code> CompileLoadCallback(Handle<Object> object,
+  Handle<Code> CompileLoadCallback(Handle<Type> type,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<ExecutableAccessorInfo> callback);
 
-  Handle<Code> CompileLoadCallback(Handle<Object> object,
+  Handle<Code> CompileLoadCallback(Handle<Type> type,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    const CallOptimization& call_optimization);
 
-  Handle<Code> CompileLoadConstant(Handle<Object> object,
+  Handle<Code> CompileLoadConstant(Handle<Type> type,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<Object> value);
 
-  Handle<Code> CompileLoadInterceptor(Handle<Object> object,
+  Handle<Code> CompileLoadInterceptor(Handle<Type> type,
                                       Handle<JSObject> holder,
                                       Handle<Name> name);
 
-  Handle<Code> CompileLoadViaGetter(Handle<Object> object,
+  Handle<Code> CompileLoadViaGetter(Handle<Type> type,
                                     Handle<JSObject> holder,
                                     Handle<Name> name,
                                     Handle<JSFunction> getter);
@@ -649,12 +649,11 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                     Register receiver,
                                     Handle<JSFunction> getter);
 
-  Handle<Code> CompileLoadNonexistent(Handle<Object> object,
+  Handle<Code> CompileLoadNonexistent(Handle<Type> type,
                                       Handle<JSObject> last,
-                                      Handle<Name> name,
-                                      Handle<JSGlobalObject> global);
+                                      Handle<Name> name);
 
-  Handle<Code> CompileLoadGlobal(Handle<Object> object,
+  Handle<Code> CompileLoadGlobal(Handle<Type> type,
                                  Handle<GlobalObject> holder,
                                  Handle<PropertyCell> cell,
                                  Handle<Name> name,
@@ -663,7 +662,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   static Register* registers();
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<Object> object,
+  virtual Register HandlerFrontendHeader(Handle<Type> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
@@ -671,15 +670,14 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
 
   virtual void HandlerFrontendFooter(Handle<Name> name, Label* miss);
 
-  Register CallbackHandlerFrontend(Handle<Object> object,
+  Register CallbackHandlerFrontend(Handle<Type> type,
                                    Register object_reg,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<Object> callback);
-  void NonexistentHandlerFrontend(Handle<Object> object,
+  void NonexistentHandlerFrontend(Handle<Type> type,
                                   Handle<JSObject> last,
-                                  Handle<Name> name,
-                                  Handle<JSGlobalObject> global);
+                                  Handle<Name> name);
 
   void GenerateLoadField(Register reg,
                          Handle<JSObject> holder,
@@ -812,7 +810,7 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
   }
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<Object> object,
+  virtual Register HandlerFrontendHeader(Handle<Type> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,

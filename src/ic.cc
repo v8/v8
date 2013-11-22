@@ -1145,13 +1145,14 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     return;
   }
 
+  Handle<Type> type = CurrentTypeOf(object, isolate());
   Handle<Code> code;
   if (!lookup->IsCacheable()) {
     // Bail out if the result is not cacheable.
     code = slow_stub();
   } else if (!lookup->IsProperty()) {
     if (kind() == Code::LOAD_IC) {
-      code = isolate()->stub_cache()->ComputeLoadNonexistent(name, object);
+      code = isolate()->stub_cache()->ComputeLoadNonexistent(name, type);
     } else {
       code = slow_stub();
     }
@@ -1159,7 +1160,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = ComputeHandler(lookup, object, name);
   }
 
-  PatchCache(CurrentTypeOf(object, isolate()), name, code);
+  PatchCache(type, name, code);
   TRACE_IC("LoadIC", name);
 }
 
@@ -1181,7 +1182,7 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
       isolate(), *object, cache_holder));
 
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
-      name, stub_holder, kind(), cache_holder, strict_mode());
+      name, handle(stub_holder->map()), kind(), cache_holder, strict_mode());
   if (!code.is_null()) return code;
 
   code = CompileHandler(lookup, object, name, value, cache_holder);
@@ -1205,6 +1206,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
     return SimpleFieldLoad(length_index);
   }
 
+  Handle<Type> type = CurrentTypeOf(object, isolate());
   Handle<JSObject> holder(lookup->holder());
   LoadStubCompiler compiler(isolate(), cache_holder, kind());
 
@@ -1217,14 +1219,14 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
                                lookup->representation());
       }
       return compiler.CompileLoadField(
-          object, holder, name, field, lookup->representation());
+          type, holder, name, field, lookup->representation());
     }
     case CONSTANT: {
       Handle<Object> constant(lookup->GetConstant(), isolate());
       // TODO(2803): Don't compute a stub for cons strings because they cannot
       // be embedded into code.
       if (constant->IsConsString()) break;
-      return compiler.CompileLoadConstant(object, holder, name, constant);
+      return compiler.CompileLoadConstant(type, holder, name, constant);
     }
     case NORMAL:
       if (kind() != Code::LOAD_IC) break;
@@ -1233,7 +1235,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         Handle<Code> code = compiler.CompileLoadGlobal(
-            object, global, cell, name, lookup->IsDontDelete());
+            type, global, cell, name, lookup->IsDontDelete());
         // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
         Handle<HeapObject> stub_holder(GetCodeCacheHolder(
             isolate(), *object, cache_holder));
@@ -1263,7 +1265,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
             Handle<ExecutableAccessorInfo>::cast(callback);
         if (v8::ToCData<Address>(info->getter()) == 0) break;
         if (!info->IsCompatibleReceiver(*object)) break;
-        return compiler.CompileLoadCallback(object, holder, name, info);
+        return compiler.CompileLoadCallback(type, holder, name, info);
       } else if (callback->IsAccessorPair()) {
         Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter(),
                               isolate());
@@ -1282,9 +1284,9 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         if (call_optimization.is_simple_api_call() &&
             call_optimization.IsCompatibleReceiver(*object)) {
           return compiler.CompileLoadCallback(
-              object, holder, name, call_optimization);
+              type, holder, name, call_optimization);
         }
-        return compiler.CompileLoadViaGetter(object, holder, name, function);
+        return compiler.CompileLoadViaGetter(type, holder, name, function);
       }
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
@@ -1294,7 +1296,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
     }
     case INTERCEPTOR:
       ASSERT(HasInterceptorGetter(*holder));
-      return compiler.CompileLoadInterceptor(object, holder, name);
+      return compiler.CompileLoadInterceptor(type, holder, name);
     default:
       break;
   }
