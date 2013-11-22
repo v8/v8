@@ -362,6 +362,9 @@ class SourceProcessor(SourceFileProcessor):
       else:
         print "%s has trailing whitespaces in line %s." % (name, linenumbers)
       result = False
+    if not contents.endswith('\n') or contents.endswith('\n\n'):
+      print "%s does not end with a single new line." % name
+      result = False
     # Check two empty lines between declarations.
     if name.endswith(".cc"):
       line = 0
