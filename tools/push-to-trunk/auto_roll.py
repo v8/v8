@@ -29,7 +29,6 @@
 import optparse
 import re
 import sys
-import urllib2
 
 from common_includes import *
 
@@ -66,15 +65,7 @@ class FetchLKGR(Step):
 
   def RunStep(self):
     lkgr_url = "https://v8-status.appspot.com/lkgr"
-    try:
-      # pylint: disable=E1121
-      url_fh = urllib2.urlopen(lkgr_url, None, 60)
-    except urllib2.URLError:
-      self.Die("URLException while fetching %s" % lkgr_url)
-    try:
-      self.Persist("lkgr", url_fh.read())
-    finally:
-      url_fh.close()
+    self.Persist("lkgr", self.ReadURL(lkgr_url))
 
 
 class PushToTrunk(Step):
@@ -94,6 +85,18 @@ class PushToTrunk(Step):
             % (latest, lkgr))
 
 
+def RunAutoRoll(config,
+                options,
+                side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+  step_classes = [
+    Preparation,
+    FetchLatestRevision,
+    FetchLKGR,
+    PushToTrunk,
+  ]
+  RunScript(step_classes, config, options, side_effect_handler)
+
+
 def BuildOptions():
   result = optparse.OptionParser()
   result.add_option("-s", "--step", dest="s",
@@ -105,15 +108,7 @@ def BuildOptions():
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
-
-  step_classes = [
-    Preparation,
-    FetchLatestRevision,
-    FetchLKGR,
-    PushToTrunk,
-  ]
-
-  RunScript(step_classes, CONFIG, options, DEFAULT_SIDE_EFFECT_HANDLER)
+  RunAutoRoll(CONFIG, options)
 
 if __name__ == "__main__":
   sys.exit(Main())

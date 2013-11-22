@@ -31,6 +31,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import urllib2
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 TEMP_BRANCH = "TEMP_BRANCH"
@@ -192,6 +193,14 @@ class SideEffectHandler(object):
   def ReadLine(self):
     return sys.stdin.readline().strip()
 
+  def ReadURL(self, url):
+    # pylint: disable=E1121
+    url_fh = urllib2.urlopen(url, None, 60)
+    try:
+      return url_fh.read()
+    finally:
+      url_fh.close()
+
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
@@ -250,6 +259,9 @@ class Step(object):
   def Editor(self, args):
     return self._side_effect_handler.Command(os.environ["EDITOR"], args,
                                              pipe=False)
+
+  def ReadURL(self, url):
+    return self._side_effect_handler.ReadURL(url)
 
   def Die(self, msg=""):
     if msg != "":
