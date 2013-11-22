@@ -45,9 +45,52 @@
 #include "string-stream.h"
 #include "scanner.h"
 
-#include "even-more-experimental-scanner.h"
+#include "experimental-scanner.h"
 
 using namespace v8::internal;
+
+byte* ReadFile(const char* name, byte** end, int repeat,
+               bool convert_to_utf16) {
+  FILE* file = fopen(name, "rb");
+  if (file == NULL) return NULL;
+
+  fseek(file, 0, SEEK_END);
+  int file_size = ftell(file);
+  rewind(file);
+
+  int size = file_size * repeat;
+
+  byte* chars = new byte[size];
+  for (int i = 0; i < file_size;) {
+    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
+    i += read;
+  }
+  fclose(file);
+
+  for (int i = file_size; i < size; i++) {
+    chars[i] = chars[i - file_size];
+  }
+  *end = &chars[size];
+
+  if (!convert_to_utf16)
+    return chars;
+
+  // Length of new_chars is not strictly accurate, but should be enough.
+  uint16_t* new_chars = new uint16_t[size];
+  {
+    Utf8ToUtf16CharacterStream stream(chars, size);
+    uint16_t* cursor = new_chars;
+    uc32 c;
+    // The 32-bit char type is probably only so that we can have -1 as a return
+    // value. If the char is not -1, it should fit into 16 bits.
+    while ((c = stream.Advance()) != -1)
+      *cursor++ = c;
+    *end = reinterpret_cast<byte*>(cursor);
+  }
+  delete[] chars;
+  return reinterpret_cast<byte*>(new_chars);
+}
+
 
 enum Encoding {
   LATIN1,
@@ -73,8 +116,8 @@ class BaselineScanner {
                   int repeat,
                   HarmonySettings harmony_settings)
       : stream_(NULL) {
-    int length = 0;
-    source_ = ReadFile(fname, isolate, &length, repeat);
+    byte* end = 0;
+    source_ = ReadFile(fname, &end, repeat, false);
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
     scanner_->SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
@@ -83,20 +126,20 @@ class BaselineScanner {
     switch (encoding) {
       case UTF8:
       case UTF8TO16:
-        stream_ = new Utf8ToUtf16CharacterStream(source_, length);
+        stream_ = new Utf8ToUtf16CharacterStream(source_, end - source_);
         break;
       case UTF16: {
         Handle<String> result = isolate->factory()->NewStringFromTwoByte(
             Vector<const uint16_t>(
                 reinterpret_cast<const uint16_t*>(source_),
-                length / 2));
+                (end - source_) / 2));
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;
       }
       case LATIN1: {
         Handle<String> result = isolate->factory()->NewStringFromOneByte(
-            Vector<const uint8_t>(source_, length));
+            Vector<const uint8_t>(source_, end - source_));
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;
@@ -180,8 +223,12 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  int repeat,
                                  HarmonySettings harmony_settings) {
   ElapsedTimer timer;
-  EvenMoreExperimentalScanner<YYCTYPE> scanner(fname, isolate, repeat,
-                                               encoding == UTF8TO16);
+  byte* buffer_end = 0;
+  YYCTYPE* buffer = reinterpret_cast<YYCTYPE*>(
+      ReadFile(fname, &buffer_end, repeat, encoding == UTF8TO16));
+
+  ExperimentalScanner<YYCTYPE> scanner(
+      buffer, reinterpret_cast<YYCTYPE*>(buffer_end), isolate);
   scanner.SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
   scanner.SetHarmonyModules(harmony_settings.modules);
   scanner.SetHarmonyScoping(harmony_settings.scoping);

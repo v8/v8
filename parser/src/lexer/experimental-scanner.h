@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_LEXER_EVEN_MORE_EXPERIMENTAL_SCANNER_H
-#define V8_LEXER_EVEN_MORE_EXPERIMENTAL_SCANNER_H
+#ifndef V8_LEXER_EXPERIMENTAL_SCANNER_H
+#define V8_LEXER_EXPERIMENTAL_SCANNER_H
 
 #include "token.h"
 #include "flags.h"
@@ -58,19 +58,17 @@
 namespace v8 {
 namespace internal {
 
-class ExperimentalScanner;
 class UnicodeCache;
 
 template<typename YYCTYPE>
-class EvenMoreExperimentalScanner {
+class ExperimentalScanner {
  public:
-  explicit EvenMoreExperimentalScanner(
-      const char* fname,
-      Isolate* isolate,
-      int repeat,
-      bool convert_to_utf16);
+  explicit ExperimentalScanner(
+      YYCTYPE* source,
+      YYCTYPE* source_end,
+      Isolate* isolate);
 
-  ~EvenMoreExperimentalScanner();
+  ~ExperimentalScanner();
 
   Token::Value Next(int* beg_pos, int* end_pos);
 
@@ -110,35 +108,17 @@ class EvenMoreExperimentalScanner {
 const byte* ReadFile(const char* name, Isolate* isolate, int* size, int repeat);
 
 template<typename YYCTYPE>
-EvenMoreExperimentalScanner<YYCTYPE>::EvenMoreExperimentalScanner(
-    const char* fname,
-    Isolate* isolate,
-    int repeat,
-    bool convert_to_utf16)
+ExperimentalScanner<YYCTYPE>::ExperimentalScanner(
+    YYCTYPE* source,
+    YYCTYPE* source_end,
+    Isolate* isolate)
     : unicode_cache_(isolate->unicode_cache()),
       just_seen_line_terminator_(true),
-      harmony_numeric_literals_(false) {
-  int size = 0;
-  buffer_ = const_cast<YYCTYPE*>(reinterpret_cast<const YYCTYPE*>(
-      ReadFile(fname, isolate, &size, repeat)));
-
-  if (convert_to_utf16) {
-    Utf8ToUtf16CharacterStream stream(reinterpret_cast<const byte*>(buffer_),
-                                      size);
-    uint16_t* new_buffer = new uint16_t[size];
-    uint16_t* cursor = new_buffer;
-    uc32 c;
-    // The 32-bit char type is probably only so that we can have -1 as a return
-    // value. If the char is not -1, it should fit into 16 bits.
-    while ((c = stream.Advance()) != -1)
-      *cursor++ = c;
-    delete[] buffer_;
-    buffer_ = reinterpret_cast<YYCTYPE*>(new_buffer);
-    buffer_end_ = reinterpret_cast<YYCTYPE*>(cursor);
-  } else {
-    buffer_end_ = buffer_ + size / sizeof(YYCTYPE);
-  }
-
+      harmony_numeric_literals_(false),
+      harmony_modules_(false),
+      harmony_scoping_(false) {
+  buffer_ = source;
+  buffer_end_ = source_end;
   start_ = buffer_;
   cursor_ = buffer_;
   marker_ = buffer_;
@@ -146,13 +126,13 @@ EvenMoreExperimentalScanner<YYCTYPE>::EvenMoreExperimentalScanner(
 
 
 template<typename YYCTYPE>
-EvenMoreExperimentalScanner<YYCTYPE>::~EvenMoreExperimentalScanner() {
+ExperimentalScanner<YYCTYPE>::~ExperimentalScanner() {
   delete[] buffer_;
 }
 
 
 template<typename YYCTYPE>
-uc32 EvenMoreExperimentalScanner<YYCTYPE>::ScanHexNumber(int length) {
+uc32 ExperimentalScanner<YYCTYPE>::ScanHexNumber(int length) {
   // We have seen \uXXXX, let's see what it is.
   // FIXME: we never end up in here if only a subset of the 4 chars are valid
   // hex digits -> handle the case where they're not.
@@ -169,16 +149,16 @@ uc32 EvenMoreExperimentalScanner<YYCTYPE>::ScanHexNumber(int length) {
 
 
 template<typename YYCTYPE>
-bool EvenMoreExperimentalScanner<YYCTYPE>::ValidIdentifierPart() {
+bool ExperimentalScanner<YYCTYPE>::ValidIdentifierPart() {
   return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
 }
 
 
 template<typename YYCTYPE>
-bool EvenMoreExperimentalScanner<YYCTYPE>::ValidIdentifierStart() {
+bool ExperimentalScanner<YYCTYPE>::ValidIdentifierStart() {
   return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
 }
 
 } }
 
-#endif  // V8_LEXER_LEXER_H
+#endif  // V8_LEXER_EXPERIMENTAL_SCANNER_H

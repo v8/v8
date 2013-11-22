@@ -1,4 +1,4 @@
-#include "lexer/even-more-experimental-scanner.h"
+#include "lexer/experimental-scanner.h"
 
 {%- macro do_key(key) -%}
   {%- for r in key -%}
@@ -206,8 +206,8 @@
 namespace v8 {
 namespace internal {
 template<>
-Token::Value EvenMoreExperimentalScanner<{{char_type}}>::Next(int* beg_pos_to_return,
-                                                              int* end_pos_to_return) {
+Token::Value ExperimentalScanner<{{char_type}}>::Next(int* beg_pos_to_return,
+                                                      int* end_pos_to_return) {
   // Setup environment.
   {{char_type}} yych;
   if (cursor_ >= buffer_end_) yych = 0;
