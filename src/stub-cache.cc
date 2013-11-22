@@ -1168,9 +1168,9 @@ Register LoadStubCompiler::HandlerFrontendHeader(
   }
 
   // Check that the maps starting from the prototype haven't changed.
-  return CheckPrototypes(receiver, object_reg, holder,
-                         scratch1(), scratch2(), scratch3(),
-                         name, miss, check_type);
+  return CheckPrototypes(
+      IC::CurrentTypeOf(receiver, isolate()), object_reg, holder,
+      scratch1(), scratch2(), scratch3(), name, miss, check_type);
 }
 
 
@@ -1182,9 +1182,9 @@ Register StoreStubCompiler::HandlerFrontendHeader(
     Handle<JSObject> holder,
     Handle<Name> name,
     Label* miss) {
-  return CheckPrototypes(Handle<JSObject>::cast(object), object_reg, holder,
-                         this->name(), scratch1(), scratch2(),
-                         name, miss, SKIP_RECEIVER);
+  return CheckPrototypes(
+      IC::CurrentTypeOf(object, isolate()), object_reg, holder, this->name(),
+      scratch1(), scratch2(), name, miss, SKIP_RECEIVER);
 }
 
 

@@ -6198,6 +6198,16 @@ class Map: public HeapObject {
   bool IsJSObjectMap() {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
+  bool IsJSGlobalProxyMap() {
+    return instance_type() == JS_GLOBAL_PROXY_TYPE;
+  }
+  bool IsJSGlobalObjectMap() {
+    return instance_type() == JS_GLOBAL_OBJECT_TYPE;
+  }
+  bool IsGlobalObjectMap() {
+    const InstanceType type = instance_type();
+    return type == JS_GLOBAL_OBJECT_TYPE || type == JS_BUILTINS_OBJECT_TYPE;
+  }
 
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing

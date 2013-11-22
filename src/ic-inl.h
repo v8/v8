@@ -149,7 +149,7 @@ Handle<Map> IC::GetCodeCacheHolder(InlineCacheHolderFlag flag,
     }
     return handle(JSObject::cast(constructor->instance_prototype())->map());
   }
-  return type->AsClass();
+  return TypeToMap(type, isolate);
 }
 
 

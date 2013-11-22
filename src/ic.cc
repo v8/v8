@@ -783,7 +783,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       : Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate())),
                          isolate());
 
-  PatchCache(handle(Type::OfCurrently(cache_object), isolate()), name, code);
+  PatchCache(CurrentTypeOf(cache_object, isolate()), name, code);
   TRACE_IC("CallIC", name);
 }
 
@@ -989,7 +989,7 @@ bool IC::UpdatePolymorphicIC(Handle<Type> type,
     // If the receiver type is already in the polymorphic IC, this indicates
     // there was a prototoype chain failure. In that case, just overwrite the
     // handler.
-    } else if (type->Is(current_type)) {
+    } else if (type->IsCurrently(current_type)) {
       ASSERT(handler_to_overwrite == -1);
       number_of_valid_types--;
       handler_to_overwrite = i;
@@ -1015,9 +1015,20 @@ bool IC::UpdatePolymorphicIC(Handle<Type> type,
 }
 
 
+Handle<Type> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
+  Type* type = object->IsJSGlobalObject()
+      ? Type::Constant(Handle<JSGlobalObject>::cast(object))
+      : Type::OfCurrently(object);
+  return handle(type, isolate);
+}
+
+
 Handle<Map> IC::TypeToMap(Type* type, Isolate* isolate) {
   if (type->Is(Type::Number())) return isolate->factory()->heap_number_map();
   if (type->Is(Type::Boolean())) return isolate->factory()->oddball_map();
+  if (type->IsConstant()) {
+    return handle(Handle<JSGlobalObject>::cast(type->AsConstant())->map());
+  }
   ASSERT(type->IsClass());
   return type->AsClass();
 }
@@ -1148,7 +1159,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = ComputeHandler(lookup, object, name);
   }
 
-  PatchCache(handle(Type::OfCurrently(object), isolate()), name, code);
+  PatchCache(CurrentTypeOf(object, isolate()), name, code);
   TRACE_IC("LoadIC", name);
 }
 
@@ -1609,7 +1620,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
   Handle<Code> code = ComputeHandler(lookup, receiver, name, value);
 
-  PatchCache(handle(Type::OfCurrently(receiver), isolate()), name, code);
+  PatchCache(CurrentTypeOf(receiver, isolate()), name, code);
   TRACE_IC("StoreIC", name);
 }
 

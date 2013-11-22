@@ -443,15 +443,6 @@ class StubCompiler BASE_EMBEDDED {
                                         Register scratch,
                                         Label* miss);
 
-  // Calls GenerateCheckPropertyCell for each global object in the prototype
-  // chain from object to (but not including) holder.
-  static void GenerateCheckPropertyCells(MacroAssembler* masm,
-                                         Handle<JSObject> object,
-                                         Handle<JSObject> holder,
-                                         Handle<Name> name,
-                                         Register scratch,
-                                         Label* miss);
-
   static void TailCallBuiltin(MacroAssembler* masm, Builtins::Name name);
 
   // Generates code that verifies that the property holder has not changed
@@ -469,7 +460,7 @@ class StubCompiler BASE_EMBEDDED {
   // The function can optionally (when save_at_depth !=
   // kInvalidProtoDepth) save the object at the given depth by moving
   // it to [esp + kPointerSize].
-  Register CheckPrototypes(Handle<JSObject> object,
+  Register CheckPrototypes(Handle<Type> type,
                            Register object_reg,
                            Handle<JSObject> holder,
                            Register holder_reg,
@@ -478,11 +469,11 @@ class StubCompiler BASE_EMBEDDED {
                            Handle<Name> name,
                            Label* miss,
                            PrototypeCheckType check = CHECK_ALL_MAPS) {
-    return CheckPrototypes(object, object_reg, holder, holder_reg, scratch1,
+    return CheckPrototypes(type, object_reg, holder, holder_reg, scratch1,
                            scratch2, name, kInvalidProtoDepth, miss, check);
   }
 
-  Register CheckPrototypes(Handle<JSObject> object,
+  Register CheckPrototypes(Handle<Type> type,
                            Register object_reg,
                            Handle<JSObject> holder,
                            Register holder_reg,
