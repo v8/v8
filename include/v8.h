@@ -4054,24 +4054,15 @@ class V8_EXPORT Isolate {
    */
   void Dispose();
 
-  /**
-   * Associate embedder-specific data with the isolate. This legacy method
-   * puts the data in the 0th slot. It will be deprecated soon.
-   */
-  V8_INLINE void SetData(void* data);
+  V8_DEPRECATED("Use SetData(0, data) instead.",
+                V8_INLINE void SetData(void* data));
+  V8_DEPRECATED("Use GetData(0) instead.", V8_INLINE void* GetData());
 
   /**
    * Associate embedder-specific data with the isolate. |slot| has to be
    * between 0 and GetNumberOfDataSlots() - 1.
    */
   V8_INLINE void SetData(uint32_t slot, void* data);
-
-  /**
-   * Retrieve embedder-specific data from the isolate. This legacy method
-   * retrieves the data from slot 0. It will be deprecated soon.
-   * Returns NULL if SetData has never been called.
-   */
-  V8_INLINE void* GetData();
 
   /**
    * Retrieve embedder-specific data from the isolate.
