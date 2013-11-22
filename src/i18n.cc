@@ -872,7 +872,7 @@ void DateFormat::DeleteDateFormat(v8::Isolate* isolate,
       v8::Utils::OpenPersistent(object))->GetInternalField(0));
 
   // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+  object->Reset();
 }
 
 
@@ -936,7 +936,7 @@ void NumberFormat::DeleteNumberFormat(v8::Isolate* isolate,
       v8::Utils::OpenPersistent(object))->GetInternalField(0));
 
   // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+  object->Reset();
 }
 
 
@@ -997,7 +997,7 @@ void Collator::DeleteCollator(v8::Isolate* isolate,
       v8::Utils::OpenPersistent(object))->GetInternalField(0));
 
   // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+  object->Reset();
 }
 
 
@@ -1064,7 +1064,7 @@ void BreakIterator::DeleteBreakIterator(v8::Isolate* isolate,
       v8::Utils::OpenPersistent(object))->GetInternalField(1));
 
   // Then dispose of the persistent handle to JS object.
-  object->Dispose();
+  object->Reset();
 }
 
 } }  // namespace v8::internal

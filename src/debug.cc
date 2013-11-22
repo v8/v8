@@ -709,7 +709,7 @@ void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
   script_cache->collected_scripts_.Add(id);
 
   // Clear the weak handle.
-  obj->Dispose();
+  obj->Reset();
 }
 
 
@@ -3071,6 +3071,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
                                     Handle<JSObject> exec_state,
                                     Handle<JSObject> event_data,
                                     bool auto_continue) {
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   HandleScope scope(isolate_);
 
   if (!isolate_->debug()->Load()) return;
@@ -3131,8 +3132,8 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   {
     v8::Local<v8::Object> api_exec_state =
         v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state));
-    v8::Local<v8::String> fun_name =
-        v8::String::New("debugCommandProcessor");
+    v8::Local<v8::String> fun_name = v8::String::NewFromUtf8(
+        isolate, "debugCommandProcessor");
     v8::Local<v8::Function> fun =
         v8::Local<v8::Function>::Cast(api_exec_state->Get(fun_name));
 
@@ -3179,11 +3180,12 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::Local<v8::Function> fun;
     v8::Local<v8::Value> request;
     v8::TryCatch try_catch;
-    fun_name = v8::String::New("processDebugRequest");
+    fun_name = v8::String::NewFromUtf8(isolate, "processDebugRequest");
     fun = v8::Local<v8::Function>::Cast(cmd_processor->Get(fun_name));
 
-    request = v8::String::New(command.text().start(),
-                              command.text().length());
+    request = v8::String::NewFromTwoByte(isolate, command.text().start(),
+                                         v8::String::kNormalString,
+                                         command.text().length());
     static const int kArgc = 1;
     v8::Handle<Value> argv[kArgc] = { request };
     v8::Local<v8::Value> response_val = fun->Call(cmd_processor, kArgc, argv);
@@ -3195,7 +3197,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       if (!response_val->IsUndefined()) {
         response = v8::Local<v8::String>::Cast(response_val);
       } else {
-        response = v8::String::New("");
+        response = v8::String::NewFromUtf8(isolate, "");
       }
 
       // Log the JSON request/response.
@@ -3205,7 +3207,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       }
 
       // Get the running state.
-      fun_name = v8::String::New("isRunning");
+      fun_name = v8::String::NewFromUtf8(isolate, "isRunning");
       fun = v8::Local<v8::Function>::Cast(cmd_processor->Get(fun_name));
       static const int kArgc = 1;
       v8::Handle<Value> argv[kArgc] = { response };
