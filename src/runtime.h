@@ -190,7 +190,6 @@ namespace internal {
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
-  F(PopulateTrigonometricTable, 3, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \

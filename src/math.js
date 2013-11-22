@@ -79,7 +79,8 @@ function MathCeil(x) {
 
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
-  return MathCosImpl(x);
+  x = MathAbs(x);  // Convert to number and get rid of -0.
+  return TrigonometricInterpolation(x, 1);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -179,7 +180,9 @@ function MathRound(x) {
 
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
-  return MathSinImpl(x);
+  x = x * 1;  // Convert to number and deal with -0.
+  if (%_IsMinusZero(x)) return x;
+  return TrigonometricInterpolation(x, 0);
 }
 
 // ECMA 262 - 15.8.2.17
@@ -189,7 +192,7 @@ function MathSqrt(x) {
 
 // ECMA 262 - 15.8.2.18
 function MathTan(x) {
-  return MathSinImpl(x) / MathCosImpl(x);
+  return MathSin(x) / MathCos(x);
 }
 
 // Non-standard extension.
@@ -198,118 +201,72 @@ function MathImul(x, y) {
 }
 
 
-var MathSinImpl = function(x) {
-  InitTrigonometricFunctions();
-  return MathSinImpl(x);
-}
+var kInversePiHalf      = 0.636619772367581343;      // 2 / pi
+var kInversePiHalfS26   = 9.48637384723993156e-9;    // 2 / pi / (2^26)
+var kS26                = 1 << 26;
+var kTwoStepThreshold   = 1 << 27;
+// pi / 2 rounded up
+var kPiHalf             = 1.570796326794896780;      // 0x192d4454fb21f93f
+// We use two parts for pi/2 to emulate a higher precision.
+// pi_half_1 only has 26 significant bits for mantissa.
+// Note that pi_half > pi_half_1 + pi_half_2
+var kPiHalf1            = 1.570796325802803040;      // 0x00000054fb21f93f
+var kPiHalf2            = 9.920935796805404252e-10;  // 0x3326a611460b113e
 
+var kSamples;            // Initialized to a number during genesis.
+var kIndexConvert;       // Initialized to kSamples / (pi/2) during genesis.
+var kSinTable;           // Initialized to a Float64Array during genesis.
+var kCosXIntervalTable;  // Initialized to a Float64Array during genesis.
 
-var MathCosImpl = function(x) {
-  InitTrigonometricFunctions();
-  return MathCosImpl(x);
-}
-
-
-var InitTrigonometricFunctions;
-
-
-// Define constants and interpolation functions.
-// Also define the initialization function that populates the lookup table
-// and then wires up the function definitions.
-function SetupTrigonometricFunctions() {
-  var samples = 1800;   // Table size.  Do not change arbitrarily.
-  var inverse_pi_half      = 0.636619772367581343;      // 2 / pi
-  var inverse_pi_half_s_26 = 9.48637384723993156e-9;    // 2 / pi / (2^26)
-  var s_26 = 1 << 26;
-  var two_step_threshold   = 1 << 27;
-  var index_convert        = 1145.915590261646418;      // samples / (pi / 2)
-  // pi / 2 rounded up
-  var pi_half              = 1.570796326794896780;      // 0x192d4454fb21f93f
-  // We use two parts for pi/2 to emulate a higher precision.
-  // pi_half_1 only has 26 significant bits for mantissa.
-  // Note that pi_half > pi_half_1 + pi_half_2
-  var pi_half_1            = 1.570796325802803040;      // 0x00000054fb21f93f
-  var pi_half_2            = 9.920935796805404252e-10;  // 0x3326a611460b113e
-  var table_sin;
-  var table_cos_interval;
-
-  // This implements sine using the following algorithm.
-  // 1) Multiplication takes care of to-number conversion.
-  // 2) Reduce x to the first quadrant [0, pi/2].
-  //    Conveniently enough, in case of +/-Infinity, we get NaN.
-  //    Note that we try to use only 26 instead of 52 significant bits for
-  //    mantissa to avoid rounding errors when multiplying.  For very large
-  //    input we therefore have additional steps.
-  // 3) Replace x by (pi/2-x) if x was in the 2nd or 4th quadrant.
-  // 4) Do a table lookup for the closest samples to the left and right of x.
-  // 5) Find the derivatives at those sampling points by table lookup:
-  //    dsin(x)/dx = cos(x) = sin(pi/2-x) for x in [0, pi/2].
-  // 6) Use cubic spline interpolation to approximate sin(x).
-  // 7) Negate the result if x was in the 3rd or 4th quadrant.
-  // 8) Get rid of -0 by adding 0.
-  var Interpolation = function(x, phase) {
-    if (x < 0 || x > pi_half) {
-      var multiple;
-      while (x < -two_step_threshold || x > two_step_threshold) {
-        // Let's assume this loop does not terminate.
-        // All numbers x in each loop forms a set S.
-        // (1) abs(x) > 2^27 for all x in S.
-        // (2) abs(multiple) != 0 since (2^27 * inverse_pi_half_s26) > 1
-        // (3) multiple is rounded down in 2^26 steps, so the rounding error is
-        //     at most max(ulp, 2^26).
-        // (4) so for x > 2^27, we subtract at most (1+pi/4)x and at least
-        //     (1-pi/4)x
-        // (5) The subtraction results in x' so that abs(x') <= abs(x)*pi/4.
-        //     Note that this difference cannot be simply rounded off.
-        // Set S cannot exist since (5) violates (1).  Loop must terminate.
-        multiple = MathFloor(x * inverse_pi_half_s_26) * s_26;
-        x = x - multiple * pi_half_1 - multiple * pi_half_2;
-      }
-      multiple = MathFloor(x * inverse_pi_half);
-      x = x - multiple * pi_half_1 - multiple * pi_half_2;
-      phase += multiple;
+// This implements sine using the following algorithm.
+// 1) Multiplication takes care of to-number conversion.
+// 2) Reduce x to the first quadrant [0, pi/2].
+//    Conveniently enough, in case of +/-Infinity, we get NaN.
+//    Note that we try to use only 26 instead of 52 significant bits for
+//    mantissa to avoid rounding errors when multiplying.  For very large
+//    input we therefore have additional steps.
+// 3) Replace x by (pi/2-x) if x was in the 2nd or 4th quadrant.
+// 4) Do a table lookup for the closest samples to the left and right of x.
+// 5) Find the derivatives at those sampling points by table lookup:
+//    dsin(x)/dx = cos(x) = sin(pi/2-x) for x in [0, pi/2].
+// 6) Use cubic spline interpolation to approximate sin(x).
+// 7) Negate the result if x was in the 3rd or 4th quadrant.
+// 8) Get rid of -0 by adding 0.
+function TrigonometricInterpolation(x, phase) {
+  if (x < 0 || x > kPiHalf) {
+    var multiple;
+    while (x < -kTwoStepThreshold || x > kTwoStepThreshold) {
+      // Let's assume this loop does not terminate.
+      // All numbers x in each loop forms a set S.
+      // (1) abs(x) > 2^27 for all x in S.
+      // (2) abs(multiple) != 0 since (2^27 * inverse_pi_half_s26) > 1
+      // (3) multiple is rounded down in 2^26 steps, so the rounding error is
+      //     at most max(ulp, 2^26).
+      // (4) so for x > 2^27, we subtract at most (1+pi/4)x and at least
+      //     (1-pi/4)x
+      // (5) The subtraction results in x' so that abs(x') <= abs(x)*pi/4.
+      //     Note that this difference cannot be simply rounded off.
+      // Set S cannot exist since (5) violates (1).  Loop must terminate.
+      multiple = MathFloor(x * kInversePiHalfS26) * kS26;
+      x = x - multiple * kPiHalf1 - multiple * kPiHalf2;
     }
-    var double_index = x * index_convert;
-    if (phase & 1) double_index = samples - double_index;
-    var index = double_index | 0;
-    var t1 = double_index - index;
-    var t2 = 1 - t1;
-    var y1 = table_sin[index];
-    var y2 = table_sin[index + 1];
-    var dy = y2 - y1;
-    return (t2 * y1 + t1 * y2 +
-                t1 * t2 * ((table_cos_interval[index] - dy) * t2 +
-                           (dy - table_cos_interval[index + 1]) * t1))
-           * (1 - (phase & 2)) + 0;
+    multiple = MathFloor(x * kInversePiHalf);
+    x = x - multiple * kPiHalf1 - multiple * kPiHalf2;
+    phase += multiple;
   }
-
-  var MathSinInterpolation = function(x) {
-    x = x * 1;  // Convert to number and deal with -0.
-    if (%_IsMinusZero(x)) return x;
-    return Interpolation(x, 0);
-  }
-
-  // Cosine is sine with a phase offset.
-  var MathCosInterpolation = function(x) {
-    x = MathAbs(x);  // Convert to number and get rid of -0.
-    return Interpolation(x, 1);
-  };
-
-  %SetInlineBuiltinFlag(Interpolation);
-  %SetInlineBuiltinFlag(MathSinInterpolation);
-  %SetInlineBuiltinFlag(MathCosInterpolation);
-
-  InitTrigonometricFunctions = function() {
-    table_sin = new global.Float64Array(samples + 2);
-    table_cos_interval = new global.Float64Array(samples + 2);
-    %PopulateTrigonometricTable(table_sin, table_cos_interval, samples);
-    MathSinImpl = MathSinInterpolation;
-    MathCosImpl = MathCosInterpolation;
-  }
+  var double_index = x * kIndexConvert;
+  if (phase & 1) double_index = kSamples - double_index;
+  var index = double_index | 0;
+  var t1 = double_index - index;
+  var t2 = 1 - t1;
+  var y1 = kSinTable[index];
+  var y2 = kSinTable[index + 1];
+  var dy = y2 - y1;
+  return (t2 * y1 + t1 * y2 +
+              t1 * t2 * ((kCosXIntervalTable[index] - dy) * t2 +
+                         (dy - kCosXIntervalTable[index + 1]) * t1))
+         * (1 - (phase & 2)) + 0;
 }
-
-SetupTrigonometricFunctions();
-
 
 // -------------------------------------------------------------------
 
@@ -387,6 +344,7 @@ function SetUpMath() {
   %SetInlineBuiltinFlag(MathSin);
   %SetInlineBuiltinFlag(MathCos);
   %SetInlineBuiltinFlag(MathTan);
+  %SetInlineBuiltinFlag(TrigonometricInterpolation);
 }
 
 SetUpMath();

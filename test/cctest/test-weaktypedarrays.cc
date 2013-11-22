@@ -89,7 +89,7 @@ TEST(WeakArrayBuffersFromApi) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
 
-  CHECK_EQ(0, CountArrayBuffersInWeakList(isolate->heap()));
+  int start = CountArrayBuffersInWeakList(isolate->heap());
   {
     v8::HandleScope s1(context->GetIsolate());
     v8::Handle<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(256);
@@ -99,12 +99,12 @@ TEST(WeakArrayBuffersFromApi) {
 
       Handle<JSArrayBuffer> iab1 = v8::Utils::OpenHandle(*ab1);
       Handle<JSArrayBuffer> iab2 = v8::Utils::OpenHandle(*ab2);
-      CHECK_EQ(2, CountArrayBuffersInWeakList(isolate->heap()));
+      CHECK_EQ(2, CountArrayBuffersInWeakList(isolate->heap()) - start);
       CHECK(HasArrayBufferInWeakList(isolate->heap(), *iab1));
       CHECK(HasArrayBufferInWeakList(isolate->heap(), *iab2));
     }
     isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-    CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()));
+    CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()) - start);
     {
       HandleScope scope2(isolate);
       Handle<JSArrayBuffer> iab1 = v8::Utils::OpenHandle(*ab1);
@@ -114,7 +114,7 @@ TEST(WeakArrayBuffersFromApi) {
   }
 
   isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CHECK_EQ(0, CountArrayBuffersInWeakList(isolate->heap()));
+  CHECK_EQ(start, CountArrayBuffersInWeakList(isolate->heap()));
 }
 
 
