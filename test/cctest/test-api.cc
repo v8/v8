@@ -88,7 +88,8 @@ using ::v8::Value;
 void RunWithProfiler(void (*test)()) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
+  v8::Local<v8::String> profile_name =
+      v8::String::NewFromUtf8(env->GetIsolate(), "my_profile1");
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
 
   cpu_profiler->StartCpuProfiling(profile_name);
@@ -202,7 +203,7 @@ THREADED_TEST(Handles) {
   CHECK(undef->IsUndefined());
 
   const char* c_source = "1 + 2 + 3";
-  Local<String> source = String::New(c_source);
+  Local<String> source = String::NewFromUtf8(CcTest::isolate(), c_source);
   Local<Script> script = Script::Compile(source);
   CHECK_EQ(6, script->Run()->Int32Value());
 
@@ -214,13 +215,13 @@ THREADED_TEST(IsolateOfContext) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<Context> env = Context::New(CcTest::isolate());
 
-  CHECK(!env->InContext());
+  CHECK(!env->GetIsolate()->InContext());
   CHECK(env->GetIsolate() == CcTest::isolate());
   env->Enter();
-  CHECK(env->InContext());
+  CHECK(env->GetIsolate()->InContext());
   CHECK(env->GetIsolate() == CcTest::isolate());
   env->Exit();
-  CHECK(!env->InContext());
+  CHECK(!env->GetIsolate()->InContext());
   CHECK(env->GetIsolate() == CcTest::isolate());
 }
 
@@ -434,7 +435,7 @@ THREADED_TEST(Script) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   const char* c_source = "1 + 2 + 3";
-  Local<String> source = String::New(c_source);
+  Local<String> source = String::NewFromUtf8(env->GetIsolate(), c_source);
   Local<Script> script = Script::Compile(source);
   CHECK_EQ(6, script->Run()->Int32Value());
 }
@@ -562,7 +563,8 @@ THREADED_TEST(ScriptMakingExternalString) {
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    Local<String> source = String::New(two_byte_source);
+    Local<String> source =
+        String::NewFromTwoByte(env->GetIsolate(), two_byte_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
@@ -622,7 +624,8 @@ TEST(MakingExternalStringConditions) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
   uint16_t* two_byte_string = AsciiToTwoByteString("s1");
-  Local<String> small_string = String::New(two_byte_string);
+  Local<String> small_string =
+      String::NewFromTwoByte(env->GetIsolate(), two_byte_string);
   i::DeleteArray(two_byte_string);
 
   // We should refuse to externalize newly created small string.
@@ -634,7 +637,7 @@ TEST(MakingExternalStringConditions) {
   CHECK(small_string->CanMakeExternal());
 
   two_byte_string = AsciiToTwoByteString("small string 2");
-  small_string = String::New(two_byte_string);
+  small_string = String::NewFromTwoByte(env->GetIsolate(), two_byte_string);
   i::DeleteArray(two_byte_string);
 
   // We should refuse externalizing newly created small string.
@@ -651,7 +654,8 @@ TEST(MakingExternalStringConditions) {
   buf[buf_size - 1] = '\0';
 
   two_byte_string = AsciiToTwoByteString(buf);
-  Local<String> large_string = String::New(two_byte_string);
+  Local<String> large_string =
+      String::NewFromTwoByte(env->GetIsolate(), two_byte_string);
   i::DeleteArray(buf);
   i::DeleteArray(two_byte_string);
   // Large strings should be immediately accepted.
@@ -667,7 +671,7 @@ TEST(MakingExternalAsciiStringConditions) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
-  Local<String> small_string = String::New("s1");
+  Local<String> small_string = String::NewFromUtf8(env->GetIsolate(), "s1");
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
@@ -676,7 +680,7 @@ TEST(MakingExternalAsciiStringConditions) {
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
-  small_string = String::New("small string 2");
+  small_string = String::NewFromUtf8(env->GetIsolate(), "small string 2");
   // We should refuse externalizing newly created small string.
   CHECK(!small_string->CanMakeExternal());
   for (int i = 0; i < 100; i++) {
@@ -689,7 +693,7 @@ TEST(MakingExternalAsciiStringConditions) {
   char* buf = i::NewArray<char>(buf_size);
   memset(buf, 'a', buf_size);
   buf[buf_size - 1] = '\0';
-  Local<String> large_string = String::New(buf);
+  Local<String> large_string = String::NewFromUtf8(env->GetIsolate(), buf);
   i::DeleteArray(buf);
   // Large strings should be immediately accepted.
   CHECK(large_string->CanMakeExternal());
@@ -899,7 +903,8 @@ THREADED_TEST(StringConcat) {
     Local<String> left = v8_str(one_byte_string_1);
 
     uint16_t* two_byte_source = AsciiToTwoByteString(two_byte_string_1);
-    Local<String> right = String::New(two_byte_source);
+    Local<String> right =
+        String::NewFromTwoByte(env->GetIsolate(), two_byte_source);
     i::DeleteArray(two_byte_source);
 
     Local<String> source = String::Concat(left, right);
@@ -913,7 +918,7 @@ THREADED_TEST(StringConcat) {
     source = String::Concat(source, right);
 
     two_byte_source = AsciiToTwoByteString(two_byte_string_2);
-    right = String::New(two_byte_source);
+    right = String::NewFromTwoByte(env->GetIsolate(), two_byte_source);
     i::DeleteArray(two_byte_source);
 
     source = String::Concat(source, right);
@@ -2522,7 +2527,7 @@ THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Local<v8::Object> global = env->Global();
-  global->Set(0, v8::String::New("value"));
+  global->Set(0, v8::String::NewFromUtf8(CcTest::isolate(), "value"));
   CHECK(global->HasRealIndexedProperty(0));
 }
 
@@ -2614,8 +2619,11 @@ THREADED_TEST(EmbedderData) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  CheckEmbedderData(&env, 3, v8::String::New("The quick brown fox jumps"));
-  CheckEmbedderData(&env, 2, v8::String::New("over the lazy dog."));
+  CheckEmbedderData(
+      &env, 3,
+      v8::String::NewFromUtf8(env->GetIsolate(), "The quick brown fox jumps"));
+  CheckEmbedderData(&env, 2, v8::String::NewFromUtf8(env->GetIsolate(),
+                                                     "over the lazy dog."));
   CheckEmbedderData(&env, 1, v8::Number::New(1.2345));
   CheckEmbedderData(&env, 0, v8::Boolean::New(true));
 }
@@ -2692,7 +2700,7 @@ THREADED_TEST(SymbolProperties) {
   CHECK(!sym1->StrictEquals(sym2));
   CHECK(!sym2->StrictEquals(sym1));
 
-  CHECK(sym2->Name()->Equals(v8::String::New("my-symbol")));
+  CHECK(sym2->Name()->Equals(v8::String::NewFromUtf8(isolate, "my-symbol")));
 
   v8::Local<v8::Value> sym_val = sym2;
   CHECK(sym_val->IsSymbol());
@@ -2723,7 +2731,8 @@ THREADED_TEST(SymbolProperties) {
 
   CHECK_EQ(0, obj->GetOwnPropertyNames()->Length());
   int num_props = obj->GetPropertyNames()->Length();
-  CHECK(obj->Set(v8::String::New("bla"), v8::Integer::New(20)));
+  CHECK(
+      obj->Set(v8::String::NewFromUtf8(isolate, "bla"), v8::Integer::New(20)));
   CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
   CHECK_EQ(num_props + 1, obj->GetPropertyNames()->Length());
 
@@ -2765,7 +2774,7 @@ THREADED_TEST(PrivateProperties) {
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
-  CHECK(priv2->Name()->Equals(v8::String::New("my-private")));
+  CHECK(priv2->Name()->Equals(v8::String::NewFromUtf8(isolate, "my-private")));
 
   // Make sure delete of a non-existent private symbol property works.
   CHECK(obj->DeletePrivate(priv1));
@@ -2780,7 +2789,8 @@ THREADED_TEST(PrivateProperties) {
 
   CHECK_EQ(0, obj->GetOwnPropertyNames()->Length());
   int num_props = obj->GetPropertyNames()->Length();
-  CHECK(obj->Set(v8::String::New("bla"), v8::Integer::New(20)));
+  CHECK(
+      obj->Set(v8::String::NewFromUtf8(isolate, "bla"), v8::Integer::New(20)));
   CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
   CHECK_EQ(num_props + 1, obj->GetPropertyNames()->Length());
 
@@ -3224,8 +3234,7 @@ THREADED_TEST(GlobalHandle) {
     v8::HandleScope scope(isolate);
     CHECK_EQ(v8::Local<String>::New(isolate, global)->Length(), 3);
   }
-  global.Dispose();
-  global.Clear();
+  global.Reset();
   {
     v8::HandleScope scope(isolate);
     global.Reset(isolate, v8_str("str"));
@@ -3234,7 +3243,7 @@ THREADED_TEST(GlobalHandle) {
     v8::HandleScope scope(isolate);
     CHECK_EQ(v8::Local<String>::New(isolate, global)->Length(), 3);
   }
-  global.Dispose();
+  global.Reset();
 }
 
 
@@ -3261,7 +3270,7 @@ THREADED_TEST(ResettingGlobalHandle) {
     v8::HandleScope scope(isolate);
     CHECK_EQ(v8::Local<String>::New(isolate, global)->Length(), 6);
   }
-  global.Dispose();
+  global.Reset();
   CHECK_EQ(global_handles->global_handles_count(), initial_handle_count - 1);
 }
 
@@ -3290,28 +3299,6 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
 }
 
 
-THREADED_TEST(ClearAndLeakGlobal) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::internal::GlobalHandles* global_handles = NULL;
-  int initial_handle_count = 0;
-  v8::Persistent<String> global;
-  {
-    v8::HandleScope scope(isolate);
-    Local<String> str = v8_str("str");
-    global_handles =
-        reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-    initial_handle_count = global_handles->global_handles_count();
-    global.Reset(isolate, str);
-  }
-  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count + 1);
-  String* str = global.ClearAndLeak();
-  CHECK(global.IsEmpty());
-  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count + 1);
-  global_handles->Destroy(reinterpret_cast<i::Object**>(str));
-  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count);
-}
-
-
 THREADED_TEST(GlobalHandleUpcast) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -3321,7 +3308,7 @@ THREADED_TEST(GlobalHandleUpcast) {
       v8::Persistent<Value>::Cast(global_string);
   CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
   CHECK(global_string == v8::Persistent<String>::Cast(global_value));
-  global_string.Dispose();
+  global_string.Reset();
 }
 
 
@@ -3358,8 +3345,8 @@ THREADED_TEST(HandleEquality) {
     CHECK_EQ(local1 == anotherLocal1, true);
     CHECK_EQ(local1 != anotherLocal1, false);
   }
-  global1.Dispose();
-  global2.Dispose();
+  global1.Reset();
+  global2.Reset();
 }
 
 
@@ -3389,7 +3376,7 @@ static void WeakPointerCallback(v8::Isolate* isolate,
                                 WeakCallCounter* counter) {
   CHECK_EQ(1234, counter->id());
   counter->increment();
-  handle->Dispose();
+  handle->Reset();
 }
 
 
@@ -3509,15 +3496,15 @@ THREADED_TEST(ApiObjectGroupsForSubtypes) {
   {
     HandleScope scope(iso);
     g1s1.Reset(iso, Object::New());
-    g1s2.Reset(iso, String::New("foo1"));
-    g1c1.Reset(iso, String::New("foo2"));
+    g1s2.Reset(iso, String::NewFromUtf8(iso, "foo1"));
+    g1c1.Reset(iso, String::NewFromUtf8(iso, "foo2"));
     g1s1.MakeWeak(&counter, &WeakPointerCallback);
     g1s2.MakeWeak(&counter, &WeakPointerCallback);
     g1c1.MakeWeak(&counter, &WeakPointerCallback);
 
     g2s1.Reset(iso, Object::New());
-    g2s2.Reset(iso, String::New("foo3"));
-    g2c1.Reset(iso, String::New("foo4"));
+    g2s2.Reset(iso, String::NewFromUtf8(iso, "foo3"));
+    g2c1.Reset(iso, String::NewFromUtf8(iso, "foo4"));
     g2s1.MakeWeak(&counter, &WeakPointerCallback);
     g2s2.MakeWeak(&counter, &WeakPointerCallback);
     g2c1.MakeWeak(&counter, &WeakPointerCallback);
@@ -4269,8 +4256,8 @@ TEST(OutOfMemory) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   v8::V8::IgnoreOutOfMemoryException();
-  Local<Script> script =
-      Script::Compile(String::New(js_code_causing_out_of_memory));
+  Local<Script> script = Script::Compile(String::NewFromUtf8(
+      context->GetIsolate(), js_code_causing_out_of_memory));
   Local<Value> result = script->Run();
 
   // Check for out of memory state.
@@ -4284,8 +4271,8 @@ void ProvokeOutOfMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  Local<Script> script =
-      Script::Compile(String::New(js_code_causing_out_of_memory));
+  Local<Script> script = Script::Compile(String::NewFromUtf8(
+      context->GetIsolate(), js_code_causing_out_of_memory));
   Local<Value> result = script->Run();
 
   // Check for out of memory state.
@@ -5175,7 +5162,7 @@ THREADED_TEST(Equality) {
   v8::Handle<v8::Object> obj = v8::Object::New();
   v8::Persistent<v8::Object> alias(isolate, obj);
   CHECK(v8::Local<v8::Object>::New(isolate, alias)->StrictEquals(obj));
-  alias.Dispose();
+  alias.Reset();
 
   CHECK(v8_str("a")->SameValue(v8_str("a")));
   CHECK(!v8_str("a")->SameValue(v8_str("b")));
@@ -5500,8 +5487,7 @@ THREADED_TEST(SimplePropertyWrite) {
     CHECK(xValue.IsEmpty());
     script->Run();
     CHECK_EQ(v8_num(4), Local<Value>::New(CcTest::isolate(), xValue));
-    xValue.Dispose();
-    xValue.Clear();
+    xValue.Reset();
   }
 }
 
@@ -5517,8 +5503,7 @@ THREADED_TEST(SetterOnly) {
     CHECK(xValue.IsEmpty());
     script->Run();
     CHECK_EQ(v8_num(4), Local<Value>::New(CcTest::isolate(), xValue));
-    xValue.Dispose();
-    xValue.Clear();
+    xValue.Reset();
   }
 }
 
@@ -6308,7 +6293,8 @@ THREADED_TEST(UndetectableString) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  Local<String> obj = String::NewUndetectable("foo");
+  Local<String> obj = String::NewFromUtf8(env->GetIsolate(), "foo",
+                                          String::kUndetectableString);
   env->Global()->Set(v8_str("undetectable"), obj);
 
   ExpectString("undetectable", "foo");
@@ -6349,7 +6335,8 @@ TEST(UndetectableOptimized) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  Local<String> obj = String::NewUndetectable("foo");
+  Local<String> obj = String::NewFromUtf8(env->GetIsolate(), "foo",
+                                          String::kUndetectableString);
   env->Global()->Set(v8_str("undetectable"), obj);
   env->Global()->Set(v8_str("detectable"), v8_str("bar"));
 
@@ -6384,13 +6371,13 @@ static inline void PersistentHandles(v8::Isolate* isolate) {
   USE(PersistentHandles);
   Local<String> str = v8_str("foo");
   v8::Persistent<String> p_str(isolate, str);
-  p_str.Dispose();
+  p_str.Reset();
   Local<Script> scr = Script::Compile(v8_str(""));
   v8::Persistent<Script> p_scr(isolate, scr);
-  p_scr.Dispose();
+  p_scr.Reset();
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   v8::Persistent<ObjectTemplate> p_templ(isolate, templ);
-  p_templ.Dispose();
+  p_templ.Reset();
 }
 
 
@@ -6697,7 +6684,8 @@ static void CheckDependencies(const char* name, const char* expected) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::ExtensionConfiguration config(1, &name);
   LocalContext context(&config);
-  CHECK_EQ(String::New(expected), context->Global()->Get(v8_str("loaded")));
+  CHECK_EQ(String::NewFromUtf8(CcTest::isolate(), expected),
+           context->Global()->Get(v8_str("loaded")));
 }
 
 
@@ -6854,8 +6842,8 @@ TEST(RegexpOutOfMemory) {
   v8::HandleScope scope(CcTest::isolate());
   v8::V8::SetFatalErrorHandler(OOMCallback);
   LocalContext context;
-  Local<Script> script =
-      Script::Compile(String::New(js_code_causing_huge_string_flattening));
+  Local<Script> script = Script::Compile(String::NewFromUtf8(
+      CcTest::isolate(), js_code_causing_huge_string_flattening));
   last_location = NULL;
   script->Run();
 
@@ -6892,7 +6880,7 @@ class Snorkel {
 class Whammy {
  public:
   explicit Whammy(v8::Isolate* isolate) : cursor_(0), isolate_(isolate) { }
-  ~Whammy() { script_.Dispose(); }
+  ~Whammy() { script_.Reset(); }
   v8::Handle<Script> getScript() {
     if (script_.IsEmpty()) script_.Reset(isolate_, v8_compile("({}).blammo"));
     return Local<Script>::New(isolate_, script_);
@@ -6925,7 +6913,6 @@ void WhammyPropertyGetter(Local<String> name,
     v8::Local<v8::Object>::New(info.GetIsolate(), prev)
         ->Set(v8_str("next"), obj);
     prev.MakeWeak<Value, Snorkel>(new Snorkel(), &HandleWeakReference);
-    whammy->objects_[whammy->cursor_].Clear();
   }
   whammy->objects_[whammy->cursor_].Reset(info.GetIsolate(), obj);
   whammy->cursor_ = (whammy->cursor_ + 1) % Whammy::kObjectCount;
@@ -6966,7 +6953,7 @@ THREADED_TEST(WeakReference) {
 static void DisposeAndSetFlag(v8::Isolate* isolate,
                               v8::Persistent<v8::Object>* obj,
                               bool* data) {
-  obj->Dispose();
+  obj->Reset();
   *(data) = true;
 }
 
@@ -7012,7 +6999,7 @@ static void InvokeMarkSweep() {
 static void ForceScavenge(v8::Isolate* isolate,
                           v8::Persistent<v8::Object>* obj,
                           bool* data) {
-  obj->Dispose();
+  obj->Reset();
   *(data) = true;
   InvokeScavenge();
 }
@@ -7021,7 +7008,7 @@ static void ForceScavenge(v8::Isolate* isolate,
 static void ForceMarkSweep(v8::Isolate* isolate,
                            v8::Persistent<v8::Object>* obj,
                            bool* data) {
-  obj->Dispose();
+  obj->Reset();
   *(data) = true;
   InvokeMarkSweep();
 }
@@ -7414,7 +7401,8 @@ THREADED_TEST(StringWrite) {
   v8::Handle<String> str = v8_str("abcde");
   // abc<Icelandic eth><Unicode snowman>.
   v8::Handle<String> str2 = v8_str("abc\303\260\342\230\203");
-  v8::Handle<String> str3 = v8::String::New("abc\0def", 7);
+  v8::Handle<String> str3 = v8::String::NewFromUtf8(
+      context->GetIsolate(), "abc\0def", v8::String::kNormalString, 7);
   const int kStride = 4;  // Must match stride in for loops in JS below.
   CompileRun(
       "var left = '';"
@@ -7808,10 +7796,12 @@ static bool SameSymbol(Handle<String> s1, Handle<String> s2) {
   return *is1 == *is2;
 }
 
-
-static void SameSymbolHelper(const char* a, const char* b) {
-  Handle<String> symbol1 = v8::String::NewSymbol(a);
-  Handle<String> symbol2 = v8::String::NewSymbol(b);
+static void SameSymbolHelper(v8::Isolate* isolate, const char* a,
+                             const char* b) {
+  Handle<String> symbol1 =
+      v8::String::NewFromUtf8(isolate, a, v8::String::kInternalizedString);
+  Handle<String> symbol2 =
+      v8::String::NewFromUtf8(isolate, b, v8::String::kInternalizedString);
   CHECK(SameSymbol(symbol1, symbol2));
 }
 
@@ -7820,17 +7810,23 @@ THREADED_TEST(Utf16Symbol) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
-  Handle<String> symbol1 = v8::String::NewSymbol("abc");
-  Handle<String> symbol2 = v8::String::NewSymbol("abc");
+  Handle<String> symbol1 = v8::String::NewFromUtf8(
+      context->GetIsolate(), "abc", v8::String::kInternalizedString);
+  Handle<String> symbol2 = v8::String::NewFromUtf8(
+      context->GetIsolate(), "abc", v8::String::kInternalizedString);
   CHECK(SameSymbol(symbol1, symbol2));
 
-  SameSymbolHelper("\360\220\220\205",  // 4 byte encoding.
+  SameSymbolHelper(context->GetIsolate(),
+                   "\360\220\220\205",  // 4 byte encoding.
                    "\355\240\201\355\260\205");  // 2 3-byte surrogates.
-  SameSymbolHelper("\355\240\201\355\260\206",  // 2 3-byte surrogates.
+  SameSymbolHelper(context->GetIsolate(),
+                   "\355\240\201\355\260\206",  // 2 3-byte surrogates.
                    "\360\220\220\206");  // 4 byte encoding.
-  SameSymbolHelper("x\360\220\220\205",  // 4 byte encoding.
+  SameSymbolHelper(context->GetIsolate(),
+                   "x\360\220\220\205",  // 4 byte encoding.
                    "x\355\240\201\355\260\205");  // 2 3-byte surrogates.
-  SameSymbolHelper("x\355\240\201\355\260\206",  // 2 3-byte surrogates.
+  SameSymbolHelper(context->GetIsolate(),
+                   "x\355\240\201\355\260\206",  // 2 3-byte surrogates.
                    "x\360\220\220\206");  // 4 byte encoding.
   CompileRun(
       "var sym0 = 'benedictus';"
@@ -7847,12 +7843,22 @@ THREADED_TEST(Utf16Symbol) {
       "if (sym3.charCodeAt(2) != 0xdc07) throw sym1.charCodeAt(2);"
       "if (sym4.length != 3) throw sym4;"
       "if (sym4.charCodeAt(2) != 0xdc08) throw sym2.charCodeAt(2);");
-  Handle<String> sym0 = v8::String::NewSymbol("benedictus");
-  Handle<String> sym0b = v8::String::NewSymbol("S\303\270ren");
-  Handle<String> sym1 = v8::String::NewSymbol("\355\240\201\355\260\207");
-  Handle<String> sym2 = v8::String::NewSymbol("\360\220\220\210");
-  Handle<String> sym3 = v8::String::NewSymbol("x\355\240\201\355\260\207");
-  Handle<String> sym4 = v8::String::NewSymbol("x\360\220\220\210");
+  Handle<String> sym0 = v8::String::NewFromUtf8(
+      context->GetIsolate(), "benedictus", v8::String::kInternalizedString);
+  Handle<String> sym0b = v8::String::NewFromUtf8(
+      context->GetIsolate(), "S\303\270ren", v8::String::kInternalizedString);
+  Handle<String> sym1 =
+      v8::String::NewFromUtf8(context->GetIsolate(), "\355\240\201\355\260\207",
+                              v8::String::kInternalizedString);
+  Handle<String> sym2 =
+      v8::String::NewFromUtf8(context->GetIsolate(), "\360\220\220\210",
+                              v8::String::kInternalizedString);
+  Handle<String> sym3 = v8::String::NewFromUtf8(
+      context->GetIsolate(), "x\355\240\201\355\260\207",
+      v8::String::kInternalizedString);
+  Handle<String> sym4 =
+      v8::String::NewFromUtf8(context->GetIsolate(), "x\360\220\220\210",
+                              v8::String::kInternalizedString);
   v8::Local<v8::Object> global = context->Global();
   Local<Value> s0 = global->Get(v8_str("sym0"));
   Local<Value> s0b = global->Get(v8_str("sym0b"));
@@ -8083,10 +8089,13 @@ TEST(ExceptionInNativeScript) {
   v8::Local<v8::Object> global = env->Global();
   global->Set(v8_str("trouble"), fun->GetFunction());
 
-  Script::Compile(v8_str("function trouble() {\n"
-                         "  var o = {};\n"
-                         "  new o.foo();\n"
-                         "};"), v8::String::New(script_resource_name))->Run();
+  Script::Compile(
+      v8_str(
+          "function trouble() {\n"
+          "  var o = {};\n"
+          "  new o.foo();\n"
+          "};"),
+      v8::String::NewFromUtf8(env->GetIsolate(), script_resource_name))->Run();
   Local<Value> trouble = global->Get(v8_str("trouble"));
   CHECK(trouble->IsFunction());
   Function::Cast(*trouble)->Call(global, 0, NULL);
@@ -13035,7 +13044,7 @@ void NewPersistentHandleCallback(v8::Isolate* isolate,
                                  void*) {
   v8::HandleScope scope(isolate);
   bad_handle.Reset(isolate, some_object);
-  handle->Dispose();
+  handle->Reset();
 }
 
 
@@ -13055,7 +13064,7 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
   // in reverse allocation order, so if second allocated handle is deleted,
   // weak callback of the first handle would be able to 'reallocate' it.
   handle1.MakeWeak<v8::Value, void>(NULL, NewPersistentHandleCallback);
-  handle2.Dispose();
+  handle2.Reset();
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
 
@@ -13065,9 +13074,9 @@ v8::Persistent<v8::Object> to_be_disposed;
 void DisposeAndForceGcCallback(v8::Isolate* isolate,
                                v8::Persistent<v8::Value>* handle,
                                void*) {
-  to_be_disposed.Dispose();
+  to_be_disposed.Reset();
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
-  handle->Dispose();
+  handle->Reset();
 }
 
 
@@ -13089,7 +13098,7 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
 void DisposingCallback(v8::Isolate* isolate,
                        v8::Persistent<v8::Value>* handle,
                        void*) {
-  handle->Dispose();
+  handle->Reset();
 }
 
 void HandleCreatingCallback(v8::Isolate* isolate,
@@ -13097,7 +13106,7 @@ void HandleCreatingCallback(v8::Isolate* isolate,
                             void*) {
   v8::HandleScope scope(isolate);
   v8::Persistent<v8::Object>(isolate, v8::Object::New());
-  handle->Dispose();
+  handle->Reset();
 }
 
 
@@ -13788,7 +13797,8 @@ TEST(CatchStackOverflow) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   v8::TryCatch try_catch;
-  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(
+  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::NewFromUtf8(
+    context->GetIsolate(),
     "function f() {"
     "  return f();"
     "}"
@@ -13824,7 +13834,8 @@ static void CheckTryCatchSourceInfo(v8::Handle<v8::Script> script,
 THREADED_TEST(TryCatchSourceInfo) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  v8::Handle<v8::String> source = v8::String::New(
+  v8::Handle<v8::String> source = v8::String::NewFromUtf8(
+      context->GetIsolate(),
       "function Foo() {\n"
       "  return Bar();\n"
       "}\n"
@@ -13842,16 +13853,20 @@ THREADED_TEST(TryCatchSourceInfo) {
   const char* resource_name;
   v8::Handle<v8::Script> script;
   resource_name = "test.js";
-  script = v8::Script::Compile(source, v8::String::New(resource_name));
+  script = v8::Script::Compile(
+      source, v8::String::NewFromUtf8(context->GetIsolate(), resource_name));
   CheckTryCatchSourceInfo(script, resource_name, 0);
 
   resource_name = "test1.js";
-  v8::ScriptOrigin origin1(v8::String::New(resource_name));
+  v8::ScriptOrigin origin1(
+      v8::String::NewFromUtf8(context->GetIsolate(), resource_name));
   script = v8::Script::Compile(source, &origin1);
   CheckTryCatchSourceInfo(script, resource_name, 0);
 
   resource_name = "test2.js";
-  v8::ScriptOrigin origin2(v8::String::New(resource_name), v8::Integer::New(7));
+  v8::ScriptOrigin origin2(
+      v8::String::NewFromUtf8(context->GetIsolate(), resource_name),
+      v8::Integer::New(7));
   script = v8::Script::Compile(source, &origin2);
   CheckTryCatchSourceInfo(script, resource_name, 7);
 }
@@ -13860,12 +13875,14 @@ THREADED_TEST(TryCatchSourceInfo) {
 THREADED_TEST(CompilationCache) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  v8::Handle<v8::String> source0 = v8::String::New("1234");
-  v8::Handle<v8::String> source1 = v8::String::New("1234");
-  v8::Handle<v8::Script> script0 =
-      v8::Script::Compile(source0, v8::String::New("test.js"));
-  v8::Handle<v8::Script> script1 =
-      v8::Script::Compile(source1, v8::String::New("test.js"));
+  v8::Handle<v8::String> source0 =
+      v8::String::NewFromUtf8(context->GetIsolate(), "1234");
+  v8::Handle<v8::String> source1 =
+      v8::String::NewFromUtf8(context->GetIsolate(), "1234");
+  v8::Handle<v8::Script> script0 = v8::Script::Compile(
+      source0, v8::String::NewFromUtf8(context->GetIsolate(), "test.js"));
+  v8::Handle<v8::Script> script1 = v8::Script::Compile(
+      source1, v8::String::NewFromUtf8(context->GetIsolate(), "test.js"));
   v8::Handle<v8::Script> script2 =
       v8::Script::Compile(source0);  // different origin
   CHECK_EQ(1234, script0->Run()->Int32Value());
@@ -13930,7 +13947,8 @@ void CheckOwnProperties(v8::Handle<v8::Value> val,
 THREADED_TEST(PropertyEnumeration) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  v8::Handle<v8::Value> obj = v8::Script::Compile(v8::String::New(
+  v8::Handle<v8::Value> obj = v8::Script::Compile(v8::String::NewFromUtf8(
+      context->GetIsolate(),
       "var result = [];"
       "result[0] = {};"
       "result[1] = {a: 1, b: 2};"
@@ -13965,7 +13983,8 @@ THREADED_TEST(PropertyEnumeration) {
 THREADED_TEST(PropertyEnumeration2) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  v8::Handle<v8::Value> obj = v8::Script::Compile(v8::String::New(
+  v8::Handle<v8::Value> obj = v8::Script::Compile(v8::String::NewFromUtf8(
+      context->GetIsolate(),
       "var result = [];"
       "result[0] = {};"
       "result[1] = {a: 1, b: 2};"
@@ -14365,7 +14384,7 @@ TEST(PreCompileInvalidPreparseDataError) {
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
   v8::TryCatch try_catch;
 
-  Local<String> source = String::New(script);
+  Local<String> source = String::NewFromUtf8(isolate, script);
   Local<Script> compiled_script = Script::New(source, NULL, sd);
   CHECK(try_catch.HasCaught());
   String::Utf8Value exception_value(try_catch.Message()->Get());
@@ -14405,7 +14424,7 @@ TEST(PreCompileAPIVariationsAreSame) {
       v8::String::NewExternal(resource));
 
   v8::ScriptData* sd_from_string = v8::ScriptData::PreCompile(
-      v8::String::New(cstring));
+      v8::String::NewFromUtf8(isolate, cstring));
 
   CHECK_EQ(sd_from_cstring->Length(), sd_from_external_string->Length());
   CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
@@ -14620,11 +14639,11 @@ THREADED_TEST(MorphCompositeStringTest) {
     const char* expected_slice_on_cons =
         "ow is the time for all good men to come to the aid of the party"
         "Now is the time for all good men to come to the aid of the part";
-    CHECK_EQ(String::New(expected_cons),
+    CHECK_EQ(String::NewFromUtf8(env->GetIsolate(), expected_cons),
              env->Global()->Get(v8_str("cons")));
-    CHECK_EQ(String::New(expected_slice),
+    CHECK_EQ(String::NewFromUtf8(env->GetIsolate(), expected_slice),
              env->Global()->Get(v8_str("slice")));
-    CHECK_EQ(String::New(expected_slice_on_cons),
+    CHECK_EQ(String::NewFromUtf8(env->GetIsolate(), expected_slice_on_cons),
              env->Global()->Get(v8_str("slice_on_cons")));
   }
   i::DeleteArray(two_byte_string);
@@ -14725,7 +14744,7 @@ TEST(RegExpInterruption) {
   timeout_thread.Join();
 
   delete regexp_interruption_data.string_resource;
-  regexp_interruption_data.string.Dispose();
+  regexp_interruption_data.string.Reset();
 }
 
 #endif  // V8_INTERPRETED_REGEXP
@@ -14790,13 +14809,15 @@ TEST(ForceSet) {
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
-  v8::Handle<v8::String> access_property = v8::String::New("a");
+  v8::Handle<v8::String> access_property =
+      v8::String::NewFromUtf8(CcTest::isolate(), "a");
   templ->SetAccessor(access_property, ForceSetGetter, ForceSetSetter);
   LocalContext context(NULL, templ);
   v8::Handle<v8::Object> global = context->Global();
 
   // Ordinary properties
-  v8::Handle<v8::String> simple_property = v8::String::New("p");
+  v8::Handle<v8::String> simple_property =
+      v8::String::NewFromUtf8(CcTest::isolate(), "p");
   global->Set(simple_property, v8::Int32::New(4), v8::ReadOnly);
   CHECK_EQ(4, global->Get(simple_property)->Int32Value());
   // This should fail because the property is read-only
@@ -14836,7 +14857,8 @@ TEST(ForceSetWithInterceptor) {
   LocalContext context(NULL, templ);
   v8::Handle<v8::Object> global = context->Global();
 
-  v8::Handle<v8::String> some_property = v8::String::New("a");
+  v8::Handle<v8::String> some_property =
+      v8::String::NewFromUtf8(CcTest::isolate(), "a");
   CHECK_EQ(0, force_set_set_count);
   CHECK_EQ(0, force_set_get_count);
   CHECK_EQ(3, global->Get(some_property)->Int32Value());
@@ -14866,7 +14888,8 @@ TEST(ForceSetWithInterceptor) {
   CHECK_EQ(1, force_set_set_count);
   CHECK_EQ(5, force_set_get_count);
   // The interceptor should also work for other properties
-  CHECK_EQ(3, global->Get(v8::String::New("b"))->Int32Value());
+  CHECK_EQ(3, global->Get(v8::String::NewFromUtf8(CcTest::isolate(), "b"))
+                  ->Int32Value());
   CHECK_EQ(1, force_set_set_count);
   CHECK_EQ(6, force_set_get_count);
 }
@@ -14879,7 +14902,8 @@ THREADED_TEST(ForceDelete) {
   v8::Handle<v8::Object> global = context->Global();
 
   // Ordinary properties
-  v8::Handle<v8::String> simple_property = v8::String::New("p");
+  v8::Handle<v8::String> simple_property =
+      v8::String::NewFromUtf8(CcTest::isolate(), "p");
   global->Set(simple_property, v8::Int32::New(4), v8::DontDelete);
   CHECK_EQ(4, global->Get(simple_property)->Int32Value());
   // This should fail because the property is dont-delete.
@@ -14914,7 +14938,8 @@ THREADED_TEST(ForceDeleteWithInterceptor) {
   LocalContext context(NULL, templ);
   v8::Handle<v8::Object> global = context->Global();
 
-  v8::Handle<v8::String> some_property = v8::String::New("a");
+  v8::Handle<v8::String> some_property =
+      v8::String::NewFromUtf8(CcTest::isolate(), "a");
   global->Set(some_property, v8::Integer::New(42), v8::DontDelete);
 
   // Deleting a property should get intercepted and nothing should
@@ -14980,7 +15005,8 @@ TEST(InlinedFunctionAcrossContexts) {
         "f();");
     CHECK_EQ(42, res->Int32Value());
     ctx2->Exit();
-    v8::Handle<v8::String> G_property = v8::String::New("G");
+    v8::Handle<v8::String> G_property =
+        v8::String::NewFromUtf8(CcTest::isolate(), "G");
     CHECK(ctx1->Global()->ForceDelete(G_property));
     ctx2->Enter();
     ExpectString(
@@ -15098,10 +15124,12 @@ THREADED_TEST(ReplaceConstantFunction) {
   v8::HandleScope scope(context->GetIsolate());
   v8::Handle<v8::Object> obj = v8::Object::New();
   v8::Handle<v8::FunctionTemplate> func_templ = v8::FunctionTemplate::New();
-  v8::Handle<v8::String> foo_string = v8::String::New("foo");
+  v8::Handle<v8::String> foo_string =
+      v8::String::NewFromUtf8(context->GetIsolate(), "foo");
   obj->Set(foo_string, func_templ->GetFunction());
   v8::Handle<v8::Object> obj_clone = obj->Clone();
-  obj_clone->Set(foo_string, v8::String::New("Hello"));
+  obj_clone->Set(foo_string,
+                 v8::String::NewFromUtf8(context->GetIsolate(), "Hello"));
   CHECK(!obj->Get(foo_string)->IsUndefined());
 }
 
@@ -16410,13 +16438,17 @@ THREADED_TEST(ScriptContextDependence) {
   LocalContext c1;
   v8::HandleScope scope(c1->GetIsolate());
   const char *source = "foo";
-  v8::Handle<v8::Script> dep = v8::Script::Compile(v8::String::New(source));
-  v8::Handle<v8::Script> indep = v8::Script::New(v8::String::New(source));
-  c1->Global()->Set(v8::String::New("foo"), v8::Integer::New(100));
+  v8::Handle<v8::Script> dep =
+      v8::Script::Compile(v8::String::NewFromUtf8(c1->GetIsolate(), source));
+  v8::Handle<v8::Script> indep =
+      v8::Script::New(v8::String::NewFromUtf8(c1->GetIsolate(), source));
+  c1->Global()->Set(v8::String::NewFromUtf8(c1->GetIsolate(), "foo"),
+                    v8::Integer::New(100));
   CHECK_EQ(dep->Run()->Int32Value(), 100);
   CHECK_EQ(indep->Run()->Int32Value(), 100);
   LocalContext c2;
-  c2->Global()->Set(v8::String::New("foo"), v8::Integer::New(101));
+  c2->Global()->Set(v8::String::NewFromUtf8(c2->GetIsolate(), "foo"),
+                    v8::Integer::New(101));
   CHECK_EQ(dep->Run()->Int32Value(), 100);
   CHECK_EQ(indep->Run()->Int32Value(), 101);
 }
@@ -16427,8 +16459,10 @@ THREADED_TEST(StackTrace) {
   v8::HandleScope scope(context->GetIsolate());
   v8::TryCatch try_catch;
   const char *source = "function foo() { FAIL.FAIL; }; foo();";
-  v8::Handle<v8::String> src = v8::String::New(source);
-  v8::Handle<v8::String> origin = v8::String::New("stack-trace-test");
+  v8::Handle<v8::String> src =
+      v8::String::NewFromUtf8(context->GetIsolate(), source);
+  v8::Handle<v8::String> origin =
+      v8::String::NewFromUtf8(context->GetIsolate(), "stack-trace-test");
   v8::Script::New(src, origin)->Run();
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(try_catch.StackTrace());
@@ -16514,7 +16548,8 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // THREADED_TEST(CaptureStackTrace) {
 TEST(CaptureStackTrace) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::String> origin = v8::String::New("capture-stack-trace-test");
+  v8::Handle<v8::String> origin =
+      v8::String::NewFromUtf8(CcTest::isolate(), "capture-stack-trace-test");
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("AnalyzeStackInNativeCode"),
              v8::FunctionTemplate::New(AnalyzeStackInNativeCode));
@@ -16531,7 +16566,8 @@ TEST(CaptureStackTrace) {
     "  bar();\n"
     "}\n"
     "var x;eval('new foo();');";
-  v8::Handle<v8::String> overview_src = v8::String::New(overview_source);
+  v8::Handle<v8::String> overview_src =
+      v8::String::NewFromUtf8(CcTest::isolate(), overview_source);
   v8::Handle<Value> overview_result(
       v8::Script::New(overview_src, origin)->Run());
   CHECK(!overview_result.IsEmpty());
@@ -16546,7 +16582,8 @@ TEST(CaptureStackTrace) {
     "  bat();\n"
     "}\n"
     "eval('new baz();');";
-  v8::Handle<v8::String> detailed_src = v8::String::New(detailed_source);
+  v8::Handle<v8::String> detailed_src =
+      v8::String::NewFromUtf8(CcTest::isolate(), detailed_source);
   // Make the script using a non-zero line and column offset.
   v8::Handle<v8::Integer> line_offset = v8::Integer::New(3);
   v8::Handle<v8::Integer> column_offset = v8::Integer::New(5);
@@ -16810,12 +16847,14 @@ TEST(ScriptIdInStackTrace) {
              v8::FunctionTemplate::New(AnalyzeScriptIdInStack));
   LocalContext context(0, templ);
 
-  v8::Handle<v8::String> scriptSource = v8::String::New(
+  v8::Handle<v8::String> scriptSource = v8::String::NewFromUtf8(
+    CcTest::isolate(),
     "function foo() {\n"
     "  AnalyzeScriptIdInStack();"
     "}\n"
     "foo();\n");
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(CcTest::isolate(), "test"));
   v8::Local<v8::Script> script(v8::Script::Compile(scriptSource, &origin));
   script->Run();
   for (int i = 0; i < 2; i++) {
@@ -17164,7 +17203,8 @@ TEST(VisitExternalStrings) {
 
   // Externalized symbol.
   resource[2] = new TestResource(two_byte_string);
-  v8::Local<v8::String> string2 = v8::String::NewSymbol(string);
+  v8::Local<v8::String> string2 = v8::String::NewFromUtf8(
+      env->GetIsolate(), string, v8::String::kInternalizedString);
   CHECK(string2->MakeExternal(resource[2]));
 
   // Symbolized External.
@@ -17339,7 +17379,7 @@ THREADED_TEST(SpaghettiStackReThrow) {
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   context->Global()->Set(
-      v8::String::New("s"),
+      v8::String::NewFromUtf8(CcTest::isolate(), "s"),
       v8::FunctionTemplate::New(SpaghettiIncident)->GetFunction());
   v8::TryCatch try_catch;
   CompileRun(
@@ -17380,7 +17420,7 @@ TEST(Regress528) {
     v8::Local<Context> context = Context::New(isolate);
 
     context->Enter();
-    Local<v8::String> obj = v8::String::New("");
+    Local<v8::String> obj = v8::String::NewFromUtf8(isolate, "");
     context->SetEmbedderData(0, obj);
     CompileRun(source_simple);
     context->Exit();
@@ -17452,14 +17492,15 @@ TEST(Regress528) {
 THREADED_TEST(ScriptOrigin) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
-  v8::Handle<v8::String> script = v8::String::New(
-      "function f() {}\n\nfunction g() {}");
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"));
+  v8::Handle<v8::String> script = v8::String::NewFromUtf8(
+      env->GetIsolate(), "function f() {}\n\nfunction g() {}");
   v8::Script::Compile(script, &origin)->Run();
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("f")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("g")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "g")));
 
   v8::ScriptOrigin script_origin_f = f->GetScriptOrigin();
   CHECK_EQ("test", *v8::String::Utf8Value(script_origin_f.ResourceName()));
@@ -17474,12 +17515,14 @@ THREADED_TEST(ScriptOrigin) {
 THREADED_TEST(FunctionGetInferredName) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
-  v8::Handle<v8::String> script = v8::String::New(
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"));
+  v8::Handle<v8::String> script = v8::String::NewFromUtf8(
+      env->GetIsolate(),
       "var foo = { bar : { baz : function() {}}}; var f = foo.bar.baz;");
   v8::Script::Compile(script, &origin)->Run();
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("f")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   CHECK_EQ("foo.bar.baz", *v8::String::Utf8Value(f->GetInferredName()));
 }
 
@@ -17520,23 +17563,26 @@ THREADED_TEST(FunctionGetDisplayName) {
                      "  arguments.callee.displayName = 'set_in_runtime';"
                      "}; g();"
                      ;
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
-  v8::Script::Compile(v8::String::New(code), &origin)->Run();
-  v8::Local<v8::Value> error = env->Global()->Get(v8::String::New("error"));
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"));
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), code), &origin)
+      ->Run();
+  v8::Local<v8::Value> error =
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "error"));
   v8::Local<v8::Function> a = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("a")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "a")));
   v8::Local<v8::Function> b = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("b")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "b")));
   v8::Local<v8::Function> c = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("c")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "c")));
   v8::Local<v8::Function> d = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("d")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "d")));
   v8::Local<v8::Function> e = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("e")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "e")));
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("f")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("g")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "g")));
   CHECK_EQ(false, error->BooleanValue());
   CHECK_EQ("display_a", *v8::String::Utf8Value(a->GetDisplayName()));
   CHECK_EQ("display_b", *v8::String::Utf8Value(b->GetDisplayName()));
@@ -17551,14 +17597,15 @@ THREADED_TEST(FunctionGetDisplayName) {
 THREADED_TEST(ScriptLineNumber) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
-  v8::Handle<v8::String> script = v8::String::New(
-      "function f() {}\n\nfunction g() {}");
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"));
+  v8::Handle<v8::String> script = v8::String::NewFromUtf8(
+      env->GetIsolate(), "function f() {}\n\nfunction g() {}");
   v8::Script::Compile(script, &origin)->Run();
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("f")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("g")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "g")));
   CHECK_EQ(0, f->GetScriptLineNumber());
   CHECK_EQ(2, g->GetScriptLineNumber());
 }
@@ -17567,15 +17614,16 @@ THREADED_TEST(ScriptLineNumber) {
 THREADED_TEST(ScriptColumnNumber) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"),
-      v8::Integer::New(3), v8::Integer::New(2));
-  v8::Handle<v8::String> script = v8::String::New(
-      "function foo() {}\n\n     function bar() {}");
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"),
+                       v8::Integer::New(3), v8::Integer::New(2));
+  v8::Handle<v8::String> script = v8::String::NewFromUtf8(
+      env->GetIsolate(), "function foo() {}\n\n     function bar() {}");
   v8::Script::Compile(script, &origin)->Run();
   v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("foo")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "foo")));
   v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("bar")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "bar")));
   CHECK_EQ(14, foo->GetScriptColumnNumber());
   CHECK_EQ(17, bar->GetScriptColumnNumber());
 }
@@ -17601,18 +17649,19 @@ THREADED_TEST(FunctionIsBuiltin) {
 THREADED_TEST(FunctionGetScriptId) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"),
-      v8::Integer::New(3), v8::Integer::New(2));
-  v8::Handle<v8::String> scriptSource = v8::String::New(
-      "function foo() {}\n\n     function bar() {}");
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"),
+                       v8::Integer::New(3), v8::Integer::New(2));
+  v8::Handle<v8::String> scriptSource = v8::String::NewFromUtf8(
+      env->GetIsolate(), "function foo() {}\n\n     function bar() {}");
   v8::Local<v8::Script> script(v8::Script::Compile(scriptSource, &origin));
   script->Run();
   v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("foo")));
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "foo")));
   v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("bar")));
-  CHECK_EQ(script->Id(), foo->GetScriptId());
-  CHECK_EQ(script->Id(), bar->GetScriptId());
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "bar")));
+  CHECK_EQ(script->GetId(), foo->ScriptId());
+  CHECK_EQ(script->GetId(), bar->ScriptId());
 }
 
 
@@ -18408,10 +18457,10 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   {
     v8::Isolate::Scope iscope(isolate2);
-    context2.Dispose();
+    context2.Reset();
   }
 
-  context1.Dispose();
+  context1.Reset();
   isolate1->Exit();
 
   v8::V8::SetFatalErrorHandler(StoringErrorCallback);
@@ -18826,7 +18875,7 @@ TEST(PersistentHandleVisitor) {
   v8::V8::VisitHandlesWithClassIds(&visitor);
   CHECK_EQ(1, visitor.counter_);
 
-  object.Dispose();
+  object.Reset();
 }
 
 
@@ -18838,7 +18887,7 @@ TEST(WrapperClassId) {
   CHECK_EQ(0, object.WrapperClassId());
   object.SetWrapperClassId(65535);
   CHECK_EQ(65535, object.WrapperClassId());
-  object.Dispose();
+  object.Reset();
 }
 
 
@@ -18862,8 +18911,8 @@ TEST(PersistentHandleInNewSpaceVisitor) {
   v8::V8::VisitHandlesForPartialDependence(isolate, &visitor);
   CHECK_EQ(1, visitor.counter_);
 
-  object1.Dispose();
-  object2.Dispose();
+  object1.Reset();
+  object2.Reset();
 }
 
 
@@ -19678,8 +19727,8 @@ TEST(CallCompletedCallback) {
   v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
   v8::V8::AddCallCompletedCallback(CallCompletedCallback2);
   i::OS::Print("--- Script (1) ---\n");
-  Local<Script> script =
-      v8::Script::Compile(v8::String::New("recursion(0)"));
+  Local<Script> script = v8::Script::Compile(
+      v8::String::NewFromUtf8(env->GetIsolate(), "recursion(0)"));
   script->Run();
   CHECK_EQ(3, callback_fired);
 
@@ -20292,7 +20341,7 @@ THREADED_TEST(Regress2746) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   Local<Object> obj = Object::New();
-  Local<String> key = String::New("key");
+  Local<String> key = String::NewFromUtf8(context->GetIsolate(), "key");
   obj->SetHiddenValue(key, v8::Undefined(isolate));
   Local<Value> value = obj->GetHiddenValue(key);
   CHECK(!value.IsEmpty());

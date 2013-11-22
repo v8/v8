@@ -58,7 +58,8 @@ class ThreadA : public v8::internal::Thread {
 
     // Fill String.search cache.
     v8::Handle<v8::Script> script = v8::Script::Compile(
-        v8::String::New(
+        v8::String::NewFromUtf8(
+          isolate,
           "for (var i = 0; i < 3; i++) {"
           "  var result = \"a\".search(\"a\");"
           "  if (result != 0) throw \"result: \" + result + \" @\" + i;"

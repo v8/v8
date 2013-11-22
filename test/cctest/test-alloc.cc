@@ -148,10 +148,11 @@ TEST(StressJS) {
   map->AppendDescriptor(&d, witness);
 
   // Add the Foo constructor the global object.
-  env->Global()->Set(v8::String::New("Foo"), v8::Utils::ToLocal(function));
+  env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "Foo"),
+                     v8::Utils::ToLocal(function));
   // Call the accessor through JavaScript.
-  v8::Handle<v8::Value> result =
-      v8::Script::Compile(v8::String::New("(new Foo).get"))->Run();
+  v8::Handle<v8::Value> result = v8::Script::Compile(
+      v8::String::NewFromUtf8(CcTest::isolate(), "(new Foo).get"))->Run();
   CHECK_EQ(42, result->Int32Value());
   env->Exit();
 }

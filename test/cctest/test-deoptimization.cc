@@ -235,8 +235,8 @@ TEST(DeoptimizeRecursive) {
   CHECK_EQ(11, env->Global()->Get(v8_str("calls"))->Int32Value());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 
-  v8::Local<v8::Function> fun =
-      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  v8::Local<v8::Function> fun = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(CcTest::isolate(), "f")));
   CHECK(!fun.IsEmpty());
 }
 

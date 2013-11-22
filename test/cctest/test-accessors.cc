@@ -277,8 +277,8 @@ static void HandleAllocatingGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   for (int i = 0; i < C; i++)
-    v8::String::New("foo");
-  info.GetReturnValue().Set(v8::String::New("foo"));
+    v8::String::NewFromUtf8(info.GetIsolate(), "foo");
+  info.GetReturnValue().Set(v8::String::NewFromUtf8(info.GetIsolate(), "foo"));
 }
 
 
@@ -289,7 +289,8 @@ THREADED_TEST(HandleScopePop) {
   obj->SetAccessor(v8_str("one"), HandleAllocatingGetter<1>);
   obj->SetAccessor(v8_str("many"), HandleAllocatingGetter<1024>);
   v8::Handle<v8::Object> inst = obj->NewInstance();
-  context->Global()->Set(v8::String::New("obj"), inst);
+  context->Global()->Set(v8::String::NewFromUtf8(context->GetIsolate(), "obj"),
+                         inst);
   i::Isolate* isolate = CcTest::i_isolate();
   int count_before = i::HandleScope::NumberOfHandles(isolate);
   {
@@ -309,15 +310,18 @@ static void CheckAccessorArgsCorrect(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
-  CHECK(info.Data()->Equals(v8::String::New("data")));
+  CHECK(
+      info.Data()->Equals(v8::String::NewFromUtf8(CcTest::isolate(), "data")));
   ApiTestFuzzer::Fuzz();
   CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
-  CHECK(info.Data()->Equals(v8::String::New("data")));
+  CHECK(
+      info.Data()->Equals(v8::String::NewFromUtf8(CcTest::isolate(), "data")));
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
-  CHECK(info.Data()->Equals(v8::String::New("data")));
+  CHECK(
+      info.Data()->Equals(v8::String::NewFromUtf8(CcTest::isolate(), "data")));
   info.GetReturnValue().Set(17);
 }
 
@@ -329,10 +333,12 @@ THREADED_TEST(DirectCall) {
   obj->SetAccessor(v8_str("xxx"),
                    CheckAccessorArgsCorrect,
                    NULL,
-                   v8::String::New("data"));
+                   v8::String::NewFromUtf8(context->GetIsolate(), "data"));
   v8::Handle<v8::Object> inst = obj->NewInstance();
-  context->Global()->Set(v8::String::New("obj"), inst);
-  Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
+  context->Global()->Set(v8::String::NewFromUtf8(context->GetIsolate(), "obj"),
+                         inst);
+  Local<Script> scr = v8::Script::Compile(
+      v8::String::NewFromUtf8(context->GetIsolate(), "obj.xxx"));
   for (int i = 0; i < 10; i++) {
     Local<Value> result = scr->Run();
     CHECK(!result.IsEmpty());
@@ -354,10 +360,12 @@ THREADED_TEST(EmptyResult) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8::String::New("data"));
+  obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL,
+                   v8::String::NewFromUtf8(isolate, "data"));
   v8::Handle<v8::Object> inst = obj->NewInstance();
-  context->Global()->Set(v8::String::New("obj"), inst);
-  Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
+  context->Global()->Set(v8::String::NewFromUtf8(isolate, "obj"), inst);
+  Local<Script> scr =
+      v8::Script::Compile(v8::String::NewFromUtf8(isolate, "obj.xxx"));
   for (int i = 0; i < 10; i++) {
     Local<Value> result = scr->Run();
     CHECK(result == v8::Undefined(isolate));
@@ -372,11 +380,13 @@ THREADED_TEST(NoReuseRegress) {
   v8::HandleScope scope(isolate);
   {
     v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-    obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8::String::New("data"));
+    obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL,
+                     v8::String::NewFromUtf8(isolate, "data"));
     LocalContext context;
     v8::Handle<v8::Object> inst = obj->NewInstance();
-    context->Global()->Set(v8::String::New("obj"), inst);
-    Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
+    context->Global()->Set(v8::String::NewFromUtf8(isolate, "obj"), inst);
+    Local<Script> scr =
+        v8::Script::Compile(v8::String::NewFromUtf8(isolate, "obj.xxx"));
     for (int i = 0; i < 2; i++) {
       Local<Value> result = scr->Run();
       CHECK(result == v8::Undefined(isolate));
@@ -387,11 +397,12 @@ THREADED_TEST(NoReuseRegress) {
     obj->SetAccessor(v8_str("xxx"),
                      CheckAccessorArgsCorrect,
                      NULL,
-                     v8::String::New("data"));
+                     v8::String::NewFromUtf8(isolate, "data"));
     LocalContext context;
     v8::Handle<v8::Object> inst = obj->NewInstance();
-    context->Global()->Set(v8::String::New("obj"), inst);
-    Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
+    context->Global()->Set(v8::String::NewFromUtf8(isolate, "obj"), inst);
+    Local<Script> scr =
+        v8::Script::Compile(v8::String::NewFromUtf8(isolate, "obj.xxx"));
     for (int i = 0; i < 10; i++) {
       Local<Value> result = scr->Run();
       CHECK(!result.IsEmpty());
@@ -436,7 +447,8 @@ THREADED_TEST(Regress1054726) {
       "}; result"))->Run();
   CHECK_EQ(v8_str("ggggg"), result);
 
-  result = Script::Compile(String::New(
+  result = Script::Compile(String::NewFromUtf8(
+      env->GetIsolate(),
       "var result = '';"
       "for (var i = 0; i < 5; i++) {"
       "  try { obj.x = i; } catch (e) { result += e; }"
@@ -458,7 +470,8 @@ THREADED_TEST(Gc) {
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("xxx"), AllocGetter);
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
-  Script::Compile(String::New(
+  Script::Compile(String::NewFromUtf8(
+      env->GetIsolate(),
       "var last = [];"
       "for (var i = 0; i < 2048; i++) {"
       "  var result = obj.xxx;"
@@ -491,7 +504,8 @@ THREADED_TEST(StackIteration) {
   i::StringStream::ClearMentionedObjectCache(isolate);
   obj->SetAccessor(v8_str("xxx"), StackCheck);
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
-  Script::Compile(String::New(
+  Script::Compile(String::NewFromUtf8(
+      env->GetIsolate(),
       "function foo() {"
       "  return obj.xxx;"
       "}"
@@ -518,7 +532,8 @@ THREADED_TEST(HandleScopeSegment) {
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("xxx"), AllocateHandles);
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
-  v8::Handle<v8::Value> result = Script::Compile(String::New(
+  v8::Handle<v8::Value> result = Script::Compile(String::NewFromUtf8(
+      env->GetIsolate(),
       "var result;"
       "for (var i = 0; i < 4; i++)"
       "  result = obj.xxx;"
