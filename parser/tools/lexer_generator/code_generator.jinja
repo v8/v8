@@ -87,26 +87,30 @@
     DO_LINE_TERMINATOR();
   {% elif type == 'token' %}
     DO_TOKEN(Token::{{value}})
-  {% elif type == 'goto' %}
-    goto code_after_entry_{{value}};
+  {% elif type == 'goto_start' %}
+    goto code_{{value[0]}};
   {% elif type == 'store_token' %}
     stored_token = Token::{{value}};
+  {% elif type == 'store_token_and_goto' %}
+    stored_token = Token::{{value[0]}};
+    goto code_after_entry_{{value[1]}};
   {% elif type == 'do_stored_token' %}
     DO_TOKEN(stored_token)
   {% elif type == 'do_token_and_go_forward' %}
     DO_TOKEN_AND_GO_FORWARD(Token::{{value}})
   {% elif type == 'harmony_token' %}
     if (harmony_{{value[0]}}_) {
-      DO_TOKEN(Token::{{value[1][0]}});
+      DO_TOKEN(Token::{{value[1]}});
     } else {
-      DO_TOKEN(Token::{{value[1][1]}});
+      DO_TOKEN(Token::{{value[2]}});
     }
-  {% elif type == 'store_harmony_token' %}
+  {% elif type == 'store_harmony_token_and_goto' %}
     if (harmony_{{value[0]}}_) {
-      stored_token = Token::{{value[1][0]}};
+      stored_token = Token::{{value[1]}};
     } else {
-      stored_token = Token::{{value[1][1]}};
+      stored_token = Token::{{value[2]}};
     }
+    goto code_after_entry_{{value[3]}};
   {% elif type == 'set_marker' %}
     marker_ = cursor_ - {{value}};
   {% else %}

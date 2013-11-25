@@ -299,9 +299,17 @@ class CodeGenerator:
         assert not state['match_action'][1] in goto_map
         goto_map[state['match_action'][1]] = state['node_number']
         state['has_goto_after_entry'] = True
+    mapped_actions = set([
+      'store_harmony_token_and_goto',
+      'store_token_and_goto',
+      'goto_start'])
     for state in self.__dfa_states:
-      if state['match_action'] and state['match_action'][0] == 'goto':
-        state['match_action'] = ('goto', goto_map[state['match_action'][1]])
+      if not state['match_action']:
+        continue
+      if state['match_action'][0] in mapped_actions:
+        value = state['match_action'][1]
+        value = tuple(list(value[:-1]) + [goto_map[value[-1]]])
+        state['match_action'] = (state['match_action'][0], value)
 
   def process(self):
 

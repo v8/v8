@@ -134,7 +134,7 @@ class RuleParser:
 
   def p_action_part(self, p):
     '''action_part : code
-                         | identifier_action'''
+                   | identifier_action'''
     p[0] = p[1]
 
   def p_maybe_transition(self, p):
@@ -150,7 +150,10 @@ class RuleParser:
     if len(p) == 2 or len(p) == 4:
       p[0] = (p[1], None)
     elif len(p) == 5:
-      p[0] = (p[1], p[3])
+      if len(p[3]) == 1:
+        p[0] = (p[1], p[3][0])
+      else:
+        p[0] = (p[1], p[3])
     else:
       raise Exception()
 
@@ -158,9 +161,9 @@ class RuleParser:
     '''action_params : IDENTIFIER
                      | IDENTIFIER COMMA action_params'''
     if len(p) == 2:
-      p[0] = p[1]
+      p[0] = (p[1],)
     elif len(p) == 4:
-      p[0] = (p[1], p[3])
+      p[0] = tuple(([p[1]] + list(p[3])))
     else:
       raise Exception()
 

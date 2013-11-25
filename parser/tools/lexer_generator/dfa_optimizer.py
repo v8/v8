@@ -107,19 +107,38 @@ class DfaOptimizer(object):
     # perform replacement
     states = {}
     name = lambda state : str(state.node_number())
-    counters = {'removals' : 0, 'gotos' : 0}
+    counters = {
+      'removals' : 0,
+      'goto_start' : 0,
+      'store_token_and_goto' : 0,
+      'store_harmony_token_and_goto' : 0,
+      }
     store_states = set([])
     # generate a store action to replace an existing action
-    def replacement_action(old_action, match_action):
+    def replacement_action(old_action, transition_state):
       assert not old_action.entry_action()
       assert old_action.match_action()
+      state_id = name(transition_state)
       if old_action.match_action()[0] == 'token':
-        entry_action = ('store_token', old_action.match_action()[1])
+        old_token = old_action.match_action()[1]
+        if (transition_state.action().match_action()[0] == 'token' and
+            transition_state.action().match_action()[1] == old_token):
+          # no need to store token
+          match_action = ('goto_start', (state_id,))
+          counters['goto_start'] += 1
+        else:
+          counters['store_token_and_goto'] += 1
+          match_action = ('store_token_and_goto', (old_token, state_id))
       elif old_action.match_action()[0] == 'harmony_token':
-        entry_action = ('store_harmony_token', old_action.match_action()[1])
+        match_action = ('store_harmony_token_and_goto',
+                        (old_action.match_action()[1][0],
+                         old_action.match_action()[1][1],
+                         old_action.match_action()[1][2],
+                         state_id))
+        counters['store_harmony_token_and_goto'] += 1
       else:
         raise Exception(old_action.match_action())
-      return Action(entry_action, match_action, old_action.precedence())
+      return Action(None, match_action, old_action.precedence())
     # map the old state to the new state, with fewer transitions and
     # goto actions
     def replace_state(state, acc):
@@ -140,10 +159,9 @@ class DfaOptimizer(object):
         if replacement == None:
           counters['removals'] += 1
           continue
+        assert replacement == transition_state
         # do goto replacement
-        counters['gotos'] += 1
-        match_action = ('goto', name(transition_state))
-        new_state['action'] = replacement_action(state.action(), match_action)
+        new_state['action'] = replacement_action(state.action(), replacement)
         # will need to patch up transition_state
         store_states.add(name(transition_state))
       assert not state_replacements
@@ -151,11 +169,20 @@ class DfaOptimizer(object):
     # now patch up all states with stores
     for state_id in store_states:
       old_action = states[state_id]['action']
+      assert not old_action.entry_action()
+      assert old_action.match_action()[0] == 'token', 'unimplemented'
+      entry_action = ('store_token', old_action.match_action()[1])
       match_action = ('do_stored_token', state_id)
-      states[state_id]['action'] = replacement_action(old_action, match_action)
+      precedence = old_action.precedence()
+      states[state_id]['action'] = Action(
+        entry_action, match_action, precedence)
     start_name = name(self.__dfa.start_state())
     if self.__log:
-      print 'gotos inserted %s' % counters['gotos']
+      print 'goto_start inserted %s' % counters['goto_start']
+      print 'store_token_and_goto inserted %s' % (
+        counters['store_token_and_goto'])
+      print 'store_harmony_token_and_goto %s' % (
+        counters['store_harmony_token_and_goto'])
       print 'transitions removed %s' % counters['removals']
       print 'do_stored_token actions added %s' % len(store_states)
     self.__dfa = Dfa(self.__dfa.encoding(), start_name, states)
