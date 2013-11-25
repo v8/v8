@@ -1781,14 +1781,22 @@ void LCodeGen::DoAddI(LAddI* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
 
+  Representation target_rep = instr->hydrogen()->representation();
+  bool is_q = target_rep.IsSmi() || target_rep.IsExternal();
+
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
       int32_t offset = ToInteger32(LConstantOperand::cast(right));
-      __ leal(ToRegister(instr->result()),
-              MemOperand(ToRegister(left), offset));
+      if (is_q) {
+        __ lea(ToRegister(instr->result()),
+               MemOperand(ToRegister(left), offset));
+      } else {
+        __ leal(ToRegister(instr->result()),
+                MemOperand(ToRegister(left), offset));
+      }
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
-      if (instr->hydrogen()->representation().IsSmi()) {
+      if (is_q) {
         __ lea(ToRegister(instr->result()), address);
       } else {
         __ leal(ToRegister(instr->result()), address);
@@ -1796,16 +1804,21 @@ void LCodeGen::DoAddI(LAddI* instr) {
     }
   } else {
     if (right->IsConstantOperand()) {
-      __ addl(ToRegister(left),
-              Immediate(ToInteger32(LConstantOperand::cast(right))));
+      if (is_q) {
+        __ addq(ToRegister(left),
+                Immediate(ToInteger32(LConstantOperand::cast(right))));
+      } else {
+        __ addl(ToRegister(left),
+                Immediate(ToInteger32(LConstantOperand::cast(right))));
+      }
     } else if (right->IsRegister()) {
-      if (instr->hydrogen_value()->representation().IsSmi()) {
+      if (is_q) {
         __ addq(ToRegister(left), ToRegister(right));
       } else {
         __ addl(ToRegister(left), ToRegister(right));
       }
     } else {
-      if (instr->hydrogen_value()->representation().IsSmi()) {
+      if (is_q) {
         __ addq(ToRegister(left), ToOperand(right));
       } else {
         __ addl(ToRegister(left), ToOperand(right));

@@ -863,20 +863,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
 }
 
 
-enum TypedArrayId {
-  // arrayIds below should be synchromized with typedarray.js natives.
-  ARRAY_ID_UINT8 = 1,
-  ARRAY_ID_INT8 = 2,
-  ARRAY_ID_UINT16 = 3,
-  ARRAY_ID_INT16 = 4,
-  ARRAY_ID_UINT32 = 5,
-  ARRAY_ID_INT32 = 6,
-  ARRAY_ID_FLOAT32 = 7,
-  ARRAY_ID_FLOAT64 = 8,
-  ARRAY_ID_UINT8C = 9
-};
-
-static void ArrayIdToTypeAndSize(
+void Runtime::ArrayIdToTypeAndSize(
     int arrayId, ExternalArrayType* array_type, size_t* element_size) {
   switch (arrayId) {
     case ARRAY_ID_UINT8:
@@ -938,7 +925,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
-  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
+  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
   holder->set_buffer(*buffer);
   holder->set_byte_offset(*byte_offset_object);
@@ -990,7 +977,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
-  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
+  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = NumberToSize(isolate, *length_obj);

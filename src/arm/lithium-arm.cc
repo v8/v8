@@ -1667,6 +1667,15 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
       result = AssignEnvironment(result);
     }
     return result;
+  } else if (instr->representation().IsExternal()) {
+    ASSERT(instr->left()->representation().IsExternal());
+    ASSERT(instr->right()->representation().IsInteger32());
+    ASSERT(!instr->CheckFlag(HValue::kCanOverflow));
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseOrConstantAtStart(instr->right());
+    LAddI* add = new(zone()) LAddI(left, right);
+    LInstruction* result = DefineAsRegister(add);
+    return result;
   } else if (instr->representation().IsDouble()) {
     if (instr->left()->IsMul()) {
       return DoMultiplyAdd(HMul::cast(instr->left()), instr->right());

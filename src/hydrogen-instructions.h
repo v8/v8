@@ -4732,8 +4732,9 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
 
   // Add is only commutative if two integer values are added and not if two
   // tagged values are added (because it might be a String concatenation).
+  // We also do not commute (pointer + offset).
   virtual bool IsCommutative() const V8_OVERRIDE {
-    return !representation().IsTagged();
+    return !representation().IsTagged() && !representation().IsExternal();
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(
@@ -4768,6 +4769,10 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
       SetFlag(kUseGVN);
     }
   }
+
+  virtual Representation RepresentationFromInputs() V8_OVERRIDE;
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
@@ -6062,6 +6067,43 @@ class HObjectAccess V8_FINAL {
   // Create an access for the payload of a Cell or JSGlobalPropertyCell.
   static HObjectAccess ForCellPayload(Isolate* isolate);
 
+  static HObjectAccess ForJSTypedArrayLength() {
+    return HObjectAccess::ForJSObjectOffset(JSTypedArray::kLengthOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferBackingStore() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBuffer::kBackingStoreOffset, Representation::External());
+  }
+
+  static HObjectAccess ForExternalArrayExternalPointer() {
+    return HObjectAccess::ForJSObjectOffset(
+        ExternalArray::kExternalPointerOffset, Representation::External());
+  }
+
+  static HObjectAccess ForJSArrayBufferViewWeakNext() {
+    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kWeakNextOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferWeakFirstView() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBuffer::kWeakFirstViewOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewBuffer() {
+    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kBufferOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewByteOffset() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBufferView::kByteOffsetOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewByteLength() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBufferView::kByteLengthOffset);
+  }
+
   void PrintTo(StringStream* stream);
 
   inline bool Equals(HObjectAccess that) const {
@@ -6478,6 +6520,8 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
       } else if (field_representation().IsDouble() ||
                  field_representation().IsSmi()) {
         return field_representation();
+      } else if (field_representation().IsExternal()) {
+        return Representation::External();
       }
     }
     return Representation::Tagged();

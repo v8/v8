@@ -1736,6 +1736,12 @@ class HGraphBuilder {
     position_ = position;
   }
 
+  template <typename ViewClass>
+  void BuildArrayBufferViewInitialization(HValue* obj,
+                                          HValue* buffer,
+                                          HValue* byte_offset,
+                                          HValue* byte_length);
+
  private:
   HGraphBuilder();
 
@@ -2194,6 +2200,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
+
+  void VisitTypedArrayInitialize(CallRuntime* expr);
 
   bool IsCallNewArrayInlineable(CallNew* expr);
   void BuildInlinedCallNewArray(CallNew* expr);
