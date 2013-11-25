@@ -55,4 +55,3 @@ TestArray(Int32Array);
 TestArray(Float32Array);
 TestArray(Float64Array);
 TestArray(Uint8ClampedArray);
-

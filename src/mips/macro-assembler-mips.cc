@@ -275,6 +275,12 @@ void MacroAssembler::RecordWrite(Register object,
         eq, kWrongAddressOrValuePassedToRecordWrite, at, Operand(value));
   }
 
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  // TODO(mstarzinger): Dynamic counter missing.
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of smis and stores into the young generation.
   Label done;
 
   if (smi_check == INLINE_SMI_CHECK) {
@@ -4526,15 +4532,15 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       nop(Assembler::CODE_AGE_MARKER_NOP);
-      // Save the function's original return address
-      // (it will be clobbered by Call(t9)).
-      mov(at, ra);
-      // Load the stub address to t9 and call it.
+      // Load the stub address to t9 and call it,
+      // GetCodeAgeAndParity() extracts the stub address from this instruction.
       li(t9,
-         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())));
-      Call(t9);
-      // Record the stub address in the empty space for GetCodeAgeAndParity().
-      emit_code_stub_address(stub);
+         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())),
+         CONSTANT_SIZE);
+      nop();  // Prevent jalr to jal optimization.
+      jalr(t9, a0);
+      nop();  // Branch delay slot nop.
+      nop();  // Pad the empty space.
     } else {
       Push(ra, fp, cp, a1);
       nop(Assembler::CODE_AGE_SEQUENCE_NOP);

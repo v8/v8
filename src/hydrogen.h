@@ -1057,13 +1057,13 @@ class HGraphBuilder {
   HInstruction* NewUncasted() { return I::New(zone(), context()); }
 
   template<class I>
-  I* New() { return I::cast(NewUncasted<I>()); }
+  I* New() { return I::New(zone(), context()); }
 
   template<class I>
   HInstruction* AddUncasted() { return AddInstruction(NewUncasted<I>());}
 
   template<class I>
-  I* Add() { return I::cast(AddUncasted<I>());}
+  I* Add() { return AddInstructionTyped(New<I>());}
 
   template<class I, class P1>
   HInstruction* NewUncasted(P1 p1) {
@@ -1071,7 +1071,7 @@ class HGraphBuilder {
   }
 
   template<class I, class P1>
-  I* New(P1 p1) { return I::cast(NewUncasted<I>(p1)); }
+  I* New(P1 p1) { return I::New(zone(), context(), p1); }
 
   template<class I, class P1>
   HInstruction* AddUncasted(P1 p1) {
@@ -1085,7 +1085,12 @@ class HGraphBuilder {
 
   template<class I, class P1>
   I* Add(P1 p1) {
-    return I::cast(AddUncasted<I>(p1));
+    I* result = AddInstructionTyped(New<I>(p1));
+    // Specializations must have their parameters properly casted
+    // to avoid landing here.
+    ASSERT(!result->IsReturn() && !result->IsSimulate() &&
+           !result->IsDeoptimize());
+    return result;
   }
 
   template<class I, class P1, class P2>
@@ -1095,7 +1100,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2>
   I* New(P1 p1, P2 p2) {
-    return I::cast(NewUncasted<I>(p1, p2));
+    return I::New(zone(), context(), p1, p2);
   }
 
   template<class I, class P1, class P2>
@@ -1109,7 +1114,11 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2>
   I* Add(P1 p1, P2 p2) {
-    return I::cast(AddUncasted<I>(p1, p2));
+    I* result = AddInstructionTyped(New<I>(p1, p2));
+    // Specializations must have their parameters properly casted
+    // to avoid landing here.
+    ASSERT(!result->IsSimulate());
+    return result;
   }
 
   template<class I, class P1, class P2, class P3>
@@ -1119,7 +1128,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3>
   I* New(P1 p1, P2 p2, P3 p3) {
-    return I::cast(NewUncasted<I>(p1, p2, p3));
+    return I::New(zone(), context(), p1, p2, p3);
   }
 
   template<class I, class P1, class P2, class P3>
@@ -1129,7 +1138,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3>
   I* Add(P1 p1, P2 p2, P3 p3) {
-    return I::cast(AddUncasted<I>(p1, p2, p3));
+    return AddInstructionTyped(New<I>(p1, p2, p3));
   }
 
   template<class I, class P1, class P2, class P3, class P4>
@@ -1139,7 +1148,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4) {
-    return I::cast(NewUncasted<I>(p1, p2, p3, p4));
+    return I::New(zone(), context(), p1, p2, p3, p4);
   }
 
   template<class I, class P1, class P2, class P3, class P4>
@@ -1149,7 +1158,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4>
   I* Add(P1 p1, P2 p2, P3 p3, P4 p4) {
-    return I::cast(AddUncasted<I>(p1, p2, p3, p4));
+    return AddInstructionTyped(New<I>(p1, p2, p3, p4));
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
@@ -1159,7 +1168,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
-    return I::cast(NewUncasted<I>(p1, p2, p3, p4, p5));
+    return I::New(zone(), context(), p1, p2, p3, p4, p5);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
@@ -1169,7 +1178,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
   I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
-    return I::cast(AddUncasted<I>(p1, p2, p3, p4, p5));
+    return AddInstructionTyped(New<I>(p1, p2, p3, p4, p5));
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
@@ -1179,7 +1188,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
-    return I::cast(NewUncasted<I>(p1, p2, p3, p4, p5, p6));
+    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
@@ -1189,7 +1198,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
   I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
-    return I::cast(AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6)));
+    return AddInstructionTyped(New<I>(p1, p2, p3, p4, p5, p6));
   }
 
   template<class I, class P1, class P2, class P3, class P4,
@@ -1201,7 +1210,7 @@ class HGraphBuilder {
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7>
       I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
-    return I::cast(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7));
+    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7);
   }
 
   template<class I, class P1, class P2, class P3,
@@ -1213,8 +1222,7 @@ class HGraphBuilder {
   template<class I, class P1, class P2, class P3,
            class P4, class P5, class P6, class P7>
   I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
-    return I::cast(AddInstruction(NewUncasted<I>(p1, p2, p3, p4,
-                                                 p5, p6, p7)));
+    return AddInstructionTyped(New<I>(p1, p2, p3, p4, p5, p6, p7));
   }
 
   template<class I, class P1, class P2, class P3, class P4,
@@ -1227,7 +1235,7 @@ class HGraphBuilder {
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7, class P8>
       I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8) {
-    return I::cast(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8));
+    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
   }
 
   template<class I, class P1, class P2, class P3, class P4,
@@ -1240,8 +1248,7 @@ class HGraphBuilder {
   template<class I, class P1, class P2, class P3, class P4,
            class P5, class P6, class P7, class P8>
   I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8) {
-    return I::cast(
-        AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8)));
+    return AddInstructionTyped(New<I>(p1, p2, p3, p4, p5, p6, p7, p8));
   }
 
   void AddSimulate(BailoutId id, RemovableSimulate removable = FIXED_SIMULATE);
@@ -1345,8 +1352,7 @@ class HGraphBuilder {
                                Handle<Type> left_type,
                                Handle<Type> right_type,
                                Handle<Type> result_type,
-                               Maybe<int> fixed_right_arg,
-                               bool binop_stub = false);
+                               Maybe<int> fixed_right_arg);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
@@ -1743,6 +1749,11 @@ class HGraphBuilder {
   void PadEnvironmentForContinuation(HBasicBlock* from,
                                      HBasicBlock* continuation);
 
+  template <class I>
+  I* AddInstructionTyped(I* instr) {
+    return I::cast(AddInstruction(instr));
+  }
+
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
@@ -1751,7 +1762,7 @@ class HGraphBuilder {
 
 
 template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
+inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
     const char* reason, Deoptimizer::BailoutType type) {
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_requested()->Increment();
@@ -1771,14 +1782,14 @@ inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
 
 
 template<>
-inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
+inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
     const char* reason, Deoptimizer::BailoutType type) {
-  return static_cast<HDeoptimize*>(AddUncasted<HDeoptimize>(reason, type));
+  return Add<HDeoptimize>(reason, type);
 }
 
 
 template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HSimulate>(
+inline HSimulate* HGraphBuilder::Add<HSimulate>(
     BailoutId id,
     RemovableSimulate removable) {
   HSimulate* instr = current_block()->CreateSimulate(id, removable);
@@ -1788,13 +1799,20 @@ inline HInstruction* HGraphBuilder::AddUncasted<HSimulate>(
 
 
 template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HSimulate>(BailoutId id) {
-  return AddUncasted<HSimulate>(id, FIXED_SIMULATE);
+inline HSimulate* HGraphBuilder::Add<HSimulate>(
+    BailoutId id) {
+  return Add<HSimulate>(id, FIXED_SIMULATE);
 }
 
 
 template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HValue* value) {
+inline HInstruction* HGraphBuilder::AddUncasted<HSimulate>(BailoutId id) {
+  return Add<HSimulate>(id, FIXED_SIMULATE);
+}
+
+
+template<>
+inline HReturn* HGraphBuilder::Add<HReturn>(HValue* value) {
   int num_parameters = graph()->info()->num_parameters();
   HValue* params = AddUncasted<HConstant>(num_parameters);
   HReturn* return_instruction = New<HReturn>(value, params);
@@ -1804,13 +1822,24 @@ inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HValue* value) {
 
 
 template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HConstant* value) {
-  return AddUncasted<HReturn>(static_cast<HValue*>(value));
+inline HReturn* HGraphBuilder::Add<HReturn>(HConstant* value) {
+  return Add<HReturn>(static_cast<HValue*>(value));
+}
+
+template<>
+inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HValue* value) {
+  return Add<HReturn>(value);
 }
 
 
 template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HCallRuntime>(
+inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HConstant* value) {
+  return Add<HReturn>(value);
+}
+
+
+template<>
+inline HCallRuntime* HGraphBuilder::Add<HCallRuntime>(
     Handle<String> name,
     const Runtime::Function* c_function,
     int argument_count) {
@@ -1827,10 +1856,24 @@ inline HInstruction* HGraphBuilder::AddUncasted<HCallRuntime>(
 
 
 template<>
-inline HInstruction* HGraphBuilder::NewUncasted<HContext>() {
+inline HInstruction* HGraphBuilder::AddUncasted<HCallRuntime>(
+    Handle<String> name,
+    const Runtime::Function* c_function,
+    int argument_count) {
+  return Add<HCallRuntime>(name, c_function, argument_count);
+}
+
+
+template<>
+inline HContext* HGraphBuilder::New<HContext>() {
   return HContext::New(zone());
 }
 
+
+template<>
+inline HInstruction* HGraphBuilder::NewUncasted<HContext>() {
+  return New<HContext>();
+}
 
 class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
  public:

@@ -1061,12 +1061,6 @@ ExternalReference ExternalReference::delete_handle_scope_extensions(
 }
 
 
-ExternalReference ExternalReference::random_uint32_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(V8::Random)));
-}
-
-
 ExternalReference ExternalReference::get_date_field_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(JSDate::GetField)));

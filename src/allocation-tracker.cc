@@ -272,7 +272,7 @@ void AllocationTracker::UnresolvedLocation::HandleWeakScript(
     void* data) {
   UnresolvedLocation* location = reinterpret_cast<UnresolvedLocation*>(data);
   location->script_ = Handle<Script>::null();
-  obj->Dispose();
+  obj->Reset();
 }
 
 

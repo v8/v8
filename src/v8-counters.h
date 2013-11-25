@@ -261,6 +261,9 @@ namespace internal {
   SC(soft_deopts_requested, V8.SoftDeoptsRequested)                   \
   SC(soft_deopts_inserted, V8.SoftDeoptsInserted)                     \
   SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                     \
+  /* Number of write barriers in generated code. */                   \
+  SC(write_barriers_dynamic, V8.WriteBarriersDynamic)                 \
+  SC(write_barriers_static, V8.WriteBarriersStatic)                   \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)      \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)      \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                \

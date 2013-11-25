@@ -255,7 +255,8 @@ TEST(BoundFunctionInSnapshot) {
   const v8::HeapGraphNode* f =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "boundFunction");
   CHECK(f);
-  CHECK_EQ(v8::String::New("native_bind"), f->GetName());
+  CHECK_EQ(v8::String::NewFromUtf8(env->GetIsolate(), "native_bind"),
+           f->GetName());
   const v8::HeapGraphNode* bindings =
       GetProperty(f, v8::HeapGraphEdge::kInternal, "bindings");
   CHECK_NE(NULL, bindings);
@@ -1083,8 +1084,8 @@ TEST(HeapSnapshotGetSnapshotObjectId) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "globalObject");
   CHECK(global_object);
 
-  v8::Local<v8::Value> globalObjectHandle =
-      env->Global()->Get(v8::String::New("globalObject"));
+  v8::Local<v8::Value> globalObjectHandle = env->Global()->Get(
+      v8::String::NewFromUtf8(env->GetIsolate(), "globalObject"));
   CHECK(!globalObjectHandle.IsEmpty());
   CHECK(globalObjectHandle->IsObject());
 
@@ -1719,7 +1720,8 @@ TEST(HiddenPropertiesFastCase) {
       GetProperty(c, v8::HeapGraphEdge::kInternal, "hidden_properties");
   CHECK_EQ(NULL, hidden_props);
 
-  v8::Handle<v8::Value> cHandle = env->Global()->Get(v8::String::New("c"));
+  v8::Handle<v8::Value> cHandle =
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "c"));
   CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
   cHandle->ToObject()->SetHiddenValue(v8_str("key"), v8_str("val"));
 
@@ -1763,7 +1765,7 @@ bool HasWeakGlobalHandle() {
 static void PersistentHandleCallback(v8::Isolate* isolate,
                                      v8::Persistent<v8::Value>* handle,
                                      void*) {
-  handle->Dispose();
+  handle->Reset();
 }
 
 
@@ -2036,7 +2038,8 @@ const char* HeapProfilerExtension::kSource =
 
 v8::Handle<v8::FunctionTemplate> HeapProfilerExtension::GetNativeFunction(
     v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::New("findUntrackedObjects"))) {
+  if (name->Equals(v8::String::NewFromUtf8(v8::Isolate::GetCurrent(),
+                                           "findUntrackedObjects"))) {
     return v8::FunctionTemplate::New(
         HeapProfilerExtension::FindUntrackedObjects);
   } else {
@@ -2212,7 +2215,7 @@ TEST(TrackHeapAllocations) {
   CompileRun(record_trace_tree_source);
 
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-      v8::String::New("Test"));
+      v8::String::NewFromUtf8(env->GetIsolate(), "Test"));
   i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
   AllocationTracker* tracker = collection->allocation_tracker();
   CHECK_NE(NULL, tracker);
@@ -2265,7 +2268,7 @@ TEST(TrackBumpPointerAllocations) {
     CompileRun(inline_heap_allocation_source);
 
     const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-        v8::String::New("Test2"));
+        v8::String::NewFromUtf8(env->GetIsolate(), "Test2"));
     i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
     AllocationTracker* tracker = collection->allocation_tracker();
     CHECK_NE(NULL, tracker);
@@ -2293,7 +2296,7 @@ TEST(TrackBumpPointerAllocations) {
     CompileRun(inline_heap_allocation_source);
 
     const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-        v8::String::New("Test1"));
+        v8::String::NewFromUtf8(env->GetIsolate(), "Test1"));
     i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
     AllocationTracker* tracker = collection->allocation_tracker();
     CHECK_NE(NULL, tracker);

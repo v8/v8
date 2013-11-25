@@ -114,6 +114,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(NotifyStubFailure,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+  V(NotifyStubFailureSaveDoubles,   BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
                                                                         \
   V(LoadIC_Miss,                    BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -403,6 +405,7 @@ class Builtins {
   static void Generate_NotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyLazyDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyStubFailure(MacroAssembler* masm);
+  static void Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
 
   static void Generate_FunctionCall(MacroAssembler* masm);

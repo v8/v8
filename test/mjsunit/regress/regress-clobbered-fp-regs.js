@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,48 +24,31 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Flags: --allow-natives-syntax
 
-// Make sure that eval can introduce a local variable called __proto__.
-// See http://code.google.com/p/v8/issues/detail?id=186
-
-var setterCalled = false;
-
-var o = {};
-o.__defineSetter__("x", function() { setterCalled = true; });
-
-function runTest(test) {
-  setterCalled = false;
-  test();
+function store(a, x, y) {
+  var f1 = 0.1 * y;
+  var f2 = 0.2 * y;
+  var f3 = 0.3 * y;
+  var f4 = 0.4 * y;
+  var f5 = 0.5 * y;
+  var f6 = 0.6 * y;
+  var f7 = 0.7 * y;
+  var f8 = 0.8 * y;
+  a[0] = x;
+  var sum = (f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8);
+  assertEquals(1, y);
+  var expected = 3.6;
+  if (Math.abs(expected - sum) > 0.01) {
+    assertEquals(expected, sum);
+  }
 }
 
-function testLocal() {
-  // Add property called __proto__ to the extension object.
-  eval("var __proto__ = o");
-  // Check that the extension object's prototype did not change.
-  eval("var x = 27");
-  assertFalse(setterCalled, "prototype of extension object changed");
-  assertEquals(o, eval("__proto__"));
-}
-
-function testConstLocal() {
-  // Add const property called __proto__ to the extension object.
-  eval("const __proto__ = o");
-  // Check that the extension object's prototype did not change.
-  eval("var x = 27");
-  assertFalse(setterCalled, "prototype of extension object changed");
-  assertEquals(o, eval("__proto__"));
-}
-
-function testGlobal() {
-  // Assign to the global __proto__ property.
-  eval("__proto__ = o");
-  // Check that the prototype of the global object changed.
-  eval("x = 27");
-  assertTrue(setterCalled, "prototype of global object did not change");
-  setterCalled = false;
-  assertEquals(o, eval("__proto__"));
-}
-
-runTest(testLocal);
-runTest(testConstLocal);
-runTest(testGlobal);
+// Generate TransitionElementsKindStub.
+store([1], 1, 1);
+store([1], 1.1, 1);
+store([1], 1.1, 1);
+%OptimizeFunctionOnNextCall(store);
+// This will trap on allocation site in TransitionElementsKindStub.
+store([1], 1, 1)

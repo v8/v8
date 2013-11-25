@@ -1309,10 +1309,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   // Initialize the embedder data slot.
   Handle<FixedArray> embedder_data = factory->NewFixedArray(2);
   native_context()->set_embedder_data(*embedder_data);
-
-  // Allocate the random seed slot.
-  Handle<ByteArray> random_seed = factory->NewByteArray(kRandomStateSize);
-  native_context()->set_random_seed(*random_seed);
 }
 
 
@@ -2636,10 +2632,31 @@ Genesis::Genesis(Isolate* isolate,
   InitializeExperimentalGlobal();
   if (!InstallExperimentalNatives()) return;
 
+  // We can't (de-)serialize typed arrays currently, but we are lucky: The state
+  // of the random number generator needs no initialization during snapshot
+  // creation time and we don't need trigonometric functions then.
   if (!Serializer::enabled()) {
+    // Initially seed the per-context random number generator using the
+    // per-isolate random number generator.
+    const int num_elems = 2;
+    const int num_bytes = num_elems * sizeof(uint32_t);
+    uint32_t* state = reinterpret_cast<uint32_t*>(malloc(num_bytes));
+
+    do {
+      isolate->random_number_generator()->NextBytes(state, num_bytes);
+    } while (state[0] == 0 || state[1] == 0);
+
+    v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(state, num_bytes);
+    Utils::OpenHandle(*buffer)->set_should_be_freed(true);
+    v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
     Handle<JSBuiltinsObject> builtins(native_context()->builtins());
+    ForceSetProperty(builtins,
+                     factory()->InternalizeOneByteString(
+                         STATIC_ASCII_VECTOR("rngstate")),
+                     Utils::OpenHandle(*ta),
+                     NONE);
+
     // Initialize trigonometric lookup tables and constants.
-    // The snapshot cannot contain typed arrays, and we don't need it to.
     const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
     v8::Local<v8::ArrayBuffer> sin_buffer = v8::ArrayBuffer::New(
         TrigonometricLookupTable::sin_table(), table_num_bytes);
@@ -2673,14 +2690,6 @@ Genesis::Genesis(Isolate* isolate,
                          TrigonometricLookupTable::samples_over_pi_half()),
                      NONE);
   }
-
-  // Initially seed the per-context random number generator
-  // using the per-isolate random number generator.
-  uint32_t* state = reinterpret_cast<uint32_t*>(
-      native_context()->random_seed()->GetDataStartAddress());
-  do {
-    isolate->random_number_generator()->NextBytes(state, kRandomStateSize);
-  } while (state[0] == 0 || state[1] == 0);
 
   result_ = native_context();
 }

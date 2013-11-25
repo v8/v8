@@ -80,8 +80,8 @@
 namespace v8 {
 
 
-static Handle<Value> Throw(const char* message) {
-  return ThrowException(String::New(message));
+static Handle<Value> Throw(Isolate* isolate, const char* message) {
+  return isolate->ThrowException(String::NewFromUtf8(isolate, message));
 }
 
 
@@ -244,7 +244,8 @@ bool Shell::ExecuteString(Isolate* isolate,
               v8::Local<v8::Context>::New(isolate, utility_context_);
           v8::Context::Scope context_scope(context);
           Handle<Object> global = context->Global();
-          Handle<Value> fun = global->Get(String::New("Stringify"));
+          Handle<Value> fun =
+              global->Get(String::NewFromUtf8(isolate, "Stringify"));
           Handle<Value> argv[1] = { result };
           Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
           if (try_catch.HasCaught()) return true;
@@ -267,17 +268,16 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realms_ = new Persistent<Context>[1];
   data_->realms_[0].Reset(data_->isolate_,
                           data_->isolate_->GetEnteredContext());
-  data_->realm_shared_.Clear();
 }
 
 
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive.
   for (int i = 0; i < data_->realm_count_; ++i)
-    data_->realms_[i].Dispose();
+    data_->realms_[i].Reset();
   delete[] data_->realms_;
   if (!data_->realm_shared_.IsEmpty())
-    data_->realm_shared_.Dispose();
+    data_->realm_shared_.Reset();
 }
 
 
@@ -313,7 +313,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsObject()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = data->RealmFind(args[0]->ToObject()->CreationContext());
@@ -327,12 +327,12 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PerIsolateData* data = PerIsolateData::Get(args.GetIsolate());
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
   args.GetReturnValue().Set(
@@ -363,18 +363,17 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty() ||
       index == 0 ||
       index == data->realm_current_ || index == data->realm_switch_) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
-  data->realms_[index].Dispose();
-  data->realms_[index].Clear();
+  data->realms_[index].Reset();
 }
 
 
@@ -383,12 +382,12 @@ void Shell::RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
   data->realm_switch_ = index;
@@ -400,12 +399,12 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 2 || !args[0]->IsNumber() || !args[1]->IsString()) {
-    Throw("Invalid argument");
+    Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    Throw("Invalid realm index");
+    Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
   Handle<Script> script = Script::New(args[1]->ToString());
@@ -432,7 +431,6 @@ void Shell::RealmSharedSet(Local<String> property,
                            const PropertyCallbackInfo<void>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose();
   data->realm_shared_.Reset(isolate, value);
 }
 
@@ -472,12 +470,12 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value file(args[0]);
   if (*file == NULL) {
-    Throw("Error loading file");
+    Throw(args.GetIsolate(), "Error loading file");
     return;
   }
   Handle<String> source = ReadFile(args.GetIsolate(), *file);
   if (source.IsEmpty()) {
-    Throw("Error loading file");
+    Throw(args.GetIsolate(), "Error loading file");
     return;
   }
   args.GetReturnValue().Set(source);
@@ -487,7 +485,7 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
 Handle<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
-  Handle<String> accumulator = String::New("");
+  Handle<String> accumulator = String::NewFromUtf8(isolate, "");
   int length;
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
@@ -503,12 +501,18 @@ Handle<String> Shell::ReadFromStdin(Isolate* isolate) {
     if (length == 0) {
       return accumulator;
     } else if (buffer[length-1] != '\n') {
-      accumulator = String::Concat(accumulator, String::New(buffer, length));
+      accumulator = String::Concat(
+          accumulator,
+          String::NewFromUtf8(isolate, buffer, String::kNormalString, length));
     } else if (length > 1 && buffer[length-2] == '\\') {
       buffer[length-2] = '\n';
-      accumulator = String::Concat(accumulator, String::New(buffer, length-1));
+      accumulator = String::Concat(
+          accumulator, String::NewFromUtf8(isolate, buffer,
+                                           String::kNormalString, length - 1));
     } else {
-      return String::Concat(accumulator, String::New(buffer, length-1));
+      return String::Concat(
+          accumulator, String::NewFromUtf8(isolate, buffer,
+                                           String::kNormalString, length - 1));
     }
   }
 }
@@ -519,20 +523,20 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     HandleScope handle_scope(args.GetIsolate());
     String::Utf8Value file(args[i]);
     if (*file == NULL) {
-      Throw("Error loading file");
+      Throw(args.GetIsolate(), "Error loading file");
       return;
     }
     Handle<String> source = ReadFile(args.GetIsolate(), *file);
     if (source.IsEmpty()) {
-      Throw("Error loading file");
+      Throw(args.GetIsolate(), "Error loading file");
       return;
     }
     if (!ExecuteString(args.GetIsolate(),
                        source,
-                       String::New(*file),
+                       String::NewFromUtf8(args.GetIsolate(), *file),
                        false,
                        true)) {
-      Throw("Error executing file");
+      Throw(args.GetIsolate(), "Error executing file");
       return;
     }
   }
@@ -547,7 +551,8 @@ void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(String::New(V8::GetVersion()));
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(args.GetIsolate(), V8::GetVersion()));
 }
 
 
@@ -555,7 +560,7 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   HandleScope handle_scope(isolate);
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
   Handle<Context> utility_context;
-  bool enter_context = !Context::InContext();
+  bool enter_context = !isolate->InContext();
   if (enter_context) {
     utility_context = Local<Context>::New(isolate, utility_context_);
     utility_context->Enter();
@@ -610,7 +615,8 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(utility_context);
   Handle<Object> global = utility_context->Global();
-  Handle<Value> fun = global->Get(String::New("GetCompletions"));
+  Handle<Value> fun =
+      global->Get(String::NewFromUtf8(isolate, "GetCompletions"));
   static const int kArgc = 3;
   v8::Local<v8::Context> evaluation_context =
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
@@ -628,7 +634,8 @@ Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
   Handle<Object> global = context->Global();
-  Handle<Value> fun = global->Get(String::New("DebugMessageDetails"));
+  Handle<Value> fun =
+      global->Get(String::NewFromUtf8(isolate, "DebugMessageDetails"));
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { message };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
@@ -643,7 +650,8 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
   Handle<Object> global = context->Global();
-  Handle<Value> fun = global->Get(String::New("DebugCommandToJSONRequest"));
+  Handle<Value> fun =
+      global->Get(String::NewFromUtf8(isolate, "DebugCommandToJSONRequest"));
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { command };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
@@ -782,8 +790,8 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   debug->Load();
   i::Handle<i::JSObject> js_debug
       = i::Handle<i::JSObject>(debug->debug_context()->global_object());
-  utility_context->Global()->Set(String::New("$debug"),
-                                  Utils::ToLocal(js_debug));
+  utility_context->Global()->Set(String::NewFromUtf8(isolate, "$debug"),
+                                 Utils::ToLocal(js_debug));
   debug->debug_context()->set_security_token(
       reinterpret_cast<i::Isolate*>(isolate)->heap()->undefined_value());
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -794,10 +802,12 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
       i::NativesCollection<i::D8>::GetRawScriptSource(source_index);
   i::Vector<const char> shell_source_name =
       i::NativesCollection<i::D8>::GetScriptName(source_index);
-  Handle<String> source = String::New(shell_source.start(),
-      shell_source.length());
-  Handle<String> name = String::New(shell_source_name.start(),
-      shell_source_name.length());
+  Handle<String> source =
+      String::NewFromUtf8(isolate, shell_source.start(), String::kNormalString,
+                          shell_source.length());
+  Handle<String> name =
+      String::NewFromUtf8(isolate, shell_source_name.start(),
+                          String::kNormalString, shell_source_name.length());
   Handle<Script> script = Script::Compile(source, name);
   script->Run();
   // Mark the d8 shell script as native to avoid it showing up as normal source
@@ -850,48 +860,55 @@ class BZip2Decompressor : public v8::StartupDataDecompressor {
 
 Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Handle<ObjectTemplate> global_template = ObjectTemplate::New();
-  global_template->Set(String::New("print"), FunctionTemplate::New(Print));
-  global_template->Set(String::New("write"), FunctionTemplate::New(Write));
-  global_template->Set(String::New("read"), FunctionTemplate::New(Read));
-  global_template->Set(String::New("readbuffer"),
+  global_template->Set(String::NewFromUtf8(isolate, "print"),
+                       FunctionTemplate::New(Print));
+  global_template->Set(String::NewFromUtf8(isolate, "write"),
+                       FunctionTemplate::New(Write));
+  global_template->Set(String::NewFromUtf8(isolate, "read"),
+                       FunctionTemplate::New(Read));
+  global_template->Set(String::NewFromUtf8(isolate, "readbuffer"),
                        FunctionTemplate::New(ReadBuffer));
-  global_template->Set(String::New("readline"),
+  global_template->Set(String::NewFromUtf8(isolate, "readline"),
                        FunctionTemplate::New(ReadLine));
-  global_template->Set(String::New("load"), FunctionTemplate::New(Load));
-  global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
-  global_template->Set(String::New("version"), FunctionTemplate::New(Version));
+  global_template->Set(String::NewFromUtf8(isolate, "load"),
+                       FunctionTemplate::New(Load));
+  global_template->Set(String::NewFromUtf8(isolate, "quit"),
+                       FunctionTemplate::New(Quit));
+  global_template->Set(String::NewFromUtf8(isolate, "version"),
+                       FunctionTemplate::New(Version));
 
   // Bind the Realm object.
   Handle<ObjectTemplate> realm_template = ObjectTemplate::New();
-  realm_template->Set(String::New("current"),
+  realm_template->Set(String::NewFromUtf8(isolate, "current"),
                       FunctionTemplate::New(RealmCurrent));
-  realm_template->Set(String::New("owner"),
+  realm_template->Set(String::NewFromUtf8(isolate, "owner"),
                       FunctionTemplate::New(RealmOwner));
-  realm_template->Set(String::New("global"),
+  realm_template->Set(String::NewFromUtf8(isolate, "global"),
                       FunctionTemplate::New(RealmGlobal));
-  realm_template->Set(String::New("create"),
+  realm_template->Set(String::NewFromUtf8(isolate, "create"),
                       FunctionTemplate::New(RealmCreate));
-  realm_template->Set(String::New("dispose"),
+  realm_template->Set(String::NewFromUtf8(isolate, "dispose"),
                       FunctionTemplate::New(RealmDispose));
-  realm_template->Set(String::New("switch"),
+  realm_template->Set(String::NewFromUtf8(isolate, "switch"),
                       FunctionTemplate::New(RealmSwitch));
-  realm_template->Set(String::New("eval"),
+  realm_template->Set(String::NewFromUtf8(isolate, "eval"),
                       FunctionTemplate::New(RealmEval));
-  realm_template->SetAccessor(String::New("shared"),
+  realm_template->SetAccessor(String::NewFromUtf8(isolate, "shared"),
                               RealmSharedGet, RealmSharedSet);
-  global_template->Set(String::New("Realm"), realm_template);
+  global_template->Set(String::NewFromUtf8(isolate, "Realm"), realm_template);
 
 #ifndef V8_SHARED
   Handle<ObjectTemplate> performance_template = ObjectTemplate::New();
-  performance_template->Set(String::New("now"),
+  performance_template->Set(String::NewFromUtf8(isolate, "now"),
                             FunctionTemplate::New(PerformanceNow));
-  global_template->Set(String::New("performance"), performance_template);
+  global_template->Set(String::NewFromUtf8(isolate, "performance"),
+                       performance_template);
 #endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
-  AddOSMethods(os_templ);
-  global_template->Set(String::New("os"), os_templ);
+  AddOSMethods(isolate, os_templ);
+  global_template->Set(String::NewFromUtf8(isolate, "os"), os_templ);
 #endif  // V8_SHARED
 
   return global_template;
@@ -966,7 +983,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   }
   i::Handle<i::JSArray> arguments_jsarray =
       factory->NewJSArrayWithElements(arguments_array);
-  context->Global()->Set(String::New("arguments"),
+  context->Global()->Set(String::NewFromUtf8(isolate, "arguments"),
                          Utils::ToLocal(arguments_jsarray));
 #endif  // V8_SHARED
   return handle_scope.Close(context);
@@ -1089,7 +1106,7 @@ static void ReadBufferWeakCallback(v8::Isolate* isolate,
       -static_cast<intptr_t>(byte_length));
 
   delete[] data;
-  array_buffer->Dispose();
+  array_buffer->Reset();
 }
 
 
@@ -1098,7 +1115,7 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value filename(args[0]);
   int length;
   if (*filename == NULL) {
-    Throw("Error loading file");
+    Throw(args.GetIsolate(), "Error loading file");
     return;
   }
 
@@ -1106,7 +1123,7 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   uint8_t* data = reinterpret_cast<uint8_t*>(
       ReadChars(args.GetIsolate(), *filename, &length));
   if (data == NULL) {
-    Throw("Error reading file");
+    Throw(args.GetIsolate(), "Error reading file");
     return;
   }
   Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
@@ -1147,7 +1164,8 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
   int size = 0;
   char* chars = ReadChars(isolate, name, &size);
   if (chars == NULL) return Handle<String>();
-  Handle<String> result = String::New(chars, size);
+  Handle<String> result =
+      String::NewFromUtf8(isolate, chars, String::kNormalString, size);
   delete[] chars;
   return result;
 }
@@ -1160,7 +1178,7 @@ void Shell::RunShell(Isolate* isolate) {
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   v8::Context::Scope context_scope(context);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-  Handle<String> name = String::New("(d8)");
+  Handle<String> name = String::NewFromUtf8(isolate, "(d8)");
   LineEditor* console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
   console->Open(isolate);
@@ -1229,7 +1247,8 @@ void ShellThread::Run() {
         Shell::Exit(1);
       }
 
-      Shell::ExecuteString(isolate_, str, String::New(filename), false, false);
+      Shell::ExecuteString(
+          isolate_, str, String::NewFromUtf8(isolate_, filename), false, false);
     }
 
     ptr = next_line;
@@ -1253,8 +1272,8 @@ void SourceGroup::Execute(Isolate* isolate) {
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
-      Handle<String> file_name = String::New("unnamed");
-      Handle<String> source = String::New(argv_[i + 1]);
+      Handle<String> file_name = String::NewFromUtf8(isolate, "unnamed");
+      Handle<String> source = String::NewFromUtf8(isolate, argv_[i + 1]);
       if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
         exception_was_thrown = true;
         break;
@@ -1265,7 +1284,7 @@ void SourceGroup::Execute(Isolate* isolate) {
     } else {
       // Use all other arguments as names of files to load and run.
       HandleScope handle_scope(isolate);
-      Handle<String> file_name = String::New(arg);
+      Handle<String> file_name = String::NewFromUtf8(isolate, arg);
       Handle<String> source = ReadFile(isolate, arg);
       if (source.IsEmpty()) {
         printf("Error reading '%s'\n", arg);
@@ -1287,7 +1306,8 @@ Handle<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
   int size;
   char* chars = ReadChars(isolate, name, &size);
   if (chars == NULL) return Handle<String>();
-  Handle<String> result = String::New(chars, size);
+  Handle<String> result =
+      String::NewFromUtf8(isolate, chars, String::kNormalString, size);
   delete[] chars;
   return result;
 }

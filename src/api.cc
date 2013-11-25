@@ -3401,13 +3401,14 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
 
 
 Local<String> v8::Object::ObjectProtoToString() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::ObjectProtoToString()",
+  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
+  ON_BAILOUT(i_isolate, "v8::Object::ObjectProtoToString()",
              return Local<v8::String>());
-  ENTER_V8(isolate);
+  ENTER_V8(i_isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
 
-  i::Handle<i::Object> name(self->class_name(), isolate);
+  i::Handle<i::Object> name(self->class_name(), i_isolate);
 
   // Native implementation of Object.prototype.toString (v8natives.js):
   //   var c = %_ClassOf(this);
@@ -3415,13 +3416,11 @@ Local<String> v8::Object::ObjectProtoToString() {
   //   return "[object " + c + "]";
 
   if (!name->IsString()) {
-    return v8::String::New("[object ]");
-
+    return v8::String::NewFromUtf8(isolate, "[object ]");
   } else {
     i::Handle<i::String> class_name = i::Handle<i::String>::cast(name);
     if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Arguments"))) {
-      return v8::String::New("[object Object]");
-
+      return v8::String::NewFromUtf8(isolate, "[object Object]");
     } else {
       const char* prefix = "[object ";
       Local<String> str = Utils::ToLocal(class_name);
@@ -3447,7 +3446,8 @@ Local<String> v8::Object::ObjectProtoToString() {
       i::OS::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
       // Copy the buffer into a heap-allocated string and return it.
-      Local<String> result = v8::String::New(buf.start(), buf_len);
+      Local<String> result = v8::String::NewFromUtf8(
+          isolate, buf.start(), String::kNormalString, buf_len);
       return result;
     }
   }

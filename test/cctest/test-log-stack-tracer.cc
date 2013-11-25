@@ -113,13 +113,16 @@ const char* TraceExtension::kSource =
 
 v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunction(
     v8::Handle<String> name) {
-  if (name->Equals(String::New("trace"))) {
+  if (name->Equals(String::NewFromUtf8(v8::Isolate::GetCurrent(), "trace"))) {
     return v8::FunctionTemplate::New(TraceExtension::Trace);
-  } else if (name->Equals(String::New("js_trace"))) {
+  } else if (name->Equals(
+                 String::NewFromUtf8(v8::Isolate::GetCurrent(), "js_trace"))) {
     return v8::FunctionTemplate::New(TraceExtension::JSTrace);
-  } else if (name->Equals(String::New("js_entry_sp"))) {
+  } else if (name->Equals(String::NewFromUtf8(v8::Isolate::GetCurrent(),
+                                              "js_entry_sp"))) {
     return v8::FunctionTemplate::New(TraceExtension::JSEntrySP);
-  } else if (name->Equals(String::New("js_entry_sp_level2"))) {
+  } else if (name->Equals(String::NewFromUtf8(v8::Isolate::GetCurrent(),
+                                              "js_entry_sp_level2"))) {
     return v8::FunctionTemplate::New(TraceExtension::JSEntrySPLevel2);
   } else {
     CHECK(false);

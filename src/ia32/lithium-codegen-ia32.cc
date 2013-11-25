@@ -130,6 +130,40 @@ void LCodeGen::MakeSureStackPagesMapped(int offset) {
 #endif
 
 
+void LCodeGen::SaveCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Save clobbered callee double registers");
+  CpuFeatureScope scope(masm(), SSE2);
+  int count = 0;
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  while (!save_iterator.Done()) {
+    __ movsd(MemOperand(esp, count * kDoubleSize),
+              XMMRegister::FromAllocationIndex(save_iterator.Current()));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
+void LCodeGen::RestoreCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Restore clobbered callee double registers");
+  CpuFeatureScope scope(masm(), SSE2);
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  int count = 0;
+  while (!save_iterator.Done()) {
+    __ movsd(XMMRegister::FromAllocationIndex(save_iterator.Current()),
+              MemOperand(esp, count * kDoubleSize));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
@@ -244,17 +278,7 @@ bool LCodeGen::GeneratePrologue() {
     }
 
     if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
-      Comment(";;; Save clobbered callee double registers");
-      CpuFeatureScope scope(masm(), SSE2);
-      int count = 0;
-      BitVector* doubles = chunk()->allocated_double_registers();
-      BitVector::Iterator save_iterator(doubles);
-      while (!save_iterator.Done()) {
-        __ movsd(MemOperand(esp, count * kDoubleSize),
-                  XMMRegister::FromAllocationIndex(save_iterator.Current()));
-        save_iterator.Advance();
-        count++;
-      }
+      SaveCallerDoubles();
     }
   }
 
@@ -399,6 +423,7 @@ bool LCodeGen::GenerateJumpTable() {
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     }
     if (jump_table_[i].needs_frame) {
+      ASSERT(!info()->saves_caller_doubles());
       __ push(Immediate(ExternalReference::ForDeoptEntry(entry)));
       if (needs_frame.is_bound()) {
         __ jmp(&needs_frame);
@@ -425,6 +450,9 @@ bool LCodeGen::GenerateJumpTable() {
         __ ret(0);  // Call the continuation without clobbering registers.
       }
     } else {
+      if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
+        RestoreCallerDoubles();
+      }
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
   }
@@ -3129,17 +3157,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
   if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
-    ASSERT(NeedsEagerFrame());
-    CpuFeatureScope scope(masm(), SSE2);
-    BitVector* doubles = chunk()->allocated_double_registers();
-    BitVector::Iterator save_iterator(doubles);
-    int count = 0;
-    while (!save_iterator.Done()) {
-      __ movsd(XMMRegister::FromAllocationIndex(save_iterator.Current()),
-                MemOperand(esp, count * kDoubleSize));
-      save_iterator.Advance();
-      count++;
-    }
+    RestoreCallerDoubles();
   }
   if (dynamic_frame_alignment_) {
     // Fetch the state of the dynamic frame alignment.
@@ -4164,69 +4182,6 @@ void LCodeGen::DoPower(LPower* instr) {
     MathPowStub stub(MathPowStub::DOUBLE);
     __ CallStub(&stub);
   }
-}
-
-
-void LCodeGen::DoRandom(LRandom* instr) {
-  CpuFeatureScope scope(masm(), SSE2);
-
-  // Assert that the register size is indeed the size of each seed.
-  static const int kSeedSize = sizeof(uint32_t);
-  STATIC_ASSERT(kPointerSize == kSeedSize);
-
-  // Load native context
-  Register global_object = ToRegister(instr->global_object());
-  Register native_context = global_object;
-  __ mov(native_context, FieldOperand(
-          global_object, GlobalObject::kNativeContextOffset));
-
-  // Load state (FixedArray of the native context's random seeds)
-  static const int kRandomSeedOffset =
-      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  Register state = native_context;
-  __ mov(state, FieldOperand(native_context, kRandomSeedOffset));
-
-  // Load state[0].
-  Register state0 = ToRegister(instr->scratch());
-  __ mov(state0, FieldOperand(state, ByteArray::kHeaderSize));
-  // Load state[1].
-  Register state1 = ToRegister(instr->scratch2());
-  __ mov(state1, FieldOperand(state, ByteArray::kHeaderSize + kSeedSize));
-
-  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  Register scratch3 = ToRegister(instr->scratch3());
-  __ movzx_w(scratch3, state0);
-  __ imul(scratch3, scratch3, 18273);
-  __ shr(state0, 16);
-  __ add(state0, scratch3);
-  // Save state[0].
-  __ mov(FieldOperand(state, ByteArray::kHeaderSize), state0);
-
-  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ movzx_w(scratch3, state1);
-  __ imul(scratch3, scratch3, 36969);
-  __ shr(state1, 16);
-  __ add(state1, scratch3);
-  // Save state[1].
-  __ mov(FieldOperand(state, ByteArray::kHeaderSize + kSeedSize), state1);
-
-  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  Register random = state0;
-  __ shl(random, 14);
-  __ and_(state1, Immediate(0x3FFFF));
-  __ add(random, state1);
-
-  // Convert 32 random bits in random to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  XMMRegister result = ToDoubleRegister(instr->result());
-  XMMRegister scratch4 = double_scratch0();
-  __ mov(scratch3, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-  __ movd(scratch4, scratch3);
-  __ movd(result, random);
-  __ cvtss2sd(scratch4, scratch4);
-  __ xorps(result, scratch4);
-  __ subsd(result, scratch4);
 }
 
 

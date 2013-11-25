@@ -169,8 +169,15 @@ function MathPow(x, y) {
 }
 
 // ECMA 262 - 15.8.2.14
+var rngstate;  // Initialized to a Uint32Array during genesis.
 function MathRandom() {
-  return %_RandomHeapNumber();
+  var r0 = (MathImul(18273, rngstate[0] & 0xFFFF) + (rngstate[0] >>> 16)) | 0;
+  rngstate[0] = r0;
+  var r1 = (MathImul(36969, rngstate[1] & 0xFFFF) + (rngstate[1] >>> 16)) | 0;
+  rngstate[1] = r1;
+  var x = ((r0 << 16) + (r1 & 0xFFFF)) | 0;
+  // Division by 0x100000000 through multiplication by reciprocal.
+  return (x < 0 ? (x + 0x100000000) : x) * 2.3283064365386962890625e-10;
 }
 
 // ECMA 262 - 15.8.2.15

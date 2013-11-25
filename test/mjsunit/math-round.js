@@ -170,5 +170,3 @@ testRound(min_smi31, min_smi31 - 0.5);
 testRound(min_smi31 + 1, min_smi31 + 0.5);
 testRound(min_smi32, min_smi32 - 0.5);
 testRound(min_smi32 + 1, min_smi32 + 0.5);
-
-

@@ -332,7 +332,7 @@ int main(int argc, char** argv) {
       i += read;
     }
     fclose(file);
-    Local<String> source = String::New(chars);
+    Local<String> source = String::NewFromUtf8(isolate, chars);
     TryCatch try_catch;
     Local<Script> script = Script::Compile(source);
     if (try_catch.HasCaught()) {
@@ -358,7 +358,7 @@ int main(int argc, char** argv) {
   internal_isolate->heap()->CollectAllGarbage(
       i::Heap::kNoGCFlags, "mksnapshot");
   i::Object* raw_context = *v8::Utils::OpenPersistent(context);
-  context.Dispose();
+  context.Reset();
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.
