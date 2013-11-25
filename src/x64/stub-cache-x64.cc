@@ -379,17 +379,12 @@ static void CompileCallLoadPropertyWithInterceptor(
     Register receiver,
     Register holder,
     Register name,
-    Handle<JSObject> holder_obj) {
+    Handle<JSObject> holder_obj,
+    IC::UtilityId id) {
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
-
-  ExternalReference ref =
-      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
-                        masm->isolate());
-  __ Set(rax, StubCache::kInterceptorArgsLength);
-  __ LoadAddress(rbx, ref);
-
-  CEntryStub stub(1);
-  __ CallStub(&stub);
+  __ CallExternalReference(
+      ExternalReference(IC_Utility(id), masm->isolate()),
+      StubCache::kInterceptorArgsLength);
 }
 
 
@@ -794,12 +789,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     // Save the name_ register across the call.
     __ push(name_);
 
-    PushInterceptorArguments(masm, receiver, holder, name_, interceptor_holder);
-
-    __ CallExternalReference(
-        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
-                          masm->isolate()),
-        StubCache::kInterceptorArgsLength);
+    CompileCallLoadPropertyWithInterceptor(
+        masm, receiver, holder, name_, interceptor_holder,
+        IC::kLoadPropertyWithInterceptorForCall);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -817,11 +809,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       __ push(holder);  // Save the holder.
       __ push(name_);  // Save the name.
 
-      CompileCallLoadPropertyWithInterceptor(masm,
-                                             receiver,
-                                             holder,
-                                             name_,
-                                             holder_obj);
+      CompileCallLoadPropertyWithInterceptor(
+          masm, receiver, holder, name_, holder_obj,
+          IC::kLoadPropertyWithInterceptorOnly);
 
       __ pop(name_);  // Restore the name.
       __ pop(receiver);  // Restore the holder.
@@ -1501,11 +1491,9 @@ void LoadStubCompiler::GenerateLoadInterceptor(
       // Invoke an interceptor.  Note: map checks from receiver to
       // interceptor's holder has been compiled before (see a caller
       // of this method.)
-      CompileCallLoadPropertyWithInterceptor(masm(),
-                                             receiver(),
-                                             holder_reg,
-                                             this->name(),
-                                             interceptor_holder);
+      CompileCallLoadPropertyWithInterceptor(
+          masm(), receiver(), holder_reg, this->name(), interceptor_holder,
+          IC::kLoadPropertyWithInterceptorOnly);
 
       // Check if interceptor provided a value for property.  If it's
       // the case, return immediately.
