@@ -29,6 +29,7 @@
 #define V8_PREPARSER_H
 
 #include "hashmap.h"
+#include "lexer/experimental-scanner.h"
 #include "token.h"
 #include "scanner.h"
 

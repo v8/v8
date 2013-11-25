@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "ast.h"
+#include "lexer/experimental-scanner.h"
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "scopes.h"

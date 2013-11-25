@@ -37,6 +37,7 @@
       'type': 'executable',
       'dependencies': [
         '../../tools/gyp/v8.gyp:v8',
+        '../../tools/gyp/v8.gyp:generated-lexer',
       ],
       # Generated source files need this explicitly:
       'include_dirs+': [
@@ -57,62 +58,6 @@
             '<(icu_gyp_path):icuuc',
           ],
         }],
-      ],
-      'actions': [
-        {
-          'action_name': 'codegen_8',
-          'inputs': [
-            '../../src/lexer/lexer_py.re',
-            '../../tools/lexer_generator/*.py',
-            '../../tools/lexer_generator/*.jinja',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
-          ],
-          'action': [
-            'python',
-            '../../tools/lexer_generator/generator.py',
-            '--re=../../src/lexer/lexer_py.re',
-            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
-            '--encoding=latin1',
-          ],
-        },
-        {
-          'action_name': 'codegen_16',
-          'inputs': [
-            '../../src/lexer/lexer_py.re',
-            '../../tools/lexer_generator/*.py',
-            '../../tools/lexer_generator/*.jinja',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
-          ],
-          'action': [
-            'python',
-            '../../tools/lexer_generator/generator.py',
-            '--re=../../src/lexer/lexer_py.re',
-            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
-            '--encoding=utf16',
-          ],
-        },
-        {
-          'action_name': 'codegen_utf8',
-          'inputs': [
-            '../../src/lexer/lexer_py.re',
-            '../../tools/lexer_generator/*.py',
-            '../../tools/lexer_generator/*.jinja',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf8.cc',
-          ],
-          'action': [
-            'python',
-            '../../tools/lexer_generator/generator.py',
-            '--re=../../src/lexer/lexer_py.re',
-            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf8.cc',
-            '--encoding=utf8',
-          ],
-        },
       ],
     },
   ],

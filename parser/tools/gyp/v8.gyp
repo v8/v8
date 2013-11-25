@@ -202,13 +202,77 @@
       ]
     },
     {
+      'target_name': 'generated-lexer',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'codegen_8',
+          'inputs': [
+            '../../src/lexer/lexer_py.re',
+            '../../tools/lexer_generator/*.py',
+            '../../tools/lexer_generator/*.jinja',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/lexer_generator/generator.py',
+            '--re=../../src/lexer/lexer_py.re',
+            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
+            '--encoding=latin1',
+          ],
+        },
+        {
+          'action_name': 'codegen_16',
+          'inputs': [
+            '../../src/lexer/lexer_py.re',
+            '../../tools/lexer_generator/*.py',
+            '../../tools/lexer_generator/*.jinja',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/lexer_generator/generator.py',
+            '--re=../../src/lexer/lexer_py.re',
+            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
+            '--encoding=utf16',
+          ],
+        },
+        {
+          'action_name': 'codegen_utf8',
+          'inputs': [
+            '../../src/lexer/lexer_py.re',
+            '../../tools/lexer_generator/*.py',
+            '../../tools/lexer_generator/*.jinja',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf8.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/lexer_generator/generator.py',
+            '--re=../../src/lexer/lexer_py.re',
+            '--code=<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf8.cc',
+            '--encoding=utf8',
+          ],
+        },
+      ],
+    },
+    {
       'target_name': 'v8_base.<(v8_target_arch)',
       'type': 'static_library',
+      'dependencies': [
+        'generated-lexer',
+      ],
       'variables': {
         'optimize': 'max',
       },
       'include_dirs+': [
         '../../src',
+        '../../include',
       ],
       'sources': [  ### gcmole(all) ###
         '../../src/accessors.cc',
@@ -406,6 +470,7 @@
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
         '../../src/lazy-instance.h',
+        '../../src/lexer/experimental-scanner.h',
         '../../src/list-inl.h',
         '../../src/list.h',
         '../../src/lithium-allocator-inl.h',
@@ -560,6 +625,9 @@
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
+        '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf8.cc',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
