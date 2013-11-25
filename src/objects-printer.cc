@@ -862,8 +862,13 @@ void JSFunction::JSFunctionPrint(FILE* out) {
   shared()->name()->Print(out);
   PrintF(out, "\n - context = ");
   context()->ShortPrint(out);
-  PrintF(out, "\n - literals = ");
-  literals()->ShortPrint(out);
+  if (shared()->bound()) {
+    PrintF(out, "\n - bindings = ");
+    function_bindings()->ShortPrint(out);
+  } else {
+    PrintF(out, "\n - literals = ");
+    literals()->ShortPrint(out);
+  }
   PrintF(out, "\n - code = ");
   code()->ShortPrint(out);
   PrintF(out, "\n");
