@@ -200,7 +200,7 @@ class CodeGenerator:
     return split_count + (0 if no_switch else 1)
 
   __call_map = {
-    'non_primary_whitespace' : 'IsWhiteSpace',
+    'non_primary_whitespace' : 'IsWhiteSpaceNotLineTerminator',
     'non_primary_letter' : 'IsLetter',
     'non_primary_identifier_part_not_letter' : 'IsIdentifierPartNotLetter',
     'non_primary_line_terminator' : 'IsLineTerminator',
