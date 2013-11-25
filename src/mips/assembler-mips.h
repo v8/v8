@@ -537,13 +537,6 @@ class Assembler : public AssemblerBase {
         target);
   }
 
-  // This sets the branch destination.
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address instruction_payload,
-                                            Address target) {
-    set_target_address_at(instruction_payload, target);
-  }
-
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);
 
