@@ -329,7 +329,7 @@ class TransitionKey(object):
     return ', '.join(strings)
 
   def __str__(self):
-    self.to_string(None)
+    return self.to_string(None)
 
   @staticmethod
   def __disjoint_keys(encoding, range_map):

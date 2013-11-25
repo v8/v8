@@ -31,6 +31,7 @@ from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
 from dfa import Dfa
+from dfa_optimizer import DfaOptimizer
 from transition_keys import TransitionKey, KeyEncoding
 
 class RuleParserState:
@@ -292,6 +293,10 @@ class RuleProcessor(object):
         (start, dfa_nodes) = self.nfa().compute_dfa()
         self.__dfa = Dfa(self.nfa().encoding(), start, dfa_nodes)
       return self.__dfa
+
+    def optimize_dfa(self, log = False):
+      assert not self.__dfa
+      self.__dfa = DfaOptimizer.optimize(self.dfa(), log)
 
     def minimal_dfa(self):
       if not self.__minimial_dfa:

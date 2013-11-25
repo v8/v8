@@ -98,6 +98,7 @@ if __name__ == '__main__':
   parser.add_argument('--input')
   parser.add_argument('--code')
   parser.add_argument('--encoding', default='latin1')
+  parser.add_argument('--optimize-default', action='store_true')
   parser.add_argument('--no-minimize-default', action='store_true')
   parser.add_argument('--no-verify-default', action='store_true')
   parser.add_argument('--no-inline', action='store_true')
@@ -113,6 +114,9 @@ if __name__ == '__main__':
     print "parsing %s" % re_file
   with open(re_file, 'r') as f:
     rule_processor = RuleProcessor.parse(f.read(), args.encoding)
+
+  if args.optimize_default:
+    rule_processor.default_automata().optimize_dfa(log = args.verbose)
 
   if minimize_default:
     if args.no_verify_default:
