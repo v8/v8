@@ -47,21 +47,22 @@ eos = [:eos:];
 # transition must be in continue or the name of a subgraph
 
 <<default>>
-"|="          <|push_token(ASSIGN_BIT_OR)|>
-"^="          <|push_token(ASSIGN_BIT_XOR)|>
-"&="          <|push_token(ASSIGN_BIT_AND)|>
-"+="          <|push_token(ASSIGN_ADD)|>
-"-="          <|push_token(ASSIGN_SUB)|>
-"*="          <|push_token(ASSIGN_MUL)|>
-"/="          <|push_token(ASSIGN_DIV)|>
-"%="          <|push_token(ASSIGN_MOD)|>
 
-"==="         <|push_token(EQ_STRICT)|>
-"=="          <|push_token(EQ)|>
-"="           <|push_token(ASSIGN)|>
-"!=="         <|push_token(NE_STRICT)|>
-"!="          <|push_token(NE)|>
-"!"           <|push_token(NOT)|>
+"|="          <|token(ASSIGN_BIT_OR)|>
+"^="          <|token(ASSIGN_BIT_XOR)|>
+"&="          <|token(ASSIGN_BIT_AND)|>
+"+="          <|token(ASSIGN_ADD)|>
+"-="          <|token(ASSIGN_SUB)|>
+"*="          <|token(ASSIGN_MUL)|>
+"/="          <|token(ASSIGN_DIV)|>
+"%="          <|token(ASSIGN_MOD)|>
+
+"==="         <|token(EQ_STRICT)|>
+"=="          <|token(EQ)|>
+"="           <|token(ASSIGN)|>
+"!=="         <|token(NE_STRICT)|>
+"!="          <|token(NE)|>
+"!"           <|token(NOT)|>
 
 "//"          <||SingleLineComment>
 "/*"          <set_marker(2)||MultiLineComment>
@@ -69,139 +70,138 @@ eos = [:eos:];
 
 "<!-"        <|{
   BACKWARD(2);
-  PUSH_TOKEN(Token::LT);
+  DO_TOKEN(Token::LT);
 }|>
 
 "<!"        <|{
   BACKWARD(1);
-  PUSH_TOKEN(Token::LT);
+  DO_TOKEN(Token::LT);
 }|>
-
 
 "-->" <{
   if (!has_line_terminator_before_next_) {
     BACKWARD(1);
-    PUSH_TOKEN(Token::DEC);
+    DO_TOKEN(Token::DEC);
   }
 }||SingleLineComment>
 
-">>>="        <|push_token(ASSIGN_SHR)|>
-">>>"         <|push_token(SHR)|>
-"<<="         <|push_token(ASSIGN_SHL)|>
-">>="         <|push_token(ASSIGN_SAR)|>
-"<="          <|push_token(LTE)|>
-">="          <|push_token(GTE)|>
-"<<"          <|push_token(SHL)|>
-">>"          <|push_token(SAR)|>
-"<"           <|push_token(LT)|>
-">"           <|push_token(GT)|>
+">>>="        <|token(ASSIGN_SHR)|>
+">>>"         <|token(SHR)|>
+"<<="         <|token(ASSIGN_SHL)|>
+">>="         <|token(ASSIGN_SAR)|>
+"<="          <|token(LTE)|>
+">="          <|token(GTE)|>
+"<<"          <|token(SHL)|>
+">>"          <|token(SAR)|>
+"<"           <|token(LT)|>
+">"           <|token(GT)|>
 
-number        <|push_token(NUMBER)|>
-number identifier_char   <|push_token(ILLEGAL)|>
-number "\\"   <|push_token(ILLEGAL)|>
+number                  <|token(NUMBER)|>
+number identifier_char  <|token(ILLEGAL)|>
+number "\\"             <|token(ILLEGAL)|>
 
-harmony_number        <|push_harmony_token(numeric_literals, NUMBER, ILLEGAL)|>
-harmony_number identifier_char   <|push_token(ILLEGAL)|>
-harmony_number "\\"   <|push_token(ILLEGAL)|>
+harmony_number                  <|harmony_token(numeric_literals, NUMBER, ILLEGAL)|>
+harmony_number identifier_char  <|token(ILLEGAL)|>
+harmony_number "\\"             <|token(ILLEGAL)|>
 
-"("           <|push_token(LPAREN)|>
-")"           <|push_token(RPAREN)|>
-"["           <|push_token(LBRACK)|>
-"]"           <|push_token(RBRACK)|>
-"{"           <|push_token(LBRACE)|>
-"}"           <|push_token(RBRACE)|>
-":"           <|push_token(COLON)|>
-";"           <|push_token(SEMICOLON)|>
-"."           <|push_token(PERIOD)|>
-"?"           <|push_token(CONDITIONAL)|>
-"++"          <|push_token(INC)|>
-"--"          <|push_token(DEC)|>
+"("           <|token(LPAREN)|>
+")"           <|token(RPAREN)|>
+"["           <|token(LBRACK)|>
+"]"           <|token(RBRACK)|>
+"{"           <|token(LBRACE)|>
+"}"           <|token(RBRACE)|>
+":"           <|token(COLON)|>
+";"           <|token(SEMICOLON)|>
+"."           <|token(PERIOD)|>
+"?"           <|token(CONDITIONAL)|>
+"++"          <|token(INC)|>
+"--"          <|token(DEC)|>
 
-"||"          <|push_token(OR)|>
-"&&"          <|push_token(AND)|>
+"||"          <|token(OR)|>
+"&&"          <|token(AND)|>
 
-"|"           <|push_token(BIT_OR)|>
-"^"           <|push_token(BIT_XOR)|>
-"&"           <|push_token(BIT_AND)|>
-"+"           <|push_token(ADD)|>
-"-"           <|push_token(SUB)|>
-"*"           <|push_token(MUL)|>
-"/"           <|push_token(DIV)|>
-"%"           <|push_token(MOD)|>
-"~"           <|push_token(BIT_NOT)|>
-","           <|push_token(COMMA)|>
+"|"           <|token(BIT_OR)|>
+"^"           <|token(BIT_XOR)|>
+"&"           <|token(BIT_AND)|>
+"+"           <|token(ADD)|>
+"-"           <|token(SUB)|>
+"*"           <|token(MUL)|>
+"/"           <|token(DIV)|>
+"%"           <|token(MOD)|>
+"~"           <|token(BIT_NOT)|>
+","           <|token(COMMA)|>
 
-line_terminator+                     <|push_line_terminator|>
-/[:whitespace:]+/   <|skip|>
+line_terminator+   <|line_terminator|>
+/[:whitespace:]+/  <|skip|>
 
 "\""           <set_marker(1)||DoubleQuoteString>
 "'"            <set_marker(1)||SingleQuoteString>
 
 # all keywords
-"break"       <|push_token(BREAK)|>
-"case"        <|push_token(CASE)|>
-"catch"       <|push_token(CATCH)|>
-"class"       <|push_token(FUTURE_RESERVED_WORD)|>
-"const"       <|push_token(CONST)|>
-"continue"    <|push_token(CONTINUE)|>
-"debugger"    <|push_token(DEBUGGER)|>
-"default"     <|push_token(DEFAULT)|>
-"delete"      <|push_token(DELETE)|>
-"do"          <|push_token(DO)|>
-"else"        <|push_token(ELSE)|>
-"enum"        <|push_token(FUTURE_RESERVED_WORD)|>
-"export"      <|push_harmony_token(modules, EXPORT, FUTURE_RESERVED_WORD)|>
-"extends"     <|push_token(FUTURE_RESERVED_WORD)|>
-"false"       <|push_token(FALSE_LITERAL)|>
-"finally"     <|push_token(FINALLY)|>
-"for"         <|push_token(FOR)|>
-"function"    <|push_token(FUNCTION)|>
-"if"          <|push_token(IF)|>
-"implements"  <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"import"      <|push_harmony_token(modules, IMPORT, FUTURE_RESERVED_WORD)|>
-"in"          <|push_token(IN)|>
-"instanceof"  <|push_token(INSTANCEOF)|>
-"interface"   <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"let"         <|push_harmony_token(scoping, LET, FUTURE_STRICT_RESERVED_WORD)|>
-"new"         <|push_token(NEW)|>
-"null"        <|push_token(NULL_LITERAL)|>
-"package"     <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"private"     <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"protected"   <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"public"      <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"return"      <|push_token(RETURN)|>
-"static"      <|push_token(FUTURE_STRICT_RESERVED_WORD)|>
-"super"       <|push_token(FUTURE_RESERVED_WORD)|>
-"switch"      <|push_token(SWITCH)|>
-"this"        <|push_token(THIS)|>
-"throw"       <|push_token(THROW)|>
-"true"        <|push_token(TRUE_LITERAL)|>
-"try"         <|push_token(TRY)|>
-"typeof"      <|push_token(TYPEOF)|>
-"var"         <|push_token(VAR)|>
-"void"        <|push_token(VOID)|>
-"while"       <|push_token(WHILE)|>
-"with"        <|push_token(WITH)|>
-"yield"       <|push_token(YIELD)|>
+"break"       <|token(BREAK)|>
+"case"        <|token(CASE)|>
+"catch"       <|token(CATCH)|>
+"class"       <|token(FUTURE_RESERVED_WORD)|>
+"const"       <|token(CONST)|>
+"continue"    <|token(CONTINUE)|>
+"debugger"    <|token(DEBUGGER)|>
+"default"     <|token(DEFAULT)|>
+"delete"      <|token(DELETE)|>
+"do"          <|token(DO)|>
+"else"        <|token(ELSE)|>
+"enum"        <|token(FUTURE_RESERVED_WORD)|>
+"export"      <|harmony_token(modules, EXPORT, FUTURE_RESERVED_WORD)|>
+"extends"     <|token(FUTURE_RESERVED_WORD)|>
+"false"       <|token(FALSE_LITERAL)|>
+"finally"     <|token(FINALLY)|>
+"for"         <|token(FOR)|>
+"function"    <|token(FUNCTION)|>
+"if"          <|token(IF)|>
+"implements"  <|token(FUTURE_STRICT_RESERVED_WORD)|>
+"import"      <|harmony_token(modules, IMPORT, FUTURE_RESERVED_WORD)|>
+"in"          <|token(IN)|>
+"instanceof"  <|token(INSTANCEOF)|>
+"interface"   <|token(FUTURE_STRICT_RESERVED_WORD)|>
+"let"         <|harmony_token(scoping, LET, FUTURE_STRICT_RESERVED_WORD)|>
+"new"         <|token(NEW)|>
+"null"        <|token(NULL_LITERAL)|>
+"package"     <|token(FUTURE_STRICT_RESERVED_WORD)|>
+"private"     <|token(FUTURE_STRICT_RESERVED_WORD)|>
+"protected"   <|token(FUTURE_STRICT_RESERVED_WORD)|>
+"public"      <|token(FUTURE_STRICT_RESERVED_WORD)|>
+"return"      <|token(RETURN)|>
+"static"      <|token(FUTURE_STRICT_RESERVED_WORD)|>
+"super"       <|token(FUTURE_RESERVED_WORD)|>
+"switch"      <|token(SWITCH)|>
+"this"        <|token(THIS)|>
+"throw"       <|token(THROW)|>
+"true"        <|token(TRUE_LITERAL)|>
+"try"         <|token(TRY)|>
+"typeof"      <|token(TYPEOF)|>
+"var"         <|token(VAR)|>
+"void"        <|token(VOID)|>
+"while"       <|token(WHILE)|>
+"with"        <|token(WITH)|>
+"yield"       <|token(YIELD)|>
 
-identifier_start <|push_token(IDENTIFIER)|Identifier>
+identifier_start <|token(IDENTIFIER)|Identifier>
 /\\u[:hex_digit:]{4}/ <{
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
     goto default_action;
   }
-}|push_token(IDENTIFIER)|Identifier>
+}|token(IDENTIFIER)|Identifier>
 
 eos             <|terminate|>
-default_action  <push_token_and_go_forward(ILLEGAL)>
+default_action  <do_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
 "\\" line_terminator_sequence <||continue>
 /\\[x][:hex_digit:]{2}/       <||continue>
 /\\[u][:hex_digit:]{4}/       <||continue>
 /\\[^xu:line_terminator:]/    <||continue>
-"\\"                          <|push_token(ILLEGAL)|>
-line_terminator               <|push_token(ILLEGAL)|>
-"\""                          <|push_token(STRING)|>
+"\\"                          <|token(ILLEGAL)|>
+line_terminator               <|token(ILLEGAL)|>
+"\""                          <|token(STRING)|>
 eos                           <|terminate_illegal|>
 catch_all                     <||continue>
 
@@ -211,29 +211,29 @@ catch_all                     <||continue>
 /\\[x][:hex_digit:]{2}/       <||continue>
 /\\[u][:hex_digit:]{4}/       <||continue>
 /\\[^xu:line_terminator:]/    <||continue>
-"\\"                          <|push_token(ILLEGAL)|>
-line_terminator               <|push_token(ILLEGAL)|>
-"'"                           <|push_token(STRING)|>
+"\\"                          <|token(ILLEGAL)|>
+line_terminator               <|token(ILLEGAL)|>
+"'"                           <|token(STRING)|>
 eos                           <|terminate_illegal|>
 catch_all                     <||continue>
 
 <<Identifier>>
-identifier_char <|push_token(IDENTIFIER)|continue>
+identifier_char <|token(IDENTIFIER)|continue>
 /\\u[:hex_digit:]{4}/ <{
   if (V8_UNLIKELY(!ValidIdentifierPart())) {
     goto default_action;
   }
-}|push_token(IDENTIFIER)|continue>
+}|token(IDENTIFIER)|continue>
 
 <<SingleLineComment>>
-line_terminator  <|push_line_terminator|>
-eos <|skip_and_terminate|>
-catch_all <||continue>
+line_terminator  <|line_terminator|>
+eos              <|skip_and_terminate|>
+catch_all        <||continue>
 
 <<MultiLineComment>>
-/\*+\//             <|skip|>
+/\*+\//          <|skip|>
 # TODO find a way to generate the below rule
-/\*+[^\/*]/       <||continue>
-line_terminator  <push_line_terminator||continue>
-eos <|terminate_illegal|>
+/\*+[^\/*]/      <||continue>
+line_terminator  <line_terminator||continue>
+eos              <|terminate_illegal|>
 catch_all        <||continue>
