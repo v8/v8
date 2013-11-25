@@ -1524,6 +1524,8 @@ class V8_EXPORT Primitive : public Value { };
 class V8_EXPORT Boolean : public Primitive {
  public:
   bool Value() const;
+  V8_INLINE static Handle<Boolean> New(Isolate* isolate, bool value);
+  // Will be deprecated soon.
   V8_INLINE static Handle<Boolean> New(bool value);
 };
 
@@ -3094,6 +3096,8 @@ class V8_EXPORT Template : public Data {
   /** Adds a property to each instance created by this template.*/
   void Set(Handle<String> name, Handle<Data> value,
            PropertyAttribute attributes = None);
+  V8_INLINE void Set(Isolate* isolate, const char* name, Handle<Data> value);
+  // Will be deprecated soon.
   V8_INLINE void Set(const char* name, Handle<Data> value);
 
   void SetAccessorProperty(
@@ -6031,14 +6035,23 @@ Handle<Boolean> ScriptOrigin::ResourceIsSharedCrossOrigin() const {
 }
 
 
-Handle<Boolean> Boolean::New(bool value) {
-  Isolate* isolate = Isolate::GetCurrent();
+Handle<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
 
+Handle<Boolean> Boolean::New(bool value) {
+  return Boolean::New(Isolate::GetCurrent(), value);
+}
+
+
+void Template::Set(Isolate* isolate, const char* name, v8::Handle<Data> value) {
+  Set(v8::String::NewFromUtf8(isolate, name), value);
+}
+
+
 void Template::Set(const char* name, v8::Handle<Data> value) {
-  Set(v8::String::NewFromUtf8(Isolate::GetCurrent(), name), value);
+  Set(Isolate::GetCurrent(), name, value);
 }
 
 

@@ -1631,7 +1631,7 @@ THREADED_TEST(PrimitiveAndWrappedBooleans) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  Local<Value> primitive_false = Boolean::New(false);
+  Local<Value> primitive_false = Boolean::New(env->GetIsolate(), false);
   CHECK(primitive_false->IsBoolean());
   CHECK(!primitive_false->IsBooleanObject());
   CHECK(!primitive_false->BooleanValue());
@@ -1654,7 +1654,7 @@ THREADED_TEST(PrimitiveAndWrappedBooleans) {
   CHECK(!false_boolean_object->IsTrue());
   CHECK(!false_boolean_object->IsFalse());
 
-  Local<Value> primitive_true = Boolean::New(true);
+  Local<Value> primitive_true = Boolean::New(env->GetIsolate(), true);
   CHECK(primitive_true->IsBoolean());
   CHECK(!primitive_true->IsBooleanObject());
   CHECK(primitive_true->BooleanValue());
@@ -2625,7 +2625,7 @@ THREADED_TEST(EmbedderData) {
   CheckEmbedderData(&env, 2, v8::String::NewFromUtf8(env->GetIsolate(),
                                                      "over the lazy dog."));
   CheckEmbedderData(&env, 1, v8::Number::New(1.2345));
-  CheckEmbedderData(&env, 0, v8::Boolean::New(true));
+  CheckEmbedderData(&env, 0, v8::Boolean::New(env->GetIsolate(), true));
 }
 
 
