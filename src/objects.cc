@@ -5738,6 +5738,13 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 
   ASSERT(copying || copy.is_identical_to(object));
 
+  ElementsKind kind = copy->GetElementsKind();
+  if (copying && IsFastSmiOrObjectElementsKind(kind) &&
+      FixedArray::cast(copy->elements())->map() ==
+        isolate->heap()->fixed_cow_array_map()) {
+    isolate->counters()->cow_arrays_created_runtime()->Increment();
+  }
+
   if (!shallow) {
     HandleScope scope(isolate);
 
@@ -5793,16 +5800,13 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     // Deep copy local elements.
     // Pixel elements cannot be created using an object literal.
     ASSERT(!copy->HasExternalArrayElements());
-    switch (copy->GetElementsKind()) {
+    switch (kind) {
       case FAST_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
       case FAST_HOLEY_ELEMENTS: {
         Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
         if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
-          if (copying) {
-            isolate->counters()->cow_arrays_created_runtime()->Increment();
-          }
 #ifdef DEBUG
           for (int i = 0; i < elements->length(); i++) {
             ASSERT(!elements->get(i)->IsJSObject());
