@@ -2059,10 +2059,20 @@ bool Isolate::Init(Deserializer* des) {
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
   if (!create_heap_objects &&
-      (FLAG_log_code || FLAG_ll_prof || logger_->is_logging_code_events())) {
+      (FLAG_log_code ||
+       FLAG_ll_prof ||
+       FLAG_perf_jit_prof ||
+       FLAG_perf_basic_prof ||
+       logger_->is_logging_code_events())) {
     HandleScope scope(this);
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());
+  }
+
+  // If we are profiling with the Linux perf tool, we need to disable
+  // code relocation.
+  if (FLAG_perf_jit_prof || FLAG_perf_basic_prof) {
+    FLAG_compact_code_space = false;
   }
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
