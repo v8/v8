@@ -57,35 +57,39 @@ namespace internal {
 
 class UnicodeCache;
 
-struct ScannerLocation {
-  ScannerLocation(int b, int e) : beg_pos(b), end_pos(e) { }
-  ScannerLocation() : beg_pos(0), end_pos(0) { }
+// Base class for scanners for different encodings. The meat is the pure virtual
+// Scan() which each of them specializes.
+class ScannerBase {
+ public:
+  struct Location {
+    Location(int b, int e) : beg_pos(b), end_pos(e) { }
+    Location() : beg_pos(0), end_pos(0) { }
 
-  bool IsValid() const {
-    return beg_pos >= 0 && end_pos >= beg_pos;
+    bool IsValid() const {
+      return beg_pos >= 0 && end_pos >= beg_pos;
+    }
+
+    static Location invalid() { return Location(-1, -1); }
+
+    int beg_pos;
+    int end_pos;
+  };
+
+  explicit ScannerBase(Isolate* isolate)
+    : unicode_cache_(isolate->unicode_cache()),
+      has_line_terminator_before_next_(true),
+      harmony_numeric_literals_(false),
+      harmony_modules_(false),
+      harmony_scoping_(false) {
   }
 
-  static ScannerLocation invalid() { return ScannerLocation(-1, -1); }
-
-  int beg_pos;
-  int end_pos;
-};
-
-template<typename YYCTYPE>
-class ExperimentalScanner {
- public:
-  explicit ExperimentalScanner(
-      YYCTYPE* source,
-      YYCTYPE* source_end,
-      Isolate* isolate);
-
-  ~ExperimentalScanner();
+  virtual ~ScannerBase() { }
 
   // Returns the next token and advances input.
   Token::Value Next() {
     has_line_terminator_before_next_ = false;
     current_ = next_;
-    Scan();  // will fill in next_.
+    Scan();  // Virtual! Will fill in next_.
     return current_.token;
   }
 
@@ -94,14 +98,16 @@ class ExperimentalScanner {
 
   // Returns the location information for the current token
   // (the token last returned by Next()).
-  ScannerLocation location() {
-    return ScannerLocation(current_.beg_pos, current_.end_pos);
+  Location location() {
+    return Location(current_.beg_pos, current_.end_pos);
   }
 
   // One token look-ahead (past the token returned by Next()).
   Token::Value peek() const { return next_.token; }
 
-  ScannerLocation peek_location() const { return next_.location; }
+  Location peek_location() const {
+    return Location(next_.beg_pos, next_.end_pos);
+  }
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }
 
@@ -170,8 +176,8 @@ class ExperimentalScanner {
 
   uc32 ScanOctalEscape(uc32 c, int length) { return 0; }  // FIXME
 
-  ScannerLocation octal_position() const {
-    return ScannerLocation(0, 0);  // FIXME
+  Location octal_position() const {
+    return Location(0, 0);  // FIXME
   }
   void clear_octal_position() { }  // FIXME
 
@@ -184,29 +190,27 @@ class ExperimentalScanner {
   // be empty).
   bool ScanRegExpFlags() { return false; }  // FIXME
 
- private:
+ protected:
   struct TokenDesc {
     Token::Value token;
     int beg_pos;
     int end_pos;
   };
 
-  void Scan();
+  virtual void Scan() = 0;
+  virtual uc32 ScanHexNumber(int length) = 0;
 
-  bool ValidIdentifierStart();
-  bool ValidIdentifierPart();
-  uc32 ScanHexNumber(int length);
+  bool ValidIdentifierPart() {
+      return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
+  }
+
+  bool ValidIdentifierStart() {
+    return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
+  }
 
   UnicodeCache* unicode_cache_;
 
-  YYCTYPE* buffer_;
-  YYCTYPE* buffer_end_;
-  YYCTYPE* start_;
-  YYCTYPE* cursor_;
-  YYCTYPE* marker_;
   bool has_line_terminator_before_next_;
-
-  YYCTYPE yych;
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
@@ -216,23 +220,41 @@ class ExperimentalScanner {
   bool harmony_scoping_;
 };
 
-const byte* ReadFile(const char* name, Isolate* isolate, int* size, int repeat);
+
+template<typename YYCTYPE>
+class ExperimentalScanner : public ScannerBase {
+ public:
+  explicit ExperimentalScanner(
+      YYCTYPE* source,
+      YYCTYPE* source_end,
+      Isolate* isolate);
+
+  virtual ~ExperimentalScanner();
+
+  virtual void Scan();
+  virtual uc32 ScanHexNumber(int length);
+
+ private:
+  YYCTYPE yych;
+  YYCTYPE* buffer_;
+  YYCTYPE* buffer_end_;
+  YYCTYPE* start_;
+  YYCTYPE* cursor_;
+  YYCTYPE* marker_;
+};
+
 
 template<typename YYCTYPE>
 ExperimentalScanner<YYCTYPE>::ExperimentalScanner(
     YYCTYPE* source,
     YYCTYPE* source_end,
     Isolate* isolate)
-    : unicode_cache_(isolate->unicode_cache()),
-      has_line_terminator_before_next_(true),
-      harmony_numeric_literals_(false),
-      harmony_modules_(false),
-      harmony_scoping_(false) {
-  buffer_ = source;
-  buffer_end_ = source_end;
-  start_ = buffer_;
-  cursor_ = buffer_;
-  marker_ = buffer_;
+    : ScannerBase(isolate),
+      buffer_(source),
+      buffer_end_(source_end),
+      start_(source),
+      cursor_(source),
+      marker_(source) {
   Scan();
 }
 
@@ -259,17 +281,6 @@ uc32 ExperimentalScanner<YYCTYPE>::ScanHexNumber(int length) {
   return x;
 }
 
-
-template<typename YYCTYPE>
-bool ExperimentalScanner<YYCTYPE>::ValidIdentifierPart() {
-  return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
-}
-
-
-template<typename YYCTYPE>
-bool ExperimentalScanner<YYCTYPE>::ValidIdentifierStart() {
-  return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
-}
 
 } }
 
