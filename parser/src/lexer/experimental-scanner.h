@@ -38,18 +38,15 @@
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "scopes.h"
-#include "preparser.h"
 #include "api.h"
 #include "ast.h"
 #include "bootstrapper.h"
 #include "char-predicates-inl.h"
-#include "codegen.h"
 #include "compiler.h"
 #include "func-name-inferrer.h"
 #include "messages.h"
 #include "parser.h"
 #include "platform.h"
-#include "preparser.h"
 #include "runtime.h"
 #include "scanner-character-streams.h"
 #include "scopeinfo.h"
@@ -60,23 +57,23 @@ namespace internal {
 
 class UnicodeCache;
 
+struct ScannerLocation {
+  ScannerLocation(int b, int e) : beg_pos(b), end_pos(e) { }
+  ScannerLocation() : beg_pos(0), end_pos(0) { }
+
+  bool IsValid() const {
+    return beg_pos >= 0 && end_pos >= beg_pos;
+  }
+
+  static ScannerLocation invalid() { return ScannerLocation(-1, -1); }
+
+  int beg_pos;
+  int end_pos;
+};
+
 template<typename YYCTYPE>
 class ExperimentalScanner {
  public:
-  struct Location {
-    Location(int b, int e) : beg_pos(b), end_pos(e) { }
-    Location() : beg_pos(0), end_pos(0) { }
-
-    bool IsValid() const {
-      return beg_pos >= 0 && end_pos >= beg_pos;
-    }
-
-    static Location invalid() { return Location(-1, -1); }
-
-    int beg_pos;
-    int end_pos;
-  };
-
   explicit ExperimentalScanner(
       YYCTYPE* source,
       YYCTYPE* source_end,
@@ -97,14 +94,14 @@ class ExperimentalScanner {
 
   // Returns the location information for the current token
   // (the token last returned by Next()).
-  Location location() {
-    return Location(current_.beg_pos, current_.end_pos);
+  ScannerLocation location() {
+    return ScannerLocation(current_.beg_pos, current_.end_pos);
   }
 
   // One token look-ahead (past the token returned by Next()).
   Token::Value peek() const { return next_.token; }
 
-  Location peek_location() const { return next_.location; }
+  ScannerLocation peek_location() const { return next_.location; }
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }
 
@@ -135,12 +132,63 @@ class ExperimentalScanner {
     // multiline comments? Atm doesn't look like we need to.
   }
 
+  // FIXME: implement these
+  Vector<const char> literal_ascii_string() {
+    return Vector<const char>();  // FIXME
+  }
+  Vector<const uc16> literal_utf16_string() {
+    return Vector<const uc16>();  // FIXME
+  }
+  bool is_literal_ascii() {
+    return true;  // FIXME
+  }
+  bool is_literal_contextual_keyword(Vector<const char> keyword) {
+    return false;  // FIXME
+  }
+  int literal_length() const {
+    return 0;  // FIXME
+  }
+  bool literal_contains_escapes() const {
+    return false;  // FIXME
+  }
+
+  Vector<const char> next_literal_ascii_string() {
+    return Vector<const char>();  // FIXME
+  }
+  Vector<const uc16> next_literal_utf16_string() {
+    return Vector<const uc16>();  // FIXME
+  }
+  bool is_next_literal_ascii() {
+    return true;  // FIXME
+  }
+  bool is_next_contextual_keyword(Vector<const char> keyword) {
+    return false;  // FIXME
+  }
+  int next_literal_length() const {
+    return 0;  // FIXME
+  }
+
+  uc32 ScanOctalEscape(uc32 c, int length) { return 0; }  // FIXME
+
+  ScannerLocation octal_position() const {
+    return ScannerLocation(0, 0);  // FIXME
+  }
+  void clear_octal_position() { }  // FIXME
+
+  void SeekForward(int pos) { }  // FIXME
+
+  // Scans the input as a regular expression pattern, previous
+  // character(s) must be /(=). Returns true if a pattern is scanned.
+  bool ScanRegExpPattern(bool seen_equal) { return false; }  // FIXME
+  // Returns true if regexp flags are scanned (always since flags can
+  // be empty).
+  bool ScanRegExpFlags() { return false; }  // FIXME
+
  private:
   struct TokenDesc {
     Token::Value token;
     int beg_pos;
     int end_pos;
-    LiteralBuffer* literal_chars;
   };
 
   void Scan();
