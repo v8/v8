@@ -861,7 +861,8 @@ enum CompareResult {
 
 class AccessorPair;
 class AllocationSite;
-class AllocationSiteContext;
+class AllocationSiteCreationContext;
+class AllocationSiteUsageContext;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
 class Failure;
@@ -2521,13 +2522,17 @@ class JSObject: public JSReceiver {
   static void SetObserved(Handle<JSObject> object);
 
   // Copy object.
-  static Handle<JSObject> Copy(Handle<JSObject> object,
-                               Handle<AllocationSite> site);
+  enum DeepCopyHints {
+    kNoHints = 0,
+    kObjectIsShallowArray = 1
+  };
+
   static Handle<JSObject> Copy(Handle<JSObject> object);
   static Handle<JSObject> DeepCopy(Handle<JSObject> object,
-                                   AllocationSiteContext* site_context);
+                                   AllocationSiteUsageContext* site_context,
+                                   DeepCopyHints hints = kNoHints);
   static Handle<JSObject> DeepWalk(Handle<JSObject> object,
-                                   AllocationSiteContext* site_context);
+                                   AllocationSiteCreationContext* site_context);
 
   // Casting.
   static inline JSObject* cast(Object* obj);

@@ -1770,6 +1770,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   expr->BuildConstantElements(isolate());
+  int flags = expr->depth() == 1
+      ? ArrayLiteral::kShallowElements
+      : ArrayLiteral::kNoFlags;
+
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1795,8 +1799,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         isolate()->counters()->cow_arrays_created_stub(), 1, r1, r2);
   } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Push(r3, r2, r1);
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
+    __ mov(r0, Operand(Smi::FromInt(flags)));
+    __ Push(r3, r2, r1, r0);
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);

@@ -2403,7 +2403,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HInstruction* BuildThisFunction();
 
   HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object,
-                                 AllocationSiteContext* site_context);
+                                 AllocationSiteUsageContext* site_context);
 
   void BuildEmitObjectHeader(Handle<JSObject> boilerplate_object,
                              HInstruction* object);
@@ -2414,12 +2414,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void BuildEmitInObjectProperties(Handle<JSObject> boilerplate_object,
                                    HInstruction* object,
-                                   AllocationSiteContext* site_context);
+                                   AllocationSiteUsageContext* site_context);
 
   void BuildEmitElements(Handle<JSObject> boilerplate_object,
                          Handle<FixedArrayBase> elements,
                          HValue* object_elements,
-                         AllocationSiteContext* site_context);
+                         AllocationSiteUsageContext* site_context);
 
   void BuildEmitFixedDoubleArray(Handle<FixedArrayBase> elements,
                                  ElementsKind kind,
@@ -2428,7 +2428,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void BuildEmitFixedArray(Handle<FixedArrayBase> elements,
                            ElementsKind kind,
                            HValue* object_elements,
-                           AllocationSiteContext* site_context);
+                           AllocationSiteUsageContext* site_context);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);

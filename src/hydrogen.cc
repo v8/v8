@@ -5107,10 +5107,15 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // pass an empty fixed array to the runtime function instead.
     Handle<FixedArray> constants = isolate()->factory()->empty_fixed_array();
     int literal_index = expr->literal_index();
+    int flags = expr->depth() == 1
+        ? ArrayLiteral::kShallowElements
+        : ArrayLiteral::kNoFlags;
+    flags |= ArrayLiteral::kDisableMementos;
 
     Add<HPushArgument>(Add<HConstant>(literals));
     Add<HPushArgument>(Add<HConstant>(literal_index));
     Add<HPushArgument>(Add<HConstant>(constants));
+    Add<HPushArgument>(Add<HConstant>(flags));
 
     // TODO(mvstanton): Consider a flag to turn off creation of any
     // AllocationMementos for this call: we are in crankshaft and should have
@@ -5118,7 +5123,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
-                                3);
+                                4);
 
     // De-opt if elements kind changed from boilerplate_elements_kind.
     Handle<Map> map = Handle<Map>(boilerplate_object->map(), isolate());
@@ -9175,7 +9180,7 @@ HInstruction* HOptimizedGraphBuilder::BuildThisFunction() {
 
 HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     Handle<JSObject> boilerplate_object,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   NoObservableSideEffectsScope no_effects(this);
   InstanceType instance_type = boilerplate_object->map()->instance_type();
   ASSERT(instance_type == JS_ARRAY_TYPE || instance_type == JS_OBJECT_TYPE);
@@ -9268,7 +9273,7 @@ void HOptimizedGraphBuilder::BuildInitElementsInObjectHeader(
 void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     Handle<JSObject> boilerplate_object,
     HInstruction* object,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   Handle<DescriptorArray> descriptors(
       boilerplate_object->map()->instance_descriptors());
   int limit = boilerplate_object->map()->NumberOfOwnDescriptors();
@@ -9340,7 +9345,7 @@ void HOptimizedGraphBuilder::BuildEmitElements(
     Handle<JSObject> boilerplate_object,
     Handle<FixedArrayBase> elements,
     HValue* object_elements,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   ElementsKind kind = boilerplate_object->map()->elements_kind();
   int elements_length = elements->length();
   HValue* object_elements_length = Add<HConstant>(elements_length);
@@ -9381,7 +9386,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
     Handle<FixedArrayBase> elements,
     ElementsKind kind,
     HValue* object_elements,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   HInstruction* boilerplate_elements = Add<HConstant>(elements);
   int elements_length = elements->length();
   Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);

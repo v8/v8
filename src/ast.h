@@ -1604,6 +1604,12 @@ class ArrayLiteral V8_FINAL : public MaterializedLiteral {
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
 
+  enum Flags {
+    kNoFlags = 0,
+    kShallowElements = 1,
+    kDisableMementos = 1 << 1
+  };
+
  protected:
   ArrayLiteral(Isolate* isolate,
                ZoneList<Expression*>* values,

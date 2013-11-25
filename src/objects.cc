@@ -5656,14 +5656,6 @@ void JSObject::SetObserved(Handle<JSObject> object) {
 }
 
 
-Handle<JSObject> JSObject::Copy(Handle<JSObject> object,
-                                Handle<AllocationSite> site) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->CopyJSObject(*object, *site), JSObject);
-}
-
-
 Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
@@ -5671,258 +5663,229 @@ Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
 }
 
 
+template<class ContextObject>
 class JSObjectWalkVisitor {
  public:
-  explicit JSObjectWalkVisitor(AllocationSiteContext* site_context) :
-      site_context_(site_context) {}
-  virtual ~JSObjectWalkVisitor() {}
+  JSObjectWalkVisitor(ContextObject* site_context, bool copying,
+                      JSObject::DeepCopyHints hints)
+    : site_context_(site_context),
+      copying_(copying),
+      hints_(hints) {}
 
-  Handle<JSObject> Visit(Handle<JSObject> object) {
-    return StructureWalk(object);
-  }
-
-  virtual bool is_copying() = 0;
-
- protected:
   Handle<JSObject> StructureWalk(Handle<JSObject> object);
 
-  // The returned handle will be used for the object in all subsequent usages.
-  // This allows VisitObject to make a copy of the object if desired.
-  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) = 0;
-  virtual Handle<JSObject> VisitElementOrProperty(Handle<JSObject> object,
-                                                  Handle<JSObject> value) = 0;
-
-  AllocationSiteContext* site_context() { return site_context_; }
-
- private:
-  AllocationSiteContext* site_context_;
-};
-
-
-class JSObjectCopyVisitor: public JSObjectWalkVisitor {
- public:
-  explicit JSObjectCopyVisitor(AllocationSiteContext* site_context)
-      : JSObjectWalkVisitor(site_context) {}
-
-  virtual bool is_copying() V8_OVERRIDE { return true; }
-
-  // The returned handle will be used for the object in all
-  // subsequent usages. This allows VisitObject to make a copy
-  // of the object if desired.
-  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) V8_OVERRIDE {
-    // Only create a memento if
-    // 1) we have a JSArray, and
-    // 2) the elements kind is palatable
-    // 3) allow_mementos is true
-    Handle<JSObject> copy;
-    if (site_context()->activated() &&
-        AllocationSite::CanTrack(object->map()->instance_type()) &&
-        AllocationSite::GetMode(object->GetElementsKind()) ==
-        TRACK_ALLOCATION_SITE) {
-      copy = JSObject::Copy(object, site_context()->current());
-    } else {
-      copy = JSObject::Copy(object);
-    }
-
-    return copy;
-  }
-
-  virtual Handle<JSObject> VisitElementOrProperty(
-      Handle<JSObject> object,
-      Handle<JSObject> value) V8_OVERRIDE {
+ protected:
+  inline Handle<JSObject> VisitElementOrProperty(Handle<JSObject> object,
+                                                 Handle<JSObject> value) {
     Handle<AllocationSite> current_site = site_context()->EnterNewScope();
     Handle<JSObject> copy_of_value = StructureWalk(value);
     site_context()->ExitScope(current_site, value);
     return copy_of_value;
   }
+
+  inline ContextObject* site_context() { return site_context_; }
+  inline Isolate* isolate() { return site_context()->isolate(); }
+
+  inline bool copying() const { return copying_; }
+
+ private:
+  ContextObject* site_context_;
+  const bool copying_;
+  const JSObject::DeepCopyHints hints_;
 };
 
 
-class JSObjectCreateAllocationSitesVisitor: public JSObjectWalkVisitor {
- public:
-  explicit JSObjectCreateAllocationSitesVisitor(
-      AllocationSiteContext* site_context)
-      : JSObjectWalkVisitor(site_context) {}
+template <class ContextObject>
+Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
+    Handle<JSObject> object) {
+  Isolate* isolate = this->isolate();
+  bool copying = this->copying();
+  bool shallow = hints_ == JSObject::kObjectIsShallowArray;
 
-  virtual bool is_copying() V8_OVERRIDE { return false; }
+  if (!shallow) {
+    StackLimitCheck check(isolate);
 
-  // The returned handle will be used for the object in all
-  // subsequent usages. This allows VisitObject to make a copy
-  // of the object if desired.
-  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) V8_OVERRIDE {
-    return object;
-  }
-
-  virtual Handle<JSObject> VisitElementOrProperty(
-      Handle<JSObject> object,
-      Handle<JSObject> value) V8_OVERRIDE {
-    Handle<AllocationSite> current_site = site_context()->EnterNewScope();
-    value = StructureWalk(value);
-    site_context()->ExitScope(current_site, value);
-    return value;
-  }
-};
-
-
-Handle<JSObject> JSObjectWalkVisitor::StructureWalk(Handle<JSObject> object) {
-  bool copying = is_copying();
-  Isolate* isolate = object->GetIsolate();
-  StackLimitCheck check(isolate);
-  if (check.HasOverflowed()) {
-    isolate->StackOverflow();
-    return Handle<JSObject>::null();
+    if (check.HasOverflowed()) {
+      isolate->StackOverflow();
+      return Handle<JSObject>::null();
+    }
   }
 
   if (object->map()->is_deprecated()) {
     JSObject::MigrateInstance(object);
   }
 
-  Handle<JSObject> copy = VisitObject(object);
+  Handle<JSObject> copy;
+  if (copying) {
+    Handle<AllocationSite> site_to_pass;
+    if (site_context()->activated() &&
+        AllocationSite::CanTrack(object->map()->instance_type()) &&
+        AllocationSite::GetMode(object->GetElementsKind()) ==
+        TRACK_ALLOCATION_SITE) {
+      site_to_pass = site_context()->current();
+    }
+    CALL_AND_RETRY_OR_DIE(isolate,
+                          isolate->heap()->CopyJSObject(*object,
+                              site_to_pass.is_null() ? NULL : *site_to_pass),
+                          { copy = Handle<JSObject>(JSObject::cast(__object__),
+                                                    isolate);
+                            break;
+                          },
+                          return Handle<JSObject>());
+  } else {
+    copy = object;
+  }
+
   ASSERT(copying || copy.is_identical_to(object));
 
-  HandleScope scope(isolate);
+  if (!shallow) {
+    HandleScope scope(isolate);
 
-  // Deep copy local properties.
-  if (copy->HasFastProperties()) {
-    Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
-    int limit = copy->map()->NumberOfOwnDescriptors();
-    for (int i = 0; i < limit; i++) {
-      PropertyDetails details = descriptors->GetDetails(i);
-      if (details.type() != FIELD) continue;
-      int index = descriptors->GetFieldIndex(i);
-      Handle<Object> value(object->RawFastPropertyAt(index), isolate);
-      if (value->IsJSObject()) {
-        value = VisitElementOrProperty(copy, Handle<JSObject>::cast(value));
-        RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
-      } else {
-        Representation representation = details.representation();
-        value = NewStorageFor(isolate, value, representation);
-      }
-      if (copying) {
-        copy->FastPropertyAtPut(index, *value);
-      }
-    }
-  } else {
-    Handle<FixedArray> names =
-        isolate->factory()->NewFixedArray(copy->NumberOfLocalProperties());
-    copy->GetLocalPropertyNames(*names, 0);
-    for (int i = 0; i < names->length(); i++) {
-      ASSERT(names->get(i)->IsString());
-      Handle<String> key_string(String::cast(names->get(i)));
-      PropertyAttributes attributes =
-          copy->GetLocalPropertyAttribute(*key_string);
-      // Only deep copy fields from the object literal expression.
-      // In particular, don't try to copy the length attribute of
-      // an array.
-      if (attributes != NONE) continue;
-      Handle<Object> value(
-          copy->GetProperty(*key_string, &attributes)->ToObjectUnchecked(),
-          isolate);
-      if (value->IsJSObject()) {
-        Handle<JSObject> result = VisitElementOrProperty(
-            copy, Handle<JSObject>::cast(value));
-        RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+    // Deep copy local properties.
+    if (copy->HasFastProperties()) {
+      Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
+      int limit = copy->map()->NumberOfOwnDescriptors();
+      for (int i = 0; i < limit; i++) {
+        PropertyDetails details = descriptors->GetDetails(i);
+        if (details.type() != FIELD) continue;
+        int index = descriptors->GetFieldIndex(i);
+        Handle<Object> value(object->RawFastPropertyAt(index), isolate);
+        if (value->IsJSObject()) {
+          value = VisitElementOrProperty(copy, Handle<JSObject>::cast(value));
+          RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
+        } else {
+          Representation representation = details.representation();
+          value = NewStorageFor(isolate, value, representation);
+        }
         if (copying) {
-          // Creating object copy for literals. No strict mode needed.
-          CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetProperty(
-              copy, key_string, result, NONE, kNonStrictMode));
+          copy->FastPropertyAtPut(index, *value);
+        }
+      }
+    } else {
+      Handle<FixedArray> names =
+          isolate->factory()->NewFixedArray(copy->NumberOfLocalProperties());
+      copy->GetLocalPropertyNames(*names, 0);
+      for (int i = 0; i < names->length(); i++) {
+        ASSERT(names->get(i)->IsString());
+        Handle<String> key_string(String::cast(names->get(i)));
+        PropertyAttributes attributes =
+            copy->GetLocalPropertyAttribute(*key_string);
+        // Only deep copy fields from the object literal expression.
+        // In particular, don't try to copy the length attribute of
+        // an array.
+        if (attributes != NONE) continue;
+        Handle<Object> value(
+            copy->GetProperty(*key_string, &attributes)->ToObjectUnchecked(),
+            isolate);
+        if (value->IsJSObject()) {
+          Handle<JSObject> result = VisitElementOrProperty(
+              copy, Handle<JSObject>::cast(value));
+          RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+          if (copying) {
+            // Creating object copy for literals. No strict mode needed.
+            CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetProperty(
+                copy, key_string, result, NONE, kNonStrictMode));
+          }
         }
       }
     }
-  }
 
-  // Deep copy local elements.
-  // Pixel elements cannot be created using an object literal.
-  ASSERT(!copy->HasExternalArrayElements());
-  switch (copy->GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
-      if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
-        if (copying) {
-          isolate->counters()->cow_arrays_created_runtime()->Increment();
-        }
+    // Deep copy local elements.
+    // Pixel elements cannot be created using an object literal.
+    ASSERT(!copy->HasExternalArrayElements());
+    switch (copy->GetElementsKind()) {
+      case FAST_SMI_ELEMENTS:
+      case FAST_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS: {
+        Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
+        if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
+          if (copying) {
+            isolate->counters()->cow_arrays_created_runtime()->Increment();
+          }
 #ifdef DEBUG
-        for (int i = 0; i < elements->length(); i++) {
-          ASSERT(!elements->get(i)->IsJSObject());
-        }
+          for (int i = 0; i < elements->length(); i++) {
+            ASSERT(!elements->get(i)->IsJSObject());
+          }
 #endif
-      } else {
-        for (int i = 0; i < elements->length(); i++) {
-          Handle<Object> value(elements->get(i), isolate);
-          ASSERT(value->IsSmi() ||
-                 value->IsTheHole() ||
-                 (IsFastObjectElementsKind(copy->GetElementsKind())));
-          if (value->IsJSObject()) {
-            Handle<JSObject> result = VisitElementOrProperty(
-                copy, Handle<JSObject>::cast(value));
-            RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            if (copying) {
-              elements->set(i, *result);
+        } else {
+          for (int i = 0; i < elements->length(); i++) {
+            Handle<Object> value(elements->get(i), isolate);
+            ASSERT(value->IsSmi() ||
+                   value->IsTheHole() ||
+                   (IsFastObjectElementsKind(copy->GetElementsKind())));
+            if (value->IsJSObject()) {
+              Handle<JSObject> result = VisitElementOrProperty(
+                  copy, Handle<JSObject>::cast(value));
+              RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+              if (copying) {
+                elements->set(i, *result);
+              }
             }
           }
         }
+        break;
       }
-      break;
-    }
-    case DICTIONARY_ELEMENTS: {
-      Handle<SeededNumberDictionary> element_dictionary(
-          copy->element_dictionary());
-      int capacity = element_dictionary->Capacity();
-      for (int i = 0; i < capacity; i++) {
-        Object* k = element_dictionary->KeyAt(i);
-        if (element_dictionary->IsKey(k)) {
-          Handle<Object> value(element_dictionary->ValueAt(i), isolate);
-          if (value->IsJSObject()) {
-            Handle<JSObject> result = VisitElementOrProperty(
-                copy, Handle<JSObject>::cast(value));
-            RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            if (copying) {
-              element_dictionary->ValueAtPut(i, *result);
+      case DICTIONARY_ELEMENTS: {
+        Handle<SeededNumberDictionary> element_dictionary(
+            copy->element_dictionary());
+        int capacity = element_dictionary->Capacity();
+        for (int i = 0; i < capacity; i++) {
+          Object* k = element_dictionary->KeyAt(i);
+          if (element_dictionary->IsKey(k)) {
+            Handle<Object> value(element_dictionary->ValueAt(i), isolate);
+            if (value->IsJSObject()) {
+              Handle<JSObject> result = VisitElementOrProperty(
+                  copy, Handle<JSObject>::cast(value));
+              RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+              if (copying) {
+                element_dictionary->ValueAtPut(i, *result);
+              }
             }
           }
         }
+        break;
       }
-      break;
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
+        UNIMPLEMENTED();
+        break;
+      case EXTERNAL_PIXEL_ELEMENTS:
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+        // No contained objects, nothing to do.
+        break;
     }
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
-      break;
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-      // No contained objects, nothing to do.
-      break;
   }
+
   return copy;
 }
 
 
-Handle<JSObject> JSObject::DeepWalk(Handle<JSObject> object,
-                                    AllocationSiteContext* site_context) {
-  JSObjectCreateAllocationSitesVisitor v(site_context);
-  Handle<JSObject> result = v.Visit(object);
-  ASSERT(!v.is_copying() &&
-         (result.is_null() || result.is_identical_to(object)));
+Handle<JSObject> JSObject::DeepWalk(
+    Handle<JSObject> object,
+    AllocationSiteCreationContext* site_context) {
+  JSObjectWalkVisitor<AllocationSiteCreationContext> v(site_context, false,
+                                                       kNoHints);
+  Handle<JSObject> result = v.StructureWalk(object);
+  ASSERT(result.is_null() || result.is_identical_to(object));
   return result;
 }
 
 
 Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object,
-                                    AllocationSiteContext* site_context) {
-  JSObjectCopyVisitor v(site_context);
-  Handle<JSObject> copy = v.Visit(object);
-  ASSERT(v.is_copying() && !copy.is_identical_to(object));
+                                    AllocationSiteUsageContext* site_context,
+                                    DeepCopyHints hints) {
+  JSObjectWalkVisitor<AllocationSiteUsageContext> v(site_context, true, hints);
+  Handle<JSObject> copy = v.StructureWalk(object);
+  ASSERT(!copy.is_identical_to(object));
   return copy;
 }
 

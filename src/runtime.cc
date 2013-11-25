@@ -554,24 +554,52 @@ static Handle<AllocationSite> GetLiteralAllocationSite(
 }
 
 
+static MaybeObject* CreateArrayLiteralImpl(Isolate* isolate,
+                                           Handle<FixedArray> literals,
+                                           int literals_index,
+                                           Handle<FixedArray> elements,
+                                           int flags) {
+  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
+      literals_index, elements);
+  RETURN_IF_EMPTY_HANDLE(isolate, site);
+
+  bool enable_mementos = (flags & ArrayLiteral::kDisableMementos) == 0;
+  Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
+  AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
+  usage_context.EnterNewScope();
+  JSObject::DeepCopyHints hints = (flags & ArrayLiteral::kShallowElements) == 0
+      ? JSObject::kNoHints
+      : JSObject::kObjectIsShallowArray;
+  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context,
+                                             hints);
+  usage_context.ExitScope(site, boilerplate);
+  RETURN_IF_EMPTY_HANDLE(isolate, copy);
+  return *copy;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
+  CONVERT_SMI_ARG_CHECKED(flags, 3);
+
+  return CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
+                                flags);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralStubBailout) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
-  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
-      literals_index, elements);
-  RETURN_IF_EMPTY_HANDLE(isolate, site);
-
-  Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
-  AllocationSiteUsageContext usage_context(isolate, site, true);
-  usage_context.EnterNewScope();
-  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context);
-  usage_context.ExitScope(site, boilerplate);
-  RETURN_IF_EMPTY_HANDLE(isolate, copy);
-  return *copy;
+  return CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
+                                ArrayLiteral::kShallowElements);
 }
 
 
