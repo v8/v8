@@ -348,6 +348,7 @@ function SetUpMath() {
     "imul", MathImul
   ));
 
+  %SetInlineBuiltinFlag(MathRandom);
   %SetInlineBuiltinFlag(MathSin);
   %SetInlineBuiltinFlag(MathCos);
   %SetInlineBuiltinFlag(MathTan);
