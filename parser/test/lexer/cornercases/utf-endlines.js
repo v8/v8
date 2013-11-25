@@ -30,6 +30,7 @@
 
 // This file tests if it's recognized after various Unicode new line markers:
 
+// Recognized as a newline (the break keyword not seen).
 "Line feed":
 --> break
 
@@ -39,17 +40,19 @@
 // Form feed is not recognized as a newline.
 "Form feed":--> catch
 
+// Recognized as a newline.
 "Carriage return":--> const
 
+// Recognized as a newline.
 "Carriage return and line feed:"
 --> continue
 
-// Next line is not regonized as a newline, instead it's recognized as an identifier.
+// Recognized as a newline.
 "Next line":
 --> debugger
 
-// Line separator is not recognized as a newline, instead it's ILLEGAL.
-//"Line separator": --> default
+// Recognized as a newline.
+"Line separator": --> default
 
-// Paragraph separator is not recognized as a newline, instead it's ILLEGAL.
-//"Paragraph separator": --> delete
+// Recognized as a newline.
+"Paragraph separator": --> delete
