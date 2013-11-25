@@ -69,8 +69,9 @@ restore_patch_commit_hashes_if_unset() {
 }
 
 ########## Option parsing
+REVERT_FROM_BLEEDING_EDGE=0
 
-while getopts ":hs:fp:rm:" OPTION ; do
+while getopts ":hs:fp:rm:R" OPTION ; do
   case $OPTION in
     h)  usage
         exit 0
@@ -84,6 +85,9 @@ while getopts ":hs:fp:rm:" OPTION ; do
     m)  NEW_COMMIT_MSG=$OPTARG
         ;;
     s)  START_STEP=$OPTARG
+        ;;
+    R)  REVERSE_PATCH="--reverse"
+        REVERT_FROM_BLEEDING_EDGE=1
         ;;
     ?)  echo "Illegal option: -$OPTARG"
         usage
@@ -104,7 +108,8 @@ touch "$ALREADY_MERGING_SENTINEL_FILE"
 initial_environment_checks
 
 if [ $START_STEP -le $CURRENT_STEP ] ; then
-  if [ ${#@} -lt 2 ] ; then
+  let MIN_EXPECTED_ARGS=2-$REVERT_FROM_BLEEDING_EDGE
+  if [ ${#@} -lt $MIN_EXPECTED_ARGS ] ; then
     if [ -z "$EXTRA_PATCH" ] ; then
       die "Either a patch file or revision numbers must be specified"
     fi
@@ -113,9 +118,13 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
     fi
   fi
   echo ">>> Step $CURRENT_STEP: Preparation"
-  MERGE_TO_BRANCH=$1
-  [[ -n "$MERGE_TO_BRANCH" ]] || die "Please specify a branch to merge to"
-  shift
+  if [ $REVERT_FROM_BLEEDING_EDGE==1 ] ; then
+    MERGE_TO_BRANCH="bleeding_edge"
+  else
+    MERGE_TO_BRANCH=$1
+    [[ -n "$MERGE_TO_BRANCH" ]] || die "Please specify a branch to merge to"
+    shift
+  fi
   persist "MERGE_TO_BRANCH"
   common_prepare
 fi
@@ -144,7 +153,11 @@ revisions associated with the patches."
   done
   if [ -n "$REVISION_LIST" ] ; then
     if [ -n "$REVERSE_PATCH" ] ; then
-      NEW_COMMIT_MSG="Rollback of$REVISION_LIST in $MERGE_TO_BRANCH branch."
+      if [ $REVERT_FROM_BLEEDING_EDGE -eq 0 ] ; then
+        NEW_COMMIT_MSG="Rollback of$REVISION_LIST in $MERGE_TO_BRANCH branch."
+      else
+        NEW_COMMIT_MSG="Revert$REVISION_LIST."
+      fi
     else
       NEW_COMMIT_MSG="Merged$REVISION_LIST into $MERGE_TO_BRANCH branch."
     fi;
@@ -189,14 +202,14 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
 fi
 
 let CURRENT_STEP+=1
-if [ $START_STEP -le $CURRENT_STEP ] ; then
+if [ $START_STEP -le $CURRENT_STEP ] && [ $REVERT_FROM_BLEEDING_EDGE -eq 0 ] ; then
   echo ">>> Step $CURRENT_STEP: Prepare $VERSION_FILE."
   # These version numbers are used again for creating the tag
   read_and_persist_version
 fi
 
 let CURRENT_STEP+=1
-if [ $START_STEP -le $CURRENT_STEP ] ; then
+if [ $START_STEP -le $CURRENT_STEP ] && [ $REVERT_FROM_BLEEDING_EDGE -eq 0 ] ; then
   echo ">>> Step $CURRENT_STEP: Increment version number."
   restore_if_unset "PATCH"
   NEWPATCH=$(($PATCH + 1))
@@ -234,7 +247,7 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
 fi
 
 let CURRENT_STEP+=1
-if [ $START_STEP -le $CURRENT_STEP ] ; then
+if [ $START_STEP -le $CURRENT_STEP ] && [ $REVERT_FROM_BLEEDING_EDGE -eq 0 ] ; then
   echo ">>> Step $CURRENT_STEP: Determine svn commit revision"
   restore_if_unset "NEW_COMMIT_MSG"
   restore_if_unset "MERGE_TO_BRANCH"
@@ -248,7 +261,7 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
 fi
 
 let CURRENT_STEP+=1
-if [ $START_STEP -le $CURRENT_STEP ] ; then
+if [ $START_STEP -le $CURRENT_STEP ] && [ $REVERT_FROM_BLEEDING_EDGE -eq 0 ] ; then
   echo ">>> Step $CURRENT_STEP: Create the tag."
   restore_if_unset "SVN_REVISION"
   restore_version_if_unset "NEW"
@@ -273,9 +286,11 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   restore_if_unset "REVISION_LIST"
   restore_version_if_unset "NEW"
   common_cleanup
-  echo "*** SUMMARY ***"
-  echo "version: $NEWMAJOR.$NEWMINOR.$NEWBUILD.$NEWPATCH"
-  echo "branch: $TO_URL"
-  echo "svn revision: $SVN_REVISION"
-  [[ -n "$REVISION_LIST" ]] && echo "patches:$REVISION_LIST"
+  if [ $REVERT_FROM_BLEEDING_EDGE==0 ] ; then
+    echo "*** SUMMARY ***"
+    echo "version: $NEWMAJOR.$NEWMINOR.$NEWBUILD.$NEWPATCH"
+    echo "branch: $TO_URL"
+    echo "svn revision: $SVN_REVISION"
+    [[ -n "$REVISION_LIST" ]] && echo "patches:$REVISION_LIST"
+  fi
 fi
