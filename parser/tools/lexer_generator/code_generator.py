@@ -131,6 +131,7 @@ class CodeGenerator:
       'deferred_transitions' : [],
       'long_char_transitions' : [],
       'disjoint_keys' : disjoint_keys,
+      'has_goto_after_entry' : False,
       'inline' : None,
       'depth' : None,
       'action' : action,
@@ -288,6 +289,26 @@ class CodeGenerator:
     assert len(dfa_states) == self.__dfa.node_count()
     # store states
     self.__dfa_states = dfa_states
+    return id_map
+
+  def __rewrite_gotos(self):
+    goto_map = {}
+    for state in self.__dfa_states:
+      if (state['match_action'] and
+          state['match_action'][0] == 'do_stored_token'):
+        assert not state['match_action'][1] in goto_map
+        goto_map[state['match_action'][1]] = state['node_number']
+        state['has_goto_after_entry'] = True
+    for state in self.__dfa_states:
+      if state['match_action'] and state['match_action'][0] == 'goto':
+        state['match_action'] = ('goto', goto_map[state['match_action'][1]])
+
+  def process(self):
+
+    id_map = self.__canonicalize_traversal()
+    self.__rewrite_gotos()
+
+    dfa_states = self.__dfa_states
     # set nodes to inline
     if self.__inline:
       inlined = reduce(self.__set_inline, dfa_states, 0)
@@ -302,12 +323,6 @@ class CodeGenerator:
     # rewrite deferred transitions
     for state in dfa_states:
       self.__rewrite_deferred_transitions(state)
-
-  def process(self):
-
-    self.__canonicalize_traversal()
-
-    dfa_states = self.__dfa_states
 
     default_action = self.__default_action
     assert(default_action and default_action.match_action())

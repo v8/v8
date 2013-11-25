@@ -149,10 +149,10 @@ class DfaOptimizer(object):
       assert not state_replacements
     self.__dfa.visit_all_states(replace_state)
     # now patch up all states with stores
-    for state in store_states:
-      old_action = states[state]['action']
-      match_action = ('do_stored_token', None)
-      states[state]['action'] = replacement_action(old_action, match_action)
+    for state_id in store_states:
+      old_action = states[state_id]['action']
+      match_action = ('do_stored_token', state_id)
+      states[state_id]['action'] = replacement_action(old_action, match_action)
     start_name = name(self.__dfa.start_state())
     if self.__log:
       print 'gotos inserted %s' % counters['gotos']
