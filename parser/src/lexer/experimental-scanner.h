@@ -28,29 +28,12 @@
 #ifndef V8_LEXER_EXPERIMENTAL_SCANNER_H
 #define V8_LEXER_EXPERIMENTAL_SCANNER_H
 
-#include "token.h"
-#include "flags.h"
-#include "v8stdint.h"
-
-// FIXME: some of this is probably not needed.
-#include "allocation.h"
-#include "ast.h"
-#include "preparse-data-format.h"
-#include "preparse-data.h"
-#include "scopes.h"
-#include "api.h"
-#include "ast.h"
-#include "bootstrapper.h"
-#include "char-predicates-inl.h"
 #include "compiler.h"
-#include "func-name-inferrer.h"
-#include "messages.h"
-#include "parser.h"
-#include "platform.h"
-#include "runtime.h"
-#include "scanner-character-streams.h"
-#include "scopeinfo.h"
-#include "string-stream.h"
+#include "isolate.h"
+#include "scanner.h"  // UnicodeCache.
+#include "token.h"
+#include "utils.h"
+#include "v8stdint.h"
 
 namespace v8 {
 namespace internal {
