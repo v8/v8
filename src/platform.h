@@ -93,7 +93,6 @@ inline int lrint(double flt) {
 namespace v8 {
 namespace internal {
 
-double ceiling(double x);
 double modulo(double x, double y);
 
 // Custom implementation of math functions.
