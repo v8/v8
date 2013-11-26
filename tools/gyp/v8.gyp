@@ -113,10 +113,15 @@
           'dependencies': [
             'mksnapshot.<(v8_target_arch)#host',
             'js2c#host',
+            'generate_trig_table#host',
           ],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['mksnapshot.<(v8_target_arch)', 'js2c'],
+          'dependencies': [
+            'mksnapshot.<(v8_target_arch)',
+            'js2c',
+            'generate_trig_table',
+          ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -189,10 +194,10 @@
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host'],
+          'dependencies': ['js2c#host', 'generate_trig_table#host'],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['js2c'],
+          'dependencies': ['js2c', 'generate_trig_table'],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -206,7 +211,7 @@
       'type': 'none',
       'conditions': [
         ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
+          'toolsets': ['host'],
         }, {
           'toolsets': ['target'],
         }],
@@ -231,9 +236,6 @@
     {
       'target_name': 'v8_base.<(v8_target_arch)',
       'type': 'static_library',
-      'dependencies': [
-        'generate_trig_table',
-      ],
       'variables': {
         'optimize': 'max',
       },
