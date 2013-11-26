@@ -181,7 +181,12 @@ class ScannerBase {
   }
   void clear_octal_position() { }  // FIXME
 
-  void SeekForward(int pos) { }  // FIXME
+  // Seek forward to the given position. This operation works for simple cases
+  // such as seeking forward until simple delimiter tokens, which is what it is
+  // used for. After this call, we will have the token at the given position as
+  // the "next" token. The "current" token will be invalid. FIXME: for utf-8,
+  // we need to decide if pos is counted in characters or in bytes.
+  virtual void SeekForward(int pos) = 0;
 
   // Scans the input as a regular expression pattern, previous
   // character(s) must be /(=). Returns true if a pattern is scanned.
@@ -240,6 +245,7 @@ class ExperimentalScanner : public ScannerBase {
   virtual ~ExperimentalScanner() { }
 
   virtual void Scan();
+  virtual void SeekForward(int pos);
   virtual bool ScanRegExpPattern(bool seen_equal);
   virtual bool ScanRegExpFlags();
 
@@ -281,6 +287,15 @@ class ExperimentalScanner : public ScannerBase {
   const Char* cursor_;
   const Char* marker_;
 };
+
+
+template<typename Char>
+void ExperimentalScanner<Char>::SeekForward(int pos) {
+  cursor_ = buffer_ + pos;
+  start_ = cursor_;
+  marker_ = cursor_;
+  Scan();  // Fills in next_.
+}
 
 
 template<typename Char>
