@@ -4695,10 +4695,13 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
-  __ SmiTag(ToRegister(output), ToRegister(input), SetCC);
+  ASSERT(output->IsRegister());
   if (!instr->hydrogen()->value()->HasRange() ||
       !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    __ SmiTag(ToRegister(output), ToRegister(input), SetCC);
     DeoptimizeIf(vs, instr->environment());
+  } else {
+    __ SmiTag(ToRegister(output), ToRegister(input));
   }
 }
 
