@@ -7701,16 +7701,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_ceil) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_ceil()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(ceiling(x));
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cos) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);

@@ -74,7 +74,7 @@ function MathAtan2(y, x) {
 
 // ECMA 262 - 15.8.2.6
 function MathCeil(x) {
-  return %Math_ceil(TO_NUMBER_INLINE(x));
+  return -MathFloor(-x);
 }
 
 // ECMA 262 - 15.8.2.7
@@ -348,6 +348,7 @@ function SetUpMath() {
     "imul", MathImul
   ));
 
+  %SetInlineBuiltinFlag(MathCeil);
   %SetInlineBuiltinFlag(MathRandom);
   %SetInlineBuiltinFlag(MathSin);
   %SetInlineBuiltinFlag(MathCos);
