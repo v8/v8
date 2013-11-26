@@ -3968,7 +3968,12 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   int length = end - start;
   if (length <= 0) {
     return empty_string();
-  } else if (length == 1) {
+  }
+
+  // Make an attempt to flatten the buffer to reduce access time.
+  buffer = buffer->TryFlattenGetString();
+
+  if (length == 1) {
     return LookupSingleCharacterStringFromCode(buffer->Get(start));
   } else if (length == 2) {
     // Optimization for 2-byte strings often used as keys in a decompression
@@ -3978,9 +3983,6 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     uint16_t c2 = buffer->Get(start + 1);
     return MakeOrFindTwoCharacterString(this, c1, c2);
   }
-
-  // Make an attempt to flatten the buffer to reduce access time.
-  buffer = buffer->TryFlattenGetString();
 
   if (!FLAG_string_slices ||
       !buffer->IsFlat() ||
@@ -4981,7 +4983,7 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
 
 MaybeObject* Heap::AllocateStringFromOneByte(Vector<const uint8_t> string,
-                                           PretenureFlag pretenure) {
+                                             PretenureFlag pretenure) {
   int length = string.length();
   if (length == 1) {
     return Heap::LookupSingleCharacterStringFromCode(string[0]);
