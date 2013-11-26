@@ -294,6 +294,7 @@ void ExperimentalScanner<Char>::SeekForward(int pos) {
   cursor_ = buffer_ + pos;
   start_ = cursor_;
   marker_ = cursor_;
+  has_line_terminator_before_next_ = false;
   Scan();  // Fills in next_.
 }
 
