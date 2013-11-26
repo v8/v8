@@ -1078,32 +1078,42 @@ static Local<FunctionTemplate> FunctionTemplateNew(
 }
 
 Local<FunctionTemplate> FunctionTemplate::New(
+    Isolate* isolate,
     FunctionCallback callback,
     v8::Handle<Value> data,
     v8::Handle<Signature> signature,
     int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::FunctionTemplate::New()");
-  LOG_API(isolate, "FunctionTemplate::New");
-  ENTER_V8(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::FunctionTemplate::New()");
+  LOG_API(i_isolate, "FunctionTemplate::New");
+  ENTER_V8(i_isolate);
   return FunctionTemplateNew(
-      isolate, callback, data, signature, length, false);
+      i_isolate, callback, data, signature, length, false);
 }
 
 
-Local<Signature> Signature::New(Handle<FunctionTemplate> receiver,
-      int argc, Handle<FunctionTemplate> argv[]) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Signature::New()");
-  LOG_API(isolate, "Signature::New");
-  ENTER_V8(isolate);
+Local<FunctionTemplate> FunctionTemplate::New(
+    FunctionCallback callback,
+    v8::Handle<Value> data,
+    v8::Handle<Signature> signature,
+    int length) {
+  return New(Isolate::GetCurrent(), callback, data, signature, length);
+}
+
+Local<Signature> Signature::New(Isolate* isolate,
+                                Handle<FunctionTemplate> receiver, int argc,
+                                Handle<FunctionTemplate> argv[]) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::Signature::New()");
+  LOG_API(i_isolate, "Signature::New");
+  ENTER_V8(i_isolate);
   i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::SIGNATURE_INFO_TYPE);
+      i_isolate->factory()->NewStruct(i::SIGNATURE_INFO_TYPE);
   i::Handle<i::SignatureInfo> obj =
       i::Handle<i::SignatureInfo>::cast(struct_obj);
   if (!receiver.IsEmpty()) obj->set_receiver(*Utils::OpenHandle(*receiver));
   if (argc > 0) {
-    i::Handle<i::FixedArray> args = isolate->factory()->NewFixedArray(argc);
+    i::Handle<i::FixedArray> args = i_isolate->factory()->NewFixedArray(argc);
     for (int i = 0; i < argc; i++) {
       if (!argv[i].IsEmpty())
         args->set(i, *Utils::OpenHandle(*argv[i]));
@@ -1114,6 +1124,20 @@ Local<Signature> Signature::New(Handle<FunctionTemplate> receiver,
 }
 
 
+Local<Signature> Signature::New(Handle<FunctionTemplate> receiver,
+      int argc, Handle<FunctionTemplate> argv[]) {
+  return New(Isolate::GetCurrent(), receiver, argc, argv);
+}
+
+
+Local<AccessorSignature> AccessorSignature::New(
+      Isolate* isolate,
+      Handle<FunctionTemplate> receiver) {
+  return Utils::AccessorSignatureToLocal(Utils::OpenHandle(*receiver));
+}
+
+
+// While this is just a cast, it's lame not to use an Isolate parameter.
 Local<AccessorSignature> AccessorSignature::New(
       Handle<FunctionTemplate> receiver) {
   return Utils::AccessorSignatureToLocal(Utils::OpenHandle(*receiver));
@@ -1363,7 +1387,7 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
   i::Handle<i::FunctionTemplateInfo> handle = Utils::OpenHandle(this);
   if (handle->instance_template()->IsUndefined()) {
     Local<ObjectTemplate> templ =
-        ObjectTemplate::New(ToApiHandle<FunctionTemplate>(handle));
+        ObjectTemplate::New(isolate, ToApiHandle<FunctionTemplate>(handle));
     handle->set_instance_template(*Utils::OpenHandle(*templ));
   }
   i::Handle<i::ObjectTemplateInfo> result(
@@ -1410,14 +1434,19 @@ void FunctionTemplate::RemovePrototype() {
 // --- O b j e c t T e m p l a t e ---
 
 
+Local<ObjectTemplate> ObjectTemplate::New(Isolate* isolate) {
+  return New(reinterpret_cast<i::Isolate*>(isolate), Local<FunctionTemplate>());
+}
+
+
 Local<ObjectTemplate> ObjectTemplate::New() {
-  return New(Local<FunctionTemplate>());
+  return New(i::Isolate::Current(), Local<FunctionTemplate>());
 }
 
 
 Local<ObjectTemplate> ObjectTemplate::New(
+      i::Isolate* isolate,
       v8::Handle<FunctionTemplate> constructor) {
-  i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::ObjectTemplate::New()");
   LOG_API(isolate, "ObjectTemplate::New");
   ENTER_V8(isolate);
@@ -2285,10 +2314,15 @@ Local<String> Message::GetSourceLine() const {
 }
 
 
+void Message::PrintCurrentStackTrace(Isolate* isolate, FILE* out) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i_isolate->PrintCurrentStackTrace(out);
+}
+
+
 void Message::PrintCurrentStackTrace(FILE* out) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  isolate->PrintCurrentStackTrace(out);
+  PrintCurrentStackTrace(Isolate::GetCurrent(), out);
 }
 
 
@@ -2319,13 +2353,21 @@ Local<Array> StackTrace::AsArray() {
 }
 
 
+Local<StackTrace> StackTrace::CurrentStackTrace(
+    Isolate* isolate,
+    int frame_limit,
+    StackTraceOptions options) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSArray> stackTrace =
+      i_isolate->CaptureCurrentStackTrace(frame_limit, options);
+  return Utils::StackTraceToLocal(stackTrace);
+}
+
+
 Local<StackTrace> StackTrace::CurrentStackTrace(int frame_limit,
     StackTraceOptions options) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  i::Handle<i::JSArray> stackTrace =
-      isolate->CaptureCurrentStackTrace(frame_limit, options);
-  return Utils::StackTraceToLocal(stackTrace);
+  return CurrentStackTrace(Isolate::GetCurrent(), frame_limit, options);
 }
 
 
@@ -5646,15 +5688,22 @@ bool RedirectToExternalString(i::Isolate* isolate,
 
 
 Local<String> v8::String::NewExternal(
+      Isolate* isolate,
       v8::String::ExternalStringResource* resource) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewExternal()");
-  LOG_API(isolate, "String::NewExternal");
-  ENTER_V8(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::String::NewExternal()");
+  LOG_API(i_isolate, "String::NewExternal");
+  ENTER_V8(i_isolate);
   CHECK(resource && resource->data());
-  i::Handle<i::String> result = NewExternalStringHandle(isolate, resource);
-  isolate->heap()->external_string_table()->AddString(*result);
+  i::Handle<i::String> result = NewExternalStringHandle(i_isolate, resource);
+  i_isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
+}
+
+
+Local<String> v8::String::NewExternal(
+      v8::String::ExternalStringResource* resource) {
+  return NewExternal(Isolate::GetCurrent(), resource);
 }
 
 
@@ -5695,15 +5744,23 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 
 Local<String> v8::String::NewExternal(
+      Isolate* isolate,
       v8::String::ExternalAsciiStringResource* resource) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewExternal()");
-  LOG_API(isolate, "String::NewExternal");
-  ENTER_V8(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::String::NewExternal()");
+  LOG_API(i_isolate, "String::NewExternal");
+  ENTER_V8(i_isolate);
   CHECK(resource && resource->data());
-  i::Handle<i::String> result = NewExternalAsciiStringHandle(isolate, resource);
-  isolate->heap()->external_string_table()->AddString(*result);
+  i::Handle<i::String> result =
+      NewExternalAsciiStringHandle(i_isolate, resource);
+  i_isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
+}
+
+
+Local<String> v8::String::NewExternal(
+      v8::String::ExternalAsciiStringResource* resource) {
+  return NewExternal(Isolate::GetCurrent(), resource);
 }
 
 
@@ -5762,25 +5819,35 @@ bool v8::String::CanMakeExternal() {
 }
 
 
-Local<v8::Object> v8::Object::New() {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Object::New()");
-  LOG_API(isolate, "Object::New");
-  ENTER_V8(isolate);
+Local<v8::Object> v8::Object::New(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::Object::New()");
+  LOG_API(i_isolate, "Object::New");
+  ENTER_V8(i_isolate);
   i::Handle<i::JSObject> obj =
-      isolate->factory()->NewJSObject(isolate->object_function());
+      i_isolate->factory()->NewJSObject(i_isolate->object_function());
+  return Utils::ToLocal(obj);
+}
+
+
+Local<v8::Object> v8::Object::New() {
+  return New(Isolate::GetCurrent());
+}
+
+
+Local<v8::Value> v8::NumberObject::New(Isolate* isolate, double value) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::NumberObject::New()");
+  LOG_API(i_isolate, "NumberObject::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::Object> number = i_isolate->factory()->NewNumber(value);
+  i::Handle<i::Object> obj = i_isolate->factory()->ToObject(number);
   return Utils::ToLocal(obj);
 }
 
 
 Local<v8::Value> v8::NumberObject::New(double value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::NumberObject::New()");
-  LOG_API(isolate, "NumberObject::New");
-  ENTER_V8(isolate);
-  i::Handle<i::Object> number = isolate->factory()->NewNumber(value);
-  i::Handle<i::Object> obj = isolate->factory()->ToObject(number);
-  return Utils::ToLocal(obj);
+  return New(Isolate::GetCurrent(), value);
 }
 
 
@@ -5858,20 +5925,25 @@ Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
 }
 
 
-Local<v8::Value> v8::Date::New(double time) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Date::New()");
-  LOG_API(isolate, "Date::New");
+Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::Date::New()");
+  LOG_API(i_isolate, "Date::New");
   if (std::isnan(time)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     time = i::OS::nan_value();
   }
-  ENTER_V8(isolate);
-  EXCEPTION_PREAMBLE(isolate);
+  ENTER_V8(i_isolate);
+  EXCEPTION_PREAMBLE(i_isolate);
   i::Handle<i::Object> obj =
-      i::Execution::NewDate(isolate, time, &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Value>());
+      i::Execution::NewDate(i_isolate, time, &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(i_isolate, Local<v8::Value>());
   return Utils::ToLocal(obj);
+}
+
+
+Local<v8::Value> v8::Date::New(double time) {
+  return New(Isolate::GetCurrent(), time);
 }
 
 
@@ -5884,22 +5956,22 @@ double v8::Date::ValueOf() const {
 }
 
 
-void v8::Date::DateTimeConfigurationChangeNotification() {
-  i::Isolate* isolate = i::Isolate::Current();
-  ON_BAILOUT(isolate, "v8::Date::DateTimeConfigurationChangeNotification()",
+void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ON_BAILOUT(i_isolate, "v8::Date::DateTimeConfigurationChangeNotification()",
              return);
-  LOG_API(isolate, "Date::DateTimeConfigurationChangeNotification");
-  ENTER_V8(isolate);
+  LOG_API(i_isolate, "Date::DateTimeConfigurationChangeNotification");
+  ENTER_V8(i_isolate);
 
-  isolate->date_cache()->ResetDateCache();
+  i_isolate->date_cache()->ResetDateCache();
 
-  i::HandleScope scope(isolate);
+  i::HandleScope scope(i_isolate);
   // Get the function ResetDateCache (defined in date.js).
   i::Handle<i::String> func_name_str =
-      isolate->factory()->InternalizeOneByteString(
+      i_isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("ResetDateCache"));
   i::MaybeObject* result =
-      isolate->js_builtins_object()->GetProperty(*func_name_str);
+      i_isolate->js_builtins_object()->GetProperty(*func_name_str);
   i::Object* object_func;
   if (!result->ToObject(&object_func)) {
     return;
@@ -5912,11 +5984,16 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
     // Call ResetDateCache(0 but expect no exceptions:
     bool caught_exception = false;
     i::Execution::TryCall(func,
-                          isolate->js_builtins_object(),
+                          i_isolate->js_builtins_object(),
                           0,
                           NULL,
                           &caught_exception);
   }
+}
+
+
+void v8::Date::DateTimeConfigurationChangeNotification() {
+  DateTimeConfigurationChangeNotification(Isolate::GetCurrent());
 }
 
 
@@ -5971,17 +6048,22 @@ v8::RegExp::Flags v8::RegExp::GetFlags() const {
 }
 
 
-Local<v8::Array> v8::Array::New(int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Array::New()");
-  LOG_API(isolate, "Array::New");
-  ENTER_V8(isolate);
+Local<v8::Array> v8::Array::New(Isolate* isolate, int length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::Array::New()");
+  LOG_API(i_isolate, "Array::New");
+  ENTER_V8(i_isolate);
   int real_length = length > 0 ? length : 0;
-  i::Handle<i::JSArray> obj = isolate->factory()->NewJSArray(real_length);
+  i::Handle<i::JSArray> obj = i_isolate->factory()->NewJSArray(real_length);
   i::Handle<i::Object> length_obj =
-      isolate->factory()->NewNumberFromInt(real_length);
+      i_isolate->factory()->NewNumberFromInt(real_length);
   obj->set_length(*length_obj);
   return Utils::ToLocal(obj);
+}
+
+
+Local<v8::Array> v8::Array::New(int length) {
+  return New(Isolate::GetCurrent(), length);
 }
 
 
@@ -6068,27 +6150,38 @@ size_t v8::ArrayBuffer::ByteLength() const {
 }
 
 
-Local<ArrayBuffer> v8::ArrayBuffer::New(size_t byte_length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(size_t)");
-  LOG_API(isolate, "v8::ArrayBuffer::New(size_t)");
-  ENTER_V8(isolate);
+Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::ArrayBuffer::New(size_t)");
+  LOG_API(i_isolate, "v8::ArrayBuffer::New(size_t)");
+  ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
-      isolate->factory()->NewJSArrayBuffer();
-  i::Runtime::SetupArrayBufferAllocatingData(isolate, obj, byte_length);
+      i_isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBufferAllocatingData(i_isolate, obj, byte_length);
+  return Utils::ToLocal(obj);
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(size_t byte_length) {
+  return New(Isolate::GetCurrent(), byte_length);
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
+                                        size_t byte_length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  LOG_API(i_isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBuffer(i_isolate, obj, true, data, byte_length);
   return Utils::ToLocal(obj);
 }
 
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(void*, size_t)");
-  LOG_API(isolate, "v8::ArrayBuffer::New(void*, size_t)");
-  ENTER_V8(isolate);
-  i::Handle<i::JSArrayBuffer> obj =
-      isolate->factory()->NewJSArrayBuffer();
-  i::Runtime::SetupArrayBuffer(isolate, obj, true, data, byte_length);
-  return Utils::ToLocal(obj);
+  return New(Isolate::GetCurrent(), data, byte_length);
 }
 
 
@@ -6280,18 +6373,28 @@ Local<Number> v8::Number::New(Isolate* isolate, double value) {
 Local<Integer> v8::Integer::New(int32_t value) {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
-  return v8::Integer::New(value, reinterpret_cast<Isolate*>(isolate));
+  return v8::Integer::New(reinterpret_cast<Isolate*>(isolate), value);
 }
 
 
 Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Integer::NewFromUnsigned()");
-  return Integer::NewFromUnsigned(value, reinterpret_cast<Isolate*>(isolate));
+  return Integer::NewFromUnsigned(reinterpret_cast<Isolate*>(isolate), value);
 }
 
 
 Local<Integer> v8::Integer::New(int32_t value, Isolate* isolate) {
+  return Integer::New(isolate, value);
+}
+
+
+Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
+  return Integer::NewFromUnsigned(isolate, value);
+}
+
+
+Local<Integer> v8::Integer::New(Isolate* isolate, int32_t value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ASSERT(internal_isolate->IsInitialized());
   if (i::Smi::IsValid(value)) {
@@ -6304,7 +6407,7 @@ Local<Integer> v8::Integer::New(int32_t value, Isolate* isolate) {
 }
 
 
-Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
+Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ASSERT(internal_isolate->IsInitialized());
   bool fits_into_int32_t = (value & (1 << 31)) == 0;

@@ -1137,6 +1137,8 @@ class V8_EXPORT Message {
   bool IsSharedCrossOrigin() const;
 
   // TODO(1245381): Print to a string instead of on a FILE.
+  static void PrintCurrentStackTrace(Isolate* isolate, FILE* out);
+  // Will be deprecated soon.
   static void PrintCurrentStackTrace(FILE* out);
 
   static const int kNoLineNumberInfo = 0;
@@ -1191,6 +1193,11 @@ class V8_EXPORT StackTrace {
    * \param options Enumerates the set of things we will capture for each
    *   StackFrame.
    */
+  static Local<StackTrace> CurrentStackTrace(
+      Isolate* isolate,
+      int frame_limit,
+      StackTraceOptions options = kOverview);
+  // Will be deprecated soon.
   static Local<StackTrace> CurrentStackTrace(
       int frame_limit,
       StackTraceOptions options = kOverview);
@@ -1794,6 +1801,9 @@ class V8_EXPORT String : public Primitive {
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
    */
+  static Local<String> NewExternal(Isolate* isolate,
+                                   ExternalStringResource* resource);
+  // Will be deprecated soon.
   static Local<String> NewExternal(ExternalStringResource* resource);
 
   /**
@@ -1815,6 +1825,9 @@ class V8_EXPORT String : public Primitive {
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
    */
+  static Local<String> NewExternal(Isolate* isolate,
+                                   ExternalAsciiStringResource* resource);
+  // Will be deprecated soon.
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
   /**
@@ -1968,8 +1981,9 @@ class V8_EXPORT Private : public Data {
 class V8_EXPORT Number : public Primitive {
  public:
   double Value() const;
-  static Local<Number> New(double value);
   static Local<Number> New(Isolate* isolate, double value);
+  // Will be deprecated soon.
+  static Local<Number> New(double value);
   V8_INLINE static Number* Cast(v8::Value* obj);
  private:
   Number();
@@ -1982,10 +1996,13 @@ class V8_EXPORT Number : public Primitive {
  */
 class V8_EXPORT Integer : public Number {
  public:
-  static Local<Integer> New(int32_t value);
-  static Local<Integer> NewFromUnsigned(uint32_t value);
+  static Local<Integer> New(Isolate* isolate, int32_t value);
+  static Local<Integer> NewFromUnsigned(Isolate* isolate, uint32_t value);
+  // Will be deprecated soon.
   static Local<Integer> New(int32_t value, Isolate*);
   static Local<Integer> NewFromUnsigned(uint32_t value, Isolate*);
+  static Local<Integer> New(int32_t value);
+  static Local<Integer> NewFromUnsigned(uint32_t value);
   int64_t Value() const;
   V8_INLINE static Integer* Cast(v8::Value* obj);
  private:
@@ -2338,6 +2355,8 @@ class V8_EXPORT Object : public Value {
    */
   Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
 
+  static Local<Object> New(Isolate* isolate);
+  // Will be deprecated soon.
   static Local<Object> New();
   V8_INLINE static Object* Cast(Value* obj);
 
@@ -2366,6 +2385,8 @@ class V8_EXPORT Array : public Object {
    * Creates a JavaScript array with the given length. If the length
    * is negative the returned array will have length 0.
    */
+  static Local<Array> New(Isolate* isolate, int length = 0);
+  // Will be deprecated soon.
   static Local<Array> New(int length = 0);
 
   V8_INLINE static Array* Cast(Value* obj);
@@ -2629,6 +2650,8 @@ class V8_EXPORT ArrayBuffer : public Object {
    * will be deallocated when it is garbage-collected,
    * unless the object is externalized.
    */
+  static Local<ArrayBuffer> New(Isolate* isolate, size_t byte_length);
+  // Will be deprecated soon.
   static Local<ArrayBuffer> New(size_t byte_length);
 
   /**
@@ -2637,6 +2660,9 @@ class V8_EXPORT ArrayBuffer : public Object {
    * The memory block will not be reclaimed when a created ArrayBuffer
    * is garbage-collected.
    */
+  static Local<ArrayBuffer> New(Isolate* isolate, void* data,
+                                size_t byte_length);
+  // Will be deprecated soon.
   static Local<ArrayBuffer> New(void* data, size_t byte_length);
 
   /**
@@ -2897,6 +2923,8 @@ class V8_EXPORT DataView : public ArrayBufferView {
  */
 class V8_EXPORT Date : public Object {
  public:
+  static Local<Value> New(Isolate* isolate, double time);
+  // Will be deprecated soon.
   static Local<Value> New(double time);
 
   V8_DEPRECATED(
@@ -2923,6 +2951,8 @@ class V8_EXPORT Date : public Object {
    * This API should not be called more than needed as it will
    * negatively impact the performance of date operations.
    */
+  static void DateTimeConfigurationChangeNotification(Isolate* isolate);
+  // Will be deprecated soon.
   static void DateTimeConfigurationChangeNotification();
 
  private:
@@ -2935,6 +2965,8 @@ class V8_EXPORT Date : public Object {
  */
 class V8_EXPORT NumberObject : public Object {
  public:
+  static Local<Value> New(Isolate* isolate, double value);
+  // Will be deprecated soon.
   static Local<Value> New(double value);
 
   V8_DEPRECATED(
@@ -3381,6 +3413,13 @@ class V8_EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
   static Local<FunctionTemplate> New(
+      Isolate* isolate,
+      FunctionCallback callback = 0,
+      Handle<Value> data = Handle<Value>(),
+      Handle<Signature> signature = Handle<Signature>(),
+      int length = 0);
+  // Will be deprecated soon.
+  static Local<FunctionTemplate> New(
       FunctionCallback callback = 0,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
@@ -3467,6 +3506,8 @@ class V8_EXPORT FunctionTemplate : public Template {
 class V8_EXPORT ObjectTemplate : public Template {
  public:
   /** Creates an ObjectTemplate. */
+  static Local<ObjectTemplate> New(Isolate* isolate);
+  // Will be deprecated soon.
   static Local<ObjectTemplate> New();
 
   /** Creates a new instance of this template.*/
@@ -3608,7 +3649,8 @@ class V8_EXPORT ObjectTemplate : public Template {
 
  private:
   ObjectTemplate();
-  static Local<ObjectTemplate> New(Handle<FunctionTemplate> constructor);
+  static Local<ObjectTemplate> New(internal::Isolate* isolate,
+                                   Handle<FunctionTemplate> constructor);
   friend class FunctionTemplate;
 };
 
@@ -3619,6 +3661,12 @@ class V8_EXPORT ObjectTemplate : public Template {
  */
 class V8_EXPORT Signature : public Data {
  public:
+  static Local<Signature> New(Isolate* isolate,
+                              Handle<FunctionTemplate> receiver =
+                                  Handle<FunctionTemplate>(),
+                              int argc = 0,
+                              Handle<FunctionTemplate> argv[] = 0);
+  // Will be deprecated soon.
   static Local<Signature> New(Handle<FunctionTemplate> receiver =
                                   Handle<FunctionTemplate>(),
                               int argc = 0,
@@ -3634,8 +3682,13 @@ class V8_EXPORT Signature : public Data {
  */
 class V8_EXPORT AccessorSignature : public Data {
  public:
+  static Local<AccessorSignature> New(Isolate* isolate,
+                                      Handle<FunctionTemplate> receiver =
+                                          Handle<FunctionTemplate>());
+  // Will be deprecated soon.
   static Local<AccessorSignature> New(Handle<FunctionTemplate> receiver =
                                           Handle<FunctionTemplate>());
+
  private:
   AccessorSignature();
 };
@@ -3739,6 +3792,11 @@ class V8_EXPORT Extension {  // NOLINT
             const char** deps = 0,
             int source_length = -1);
   virtual ~Extension() { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Handle<v8::String> name) {
+    return GetNativeFunction(name);
+  }
+  // Will be deprecated soon.
   virtual v8::Handle<v8::FunctionTemplate>
       GetNativeFunction(v8::Handle<v8::String> name) {
     return v8::Handle<v8::FunctionTemplate>();
@@ -3783,16 +3841,16 @@ class V8_EXPORT DeclareExtension {
 
 // --- Statics ---
 
-
-Handle<Primitive> V8_EXPORT Undefined();
-Handle<Primitive> V8_EXPORT Null();
-Handle<Boolean> V8_EXPORT True();
-Handle<Boolean> V8_EXPORT False();
-
 V8_INLINE Handle<Primitive> Undefined(Isolate* isolate);
 V8_INLINE Handle<Primitive> Null(Isolate* isolate);
 V8_INLINE Handle<Boolean> True(Isolate* isolate);
 V8_INLINE Handle<Boolean> False(Isolate* isolate);
+
+// Will be removed soon.
+Handle<Primitive> V8_EXPORT Undefined();
+Handle<Primitive> V8_EXPORT Null();
+Handle<Boolean> V8_EXPORT True();
+Handle<Boolean> V8_EXPORT False();
 
 
 /**
