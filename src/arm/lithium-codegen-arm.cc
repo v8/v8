@@ -5557,22 +5557,21 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   Register scratch = scratch0();
   if (type_name->Equals(heap()->number_string())) {
     __ JumpIfSmi(input, true_label);
-    __ ldr(input, FieldMemOperand(input, HeapObject::kMapOffset));
-    __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-    __ cmp(input, Operand(ip));
+    __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
+    __ CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
     final_branch_condition = eq;
 
   } else if (type_name->Equals(heap()->string_string())) {
     __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, input, scratch, FIRST_NONSTRING_TYPE);
+    __ CompareObjectType(input, scratch, no_reg, FIRST_NONSTRING_TYPE);
     __ b(ge, false_label);
-    __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
-    __ tst(ip, Operand(1 << Map::kIsUndetectable));
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ tst(scratch, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = eq;
 
   } else if (type_name->Equals(heap()->symbol_string())) {
     __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, input, scratch, SYMBOL_TYPE);
+    __ CompareObjectType(input, scratch, no_reg, SYMBOL_TYPE);
     final_branch_condition = eq;
 
   } else if (type_name->Equals(heap()->boolean_string())) {
@@ -5590,33 +5589,35 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ b(eq, true_label);
     __ JumpIfSmi(input, false_label);
     // Check for undetectable objects => true.
-    __ ldr(input, FieldMemOperand(input, HeapObject::kMapOffset));
-    __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
-    __ tst(ip, Operand(1 << Map::kIsUndetectable));
+    __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ tst(scratch, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = ne;
 
   } else if (type_name->Equals(heap()->function_string())) {
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
+    Register type_reg = scratch;
     __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, input, JS_FUNCTION_TYPE);
+    __ CompareObjectType(input, scratch, type_reg, JS_FUNCTION_TYPE);
     __ b(eq, true_label);
-    __ cmp(input, Operand(JS_FUNCTION_PROXY_TYPE));
+    __ cmp(type_reg, Operand(JS_FUNCTION_PROXY_TYPE));
     final_branch_condition = eq;
 
   } else if (type_name->Equals(heap()->object_string())) {
+    Register map = scratch;
     __ JumpIfSmi(input, false_label);
     if (!FLAG_harmony_typeof) {
       __ CompareRoot(input, Heap::kNullValueRootIndex);
       __ b(eq, true_label);
     }
-    __ CompareObjectType(input, input, scratch,
-                         FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    __ b(lt, false_label);
-    __ CompareInstanceType(input, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    __ b(gt, false_label);
+    __ CheckObjectTypeRange(input,
+                            map,
+                            FIRST_NONCALLABLE_SPEC_OBJECT_TYPE,
+                            LAST_NONCALLABLE_SPEC_OBJECT_TYPE,
+                            false_label);
     // Check for undetectable objects => false.
-    __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
-    __ tst(ip, Operand(1 << Map::kIsUndetectable));
+    __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
+    __ tst(scratch, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = eq;
 
   } else {

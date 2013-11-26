@@ -99,8 +99,8 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
   result = ""
   added_titles = set()
   for (title, body, author) in commit_messages:
-    # TODO(machenbach): Reload the commit description from rietveld in order to
-    # catch late changes.
+    # TODO(machenbach): Better check for reverts. A revert should remove the
+    # original CL from the actual log entry.
     title = title.strip()
     if auto_format:
       # Only add commits that set the LOG flag correctly.
@@ -114,16 +114,12 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
       if title in added_titles:
         continue
 
-    # TODO(machenbach): Let python do all formatting. Get raw git title, attach
-    # issue and add/move dot to the end - all in one line. Make formatting and
-    # indentation afterwards.
-
-    # Add the commit's title line.
-    result += "%s\n" % Fill80(title)
+    # Add and format the commit's title and bug reference. Move dot to the end.
     added_titles.add(title)
-
-    # Add bug references.
-    result += MakeChangeLogBugReference(body)
+    raw_title = re.sub(r"(\.|\?|!)$", "", title)
+    bug_reference = MakeChangeLogBugReference(body)
+    space = " " if bug_reference else ""
+    result += "%s\n" % Fill80("%s%s%s." % (raw_title, space, bug_reference))
 
     # Append the commit's author for reference if not in auto-format mode.
     if not auto_format:
@@ -169,8 +165,7 @@ def MakeChangeLogBugReference(body):
   FormatIssues("Chromium ", crbugs)
 
   if len(bug_groups) > 0:
-    # Format with 8 characters indentation and max 80 character lines.
-    return "%s\n" % Fill80("(%s)" % ", ".join(bug_groups))
+    return "(%s)" % ", ".join(bug_groups)
   else:
     return ""
 

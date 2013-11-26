@@ -30,6 +30,7 @@ import datetime
 import optparse
 import sys
 import tempfile
+import urllib2
 
 from common_includes import *
 
@@ -91,6 +92,21 @@ class DetectLastPush(Step):
 class PrepareChangeLog(Step):
   MESSAGE = "Prepare raw ChangeLog entry."
 
+  def Reload(self, body):
+    """Attempts to reload the commit message from rietveld in order to allow
+    late changes to the LOG flag. Note: This is brittle to future changes of
+    the web page name or structure.
+    """
+    match = re.search(r"^Review URL: https://codereview\.chromium\.org/(\d+)$",
+                      body, flags=re.M)
+    if match:
+      cl_url = "https://codereview.chromium.org/%s/description" % match.group(1)
+      try:
+        body = self.ReadURL(cl_url)
+      except urllib2.URLError:
+        pass
+    return body
+
   def RunStep(self):
     self.RestoreIfUnset("last_push")
 
@@ -112,7 +128,7 @@ class PrepareChangeLog(Step):
     commit_messages = [
       [
         self.Git("log -1 %s --format=\"%%s\"" % commit),
-        self.Git("log -1 %s --format=\"%%B\"" % commit),
+        self.Reload(self.Git("log -1 %s --format=\"%%B\"" % commit)),
         self.Git("log -1 %s --format=\"%%an\"" % commit),
       ] for commit in commits.splitlines()
     ]
@@ -151,6 +167,7 @@ class EditChangeLog(Step):
     changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE)).rstrip()
     changelog_entry = StripComments(changelog_entry)
     changelog_entry = "\n".join(map(Fill80, changelog_entry.splitlines()))
+    changelog_entry = changelog_entry.lstrip()
 
     if changelog_entry == "":
       self.Die("Empty ChangeLog entry.")
@@ -540,6 +557,12 @@ def BuildOptions():
 def ProcessOptions(options):
   if options.s < 0:
     print "Bad step number %d" % options.s
+    return False
+  if options.f and not options.r:
+    print "A reviewer (-r) is required in forced mode."
+    return False
+  if options.f and not options.c:
+    print "A chromium checkout (-c) is required in forced mode."
     return False
   return True
 

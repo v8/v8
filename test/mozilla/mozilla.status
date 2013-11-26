@@ -81,23 +81,23 @@
 
   # This takes a long time to run (~100 seconds). It should only be run
   # by the really patient.
-  'js1_5/GC/regress-324278': [SLOW],
+  'js1_5/GC/regress-324278': [SKIP],
 
   # This takes a long time to run because our indexOf operation is
   # pretty slow - it causes a lot of GCs; see issue
   # #926379. We could consider marking this SKIP because it takes a
   # while to run to completion.
-  'js1_5/GC/regress-338653': [SLOW],
+  'js1_5/GC/regress-338653': [SKIP],
 
   # This test is designed to run until it runs out of memory. This takes
   # a very long time because it builds strings character by character
   # and compiles a lot of regular expressions. We could consider marking
   # this SKIP because it takes a while to run to completion.
-  'js1_5/GC/regress-346794': [SLOW],
+  'js1_5/GC/regress-346794': [SKIP],
 
   # Runs out of memory while trying to build huge string of 'x'
   # characters. This takes a long time to run (~32 seconds).
-  'js1_5/GC/regress-348532': [SLOW],
+  'js1_5/GC/regress-348532': [SKIP],
 
 
   ##################### FLAKY TESTS #####################

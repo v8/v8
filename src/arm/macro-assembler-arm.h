@@ -845,10 +845,20 @@ class MacroAssembler: public Assembler {
   // are the same register).  It leaves the heap object in the heap_object
   // register unless the heap_object register is the same register as one of the
   // other registers.
+  // Type_reg can be no_reg. In that case ip is used.
   void CompareObjectType(Register heap_object,
                          Register map,
                          Register type_reg,
                          InstanceType type);
+
+  // Compare object type for heap object. Branch to false_label if type
+  // is lower than min_type or greater than max_type.
+  // Load map into the register map.
+  void CheckObjectTypeRange(Register heap_object,
+                            Register map,
+                            InstanceType min_type,
+                            InstanceType max_type,
+                            Label* false_label);
 
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both

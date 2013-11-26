@@ -3137,7 +3137,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::Local<v8::Function> fun =
         v8::Local<v8::Function>::Cast(api_exec_state->Get(fun_name));
 
-    v8::Handle<v8::Boolean> running = v8::Boolean::New(auto_continue);
+    v8::Handle<v8::Boolean> running = v8::Boolean::New(isolate, auto_continue);
     static const int kArgc = 1;
     v8::Handle<Value> argv[kArgc] = { running };
     cmd_processor = v8::Local<v8::Object>::Cast(

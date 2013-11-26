@@ -2022,14 +2022,36 @@ void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,
                                        InstanceType type) {
+  const Register temp = type_reg.is(no_reg) ? ip : type_reg;
+
   ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
-  CompareInstanceType(map, type_reg, type);
+  CompareInstanceType(map, temp, type);
+}
+
+
+void MacroAssembler::CheckObjectTypeRange(Register object,
+                                          Register map,
+                                          InstanceType min_type,
+                                          InstanceType max_type,
+                                          Label* false_label) {
+  STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
+  STATIC_ASSERT(LAST_TYPE < 256);
+  ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
+  ldrb(ip, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  sub(ip, ip, Operand(min_type));
+  cmp(ip, Operand(max_type - min_type));
+  b(hi, false_label);
 }
 
 
 void MacroAssembler::CompareInstanceType(Register map,
                                          Register type_reg,
                                          InstanceType type) {
+  // Registers map and type_reg can be ip. These two lines assert
+  // that ip can be used with the two instructions (the constants
+  // will never need ip).
+  STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
+  STATIC_ASSERT(LAST_TYPE < 256);
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   cmp(type_reg, Operand(type));
 }

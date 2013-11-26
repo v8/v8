@@ -71,14 +71,13 @@ class ToplevelTest(unittest.TestCase):
           ["Title text 1",
            "Title text 1\n\nBUG=\n",
            "author1@chromium.org"],
-          ["Title text 2",
+          ["Title text 2.",
            "Title text 2\n\nBUG=1234\n",
            "author2@chromium.org"],
         ]
-    self.assertEquals("        Title text 1\n"
+    self.assertEquals("        Title text 1.\n"
                       "        (author1@chromium.org)\n\n"
-                      "        Title text 2\n"
-                      "        (Chromium issue 1234)\n"
+                      "        Title text 2 (Chromium issue 1234).\n"
                       "        (author2@chromium.org)\n\n",
                       MakeChangeLogBody(commits))
 
@@ -87,7 +86,7 @@ class ToplevelTest(unittest.TestCase):
 
   def testMakeChangeLogBodyAutoFormat(self):
     commits = [
-          ["Title text 1",
+          ["Title text 1!",
            "Title text 1\nLOG=y\nBUG=\n",
            "author1@chromium.org"],
           ["Title text 2",
@@ -100,9 +99,8 @@ class ToplevelTest(unittest.TestCase):
            "Title text 4\n\nBUG=1234\nLOG=\n",
            "author4@chromium.org"],
         ]
-    self.assertEquals("        Title text 1\n\n"
-                      "        Title text 3\n"
-                      "        (Chromium issue 1234)\n\n",
+    self.assertEquals("        Title text 1.\n\n"
+                      "        Title text 3 (Chromium issue 1234).\n\n",
                       MakeChangeLogBody(commits, True))
 
   def testMakeChangeLogBugReferenceEmpty(self):
@@ -112,13 +110,13 @@ class ToplevelTest(unittest.TestCase):
     self.assertEquals("", MakeChangeLogBugReference("BUG=none\t"))
 
   def testMakeChangeLogBugReferenceSimple(self):
-    self.assertEquals("        (issue 987654)\n",
+    self.assertEquals("(issue 987654)",
                       MakeChangeLogBugReference("BUG = v8:987654"))
-    self.assertEquals("        (Chromium issue 987654)\n",
+    self.assertEquals("(Chromium issue 987654)",
                       MakeChangeLogBugReference("BUG=987654 "))
 
   def testMakeChangeLogBugReferenceFromBody(self):
-    self.assertEquals("        (Chromium issue 1234567)\n",
+    self.assertEquals("(Chromium issue 1234567)",
                       MakeChangeLogBugReference("Title\n\nTBR=\nBUG=\n"
                                                 " BUG=\tchromium:1234567\t\n"
                                                 "R=somebody\n"))
@@ -126,54 +124,56 @@ class ToplevelTest(unittest.TestCase):
   def testMakeChangeLogBugReferenceMultiple(self):
     # All issues should be sorted and grouped. Multiple references to the same
     # issue should be filtered.
-    self.assertEquals("        (issues 123, 234, Chromium issue 345)\n",
+    self.assertEquals("(issues 123, 234, Chromium issue 345)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=v8:234\n"
                                                 "  BUG\t= 345, \tv8:234,\n"
                                                 "BUG=v8:123\n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (Chromium issues 123, 234)\n",
+    self.assertEquals("(Chromium issues 123, 234)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=234,,chromium:123 \n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (Chromium issues 123, 234)\n",
+    self.assertEquals("(Chromium issues 123, 234)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=chromium:234, , 123\n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (issues 345, 456)\n",
+    self.assertEquals("(issues 345, 456)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "\t\tBUG=v8:345,v8:456\n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (issue 123, Chromium issues 345, 456)\n",
+    self.assertEquals("(issue 123, Chromium issues 345, 456)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=chromium:456\n"
                                                 "BUG = none\n"
                                                 "R=somebody\n"
                                                 "BUG=456,v8:123, 345"))
 
+  # TODO(machenbach): These test don't make much sense when the formatting is
+  # done later.
   def testMakeChangeLogBugReferenceLong(self):
     # -----------------00--------10--------20--------30--------
-    self.assertEquals("        (issues 234, 1234567890, 1234567"
-                      "8901234567890, Chromium issues 12345678,\n"
-                      "        123456789)\n",
+    self.assertEquals("(issues 234, 1234567890, 1234567"
+                      "8901234567890, Chromium issues 12345678,"
+                      " 123456789)",
                       MakeChangeLogBugReference("BUG=v8:234\n"
                                                 "BUG=v8:1234567890\n"
                                                 "BUG=v8:12345678901234567890\n"
                                                 "BUG=123456789\n"
                                                 "BUG=12345678\n"))
     # -----------------00--------10--------20--------30--------
-    self.assertEquals("        (issues 234, 1234567890, 1234567"
-                      "8901234567890, Chromium issues\n"
-                      "        123456789, 1234567890)\n",
+    self.assertEquals("(issues 234, 1234567890, 1234567"
+                      "8901234567890, Chromium issues"
+                      " 123456789, 1234567890)",
                       MakeChangeLogBugReference("BUG=v8:234\n"
                                                 "BUG=v8:12345678901234567890\n"
                                                 "BUG=v8:1234567890\n"
                                                 "BUG=123456789\n"
                                                 "BUG=1234567890\n"))
     # -----------------00--------10--------20--------30--------
-    self.assertEquals("        (Chromium issues 234, 1234567890"
-                      ", 12345678901234567,\n"
-                      "        1234567890123456789)\n",
+    self.assertEquals("(Chromium issues 234, 1234567890"
+                      ", 12345678901234567, "
+                      "1234567890123456789)",
                       MakeChangeLogBugReference("BUG=234\n"
                                                 "BUG=12345678901234567\n"
                                                 "BUG=1234567890123456789\n"
@@ -194,7 +194,7 @@ class SimpleMock(object):
     try:
       expected_call = self._recipe[self._index]
     except IndexError:
-      raise Exception("Calling %s %s" % (name, " ".join(args)))
+      raise Exception("Calling %s %s" % (self._name, " ".join(args)))
 
     # Pack expectations without arguments into a list.
     if not isinstance(expected_call, list):
@@ -397,16 +397,27 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
     self.ExpectGit([
-      ["log 1234..HEAD --format=%H", "rev1\nrev2\nrev3"],
+      ["log 1234..HEAD --format=%H", "rev1\nrev2\nrev3\nrev4"],
       ["log -1 rev1 --format=\"%s\"", "Title text 1"],
       ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\nLOG=y\n"],
       ["log -1 rev1 --format=\"%an\"", "author1@chromium.org"],
-      ["log -1 rev2 --format=\"%s\"", "Title text 2"],
+      ["log -1 rev2 --format=\"%s\"", "Title text 2."],
       ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=123\nLOG= \n"],
       ["log -1 rev2 --format=\"%an\"", "author2@chromium.org"],
       ["log -1 rev3 --format=\"%s\"", "Title text 3"],
       ["log -1 rev3 --format=\"%B\"", "Title\n\nBUG=321\nLOG=true\n"],
       ["log -1 rev3 --format=\"%an\"", "author3@chromium.org"],
+      ["log -1 rev4 --format=\"%s\"", "Title text 4"],
+      ["log -1 rev4 --format=\"%B\"",
+       ("Title\n\nBUG=456\nLOG=Y\n\n"
+        "Review URL: https://codereview.chromium.org/9876543210\n")],
+      ["log -1 rev4 --format=\"%an\"", "author4@chromium.org"],
+    ])
+
+    # The cl for rev4 on rietveld has an updated LOG flag.
+    self.ExpectReadURL([
+      ["https://codereview.chromium.org/9876543210/description",
+       "Title\n\nBUG=456\nLOG=N\n\n"],
     ])
 
     self.MakeStep().Persist("last_push", "1234")
@@ -418,10 +429,9 @@ class ScriptTest(unittest.TestCase):
     # comparison here instead of a regexp match.
     expected_cl = """\\d+\\-\\d+\\-\\d+: Version 3\\.22\\.5
 
-        Title text 1
+        Title text 1.
 
-        Title text 3
-        \\(Chromium issue 321\\)
+        Title text 3 \\(Chromium issue 321\\).
 
         Performance and stability improvements on all platforms\\.
 #
@@ -429,16 +439,17 @@ class ScriptTest(unittest.TestCase):
 # commit messages from the list below are included\\.
 # All lines starting with # will be stripped\\.
 #
-#       Title text 1
+#       Title text 1.
 #       \\(author1@chromium\\.org\\)
 #
-#       Title text 2
-#       \\(Chromium issue 123\\)
+#       Title text 2 \\(Chromium issue 123\\).
 #       \\(author2@chromium\\.org\\)
 #
-#       Title text 3
-#       \\(Chromium issue 321\\)
+#       Title text 3 \\(Chromium issue 321\\).
 #       \\(author3@chromium\\.org\\)
+#
+#       Title text 4 \\(Chromium issue 456\\).
+#       \\(author4@chromium\\.org\\)
 #
 #"""
 
@@ -461,7 +472,7 @@ class ScriptTest(unittest.TestCase):
 
     self.MakeStep(EditChangeLog).Run()
 
-    self.assertEquals("        New\n        Lines\n\n\n        Original CL",
+    self.assertEquals("New\n        Lines\n\n\n        Original CL",
                       FileToText(TEST_CONFIG[CHANGELOG_FILE]))
 
   def testIncrementVersion(self):
@@ -539,8 +550,7 @@ class ScriptTest(unittest.TestCase):
     def CheckPreparePush():
       cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
       self.assertTrue(re.search(r"Version 3.22.5", cl))
-      self.assertTrue(re.search(r"        Log text 1", cl))
-      self.assertTrue(re.search(r"        \(issue 321\)", cl))
+      self.assertTrue(re.search(r"        Log text 1 \(issue 321\).", cl))
       self.assertFalse(re.search(r"        \(author1@chromium\.org\)", cl))
 
       # Make sure all comments got stripped.
@@ -555,7 +565,7 @@ class ScriptTest(unittest.TestCase):
     def CheckSVNCommit():
       commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
       self.assertTrue(re.search(r"Version 3.22.5", commit))
-      self.assertTrue(re.search(r"Log text 1. \(issue 321\)", commit))
+      self.assertTrue(re.search(r"Log text 1 \(issue 321\).", commit))
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
@@ -643,9 +653,8 @@ class ScriptTest(unittest.TestCase):
     self.assertTrue(re.search("\"v8_revision\": \"123456\"", deps))
 
     cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
-    self.assertTrue(re.search(r"\d\d\d\d\-\d+\-\d+: Version 3\.22\.5", cl))
-    self.assertTrue(re.search(r"        Log text 1", cl))
-    self.assertTrue(re.search(r"        \(issue 321\)", cl))
+    self.assertTrue(re.search(r"^\d\d\d\d\-\d+\-\d+: Version 3\.22\.5", cl))
+    self.assertTrue(re.search(r"        Log text 1 \(issue 321\).", cl))
     self.assertTrue(re.search(r"1999\-04\-05: Version 3\.22\.4", cl))
 
     # Note: The version file is on build number 5 again in the end of this test
@@ -686,3 +695,27 @@ class ScriptTest(unittest.TestCase):
 
     self.assertEquals("100", self.MakeStep().Restore("lkgr"))
     self.assertEquals("101", self.MakeStep().Restore("latest"))
+
+
+class SystemTest(unittest.TestCase):
+  def testReload(self):
+    step = MakeStep(step_class=PrepareChangeLog, number=0, state={}, config={},
+                    options=None,
+                    side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER)
+    body = step.Reload(
+"""------------------------------------------------------------------------
+r17997 | machenbach@chromium.org | 2013-11-22 11:04:04 +0100 (...) | 6 lines
+
+Prepare push to trunk.  Now working on version 3.23.11.
+
+R=danno@chromium.org
+
+Review URL: https://codereview.chromium.org/83173002
+
+------------------------------------------------------------------------""")
+    self.assertEquals(
+"""Prepare push to trunk.  Now working on version 3.23.11.
+
+R=danno@chromium.org
+
+Committed: https://code.google.com/p/v8/source/detail?r=17997""", body)

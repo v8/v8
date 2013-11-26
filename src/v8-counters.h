@@ -242,7 +242,6 @@ namespace internal {
   SC(math_asin, V8.MathAsin)                                          \
   SC(math_atan, V8.MathAtan)                                          \
   SC(math_atan2, V8.MathAtan2)                                        \
-  SC(math_ceil, V8.MathCeil)                                          \
   SC(math_cos, V8.MathCos)                                            \
   SC(math_exp, V8.MathExp)                                            \
   SC(math_floor, V8.MathFloor)                                        \

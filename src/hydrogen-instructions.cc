@@ -1262,6 +1262,26 @@ HValue* HBitwise::Canonicalize() {
 }
 
 
+Representation HAdd::RepresentationFromInputs() {
+  Representation left_rep = left()->representation();
+  if (left_rep.IsExternal()) {
+    return Representation::External();
+  }
+  return HArithmeticBinaryOperation::RepresentationFromInputs();
+}
+
+
+Representation HAdd::RequiredInputRepresentation(int index) {
+  if (index == 2) {
+    Representation left_rep = left()->representation();
+    if (left_rep.IsExternal()) {
+      return Representation::Integer32();
+    }
+  }
+  return HArithmeticBinaryOperation::RequiredInputRepresentation(index);
+}
+
+
 static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
   return arg1->representation().IsSpecialization() &&
     arg2->EqualsInteger32Constant(identity);

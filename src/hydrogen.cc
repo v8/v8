@@ -58,6 +58,7 @@
 #include "hydrogen-uint32-analysis.h"
 #include "lithium-allocator.h"
 #include "parser.h"
+#include "runtime.h"
 #include "scopeinfo.h"
 #include "scopes.h"
 #include "stub-cache.h"
@@ -5107,10 +5108,15 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // pass an empty fixed array to the runtime function instead.
     Handle<FixedArray> constants = isolate()->factory()->empty_fixed_array();
     int literal_index = expr->literal_index();
+    int flags = expr->depth() == 1
+        ? ArrayLiteral::kShallowElements
+        : ArrayLiteral::kNoFlags;
+    flags |= ArrayLiteral::kDisableMementos;
 
     Add<HPushArgument>(Add<HConstant>(literals));
     Add<HPushArgument>(Add<HConstant>(literal_index));
     Add<HPushArgument>(Add<HConstant>(constants));
+    Add<HPushArgument>(Add<HConstant>(flags));
 
     // TODO(mvstanton): Consider a flag to turn off creation of any
     // AllocationMementos for this call: we are in crankshaft and should have
@@ -5118,7 +5124,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
-                                3);
+                                4);
 
     // De-opt if elements kind changed from boilerplate_elements_kind.
     Handle<Map> map = Handle<Map>(boilerplate_object->map(), isolate());
@@ -8055,6 +8061,42 @@ const HOptimizedGraphBuilder::InlineFunctionGenerator
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
 
+template <class ViewClass>
+void HGraphBuilder::BuildArrayBufferViewInitialization(
+    HValue* obj,
+    HValue* buffer,
+    HValue* byte_offset,
+    HValue* byte_length) {
+
+  for (int offset = ViewClass::kSize;
+       offset < ViewClass::kSizeWithInternalFields;
+       offset += kPointerSize) {
+    Add<HStoreNamedField>(obj,
+        HObjectAccess::ForJSObjectOffset(offset),
+        Add<HConstant>(static_cast<int32_t>(0)));
+  }
+
+  Add<HStoreNamedField>(
+      obj,
+      HObjectAccess::ForJSArrayBufferViewBuffer(), buffer);
+  Add<HStoreNamedField>(
+      obj,
+      HObjectAccess::ForJSArrayBufferViewByteOffset(),
+      byte_offset);
+  Add<HStoreNamedField>(
+      obj,
+      HObjectAccess::ForJSArrayBufferViewByteLength(),
+      byte_length);
+
+  HObjectAccess weak_first_view_access =
+      HObjectAccess::ForJSArrayBufferWeakFirstView();
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSArrayBufferViewWeakNext(),
+      Add<HLoadNamedField>(buffer, weak_first_view_access));
+  Add<HStoreNamedField>(buffer, weak_first_view_access, obj);
+}
+
+
 void HOptimizedGraphBuilder::VisitDataViewInitialize(
     CallRuntime* expr) {
   ZoneList<Expression*>* arguments = expr->arguments();
@@ -8073,31 +8115,127 @@ void HOptimizedGraphBuilder::VisitDataViewInitialize(
   CHECK_ALIVE(VisitForValue(arguments->at(3)));
   HValue* byte_length = Pop();
 
-  for (int offset = JSDataView::kSize;
-        offset < JSDataView::kSizeWithInternalFields;
-        offset += kPointerSize) {
-    Add<HStoreNamedField>(obj,
-        HObjectAccess::ForJSObjectOffset(offset),
-        Add<HConstant>(static_cast<int32_t>(0)));
+  BuildArrayBufferViewInitialization<JSDataView>(
+      obj, buffer, byte_offset, byte_length);
+}
+
+
+void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
+    CallRuntime* expr) {
+  ZoneList<Expression*>* arguments = expr->arguments();
+
+  NoObservableSideEffectsScope scope(this);
+  static const int kObjectArg = 0;
+  static const int kArrayIdArg = 1;
+  static const int kBufferArg = 2;
+  static const int kByteOffsetArg = 3;
+  static const int kByteLengthArg = 4;
+  static const int kArgsLength = 5;
+  ASSERT(arguments->length() == kArgsLength);
+
+
+  CHECK_ALIVE(VisitForValue(arguments->at(kObjectArg)));
+  HValue* obj = Pop();
+
+  ASSERT(arguments->at(kArrayIdArg)->node_type() == AstNode::kLiteral);
+  Handle<Object> value =
+      static_cast<Literal*>(arguments->at(kArrayIdArg))->value();
+  ASSERT(value->IsSmi());
+  int array_id = Smi::cast(*value)->value();
+
+  CHECK_ALIVE(VisitForValue(arguments->at(kBufferArg)));
+  HValue* buffer = Pop();
+
+  HValue* byte_offset;
+  bool is_zero_byte_offset;
+
+  if (arguments->at(kByteOffsetArg)->node_type() == AstNode::kLiteral
+      && Smi::FromInt(0) ==
+      *static_cast<Literal*>(arguments->at(kByteOffsetArg))->value()) {
+    byte_offset = Add<HConstant>(static_cast<int32_t>(0));
+    is_zero_byte_offset = true;
+  } else {
+    CHECK_ALIVE(VisitForValue(arguments->at(kByteOffsetArg)));
+    byte_offset = Pop();
+    is_zero_byte_offset = false;
   }
 
-  Add<HStoreNamedField>(obj,
-      HObjectAccess::ForJSObjectOffset(JSDataView::kBufferOffset), buffer);
-  Add<HStoreNamedField>(obj,
-      HObjectAccess::ForJSObjectOffset(JSDataView::kByteOffsetOffset),
-      byte_offset);
-  Add<HStoreNamedField>(obj,
-      HObjectAccess::ForJSObjectOffset(JSDataView::kByteLengthOffset),
-      byte_length);
+  CHECK_ALIVE(VisitForValue(arguments->at(kByteLengthArg)));
+  HValue* byte_length = Pop();
 
-  Add<HStoreNamedField>(obj,
-      HObjectAccess::ForJSObjectOffset(JSDataView::kWeakNextOffset),
-      Add<HLoadNamedField>(buffer,
-          HObjectAccess::ForJSObjectOffset(
-            JSArrayBuffer::kWeakFirstViewOffset)));
-  Add<HStoreNamedField>(buffer,
-      HObjectAccess::ForJSObjectOffset(JSArrayBuffer::kWeakFirstViewOffset),
-      obj);
+  IfBuilder byte_offset_smi(this);
+
+  if (!is_zero_byte_offset) {
+    byte_offset_smi.If<HIsSmiAndBranch>(byte_offset);
+    byte_offset_smi.Then();
+  }
+
+  { //  byte_offset is Smi.
+    BuildArrayBufferViewInitialization<JSTypedArray>(
+        obj, buffer, byte_offset, byte_length);
+
+    ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
+    size_t element_size = 1;  // Bogus initialization.
+    Runtime::ArrayIdToTypeAndSize(array_id, &array_type, &element_size);
+
+    HInstruction* length = AddUncasted<HDiv>(byte_length,
+        Add<HConstant>(static_cast<int32_t>(element_size)));
+
+    Add<HStoreNamedField>(obj,
+        HObjectAccess::ForJSTypedArrayLength(),
+        length);
+
+    HValue* elements =
+        Add<HAllocate>(
+            Add<HConstant>(ExternalArray::kAlignedSize),
+            HType::JSArray(),
+            NOT_TENURED,
+            static_cast<InstanceType>(FIRST_EXTERNAL_ARRAY_TYPE + array_type));
+
+    Handle<Map> external_array_map(
+        isolate()->heap()->MapForExternalArrayType(array_type));
+    Add<HStoreNamedField>(elements,
+        HObjectAccess::ForMap(),
+        Add<HConstant>(external_array_map));
+
+    HValue* backing_store = Add<HLoadNamedField>(
+        buffer, HObjectAccess::ForJSArrayBufferBackingStore());
+
+    HValue* typed_array_start;
+    if (is_zero_byte_offset) {
+      typed_array_start = backing_store;
+    } else {
+      HInstruction* external_pointer =
+          AddUncasted<HAdd>(backing_store, byte_offset);
+      // Arguments are checked prior to call to TypedArrayInitialize,
+      // including byte_offset.
+      external_pointer->ClearFlag(HValue::kCanOverflow);
+      typed_array_start = external_pointer;
+    }
+
+    Add<HStoreNamedField>(elements,
+        HObjectAccess::ForExternalArrayExternalPointer(),
+        typed_array_start);
+    Add<HStoreNamedField>(elements,
+        HObjectAccess::ForFixedArrayLength(),
+        length);
+    Add<HStoreNamedField>(
+        obj, HObjectAccess::ForElementsPointer(), elements);
+  }
+
+  if (!is_zero_byte_offset) {
+    byte_offset_smi.Else();
+    { //  byte_offset is not Smi.
+      Push(Add<HPushArgument>(obj));
+      VisitArgument(arguments->at(kArrayIdArg));
+      Push(Add<HPushArgument>(buffer));
+      Push(Add<HPushArgument>(byte_offset));
+      Push(Add<HPushArgument>(byte_length));
+      Add<HCallRuntime>(expr->name(), expr->function(), kArgsLength);
+      Drop(kArgsLength);
+    }
+  }
+  byte_offset_smi.End();
 }
 
 
@@ -8114,6 +8252,16 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   if (function->function_id == Runtime::kDataViewInitialize) {
       return VisitDataViewInitialize(expr);
+  }
+
+  if (function->function_id == Runtime::kTypedArrayInitialize) {
+    return VisitTypedArrayInitialize(expr);
+  }
+
+  if (function->function_id == Runtime::kMaxSmi) {
+    ASSERT(expr->arguments()->length() == 0);
+    HConstant* max_smi = New<HConstant>(static_cast<int32_t>(Smi::kMaxValue));
+    return ast_context()->ReturnInstruction(max_smi, expr->id());
   }
 
   if (function->intrinsic_type == Runtime::INLINE) {
@@ -9175,7 +9323,7 @@ HInstruction* HOptimizedGraphBuilder::BuildThisFunction() {
 
 HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     Handle<JSObject> boilerplate_object,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   NoObservableSideEffectsScope no_effects(this);
   InstanceType instance_type = boilerplate_object->map()->instance_type();
   ASSERT(instance_type == JS_ARRAY_TYPE || instance_type == JS_OBJECT_TYPE);
@@ -9268,7 +9416,7 @@ void HOptimizedGraphBuilder::BuildInitElementsInObjectHeader(
 void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     Handle<JSObject> boilerplate_object,
     HInstruction* object,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   Handle<DescriptorArray> descriptors(
       boilerplate_object->map()->instance_descriptors());
   int limit = boilerplate_object->map()->NumberOfOwnDescriptors();
@@ -9340,7 +9488,7 @@ void HOptimizedGraphBuilder::BuildEmitElements(
     Handle<JSObject> boilerplate_object,
     Handle<FixedArrayBase> elements,
     HValue* object_elements,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   ElementsKind kind = boilerplate_object->map()->elements_kind();
   int elements_length = elements->length();
   HValue* object_elements_length = Add<HConstant>(elements_length);
@@ -9381,7 +9529,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
     Handle<FixedArrayBase> elements,
     ElementsKind kind,
     HValue* object_elements,
-    AllocationSiteContext* site_context) {
+    AllocationSiteUsageContext* site_context) {
   HInstruction* boilerplate_elements = Add<HConstant>(elements);
   int elements_length = elements->length();
   Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);

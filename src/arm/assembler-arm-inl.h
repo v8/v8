@@ -457,12 +457,6 @@ void Assembler::deserialization_set_special_target_at(
 }
 
 
-void Assembler::set_external_target_at(Address constant_pool_entry,
-                                       Address target) {
-  Memory::Address_at(constant_pool_entry) = target;
-}
-
-
 static Instr EncodeMovwImmediate(uint32_t immediate) {
   ASSERT(immediate < 0x10000);
   return ((immediate & 0xf000) << 4) | (immediate & 0xfff);

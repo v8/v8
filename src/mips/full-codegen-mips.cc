@@ -1780,6 +1780,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   expr->BuildConstantElements(isolate());
+  int flags = expr->depth() == 1
+      ? ArrayLiteral::kShallowElements
+      : ArrayLiteral::kNoFlags;
+
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
 
@@ -1808,8 +1812,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         1, a1, a2);
   } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Push(a3, a2, a1);
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
+    __ li(a0, Operand(Smi::FromInt(flags)));
+    __ Push(a3, a2, a1, a0);
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);

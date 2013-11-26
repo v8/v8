@@ -586,13 +586,6 @@ class Assembler : public AssemblerBase {
     set_target_address_at(instruction_payload, target);
   }
 
-  // This sets the branch destination (which is a load instruction on x64).
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address instruction_payload,
-                                            Address target) {
-    *reinterpret_cast<Address*>(instruction_payload) = target;
-  }
-
   inline Handle<Object> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
   // Number of bytes taken up by the branch target in the code.

@@ -179,7 +179,6 @@ namespace internal {
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
   F(Math_atan2, 2, 1) \
-  F(Math_ceil, 1, 1) \
   F(Math_cos, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \
@@ -300,7 +299,8 @@ namespace internal {
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4, 1)\
   F(CreateObjectLiteral, 4, 1) \
-  F(CreateArrayLiteral, 3, 1) \
+  F(CreateArrayLiteral, 4, 1) \
+  F(CreateArrayLiteralStubBailout, 3, 1) \
   \
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \
@@ -828,6 +828,22 @@ class Runtime : public AllStatic {
   static void FreeArrayBuffer(
       Isolate* isolate,
       JSArrayBuffer* phantom_array_buffer);
+
+  enum TypedArrayId {
+    // arrayIds below should be synchromized with typedarray.js natives.
+    ARRAY_ID_UINT8 = 1,
+    ARRAY_ID_INT8 = 2,
+    ARRAY_ID_UINT16 = 3,
+    ARRAY_ID_INT16 = 4,
+    ARRAY_ID_UINT32 = 5,
+    ARRAY_ID_INT32 = 6,
+    ARRAY_ID_FLOAT32 = 7,
+    ARRAY_ID_FLOAT64 = 8,
+    ARRAY_ID_UINT8C = 9
+  };
+
+  static void ArrayIdToTypeAndSize(int array_id,
+      ExternalArrayType *type, size_t *element_size);
 
   // Helper functions used stubs.
   static void PerformGC(Object* result, Isolate* isolate);
