@@ -401,8 +401,9 @@ char* DoubleToRadixCString(double value, int radix) {
   // at least one digit.
   int integer_pos = kBufferSize - 2;
   do {
-    integer_buffer[integer_pos--] =
-        chars[static_cast<int>(fmod(integer_part, radix))];
+    double remainder = fmod(integer_part, radix);
+    integer_buffer[integer_pos--] = chars[static_cast<int>(remainder)];
+    integer_part -= remainder;
     integer_part /= radix;
   } while (integer_part >= 1.0);
   // Sanity check.
