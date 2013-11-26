@@ -273,23 +273,12 @@ class ExperimentalScanner : public ScannerBase {
 
  private:
   Handle<String> source_handle_;
-  YYCTYPE yych;
   const YYCTYPE* buffer_;
   const YYCTYPE* buffer_end_;
   const YYCTYPE* start_;
   const YYCTYPE* cursor_;
   const YYCTYPE* marker_;
 };
-
-
-template<>
-void ExperimentalScanner<uint8_t>::Scan();
-
-template<>
-void ExperimentalScanner<uint16_t>::Scan();
-
-template<>
-void ExperimentalScanner<int8_t>::Scan();
 
 
 template<typename YYCTYPE>
