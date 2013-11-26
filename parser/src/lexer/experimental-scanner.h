@@ -185,10 +185,10 @@ class ScannerBase {
 
   // Scans the input as a regular expression pattern, previous
   // character(s) must be /(=). Returns true if a pattern is scanned.
-  bool ScanRegExpPattern(bool seen_equal) { return false; }  // FIXME
+  virtual bool ScanRegExpPattern(bool seen_equal) = 0;
   // Returns true if regexp flags are scanned (always since flags can
   // be empty).
-  bool ScanRegExpFlags() { return false; }  // FIXME
+  virtual bool ScanRegExpFlags() = 0;
 
  protected:
   struct TokenDesc {
@@ -198,19 +198,9 @@ class ScannerBase {
   };
 
   virtual void Scan() = 0;
-  virtual uc32 ScanHexNumber(int length) = 0;
   virtual void SetBufferBasedOnHandle() = 0;
 
   static void UpdateBuffersAfterGC(v8::Isolate*, GCType, GCCallbackFlags);
-
-
-  bool ValidIdentifierPart() {
-      return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
-  }
-
-  bool ValidIdentifierStart() {
-    return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
-  }
 
   Isolate* isolate_;
   UnicodeCache* unicode_cache_;
@@ -250,7 +240,8 @@ class ExperimentalScanner : public ScannerBase {
   virtual ~ExperimentalScanner() { }
 
   virtual void Scan();
-  virtual uc32 ScanHexNumber(int length);
+  virtual bool ScanRegExpPattern(bool seen_equal);
+  virtual bool ScanRegExpFlags();
 
   virtual void SetBufferBasedOnHandle() {
     // We get a raw pointer from the Handle, but we also update it every time
@@ -272,6 +263,17 @@ class ExperimentalScanner : public ScannerBase {
   const Char* GetNewBufferBasedOnHandle() const;
 
  private:
+  bool ValidIdentifierPart() {
+      return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
+  }
+
+  bool ValidIdentifierStart() {
+    return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
+  }
+
+  uc32 ScanHexNumber(int length);
+  bool ScanLiteralUnicodeEscape();
+
   Handle<String> source_handle_;
   const Char* buffer_;
   const Char* buffer_end_;
@@ -282,10 +284,67 @@ class ExperimentalScanner : public ScannerBase {
 
 
 template<typename Char>
+bool ExperimentalScanner<Char>::ScanRegExpPattern(bool seen_equal) {
+  // Scan: ('/' | '/=') RegularExpressionBody '/' RegularExpressionFlags
+  bool in_character_class = false;
+
+  // Previous token is either '/' or '/=', in the second case, the
+  // pattern starts at =.
+  next_.beg_pos = (cursor_ - buffer_) - (seen_equal ? 2 : 1);
+  next_.end_pos = (cursor_ - buffer_) - (seen_equal ? 1 : 0);
+
+  // Scan regular expression body: According to ECMA-262, 3rd, 7.8.5,
+  // the scanner should pass uninterpreted bodies to the RegExp
+  // constructor.
+  if (cursor_ >= buffer_end_) return false;
+
+  while (*cursor_ != '/' || in_character_class) {
+    if (unicode_cache_->IsLineTerminator(*cursor_)) return false;
+    if (*cursor_ == '\\') {  // Escape sequence.
+      ++cursor_;
+      if (cursor_ >= buffer_end_ || unicode_cache_->IsLineTerminator(*cursor_))
+        return false;
+      ++cursor_;
+      if (cursor_ >= buffer_end_) return false;
+      // If the escape allows more characters, i.e., \x??, \u????, or \c?,
+      // only "safe" characters are allowed (letters, digits, underscore),
+      // otherwise the escape isn't valid and the invalid character has
+      // its normal meaning. I.e., we can just continue scanning without
+      // worrying whether the following characters are part of the escape
+      // or not, since any '/', '\\' or '[' is guaranteed to not be part
+      // of the escape sequence.
+
+      // TODO(896): At some point, parse RegExps more throughly to capture
+      // octal esacpes in strict mode.
+    } else {  // Unescaped character.
+      if (*cursor_ == '[') in_character_class = true;
+      if (*cursor_ == ']') in_character_class = false;
+      if (++cursor_ >= buffer_end_) return false;
+    }
+  }
+  ++cursor_;  // consume '/'
+  return true;
+}
+
+
+template<typename Char>
+bool ExperimentalScanner<Char>::ScanRegExpFlags() {
+  // Scan regular expression flags.
+  while (cursor_ < buffer_end_ && unicode_cache_->IsIdentifierPart(*cursor_)) {
+    if (*cursor_ != '\\') {
+      if (++cursor_ >= buffer_end_) break;
+    } else {
+      if (!ScanLiteralUnicodeEscape()) break;
+      if (++cursor_ >= buffer_end_) break;
+    }
+  }
+  next_.end_pos = cursor_ - buffer_ - 1;
+  return true;
+}
+
+template<typename Char>
 uc32 ExperimentalScanner<Char>::ScanHexNumber(int length) {
   // We have seen \uXXXX, let's see what it is.
-  // FIXME: we never end up in here if only a subset of the 4 chars are valid
-  // hex digits -> handle the case where they're not.
   uc32 x = 0;
   for (const Char* s = cursor_ - length; s != cursor_; ++s) {
     int d = HexValue(*s);
@@ -295,6 +354,26 @@ uc32 ExperimentalScanner<Char>::ScanHexNumber(int length) {
     x = x * 16 + d;
   }
   return x;
+}
+
+template<typename Char>
+bool ExperimentalScanner<Char>::ScanLiteralUnicodeEscape() {
+  ASSERT(cursor_ < buffer_end_);
+  Char primary_char = *(cursor_);
+  ASSERT(primary_char == '\\');
+  if (++cursor_ >= buffer_end_) return false;
+  primary_char = *(cursor_);
+  int i = 1;
+  if (primary_char == 'u') {
+    i++;
+    while (i < 6) {
+      if (++cursor_ >= buffer_end_) return false;
+      primary_char = *(cursor_);
+      if (!IsHexDigit(primary_char)) break;
+      i++;
+    }
+  }
+  return i == 6;
 }
 
 
