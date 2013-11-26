@@ -1936,8 +1936,8 @@ TEST(ManyLocalsInSharedContext) {
   CHECK_EQ(v8::internal::Context::MIN_CONTEXT_SLOTS + num_objects - 1,
            context_object->GetChildrenCount());
   // Check all the objects have got their names.
-  // ... well check just every 8th because otherwise it's too slow in debug.
-  for (int i = 0; i < num_objects - 1; i += 8) {
+  // ... well check just every 15th because otherwise it's too slow in debug.
+  for (int i = 0; i < num_objects - 1; i += 15) {
     i::EmbeddedVector<char, 100> var_name;
     i::OS::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object = GetProperty(
