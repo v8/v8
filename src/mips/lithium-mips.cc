@@ -1951,8 +1951,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
       LInstruction* result = val->CheckFlag(HInstruction::kUint32)
-          ? DefineSameAsFirst(new(zone()) LUint32ToSmi(value))
-          : DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
+          ? DefineAsRegister(new(zone()) LUint32ToSmi(value))
+          : DefineAsRegister(new(zone()) LInteger32ToSmi(value));
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return result;
       }
