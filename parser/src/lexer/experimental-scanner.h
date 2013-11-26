@@ -229,7 +229,7 @@ class ScannerBase {
 };
 
 
-template<typename YYCTYPE>
+template<typename Char>
 class ExperimentalScanner : public ScannerBase {
  public:
   explicit ExperimentalScanner(
@@ -256,7 +256,7 @@ class ExperimentalScanner : public ScannerBase {
     // We get a raw pointer from the Handle, but we also update it every time
     // there is a GC, so it is safe.
     DisallowHeapAllocation no_gc;
-    const YYCTYPE* new_buffer = GetNewBufferBasedOnHandle();
+    const Char* new_buffer = GetNewBufferBasedOnHandle();
     if (new_buffer != buffer_) {
       int start_offset = start_ - buffer_;
       int cursor_offset = cursor_ - buffer_;
@@ -269,25 +269,25 @@ class ExperimentalScanner : public ScannerBase {
     }
   }
 
-  const YYCTYPE* GetNewBufferBasedOnHandle() const;
+  const Char* GetNewBufferBasedOnHandle() const;
 
  private:
   Handle<String> source_handle_;
-  const YYCTYPE* buffer_;
-  const YYCTYPE* buffer_end_;
-  const YYCTYPE* start_;
-  const YYCTYPE* cursor_;
-  const YYCTYPE* marker_;
+  const Char* buffer_;
+  const Char* buffer_end_;
+  const Char* start_;
+  const Char* cursor_;
+  const Char* marker_;
 };
 
 
-template<typename YYCTYPE>
-uc32 ExperimentalScanner<YYCTYPE>::ScanHexNumber(int length) {
+template<typename Char>
+uc32 ExperimentalScanner<Char>::ScanHexNumber(int length) {
   // We have seen \uXXXX, let's see what it is.
   // FIXME: we never end up in here if only a subset of the 4 chars are valid
   // hex digits -> handle the case where they're not.
   uc32 x = 0;
-  for (const YYCTYPE* s = cursor_ - length; s != cursor_; ++s) {
+  for (const Char* s = cursor_ - length; s != cursor_; ++s) {
     int d = HexValue(*s);
     if (d < 0) {
       return -1;

@@ -210,7 +210,7 @@ TimeDelta RunBaselineScanner(const char* fname,
 }
 
 
-template<typename YYCTYPE>
+template<typename Char>
 TimeDelta RunExperimentalScanner(Handle<String> source,
                                  Isolate* isolate,
                                  Encoding encoding,
@@ -220,7 +220,7 @@ TimeDelta RunExperimentalScanner(Handle<String> source,
                                  HarmonySettings harmony_settings) {
   ElapsedTimer timer;
   timer.Start();
-  ExperimentalScanner<YYCTYPE> scanner(source, isolate);
+  ExperimentalScanner<Char> scanner(source, isolate);
   scanner.SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
   scanner.SetHarmonyModules(harmony_settings.modules);
   scanner.SetHarmonyScoping(harmony_settings.scoping);
