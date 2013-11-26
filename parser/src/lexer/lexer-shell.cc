@@ -211,7 +211,7 @@ TimeDelta RunBaselineScanner(const char* fname,
 
 
 template<typename YYCTYPE>
-TimeDelta RunExperimentalScanner(const char* fname,
+TimeDelta RunExperimentalScanner(Handle<String> source,
                                  Isolate* isolate,
                                  Encoding encoding,
                                  bool dump_tokens,
@@ -219,13 +219,8 @@ TimeDelta RunExperimentalScanner(const char* fname,
                                  int repeat,
                                  HarmonySettings harmony_settings) {
   ElapsedTimer timer;
-  byte* buffer_end = 0;
-  YYCTYPE* buffer = reinterpret_cast<YYCTYPE*>(
-      ReadFile(fname, &buffer_end, repeat, encoding == UTF8TO16));
-
   timer.Start();
-  ExperimentalScanner<YYCTYPE> scanner(
-      buffer, reinterpret_cast<YYCTYPE*>(buffer_end), isolate);
+  ExperimentalScanner<YYCTYPE> scanner(source, isolate);
   scanner.SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
   scanner.SetHarmonyModules(harmony_settings.modules);
   scanner.SetHarmonyScoping(harmony_settings.scoping);
@@ -278,27 +273,34 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
         &baseline_tokens, repeat, harmony_settings);
   }
   if (run_experimental) {
+    Handle<String> source;
+    byte* buffer_end = 0;
+    const byte* buffer = ReadFile(fname, &buffer_end, repeat,
+                                  encoding == UTF8TO16);
     switch (encoding) {
       case UTF8:
-        experimental_time = RunExperimentalScanner<int8_t>(
-            fname, isolate, encoding, print_tokens || check_tokens,
-            &experimental_tokens, repeat, harmony_settings);
-        break;
       case LATIN1:
+        source = isolate->factory()->NewStringFromAscii(
+            Vector<const char>(reinterpret_cast<const char*>(buffer),
+                               buffer_end - buffer));
         experimental_time = RunExperimentalScanner<uint8_t>(
-            fname, isolate, encoding, print_tokens || check_tokens,
+            source, isolate, encoding, print_tokens || check_tokens,
             &experimental_tokens, repeat, harmony_settings);
         break;
       case UTF16:
+      case UTF8TO16: {
+        const uc16* buffer_16 = reinterpret_cast<const uc16*>(buffer);
+        const uc16* buffer_end_16 = reinterpret_cast<const uc16*>(buffer_end);
+        source = isolate->factory()->NewStringFromTwoByte(
+            Vector<const uc16>(buffer_16, buffer_end_16 - buffer_16));
+        // If the string was just an expaneded one byte string, V8 detects it
+        // and doesn't store it as two byte.
+        CHECK(source->IsTwoByteRepresentation());
         experimental_time = RunExperimentalScanner<uint16_t>(
-            fname, isolate, encoding, print_tokens || check_tokens,
+            source, isolate, encoding, print_tokens || check_tokens,
             &experimental_tokens, repeat, harmony_settings);
         break;
-      case UTF8TO16:
-        experimental_time = RunExperimentalScanner<uint16_t>(
-            fname, isolate, encoding, print_tokens || check_tokens,
-            &experimental_tokens, repeat, harmony_settings);
-        break;
+      }
       default:
         printf("Encoding not supported by the experimental scanner\n");
         exit(1);
@@ -398,14 +400,20 @@ int main(int argc, char* argv[]) {
     ASSERT(!context.IsEmpty());
     {
       v8::Context::Scope scope(context);
-      Isolate* isolate = Isolate::Current();
+      Isolate* internal_isolate = Isolate::Current();
       double baseline_total = 0, experimental_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
         std::pair<TimeDelta, TimeDelta> times;
         check_tokens = check_tokens && run_baseline && run_experimental;
-        times = ProcessFile(fnames[i].c_str(), encoding, isolate, run_baseline,
-                            run_experimental, print_tokens, check_tokens,
-                            break_after_illegal, repeat,
+        times = ProcessFile(fnames[i].c_str(),
+                            encoding,
+                            internal_isolate,
+                            run_baseline,
+                            run_experimental,
+                            print_tokens,
+                            check_tokens,
+                            break_after_illegal,
+                            repeat,
                             harmony_settings);
         baseline_total += times.first.InMillisecondsF();
         experimental_total += times.second.InMillisecondsF();

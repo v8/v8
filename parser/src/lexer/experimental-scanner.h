@@ -28,6 +28,8 @@
 #ifndef V8_LEXER_EXPERIMENTAL_SCANNER_H
 #define V8_LEXER_EXPERIMENTAL_SCANNER_H
 
+#include <set>
+
 #include "compiler.h"
 #include "isolate.h"
 #include "scanner.h"  // UnicodeCache.
@@ -59,14 +61,29 @@ class ScannerBase {
   };
 
   explicit ScannerBase(Isolate* isolate)
-    : unicode_cache_(isolate->unicode_cache()),
+    : isolate_(isolate),
+      unicode_cache_(isolate->unicode_cache()),
       has_line_terminator_before_next_(true),
       harmony_numeric_literals_(false),
       harmony_modules_(false),
       harmony_scoping_(false) {
+    if (!scanners_) {
+      scanners_ = new std::set<ScannerBase*>();
+      isolate->heap()->AddGCEpilogueCallback(&ScannerBase::UpdateBuffersAfterGC,
+                                             kGCTypeAll, false);
+    }
+    scanners_->insert(this);
   }
 
-  virtual ~ScannerBase() { }
+  virtual ~ScannerBase() {
+    scanners_->erase(this);
+    if (scanners_->empty()) {
+      isolate_->heap()->RemoveGCEpilogueCallback(
+          &ScannerBase::UpdateBuffersAfterGC);
+      delete scanners_;
+      scanners_ = NULL;
+    }
+  }
 
   // Returns the next token and advances input.
   Token::Value Next() {
@@ -182,6 +199,10 @@ class ScannerBase {
 
   virtual void Scan() = 0;
   virtual uc32 ScanHexNumber(int length) = 0;
+  virtual void SetBufferBasedOnHandle() = 0;
+
+  static void UpdateBuffersAfterGC(v8::Isolate*, GCType, GCCallbackFlags);
+
 
   bool ValidIdentifierPart() {
       return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
@@ -191,6 +212,7 @@ class ScannerBase {
     return unicode_cache_->IsIdentifierStart(ScanHexNumber(4));
   }
 
+  Isolate* isolate_;
   UnicodeCache* unicode_cache_;
 
   bool has_line_terminator_before_next_;
@@ -201,6 +223,9 @@ class ScannerBase {
   bool harmony_numeric_literals_;
   bool harmony_modules_;
   bool harmony_scoping_;
+
+ private:
+  static std::set<ScannerBase*>* scanners_;
 };
 
 
@@ -208,44 +233,63 @@ template<typename YYCTYPE>
 class ExperimentalScanner : public ScannerBase {
  public:
   explicit ExperimentalScanner(
-      YYCTYPE* source,
-      YYCTYPE* source_end,
-      Isolate* isolate);
+      Handle<String> source,
+      Isolate* isolate)
+      : ScannerBase(isolate),
+        source_handle_(source),
+        buffer_(NULL),
+        buffer_end_(NULL),
+        start_(NULL),
+        cursor_(NULL),
+        marker_(NULL) {
+    ASSERT(source->IsFlat());
+    SetBufferBasedOnHandle();
+    Scan();
+  }
 
-  virtual ~ExperimentalScanner();
+  virtual ~ExperimentalScanner() { }
 
   virtual void Scan();
   virtual uc32 ScanHexNumber(int length);
 
+  virtual void SetBufferBasedOnHandle() {
+    // We get a raw pointer from the Handle, but we also update it every time
+    // there is a GC, so it is safe.
+    DisallowHeapAllocation no_gc;
+    const YYCTYPE* new_buffer = GetNewBufferBasedOnHandle();
+    if (new_buffer != buffer_) {
+      int start_offset = start_ - buffer_;
+      int cursor_offset = cursor_ - buffer_;
+      int marker_offset = marker_ - buffer_;
+      buffer_ = new_buffer;
+      buffer_end_ = buffer_ + source_handle_->length();
+      start_ = buffer_ + start_offset;
+      cursor_ = buffer_ + cursor_offset;
+      marker_ = buffer_ + marker_offset;
+    }
+  }
+
+  const YYCTYPE* GetNewBufferBasedOnHandle() const;
+
  private:
+  Handle<String> source_handle_;
   YYCTYPE yych;
-  YYCTYPE* buffer_;
-  YYCTYPE* buffer_end_;
-  YYCTYPE* start_;
-  YYCTYPE* cursor_;
-  YYCTYPE* marker_;
+  const YYCTYPE* buffer_;
+  const YYCTYPE* buffer_end_;
+  const YYCTYPE* start_;
+  const YYCTYPE* cursor_;
+  const YYCTYPE* marker_;
 };
 
 
-template<typename YYCTYPE>
-ExperimentalScanner<YYCTYPE>::ExperimentalScanner(
-    YYCTYPE* source,
-    YYCTYPE* source_end,
-    Isolate* isolate)
-    : ScannerBase(isolate),
-      buffer_(source),
-      buffer_end_(source_end),
-      start_(source),
-      cursor_(source),
-      marker_(source) {
-  Scan();
-}
+template<>
+void ExperimentalScanner<uint8_t>::Scan();
 
+template<>
+void ExperimentalScanner<uint16_t>::Scan();
 
-template<typename YYCTYPE>
-ExperimentalScanner<YYCTYPE>::~ExperimentalScanner() {
-  delete[] buffer_;
-}
+template<>
+void ExperimentalScanner<int8_t>::Scan();
 
 
 template<typename YYCTYPE>
@@ -254,7 +298,7 @@ uc32 ExperimentalScanner<YYCTYPE>::ScanHexNumber(int length) {
   // FIXME: we never end up in here if only a subset of the 4 chars are valid
   // hex digits -> handle the case where they're not.
   uc32 x = 0;
-  for (YYCTYPE* s = cursor_ - length; s != cursor_; ++s) {
+  for (const YYCTYPE* s = cursor_ - length; s != cursor_; ++s) {
     int d = HexValue(*s);
     if (d < 0) {
       return -1;

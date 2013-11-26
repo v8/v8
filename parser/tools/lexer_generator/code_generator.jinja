@@ -136,7 +136,7 @@
   {%- elif encoding == 'utf8'-%}
     unsigned bytes_read = 0;
     const uint32_t long_char = unibrow::Utf8::CalculateValue(
-        reinterpret_cast<uint8_t*>(cursor_),
+        reinterpret_cast<const uint8_t*>(cursor_),
         buffer_end_ - cursor_,
         &bytes_read);
     cursor_ += bytes_read - 1;

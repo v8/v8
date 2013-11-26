@@ -470,6 +470,7 @@
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
         '../../src/lazy-instance.h',
+        '../../src/lexer/experimental-scanner.cc',
         '../../src/lexer/experimental-scanner.h',
         '../../src/list-inl.h',
         '../../src/list.h',
