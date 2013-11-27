@@ -123,8 +123,10 @@ template <class T> class Handle;
 template <class T> class Local;
 template <class T> class Eternal;
 template<class T> class NonCopyablePersistentTraits;
+template<class T> class PersistentBase;
 template<class T,
          class M = NonCopyablePersistentTraits<T> > class Persistent;
+template<class T> class UniquePersistent;
 template<class T, class P> class WeakCallbackObject;
 class FunctionTemplate;
 class ObjectTemplate;
@@ -257,17 +259,17 @@ template <class T> class Handle {
    * The handles' references are not checked.
    */
   template <class S> V8_INLINE bool operator==(const Handle<S>& that) const {
-    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
-    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
+    internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
+    internal::Object** b = reinterpret_cast<internal::Object**>(that.val_);
     if (a == 0) return b == 0;
     if (b == 0) return false;
     return *a == *b;
   }
 
   template <class S> V8_INLINE bool operator==(
-      const Persistent<S>& that) const {
-    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
-    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
+      const PersistentBase<S>& that) const {
+    internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
+    internal::Object** b = reinterpret_cast<internal::Object**>(that.val_);
     if (a == 0) return b == 0;
     if (b == 0) return false;
     return *a == *b;
@@ -304,7 +306,8 @@ template <class T> class Handle {
   V8_INLINE static Handle<T> New(Isolate* isolate, Handle<T> that) {
     return New(isolate, that.val_);
   }
-  V8_INLINE static Handle<T> New(Isolate* isolate, const Persistent<T>& that) {
+  V8_INLINE static Handle<T> New(Isolate* isolate,
+                                 const PersistentBase<T>& that) {
     return New(isolate, that.val_);
   }
 
@@ -320,6 +323,8 @@ template <class T> class Handle {
  private:
   friend class Utils;
   template<class F, class M> friend class Persistent;
+  template<class F> friend class PersistentBase;
+  template<class F> friend class Handle;
   template<class F> friend class Local;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
@@ -383,9 +388,8 @@ template <class T> class Local : public Handle<T> {
    * the original handle is destroyed/disposed.
    */
   V8_INLINE static Local<T> New(Isolate* isolate, Handle<T> that);
-  template<class M>
   V8_INLINE static Local<T> New(Isolate* isolate,
-                                const Persistent<T, M>& that);
+                                const PersistentBase<T>& that);
 
 #ifndef V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
 
@@ -396,8 +400,10 @@ template <class T> class Local : public Handle<T> {
  private:
   friend class Utils;
   template<class F> friend class Eternal;
+  template<class F> friend class PersistentBase;
   template<class F, class M> friend class Persistent;
   template<class F> friend class Handle;
+  template<class F> friend class Local;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
   friend class String;
@@ -462,115 +468,20 @@ class WeakReferenceCallbacks {
 
 
 /**
- * Default traits for Persistent. This class does not allow
- * use of the copy constructor or assignment operator.
- * At present kResetInDestructor is not set, but that will change in a future
- * version.
- */
-template<class T>
-class NonCopyablePersistentTraits {
- public:
-  typedef Persistent<T, NonCopyablePersistentTraits<T> > NonCopyablePersistent;
-  static const bool kResetInDestructor = false;
-  template<class S, class M>
-  V8_INLINE static void Copy(const Persistent<S, M>& source,
-                             NonCopyablePersistent* dest) {
-    Uncompilable<Object>();
-  }
-  // TODO(dcarney): come up with a good compile error here.
-  template<class O> V8_INLINE static void Uncompilable() {
-    TYPE_CHECK(O, Primitive);
-  }
-};
-
-
-/**
- * Helper class traits to allow copying and assignment of Persistent.
- * This will clone the contents of storage cell, but not any of the flags, etc.
- */
-template<class T>
-struct CopyablePersistentTraits {
-  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
-  static const bool kResetInDestructor = true;
-  template<class S, class M>
-  static V8_INLINE void Copy(const Persistent<S, M>& source,
-                             CopyablePersistent* dest) {
-    // do nothing, just allow copy
-  }
-};
-
-
-/**
  * An object reference that is independent of any handle scope.  Where
  * a Local handle only lives as long as the HandleScope in which it was
- * allocated, a Persistent handle remains valid until it is explicitly
+ * allocated, a PersistentBase handle remains valid until it is explicitly
  * disposed.
  *
  * A persistent handle contains a reference to a storage cell within
  * the v8 engine which holds an object value and which is updated by
  * the garbage collector whenever the object is moved.  A new storage
- * cell can be created using the constructor or Persistent::Reset and
- * existing handles can be disposed using Persistent::Reset.
+ * cell can be created using the constructor or PersistentBase::Reset and
+ * existing handles can be disposed using PersistentBase::Reset.
  *
- * Copy, assignment and destructor bevavior is controlled by the traits
- * class M.
  */
-template <class T, class M> class Persistent {
+template <class T> class PersistentBase {
  public:
-  /**
-   * A Persistent with no storage cell.
-   */
-  V8_INLINE Persistent() : val_(0) { }
-  /**
-   * Construct a Persistent from a Handle.
-   * When the Handle is non-empty, a new storage cell is created
-   * pointing to the same object, and no flags are set.
-   */
-  template <class S> V8_INLINE Persistent(Isolate* isolate, Handle<S> that)
-      : val_(New(isolate, *that)) {
-    TYPE_CHECK(T, S);
-  }
-  /**
-   * Construct a Persistent from a Persistent.
-   * When the Persistent is non-empty, a new storage cell is created
-   * pointing to the same object, and no flags are set.
-   */
-  template <class S, class M2>
-  V8_INLINE Persistent(Isolate* isolate, const Persistent<S, M2>& that)
-    : val_(New(isolate, *that)) {
-    TYPE_CHECK(T, S);
-  }
-  /**
-   * The copy constructors and assignment operator create a Persistent
-   * exactly as the Persistent constructor, but the Copy function from the
-   * traits class is called, allowing the setting of flags based on the
-   * copied Persistent.
-   */
-  V8_INLINE Persistent(const Persistent& that) : val_(0) {
-    Copy(that);
-  }
-  template <class S, class M2>
-  V8_INLINE Persistent(const Persistent<S, M2>& that) : val_(0) {
-    Copy(that);
-  }
-  V8_INLINE Persistent& operator=(const Persistent& that) { // NOLINT
-    Copy(that);
-    return *this;
-  }
-  template <class S, class M2>
-  V8_INLINE Persistent& operator=(const Persistent<S, M2>& that) { // NOLINT
-    Copy(that);
-    return *this;
-  }
-  /**
-   * The destructor will dispose the Persistent based on the
-   * kResetInDestructor flags in the traits class.  Since not calling dispose
-   * can result in a memory leak, it is recommended to always set this flag.
-   */
-  V8_INLINE ~Persistent() {
-    if (M::kResetInDestructor) Reset();
-  }
-
   /**
    * If non-empty, destroy the underlying storage cell
    * IsEmpty() will return true after this call.
@@ -582,53 +493,35 @@ template <class T, class M> class Persistent {
    */
   template <class S>
   V8_INLINE void Reset(Isolate* isolate, const Handle<S>& other);
+
   /**
    * If non-empty, destroy the underlying storage cell
    * and create a new one with the contents of other if other is non empty
    */
-  template <class S, class M2>
-  V8_INLINE void Reset(Isolate* isolate, const Persistent<S, M2>& other);
-
-  V8_DEPRECATED("Use Reset instead",
-                V8_INLINE void Dispose()) { Reset(); }
+  template <class S>
+  V8_INLINE void Reset(Isolate* isolate, const PersistentBase<S>& other);
 
   V8_INLINE bool IsEmpty() const { return val_ == 0; }
 
-  // TODO(dcarney): this is pretty useless, fix or remove
   template <class S>
-  V8_INLINE static Persistent<T>& Cast(Persistent<S>& that) { // NOLINT
-#ifdef V8_ENABLE_CHECKS
-    // If we're going to perform the type check then we have to check
-    // that the handle isn't empty before doing the checked cast.
-    if (!that.IsEmpty()) T::Cast(*that);
-#endif
-    return reinterpret_cast<Persistent<T>&>(that);
-  }
-
-  // TODO(dcarney): this is pretty useless, fix or remove
-  template <class S> V8_INLINE Persistent<S>& As() { // NOLINT
-    return Persistent<S>::Cast(*this);
-  }
-
-  template <class S, class M2>
-  V8_INLINE bool operator==(const Persistent<S, M2>& that) const {
-    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
-    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
+  V8_INLINE bool operator==(const PersistentBase<S>& that) const {
+    internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
+    internal::Object** b = reinterpret_cast<internal::Object**>(that.val_);
     if (a == 0) return b == 0;
     if (b == 0) return false;
     return *a == *b;
   }
 
   template <class S> V8_INLINE bool operator==(const Handle<S>& that) const {
-    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
-    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
+    internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
+    internal::Object** b = reinterpret_cast<internal::Object**>(that.val_);
     if (a == 0) return b == 0;
     if (b == 0) return false;
     return *a == *b;
   }
 
-  template <class S, class M2>
-  V8_INLINE bool operator!=(const Persistent<S, M2>& that) const {
+  template <class S>
+  V8_INLINE bool operator!=(const PersistentBase<S>& that) const {
     return !operator==(that);
   }
 
@@ -645,20 +538,6 @@ template <class T, class M> class Persistent {
   V8_INLINE void SetWeak(
       P* parameter,
       typename WeakCallbackData<S, P>::Callback callback);
-
-  template<typename S, typename P>
-  V8_DEPRECATED(
-      "Use SetWeak instead",
-      V8_INLINE void MakeWeak(
-          P* parameter,
-          typename WeakReferenceCallbacks<S, P>::Revivable callback));
-
-  template<typename P>
-  V8_DEPRECATED(
-      "Use SetWeak instead",
-      V8_INLINE void MakeWeak(
-          P* parameter,
-          typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
   V8_INLINE void ClearWeak();
 
@@ -700,20 +579,175 @@ template <class T, class M> class Persistent {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
+ private:
+  friend class Isolate;
+  friend class Utils;
+  template<class F> friend class Handle;
+  template<class F> friend class Local;
+  template<class F1, class F2> friend class Persistent;
+  template<class F> friend class UniquePersistent;
+  template<class F> friend class PersistentBase;
+  template<class F> friend class ReturnValue;
+
+  explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
+  PersistentBase(PersistentBase& other); // NOLINT
+  void operator=(PersistentBase&);
+  V8_INLINE static T* New(Isolate* isolate, T* that);
+
+  T* val_;
+};
+
+
+/**
+ * Default traits for Persistent. This class does not allow
+ * use of the copy constructor or assignment operator.
+ * At present kResetInDestructor is not set, but that will change in a future
+ * version.
+ */
+template<class T>
+class NonCopyablePersistentTraits {
+ public:
+  typedef Persistent<T, NonCopyablePersistentTraits<T> > NonCopyablePersistent;
+  static const bool kResetInDestructor = false;
+  template<class S, class M>
+  V8_INLINE static void Copy(const Persistent<S, M>& source,
+                             NonCopyablePersistent* dest) {
+    Uncompilable<Object>();
+  }
+  // TODO(dcarney): come up with a good compile error here.
+  template<class O> V8_INLINE static void Uncompilable() {
+    TYPE_CHECK(O, Primitive);
+  }
+};
+
+
+/**
+ * Helper class traits to allow copying and assignment of Persistent.
+ * This will clone the contents of storage cell, but not any of the flags, etc.
+ */
+template<class T>
+struct CopyablePersistentTraits {
+  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
+  static const bool kResetInDestructor = true;
+  template<class S, class M>
+  static V8_INLINE void Copy(const Persistent<S, M>& source,
+                             CopyablePersistent* dest) {
+    // do nothing, just allow copy
+  }
+};
+
+
+/**
+ * A PersistentBase which allows copy and assignment.
+ *
+ * Copy, assignment and destructor bevavior is controlled by the traits
+ * class M.
+ *
+ * Note: Persistent class hierarchy is subject to future changes.
+ */
+template <class T, class M> class Persistent : public PersistentBase<T> {
+ public:
+  /**
+   * A Persistent with no storage cell.
+   */
+  V8_INLINE Persistent() : PersistentBase<T>(0) { }
+  /**
+   * Construct a Persistent from a Handle.
+   * When the Handle is non-empty, a new storage cell is created
+   * pointing to the same object, and no flags are set.
+   */
+  template <class S> V8_INLINE Persistent(Isolate* isolate, Handle<S> that)
+      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+    TYPE_CHECK(T, S);
+  }
+  /**
+   * Construct a Persistent from a Persistent.
+   * When the Persistent is non-empty, a new storage cell is created
+   * pointing to the same object, and no flags are set.
+   */
+  template <class S, class M2>
+  V8_INLINE Persistent(Isolate* isolate, const Persistent<S, M2>& that)
+    : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+    TYPE_CHECK(T, S);
+  }
+  /**
+   * The copy constructors and assignment operator create a Persistent
+   * exactly as the Persistent constructor, but the Copy function from the
+   * traits class is called, allowing the setting of flags based on the
+   * copied Persistent.
+   */
+  V8_INLINE Persistent(const Persistent& that) : PersistentBase<T>(0) {
+    Copy(that);
+  }
+  template <class S, class M2>
+  V8_INLINE Persistent(const Persistent<S, M2>& that) : PersistentBase<T>(0) {
+    Copy(that);
+  }
+  V8_INLINE Persistent& operator=(const Persistent& that) { // NOLINT
+    Copy(that);
+    return *this;
+  }
+  template <class S, class M2>
+  V8_INLINE Persistent& operator=(const Persistent<S, M2>& that) { // NOLINT
+    Copy(that);
+    return *this;
+  }
+  /**
+   * The destructor will dispose the Persistent based on the
+   * kResetInDestructor flags in the traits class.  Since not calling dispose
+   * can result in a memory leak, it is recommended to always set this flag.
+   */
+  V8_INLINE ~Persistent() {
+    if (M::kResetInDestructor) this->Reset();
+  }
+
+  V8_DEPRECATED("Use Reset instead",
+                V8_INLINE void Dispose()) { this->Reset(); }
+
+  // TODO(dcarney): this is pretty useless, fix or remove
+  template <class S>
+  V8_INLINE static Persistent<T>& Cast(Persistent<S>& that) { // NOLINT
+#ifdef V8_ENABLE_CHECKS
+    // If we're going to perform the type check then we have to check
+    // that the handle isn't empty before doing the checked cast.
+    if (!that.IsEmpty()) T::Cast(*that);
+#endif
+    return reinterpret_cast<Persistent<T>&>(that);
+  }
+
+  // TODO(dcarney): this is pretty useless, fix or remove
+  template <class S> V8_INLINE Persistent<S>& As() { // NOLINT
+    return Persistent<S>::Cast(*this);
+  }
+
+  template<typename S, typename P>
+  V8_DEPRECATED(
+      "Use SetWeak instead",
+      V8_INLINE void MakeWeak(
+          P* parameter,
+          typename WeakReferenceCallbacks<S, P>::Revivable callback));
+
+  template<typename P>
+  V8_DEPRECATED(
+      "Use SetWeak instead",
+      V8_INLINE void MakeWeak(
+          P* parameter,
+          typename WeakReferenceCallbacks<T, P>::Revivable callback));
+
   V8_DEPRECATED("This will be removed",
                 V8_INLINE T* ClearAndLeak());
 
   V8_DEPRECATED("This will be removed",
-                V8_INLINE void Clear()) { val_ = 0; }
+                V8_INLINE void Clear()) { this->val_ = 0; }
 
   // TODO(dcarney): remove
 #ifndef V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
 
  private:
 #endif
-  template <class S> V8_INLINE Persistent(S* that) : val_(that) { }
+  template <class S> V8_INLINE Persistent(S* that) : PersistentBase<T>(that) { }
 
-  V8_INLINE T* operator*() const { return val_; }
+  V8_INLINE T* operator*() const { return this->val_; }
 
  private:
   friend class Isolate;
@@ -723,12 +757,80 @@ template <class T, class M> class Persistent {
   template<class F1, class F2> friend class Persistent;
   template<class F> friend class ReturnValue;
 
-  V8_INLINE static T* New(Isolate* isolate, T* that);
   template<class S, class M2>
   V8_INLINE void Copy(const Persistent<S, M2>& that);
-
-  T* val_;
 };
+
+
+/**
+ * A PersistentBase which has move semantics.
+ *
+ * Note: Persistent class hierarchy is subject to future changes.
+ */
+template<class T>
+class UniquePersistent : public PersistentBase<T> {
+  struct RValue {
+    V8_INLINE explicit RValue(UniquePersistent* object) : object(object) {}
+    UniquePersistent* object;
+  };
+
+ public:
+    /**
+   * A UniquePersistent with no storage cell.
+   */
+  V8_INLINE UniquePersistent() : PersistentBase<T>(0) { }
+  /**
+   * Construct a UniquePersistent from a Handle.
+   * When the Handle is non-empty, a new storage cell is created
+   * pointing to the same object, and no flags are set.
+   */
+  template <class S>
+  V8_INLINE UniquePersistent(Isolate* isolate, Handle<S> that)
+      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+    TYPE_CHECK(T, S);
+  }
+  /**
+   * Construct a UniquePersistent from a PersistentBase.
+   * When the Persistent is non-empty, a new storage cell is created
+   * pointing to the same object, and no flags are set.
+   */
+  template <class S>
+  V8_INLINE UniquePersistent(Isolate* isolate, const PersistentBase<S>& that)
+    : PersistentBase<T>(PersistentBase<T>::New(isolate, that.val_)) {
+    TYPE_CHECK(T, S);
+  }
+  /**
+   * Move constructor.
+   */
+  V8_INLINE UniquePersistent(RValue rvalue)
+    : PersistentBase<T>(rvalue.object->val_) {
+    rvalue.object->val_ = 0;
+  }
+  V8_INLINE ~UniquePersistent() { this->Reset(); }
+  /**
+   * Move via assignment.
+   */
+  template<class S>
+  V8_INLINE UniquePersistent& operator=(UniquePersistent<S> rhs) {
+    TYPE_CHECK(T, S);
+    this->val_ = rhs.val_;
+    rhs.val_ = 0;
+    return *this;
+  }
+  /**
+   * Cast operator for moves.
+   */
+  V8_INLINE operator RValue() { return RValue(this); }
+  /**
+   * Pass allows returning uniques from functions, etc.
+   */
+  V8_INLINE UniquePersistent Pass() { return UniquePersistent(RValue(this)); }
+
+ private:
+  UniquePersistent(UniquePersistent&);
+  void operator=(UniquePersistent&);
+};
+
 
  /**
  * A stack-allocated class that governs a number of local handles.
@@ -4886,6 +4988,7 @@ class V8_EXPORT V8 {
   template <class T> friend class Handle;
   template <class T> friend class Local;
   template <class T> friend class Eternal;
+  template <class T> friend class PersistentBase;
   template <class T, class M> friend class Persistent;
   friend class Context;
 };
@@ -5678,8 +5781,7 @@ Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
 }
 
 template <class T>
-template <class M>
-Local<T> Local<T>::New(Isolate* isolate, const Persistent<T, M>& that) {
+Local<T> Local<T>::New(Isolate* isolate, const PersistentBase<T>& that) {
   return New(isolate, that.val_);
 }
 
@@ -5717,8 +5819,8 @@ Local<T> Eternal<T>::Get(Isolate* isolate) {
 }
 
 
-template <class T, class M>
-T* Persistent<T, M>::New(Isolate* isolate, T* that) {
+template <class T>
+T* PersistentBase<T>::New(Isolate* isolate, T* that) {
   if (that == NULL) return NULL;
   internal::Object** p = reinterpret_cast<internal::Object**>(that);
   return reinterpret_cast<T*>(
@@ -5731,7 +5833,7 @@ template <class T, class M>
 template <class S, class M2>
 void Persistent<T, M>::Copy(const Persistent<S, M2>& that) {
   TYPE_CHECK(T, S);
-  Reset();
+  this->Reset();
   if (that.IsEmpty()) return;
   internal::Object** p = reinterpret_cast<internal::Object**>(that.val_);
   this->val_ = reinterpret_cast<T*>(V8::CopyPersistent(p));
@@ -5739,8 +5841,8 @@ void Persistent<T, M>::Copy(const Persistent<S, M2>& that) {
 }
 
 
-template <class T, class M>
-bool Persistent<T, M>::IsIndependent() const {
+template <class T>
+bool PersistentBase<T>::IsIndependent() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
   return I::GetNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
@@ -5748,8 +5850,8 @@ bool Persistent<T, M>::IsIndependent() const {
 }
 
 
-template <class T, class M>
-bool Persistent<T, M>::IsNearDeath() const {
+template <class T>
+bool PersistentBase<T>::IsNearDeath() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
   uint8_t node_state =
@@ -5759,8 +5861,8 @@ bool Persistent<T, M>::IsNearDeath() const {
 }
 
 
-template <class T, class M>
-bool Persistent<T, M>::IsWeak() const {
+template <class T>
+bool PersistentBase<T>::IsWeak() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
   return I::GetNodeState(reinterpret_cast<internal::Object**>(this->val_)) ==
@@ -5768,17 +5870,17 @@ bool Persistent<T, M>::IsWeak() const {
 }
 
 
-template <class T, class M>
-void Persistent<T, M>::Reset() {
+template <class T>
+void PersistentBase<T>::Reset() {
   if (this->IsEmpty()) return;
   V8::DisposeGlobal(reinterpret_cast<internal::Object**>(this->val_));
   val_ = 0;
 }
 
 
-template <class T, class M>
+template <class T>
 template <class S>
-void Persistent<T, M>::Reset(Isolate* isolate, const Handle<S>& other) {
+void PersistentBase<T>::Reset(Isolate* isolate, const Handle<S>& other) {
   TYPE_CHECK(T, S);
   Reset();
   if (other.IsEmpty()) return;
@@ -5786,10 +5888,10 @@ void Persistent<T, M>::Reset(Isolate* isolate, const Handle<S>& other) {
 }
 
 
-template <class T,  class M>
-template <class S, class M2>
-void Persistent<T, M>::Reset(Isolate* isolate,
-                             const Persistent<S, M2>& other) {
+template <class T>
+template <class S>
+void PersistentBase<T>::Reset(Isolate* isolate,
+                              const PersistentBase<S>& other) {
   TYPE_CHECK(T, S);
   Reset();
   if (other.IsEmpty()) return;
@@ -5797,9 +5899,9 @@ void Persistent<T, M>::Reset(Isolate* isolate,
 }
 
 
-template <class T, class M>
+template <class T>
 template <typename S, typename P>
-void Persistent<T, M>::SetWeak(
+void PersistentBase<T>::SetWeak(
     P* parameter,
     typename WeakCallbackData<S, P>::Callback callback) {
   TYPE_CHECK(S, T);
@@ -5811,9 +5913,9 @@ void Persistent<T, M>::SetWeak(
 }
 
 
-template <class T, class M>
+template <class T>
 template <typename P>
-void Persistent<T, M>::SetWeak(
+void PersistentBase<T>::SetWeak(
     P* parameter,
     typename WeakCallbackData<T, P>::Callback callback) {
   SetWeak<T, P>(parameter, callback);
@@ -5843,14 +5945,14 @@ void Persistent<T, M>::MakeWeak(
 }
 
 
-template <class T, class M>
-void Persistent<T, M>::ClearWeak() {
+template <class T>
+void PersistentBase<T>::ClearWeak() {
   V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_));
 }
 
 
-template <class T, class M>
-void Persistent<T, M>::MarkIndependent() {
+template <class T>
+void PersistentBase<T>::MarkIndependent() {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
@@ -5859,8 +5961,8 @@ void Persistent<T, M>::MarkIndependent() {
 }
 
 
-template <class T, class M>
-void Persistent<T, M>::MarkPartiallyDependent() {
+template <class T>
+void PersistentBase<T>::MarkPartiallyDependent() {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
@@ -5872,14 +5974,14 @@ void Persistent<T, M>::MarkPartiallyDependent() {
 template <class T, class M>
 T* Persistent<T, M>::ClearAndLeak() {
   T* old;
-  old = val_;
-  val_ = NULL;
+  old = this->val_;
+  this->val_ = NULL;
   return old;
 }
 
 
-template <class T, class M>
-void Persistent<T, M>::SetWrapperClassId(uint16_t class_id) {
+template <class T>
+void PersistentBase<T>::SetWrapperClassId(uint16_t class_id) {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
   internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);
@@ -5888,8 +5990,8 @@ void Persistent<T, M>::SetWrapperClassId(uint16_t class_id) {
 }
 
 
-template <class T, class M>
-uint16_t Persistent<T, M>::WrapperClassId() const {
+template <class T>
+uint16_t PersistentBase<T>::WrapperClassId() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return 0;
   internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);

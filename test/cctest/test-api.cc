@@ -3299,6 +3299,73 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
 }
 
 
+template<class T>
+static v8::UniquePersistent<T> PassUnique(v8::UniquePersistent<T> unique) {
+  return unique.Pass();
+}
+
+
+template<class T>
+static v8::UniquePersistent<T> ReturnUnique(v8::Isolate* isolate,
+                                            const v8::Persistent<T> & global) {
+  v8::UniquePersistent<String> unique(isolate, global);
+  return unique.Pass();
+}
+
+
+THREADED_TEST(UniquePersistent) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Persistent<String> global;
+  {
+    v8::HandleScope scope(isolate);
+    global.Reset(isolate, v8_str("str"));
+  }
+  v8::internal::GlobalHandles* global_handles =
+      reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+  int initial_handle_count = global_handles->global_handles_count();
+  {
+    v8::UniquePersistent<String> unique(isolate, global);
+    CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+    // Test assignment via Pass
+    {
+      v8::UniquePersistent<String> copy = unique.Pass();
+      CHECK(unique.IsEmpty());
+      CHECK(copy == global);
+      CHECK_EQ(initial_handle_count + 1,
+               global_handles->global_handles_count());
+      unique = copy.Pass();
+    }
+    // Test ctor via Pass
+    {
+      v8::UniquePersistent<String> copy(unique.Pass());
+      CHECK(unique.IsEmpty());
+      CHECK(copy == global);
+      CHECK_EQ(initial_handle_count + 1,
+               global_handles->global_handles_count());
+      unique = copy.Pass();
+    }
+    // Test pass through function call
+    {
+      v8::UniquePersistent<String> copy = PassUnique(unique.Pass());
+      CHECK(unique.IsEmpty());
+      CHECK(copy == global);
+      CHECK_EQ(initial_handle_count + 1,
+               global_handles->global_handles_count());
+      unique = copy.Pass();
+    }
+    CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+  }
+  // Test pass from function call
+  {
+    v8::UniquePersistent<String> unique = ReturnUnique(isolate, global);
+    CHECK(unique == global);
+    CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+  }
+  CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
+  global.Reset();
+}
+
+
 THREADED_TEST(GlobalHandleUpcast) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
