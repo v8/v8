@@ -606,11 +606,7 @@ class StoreIC: public IC {
   }
 
   virtual Handle<Code> slow_stub() const {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_Slow_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_Slow();
-    }
+    return isolate()->builtins()->StoreIC_Slow();
   }
 
   virtual Handle<Code> pre_monomorphic_stub() {
@@ -723,11 +719,7 @@ class KeyedStoreIC: public StoreIC {
     }
   }
   virtual Handle<Code> slow_stub() const {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->KeyedStoreIC_Slow_Strict();
-    } else {
-      return isolate()->builtins()->KeyedStoreIC_Slow();
-    }
+    return isolate()->builtins()->KeyedStoreIC_Slow();
   }
   virtual Handle<Code> megamorphic_stub() {
     if (strict_mode() == kStrictMode) {

@@ -1633,7 +1633,8 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   Handle<JSObject> holder(lookup->holder());
-  StoreStubCompiler compiler(isolate(), strict_mode(), kind());
+  // Handlers do not use strict mode.
+  StoreStubCompiler compiler(isolate(), kNonStrictMode, kind());
   switch (lookup->type()) {
     case FIELD:
       return compiler.CompileStoreField(receiver, lookup, name);
@@ -1661,7 +1662,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
         Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
         Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
-        StoreGlobalStub stub(strict_mode(), union_type->IsConstant());
+        StoreGlobalStub stub(union_type->IsConstant());
 
         Handle<Code> code = stub.GetCodeCopyFromTemplate(
             isolate(), receiver->map(), *cell);
@@ -1670,9 +1671,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         return code;
       }
       ASSERT(holder.is_identical_to(receiver));
-      return strict_mode() == kStrictMode
-          ? isolate()->builtins()->StoreIC_Normal_Strict()
-          : isolate()->builtins()->StoreIC_Normal();
+      return isolate()->builtins()->StoreIC_Normal();
     case CALLBACKS: {
       if (kind() == Code::KEYED_STORE_IC) break;
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());

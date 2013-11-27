@@ -958,9 +958,8 @@ class LoadFieldStub: public HandlerStub {
 
 class StoreGlobalStub : public HandlerStub {
  public:
-  StoreGlobalStub(StrictModeFlag strict_mode, bool is_constant) {
-    bit_field_ = StrictModeBits::encode(strict_mode) |
-        IsConstantBits::encode(is_constant);
+  explicit StoreGlobalStub(bool is_constant) {
+    bit_field_ = IsConstantBits::encode(is_constant);
   }
 
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
@@ -1003,9 +1002,8 @@ class StoreGlobalStub : public HandlerStub {
   virtual int NotMissMinorKey() { return GetExtraICState(); }
   Major MajorKey() { return StoreGlobal; }
 
-  class StrictModeBits: public BitField<StrictModeFlag, 0, 1> {};
-  class IsConstantBits: public BitField<bool, 1, 1> {};
-  class RepresentationBits: public BitField<Representation::Kind, 2, 8> {};
+  class IsConstantBits: public BitField<bool, 0, 1> {};
+  class RepresentationBits: public BitField<Representation::Kind, 1, 8> {};
 
   int bit_field_;
 
