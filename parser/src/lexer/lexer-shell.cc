@@ -169,15 +169,15 @@ struct TokenWithLocation {
   Token::Value value;
   size_t beg;
   size_t end;
-  std::string ascii_literal;
-  std::wstring utf16_literal;
-  TokenWithLocation() : value(Token::ILLEGAL), beg(0), end(0) { }
+  std::vector<int> literal;
+  bool is_ascii;
+  TokenWithLocation() :
+      value(Token::ILLEGAL), beg(0), end(0), is_ascii(false) { }
   TokenWithLocation(Token::Value value, size_t beg, size_t end) :
-      value(value), beg(beg), end(end) { }
+      value(value), beg(beg), end(end), is_ascii(false) { }
   bool operator==(const TokenWithLocation& other) {
     return value == other.value && beg == other.beg && end == other.end &&
-           ascii_literal == other.ascii_literal &&
-           utf16_literal == other.utf16_literal;
+           literal == other.literal && is_ascii == other.is_ascii;
   }
   bool operator!=(const TokenWithLocation& other) {
     return !(*this == other);
@@ -186,14 +186,9 @@ struct TokenWithLocation {
     printf("%s %11s at (%d, %d)",
            prefix, Token::Name(value),
            static_cast<int>(beg), static_cast<int>(end));
-    if (ascii_literal.size() > 0) {
-      for (size_t i = 0; i < ascii_literal.size(); i++) {
-        printf(" %02x", static_cast<int>(ascii_literal[i]));
-      }
-    }
-    if (utf16_literal.size() > 0) {
-      for (size_t i = 0; i < utf16_literal.size(); i++) {
-        printf(" %04x", static_cast<int>(utf16_literal[i]));
+    if (literal.size() > 0) {
+      for (size_t i = 0; i < literal.size(); i++) {
+        printf(is_ascii ? " %02x" : " %04x", literal[i]);
       }
     }
     printf("\n");
@@ -208,14 +203,13 @@ bool HasLiteral(Token::Value token) {
 }
 
 
-std::string ToStdString(const Vector<const char>& literal) {
-  return std::string(literal.start(), literal.length());
-}
-
-
-std::wstring ToStdWString(const Vector<const uint16_t>& literal) {
-  return std::wstring(reinterpret_cast<const wchar_t*>(literal.start()),
-                      literal.length());
+template<typename Char>
+std::vector<int> ToStdVector(const Vector<Char>& literal) {
+  std::vector<int> result;
+  for (int i = 0; i < literal.length(); i++) {
+    result.push_back(literal[i]);
+  }
+  return result;
 }
 
 
@@ -225,10 +219,11 @@ TokenWithLocation GetTokenWithLocation(Scanner *scanner, Token::Value token) {
   int end = scanner->location().end_pos;
   TokenWithLocation result(token, beg, end);
   if (HasLiteral(token)) {
+    result.is_ascii = scanner->is_literal_ascii();
     if (scanner->is_literal_ascii()) {
-      result.ascii_literal = ToStdString(scanner->literal_ascii_string());
+      result.literal = ToStdVector(scanner->literal_ascii_string());
     } else {
-      result.utf16_literal = ToStdWString(scanner->literal_utf16_string());
+      result.literal = ToStdVector(scanner->literal_utf16_string());
     }
   }
   return result;

@@ -189,6 +189,7 @@ identifier_start <|token(IDENTIFIER)|Identifier>
   if (V8_UNLIKELY(!ValidIdentifierStart())) {
     goto default_action;
   }
+  next_.has_escapes = true;
 }|token(IDENTIFIER)|Identifier>
 
 eos             <|terminate|>
