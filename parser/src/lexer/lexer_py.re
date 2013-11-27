@@ -196,9 +196,9 @@ default_action  <do_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
 "\\" line_terminator_sequence <||continue>
-/\\[x][:hex_digit:]{2}/       <||continue>
-/\\[u][:hex_digit:]{4}/       <||continue>
-/\\[^xu:line_terminator:]/    <||continue>
+/\\[x][:hex_digit:]{2}/       <set_has_escapes||continue>
+/\\[u][:hex_digit:]{4}/       <set_has_escapes||continue>
+/\\[^xu:line_terminator:]/    <set_has_escapes||continue>
 "\\"                          <|token(ILLEGAL)|>
 line_terminator               <|token(ILLEGAL)|>
 "\""                          <|token(STRING)|>
@@ -208,9 +208,9 @@ catch_all                     <||continue>
 <<SingleQuoteString>>
 # TODO subgraph for '\'
 "\\" line_terminator_sequence <||continue>
-/\\[x][:hex_digit:]{2}/       <||continue>
-/\\[u][:hex_digit:]{4}/       <||continue>
-/\\[^xu:line_terminator:]/    <||continue>
+/\\[x][:hex_digit:]{2}/       <set_has_escapes||continue>
+/\\[u][:hex_digit:]{4}/       <set_has_escapes||continue>
+/\\[^xu:line_terminator:]/    <set_has_escapes||continue>
 "\\"                          <|token(ILLEGAL)|>
 line_terminator               <|token(ILLEGAL)|>
 "'"                           <|token(STRING)|>
@@ -223,6 +223,7 @@ identifier_char <|token(IDENTIFIER)|continue>
   if (V8_UNLIKELY(!ValidIdentifierPart())) {
     goto default_action;
   }
+  next_.has_escapes = true;
 }|token(IDENTIFIER)|continue>
 
 <<SingleLineComment>>

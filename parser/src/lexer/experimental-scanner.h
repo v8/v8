@@ -188,8 +188,9 @@ class ScannerBase {
   // we need to decide if pos is counted in characters or in bytes.
   virtual void SeekForward(int pos) = 0;
 
-  // Scans the input as a regular expression pattern, previous
-  // character(s) must be /(=). Returns true if a pattern is scanned.
+  // Scans the input as a regular expression pattern, previous character(s) must
+  // be /(=). Returns true if a pattern is scanned. FIXME: this won't work for
+  // utf-8 newlines.
   virtual bool ScanRegExpPattern(bool seen_equal) = 0;
   // Returns true if regexp flags are scanned (always since flags can
   // be empty).
@@ -200,6 +201,7 @@ class ScannerBase {
     Token::Value token;
     int beg_pos;
     int end_pos;
+    bool has_escapes;
   };
 
   virtual void Scan() = 0;

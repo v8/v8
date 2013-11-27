@@ -113,6 +113,8 @@
     goto code_after_entry_{{value[3]}};
   {% elif type == 'set_marker' %}
     marker_ = cursor_ - {{value}};
+  {% elif type == 'set_has_escapes' %}
+    next_.has_escapes = true;
   {% else %}
     uncompilable code for {{type}}
   {% endif -%}
@@ -286,6 +288,7 @@ namespace v8 {
 namespace internal {
 template<>
 void ExperimentalScanner<{{char_type}}>::Scan() {
+  next_.has_escapes = false;
   // Setup environment.
   Token::Value stored_token;
   {{char_type}} primary_char;
