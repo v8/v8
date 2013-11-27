@@ -334,6 +334,8 @@
         '../../src/execution.h',
         '../../src/extensions/externalize-string-extension.cc',
         '../../src/extensions/externalize-string-extension.h',
+        '../../src/extensions/free-buffer-extension.cc',
+        '../../src/extensions/free-buffer-extension.h',
         '../../src/extensions/gc-extension.cc',
         '../../src/extensions/gc-extension.h',
         '../../src/extensions/statistics-extension.cc',

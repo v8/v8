@@ -41,6 +41,7 @@
 #include "platform.h"
 #include "snapshot.h"
 #include "trig-table.h"
+#include "extensions/free-buffer-extension.h"
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
 #include "extensions/statistics-extension.h"
@@ -100,6 +101,9 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
 
 
 void Bootstrapper::InitializeOncePerProcess() {
+#ifdef ADDRESS_SANITIZER
+  FreeBufferExtension::Register();
+#endif
   GCExtension::Register();
   ExternalizeStringExtension::Register();
   StatisticsExtension::Register();
@@ -2278,6 +2282,11 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
     current = current->next();
   }
 
+#ifdef ADDRESS_SANITIZER
+  if (FLAG_expose_free_buffer) {
+    InstallExtension(isolate, "v8/free-buffer", &extension_states);
+  }
+#endif
   if (FLAG_expose_gc) InstallExtension(isolate, "v8/gc", &extension_states);
   if (FLAG_expose_externalize_string) {
     InstallExtension(isolate, "v8/externalize", &extension_states);
