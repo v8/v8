@@ -169,21 +169,70 @@ struct TokenWithLocation {
   Token::Value value;
   size_t beg;
   size_t end;
+  std::string ascii_literal;
+  std::wstring utf16_literal;
   TokenWithLocation() : value(Token::ILLEGAL), beg(0), end(0) { }
   TokenWithLocation(Token::Value value, size_t beg, size_t end) :
       value(value), beg(beg), end(end) { }
   bool operator==(const TokenWithLocation& other) {
-    return value == other.value && beg == other.beg && end == other.end;
+    return value == other.value && beg == other.beg && end == other.end &&
+           ascii_literal == other.ascii_literal &&
+           utf16_literal == other.utf16_literal;
   }
   bool operator!=(const TokenWithLocation& other) {
     return !(*this == other);
   }
   void Print(const char* prefix) const {
-    printf("%s %11s at (%d, %d)\n",
+    printf("%s %11s at (%d, %d)",
            prefix, Token::Name(value),
            static_cast<int>(beg), static_cast<int>(end));
+    if (ascii_literal.size() > 0) {
+      for (size_t i = 0; i < ascii_literal.size(); i++) {
+        printf(" %02x", static_cast<int>(ascii_literal[i]));
+      }
+    }
+    if (utf16_literal.size() > 0) {
+      for (size_t i = 0; i < utf16_literal.size(); i++) {
+        printf(" %04x", static_cast<int>(utf16_literal[i]));
+      }
+    }
+    printf("\n");
   }
 };
+
+
+bool HasLiteral(Token::Value token) {
+  return token == Token::IDENTIFIER ||
+         token == Token::STRING ||
+         token == Token::NUMBER;
+}
+
+
+std::string ToStdString(const Vector<const char>& literal) {
+  return std::string(literal.start(), literal.length());
+}
+
+
+std::wstring ToStdWString(const Vector<const uint16_t>& literal) {
+  return std::wstring(reinterpret_cast<const wchar_t*>(literal.start()),
+                      literal.length());
+}
+
+
+template<typename Scanner>
+TokenWithLocation GetTokenWithLocation(Scanner *scanner, Token::Value token) {
+  int beg = scanner->location().beg_pos;
+  int end = scanner->location().end_pos;
+  TokenWithLocation result(token, beg, end);
+  if (HasLiteral(token)) {
+    if (scanner->is_literal_ascii()) {
+      result.ascii_literal = ToStdString(scanner->literal_ascii_string());
+    } else {
+      result.utf16_literal = ToStdWString(scanner->literal_utf16_string());
+    }
+  }
+  return result;
+}
 
 
 TimeDelta RunBaselineScanner(const char* fname,
@@ -197,13 +246,10 @@ TimeDelta RunBaselineScanner(const char* fname,
   BaselineScanner scanner(
       fname, isolate, encoding, &timer, repeat, harmony_settings);
   Token::Value token;
-  int beg, end;
   do {
     token = scanner.scanner_->Next();
-    beg = scanner.scanner_->location().beg_pos;
-    end = scanner.scanner_->location().end_pos;
     if (dump_tokens) {
-      tokens->push_back(TokenWithLocation(token, beg, end));
+      tokens->push_back(GetTokenWithLocation(scanner.scanner_, token));
     }
   } while (token != Token::EOS);
   return timer.Elapsed();
@@ -226,13 +272,10 @@ TimeDelta RunExperimentalScanner(Handle<String> source,
   scanner.SetHarmonyScoping(harmony_settings.scoping);
 
   Token::Value token;
-  int beg, end;
   do {
     token = scanner.Next();
-    beg = scanner.location().beg_pos;
-    end = scanner.location().end_pos;
     if (dump_tokens) {
-      tokens->push_back(TokenWithLocation(token, beg, end));
+      tokens->push_back(GetTokenWithLocation(&scanner, token));
     }
   } while (token != Token::EOS);
   return timer.Elapsed();

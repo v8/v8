@@ -39,7 +39,7 @@ namespace internal {
 // Common base class shared between parser and pre-parser.
 class ParserBase {
  public:
-  ParserBase(Scanner* scanner, uintptr_t stack_limit)
+  ParserBase(ScannerBase* scanner, uintptr_t stack_limit)
       : scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
@@ -77,7 +77,7 @@ class ParserBase {
   }
 
  protected:
-  Scanner* scanner() const { return scanner_; }
+  ScannerBase* scanner() const { return scanner_; }
   int position() { return scanner_->location().beg_pos; }
   int peek_position() { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
@@ -139,7 +139,7 @@ class ParserBase {
 
   // Report syntax errors.
   virtual void ReportUnexpectedToken(Token::Value token) = 0;
-  virtual void ReportMessageAt(Scanner::Location loc, const char* type) = 0;
+  virtual void ReportMessageAt(ScannerBase::Location loc, const char* type) = 0;
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -174,7 +174,7 @@ class ParserBase {
 
    private:
     ParserBase* parser() const { return parser_; }
-    Scanner* scanner() const { return parser_->scanner(); }
+    ScannerBase* scanner() const { return parser_->scanner(); }
 
     // Checks the type of conflict based on values coming from PropertyType.
     bool HasConflict(PropertyKind type1, PropertyKind type2) {
@@ -195,8 +195,9 @@ class ParserBase {
     LanguageMode language_mode_;
   };
 
+  ScannerBase* scanner_;
+
  private:
-  Scanner* scanner_;
   uintptr_t stack_limit_;
   bool stack_overflow_;
 
@@ -226,13 +227,13 @@ class PreParser : public ParserBase {
     kPreParseSuccess
   };
 
-  PreParser(Scanner* scanner,
+  PreParser(ScannerBase* scanner,
             ParserRecorder* log,
             uintptr_t stack_limit)
       : ParserBase(scanner, stack_limit),
         log_(log),
         scope_(NULL),
-        strict_mode_violation_location_(Scanner::Location::invalid()),
+        strict_mode_violation_location_(ScannerBase::Location::invalid()),
         strict_mode_violation_type_(NULL),
         parenthesized_function_(false) { }
 
@@ -576,10 +577,10 @@ class PreParser : public ParserBase {
 
   // Report syntax error
   void ReportUnexpectedToken(Token::Value token);
-  void ReportMessageAt(Scanner::Location location, const char* type) {
+  void ReportMessageAt(ScannerBase::Location location, const char* type) {
     ReportMessageAt(location, type, NULL);
   }
-  void ReportMessageAt(Scanner::Location location,
+  void ReportMessageAt(ScannerBase::Location location,
                        const char* type,
                        const char* name_opt) {
     log_->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
@@ -670,20 +671,20 @@ class PreParser : public ParserBase {
 
   bool CheckInOrOf(bool accept_OF);
 
-  void SetStrictModeViolation(Scanner::Location,
+  void SetStrictModeViolation(ScannerBase::Location,
                               const char* type,
                               bool* ok);
 
   void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
 
-  void StrictModeIdentifierViolation(Scanner::Location,
+  void StrictModeIdentifierViolation(ScannerBase::Location,
                                      const char* eval_args_type,
                                      Identifier identifier,
                                      bool* ok);
 
   ParserRecorder* log_;
   Scope* scope_;
-  Scanner::Location strict_mode_violation_location_;
+  ScannerBase::Location strict_mode_violation_location_;
   const char* strict_mode_violation_type_;
   bool parenthesized_function_;
 };

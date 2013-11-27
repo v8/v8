@@ -104,7 +104,7 @@ class ScriptDataImpl : public ScriptData {
   int GetSymbolIdentifier();
   bool SanityCheck();
 
-  Scanner::Location MessageLocation();
+  ScannerBase::Location MessageLocation();
   const char* BuildMessage();
   Vector<const char*> BuildArgs();
 
@@ -414,6 +414,8 @@ class Parser : public ParserBase {
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
+    delete scanner_;
+    scanner_ = NULL;
   }
 
   // Parses the source code represented by the compilation info and sets its
@@ -523,7 +525,7 @@ class Parser : public ParserBase {
   FunctionLiteral* ParseProgram();
 
   FunctionLiteral* ParseLazy();
-  FunctionLiteral* ParseLazy(Utf16CharacterStream* source);
+  FunctionLiteral* ParseLazy(Handle<String> source, int start, int end);
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
@@ -538,13 +540,13 @@ class Parser : public ParserBase {
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
   void ReportMessage(const char* message, Vector<const char*> args);
   void ReportMessage(const char* message, Vector<Handle<String> > args);
-  void ReportMessageAt(Scanner::Location location, const char* type) {
+  void ReportMessageAt(ScannerBase::Location location, const char* type) {
     ReportMessageAt(location, type, Vector<const char*>::empty());
   }
-  void ReportMessageAt(Scanner::Location loc,
+  void ReportMessageAt(ScannerBase::Location loc,
                        const char* message,
                        Vector<const char*> args);
-  void ReportMessageAt(Scanner::Location loc,
+  void ReportMessageAt(ScannerBase::Location loc,
                        const char* message,
                        Vector<Handle<String> > args);
 
@@ -554,7 +556,7 @@ class Parser : public ParserBase {
   }
 
   bool inside_with() const { return top_scope_->inside_with(); }
-  Scanner& scanner()  { return scanner_; }
+  ScannerBase& scanner()  { return *scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   bool is_extended_mode() {
@@ -763,7 +765,6 @@ class Parser : public ParserBase {
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
-  Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* top_scope_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval

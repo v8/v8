@@ -62,5 +62,100 @@ const int8_t* ExperimentalScanner<int8_t>::GetNewBufferBasedOnHandle() const {
   return reinterpret_cast<const int8_t*>(content.ToOneByteVector().start());
 }
 
+
+template<>
+bool ExperimentalScanner<uint8_t>::FillLiteral(
+    const TokenDesc& token, LiteralDesc* literal) {
+  literal->beg_pos = token.beg_pos;
+  const uint8_t* start = buffer_ + token.beg_pos;
+  const uint8_t* end = buffer_ + token.end_pos;
+  if (token.token == Token::STRING) {
+    ++start;
+    --end;
+  }
+  if (!token.has_escapes) {
+    literal->is_ascii = true;
+    literal->length = end - start;
+    literal->ascii_string = Vector<const char>(
+        reinterpret_cast<const char*>(start), literal->length);
+    return true;
+  }
+  literal->buffer.Reset();
+  for (const uint8_t* cursor = start; cursor != end;) {
+    if (*cursor != '\\') {
+      literal->buffer.AddChar(*cursor++);
+    } else if (token.token == Token::IDENTIFIER) {
+      uc32 c;
+      cursor = ScanIdentifierUnicodeEscape(cursor, end, &c);
+      ASSERT(cursor != NULL);
+      if (cursor == NULL) return false;
+      literal->buffer.AddChar(c);
+    } else {
+      cursor = ScanEscape(cursor, end, &literal->buffer);
+      ASSERT(cursor != NULL);
+      if (cursor == NULL) return false;
+    }
+  }
+  literal->is_ascii = literal->buffer.is_ascii();
+  literal->length = literal->buffer.length();
+  if (literal->is_ascii) {
+    literal->ascii_string = literal->buffer.ascii_literal();
+  } else {
+    literal->utf16_string = literal->buffer.utf16_literal();
+  }
+  return true;
+}
+
+
+template<>
+bool ExperimentalScanner<uint16_t>::FillLiteral(
+    const TokenDesc& token, LiteralDesc* literal) {
+  literal->beg_pos = token.beg_pos;
+  const uint16_t* start = buffer_ + token.beg_pos;
+  const uint16_t* end = buffer_ + token.end_pos;
+  if (token.token == Token::STRING) {
+    ++start;
+    --end;
+  }
+  if (!token.has_escapes) {
+    literal->is_ascii = false;  // FIXME: utf16 can contain only ascii chars.
+    literal->length = end - start;
+    literal->utf16_string = Vector<const uint16_t>(start, literal->length);
+    return true;
+  }
+  literal->buffer.Reset();
+  for (const uint16_t* cursor = start; cursor != end;) {
+    if (*cursor != '\\') {
+      literal->buffer.AddChar(*cursor++);
+    } else if (token.token == Token::IDENTIFIER) {
+      uc32 c;
+      cursor = ScanIdentifierUnicodeEscape(cursor, end, &c);
+      ASSERT(cursor != NULL);
+      if (cursor == NULL) return false;
+      literal->buffer.AddChar(c);
+    } else {
+      cursor = ScanEscape(cursor, end, &literal->buffer);
+      ASSERT(cursor != NULL);
+      if (cursor == NULL) return false;
+    }
+  }
+  literal->is_ascii = literal->buffer.is_ascii();
+  literal->length = literal->buffer.length();
+  if (literal->is_ascii) {
+    literal->ascii_string = literal->buffer.ascii_literal();
+  } else {
+    literal->utf16_string = literal->buffer.utf16_literal();
+  }
+  return true;
+}
+
+template<>
+bool ExperimentalScanner<int8_t>::FillLiteral(
+    const TokenDesc& token, LiteralDesc* literal) {
+  // FIXME: implement.
+  return false;
+}
+
+
 }
 }

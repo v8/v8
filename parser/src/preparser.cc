@@ -104,7 +104,7 @@ void PreParser::ReportUnexpectedToken(Token::Value token) {
   if (token == Token::ILLEGAL && stack_overflow()) {
     return;
   }
-  Scanner::Location source_location = scanner()->location();
+  ScannerBase::Location source_location = scanner()->location();
 
   // Four of the tokens are treated specially
   switch (token) {
@@ -262,9 +262,9 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       return ParseTryStatement(ok);
 
     case Token::FUNCTION: {
-      Scanner::Location start_location = scanner()->peek_location();
+      ScannerBase::Location start_location = scanner()->peek_location();
       Statement statement = ParseFunctionDeclaration(CHECK_OK);
-      Scanner::Location end_location = scanner()->location();
+      ScannerBase::Location end_location = scanner()->location();
       if (!is_classic_mode()) {
         ReportMessageAt(start_location.beg_pos, end_location.end_pos,
                         "strict_function", NULL);
@@ -294,7 +294,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
 
   bool is_generator = allow_generators() && Check(Token::MUL);
   Identifier identifier = ParseIdentifier(CHECK_OK);
-  Scanner::Location location = scanner()->location();
+  ScannerBase::Location location = scanner()->location();
 
   Expression function_value = ParseFunctionLiteral(is_generator, CHECK_OK);
 
@@ -390,7 +390,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       case CLASSIC_MODE:
         break;
       case STRICT_MODE: {
-        Scanner::Location location = scanner()->peek_location();
+        ScannerBase::Location location = scanner()->peek_location();
         ReportMessageAt(location, "strict_const", NULL);
         *ok = false;
         return Statement::Default();
@@ -398,7 +398,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       case EXTENDED_MODE:
         if (var_context != kSourceElement &&
             var_context != kForStatement) {
-          Scanner::Location location = scanner()->peek_location();
+          ScannerBase::Location location = scanner()->peek_location();
           ReportMessageAt(location.beg_pos, location.end_pos,
                           "unprotected_const", NULL);
           *ok = false;
@@ -415,7 +415,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // * It is a Syntax Error if the code that matches this production is not
     //   contained in extended code.
     if (!is_extended_mode()) {
-      Scanner::Location location = scanner()->peek_location();
+      ScannerBase::Location location = scanner()->peek_location();
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "illegal_let", NULL);
       *ok = false;
@@ -424,7 +424,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     Consume(Token::LET);
     if (var_context != kSourceElement &&
         var_context != kForStatement) {
-      Scanner::Location location = scanner()->peek_location();
+      ScannerBase::Location location = scanner()->peek_location();
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "unprotected_let", NULL);
       *ok = false;
@@ -571,7 +571,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   //   'with' '(' Expression ')' Statement
   Expect(Token::WITH, CHECK_OK);
   if (!is_classic_mode()) {
-    Scanner::Location location = scanner()->location();
+    ScannerBase::Location location = scanner()->location();
     ReportMessageAt(location, "strict_mode_with", NULL);
     *ok = false;
     return Statement::Default();
@@ -716,7 +716,7 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
 
   Expect(Token::THROW, CHECK_OK);
   if (scanner()->HasAnyLineTerminatorBeforeNext()) {
-    Scanner::Location pos = scanner()->location();
+    ScannerBase::Location pos = scanner()->location();
     ReportMessageAt(pos, "newline_after_throw", NULL);
     *ok = false;
     return Statement::Default();
@@ -825,7 +825,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
     return ParseYieldExpression(ok);
   }
 
-  Scanner::Location before = scanner()->peek_location();
+  ScannerBase::Location before = scanner()->peek_location();
   Expression expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (!Token::IsAssignmentOp(peek())) {
@@ -836,7 +836,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
   if (!is_classic_mode() &&
       expression.IsIdentifier() &&
       expression.AsIdentifier().IsEvalOrArguments()) {
-    Scanner::Location after = scanner()->location();
+    ScannerBase::Location after = scanner()->location();
     ReportMessageAt(before.beg_pos, after.end_pos,
                     "strict_lhs_assignment", NULL);
     *ok = false;
@@ -925,12 +925,12 @@ PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
     return Expression::Default();
   } else if (Token::IsCountOp(op)) {
     op = Next();
-    Scanner::Location before = scanner()->peek_location();
+    ScannerBase::Location before = scanner()->peek_location();
     Expression expression = ParseUnaryExpression(CHECK_OK);
     if (!is_classic_mode() &&
         expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
-      Scanner::Location after = scanner()->location();
+      ScannerBase::Location after = scanner()->location();
       ReportMessageAt(before.beg_pos, after.end_pos,
                       "strict_lhs_prefix", NULL);
       *ok = false;
@@ -946,14 +946,14 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
-  Scanner::Location before = scanner()->peek_location();
+  ScannerBase::Location before = scanner()->peek_location();
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
     if (!is_classic_mode() &&
         expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
-      Scanner::Location after = scanner()->location();
+      ScannerBase::Location after = scanner()->location();
       ReportMessageAt(before.beg_pos, after.end_pos,
                       "strict_lhs_postfix", NULL);
       *ok = false;
@@ -1493,7 +1493,7 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
   Token::Value next = Next();
   switch (next) {
     case Token::FUTURE_RESERVED_WORD: {
-      Scanner::Location location = scanner()->location();
+      ScannerBase::Location location = scanner()->location();
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "reserved_word", NULL);
       *ok = false;
@@ -1509,7 +1509,7 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
       // FALLTHROUGH
     case Token::FUTURE_STRICT_RESERVED_WORD:
       if (!is_classic_mode()) {
-        Scanner::Location location = scanner()->location();
+        ScannerBase::Location location = scanner()->location();
         ReportMessageAt(location.beg_pos, location.end_pos,
                         "strict_reserved_word", NULL);
         *ok = false;
@@ -1524,7 +1524,7 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
 }
 
 
-void PreParser::SetStrictModeViolation(Scanner::Location location,
+void PreParser::SetStrictModeViolation(ScannerBase::Location location,
                                        const char* type,
                                        bool* ok) {
   if (!is_classic_mode()) {
@@ -1548,7 +1548,7 @@ void PreParser::SetStrictModeViolation(Scanner::Location location,
 void PreParser::CheckDelayedStrictModeViolation(int beg_pos,
                                                 int end_pos,
                                                 bool* ok) {
-  Scanner::Location location = strict_mode_violation_location_;
+  ScannerBase::Location location = strict_mode_violation_location_;
   if (location.IsValid() &&
       location.beg_pos > beg_pos && location.end_pos < end_pos) {
     ReportMessageAt(location, strict_mode_violation_type_, NULL);
@@ -1557,7 +1557,7 @@ void PreParser::CheckDelayedStrictModeViolation(int beg_pos,
 }
 
 
-void PreParser::StrictModeIdentifierViolation(Scanner::Location location,
+void PreParser::StrictModeIdentifierViolation(ScannerBase::Location location,
                                               const char* eval_args_type,
                                               Identifier identifier,
                                               bool* ok) {

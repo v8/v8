@@ -36,6 +36,7 @@
 #include "token.h"
 #include "utils.h"
 #include "v8stdint.h"
+#include "char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -64,6 +65,9 @@ class ScannerBase {
     : isolate_(isolate),
       unicode_cache_(isolate->unicode_cache()),
       has_line_terminator_before_next_(true),
+      current_literal_(&literals_[0]),
+      next_literal_(&literals_[1]),
+      octal_pos_(Location::invalid()),
       harmony_numeric_literals_(false),
       harmony_modules_(false),
       harmony_scoping_(false) {
@@ -89,6 +93,7 @@ class ScannerBase {
   Token::Value Next() {
     has_line_terminator_before_next_ = false;
     current_ = next_;
+    std::swap(current_literal_, next_literal_);
     Scan();  // Virtual! Will fill in next_.
     return current_.token;
   }
@@ -138,48 +143,83 @@ class ScannerBase {
     // multiline comments? Atm doesn't look like we need to.
   }
 
-  // FIXME: implement these
   Vector<const char> literal_ascii_string() {
-    return Vector<const char>();  // FIXME
+    if (!current_literal_->Valid(current_.beg_pos)) {
+      FillLiteral(current_, current_literal_);
+    }
+    return current_literal_->ascii_string;
   }
+
   Vector<const uc16> literal_utf16_string() {
-    return Vector<const uc16>();  // FIXME
+    if (!current_literal_->Valid(current_.beg_pos)) {
+      FillLiteral(current_, current_literal_);
+    }
+    return current_literal_->utf16_string;
   }
+
+  int literal_length() {
+    if (!current_literal_->Valid(current_.beg_pos)) {
+      FillLiteral(current_, current_literal_);
+    }
+    return current_literal_->length;
+  }
+
   bool is_literal_ascii() {
-    return true;  // FIXME
+    if (!current_literal_->Valid(current_.beg_pos)) {
+      FillLiteral(current_, current_literal_);
+    }
+    return current_literal_->is_ascii;
   }
+
   bool is_literal_contextual_keyword(Vector<const char> keyword) {
-    return false;  // FIXME
+    if (!is_literal_ascii()) return false;
+    Vector<const char> literal = literal_ascii_string();
+    return literal.length() == keyword.length() &&
+        (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
-  int literal_length() const {
-    return 0;  // FIXME
-  }
+
   bool literal_contains_escapes() const {
-    return false;  // FIXME
+    return current_.has_escapes;
   }
 
   Vector<const char> next_literal_ascii_string() {
-    return Vector<const char>();  // FIXME
+    if (!next_literal_->Valid(next_.beg_pos)) {
+      FillLiteral(next_, next_literal_);
+    }
+    return next_literal_->ascii_string;
   }
+
   Vector<const uc16> next_literal_utf16_string() {
-    return Vector<const uc16>();  // FIXME
+    if (!next_literal_->Valid(next_.beg_pos)) {
+      FillLiteral(next_, next_literal_);
+    }
+    return next_literal_->utf16_string;
   }
+
+  int next_literal_length() {
+    if (!next_literal_->Valid(next_.beg_pos)) {
+      FillLiteral(next_, next_literal_);
+    }
+    return next_literal_->length;
+  }
+
   bool is_next_literal_ascii() {
-    return true;  // FIXME
+    if (!next_literal_->Valid(next_.beg_pos)) {
+      FillLiteral(next_, next_literal_);
+    }
+    return next_literal_->is_ascii;
   }
+
   bool is_next_contextual_keyword(Vector<const char> keyword) {
-    return false;  // FIXME
-  }
-  int next_literal_length() const {
-    return 0;  // FIXME
+    if (!is_next_literal_ascii()) return false;
+    Vector<const char> literal = next_literal_ascii_string();
+    return literal.length() == keyword.length() &&
+        (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
 
-  uc32 ScanOctalEscape(uc32 c, int length) { return 0; }  // FIXME
-
-  Location octal_position() const {
-    return Location(0, 0);  // FIXME
-  }
-  void clear_octal_position() { }  // FIXME
+  // Returns the location of the last seen octal literal.
+  Location octal_position() const { return octal_pos_; }
+  void clear_octal_position() { octal_pos_ = Location::invalid(); }
 
   // Seek forward to the given position. This operation works for simple cases
   // such as seeking forward until simple delimiter tokens, which is what it is
@@ -187,6 +227,7 @@ class ScannerBase {
   // the "next" token. The "current" token will be invalid. FIXME: for utf-8,
   // we need to decide if pos is counted in characters or in bytes.
   virtual void SeekForward(int pos) = 0;
+  virtual void SetEnd(int pos) = 0;
 
   // Scans the input as a regular expression pattern, previous character(s) must
   // be /(=). Returns true if a pattern is scanned. FIXME: this won't work for
@@ -204,10 +245,21 @@ class ScannerBase {
     bool has_escapes;
   };
 
+  struct LiteralDesc {
+    int beg_pos;
+    bool is_ascii;
+    int length;
+    Vector<const char> ascii_string;
+    Vector<const uc16> utf16_string;
+    LiteralBuffer buffer;
+    bool Valid(int pos) { return beg_pos == pos; }
+  };
+
   virtual void Scan() = 0;
   virtual void SetBufferBasedOnHandle() = 0;
 
   static void UpdateBuffersAfterGC(v8::Isolate*, GCType, GCCallbackFlags);
+  virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal) = 0;
 
   Isolate* isolate_;
   UnicodeCache* unicode_cache_;
@@ -216,6 +268,12 @@ class ScannerBase {
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
+
+  LiteralDesc* current_literal_;
+  LiteralDesc* next_literal_;
+  LiteralDesc literals_[2];
+
+  Location octal_pos_;
 
   bool harmony_numeric_literals_;
   bool harmony_modules_;
@@ -246,8 +304,10 @@ class ExperimentalScanner : public ScannerBase {
 
   virtual ~ExperimentalScanner() { }
 
+ protected:
   virtual void Scan();
   virtual void SeekForward(int pos);
+  virtual void SetEnd(int pos);
   virtual bool ScanRegExpPattern(bool seen_equal);
   virtual bool ScanRegExpFlags();
 
@@ -270,6 +330,8 @@ class ExperimentalScanner : public ScannerBase {
 
   const Char* GetNewBufferBasedOnHandle() const;
 
+  virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal);
+
  private:
   bool ValidIdentifierPart() {
       return unicode_cache_->IsIdentifierPart(ScanHexNumber(4));
@@ -281,6 +343,19 @@ class ExperimentalScanner : public ScannerBase {
 
   uc32 ScanHexNumber(int length);
   bool ScanLiteralUnicodeEscape();
+
+  const Char* ScanHexNumber(const Char* start,
+                            const Char* end,
+                            uc32* result);
+  const Char* ScanOctalEscape(const Char* start,
+                              const Char* end,
+                              uc32* result);
+  const Char* ScanIdentifierUnicodeEscape(const Char* start,
+                                          const Char* end,
+                                          uc32* result);
+  const Char* ScanEscape(const Char* start,
+                         const Char* end,
+                         LiteralBuffer* literal);
 
   Handle<String> source_handle_;
   const Char* buffer_;
@@ -298,6 +373,12 @@ void ExperimentalScanner<Char>::SeekForward(int pos) {
   marker_ = cursor_;
   has_line_terminator_before_next_ = false;
   Scan();  // Fills in next_.
+}
+
+
+template<typename Char>
+void ExperimentalScanner<Char>::SetEnd(int pos) {
+  buffer_end_ = buffer_ + pos;
 }
 
 
@@ -360,6 +441,7 @@ bool ExperimentalScanner<Char>::ScanRegExpFlags() {
   return true;
 }
 
+
 template<typename Char>
 uc32 ExperimentalScanner<Char>::ScanHexNumber(int length) {
   // We have seen \uXXXX, let's see what it is.
@@ -373,6 +455,51 @@ uc32 ExperimentalScanner<Char>::ScanHexNumber(int length) {
   }
   return x;
 }
+
+
+template<typename Char>
+const Char* ExperimentalScanner<Char>::ScanHexNumber(
+    const Char* cursor, const Char* end, uc32* result) {
+  uc32 x = 0;
+  for ( ; cursor < end; ++cursor) {
+    int d = HexValue(*cursor);
+    if (d < 0) {
+      *result = -1;
+      return NULL;
+    }
+    x = x * 16 + d;
+  }
+  *result = x;
+  return cursor;
+}
+
+
+// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
+// ECMA-262. Other JS VMs support them.
+template<typename Char>
+const Char* ExperimentalScanner<Char>::ScanOctalEscape(
+    const Char* start, const Char* end, uc32* result) {
+  uc32 x = *result - '0';
+  const Char* cursor;
+  for (cursor = start; cursor < end; cursor++) {
+    int d = *cursor - '0';
+    if (d < 0 || d > 7) break;
+    int nx = x * 8 + d;
+    if (nx >= 256) break;
+    x = nx;
+  }
+  // Anything except '\0' is an octal escape sequence, illegal in strict mode.
+  // Remember the position of octal escape sequences so that an error
+  // can be reported later (in strict mode).
+  // We don't report the error immediately, because the octal escape can
+  // occur before the "use strict" directive.
+  if (*result != '0' || cursor > start) {
+    octal_pos_ = Location(start - 1 - buffer_, cursor - 1 - buffer_);
+  }
+  *result = x;
+  return cursor;
+}
+
 
 template<typename Char>
 bool ExperimentalScanner<Char>::ScanLiteralUnicodeEscape() {
@@ -392,6 +519,78 @@ bool ExperimentalScanner<Char>::ScanLiteralUnicodeEscape() {
     }
   }
   return i == 6;
+}
+
+
+template<typename Char>
+const Char* ExperimentalScanner<Char>::ScanIdentifierUnicodeEscape(
+    const Char* cursor, const Char* end, uc32* result) {
+  ASSERT(*cursor == '\\');
+  if (++cursor >= end) return NULL;
+  if (*cursor != 'u') return NULL;
+  ++cursor;
+  if (cursor + 4 > end) return NULL;
+  cursor = ScanHexNumber(cursor, cursor + 4, result);
+  return cursor;
+}
+
+
+template<typename Char>
+const Char* ExperimentalScanner<Char>::ScanEscape(
+    const Char* cursor, const Char* end, LiteralBuffer* literal) {
+  ASSERT(*cursor == '\\');
+  if (++cursor >= end) return NULL;
+  uc32 c = *cursor;
+  if (++cursor > end) return NULL;
+  // Skip escaped newlines.
+  if (unicode_cache_->IsLineTerminator(c)) {
+    uc32 peek = *cursor;
+    // Allow CR+LF newlines in multiline string literals.
+    if (IsCarriageReturn(c) && IsLineFeed(peek)) cursor++;
+    // Allow LF+CR newlines in multiline string literals.
+    if (IsLineFeed(c) && IsCarriageReturn(peek)) cursor++;
+    return cursor;
+  }
+
+  switch (c) {
+    case '\'':  // fall through
+    case '"' :  // fall through
+    case '\\': break;
+    case 'b' : c = '\b'; break;
+    case 'f' : c = '\f'; break;
+    case 'n' : c = '\n'; break;
+    case 'r' : c = '\r'; break;
+    case 't' : c = '\t'; break;
+    case 'u' : {
+      if (end > cursor + 4) return NULL;
+      cursor = ScanHexNumber(cursor, cursor + 4, &c);
+      if (cursor == NULL) return NULL;
+      break;
+    }
+    case 'v' : c = '\v'; break;
+    case 'x' : {
+      if (end > cursor + 2) return NULL ;
+      cursor = ScanHexNumber(cursor, cursor + 2, &c);
+      if (cursor == NULL) return NULL;
+      break;
+    }
+    case '0' :  // fall through
+    case '1' :  // fall through
+    case '2' :  // fall through
+    case '3' :  // fall through
+    case '4' :  // fall through
+    case '5' :  // fall through
+    case '6' :  // fall through
+    case '7' :
+      if (end > cursor + 2) end = cursor + 2;
+      cursor = ScanOctalEscape(cursor, end, &c); break;
+  }
+
+  // According to ECMA-262, section 7.8.4, characters not covered by the
+  // above cases should be illegal, but they are commonly handled as
+  // non-escaped characters by JS VMs.
+  literal->AddChar(c);
+  return cursor;
 }
 
 

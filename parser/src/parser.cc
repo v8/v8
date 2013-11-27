@@ -372,10 +372,10 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
 }
 
 
-Scanner::Location ScriptDataImpl::MessageLocation() {
+ScannerBase::Location ScriptDataImpl::MessageLocation() {
   int beg_pos = Read(PreparseDataConstants::kMessageStartPos);
   int end_pos = Read(PreparseDataConstants::kMessageEndPos);
-  return Scanner::Location(beg_pos, end_pos);
+  return ScannerBase::Location(beg_pos, end_pos);
 }
 
 
@@ -536,11 +536,10 @@ Parser::FunctionState::~FunctionState() {
 // Implementation of Parser
 
 Parser::Parser(CompilationInfo* info)
-    : ParserBase(&scanner_, info->isolate()->stack_guard()->real_climit()),
+    : ParserBase(NULL, info->isolate()->stack_guard()->real_climit()),
       isolate_(info->isolate()),
       symbol_cache_(0, info->zone()),
       script_(info->script()),
-      scanner_(isolate_->unicode_cache()),
       reusable_preparser_(NULL),
       top_scope_(NULL),
       original_scope_(NULL),
@@ -554,13 +553,15 @@ Parser::Parser(CompilationInfo* info)
       info_(info) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
-  set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
-  set_allow_modules(!info->is_native() && FLAG_harmony_modules);
+  // FIXME: these can be done only when the ExperimentalScanner has been
+  // created, and they need to be redone when it's recreated.
+  // set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
+  // set_allow_modules(!info->is_native() && FLAG_harmony_modules);
   set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
+  // set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
-  set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
 }
 
 
@@ -582,14 +583,15 @@ FunctionLiteral* Parser::ParseProgram() {
   if (source->IsExternalTwoByteString()) {
     // Notice that the stream is destroyed at the end of the branch block.
     // The last line of the blocks can't be moved outside, even though they're
-    // identical calls.
-    ExternalTwoByteStringUtf16CharacterStream stream(
-        Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-    scanner_.Initialize(&stream);
+    // identical calls. // FIXME
+    delete scanner_;
+    scanner_ = new ExperimentalScanner<uint16_t>(source, isolate());
+    // FIXME: set flags
     result = DoParseProgram(info(), source);
   } else {
-    GenericStringUtf16CharacterStream stream(source, 0, source->length());
-    scanner_.Initialize(&stream);
+    delete scanner_;
+    scanner_ = new ExperimentalScanner<uint8_t>(source, isolate());
+    // FIXME: set flags
     result = DoParseProgram(info(), source);
   }
 
@@ -708,24 +710,11 @@ FunctionLiteral* Parser::ParseLazy() {
   if (FLAG_trace_parse) {
     timer.Start();
   }
-  Handle<SharedFunctionInfo> shared_info = info()->shared_info();
-
   // Initialize parser state.
   source->TryFlatten();
-  FunctionLiteral* result;
-  if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUtf16CharacterStream stream(
-        Handle<ExternalTwoByteString>::cast(source),
-        shared_info->start_position(),
-        shared_info->end_position());
-    result = ParseLazy(&stream);
-  } else {
-    GenericStringUtf16CharacterStream stream(source,
-                                             shared_info->start_position(),
-                                             shared_info->end_position());
-    result = ParseLazy(&stream);
-  }
-
+  Handle<SharedFunctionInfo> shared_info = info()->shared_info();
+  FunctionLiteral* result = ParseLazy(
+      source, shared_info->start_position(), shared_info->end_position());
   if (FLAG_trace_parse && result != NULL) {
     double ms = timer.Elapsed().InMillisecondsF();
     SmartArrayPointer<char> name_chars = result->debug_name()->ToCString();
@@ -735,9 +724,18 @@ FunctionLiteral* Parser::ParseLazy() {
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
+FunctionLiteral* Parser::ParseLazy(Handle<String> source, int start, int end) {
+  delete scanner_;
+  if (source->IsExternalTwoByteString()) {
+    scanner_ = new ExperimentalScanner<uint16_t>(source, isolate());
+  } else {
+    scanner_ = new ExperimentalScanner<uint8_t>(source, isolate());
+  }
+  scanner_->SeekForward(start);
+  scanner_->SetEnd(end);
+  // FIXME: set flags
+
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
-  scanner_.Initialize(source);
   ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
 
@@ -804,18 +802,18 @@ Handle<String> Parser::GetSymbol() {
 
 
 void Parser::ReportMessage(const char* message, Vector<const char*> args) {
-  Scanner::Location source_location = scanner().location();
+  ScannerBase::Location source_location = scanner().location();
   ReportMessageAt(source_location, message, args);
 }
 
 
 void Parser::ReportMessage(const char* message, Vector<Handle<String> > args) {
-  Scanner::Location source_location = scanner().location();
+  ScannerBase::Location source_location = scanner().location();
   ReportMessageAt(source_location, message, args);
 }
 
 
-void Parser::ReportMessageAt(Scanner::Location source_location,
+void Parser::ReportMessageAt(ScannerBase::Location source_location,
                              const char* message,
                              Vector<const char*> args) {
   MessageLocation location(script_,
@@ -833,7 +831,7 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
 }
 
 
-void Parser::ReportMessageAt(Scanner::Location source_location,
+void Parser::ReportMessageAt(ScannerBase::Location source_location,
                              const char* message,
                              Vector<Handle<String> > args) {
   MessageLocation location(script_,
@@ -872,7 +870,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       directive_prologue = false;
     }
 
-    Scanner::Location token_loc = scanner().peek_location();
+    ScannerBase::Location token_loc = scanner().peek_location();
     Statement* stat;
     if (is_global && !is_eval) {
       stat = ParseModuleElement(NULL, CHECK_OK);
@@ -4106,9 +4104,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
     scope->set_start_position(scanner().location().beg_pos);
-    Scanner::Location name_loc = Scanner::Location::invalid();
-    Scanner::Location dupe_loc = Scanner::Location::invalid();
-    Scanner::Location reserved_loc = Scanner::Location::invalid();
+    ScannerBase::Location name_loc = ScannerBase::Location::invalid();
+    ScannerBase::Location dupe_loc = ScannerBase::Location::invalid();
+    ScannerBase::Location reserved_loc = ScannerBase::Location::invalid();
 
     bool done = (peek() == Token::RPAREN);
     while (!done) {
@@ -4223,7 +4221,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           if (arg != NULL) {
             args = Vector<const char*>(&arg, 1);
           }
-          ReportMessageAt(Scanner::Location(logger.start(), logger.end()),
+          ReportMessageAt(ScannerBase::Location(logger.start(), logger.end()),
                           logger.message(), args);
           *ok = false;
           return NULL;
@@ -4300,7 +4298,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         int start_pos = scope->start_position();
         int position = function_token_pos != RelocInfo::kNoPosition
             ? function_token_pos : (start_pos > 0 ? start_pos - 1 : start_pos);
-        Scanner::Location location = Scanner::Location(position, start_pos);
+        ScannerBase::Location location =
+            ScannerBase::Location(position, start_pos);
         ReportMessageAt(location,
                         "strict_function_name", Vector<const char*>::empty());
         *ok = false;
@@ -4322,7 +4321,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         int start_pos = scope->start_position();
         int position = function_token_pos != RelocInfo::kNoPosition
             ? function_token_pos : (start_pos > 0 ? start_pos - 1 : start_pos);
-        Scanner::Location location = Scanner::Location(position, start_pos);
+        ScannerBase::Location location =
+            ScannerBase::Location(position, start_pos);
         ReportMessageAt(location, "strict_reserved_word",
                         Vector<const char*>::empty());
         *ok = false;
@@ -4376,7 +4376,7 @@ PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
 
   if (reusable_preparser_ == NULL) {
     intptr_t stack_limit = isolate()->stack_guard()->real_climit();
-    reusable_preparser_ = new PreParser(&scanner_, NULL, stack_limit);
+    reusable_preparser_ = new PreParser(scanner_, NULL, stack_limit);
     reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
     reusable_preparser_->set_allow_modules(allow_modules());
     reusable_preparser_->set_allow_natives_syntax(allow_natives_syntax());
@@ -4585,7 +4585,7 @@ void Parser::CheckStrictModeLValue(Expression* expression,
 // Checks whether an octal literal was last seen between beg_pos and end_pos.
 // If so, reports an error. Only called for strict mode.
 void ParserBase::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  Scanner::Location octal = scanner()->octal_position();
+  ScannerBase::Location octal = scanner()->octal_position();
   if (octal.IsValid() && beg_pos <= octal.beg_pos && octal.end_pos <= end_pos) {
     ReportMessageAt(octal, "strict_octal_literal");
     scanner()->clear_octal_position();
@@ -4604,9 +4604,9 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     const char* elms[2] = { "Variable", *c_string };
     Vector<const char*> args(elms, 2);
     int position = decl->proxy()->position();
-    Scanner::Location location = position == RelocInfo::kNoPosition
-        ? Scanner::Location::invalid()
-        : Scanner::Location(position, position + 1);
+    ScannerBase::Location location = position == RelocInfo::kNoPosition
+        ? ScannerBase::Location::invalid()
+        : ScannerBase::Location(position, position + 1);
     ReportMessageAt(location, "redeclaration", args);
     *ok = false;
   }
@@ -5610,30 +5610,12 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 }
 
 
-// Create a Scanner for the preparser to use as input, and preparse the source.
+// Create a ScannerBase for the preparser to use as input, and preparse the
+// source.
 ScriptDataImpl* PreParserApi::PreParse(Isolate* isolate,
                                        Utf16CharacterStream* source) {
-  CompleteParserRecorder recorder;
-  HistogramTimerScope timer(isolate->counters()->pre_parse());
-  Scanner scanner(isolate->unicode_cache());
-  intptr_t stack_limit = isolate->stack_guard()->real_climit();
-  PreParser preparser(&scanner, &recorder, stack_limit);
-  preparser.set_allow_lazy(true);
-  preparser.set_allow_generators(FLAG_harmony_generators);
-  preparser.set_allow_for_of(FLAG_harmony_iteration);
-  preparser.set_allow_harmony_scoping(FLAG_harmony_scoping);
-  preparser.set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
-  scanner.Initialize(source);
-  PreParser::PreParseResult result = preparser.PreParseProgram();
-  if (result == PreParser::kPreParseStackOverflow) {
-    isolate->StackOverflow();
-    return NULL;
-  }
-
-  // Extract the accumulated data from the recorder as a single
-  // contiguous vector that we are responsible for disposing.
-  Vector<unsigned> store = recorder.ExtractData();
-  return new ScriptDataImpl(store);
+  // FIXME(experimental-scanner): implement
+  return NULL;
 }
 
 
@@ -5674,7 +5656,7 @@ bool Parser::Parse() {
     ScriptDataImpl* pre_parse_data = info()->pre_parse_data();
     set_pre_parse_data(pre_parse_data);
     if (pre_parse_data != NULL && pre_parse_data->has_error()) {
-      Scanner::Location loc = pre_parse_data->MessageLocation();
+      ScannerBase::Location loc = pre_parse_data->MessageLocation();
       const char* message = pre_parse_data->BuildMessage();
       Vector<const char*> args = pre_parse_data->BuildArgs();
       ReportMessageAt(loc, message, args);
