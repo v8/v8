@@ -1579,6 +1579,7 @@ void Genesis::InstallNativeFunctions() {
 
 
 void Genesis::InstallExperimentalNativeFunctions() {
+  INSTALL_NATIVE(JSFunction, "RunMicrotasks", run_microtasks);
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
@@ -1592,8 +1593,6 @@ void Genesis::InstallExperimentalNativeFunctions() {
                    observers_begin_perform_splice);
     INSTALL_NATIVE(JSFunction, "EndPerformSplice",
                    observers_end_perform_splice);
-    INSTALL_NATIVE(JSFunction, "DeliverChangeRecords",
-                   observers_deliver_changes);
   }
 }
 
@@ -2024,55 +2023,28 @@ bool Genesis::InstallNatives() {
 }
 
 
+#define INSTALL_EXPERIMENTAL_NATIVE(i, flag, file)                \
+  if (FLAG_harmony_##flag &&                                      \
+      strcmp(ExperimentalNatives::GetScriptName(i).start(),       \
+          "native " file) == 0) {                                 \
+    if (!CompileExperimentalBuiltin(isolate(), i)) return false;  \
+  }
+
+
 bool Genesis::InstallExperimentalNatives() {
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount();
        i++) {
-    if (FLAG_harmony_symbols &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native symbol.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_proxies &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native proxy.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_collections &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native collection.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_observation &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native object-observe.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_generators &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native generator.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_iteration &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native array-iterator.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_strings &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native harmony-string.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_arrays &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native harmony-array.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
-    if (FLAG_harmony_maths &&
-        strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native harmony-math.js") == 0) {
-      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
-    }
+    INSTALL_EXPERIMENTAL_NATIVE(i, symbols, "symbol.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, observation, "object-observe.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, promises, "promise.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, maths, "harmony-math.js")
   }
 
   InstallExperimentalNativeFunctions();

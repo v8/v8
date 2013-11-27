@@ -978,6 +978,7 @@
           '../../src/proxy.js',
           '../../src/collection.js',
           '../../src/object-observe.js',
+          '../../src/promise.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',

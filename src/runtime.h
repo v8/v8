@@ -64,6 +64,7 @@ namespace internal {
   F(ToFastProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 1, 1) \
+  F(IsCallable, 1, 1) \
   F(IsClassicModeFunction, 1, 1) \
   F(GetDefaultReceiver, 1, 1) \
   \
@@ -352,10 +353,12 @@ namespace internal {
   F(WeakCollectionDelete, 2, 1) \
   F(WeakCollectionSet, 3, 1) \
   \
+  /* Harmony events */ \
+  F(SetMicrotaskPending, 1, 1) \
+  \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
   F(SetIsObserved, 1, 1) \
-  F(SetObserverDeliveryPending, 0, 1) \
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \
   F(UnwrapGlobalProxy, 1, 1) \
@@ -439,6 +442,7 @@ namespace internal {
   F(TraceEnter, 0, 1) \
   F(TraceExit, 1, 1) \
   F(Abort, 2, 1) \
+  F(AbortJS, 1, 1) \
   /* Logging */ \
   F(Log, 2, 1) \
   /* ES5 */ \

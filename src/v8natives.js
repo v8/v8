@@ -1837,3 +1837,18 @@ function SetUpFunction() {
 }
 
 SetUpFunction();
+
+
+//----------------------------------------------------------------------------
+
+// TODO(rossberg): very simple abstraction for generic microtask queue.
+// Eventually, we should move to a real event queue that allows to maintain
+// relative ordering of different kinds of tasks.
+
+RunMicrotasks.runners = new InternalArray;
+
+function RunMicrotasks() {
+  while (%SetMicrotaskPending(false)) {
+    for (var i in RunMicrotasks.runners) RunMicrotasks.runners[i]();
+  }
+}
