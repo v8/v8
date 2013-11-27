@@ -295,10 +295,15 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
             Vector<const uc16>(buffer_16, buffer_end_16 - buffer_16));
         // If the string was just an expaneded one byte string, V8 detects it
         // and doesn't store it as two byte.
-        CHECK(source->IsTwoByteRepresentation());
-        experimental_time = RunExperimentalScanner<uint16_t>(
-            source, isolate, encoding, print_tokens || check_tokens,
-            &experimental_tokens, repeat, harmony_settings);
+        if (!source->IsTwoByteRepresentation()) {
+          experimental_time = RunExperimentalScanner<uint8_t>(
+              source, isolate, encoding, print_tokens || check_tokens,
+              &experimental_tokens, repeat, harmony_settings);
+        } else {
+          experimental_time = RunExperimentalScanner<uint16_t>(
+              source, isolate, encoding, print_tokens || check_tokens,
+              &experimental_tokens, repeat, harmony_settings);
+        }
         break;
       }
       default:
