@@ -28,6 +28,6 @@
 "this is a normal string"
 "this is a string with an \xaa escape"
 "this \u00ab too"
-"and \n this\t"
+"and \n this \t\000"
 
-identifierwith\u26aaescape
+identifier\u1118oo
