@@ -2240,6 +2240,23 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
     BuildCreateAllocationMemento(array,
                                  JSArray::kSize,
                                  allocation_site_payload);
+    if (FLAG_allocation_site_pretenuring) {
+      // TODO(mvstanton): move this code into BuildCreateAllocationMemento when
+      // constructed arrays also pay attention to pretenuring.
+      HObjectAccess access =
+          HObjectAccess::ForAllocationSiteOffset(
+              AllocationSite::kMementoCreateCountOffset);
+      HValue* create_info = Add<HLoadNamedField>(allocation_site_payload,
+                                                 access);
+      HInstruction* new_create_info = HAdd::New(zone(), context(),
+                                                create_info,
+                                                graph()->GetConstant1());
+      new_create_info->ClearFlag(HValue::kCanOverflow);
+      HStoreNamedField* store = Add<HStoreNamedField>(allocation_site_payload,
+                                                      access, new_create_info);
+      // No write barrier needed to store a smi.
+      store->SkipWriteBarrier();
+    }
   }
 
   int elements_location = JSArray::kSize;
@@ -9332,8 +9349,26 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       ? HType::JSArray() : HType::JSObject();
   HValue* object_size_constant = Add<HConstant>(
       boilerplate_object->map()->instance_size());
+
+  // We should pull pre-tenure mode from the allocation site.
+  // For now, just see what it says, and remark on it if it sez
+  // we should pretenure. That means the rudimentary counting in the garbage
+  // collector is having an effect.
+  PretenureFlag pretenure_flag = isolate()->heap()->GetPretenureMode();
+  if (FLAG_allocation_site_pretenuring) {
+    pretenure_flag = site_context->current()->GetPretenureMode()
+        ? TENURED
+        : NOT_TENURED;
+    if (FLAG_trace_track_allocation_sites) {
+      PrintF("Hydrogen: AllocationSite %p boilerplate %p %s\n",
+             static_cast<void*>(*(site_context->current())),
+             static_cast<void*>(*boilerplate_object),
+             pretenure_flag == TENURED ? "tenured" : "not tenured");
+    }
+  }
+
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
-      isolate()->heap()->GetPretenureMode(), instance_type);
+      pretenure_flag, instance_type);
 
   BuildEmitObjectHeader(boilerplate_object, object);
 
@@ -9347,10 +9382,10 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     HValue* object_elements_size = Add<HConstant>(elements_size);
     if (boilerplate_object->HasFastDoubleElements()) {
       object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
-          isolate()->heap()->GetPretenureMode(), FIXED_DOUBLE_ARRAY_TYPE);
+          pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE);
     } else {
       object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
-          isolate()->heap()->GetPretenureMode(), FIXED_ARRAY_TYPE);
+          pretenure_flag, FIXED_ARRAY_TYPE);
     }
   }
   BuildInitElementsInObjectHeader(boilerplate_object, object, object_elements);
@@ -9363,7 +9398,8 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
 
   // Copy in-object properties.
   if (boilerplate_object->map()->NumberOfFields() != 0) {
-    BuildEmitInObjectProperties(boilerplate_object, object, site_context);
+    BuildEmitInObjectProperties(boilerplate_object, object, site_context,
+                                pretenure_flag);
   }
   return object;
 }
@@ -9416,7 +9452,8 @@ void HOptimizedGraphBuilder::BuildInitElementsInObjectHeader(
 void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     Handle<JSObject> boilerplate_object,
     HInstruction* object,
-    AllocationSiteUsageContext* site_context) {
+    AllocationSiteUsageContext* site_context,
+    PretenureFlag pretenure_flag) {
   Handle<DescriptorArray> descriptors(
       boilerplate_object->map()->instance_descriptors());
   int limit = boilerplate_object->map()->NumberOfOwnDescriptors();
@@ -9452,15 +9489,13 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       if (representation.IsDouble()) {
         // Allocate a HeapNumber box and store the value into it.
         HValue* heap_number_constant = Add<HConstant>(HeapNumber::kSize);
-        // TODO(mvstanton): This heap number alloc does not have a corresponding
+        // This heap number alloc does not have a corresponding
         // AllocationSite. That is okay because
         // 1) it's a child object of another object with a valid allocation site
         // 2) we can just use the mode of the parent object for pretenuring
-        // The todo is replace GetPretenureMode() with
-        // site_context->top()->GetPretenureMode().
         HInstruction* double_box =
             Add<HAllocate>(heap_number_constant, HType::HeapNumber(),
-                isolate()->heap()->GetPretenureMode(), HEAP_NUMBER_TYPE);
+                pretenure_flag, HEAP_NUMBER_TYPE);
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
         Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),

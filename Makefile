@@ -94,7 +94,7 @@ ifeq ($(vtunejit), on)
 endif
 # optdebug=on
 ifeq ($(optdebug), on)
-  GYPFLAGS += -Dv8_optimized_debug=1
+  GYPFLAGS += -Dv8_optimized_debug=2
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)

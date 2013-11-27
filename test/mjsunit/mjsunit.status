@@ -33,7 +33,7 @@
   ##############################################################################
   # Flaky tests.
   # BUG(v8:2921).
-  'debug-step-4-in-frame': [PASS, FAIL],
+  'debug-step-4-in-frame': [PASS, FAIL, SLOW],
 
   ##############################################################################
   # Fails.
@@ -160,6 +160,18 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
+
+  ############################################################################
+  # Slow tests.
+  'regress/regress-2185-2': [PASS, SLOW],
+  'mirror-object': [PASS, SLOW],
+  'compiler/osr-with-args': [PASS, SLOW],
+  'array-sort': [PASS, SLOW],
+  'packed-elements': [PASS, SLOW],
+  'regress/regress-91008': [PASS, SLOW],
+  'regress/regress-2790': [PASS, SLOW],
+  'regress/regress-json-stringify-gc': [PASS, SLOW],
+  'regress/regress-1122': [PASS, SLOW],
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################

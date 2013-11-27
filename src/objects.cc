@@ -5718,10 +5718,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   Handle<JSObject> copy;
   if (copying) {
     Handle<AllocationSite> site_to_pass;
-    if (site_context()->activated() &&
-        AllocationSite::CanTrack(object->map()->instance_type()) &&
-        AllocationSite::GetMode(object->GetElementsKind()) ==
-        TRACK_ALLOCATION_SITE) {
+    if (site_context()->ShouldCreateMemento(object)) {
       site_to_pass = site_context()->current();
     }
     CALL_AND_RETRY_OR_DIE(isolate,
@@ -9181,9 +9178,10 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object,
                                                       bool in_GC) {
   // Currently, AllocationMemento objects are only allocated immediately
-  // after JSArrays in NewSpace, and detecting whether a JSArray has one
-  // involves carefully checking the object immediately after the JSArray
-  // (if there is one) to see if it's an AllocationMemento.
+  // after JSArrays and some JSObjects in NewSpace. Detecting whether a
+  // memento is present involves carefully checking the object immediately
+  // after the current object (if there is one) to see if it's an
+  // AllocationMemento.
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
@@ -9201,7 +9199,9 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object,
           object->GetHeap()->allocation_memento_map()) {
         AllocationMemento* memento = AllocationMemento::cast(
             reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-        return memento;
+        if (memento->IsValid()) {
+          return memento;
+        }
       }
     }
   }
@@ -12787,6 +12787,9 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
   CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
                           object->TransitionElementsKind(to_kind));
 }
+
+
+const double AllocationSite::kPretenureRatio = 0.60;
 
 
 bool AllocationSite::IsNestedSite() {

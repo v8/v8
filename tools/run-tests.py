@@ -293,14 +293,14 @@ def Main():
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 
   if len(args) == 0:
-    suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
+    suite_paths = [ s for s in DEFAULT_TESTS if s in suite_paths ]
   else:
     args_suites = set()
     for arg in args:
       suite = arg.split(os.path.sep)[0]
       if not suite in args_suites:
         args_suites.add(suite)
-    suite_paths = [ s for s in suite_paths if s in args_suites ]
+    suite_paths = [ s for s in args_suites if s in suite_paths ]
 
   suites = []
   for root in suite_paths:

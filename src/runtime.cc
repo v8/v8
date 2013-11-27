@@ -4463,10 +4463,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
   isolate->counters()->sub_string_runtime()->Increment();
-  if (end - start == 1) {
-     return isolate->heap()->LookupSingleCharacterStringFromCode(
-         value->Get(start));
-  }
   return value->SubString(start, end);
 }
 

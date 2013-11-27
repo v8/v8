@@ -879,9 +879,7 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
       }
       if (!stub.is_null()) {
         set_target(*stub);
-#ifdef DEBUG
         if (FLAG_trace_ic) PrintF("[LoadIC : +#length /stringwrapper]\n");
-#endif
       }
       // Get the string if we have a string wrapper object.
       String* string = String::cast(JSValue::cast(*object)->value());
@@ -904,9 +902,7 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
       }
       if (!stub.is_null()) {
         set_target(*stub);
-#ifdef DEBUG
         if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
-#endif
       }
       return *Accessors::FunctionGetPrototype(Handle<JSFunction>::cast(object));
     }
@@ -1637,7 +1633,8 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   Handle<JSObject> holder(lookup->holder());
-  StoreStubCompiler compiler(isolate(), strict_mode(), kind());
+  // Handlers do not use strict mode.
+  StoreStubCompiler compiler(isolate(), kNonStrictMode, kind());
   switch (lookup->type()) {
     case FIELD:
       return compiler.CompileStoreField(receiver, lookup, name);
@@ -1665,7 +1662,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
         Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
         Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
-        StoreGlobalStub stub(strict_mode(), union_type->IsConstant());
+        StoreGlobalStub stub(union_type->IsConstant());
 
         Handle<Code> code = stub.GetCodeCopyFromTemplate(
             isolate(), receiver->map(), *cell);
@@ -1674,9 +1671,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         return code;
       }
       ASSERT(holder.is_identical_to(receiver));
-      return strict_mode() == kStrictMode
-          ? isolate()->builtins()->StoreIC_Normal_Strict()
-          : isolate()->builtins()->StoreIC_Normal();
+      return isolate()->builtins()->StoreIC_Normal();
     case CALLBACKS: {
       if (kind() == Code::KEYED_STORE_IC) break;
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
@@ -2360,7 +2355,6 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   Maybe<Handle<Object> > result = stub.Result(left, right, isolate());
   if (!result.has_value) return Failure::Exception();
 
-#ifdef DEBUG
   if (FLAG_trace_ic) {
     char buffer[100];
     NoAllocationStringAllocator allocator(buffer,
@@ -2381,9 +2375,6 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   } else {
     stub.UpdateStatus(left, right, result);
   }
-#else
-  stub.UpdateStatus(left, right, result);
-#endif
 
   Handle<Code> code = stub.GetCode(isolate());
   set_target(*code);
@@ -2612,7 +2603,6 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   Handle<Code> new_target = stub.GetCode(isolate());
   set_target(*new_target);
 
-#ifdef DEBUG
   if (FLAG_trace_ic) {
     PrintF("[CompareIC in ");
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
@@ -2626,7 +2616,6 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            Token::Name(op_),
            static_cast<void*>(*stub.GetCode(isolate())));
   }
-#endif
 
   // Activate inlined smi code.
   if (previous_state == UNINITIALIZED) {

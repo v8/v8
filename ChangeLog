@@ -1,3 +1,13 @@
+2013-11-27: Version 3.23.13
+
+        Increase precision for base conversion for large integers (issue 3025).
+
+        Flatten cons string for single character substrings (Chromium issue
+        323041).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-26: Version 3.23.12
 
         Performance and stability improvements on all platforms.

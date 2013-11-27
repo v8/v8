@@ -1456,6 +1456,11 @@ class Heap {
   static inline void ScavengePointer(HeapObject** p);
   static inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
+  // An object may have an AllocationSite associated with it through a trailing
+  // AllocationMemento. Its feedback should be updated when objects are found
+  // in the heap.
+  static inline void UpdateAllocationSiteFeedback(HeapObject* object);
+
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
   void ReserveSpace(int *sizes, Address* addresses);
@@ -1892,9 +1897,6 @@ class Heap {
 
   bool flush_monomorphic_ics_;
 
-  // AllocationMementos found in new space.
-  int allocation_mementos_found_;
-
   int scan_on_scavenge_pages_;
 
   NewSpace new_space_;
@@ -2110,6 +2112,8 @@ class Heap {
   void InitializeJSObjectFromMap(JSObject* obj,
                                  FixedArray* properties,
                                  Map* map);
+  void InitializeAllocationMemento(AllocationMemento* memento,
+                                   AllocationSite* allocation_site);
 
   bool CreateInitialMaps();
   bool CreateInitialObjects();

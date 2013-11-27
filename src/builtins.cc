@@ -1385,11 +1385,6 @@ static void Generate_StoreIC_Slow(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_Slow_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateSlow(masm);
-}
-
-
 static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
   StoreIC::GenerateInitialize(masm);
 }
@@ -1416,11 +1411,6 @@ static void Generate_StoreIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Normal(MacroAssembler* masm) {
-  StoreIC::GenerateNormal(masm);
-}
-
-
-static void Generate_StoreIC_Normal_Strict(MacroAssembler* masm) {
   StoreIC::GenerateNormal(masm);
 }
 
@@ -1476,11 +1466,6 @@ static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
-}
-
-
-static void Generate_KeyedStoreIC_Slow_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }
 
@@ -1667,13 +1652,14 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
-#define DEF_FUNCTION_PTR_H(aname, kind, extra)                              \
+#define DEF_FUNCTION_PTR_H(aname, kind)                                     \
     functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
     functions->c_code = NULL;                                               \
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
     functions->flags = Code::ComputeFlags(                                  \
-        Code::HANDLER, MONOMORPHIC, extra, Code::NORMAL, Code::kind);       \
+        Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState,                  \
+        Code::NORMAL, Code::kind);                                          \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
@@ -1805,7 +1791,7 @@ Handle<Code> Builtins::name() {                             \
       reinterpret_cast<Code**>(builtin_address(k##name));   \
   return Handle<Code>(code_address);                        \
 }
-#define DEFINE_BUILTIN_ACCESSOR_H(name, kind, extra)        \
+#define DEFINE_BUILTIN_ACCESSOR_H(name, kind)               \
 Handle<Code> Builtins::name() {                             \
   Code** code_address =                                     \
       reinterpret_cast<Code**>(builtin_address(k##name));   \

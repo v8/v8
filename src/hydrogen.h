@@ -2422,7 +2422,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void BuildEmitInObjectProperties(Handle<JSObject> boilerplate_object,
                                    HInstruction* object,
-                                   AllocationSiteUsageContext* site_context);
+                                   AllocationSiteUsageContext* site_context,
+                                   PretenureFlag pretenure_flag);
 
   void BuildEmitElements(Handle<JSObject> boilerplate_object,
                          Handle<FixedArrayBase> elements,

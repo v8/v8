@@ -8120,6 +8120,16 @@ enum AllocationSiteMode {
 class AllocationSite: public Struct {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
+  static const double kPretenureRatio;
+  static const int kPretenureMinimumCreated = 100;
+
+  // Values for pretenure decision field.
+  enum {
+    kUndecided = 0,
+    kDontTenure = 1,
+    kTenure = 2,
+    kZombie = 3
+  };
 
   DECL_ACCESSORS(transition_info, Object)
   // nested_site threads a list of sites that represent nested literals
@@ -8128,15 +8138,13 @@ class AllocationSite: public Struct {
   DECL_ACCESSORS(nested_site, Object)
   DECL_ACCESSORS(memento_found_count, Smi)
   DECL_ACCESSORS(memento_create_count, Smi)
+  // TODO(mvstanton): we don't need a whole integer to record pretenure
+  // decision. Consider sharing space with memento_found_count.
   DECL_ACCESSORS(pretenure_decision, Smi)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
   inline void Initialize();
-
-  bool HasNestedSites() {
-    return nested_site()->IsAllocationSite();
-  }
 
   // This method is expensive, it should only be called for reporting.
   bool IsNestedSite();
@@ -8144,6 +8152,28 @@ class AllocationSite: public Struct {
   class ElementsKindBits:       public BitField<ElementsKind, 0,  15> {};
   class UnusedBits:             public BitField<int,          15, 14> {};
   class DoNotInlineBit:         public BitField<bool,         29,  1> {};
+
+  inline void IncrementMementoFoundCount();
+
+  inline void IncrementMementoCreateCount();
+
+  PretenureFlag GetPretenureMode() {
+    int mode = pretenure_decision()->value();
+    // Zombie objects "decide" to be untenured.
+    return (mode == kTenure) ? TENURED : NOT_TENURED;
+  }
+
+  // The pretenuring decision is made during gc, and the zombie state allows
+  // us to recognize when an allocation site is just being kept alive because
+  // a later traversal of new space may discover AllocationMementos that point
+  // to this AllocationSite.
+  bool IsZombie() {
+    return pretenure_decision()->value() == kZombie;
+  }
+
+  inline void MarkZombie();
+
+  inline bool DigestPretenuringFeedback();
 
   ElementsKind GetElementsKind() {
     ASSERT(!SitePointsToLiteral());
@@ -8218,6 +8248,10 @@ class AllocationSite: public Struct {
 
  private:
   inline DependentCode::DependencyGroup ToDependencyGroup(Reason reason);
+  bool PretenuringDecisionMade() {
+    return pretenure_decision()->value() != kUndecided;
+  }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
 };
 
@@ -8229,7 +8263,10 @@ class AllocationMemento: public Struct {
 
   DECL_ACCESSORS(allocation_site, Object)
 
-  bool IsValid() { return allocation_site()->IsAllocationSite(); }
+  bool IsValid() {
+    return allocation_site()->IsAllocationSite() &&
+        !AllocationSite::cast(allocation_site())->IsZombie();
+  }
   AllocationSite* GetAllocationSite() {
     ASSERT(IsValid());
     return AllocationSite::cast(allocation_site());

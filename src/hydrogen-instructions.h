@@ -4029,6 +4029,8 @@ class HBoundsCheck V8_FINAL : public HTemplateInstruction<2> {
  protected:
   friend class HBoundsCheckBaseIndexInformation;
 
+  virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
+
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
   bool skip_check_;
   HValue* base_;
