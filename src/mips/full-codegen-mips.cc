@@ -1798,7 +1798,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   AllocationSiteMode allocation_site_mode = FLAG_track_allocation_sites
       ? TRACK_ALLOCATION_SITE : DONT_TRACK_ALLOCATION_SITE;
-  if (has_constant_fast_elements && !FLAG_allocation_site_pretenuring) {
+  if (has_fast_elements && !FLAG_allocation_site_pretenuring) {
     // If the only customer of allocation sites is transitioning, then
     // we can turn it off if we don't have anywhere else to transition to.
     allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;
