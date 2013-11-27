@@ -562,14 +562,14 @@ const Char* ExperimentalScanner<Char>::ScanEscape(
     case 'r' : c = '\r'; break;
     case 't' : c = '\t'; break;
     case 'u' : {
-      if (end > cursor + 4) return NULL;
+      ASSERT(cursor + 4 <= end);
       cursor = ScanHexNumber(cursor, cursor + 4, &c);
       if (cursor == NULL) return NULL;
       break;
     }
     case 'v' : c = '\v'; break;
     case 'x' : {
-      if (end > cursor + 2) return NULL ;
+      ASSERT(cursor + 2 <= end);
       cursor = ScanHexNumber(cursor, cursor + 2, &c);
       if (cursor == NULL) return NULL;
       break;
