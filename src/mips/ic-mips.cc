@@ -1650,12 +1650,10 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     return;
   }
 
-#ifdef DEBUG
   if (FLAG_trace_ic) {
     PrintF("[  patching ic at %p, andi=%p, delta=%d\n",
            address, andi_instruction_address, delta);
   }
-#endif
 
   Address patch_address =
       andi_instruction_address - delta * Instruction::kInstrSize;

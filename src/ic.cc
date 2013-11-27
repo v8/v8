@@ -879,9 +879,7 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
       }
       if (!stub.is_null()) {
         set_target(*stub);
-#ifdef DEBUG
         if (FLAG_trace_ic) PrintF("[LoadIC : +#length /stringwrapper]\n");
-#endif
       }
       // Get the string if we have a string wrapper object.
       String* string = String::cast(JSValue::cast(*object)->value());
@@ -904,9 +902,7 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
       }
       if (!stub.is_null()) {
         set_target(*stub);
-#ifdef DEBUG
         if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
-#endif
       }
       return *Accessors::FunctionGetPrototype(Handle<JSFunction>::cast(object));
     }
@@ -2360,7 +2356,6 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   Maybe<Handle<Object> > result = stub.Result(left, right, isolate());
   if (!result.has_value) return Failure::Exception();
 
-#ifdef DEBUG
   if (FLAG_trace_ic) {
     char buffer[100];
     NoAllocationStringAllocator allocator(buffer,
@@ -2381,9 +2376,6 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   } else {
     stub.UpdateStatus(left, right, result);
   }
-#else
-  stub.UpdateStatus(left, right, result);
-#endif
 
   Handle<Code> code = stub.GetCode(isolate());
   set_target(*code);
@@ -2612,7 +2604,6 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   Handle<Code> new_target = stub.GetCode(isolate());
   set_target(*new_target);
 
-#ifdef DEBUG
   if (FLAG_trace_ic) {
     PrintF("[CompareIC in ");
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
@@ -2626,7 +2617,6 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            Token::Name(op_),
            static_cast<void*>(*stub.GetCode(isolate())));
   }
-#endif
 
   // Activate inlined smi code.
   if (previous_state == UNINITIALIZED) {
