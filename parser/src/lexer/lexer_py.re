@@ -198,11 +198,11 @@ eos             <|terminate|>
 default_action  <do_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
-"\\" line_terminator_sequence <||continue>
+"\\" line_terminator_sequence <set_has_escapes||continue>
 /\\[x][:hex_digit:]{2}/       <set_has_escapes||continue>
 /\\[u][:hex_digit:]{4}/       <set_has_escapes||continue>
 /\\[1-7]/                     <octal_inside_string||continue>
-/\\[0-7]{2,3}/                <octal_inside_string||continue>
+/\\[0-7][0-7]+/               <octal_inside_string||continue>
 /\\[^xu1-7:line_terminator:]/ <set_has_escapes||continue>
 "\\"                          <|token(ILLEGAL)|>
 line_terminator               <|token(ILLEGAL)|>
@@ -212,11 +212,11 @@ catch_all                     <||continue>
 
 <<SingleQuoteString>>
 # TODO subgraph for '\'
-"\\" line_terminator_sequence <||continue>
+"\\" line_terminator_sequence <set_has_escapes||continue>
 /\\[x][:hex_digit:]{2}/       <set_has_escapes||continue>
 /\\[u][:hex_digit:]{4}/       <set_has_escapes||continue>
 /\\[1-7]/                     <octal_inside_string||continue>
-/\\[0-7]{2,3}/                <octal_inside_string||continue>
+/\\[0-7][0-7]+/               <octal_inside_string||continue>
 /\\[^xu1-7:line_terminator:]/ <set_has_escapes||continue>
 "\\"                          <|token(ILLEGAL)|>
 line_terminator               <|token(ILLEGAL)|>

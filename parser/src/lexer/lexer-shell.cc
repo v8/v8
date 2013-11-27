@@ -177,17 +177,13 @@ struct TokenWithLocation {
   TokenWithLocation() :
       value(Token::ILLEGAL), beg(0), end(0), is_ascii(false) { }
   TokenWithLocation(Token::Value value, size_t beg, size_t end,
-                    int octal_beg, int octal_end) :
-      value(value), beg(beg), end(end), is_ascii(false), octal_beg(octal_beg),
-      octal_end(octal_end) { }
+                    int octal_beg) :
+      value(value), beg(beg), end(end), is_ascii(false), octal_beg(octal_beg) {
+  }
   bool operator==(const TokenWithLocation& other) {
-    // The octal_end of the baseline scanner is inconsistent between octal
-    // numbers (end = one beyond the last digit) and octal escapes (end = the
-    // last digit). Ignore that.
     return value == other.value && beg == other.beg && end == other.end &&
            literal == other.literal && is_ascii == other.is_ascii &&
-        octal_beg == other.octal_beg &&
-        octal_end >= other.octal_end - 1 && octal_end <= other.octal_end + 1;
+        octal_beg == other.octal_beg;
   }
   bool operator!=(const TokenWithLocation& other) {
     return !(*this == other);
@@ -201,7 +197,7 @@ struct TokenWithLocation {
         printf(is_ascii ? " %02x" : " %04x", literal[i]);
       }
     }
-    printf(" (last octal: %d %d)\n", octal_beg, octal_end);
+    printf(" (last octal start: %d)\n", octal_beg);
   }
 };
 
@@ -227,8 +223,7 @@ template<typename Scanner>
 TokenWithLocation GetTokenWithLocation(Scanner *scanner, Token::Value token) {
   int beg = scanner->location().beg_pos;
   int end = scanner->location().end_pos;
-  TokenWithLocation result(token, beg, end, scanner->octal_position().beg_pos,
-                           scanner->octal_position().end_pos);
+  TokenWithLocation result(token, beg, end, scanner->octal_position().beg_pos);
   if (HasLiteral(token)) {
     result.is_ascii = scanner->is_literal_ascii();
     if (scanner->is_literal_ascii()) {
