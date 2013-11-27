@@ -643,11 +643,7 @@ function DefaultNumber(x) {
     if (%IsPrimitive(s)) return s;
   }
 
-  var xx = %MakeTypeError('cannot_convert_to_primitive', []);
-  %DebugPrint(xx);
-
   throw %MakeTypeError('cannot_convert_to_primitive', []);
-  test; test;
 }
 
 // ECMA-262, section 8.6.2.6, page 28.
