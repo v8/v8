@@ -67,7 +67,6 @@ class ScannerBase {
       has_line_terminator_before_next_(true),
       current_literal_(&literals_[0]),
       next_literal_(&literals_[1]),
-      octal_pos_(Location::invalid()),
       harmony_numeric_literals_(false),
       harmony_modules_(false),
       harmony_scoping_(false) {
@@ -217,10 +216,6 @@ class ScannerBase {
         (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
 
-  // Returns the location of the last seen octal literal.
-  Location octal_position() const { return octal_pos_; }
-  void clear_octal_position() { octal_pos_ = Location::invalid(); }
-
   // Seek forward to the given position. This operation works for simple cases
   // such as seeking forward until simple delimiter tokens, which is what it is
   // used for. After this call, we will have the token at the given position as
@@ -236,6 +231,10 @@ class ScannerBase {
   // Returns true if regexp flags are scanned (always since flags can
   // be empty).
   virtual bool ScanRegExpFlags() = 0;
+
+  // Returns the location of the last seen octal literal.
+  virtual Location octal_position() const = 0;
+  virtual void clear_octal_position() = 0;
 
  protected:
   struct TokenDesc {
@@ -273,8 +272,6 @@ class ScannerBase {
   LiteralDesc* next_literal_;
   LiteralDesc literals_[2];
 
-  Location octal_pos_;
-
   bool harmony_numeric_literals_;
   bool harmony_modules_;
   bool harmony_scoping_;
@@ -296,7 +293,8 @@ class ExperimentalScanner : public ScannerBase {
         buffer_end_(NULL),
         start_(NULL),
         cursor_(NULL),
-        marker_(NULL) {
+        marker_(NULL),
+        last_octal_end_(NULL) {
     ASSERT(source->IsFlat());
     SetBufferBasedOnHandle();
     Scan();
@@ -304,12 +302,17 @@ class ExperimentalScanner : public ScannerBase {
 
   virtual ~ExperimentalScanner() { }
 
- protected:
-  virtual void Scan();
   virtual void SeekForward(int pos);
   virtual void SetEnd(int pos);
   virtual bool ScanRegExpPattern(bool seen_equal);
   virtual bool ScanRegExpFlags();
+  virtual Location octal_position() const;
+  virtual void clear_octal_position() {
+    last_octal_end_ = NULL;
+  }
+
+ protected:
+  virtual void Scan();
 
   virtual void SetBufferBasedOnHandle() {
     // We get a raw pointer from the Handle, but we also update it every time
@@ -363,6 +366,10 @@ class ExperimentalScanner : public ScannerBase {
   const Char* start_;
   const Char* cursor_;
   const Char* marker_;
+
+  // Where we have seen the last octal number or an octal escape inside a
+  // string. Used by octal_position().
+  const Char* last_octal_end_;
 };
 
 
@@ -488,14 +495,6 @@ const Char* ExperimentalScanner<Char>::ScanOctalEscape(
     if (nx >= 256) break;
     x = nx;
   }
-  // Anything except '\0' is an octal escape sequence, illegal in strict mode.
-  // Remember the position of octal escape sequences so that an error
-  // can be reported later (in strict mode).
-  // We don't report the error immediately, because the octal escape can
-  // occur before the "use strict" directive.
-  if (*result != '0' || cursor > start) {
-    octal_pos_ = Location(start - 1 - buffer_, cursor - 1 - buffer_);
-  }
   *result = x;
   return cursor;
 }
@@ -593,6 +592,18 @@ const Char* ExperimentalScanner<Char>::ScanEscape(
   return cursor;
 }
 
+template<typename Char>
+ScannerBase::Location ExperimentalScanner<Char>::octal_position() const {
+  if (!last_octal_end_)
+    return Location::invalid();
+  // The last octal might be an octal escape or an octal number. Whichever it
+  // is, we'll find the start by just scanning back until we hit a non-octal
+  // character.
+  const Char* temp_cursor = last_octal_end_ - 1;
+  while (temp_cursor >= buffer_ && *temp_cursor >= '0' && *temp_cursor <= '7')
+    --temp_cursor;
+  return Location(temp_cursor - buffer_ + 1, last_octal_end_ - buffer_);
+}
 
 } }
 

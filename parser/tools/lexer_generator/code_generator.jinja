@@ -114,7 +114,13 @@
   {% elif type == 'set_marker' %}
     marker_ = cursor_ - {{value}};
   {% elif type == 'set_has_escapes' %}
-    next_.has_escapes = true;
+     next_.has_escapes = true;
+  {% elif type == 'octal_number' %}
+     last_octal_end_ = cursor_;
+     DO_TOKEN(Token::NUMBER);
+  {% elif type == 'octal_inside_string' %}
+     last_octal_end_ = cursor_;
+     next_.has_escapes = true;
   {% else %}
     uncompilable code for {{type}}
   {% endif -%}

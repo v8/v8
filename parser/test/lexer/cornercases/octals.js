@@ -25,14 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"this is a normal string"
-"this is a string with an \xaa escape"
-"this \u00ab too"
-"and \n this \t\00"
+// Octal numbers and octal escapes in strings are not allowed in the strict
+// mode.
 
-'this is a normal string'
-'this is a string with an \xaa escape'
-'this \u00ab too'
-'and \n this \t\00'
+var octal_number = 031;
+var not_octal_number = 0;
+var again_not = 019;
 
-identifier\u1118oo
+"octal inside \01 string"
+"this is not octal \0"
+"this is an octal escape followed by 9: \019"
+"doesn't need to start with 0: \11"
+
+'octal inside \01 string'
+'this is not octal \0'
+'this is an octal escape followed by 9: \01'
+'doesn\'t need to start with 0: \11'
+
+// Even more complicated cases: two octals in one string:
+"foo\00\00"
+'foo\00\00'
+
+// Different lengths of octals:
+"bar\0" // not an octal
+"bar\00"
+"bar\000" // Not an octal according to Ecma
+"bar\0000" // First 3 recognized as octal
+
+'bar\0' // not an octal
+'bar\00'
+'bar\000' // Not an octal according to Ecma
+'bar\0000' // First 3 recognized as octal
