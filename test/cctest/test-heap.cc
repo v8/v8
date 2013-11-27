@@ -2184,6 +2184,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2220,6 +2221,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2256,6 +2258,7 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
 
 TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2281,6 +2284,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2312,6 +2316,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
 TEST(OptimizedPretenuringDoubleArrayProperties) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2337,6 +2342,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
 TEST(OptimizedPretenuringdoubleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2362,6 +2368,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2396,6 +2403,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedObjectLiterals) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2430,6 +2438,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 
 TEST(OptimizedPretenuringNestedDoubleLiterals) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2493,6 +2502,7 @@ TEST(OptimizedAllocationArrayLiterals) {
 
 TEST(OptimizedPretenuringCallNew) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_allocation_site_pretenuring = false;
   i::FLAG_pretenuring_call_new = true;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;

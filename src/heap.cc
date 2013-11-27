@@ -87,7 +87,6 @@ Heap::Heap()
       contexts_disposed_(0),
       global_ic_age_(0),
       flush_monomorphic_ics_(false),
-      allocation_mementos_found_(0),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -506,6 +505,40 @@ void Heap::RepairFreeListsAfterBoot() {
 
 
 void Heap::GarbageCollectionEpilogue() {
+  if (FLAG_allocation_site_pretenuring) {
+    int tenure_decisions = 0;
+    int dont_tenure_decisions = 0;
+    int allocation_mementos_found = 0;
+
+    Object* cur = allocation_sites_list();
+    while (cur->IsAllocationSite()) {
+      AllocationSite* casted = AllocationSite::cast(cur);
+      allocation_mementos_found += casted->memento_found_count()->value();
+      if (casted->DigestPretenuringFeedback()) {
+        if (casted->GetPretenureMode() == TENURED) {
+          tenure_decisions++;
+        } else {
+          dont_tenure_decisions++;
+        }
+      }
+      cur = casted->weak_next();
+    }
+
+    // TODO(mvstanton): Pretenure decisions are only made once for an allocation
+    // site. Find a sane way to decide about revisiting the decision later.
+
+    if (FLAG_trace_track_allocation_sites &&
+        (allocation_mementos_found > 0 ||
+         tenure_decisions > 0 ||
+         dont_tenure_decisions > 0)) {
+      PrintF("GC: (#mementos, #tenure decisions, #donttenure decisions) "
+             "(%d, %d, %d)\n",
+             allocation_mementos_found,
+             tenure_decisions,
+             dont_tenure_decisions);
+    }
+  }
+
   store_buffer()->GCEpilogue();
 
   // In release mode, we only zap the from space under heap verification.
@@ -1393,8 +1426,6 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 void Heap::Scavenge() {
   RelocationLock relocation_lock(this);
 
-  allocation_mementos_found_ = 0;
-
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
 #endif
@@ -1542,11 +1573,6 @@ void Heap::Scavenge() {
   gc_state_ = NOT_IN_GC;
 
   scavenges_since_last_idle_round_++;
-
-  if (FLAG_trace_track_allocation_sites && allocation_mementos_found_ > 0) {
-    PrintF("AllocationMementos found during scavenge = %d\n",
-           allocation_mementos_found_);
-  }
 }
 
 
@@ -4359,6 +4385,17 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 }
 
 
+void Heap::InitializeAllocationMemento(AllocationMemento* memento,
+                                       AllocationSite* allocation_site) {
+  memento->set_map_no_write_barrier(allocation_memento_map());
+  ASSERT(allocation_site->map() == allocation_site_map());
+  memento->set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
+  if (FLAG_allocation_site_pretenuring) {
+    allocation_site->IncrementMementoCreateCount();
+  }
+}
+
+
 MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
     Handle<AllocationSite> allocation_site) {
   ASSERT(gc_state_ == NOT_IN_GC);
@@ -4375,9 +4412,7 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   HeapObject::cast(result)->set_map_no_write_barrier(map);
   AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
       reinterpret_cast<Address>(result) + map->instance_size());
-  alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-  ASSERT(allocation_site->map() == allocation_site_map());
-  alloc_memento->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
+  InitializeAllocationMemento(alloc_memento, *allocation_site);
   return result;
 }
 
@@ -4810,8 +4845,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   int object_size = map->instance_size();
   Object* clone;
 
-  ASSERT(site == NULL || (AllocationSite::CanTrack(map->instance_type()) &&
-                          map->instance_type() == JS_ARRAY_TYPE));
+  ASSERT(site == NULL || AllocationSite::CanTrack(map->instance_type()));
 
   WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
 
@@ -4850,9 +4884,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
     if (site != NULL) {
       AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
           reinterpret_cast<Address>(clone) + object_size);
-      alloc_memento->set_map_no_write_barrier(allocation_memento_map());
-      ASSERT(site->map() == allocation_site_map());
-      alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
+      InitializeAllocationMemento(alloc_memento, site);
       HeapProfiler* profiler = isolate()->heap_profiler();
       if (profiler->is_tracking_allocations()) {
         profiler->UpdateObjectSizeEvent(HeapObject::cast(clone)->address(),

@@ -41,16 +41,14 @@ namespace internal {
 // boilerplate with AllocationSite and AllocationMemento support.
 class AllocationSiteContext {
  public:
-  AllocationSiteContext(Isolate* isolate, bool activated) {
+  explicit AllocationSiteContext(Isolate* isolate) {
     isolate_ = isolate;
-    activated_ = activated;
   };
 
   Handle<AllocationSite> top() { return top_; }
   Handle<AllocationSite> current() { return current_; }
 
-  // If activated, then recursively create mementos
-  bool activated() const { return activated_; }
+  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
 
   Isolate* isolate() { return isolate_; }
 
@@ -68,7 +66,6 @@ class AllocationSiteContext {
   Isolate* isolate_;
   Handle<AllocationSite> top_;
   Handle<AllocationSite> current_;
-  bool activated_;
 };
 
 
@@ -77,7 +74,7 @@ class AllocationSiteContext {
 class AllocationSiteCreationContext : public AllocationSiteContext {
  public:
   explicit AllocationSiteCreationContext(Isolate* isolate)
-      : AllocationSiteContext(isolate, true) { }
+      : AllocationSiteContext(isolate) { }
 
   Handle<AllocationSite> EnterNewScope();
   void ExitScope(Handle<AllocationSite> site, Handle<JSObject> object);
@@ -90,8 +87,9 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
  public:
   AllocationSiteUsageContext(Isolate* isolate, Handle<AllocationSite> site,
                              bool activated)
-      : AllocationSiteContext(isolate, activated),
-        top_site_(site) { }
+      : AllocationSiteContext(isolate),
+        top_site_(site),
+        activated_(activated) { }
 
   inline Handle<AllocationSite> EnterNewScope() {
     if (top().is_null()) {
@@ -113,8 +111,11 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
     ASSERT(object.is_null() || *object == scope_site->transition_info());
   }
 
+  bool ShouldCreateMemento(Handle<JSObject> object);
+
  private:
   Handle<AllocationSite> top_site_;
+  bool activated_;
 };
 
 

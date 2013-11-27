@@ -1322,6 +1322,16 @@ void AllocationSite::Initialize() {
 }
 
 
+void AllocationSite::MarkZombie() {
+  ASSERT(!IsZombie());
+  set_pretenure_decision(Smi::FromInt(kZombie));
+  // Clear all non-smi fields
+  set_transition_info(Smi::FromInt(0));
+  set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
+                     SKIP_WRITE_BARRIER);
+}
+
+
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
 AllocationSiteMode AllocationSite::GetMode(
@@ -1348,6 +1358,9 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
 
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
+  if (FLAG_allocation_site_pretenuring) {
+    return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
+  }
   return type == JS_ARRAY_TYPE;
 }
 
@@ -1364,6 +1377,45 @@ inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
   }
   UNREACHABLE();
   return DependentCode::kAllocationSiteTransitionChangedGroup;
+}
+
+
+inline void AllocationSite::IncrementMementoFoundCount() {
+  int value = memento_found_count()->value();
+  set_memento_found_count(Smi::FromInt(value + 1));
+}
+
+
+inline void AllocationSite::IncrementMementoCreateCount() {
+  ASSERT(FLAG_allocation_site_pretenuring);
+  int value = memento_create_count()->value();
+  set_memento_create_count(Smi::FromInt(value + 1));
+}
+
+
+inline bool AllocationSite::DigestPretenuringFeedback() {
+  bool decision_made = false;
+  if (!PretenuringDecisionMade()) {
+    int create_count = memento_create_count()->value();
+    if (create_count >= kPretenureMinimumCreated) {
+      int found_count = memento_found_count()->value();
+      double ratio = static_cast<double>(found_count) / create_count;
+      if (FLAG_trace_track_allocation_sites) {
+        PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
+               static_cast<void*>(this), create_count, found_count, ratio);
+      }
+      int result = ratio >= kPretenureRatio ? kTenure : kDontTenure;
+      set_pretenure_decision(Smi::FromInt(result));
+      decision_made = true;
+      // TODO(mvstanton): if the decision represents a change, any dependent
+      // code registered for pretenuring changes should be deopted.
+    }
+  }
+
+  // Clear feedback calculation fields until the next gc.
+  set_memento_found_count(Smi::FromInt(0));
+  set_memento_create_count(Smi::FromInt(0));
+  return decision_made;
 }
 
 
