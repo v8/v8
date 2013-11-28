@@ -33,7 +33,8 @@ namespace v8 {
 namespace internal {
 
 
-v8::Handle<v8::FunctionTemplate> FreeBufferExtension::GetNativeFunction(
+v8::Handle<v8::FunctionTemplate> FreeBufferExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate,
     v8::Handle<v8::String> str) {
   return v8::FunctionTemplate::New(FreeBufferExtension::FreeBuffer);
 }

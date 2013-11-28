@@ -36,7 +36,8 @@ namespace internal {
 class GCExtension : public v8::Extension {
  public:
   explicit GCExtension(const char* source) : v8::Extension("v8/gc", source) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
       v8::Handle<v8::String> name);
   static void GC(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Register();

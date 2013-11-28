@@ -32,7 +32,8 @@ namespace v8 {
 namespace internal {
 
 
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
+v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate,
     v8::Handle<v8::String> str) {
   return v8::FunctionTemplate::New(GCExtension::GC);
 }

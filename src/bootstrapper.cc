@@ -2627,7 +2627,8 @@ Genesis::Genesis(Isolate* isolate,
       isolate->random_number_generator()->NextBytes(state, num_bytes);
     } while (state[0] == 0 || state[1] == 0);
 
-    v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(state, num_bytes);
+    v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(
+        reinterpret_cast<v8::Isolate*>(isolate), state, num_bytes);
     Utils::OpenHandle(*buffer)->set_should_be_freed(true);
     v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
     Handle<JSBuiltinsObject> builtins(native_context()->builtins());
@@ -2640,8 +2641,10 @@ Genesis::Genesis(Isolate* isolate,
     // Initialize trigonometric lookup tables and constants.
     const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
     v8::Local<v8::ArrayBuffer> sin_buffer = v8::ArrayBuffer::New(
+        reinterpret_cast<v8::Isolate*>(isolate),
         TrigonometricLookupTable::sin_table(), table_num_bytes);
     v8::Local<v8::ArrayBuffer> cos_buffer = v8::ArrayBuffer::New(
+        reinterpret_cast<v8::Isolate*>(isolate),
         TrigonometricLookupTable::cos_x_interval_table(), table_num_bytes);
     v8::Local<v8::Float64Array> sin_table = v8::Float64Array::New(
         sin_buffer, 0, TrigonometricLookupTable::table_size());

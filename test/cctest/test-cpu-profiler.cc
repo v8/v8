@@ -843,7 +843,8 @@ TEST(NativeMethodUninitializedIC) {
       v8::String::NewFromUtf8(env->GetIsolate(), "Test_InstanceCostructor"));
   v8::Local<v8::ObjectTemplate> proto_template =
       func_template->PrototypeTemplate();
-  v8::Local<v8::Signature> signature = v8::Signature::New(func_template);
+  v8::Local<v8::Signature> signature =
+      v8::Signature::New(env->GetIsolate(), func_template);
   proto_template->Set(v8::String::NewFromUtf8(env->GetIsolate(), "fooMethod"),
                       v8::FunctionTemplate::New(&TestApiCallbacks::Callback,
                                                 data, signature, 0));
@@ -886,7 +887,8 @@ TEST(NativeMethodMonomorphicIC) {
       v8::String::NewFromUtf8(env->GetIsolate(), "Test_InstanceCostructor"));
   v8::Local<v8::ObjectTemplate> proto_template =
       func_template->PrototypeTemplate();
-  v8::Local<v8::Signature> signature = v8::Signature::New(func_template);
+  v8::Local<v8::Signature> signature =
+      v8::Signature::New(env->GetIsolate(), func_template);
   proto_template->Set(v8::String::NewFromUtf8(env->GetIsolate(), "fooMethod"),
                       v8::FunctionTemplate::New(&TestApiCallbacks::Callback,
                                                 data, signature, 0));

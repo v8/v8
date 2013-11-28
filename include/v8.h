@@ -1240,8 +1240,8 @@ class V8_EXPORT Message {
 
   // TODO(1245381): Print to a string instead of on a FILE.
   static void PrintCurrentStackTrace(Isolate* isolate, FILE* out);
-  // Will be deprecated soon.
-  static void PrintCurrentStackTrace(FILE* out);
+  V8_DEPRECATED("Will be removed",
+                static void PrintCurrentStackTrace(FILE* out));
 
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;
@@ -1299,10 +1299,9 @@ class V8_EXPORT StackTrace {
       Isolate* isolate,
       int frame_limit,
       StackTraceOptions options = kOverview);
-  // Will be deprecated soon.
-  static Local<StackTrace> CurrentStackTrace(
-      int frame_limit,
-      StackTraceOptions options = kOverview);
+  V8_DEPRECATED("Will be removed",
+                static Local<StackTrace> CurrentStackTrace(
+                    int frame_limit, StackTraceOptions options = kOverview));
 };
 
 
@@ -1634,8 +1633,8 @@ class V8_EXPORT Boolean : public Primitive {
  public:
   bool Value() const;
   V8_INLINE static Handle<Boolean> New(Isolate* isolate, bool value);
-  // Will be deprecated soon.
-  V8_INLINE static Handle<Boolean> New(bool value);
+  V8_DEPRECATED("Will be removed",
+                V8_INLINE static Handle<Boolean> New(bool value));
 };
 
 
@@ -1905,8 +1904,8 @@ class V8_EXPORT String : public Primitive {
    */
   static Local<String> NewExternal(Isolate* isolate,
                                    ExternalStringResource* resource);
-  // Will be deprecated soon.
-  static Local<String> NewExternal(ExternalStringResource* resource);
+  V8_DEPRECATED("Will be removed", static Local<String> NewExternal(
+                                        ExternalStringResource* resource));
 
   /**
    * Associate an external string resource with this string by transforming it
@@ -1929,8 +1928,8 @@ class V8_EXPORT String : public Primitive {
    */
   static Local<String> NewExternal(Isolate* isolate,
                                    ExternalAsciiStringResource* resource);
-  // Will be deprecated soon.
-  static Local<String> NewExternal(ExternalAsciiStringResource* resource);
+  V8_DEPRECATED("Will be removed", static Local<String> NewExternal(
+                                        ExternalAsciiStringResource* resource));
 
   /**
    * Associate an external string resource with this string by transforming it
@@ -2488,8 +2487,7 @@ class V8_EXPORT Array : public Object {
    * is negative the returned array will have length 0.
    */
   static Local<Array> New(Isolate* isolate, int length = 0);
-  // Will be deprecated soon.
-  static Local<Array> New(int length = 0);
+  V8_DEPRECATED("Will be removed", static Local<Array> New(int length = 0));
 
   V8_INLINE static Array* Cast(Value* obj);
  private:
@@ -2753,8 +2751,8 @@ class V8_EXPORT ArrayBuffer : public Object {
    * unless the object is externalized.
    */
   static Local<ArrayBuffer> New(Isolate* isolate, size_t byte_length);
-  // Will be deprecated soon.
-  static Local<ArrayBuffer> New(size_t byte_length);
+  V8_DEPRECATED("Will be removed",
+                static Local<ArrayBuffer> New(size_t byte_length));
 
   /**
    * Create a new ArrayBuffer over an existing memory block.
@@ -2764,8 +2762,8 @@ class V8_EXPORT ArrayBuffer : public Object {
    */
   static Local<ArrayBuffer> New(Isolate* isolate, void* data,
                                 size_t byte_length);
-  // Will be deprecated soon.
-  static Local<ArrayBuffer> New(void* data, size_t byte_length);
+  V8_DEPRECATED("Will be removed",
+                static Local<ArrayBuffer> New(void* data, size_t byte_length));
 
   /**
    * Returns true if ArrayBuffer is extrenalized, that is, does not
@@ -3026,8 +3024,7 @@ class V8_EXPORT DataView : public ArrayBufferView {
 class V8_EXPORT Date : public Object {
  public:
   static Local<Value> New(Isolate* isolate, double time);
-  // Will be deprecated soon.
-  static Local<Value> New(double time);
+  V8_DEPRECATED("Will be removed", static Local<Value> New(double time));
 
   V8_DEPRECATED(
       "Use ValueOf instead",
@@ -3054,8 +3051,8 @@ class V8_EXPORT Date : public Object {
    * negatively impact the performance of date operations.
    */
   static void DateTimeConfigurationChangeNotification(Isolate* isolate);
-  // Will be deprecated soon.
-  static void DateTimeConfigurationChangeNotification();
+  V8_DEPRECATED("Will be removed",
+                static void DateTimeConfigurationChangeNotification());
 
  private:
   static void CheckCast(v8::Value* obj);
@@ -3068,8 +3065,7 @@ class V8_EXPORT Date : public Object {
 class V8_EXPORT NumberObject : public Object {
  public:
   static Local<Value> New(Isolate* isolate, double value);
-  // Will be deprecated soon.
-  static Local<Value> New(double value);
+  V8_DEPRECATED("Will be removed", static Local<Value> New(double value));
 
   V8_DEPRECATED(
       "Use ValueOf instead",
@@ -3231,8 +3227,8 @@ class V8_EXPORT Template : public Data {
   void Set(Handle<String> name, Handle<Data> value,
            PropertyAttribute attributes = None);
   V8_INLINE void Set(Isolate* isolate, const char* name, Handle<Data> value);
-  // Will be deprecated soon.
-  V8_INLINE void Set(const char* name, Handle<Data> value);
+  V8_DEPRECATED("Will be removed",
+                V8_INLINE void Set(const char* name, Handle<Data> value));
 
   void SetAccessorProperty(
      Local<String> name,
@@ -3768,11 +3764,13 @@ class V8_EXPORT Signature : public Data {
                                   Handle<FunctionTemplate>(),
                               int argc = 0,
                               Handle<FunctionTemplate> argv[] = 0);
-  // Will be deprecated soon.
-  static Local<Signature> New(Handle<FunctionTemplate> receiver =
-                                  Handle<FunctionTemplate>(),
-                              int argc = 0,
-                              Handle<FunctionTemplate> argv[] = 0);
+  V8_DEPRECATED("Will be removed",
+                static Local<Signature> New(Handle<FunctionTemplate> receiver =
+                                                Handle<FunctionTemplate>(),
+                                            int argc = 0,
+                                            Handle<FunctionTemplate> argv[] =
+                                                0));
+
  private:
   Signature();
 };
@@ -3787,9 +3785,9 @@ class V8_EXPORT AccessorSignature : public Data {
   static Local<AccessorSignature> New(Isolate* isolate,
                                       Handle<FunctionTemplate> receiver =
                                           Handle<FunctionTemplate>());
-  // Will be deprecated soon.
-  static Local<AccessorSignature> New(Handle<FunctionTemplate> receiver =
-                                          Handle<FunctionTemplate>());
+  V8_DEPRECATED("Will be removed", static Local<AccessorSignature> New(
+                                       Handle<FunctionTemplate> receiver =
+                                           Handle<FunctionTemplate>()));
 
  private:
   AccessorSignature();
@@ -3896,11 +3894,16 @@ class V8_EXPORT Extension {  // NOLINT
   virtual ~Extension() { }
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Handle<v8::String> name) {
+#if defined(V8_DEPRECATION_WARNINGS)
+    return v8::Handle<v8::FunctionTemplate>();
+#else
     return GetNativeFunction(name);
+#endif
   }
-  // Will be deprecated soon.
-  virtual v8::Handle<v8::FunctionTemplate>
-      GetNativeFunction(v8::Handle<v8::String> name) {
+
+  V8_DEPRECATED("Will be removed",
+                virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+                    v8::Handle<v8::String> name)) {
     return v8::Handle<v8::FunctionTemplate>();
   }
 
@@ -3948,11 +3951,10 @@ V8_INLINE Handle<Primitive> Null(Isolate* isolate);
 V8_INLINE Handle<Boolean> True(Isolate* isolate);
 V8_INLINE Handle<Boolean> False(Isolate* isolate);
 
-// Will be removed soon.
-Handle<Primitive> V8_EXPORT Undefined();
-Handle<Primitive> V8_EXPORT Null();
-Handle<Boolean> V8_EXPORT True();
-Handle<Boolean> V8_EXPORT False();
+V8_DEPRECATED("Will be removed", Handle<Primitive> V8_EXPORT Undefined());
+V8_DEPRECATED("Will be removed", Handle<Primitive> V8_EXPORT Null());
+V8_DEPRECATED("Will be removed", Handle<Boolean> V8_EXPORT True());
+V8_DEPRECATED("Will be removed", Handle<Boolean> V8_EXPORT False());
 
 
 /**

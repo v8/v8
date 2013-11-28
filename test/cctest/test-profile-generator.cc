@@ -541,7 +541,8 @@ TEST(NoSamples) {
 class ProfilerExtension : public v8::Extension {
  public:
   ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
       v8::Handle<v8::String> name);
   static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -554,13 +555,11 @@ const char* ProfilerExtension::kSource =
     "native function startProfiling();"
     "native function stopProfiling();";
 
-v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunction(
-    v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::NewFromUtf8(v8::Isolate::GetCurrent(),
-                                           "startProfiling"))) {
+v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Handle<v8::String> name) {
+  if (name->Equals(v8::String::NewFromUtf8(isolate, "startProfiling"))) {
     return v8::FunctionTemplate::New(ProfilerExtension::StartProfiling);
-  } else if (name->Equals(v8::String::NewFromUtf8(v8::Isolate::GetCurrent(),
-                                                  "stopProfiling"))) {
+  } else if (name->Equals(v8::String::NewFromUtf8(isolate, "stopProfiling"))) {
     return v8::FunctionTemplate::New(ProfilerExtension::StopProfiling);
   } else {
     CHECK(false);

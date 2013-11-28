@@ -93,7 +93,8 @@ static void DoTraceHideCEntryFPAddress(Address fp) {
 class TraceExtension : public v8::Extension {
  public:
   TraceExtension() : v8::Extension("v8/trace", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
       v8::Handle<String> name);
   static void Trace(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -111,18 +112,16 @@ const char* TraceExtension::kSource =
     "native function js_entry_sp();"
     "native function js_entry_sp_level2();";
 
-v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunction(
-    v8::Handle<String> name) {
-  if (name->Equals(String::NewFromUtf8(v8::Isolate::GetCurrent(), "trace"))) {
+v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Handle<String> name) {
+  if (name->Equals(String::NewFromUtf8(isolate, "trace"))) {
     return v8::FunctionTemplate::New(TraceExtension::Trace);
   } else if (name->Equals(
-                 String::NewFromUtf8(v8::Isolate::GetCurrent(), "js_trace"))) {
+                 String::NewFromUtf8(isolate, "js_trace"))) {
     return v8::FunctionTemplate::New(TraceExtension::JSTrace);
-  } else if (name->Equals(String::NewFromUtf8(v8::Isolate::GetCurrent(),
-                                              "js_entry_sp"))) {
+  } else if (name->Equals(String::NewFromUtf8(isolate, "js_entry_sp"))) {
     return v8::FunctionTemplate::New(TraceExtension::JSEntrySP);
-  } else if (name->Equals(String::NewFromUtf8(v8::Isolate::GetCurrent(),
-                                              "js_entry_sp_level2"))) {
+  } else if (name->Equals(String::NewFromUtf8(isolate, "js_entry_sp_level2"))) {
     return v8::FunctionTemplate::New(TraceExtension::JSEntrySPLevel2);
   } else {
     CHECK(false);

@@ -2922,7 +2922,7 @@ TEST(DebugStepKeyedLoadLoop) {
       "foo");
 
   // Create array [0,1,2,3,4,5,6,7,8,9]
-  v8::Local<v8::Array> a = v8::Array::New(10);
+  v8::Local<v8::Array> a = v8::Array::New(env->GetIsolate(), 10);
   for (int i = 0; i < 10; i++) {
     a->Set(v8::Number::New(i), v8::Number::New(i));
   }
@@ -2969,7 +2969,7 @@ TEST(DebugStepKeyedStoreLoop) {
       "foo");
 
   // Create array [0,1,2,3,4,5,6,7,8,9]
-  v8::Local<v8::Array> a = v8::Array::New(10);
+  v8::Local<v8::Array> a = v8::Array::New(env->GetIsolate(), 10);
   for (int i = 0; i < 10; i++) {
     a->Set(v8::Number::New(i), v8::Number::New(i));
   }
@@ -4356,7 +4356,7 @@ TEST(NoBreakWhenBootstrapping) {
 
 
 static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Handle<v8::Array> result = v8::Array::New(3);
+  v8::Handle<v8::Array> result = v8::Array::New(info.GetIsolate(), 3);
   result->Set(v8::Integer::New(0),
               v8::String::NewFromUtf8(info.GetIsolate(), "a"));
   result->Set(v8::Integer::New(1),
@@ -4368,7 +4368,7 @@ static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
 
 
 static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Handle<v8::Array> result = v8::Array::New(2);
+  v8::Handle<v8::Array> result = v8::Array::New(info.GetIsolate(), 2);
   result->Set(v8::Integer::New(0), v8::Number::New(1));
   result->Set(v8::Integer::New(1), v8::Number::New(10));
   info.GetReturnValue().Set(result);
@@ -6251,7 +6251,8 @@ TEST(DebugGetLoadedScripts) {
   env.ExposeDebug();
 
   EmptyExternalStringResource source_ext_str;
-  v8::Local<v8::String> source = v8::String::NewExternal(&source_ext_str);
+  v8::Local<v8::String> source =
+      v8::String::NewExternal(env->GetIsolate(), &source_ext_str);
   v8::Handle<v8::Script> evil_script(v8::Script::Compile(source));
   // "use" evil_script to make the compiler happy.
   (void) evil_script;
