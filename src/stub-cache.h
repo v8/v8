@@ -83,7 +83,7 @@ class StubCache {
   Handle<Code> FindIC(Handle<Name> name,
                       Handle<Map> stub_holder_map,
                       Code::Kind kind,
-                      Code::ExtraICState extra_state = Code::kNoExtraICState,
+                      ExtraICState extra_state = kNoExtraICState,
                       InlineCacheHolderFlag cache_holder = OWN_MAP);
 
   Handle<Code> FindHandler(Handle<Name> name,
@@ -95,7 +95,7 @@ class StubCache {
   Handle<Code> ComputeMonomorphicIC(Handle<Name> name,
                                     Handle<Type> type,
                                     Handle<Code> handler,
-                                    StrictModeFlag strict_mode);
+                                    ExtraICState extra_ic_state);
 
   Handle<Code> ComputeLoadNonexistent(Handle<Name> name, Handle<Type> type);
 
@@ -107,7 +107,7 @@ class StubCache {
 
   Handle<Code> ComputeCallField(int argc,
                                 Code::Kind,
-                                Code::ExtraICState extra_state,
+                                ExtraICState extra_state,
                                 Handle<Name> name,
                                 Handle<Object> object,
                                 Handle<JSObject> holder,
@@ -115,7 +115,7 @@ class StubCache {
 
   Handle<Code> ComputeCallConstant(int argc,
                                    Code::Kind,
-                                   Code::ExtraICState extra_state,
+                                   ExtraICState extra_state,
                                    Handle<Name> name,
                                    Handle<Object> object,
                                    Handle<JSObject> holder,
@@ -123,14 +123,14 @@ class StubCache {
 
   Handle<Code> ComputeCallInterceptor(int argc,
                                       Code::Kind,
-                                      Code::ExtraICState extra_state,
+                                      ExtraICState extra_state,
                                       Handle<Name> name,
                                       Handle<Object> object,
                                       Handle<JSObject> holder);
 
   Handle<Code> ComputeCallGlobal(int argc,
                                  Code::Kind,
-                                 Code::ExtraICState extra_state,
+                                 ExtraICState extra_state,
                                  Handle<Name> name,
                                  Handle<JSObject> object,
                                  Handle<GlobalObject> holder,
@@ -145,21 +145,21 @@ class StubCache {
 
   Handle<Code> ComputeCallPreMonomorphic(int argc,
                                          Code::Kind kind,
-                                         Code::ExtraICState extra_state);
+                                         ExtraICState extra_state);
 
   Handle<Code> ComputeCallNormal(int argc,
                                  Code::Kind kind,
-                                 Code::ExtraICState state);
+                                 ExtraICState state);
 
   Handle<Code> ComputeCallArguments(int argc);
 
   Handle<Code> ComputeCallMegamorphic(int argc,
                                       Code::Kind kind,
-                                      Code::ExtraICState state);
+                                      ExtraICState state);
 
   Handle<Code> ComputeCallMiss(int argc,
                                Code::Kind kind,
-                               Code::ExtraICState state);
+                               ExtraICState state);
 
   // ---
 
@@ -177,7 +177,7 @@ class StubCache {
                                     CodeHandleList* handlers,
                                     int number_of_valid_maps,
                                     Handle<Name> name,
-                                    StrictModeFlag strict_mode);
+                                    ExtraICState extra_ic_state);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
   Code* FindCallInitialize(int argc, RelocInfo::Mode mode, Code::Kind kind);
@@ -590,7 +590,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   }
   void JitEvent(Handle<Name> name, Handle<Code> code);
 
-  virtual Code::ExtraICState extra_state() { return Code::kNoExtraICState; }
+  virtual ExtraICState extra_state() { return kNoExtraICState; }
   virtual Register receiver() = 0;
   virtual Register name() = 0;
   virtual Register scratch1() = 0;
@@ -828,7 +828,9 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
   virtual Register scratch2() { return registers_[4]; }
   virtual Register scratch3() { return registers_[5]; }
   StrictModeFlag strict_mode() { return strict_mode_; }
-  virtual Code::ExtraICState extra_state() { return strict_mode_; }
+  virtual ExtraICState extra_state() {
+    return StoreIC::ComputeExtraICState(strict_mode_);
+  }
 
  protected:
   static Register* registers();
@@ -858,8 +860,8 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
  protected:
-  virtual Code::ExtraICState extra_state() {
-    return Code::ComputeExtraICState(store_mode_, strict_mode());
+  virtual ExtraICState extra_state() {
+    return KeyedStoreIC::ComputeExtraICState(strict_mode(), store_mode_);
   }
   static Register* registers();
 
@@ -898,7 +900,7 @@ class CallStubCompiler: public StubCompiler {
   CallStubCompiler(Isolate* isolate,
                    int argc,
                    Code::Kind kind,
-                   Code::ExtraICState extra_state,
+                   ExtraICState extra_state,
                    InlineCacheHolderFlag cache_holder = OWN_MAP);
 
   Handle<Code> CompileCallField(Handle<JSObject> object,
@@ -999,7 +1001,7 @@ class CallStubCompiler: public StubCompiler {
 
   const ParameterCount arguments_;
   const Code::Kind kind_;
-  const Code::ExtraICState extra_state_;
+  const ExtraICState extra_state_;
   const InlineCacheHolderFlag cache_holder_;
 };
 

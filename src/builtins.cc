@@ -1658,7 +1658,7 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
     functions->flags = Code::ComputeFlags(                                  \
-        Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState,                  \
+        Code::HANDLER, MONOMORPHIC, kNoExtraICState,                        \
         Code::NORMAL, Code::kind);                                          \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;

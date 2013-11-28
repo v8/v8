@@ -268,7 +268,7 @@ KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     if (code->kind() == Code::KEYED_STORE_IC) {
-      return Code::GetKeyedAccessStoreMode(code->extra_ic_state());
+      return KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state());
     }
   }
   return STANDARD_STORE;
@@ -279,7 +279,7 @@ void TypeFeedbackOracle::LoadReceiverTypes(TypeFeedbackId id,
                                            Handle<String> name,
                                            SmallMapList* types) {
   Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState,
+      Code::HANDLER, MONOMORPHIC, kNoExtraICState,
       Code::NORMAL, Code::LOAD_IC);
   CollectReceiverTypes(id, name, flags, types);
 }
@@ -289,7 +289,7 @@ void TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
                                             Handle<String> name,
                                             SmallMapList* types) {
   Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState,
+      Code::HANDLER, MONOMORPHIC, kNoExtraICState,
       Code::NORMAL, Code::STORE_IC);
   CollectReceiverTypes(expr->AssignmentFeedbackId(), name, flags, types);
 }
@@ -303,8 +303,11 @@ void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
 
   // Note: Currently we do not take string extra ic data into account
   // here.
-  Code::ExtraICState extra_ic_state =
-      CallIC::Contextual::encode(call_kind == CALL_AS_FUNCTION);
+  ContextualMode contextual_mode = call_kind == CALL_AS_FUNCTION
+      ? CONTEXTUAL
+      : NOT_CONTEXTUAL;
+  ExtraICState extra_ic_state =
+      CallIC::Contextual::encode(contextual_mode);
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::CALL_IC, extra_ic_state, OWN_MAP, Code::NORMAL, arity);

@@ -648,7 +648,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   CallInterceptorCompiler(CallStubCompiler* stub_compiler,
                           const ParameterCount& arguments,
                           Register name,
-                          Code::ExtraICState extra_state)
+                          ExtraICState extra_state)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
         name_(name),
@@ -828,7 +828,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   CallStubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
-  Code::ExtraICState extra_state_;
+  ExtraICState extra_state_;
 };
 
 

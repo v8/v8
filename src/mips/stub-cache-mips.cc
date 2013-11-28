@@ -736,7 +736,7 @@ static void GenerateCallFunction(MacroAssembler* masm,
                                  Handle<Object> object,
                                  const ParameterCount& arguments,
                                  Label* miss,
-                                 Code::ExtraICState extra_ic_state) {
+                                 ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- a0: receiver
   //  -- a1: function to call
@@ -945,7 +945,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   CallInterceptorCompiler(StubCompiler* stub_compiler,
                           const ParameterCount& arguments,
                           Register name,
-                          Code::ExtraICState extra_ic_state)
+                          ExtraICState extra_ic_state)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
         name_(name),
@@ -1129,7 +1129,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   StubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
-  Code::ExtraICState extra_ic_state_;
+  ExtraICState extra_ic_state_;
 };
 
 

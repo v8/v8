@@ -250,10 +250,12 @@ class IC {
     UNREACHABLE();
     return Handle<Code>::null();
   }
-  virtual StrictModeFlag strict_mode() const { return kNonStrictMode; }
+
   bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                               Handle<String> name);
   void TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name);
+
+  virtual ExtraICState extra_ic_state() { return kNoExtraICState; }
 
  private:
   Code* raw_target() const { return GetTargetAtAddress(address()); }
@@ -296,8 +298,13 @@ class IC_Utility {
 
 class CallICBase: public IC {
  public:
-  class Contextual: public BitField<bool, 0, 1> {};
+  // ExtraICState bits
+  class Contextual: public BitField<ContextualMode, 0, 1> {};
   class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
+  static ExtraICState ComputeExtraICState(ContextualMode mode,
+                                          StringStubFeedback feedback) {
+    return Contextual::encode(mode) | StringStubState::encode(feedback);
+  }
 
   // Returns a JSFunction or a Failure.
   MUST_USE_RESULT MaybeObject* LoadFunction(Handle<Object> object,
@@ -306,8 +313,6 @@ class CallICBase: public IC {
  protected:
   CallICBase(Code::Kind kind, Isolate* isolate)
       : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
-
-  virtual Code::ExtraICState extra_ic_state() { return Code::kNoExtraICState; }
 
   // Compute a monomorphic stub if possible, otherwise return a null handle.
   Handle<Code> ComputeMonomorphicStub(LookupResult* lookup,
@@ -334,14 +339,14 @@ class CallICBase: public IC {
   static void GenerateMiss(MacroAssembler* masm,
                            int argc,
                            IC::UtilityId id,
-                           Code::ExtraICState extra_state);
+                           ExtraICState extra_state);
 
   static void GenerateNormal(MacroAssembler* masm, int argc);
 
   static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
                                             int argc,
                                             Code::Kind kind,
-                                            Code::ExtraICState extra_state);
+                                            ExtraICState extra_state);
 
   virtual Handle<Code> megamorphic_stub();
   virtual Handle<Code> pre_monomorphic_stub();
@@ -363,31 +368,31 @@ class CallIC: public CallICBase {
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm,
                                  int argc,
-                                 Code::ExtraICState extra_state) {
+                                 ExtraICState extra_state) {
     GenerateMiss(masm, argc, extra_state);
   }
 
   static void GenerateMiss(MacroAssembler* masm,
                            int argc,
-                           Code::ExtraICState extra_state) {
+                           ExtraICState extra_state) {
     CallICBase::GenerateMiss(masm, argc, IC::kCallIC_Miss, extra_state);
   }
 
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   int argc,
-                                  Code::ExtraICState extra_ic_state);
+                                  ExtraICState extra_ic_state);
 
   static void GenerateNormal(MacroAssembler* masm, int argc) {
     CallICBase::GenerateNormal(masm, argc);
-    GenerateMiss(masm, argc, Code::kNoExtraICState);
+    GenerateMiss(masm, argc, kNoExtraICState);
   }
   bool TryUpdateExtraICState(LookupResult* lookup, Handle<Object> object);
 
  protected:
-  virtual Code::ExtraICState extra_ic_state() { return extra_ic_state_; }
+  virtual ExtraICState extra_ic_state() { return extra_ic_state_; }
 
  private:
-  Code::ExtraICState extra_ic_state_;
+  ExtraICState extra_ic_state_;
 };
 
 
@@ -408,7 +413,7 @@ class KeyedCallIC: public CallICBase {
 
   static void GenerateMiss(MacroAssembler* masm, int argc) {
     CallICBase::GenerateMiss(masm, argc, IC::kKeyedCallIC_Miss,
-                             Code::kNoExtraICState);
+                             kNoExtraICState);
   }
 
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
@@ -559,13 +564,28 @@ class KeyedLoadIC: public LoadIC {
 
 class StoreIC: public IC {
  public:
+  // ExtraICState bits
+  class StrictModeState: public BitField<StrictModeFlag, 0, 1> {};
+  static ExtraICState ComputeExtraICState(StrictModeFlag flag) {
+    return StrictModeState::encode(flag);
+  }
+
+  static StrictModeFlag GetStrictMode(ExtraICState state) {
+    return StrictModeState::decode(state);
+  }
+
+  // For convenience, a statically declared encoding of strict mode extra
+  // IC state.
+  static const ExtraICState kStrictModeState =
+      1 << StrictModeState::kShift;
+
   StoreIC(FrameDepth depth, Isolate* isolate)
       : IC(depth, isolate),
-        strict_mode_(Code::GetStrictMode(target()->extra_ic_state())) {
+        strict_mode_(GetStrictMode(target()->extra_ic_state())) {
     ASSERT(IsStoreStub());
   }
 
-  virtual StrictModeFlag strict_mode() const { return strict_mode_; }
+  StrictModeFlag strict_mode() const { return strict_mode_; }
 
   // Code generators for stub routines. Only called once at startup.
   static void GenerateSlow(MacroAssembler* masm);
@@ -642,11 +662,15 @@ class StoreIC: public IC {
                                       Handle<Object> value,
                                       InlineCacheHolderFlag cache_holder);
 
+  virtual ExtraICState extra_ic_state() {
+    return ComputeExtraICState(strict_mode());
+  }
+
  private:
   void set_target(Code* code) {
     // Strict mode must be preserved across IC patching.
-    ASSERT(Code::GetStrictMode(code->extra_ic_state()) ==
-           Code::GetStrictMode(target()->extra_ic_state()));
+    ASSERT(GetStrictMode(code->extra_ic_state()) ==
+           GetStrictMode(target()->extra_ic_state()));
     IC::set_target(code);
   }
 
@@ -681,6 +705,22 @@ enum KeyedStoreIncrementLength {
 
 class KeyedStoreIC: public StoreIC {
  public:
+  // ExtraICState bits (building on IC)
+  // ExtraICState bits
+  class ExtraICStateKeyedAccessStoreMode:
+      public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
+
+  static ExtraICState ComputeExtraICState(StrictModeFlag flag,
+                                                KeyedAccessStoreMode mode) {
+    return StrictModeState::encode(flag) |
+        ExtraICStateKeyedAccessStoreMode::encode(mode);
+  }
+
+  static KeyedAccessStoreMode GetKeyedAccessStoreMode(
+      ExtraICState extra_state) {
+    return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
+  }
+
   KeyedStoreIC(FrameDepth depth, Isolate* isolate)
       : StoreIC(depth, isolate) {
     ASSERT(target()->is_keyed_store_stub());
@@ -706,6 +746,10 @@ class KeyedStoreIC: public StoreIC {
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
   virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
+
+  virtual ExtraICState extra_ic_state() {
+    return ComputeExtraICState(strict_mode(), STANDARD_STORE);
+  }
 
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate(), strict_mode());
@@ -735,7 +779,7 @@ class KeyedStoreIC: public StoreIC {
  private:
   void set_target(Code* code) {
     // Strict mode must be preserved across IC patching.
-    ASSERT(Code::GetStrictMode(code->extra_ic_state()) == strict_mode());
+    ASSERT(GetStrictMode(code->extra_ic_state()) == strict_mode());
     IC::set_target(code);
   }
 

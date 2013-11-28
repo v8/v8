@@ -179,6 +179,12 @@ enum KeyedAccessStoreMode {
 };
 
 
+enum ContextualMode {
+  NOT_CONTEXTUAL,
+  CONTEXTUAL
+};
+
+
 static const int kGrowICDelta = STORE_AND_GROW_NO_TRANSITION -
     STANDARD_STORE;
 STATIC_ASSERT(STANDARD_STORE == 0);
@@ -296,6 +302,11 @@ enum MarkingParity {
   ODD_MARKING_PARITY,
   EVEN_MARKING_PARITY
 };
+
+// ICs store extra state in a Code object. The default extra state is
+// kNoExtraICState.
+typedef int ExtraICState;
+static const ExtraICState kNoExtraICState = 0;
 
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
@@ -5036,10 +5047,6 @@ class Code: public HeapObject {
     FAST
   };
 
-  typedef int ExtraICState;
-
-  static const ExtraICState kNoExtraICState = 0;
-
   static const int kPrologueOffsetNotSet = -1;
 
 #ifdef ENABLE_DISASSEMBLER
@@ -5259,26 +5266,6 @@ class Code: public HeapObject {
   // out the to-be-overwritten header data for reproducible snapshots.
   inline void WipeOutHeader();
 
-  class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
-  class ExtraICStateKeyedAccessStoreMode:
-      public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
-
-  static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
-    return ExtraICStateStrictMode::decode(extra_ic_state);
-  }
-
-  static inline KeyedAccessStoreMode GetKeyedAccessStoreMode(
-      ExtraICState extra_ic_state) {
-    return ExtraICStateKeyedAccessStoreMode::decode(extra_ic_state);
-  }
-
-  static inline ExtraICState ComputeExtraICState(
-      KeyedAccessStoreMode store_mode,
-      StrictModeFlag strict_mode) {
-    return ExtraICStateKeyedAccessStoreMode::encode(store_mode) |
-        ExtraICStateStrictMode::encode(strict_mode);
-  }
-
   // Flags operations.
   static inline Flags ComputeFlags(
       Kind kind,
@@ -5462,12 +5449,12 @@ class Code: public HeapObject {
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
   class TypeField: public BitField<StubType, 3, 1> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
-  class KindField: public BitField<Kind, 7, 4> {};
-  class IsPregeneratedField: public BitField<bool, 11, 1> {};
-  class ExtraICStateField: public BitField<ExtraICState, 12, 5> {};
-  class ExtendedExtraICStateField: public BitField<ExtraICState, 12,
-      PlatformSmiTagging::kSmiValueSize - 12 + 1> {};  // NOLINT
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 5, 1> {};
+  class KindField: public BitField<Kind, 6, 4> {};
+  class IsPregeneratedField: public BitField<bool, 10, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 11, 6> {};
+  class ExtendedExtraICStateField: public BitField<ExtraICState, 11,
+      PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
   STATIC_ASSERT(ExtraICStateField::kShift == ExtendedExtraICStateField::kShift);
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
