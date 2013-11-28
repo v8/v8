@@ -396,8 +396,7 @@ bool ExperimentalScanner<Char>::ScanRegExpPattern(bool seen_equal) {
 
   // Previous token is either '/' or '/=', in the second case, the
   // pattern starts at =.
-  next_.beg_pos = (cursor_ - buffer_) - (seen_equal ? 2 : 1);
-  next_.end_pos = (cursor_ - buffer_) - (seen_equal ? 1 : 0);
+  next_.beg_pos = next_.end_pos = (cursor_ - buffer_) - (seen_equal ? 1 : 0);
 
   // Scan regular expression body: According to ECMA-262, 3rd, 7.8.5,
   // the scanner should pass uninterpreted bodies to the RegExp
@@ -428,6 +427,7 @@ bool ExperimentalScanner<Char>::ScanRegExpPattern(bool seen_equal) {
       if (++cursor_ >= buffer_end_) return false;
     }
   }
+  next_.end_pos = (cursor_ - buffer_);
   ++cursor_;  // consume '/'
   return true;
 }
@@ -435,6 +435,7 @@ bool ExperimentalScanner<Char>::ScanRegExpPattern(bool seen_equal) {
 
 template<typename Char>
 bool ExperimentalScanner<Char>::ScanRegExpFlags() {
+  next_.beg_pos = cursor_ - buffer_;
   // Scan regular expression flags.
   while (cursor_ < buffer_end_ && unicode_cache_->IsIdentifierPart(*cursor_)) {
     if (*cursor_ != '\\') {
@@ -444,7 +445,7 @@ bool ExperimentalScanner<Char>::ScanRegExpFlags() {
       if (++cursor_ >= buffer_end_) break;
     }
   }
-  next_.end_pos = cursor_ - buffer_ - 1;
+  next_.end_pos = cursor_ - buffer_;
   return true;
 }
 
