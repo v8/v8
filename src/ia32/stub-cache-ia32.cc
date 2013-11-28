@@ -2728,13 +2728,12 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   __ push(receiver());
   __ push(this->name());
   __ push(value());
-  __ push(Immediate(Smi::FromInt(strict_mode())));
   __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty), isolate());
-  __ TailCallExternalReference(store_ic_property, 4, 1);
+  __ TailCallExternalReference(store_ic_property, 3, 1);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

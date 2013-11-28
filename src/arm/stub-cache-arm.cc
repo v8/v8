@@ -2621,13 +2621,10 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   __ Push(receiver(), this->name(), value());
 
-  __ mov(scratch1(), Operand(Smi::FromInt(strict_mode())));
-  __ push(scratch1());  // strict mode
-
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty), isolate());
-  __ TailCallExternalReference(store_ic_property, 4, 1);
+  __ TailCallExternalReference(store_ic_property, 3, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
