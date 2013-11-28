@@ -1126,6 +1126,12 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
+void CallStubCompiler::HandlerFrontendFooter(Label* miss) {
+  __ bind(miss);
+  GenerateMissBranch();
+}
+
+
 Register LoadStubCompiler::HandlerFrontendHeader(
     Handle<Type> type,
     Register object_reg,

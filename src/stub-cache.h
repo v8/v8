@@ -906,10 +906,17 @@ class CallStubCompiler: public StubCompiler {
                                 PropertyIndex index,
                                 Handle<Name> name);
 
-  void CompileHandlerFrontend(Handle<Object> object,
-                              Handle<JSObject> holder,
-                              Handle<Name> name,
-                              CheckType check);
+  // Patch the global proxy over the global object if the global object is the
+  // receiver.
+  void PatchGlobalProxy(Handle<Object> object);
+
+  // Returns the register containing the holder of |name|.
+  Register HandlerFrontendHeader(Handle<Object> object,
+                                 Handle<JSObject> holder,
+                                 Handle<Name> name,
+                                 CheckType check,
+                                 Label* miss);
+  void HandlerFrontendFooter(Label* miss);
 
   void CompileHandlerBackend(Handle<JSFunction> function);
 
@@ -966,11 +973,6 @@ class CallStubCompiler: public StubCompiler {
   const ParameterCount& arguments() { return arguments_; }
 
   void GenerateNameCheck(Handle<Name> name, Label* miss);
-
-  void GenerateGlobalReceiverCheck(Handle<JSObject> object,
-                                   Handle<JSObject> holder,
-                                   Handle<Name> name,
-                                   Label* miss);
 
   // Generates code to load the function from the cell checking that
   // it still contains the same function.
