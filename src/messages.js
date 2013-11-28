@@ -198,6 +198,10 @@ function FormatString(format, args) {
         // str is one of %0, %1, %2 or %3.
         try {
           str = NoSideEffectToString(args[arg_num]);
+          if (str.length > 256) {
+            str = %SubString(str, 0, 239) + "...<omitted>..." +
+                  %SubString(str, str.length - 2, str.length);
+          }
         } catch (e) {
           if (%IsJSModule(args[arg_num]))
             str = "module";
