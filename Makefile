@@ -355,8 +355,8 @@ FASTTESTFLAGS = --flaky-tests=skip --slow-tests=skip --pass-fail-tests=skip \
 FASTTESTMODES = ia32.release,x64.release,ia32.debug,x64.debug,arm.debug
 
 quickcheck:
-	@$(MAKE) all optdebug=on
-	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	@$(MAKE) all optdebug=on; \
+	tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(FASTTESTMODES) $(FASTTESTFLAGS) $(TESTFLAGS)
 qc: quickcheck
 
