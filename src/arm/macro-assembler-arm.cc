@@ -3484,9 +3484,8 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 
 
 void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
-  if (use_eabi_hardfloat()) {
-    Move(d0, dreg);
-  } else {
+  ASSERT(dreg.is(d0));
+  if (!use_eabi_hardfloat()) {
     vmov(r0, r1, dreg);
   }
 }
@@ -3494,16 +3493,9 @@ void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
 
 void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
                                              DwVfpRegister dreg2) {
-  if (use_eabi_hardfloat()) {
-    if (dreg2.is(d0)) {
-      ASSERT(!dreg1.is(d1));
-      Move(d1, dreg2);
-      Move(d0, dreg1);
-    } else {
-      Move(d0, dreg1);
-      Move(d1, dreg2);
-    }
-  } else {
+  ASSERT(dreg1.is(d0));
+  ASSERT(dreg2.is(d1));
+  if (!use_eabi_hardfloat()) {
     vmov(r0, r1, dreg1);
     vmov(r2, r3, dreg2);
   }
@@ -3512,8 +3504,8 @@ void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
 
 void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg,
                                              Register reg) {
+  ASSERT(dreg.is(d0));
   if (use_eabi_hardfloat()) {
-    Move(d0, dreg);
     Move(r0, reg);
   } else {
     Move(r2, reg);

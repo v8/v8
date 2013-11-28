@@ -2164,9 +2164,6 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ vdiv(result, left, right);
       break;
     case Token::MOD: {
-      // Save r0-r3 on the stack.
-      __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
-
       __ PrepareCallCFunction(0, 2, scratch0());
       __ SetCallCDoubleArguments(left, right);
       __ CallCFunction(
@@ -2174,9 +2171,6 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
           0, 2);
       // Move the result in the double result register.
       __ GetCFunctionDoubleResult(result);
-
-      // Restore r0-r3.
-      __ ldm(ia_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
       break;
     }
     default:
@@ -3903,7 +3897,7 @@ void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   DwVfpRegister input = ToDoubleRegister(instr->value());
   DwVfpRegister result = ToDoubleRegister(instr->result());
-  DwVfpRegister temp = ToDoubleRegister(instr->temp());
+  DwVfpRegister temp = double_scratch0();
 
   // Note that according to ECMA-262 15.8.2.13:
   // Math.pow(-Infinity, 0.5) == Infinity
@@ -3926,11 +3920,11 @@ void LCodeGen::DoPower(LPower* instr) {
   // Having marked this as a call, we can use any registers.
   // Just make sure that the input/output registers are the expected ones.
   ASSERT(!instr->right()->IsDoubleRegister() ||
-         ToDoubleRegister(instr->right()).is(d2));
+         ToDoubleRegister(instr->right()).is(d1));
   ASSERT(!instr->right()->IsRegister() ||
          ToRegister(instr->right()).is(r2));
-  ASSERT(ToDoubleRegister(instr->left()).is(d1));
-  ASSERT(ToDoubleRegister(instr->result()).is(d3));
+  ASSERT(ToDoubleRegister(instr->left()).is(d0));
+  ASSERT(ToDoubleRegister(instr->result()).is(d2));
 
   if (exponent_type.IsSmi()) {
     MathPowStub stub(MathPowStub::TAGGED);
