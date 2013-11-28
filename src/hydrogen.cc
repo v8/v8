@@ -2248,9 +2248,8 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
               AllocationSite::kMementoCreateCountOffset);
       HValue* create_info = Add<HLoadNamedField>(allocation_site_payload,
                                                  access);
-      HInstruction* new_create_info = HAdd::New(zone(), context(),
-                                                create_info,
-                                                graph()->GetConstant1());
+      HInstruction* new_create_info =
+          AddUncasted<HAdd>(create_info, graph()->GetConstant1());
       new_create_info->ClearFlag(HValue::kCanOverflow);
       HStoreNamedField* store = Add<HStoreNamedField>(allocation_site_payload,
                                                       access, new_create_info);
