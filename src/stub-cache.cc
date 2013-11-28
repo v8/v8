@@ -115,17 +115,9 @@ Handle<Code> StubCache::FindIC(Handle<Name> name,
 Handle<Code> StubCache::FindHandler(Handle<Name> name,
                                     Handle<Map> stub_holder,
                                     Code::Kind kind,
-                                    InlineCacheHolderFlag cache_holder,
-                                    StrictModeFlag strict_mode) {
-  ExtraICState extra_ic_state = kNoExtraICState;
-  if (kind == Code::STORE_IC) {
-    extra_ic_state = StoreIC::ComputeExtraICState(strict_mode);
-  } else if (kind == Code::KEYED_STORE_IC) {
-    extra_ic_state = KeyedStoreIC::ComputeExtraICState(strict_mode,
-                                                       STANDARD_STORE);
-  }
+                                    InlineCacheHolderFlag cache_holder) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::HANDLER, extra_ic_state, cache_holder, Code::NORMAL, kind);
+      Code::HANDLER, kNoExtraICState, cache_holder, Code::NORMAL, kind);
 
   Handle<Object> probe(stub_holder->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);

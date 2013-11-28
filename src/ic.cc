@@ -1178,12 +1178,8 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
   Handle<HeapObject> stub_holder(GetCodeCacheHolder(
       isolate(), *object, cache_holder));
 
-  StrictModeFlag strict_mode = kNonStrictMode;
-  if (kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC) {
-    strict_mode = StoreIC::GetStrictMode(extra_ic_state());
-  }
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
-      name, handle(stub_holder->map()), kind(), cache_holder, strict_mode);
+      name, handle(stub_holder->map()), kind(), cache_holder);
   if (!code.is_null()) return code;
 
   code = CompileHandler(lookup, object, name, value, cache_holder);
