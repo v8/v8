@@ -164,18 +164,12 @@ struct Register {
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    if (FLAG_enable_ool_constant_pool && (reg.code() >= kRegister_r8_Code)) {
-      return reg.code() - 1;
-    }
     ASSERT(reg.code() < kMaxNumAllocatableRegisters);
     return reg.code();
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
-    if (FLAG_enable_ool_constant_pool && (index >= 7)) {
-      return from_code(index + 1);
-    }
     return from_code(index);
   }
 
