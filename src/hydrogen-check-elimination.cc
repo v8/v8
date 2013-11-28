@@ -399,9 +399,7 @@ class HCheckTable : public ZoneObject {
   HCheckTableEntry entries_[kMaxTrackedObjects];
   int16_t cursor_;  // Must be <= kMaxTrackedObjects
   int16_t size_;    // Must be <= kMaxTrackedObjects
-
-  STATIC_ASSERT((1L << (sizeof(cursor_) * 8)) > kMaxTrackedObjects);
-  STATIC_ASSERT((1L << (sizeof(size_) * 8)) > kMaxTrackedObjects);
+  // TODO(titzer): STATIC_ASSERT kMaxTrackedObjects < max(cursor_)
 };
 
 
