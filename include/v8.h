@@ -734,8 +734,8 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
           P* parameter,
           typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
-  V8_DEPRECATED("This will be removed",
-                V8_INLINE T* ClearAndLeak());
+  // This will be removed.
+  V8_INLINE T* ClearAndLeak();
 
   V8_DEPRECATED("This will be removed",
                 V8_INLINE void Clear()) { this->val_ = 0; }
