@@ -5439,9 +5439,11 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
                         HValue* size,
                         HType type,
                         PretenureFlag pretenure_flag,
-                        InstanceType instance_type) {
+                        InstanceType instance_type,
+                        Handle<AllocationSite> allocation_site =
+                            Handle<AllocationSite>::null()) {
     return new(zone) HAllocate(context, size, type, pretenure_flag,
-        instance_type);
+        instance_type, allocation_site);
   }
 
   // Maximum instance size for which allocations will be inlined.
@@ -5514,7 +5516,9 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             HValue* size,
             HType type,
             PretenureFlag pretenure_flag,
-            InstanceType instance_type)
+            InstanceType instance_type,
+            Handle<AllocationSite> allocation_site =
+                Handle<AllocationSite>::null())
       : HTemplateInstruction<2>(type),
         dominating_allocate_(NULL),
         filler_free_space_size_(NULL),
@@ -5542,6 +5546,14 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     }
     clear_next_map_word_ = pretenure_flag == NOT_TENURED &&
         AllocationSite::CanTrack(instance_type);
+
+    if (FLAG_trace_pretenuring) {
+      PrintF("HAllocate with AllocationSite %p %s\n",
+             allocation_site.is_null()
+                 ? static_cast<void*>(NULL)
+                 : static_cast<void*>(*allocation_site),
+             pretenure_flag == TENURED ? "tenured" : "not tenured");
+    }
   }
 
   void UpdateSize(HValue* size) {
