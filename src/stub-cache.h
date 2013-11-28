@@ -918,7 +918,17 @@ class CallStubCompiler: public StubCompiler {
                                  Label* miss);
   void HandlerFrontendFooter(Label* miss);
 
-  void CompileHandlerBackend(Handle<JSFunction> function);
+  void GenerateJumpFunctionIgnoreReceiver(Handle<JSFunction> function);
+  void GenerateJumpFunction(Handle<Object> object,
+                            Handle<JSFunction> function);
+  void GenerateJumpFunction(Handle<Object> object,
+                            Register function,
+                            Label* miss);
+  // Use to call |actual_closure|, a closure with the same shared function info
+  // as |function|.
+  void GenerateJumpFunction(Handle<Object> object,
+                            Register actual_closure,
+                            Handle<JSFunction> function);
 
   Handle<Code> CompileCallConstant(Handle<Object> object,
                                    Handle<JSObject> holder,
@@ -967,6 +977,8 @@ class CallStubCompiler: public StubCompiler {
                                   Handle<JSFunction> function,
                                   Handle<String> name);
 
+  CallKind call_kind();
+
   Handle<Code> GetCode(Code::StubType type, Handle<Name> name);
   Handle<Code> GetCode(Handle<JSFunction> function);
 
@@ -979,6 +991,8 @@ class CallStubCompiler: public StubCompiler {
   void GenerateLoadFunctionFromCell(Handle<Cell> cell,
                                     Handle<JSFunction> function,
                                     Label* miss);
+
+  void GenerateFunctionCheck(Register function, Register scratch, Label* miss);
 
   // Generates a jump to CallIC miss stub.
   void GenerateMissBranch();

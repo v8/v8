@@ -2636,7 +2636,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
@@ -2645,15 +2645,22 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  // Get the function and setup the context.
-  LoadHeapObject(edi, function);
+  ASSERT(fun.is(edi));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  // We call indirectly through the code field in the function to
-  // allow recompilation to take effect without changing any of the
-  // call sites.
   InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
              expected, actual, flag, call_wrapper, call_kind);
+}
+
+
+void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+                                    const ParameterCount& expected,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag,
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
+  LoadHeapObject(edi, function);
+  InvokeFunction(edi, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
