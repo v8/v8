@@ -25,25 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
-#define V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
+function veryLongString() {
+  return "Lorem ipsum dolor sit amet, consectetur adipiscing elit." +
+         "Nam vulputate metus est. Maecenas quis pellentesque eros," +
+         "ac mattis augue. Nam porta purus vitae tincidunt blandit." +
+         "Aliquam lacus dui, blandit id consectetur id, hendrerit ut" +
+         "felis. Class aptent taciti sociosqu ad litora torquent per" +
+         "conubia nostra, per inceptos himenaeos. Ut posuere eros et" +
+         "tempus luctus. Nullam condimentum aliquam odio, at dignissim" +
+         "augue tincidunt in. Nam mattis vitae mauris eget dictum." +
+         "Nam accumsan dignissim turpis a turpis duis.";
+}
 
-#include "v8.h"
 
-namespace v8 {
-namespace internal {
+var re = /omitted/;
 
-class FreeBufferExtension : public v8::Extension {
- public:
-  explicit FreeBufferExtension(const char* source)
-      : v8::Extension("v8/free-buffer", source) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void FreeBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
-};
+try {
+  veryLongString.nonexistentMethod();
+} catch (e) {
+  assertTrue(e.message.length < 350);
+  assertTrue(re.test(e.message));
+}
 
-} }  // namespace v8::internal
+try {
+  veryLongString().nonexistentMethod();
+} catch (e) {
+  assertTrue(e.message.length < 350);
+  assertTrue(re.test(e.message));
+}
 
-#endif  // V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
+try {
+  throw Error(veryLongString());
+} catch (e) {
+  assertEquals(veryLongString(), e.message);
+}

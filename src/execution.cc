@@ -354,6 +354,20 @@ Handle<Object> Execution::TryGetConstructorDelegate(
 }
 
 
+void Execution::RunMicrotasks(Isolate* isolate) {
+  ASSERT(isolate->microtask_pending());
+  bool threw = false;
+  Execution::Call(
+      isolate,
+      isolate->run_microtasks(),
+      isolate->factory()->undefined_value(),
+      0,
+      NULL,
+      &threw);
+  ASSERT(!threw);
+}
+
+
 bool StackGuard::IsStackOverflow() {
   ExecutionAccess access(isolate_);
   return (thread_local_.jslimit_ != kInterruptLimit &&

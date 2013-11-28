@@ -60,9 +60,9 @@ const char* const ExternalizeStringExtension::kSource =
     "native function externalizeString();"
     "native function isAsciiString();";
 
-
-v8::Handle<v8::FunctionTemplate> ExternalizeStringExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
+v8::Handle<v8::FunctionTemplate>
+ExternalizeStringExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Handle<v8::String> str) {
   if (strcmp(*v8::String::Utf8Value(str), "externalizeString") == 0) {
     return v8::FunctionTemplate::New(ExternalizeStringExtension::Externalize);
   } else {

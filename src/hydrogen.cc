@@ -9359,16 +9359,10 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     pretenure_flag = site_context->current()->GetPretenureMode()
         ? TENURED
         : NOT_TENURED;
-    if (FLAG_trace_track_allocation_sites) {
-      PrintF("Hydrogen: AllocationSite %p boilerplate %p %s\n",
-             static_cast<void*>(*(site_context->current())),
-             static_cast<void*>(*boilerplate_object),
-             pretenure_flag == TENURED ? "tenured" : "not tenured");
-    }
   }
 
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
-      pretenure_flag, instance_type);
+      pretenure_flag, instance_type, site_context->current());
 
   BuildEmitObjectHeader(boilerplate_object, object);
 
@@ -9382,10 +9376,10 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     HValue* object_elements_size = Add<HConstant>(elements_size);
     if (boilerplate_object->HasFastDoubleElements()) {
       object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
-          pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE);
+          pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE, site_context->current());
     } else {
       object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
-          pretenure_flag, FIXED_ARRAY_TYPE);
+          pretenure_flag, FIXED_ARRAY_TYPE, site_context->current());
     }
   }
   BuildInitElementsInObjectHeader(boilerplate_object, object, object_elements);

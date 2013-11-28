@@ -526,7 +526,7 @@ static Handle<Object> CreateAccessCheckedObject(
   Handle<Object> instance = tmpl->NewInstance();
   Handle<Object> global = instance->CreationContext()->Global();
   global->Set(String::NewFromUtf8(isolate, "obj"), instance);
-  global->Set(kBlockedContextIndex, v8::True());
+  global->Set(kBlockedContextIndex, v8::True(isolate));
   return instance;
 }
 
@@ -761,8 +761,9 @@ TEST(HiddenPropertiesLeakage) {
              "Object.observe(obj, observer);");
   Handle<Value> obj =
       context->Global()->Get(String::NewFromUtf8(isolate.GetIsolate(), "obj"));
-  Handle<Object>::Cast(obj)->SetHiddenValue(
-      String::NewFromUtf8(isolate.GetIsolate(), "foo"), Null());
+  Handle<Object>::Cast(obj)
+      ->SetHiddenValue(String::NewFromUtf8(isolate.GetIsolate(), "foo"),
+                       Null(isolate.GetIsolate()));
   CompileRun("");  // trigger delivery
   CHECK(CompileRun("records")->IsNull());
 }

@@ -4054,8 +4054,7 @@ bool v8::Object::IsCallable() {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  if (obj->IsJSFunction()) return true;
-  return i::Execution::GetFunctionDelegate(isolate, obj)->IsJSFunction();
+  return obj->IsCallable();
 }
 
 

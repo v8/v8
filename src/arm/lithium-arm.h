@@ -886,15 +886,13 @@ class LMathSqrt V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathPowHalf V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+class LMathPowHalf V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathPowHalf(LOperand* value, LOperand* temp) {
+  explicit LMathPowHalf(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathPowHalf, "math-pow-half")
 };

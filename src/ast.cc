@@ -575,11 +575,6 @@ bool FunctionDeclaration::IsInlineable() const {
 // once we use the common type field in the AST consistently.
 
 
-void ForInStatement::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  for_in_type_ = static_cast<ForInType>(oracle->ForInType(this));
-}
-
-
 void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
   to_boolean_types_ = oracle->ToBooleanTypes(test_id());
 }
@@ -642,31 +637,6 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
     store_mode_ = oracle->GetStoreMode(id);
   }
-}
-
-
-void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                                        Zone* zone) {
-  TypeFeedbackId id = CountStoreFeedbackId();
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
-  receiver_types_.Clear();
-  if (is_monomorphic_) {
-    // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(
-        oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsKeyedPolymorphic(id)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
-  } else {
-    oracle->CollectPolymorphicStoreReceiverTypes(id, &receiver_types_);
-  }
-  store_mode_ = oracle->GetStoreMode(id);
-  type_ = oracle->IncrementType(this);
-}
-
-
-void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  compare_type_ = oracle->ClauseType(CompareId());
 }
 
 

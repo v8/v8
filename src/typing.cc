@@ -200,7 +200,7 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
     for (int i = 0; i < clauses->length(); ++i) {
       CaseClause* clause = clauses->at(i);
       if (!clause->is_default())
-        clause->RecordTypeFeedback(oracle());
+        clause->set_compare_type(oracle()->ClauseType(clause->CompareId()));
     }
   }
 }
@@ -262,7 +262,8 @@ void AstTyper::VisitForStatement(ForStatement* stmt) {
 
 void AstTyper::VisitForInStatement(ForInStatement* stmt) {
   // Collect type feedback.
-  stmt->RecordTypeFeedback(oracle());
+  stmt->set_for_in_type(static_cast<ForInStatement::ForInType>(
+      oracle()->ForInType(stmt->ForInFeedbackId())));
 
   RECURSE(Visit(stmt->enumerable()));
   store_.Forget();  // Control may transfer here via looping or 'continue'.
@@ -525,11 +526,12 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
-  expr->RecordTypeFeedback(oracle(), zone());
-  Property* prop = expr->expression()->AsProperty();
-  if (prop != NULL) {
-    prop->RecordTypeFeedback(oracle(), zone());
-  }
+  TypeFeedbackId store_id = expr->CountStoreFeedbackId();
+  expr->set_is_monomorphic(oracle()->StoreIsMonomorphicNormal(store_id));
+  expr->set_store_mode(oracle()->GetStoreMode(store_id));
+  oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
+  expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));
+  // TODO(rossberg): merge the count type with the generic expression type.
 
   RECURSE(Visit(expr->expression()));
 

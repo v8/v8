@@ -120,6 +120,17 @@ bool Object::BooleanValue() {
 }
 
 
+bool Object::IsCallable() {
+  Object* fun = this;
+  while (fun->IsJSFunctionProxy()) {
+    fun = JSFunctionProxy::cast(fun)->call_trap();
+  }
+  return fun->IsJSFunction() ||
+         (fun->IsHeapObject() &&
+          HeapObject::cast(fun)->map()->has_instance_call_handler());
+}
+
+
 void Object::Lookup(Name* name, LookupResult* result) {
   Object* holder = NULL;
   if (IsJSReceiver()) {
@@ -2215,21 +2226,6 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                   argc, args,
                   &threw);
   ASSERT(!threw);
-}
-
-
-void JSObject::DeliverChangeRecords(Isolate* isolate) {
-  ASSERT(isolate->observer_delivery_pending());
-  bool threw = false;
-  Execution::Call(
-      isolate,
-      isolate->observers_deliver_changes(),
-      isolate->factory()->undefined_value(),
-      0,
-      NULL,
-      &threw);
-  ASSERT(!threw);
-  isolate->set_observer_delivery_pending(false);
 }
 
 

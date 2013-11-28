@@ -1476,11 +1476,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = r2;
   const Register heapnumbermap = r5;
   const Register heapnumber = r0;
-  const DwVfpRegister double_base = d1;
-  const DwVfpRegister double_exponent = d2;
-  const DwVfpRegister double_result = d3;
-  const DwVfpRegister double_scratch = d0;
-  const SwVfpRegister single_scratch = s0;
+  const DwVfpRegister double_base = d0;
+  const DwVfpRegister double_exponent = d1;
+  const DwVfpRegister double_result = d2;
+  const DwVfpRegister double_scratch = d3;
+  const SwVfpRegister single_scratch = s6;
   const Register scratch = r9;
   const Register scratch2 = r4;
 

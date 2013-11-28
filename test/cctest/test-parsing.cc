@@ -206,7 +206,8 @@ TEST(Preparsing) {
   {
     i::FLAG_lazy = true;
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::Local<v8::String> script_source = v8::String::NewExternal(resource);
+    v8::Local<v8::String> script_source =
+        v8::String::NewExternal(isolate, resource);
     v8::Script::Compile(script_source, NULL, preparse);
   }
 
@@ -214,7 +215,8 @@ TEST(Preparsing) {
     i::FLAG_lazy = false;
 
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::Local<v8::String> script_source = v8::String::NewExternal(resource);
+    v8::Local<v8::String> script_source =
+        v8::String::NewExternal(isolate, resource);
     v8::Script::New(script_source, NULL, preparse, v8::Local<v8::String>());
   }
   delete preparse;

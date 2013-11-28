@@ -25,25 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
-#define V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
+// Test to exceed the Heap::MaxRegularSpaceAllocationSize with an array
+// constructor call taking many arguments.
 
-#include "v8.h"
+function boom() {
+  var args = [];
+  for (var i = 0; i < 125000; i++) {
+    args.push(i);
+  }
+  return Array.apply(Array, args);
+}
 
-namespace v8 {
-namespace internal {
+var array = boom();
 
-class FreeBufferExtension : public v8::Extension {
- public:
-  explicit FreeBufferExtension(const char* source)
-      : v8::Extension("v8/free-buffer", source) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void FreeBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
+assertEquals(125000, array.length);
+assertEquals(124999, array[124999]);

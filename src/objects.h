@@ -1360,6 +1360,7 @@ class Object : public MaybeObject {
 
   INLINE(bool IsSpecObject());
   INLINE(bool IsSpecFunction());
+  bool IsCallable();
 
   // Oddball testing.
   INLINE(bool IsUndefined());
@@ -2638,9 +2639,6 @@ class JSObject: public JSReceiver {
                                   const char* type,
                                   Handle<Name> name,
                                   Handle<Object> old_value);
-
-  // Deliver change records to observers. May cause GC.
-  static void DeliverChangeRecords(Isolate* isolate);
 
  private:
   friend class DictionaryElementsAccessor;

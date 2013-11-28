@@ -742,6 +742,15 @@ HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
 
 HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
     JSArrayBuilder* array_builder, ElementsKind kind) {
+  // Insert a bounds check because the number of arguments might exceed
+  // the kInitialMaxFastElementArray limit. This cannot happen for code
+  // that was parsed, but calling via Array.apply(thisArg, [...]) might
+  // trigger it.
+  HValue* length = GetArgumentsLength();
+  HConstant* max_alloc_length =
+      Add<HConstant>(JSObject::kInitialMaxFastElementArray);
+  HValue* checked_length = Add<HBoundsCheck>(length, max_alloc_length);
+
   // We need to fill with the hole if it's a smi array in the multi-argument
   // case because we might have to bail out while copying arguments into
   // the array because they aren't compatible with a smi array.
@@ -750,12 +759,11 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
   //
   // TODO(mvstanton): consider an instruction to memset fill the array
   // with zero in this case instead.
-  HValue* length = GetArgumentsLength();
   JSArrayBuilder::FillMode fill_mode = IsFastSmiElementsKind(kind)
       ? JSArrayBuilder::FILL_WITH_HOLE
       : JSArrayBuilder::DONT_FILL_WITH_HOLE;
-  HValue* new_object = array_builder->AllocateArray(length,
-                                                    length,
+  HValue* new_object = array_builder->AllocateArray(checked_length,
+                                                    checked_length,
                                                     fill_mode);
   HValue* elements = array_builder->GetElementsLocation();
   ASSERT(elements != NULL);
@@ -765,10 +773,10 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
                       context(),
                       LoopBuilder::kPostIncrement);
   HValue* start = graph()->GetConstant0();
-  HValue* key = builder.BeginBody(start, length, Token::LT);
+  HValue* key = builder.BeginBody(start, checked_length, Token::LT);
   HInstruction* argument_elements = Add<HArgumentsElements>(false);
   HInstruction* argument = Add<HAccessArgumentsAt>(
-      argument_elements, length, key);
+      argument_elements, checked_length, key);
 
   Add<HStoreKeyed>(elements, key, argument, kind);
   builder.EndBody();

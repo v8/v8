@@ -943,9 +943,9 @@ TEST(ExternalShortStringAdd) {
 
   // Allocate two JavaScript arrays for holding short strings.
   v8::Handle<v8::Array> ascii_external_strings =
-      v8::Array::New(kMaxLength + 1);
+      v8::Array::New(CcTest::isolate(), kMaxLength + 1);
   v8::Handle<v8::Array> non_ascii_external_strings =
-      v8::Array::New(kMaxLength + 1);
+      v8::Array::New(CcTest::isolate(), kMaxLength + 1);
 
   // Generate short ascii and non-ascii external strings.
   for (int i = 0; i <= kMaxLength; i++) {
@@ -958,7 +958,7 @@ TEST(ExternalShortStringAdd) {
     AsciiResource* ascii_resource =
         new(&zone) AsciiResource(Vector<const char>(ascii, i));
     v8::Local<v8::String> ascii_external_string =
-        v8::String::NewExternal(ascii_resource);
+        v8::String::NewExternal(CcTest::isolate(), ascii_resource);
 
     ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
     uc16* non_ascii = zone.NewArray<uc16>(i + 1);
@@ -969,7 +969,7 @@ TEST(ExternalShortStringAdd) {
     // string data.
     Resource* resource = new(&zone) Resource(Vector<const uc16>(non_ascii, i));
     v8::Local<v8::String> non_ascii_external_string =
-      v8::String::NewExternal(resource);
+      v8::String::NewExternal(CcTest::isolate(), resource);
     non_ascii_external_strings->Set(v8::Integer::New(i),
                                     non_ascii_external_string);
   }
