@@ -580,37 +580,6 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                                  Zone* zone) {
-  // Record type feedback from the oracle in the AST.
-  is_uninitialized_ = oracle->LoadIsUninitialized(this);
-  if (is_uninitialized_) return;
-
-  is_pre_monomorphic_ = oracle->LoadIsPreMonomorphic(this);
-  is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
-  ASSERT(!is_pre_monomorphic_ || !is_monomorphic_);
-  receiver_types_.Clear();
-  if (key()->IsPropertyName()) {
-    FunctionPrototypeStub proto_stub(Code::LOAD_IC);
-    if (oracle->LoadIsStub(this, &proto_stub)) {
-      is_function_prototype_ = true;
-    } else {
-      Literal* lit_key = key()->AsLiteral();
-      ASSERT(lit_key != NULL && lit_key->value()->IsString());
-      Handle<String> name = Handle<String>::cast(lit_key->value());
-      oracle->LoadReceiverTypes(this, name, &receiver_types_);
-    }
-  } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
-    is_string_access_ = true;
-  } else if (is_monomorphic_) {
-    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this), zone);
-  } else if (oracle->LoadIsPolymorphic(this)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
-  }
-}
-
-
 void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                                     Zone* zone) {
   Property* prop = target()->AsProperty();

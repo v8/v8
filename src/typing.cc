@@ -393,7 +393,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
     Expression* target = expr->target();
     Property* prop = target->AsProperty();
     if (prop != NULL) {
-      prop->RecordTypeFeedback(oracle(), zone());
+      RECURSE(Visit(expr->target()));
       expr->RecordTypeFeedback(oracle(), zone());
     }
 
@@ -437,7 +437,27 @@ void AstTyper::VisitThrow(Throw* expr) {
 
 void AstTyper::VisitProperty(Property* expr) {
   // Collect type feedback.
-  expr->RecordTypeFeedback(oracle(), zone());
+  TypeFeedbackId id = expr->PropertyFeedbackId();
+  expr->set_is_uninitialized(oracle()->LoadIsUninitialized(id));
+  if (!expr->IsUninitialized()) {
+    expr->set_is_pre_monomorphic(oracle()->LoadIsPreMonomorphic(id));
+    expr->set_is_monomorphic(oracle()->LoadIsMonomorphicNormal(id));
+    ASSERT(!expr->IsPreMonomorphic() || !expr->IsMonomorphic());
+    if (expr->key()->IsPropertyName()) {
+      Literal* lit_key = expr->key()->AsLiteral();
+      ASSERT(lit_key != NULL && lit_key->value()->IsString());
+      Handle<String> name = Handle<String>::cast(lit_key->value());
+      bool is_prototype;
+      oracle()->PropertyReceiverTypes(
+          id, name, expr->GetReceiverTypes(), &is_prototype);
+      expr->set_is_function_prototype(is_prototype);
+    } else {
+      bool is_string;
+      oracle()->KeyedPropertyReceiverTypes(
+          id, expr->GetReceiverTypes(), &is_string);
+      expr->set_is_string_access(is_string);
+    }
+  }
 
   RECURSE(Visit(expr->obj()));
   RECURSE(Visit(expr->key()));
