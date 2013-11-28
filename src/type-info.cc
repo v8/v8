@@ -225,8 +225,8 @@ bool TypeFeedbackOracle::ObjectLiteralStoreIsMonomorphic(
 }
 
 
-byte TypeFeedbackOracle::ForInType(ForInStatement* stmt) {
-  Handle<Object> value = GetInfo(stmt->ForInFeedbackId());
+byte TypeFeedbackOracle::ForInType(TypeFeedbackId id) {
+  Handle<Object> value = GetInfo(id);
   return value->IsSmi() &&
       Smi::cast(*value)->value() == TypeFeedbackCells::kForInFastCaseMarker
           ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
@@ -444,8 +444,8 @@ Handle<Type> TypeFeedbackOracle::ClauseType(TypeFeedbackId id) {
 }
 
 
-Handle<Type> TypeFeedbackOracle::IncrementType(CountOperation* expr) {
-  Handle<Object> object = GetInfo(expr->CountBinOpFeedbackId());
+Handle<Type> TypeFeedbackOracle::CountType(TypeFeedbackId id) {
+  Handle<Object> object = GetInfo(id);
   Handle<Type> unknown(Type::None(), isolate_);
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -453,6 +453,21 @@ Handle<Type> TypeFeedbackOracle::IncrementType(CountOperation* expr) {
 
   BinaryOpStub stub(code->extended_extra_ic_state());
   return stub.GetLeftType(isolate());
+}
+
+
+void TypeFeedbackOracle::CountReceiverTypes(
+    TypeFeedbackId id, SmallMapList* receiver_types) {
+  receiver_types->Clear();
+  if (StoreIsMonomorphicNormal(id)) {
+    // Record receiver type for monomorphic keyed stores.
+    receiver_types->Add(StoreMonomorphicReceiverType(id), zone());
+  } else if (StoreIsKeyedPolymorphic(id)) {
+    receiver_types->Reserve(kMaxKeyedPolymorphism, zone());
+    CollectKeyedReceiverTypes(id, receiver_types);
+  } else {
+    CollectPolymorphicStoreReceiverTypes(id, receiver_types);
+  }
 }
 
 

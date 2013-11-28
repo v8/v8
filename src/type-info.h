@@ -256,7 +256,9 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
-  byte ForInType(ForInStatement* expr);
+  // TODO(rossberg): once all oracle access is removed from ast.cc, it should
+  // be possible.
+  byte ForInType(TypeFeedbackId id);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
@@ -312,9 +314,10 @@ class TypeFeedbackOracle: public ZoneObject {
                    Handle<Type>* right,
                    Handle<Type>* combined);
 
-  Handle<Type> ClauseType(TypeFeedbackId id);
+  Handle<Type> CountType(TypeFeedbackId id);
+  void CountReceiverTypes(TypeFeedbackId id, SmallMapList* receiver_types);
 
-  Handle<Type> IncrementType(CountOperation* expr);
+  Handle<Type> ClauseType(TypeFeedbackId id);
 
   Zone* zone() const { return zone_; }
   Isolate* isolate() const { return isolate_; }
