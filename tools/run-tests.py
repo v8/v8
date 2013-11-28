@@ -28,6 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import itertools
 import multiprocessing
 import optparse
 import os
@@ -183,9 +184,10 @@ def ProcessOptions(options):
 
   # Architecture and mode related stuff.
   if options.arch_and_mode:
-    tokens = options.arch_and_mode.split(".")
-    options.arch = tokens[0]
-    options.mode = tokens[1]
+    options.arch_and_mode = [arch_and_mode.split(".")
+        for arch_and_mode in options.arch_and_mode.split(",")]
+    options.arch = ",".join([tokens[0] for tokens in options.arch_and_mode])
+    options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
   options.mode = options.mode.split(",")
   for mode in options.mode:
     if not mode.lower() in ["debug", "release"]:
@@ -198,6 +200,11 @@ def ProcessOptions(options):
     if not arch in SUPPORTED_ARCHS:
       print "Unknown architecture %s" % arch
       return False
+
+  # Store the final configuration in arch_and_mode list. Don't overwrite
+  # predefined arch_and_mode since it is more expressive than arch and mode.
+  if not options.arch_and_mode:
+    options.arch_and_mode = itertools.product(options.arch, options.mode)
 
   # Special processing of other options, sorted alphabetically.
 
@@ -313,10 +320,9 @@ def Main():
     for s in suites:
       s.DownloadData()
 
-  for mode in options.mode:
-    for arch in options.arch:
-      code = Execute(arch, mode, args, options, suites, workspace)
-      exit_code = exit_code or code
+  for (arch, mode) in options.arch_and_mode:
+    code = Execute(arch, mode, args, options, suites, workspace)
+    exit_code = exit_code or code
   return exit_code
 
 
