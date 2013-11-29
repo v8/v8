@@ -3734,6 +3734,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
     VisitForAccumulatorValue(args->at(1));
 
     __ pop(a1);
+    __ mov(a0, result_register());  // NewStringAddStub requires args in a0, a1.
     NewStringAddStub stub(STRING_ADD_CHECK_BOTH, NOT_TENURED);
     __ CallStub(&stub);
   } else {
