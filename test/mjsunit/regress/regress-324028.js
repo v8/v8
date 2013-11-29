@@ -25,29 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_MARK_UNREACHABLE_H_
-#define V8_HYDROGEN_MARK_UNREACHABLE_H_
+var badObj = { length : 1e40 };
 
-#include "hydrogen.h"
-
-namespace v8 {
-namespace internal {
-
-
-class HMarkUnreachableBlocksPhase : public HPhase {
- public:
-  explicit HMarkUnreachableBlocksPhase(HGraph* graph)
-      : HPhase("H_Mark unreachable blocks", graph) { }
-
-  void Run();
-
- private:
-  void MarkUnreachableBlocks();
-
-  DISALLOW_COPY_AND_ASSIGN(HMarkUnreachableBlocksPhase);
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_HYDROGEN_MARK_UNREACHABLE_H_
+assertThrows(function() { new Uint8Array(badObj); }, RangeError);
+assertThrows(function() { new Uint8ClampedArray(badObj); }, RangeError);
+assertThrows(function() { new Int8Array(badObj); }, RangeError);
+assertThrows(function() { new Uint16Array(badObj); }, RangeError);
+assertThrows(function() { new Int16Array(badObj); }, RangeError);
+assertThrows(function() { new Uint32Array(badObj); }, RangeError);
+assertThrows(function() { new Int32Array(badObj); }, RangeError);
+assertThrows(function() { new Float32Array(badObj); }, RangeError);
+assertThrows(function() { new Float64Array(badObj); }, RangeError);

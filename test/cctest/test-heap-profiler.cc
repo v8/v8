@@ -2066,26 +2066,6 @@ v8::DeclareExtension kHeapProfilerExtensionDeclaration(
     &kHeapProfilerExtension);
 
 
-// This is an example of using checking of JS allocations tracking in a test.
-TEST(HeapObjectsTracker) {
-  const char* extensions[] = { HeapProfilerExtension::kName };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope scope(env->GetIsolate());
-  HeapObjectsTracker tracker;
-  CompileRun("var a = 1.2");
-  CompileRun("var a = 1.2; var b = 1.0; var c = 1.0;");
-  CompileRun(
-    "var a = [];\n"
-    "for (var i = 0; i < 5; ++i)\n"
-    "    a[i] = i;\n"
-    "findUntrackedObjects();\n"
-    "for (var i = 0; i < 3; ++i)\n"
-    "    a.shift();\n"
-    "findUntrackedObjects();\n");
-}
-
-
 static const v8::HeapGraphNode* GetNodeByPath(const v8::HeapSnapshot* snapshot,
                                               const char* path[],
                                               int depth) {
@@ -2204,6 +2184,39 @@ static AllocationTraceNode* FindNode(
     }
   }
   return node;
+}
+
+
+TEST(ArrayGrowLeftTrim) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  heap_profiler->StartRecordingHeapAllocations();
+
+  CompileRun(
+    "var a = [];\n"
+    "for (var i = 0; i < 5; ++i)\n"
+    "    a[i] = i;\n"
+    "for (var i = 0; i < 3; ++i)\n"
+    "    a.shift();\n");
+
+  const char* names[] = { "(anonymous function)" };
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
+      v8::String::NewFromUtf8(env->GetIsolate(), "Test1"));
+  i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
+  AllocationTracker* tracker = collection->allocation_tracker();
+  CHECK_NE(NULL, tracker);
+  // Resolve all function locations.
+  tracker->PrepareForSerialization();
+  // Print for better diagnostics in case of failure.
+  tracker->trace_tree()->Print(tracker);
+
+  AllocationTraceNode* node =
+      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+  CHECK_NE(NULL, node);
+  CHECK_GE(node->allocation_count(), 2);
+  CHECK_GE(node->allocation_size(), 4 * 5);
+  heap_profiler->StopRecordingHeapAllocations();
 }
 
 

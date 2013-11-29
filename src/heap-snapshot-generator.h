@@ -233,7 +233,6 @@ class HeapObjectsMap {
                                   unsigned int size,
                                   bool accessed = true);
   void MoveObject(Address from, Address to, int size);
-  void NewObject(Address addr, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;
@@ -294,7 +293,6 @@ class HeapSnapshotsCollection {
 
   Heap* heap() const { return ids_.heap(); }
 
-  bool is_tracking_objects() { return is_tracking_objects_; }
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
     return ids_.PushHeapObjectsStats(stream);
   }
@@ -319,7 +317,7 @@ class HeapSnapshotsCollection {
   void ObjectMoveEvent(Address from, Address to, int size) {
     ids_.MoveObject(from, to, size);
   }
-  void NewObjectEvent(Address addr, int size);
+  void AllocationEvent(Address addr, int size);
   void UpdateObjectSizeEvent(Address addr, int size) {
     ids_.UpdateObjectSize(addr, size);
   }
@@ -330,10 +328,7 @@ class HeapSnapshotsCollection {
 
   int FindUntrackedObjects() { return ids_.FindUntrackedObjects(); }
 
-  void UpdateHeapObjectsMap() { ids_.UpdateHeapObjectsMap(); }
-
  private:
-  bool is_tracking_objects_;  // Whether tracking object moves is needed.
   List<HeapSnapshot*> snapshots_;
   StringsStorage names_;
   // Mapping from HeapObject addresses to objects' uids.

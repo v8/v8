@@ -349,7 +349,9 @@ class HLoadEliminationTable : public ZoneObject {
 
   bool Equal(HValue* a, HValue* b) {
     if (a == b) return true;
-    if (a != NULL && b != NULL) return a->Equals(b);
+    if (a != NULL && b != NULL && a->CheckFlag(HValue::kUseGVN)) {
+      return a->Equals(b);
+    }
     return false;
   }
 

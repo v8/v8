@@ -2584,7 +2584,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   const int kAliasedOffset =
       Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX);
 
-  __ ldr(r4, MemOperand(r8, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
   __ cmp(r1, Operand::Zero());
   __ ldr(r4, MemOperand(r4, kNormalOffset), eq);
@@ -2635,7 +2635,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ str(r6, FieldMemOperand(r4, FixedArray::kMapOffset));
   __ add(r6, r1, Operand(Smi::FromInt(2)));
   __ str(r6, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ str(r8, FieldMemOperand(r4, FixedArray::kHeaderSize + 0 * kPointerSize));
+  __ str(cp, FieldMemOperand(r4, FixedArray::kHeaderSize + 0 * kPointerSize));
   __ add(r6, r4, Operand(r1, LSL, 1));
   __ add(r6, r6, Operand(kParameterMapHeaderSize));
   __ str(r6, FieldMemOperand(r4, FixedArray::kHeaderSize + 1 * kPointerSize));
@@ -3029,7 +3029,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // For arguments 4 and 3 get string length, calculate start of string data and
   // calculate the shift of the index (0 for ASCII and 1 for two byte).
-  __ add(r8, subject, Operand(SeqString::kHeaderSize - kHeapObjectTag));
+  __ add(r7, subject, Operand(SeqString::kHeaderSize - kHeapObjectTag));
   __ eor(r3, r3, Operand(1));
   // Load the length from the original subject string from the previous stack
   // frame. Therefore we have to use fp, which points exactly to two pointer
@@ -3040,12 +3040,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 4, r3: End of string data
   // Argument 3, r2: Start of string data
   // Prepare start and end index of the input.
-  __ add(r9, r8, Operand(r9, LSL, r3));
+  __ add(r9, r7, Operand(r9, LSL, r3));
   __ add(r2, r9, Operand(r1, LSL, r3));
 
-  __ ldr(r8, FieldMemOperand(subject, String::kLengthOffset));
-  __ SmiUntag(r8);
-  __ add(r3, r9, Operand(r8, LSL, r3));
+  __ ldr(r7, FieldMemOperand(subject, String::kLengthOffset));
+  __ SmiUntag(r7);
+  __ add(r3, r9, Operand(r7, LSL, r3));
 
   // Argument 2 (r1): Previous index.
   // Already there

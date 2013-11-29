@@ -193,8 +193,8 @@ class CodeStub BASE_EMBEDDED {
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
   }
-  virtual Code::ExtraICState GetExtraICState() {
-    return Code::kNoExtraICState;
+  virtual ExtraICState GetExtraICState() {
+    return kNoExtraICState;
   }
   virtual Code::StubType GetStubType() {
     return Code::NORMAL;
@@ -846,8 +846,8 @@ class StoreICStub: public ICStub {
       : ICStub(kind), strict_mode_(strict_mode) { }
 
  protected:
-  virtual Code::ExtraICState GetExtraICState() {
-    return strict_mode_;
+  virtual ExtraICState GetExtraICState() {
+    return StoreIC::ComputeExtraICState(strict_mode_);
   }
 
  private:
@@ -982,7 +982,7 @@ class StoreGlobalStub : public HandlerStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  virtual Code::ExtraICState GetExtraICState() { return bit_field_; }
+  virtual ExtraICState GetExtraICState() { return bit_field_; }
 
   bool is_constant() {
     return IsConstantBits::decode(bit_field_);
@@ -1036,7 +1036,7 @@ class KeyedArrayCallStub: public HICStub {
   }
 
   virtual Code::Kind kind() const { return Code::KEYED_CALL_IC; }
-  virtual Code::ExtraICState GetExtraICState() { return bit_field_; }
+  virtual ExtraICState GetExtraICState() { return bit_field_; }
 
   ElementsKind elements_kind() {
     return HoleyBits::decode(bit_field_) ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
@@ -1046,7 +1046,7 @@ class KeyedArrayCallStub: public HICStub {
   virtual int GetStubFlags() { return argc(); }
 
   static bool IsHoley(Handle<Code> code) {
-    Code::ExtraICState state = code->extra_ic_state();
+    ExtraICState state = code->extra_ic_state();
     return HoleyBits::decode(state);
   }
 
@@ -1081,7 +1081,7 @@ class BinaryOpStub: public HydrogenCodeStub {
     Initialize();
   }
 
-  explicit BinaryOpStub(Code::ExtraICState state)
+  explicit BinaryOpStub(ExtraICState state)
       : op_(decode_token(OpBits::decode(state))),
         mode_(OverwriteModeField::decode(state)),
         fixed_right_arg_(
@@ -1124,7 +1124,7 @@ class BinaryOpStub: public HydrogenCodeStub {
     ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
   }
 
-  virtual Code::ExtraICState GetExtraICState() {
+  virtual ExtraICState GetExtraICState() {
     bool sse_field = Max(result_state_, Max(left_state_, right_state_)) > SMI &&
                      CpuFeatures::IsSafeForSnapshot(SSE2);
 
@@ -1364,7 +1364,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   explicit CompareNilICStub(NilValue nil) : nil_value_(nil) { }
 
-  CompareNilICStub(Code::ExtraICState ic_state,
+  CompareNilICStub(ExtraICState ic_state,
                    InitializationState init_state = INITIALIZED)
       : HydrogenCodeStub(init_state),
         nil_value_(NilValueField::decode(ic_state)),
@@ -1401,7 +1401,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
 
-  virtual Code::ExtraICState GetExtraICState() {
+  virtual ExtraICState GetExtraICState() {
     return NilValueField::encode(nil_value_) |
            TypesField::encode(state_.ToIntegral());
   }
@@ -2330,7 +2330,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   explicit ToBooleanStub(Types types = Types())
       : types_(types) { }
-  explicit ToBooleanStub(Code::ExtraICState state)
+  explicit ToBooleanStub(ExtraICState state)
       : types_(static_cast<byte>(state)) { }
 
   bool UpdateStatus(Handle<Object> object);
@@ -2357,7 +2357,7 @@ class ToBooleanStub: public HydrogenCodeStub {
     return ToBooleanStub(UNINITIALIZED).GetCode(isolate);
   }
 
-  virtual Code::ExtraICState GetExtraICState() {
+  virtual ExtraICState GetExtraICState() {
     return types_.ToIntegral();
   }
 

@@ -276,15 +276,10 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   FixedArrayBase* new_elms = FixedArrayBase::cast(HeapObject::FromAddress(
       elms->address() + size_delta));
   HeapProfiler* profiler = heap->isolate()->heap_profiler();
-  if (profiler->is_profiling()) {
+  if (profiler->is_tracking_object_moves()) {
     profiler->ObjectMoveEvent(elms->address(),
                               new_elms->address(),
                               new_elms->Size());
-    if (profiler->is_tracking_allocations()) {
-      // Report filler object as a new allocation.
-      // Otherwise it will become an untracked object.
-      profiler->NewObjectEvent(elms->address(), elms->Size());
-    }
   }
   return new_elms;
 }
@@ -1658,7 +1653,7 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
     functions->flags = Code::ComputeFlags(                                  \
-        Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState,                  \
+        Code::HANDLER, MONOMORPHIC, kNoExtraICState,                        \
         Code::NORMAL, Code::kind);                                          \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;

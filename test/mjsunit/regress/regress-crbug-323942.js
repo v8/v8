@@ -25,29 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_MARK_UNREACHABLE_H_
-#define V8_HYDROGEN_MARK_UNREACHABLE_H_
+// Flags: --allow-natives-syntax
 
-#include "hydrogen.h"
+"use strict";
 
-namespace v8 {
-namespace internal {
+// Function is defined on the prototype chain.
+var holder = { f: function() { return 42; } };
+var receiver = { };
+receiver.__proto__ = { };
+receiver.__proto__.__proto__ = holder;
 
+// Inline two levels.
+function h(o) { return o.f.apply(this, arguments); }
+function g(o) { return h(o); }
 
-class HMarkUnreachableBlocksPhase : public HPhase {
- public:
-  explicit HMarkUnreachableBlocksPhase(HGraph* graph)
-      : HPhase("H_Mark unreachable blocks", graph) { }
+// Collect type information for apply call.
+assertEquals(42, g(receiver));
+assertEquals(42, g(receiver));
 
-  void Run();
+// Sneakily remove the function from the prototype chain.
+// The receiver map does not change.
+receiver.__proto__.__proto__ = {};
 
- private:
-  void MarkUnreachableBlocks();
+// Lookup of o.f during graph creation fails.
+%OptimizeFunctionOnNextCall(g);
 
-  DISALLOW_COPY_AND_ASSIGN(HMarkUnreachableBlocksPhase);
-};
+assertThrows(function() { g(receiver); });
 
-
-} }  // namespace v8::internal
-
-#endif  // V8_HYDROGEN_MARK_UNREACHABLE_H_
+// Put function back.
+receiver.__proto__.__proto__ = holder;
+assertEquals(42, g(receiver));

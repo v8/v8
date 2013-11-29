@@ -324,9 +324,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 }
 
 
-class HOptimizedGraphBuilderWithPotisions: public HOptimizedGraphBuilder {
+class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
  public:
-  explicit HOptimizedGraphBuilderWithPotisions(CompilationInfo* info)
+  explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)
       : HOptimizedGraphBuilder(info) {
   }
 
@@ -468,7 +468,7 @@ RecompileJob::Status RecompileJob::CreateGraph() {
   AstTyper::Run(info());
 
   graph_builder_ = FLAG_emit_opt_code_positions
-      ? new(info()->zone()) HOptimizedGraphBuilderWithPotisions(info())
+      ? new(info()->zone()) HOptimizedGraphBuilderWithPositions(info())
       : new(info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
@@ -513,7 +513,7 @@ RecompileJob::Status RecompileJob::OptimizeGraph() {
   ASSERT(graph_ != NULL);
   BailoutReason bailout_reason = kNoReason;
   if (!graph_->Optimize(&bailout_reason)) {
-    if (bailout_reason == kNoReason) graph_builder_->Bailout(bailout_reason);
+    if (bailout_reason != kNoReason) graph_builder_->Bailout(bailout_reason);
     return SetLastStatus(BAILED_OUT);
   } else {
     chunk_ = LChunk::NewChunk(graph_);

@@ -341,7 +341,7 @@ Object* CallIC_Miss(Arguments args);
 void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
                                                int argc,
                                                Code::Kind kind,
-                                               Code::ExtraICState extra_state) {
+                                               ExtraICState extra_state) {
   // ----------- S t a t e -------------
   //  -- r1    : receiver
   //  -- r2    : name
@@ -445,7 +445,7 @@ void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
 void CallICBase::GenerateMiss(MacroAssembler* masm,
                               int argc,
                               IC::UtilityId id,
-                              Code::ExtraICState extra_state) {
+                              ExtraICState extra_state) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -511,7 +511,7 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
 
 void CallIC::GenerateMegamorphic(MacroAssembler* masm,
                                  int argc,
-                                 Code::ExtraICState extra_ic_state) {
+                                 ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -610,7 +610,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   GenerateMonomorphicCacheProbe(masm,
                                 argc,
                                 Code::KEYED_CALL_IC,
-                                Code::kNoExtraICState);
+                                kNoExtraICState);
   // Fall through on miss.
 
   __ bind(&slow_call);
@@ -656,7 +656,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, Code::kNoExtraICState,
+      Code::HANDLER, MONOMORPHIC, kNoExtraICState,
       Code::NORMAL, Code::LOAD_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, r0, r2, r3, r4, r5, r6);

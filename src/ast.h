@@ -1691,7 +1691,6 @@ class Property V8_FINAL : public Expression {
   bool IsFunctionPrototype() const { return is_function_prototype_; }
 
   // Type feedback information.
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
@@ -1704,6 +1703,12 @@ class Property V8_FINAL : public Expression {
   bool HasNoTypeInformation() {
     return is_uninitialized_ || is_pre_monomorphic_;
   }
+  void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
+  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
+  void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
+  void set_is_string_access(bool b) { is_string_access_ = b; }
+  void set_is_function_prototype(bool b) { is_function_prototype_ = b; }
+
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
  protected:

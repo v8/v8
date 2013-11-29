@@ -96,7 +96,7 @@ class AllocationTracker {
   ~AllocationTracker();
 
   void PrepareForSerialization();
-  void NewObjectEvent(Address addr, int size);
+  void AllocationEvent(Address addr, int size);
 
   AllocationTraceTree* trace_tree() { return &trace_tree_; }
   HashMap* id_to_function_info() { return &id_to_function_info_; }

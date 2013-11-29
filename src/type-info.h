@@ -241,10 +241,10 @@ class TypeFeedbackOracle: public ZoneObject {
                      Isolate* isolate,
                      Zone* zone);
 
-  bool LoadIsMonomorphicNormal(Property* expr);
-  bool LoadIsUninitialized(Property* expr);
-  bool LoadIsPreMonomorphic(Property* expr);
-  bool LoadIsPolymorphic(Property* expr);
+  bool LoadIsMonomorphicNormal(TypeFeedbackId id);
+  bool LoadIsUninitialized(TypeFeedbackId id);
+  bool LoadIsPreMonomorphic(TypeFeedbackId id);
+  bool LoadIsPolymorphic(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId ast_id);
   bool StoreIsMonomorphicNormal(TypeFeedbackId ast_id);
   bool StoreIsPreMonomorphic(TypeFeedbackId ast_id);
@@ -260,12 +260,12 @@ class TypeFeedbackOracle: public ZoneObject {
   // be possible.
   byte ForInType(TypeFeedbackId id);
 
-  Handle<Map> LoadMonomorphicReceiverType(Property* expr);
+  Handle<Map> LoadMonomorphicReceiverType(TypeFeedbackId id);
   Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
 
-  void LoadReceiverTypes(Property* expr,
+  void LoadReceiverTypes(TypeFeedbackId id,
                          Handle<String> name,
                          SmallMapList* types);
   void StoreReceiverTypes(Assignment* expr,
@@ -280,6 +280,16 @@ class TypeFeedbackOracle: public ZoneObject {
   void CollectPolymorphicStoreReceiverTypes(TypeFeedbackId ast_id,
                                             SmallMapList* types);
 
+  void PropertyReceiverTypes(TypeFeedbackId id,
+                             Handle<String> name,
+                             SmallMapList* receiver_types,
+                             bool* is_prototype);
+  void KeyedPropertyReceiverTypes(TypeFeedbackId id,
+                                  SmallMapList* receiver_types,
+                                  bool* is_string);
+  void CountReceiverTypes(TypeFeedbackId id,
+                          SmallMapList* receiver_types);
+
   static bool CanRetainOtherContext(Map* map, Context* native_context);
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
@@ -293,8 +303,8 @@ class TypeFeedbackOracle: public ZoneObject {
 
   Handle<Map> GetObjectLiteralStoreMap(ObjectLiteralProperty* prop);
 
-  bool LoadIsBuiltin(Property* expr, Builtins::Name id);
-  bool LoadIsStub(Property* expr, ICStub* stub);
+  bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
+  bool LoadIsStub(TypeFeedbackId id, ICStub* stub);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
@@ -315,7 +325,6 @@ class TypeFeedbackOracle: public ZoneObject {
                    Handle<Type>* combined);
 
   Handle<Type> CountType(TypeFeedbackId id);
-  void CountReceiverTypes(TypeFeedbackId id, SmallMapList* receiver_types);
 
   Handle<Type> ClauseType(TypeFeedbackId id);
 

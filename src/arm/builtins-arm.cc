@@ -693,7 +693,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2: receiver
   // r3: argc
   // r4: argv
-  // r5-r6, r7 (if not FLAG_enable_ool_constant_pool) and cp may be clobbered
+  // r5-r6, r8 (if not FLAG_enable_ool_constant_pool) and cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the internal frame.
@@ -734,7 +734,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(r5, Operand(r4));
     __ mov(r6, Operand(r4));
     if (!FLAG_enable_ool_constant_pool) {
-      __ mov(r7, Operand(r4));
+      __ mov(r8, Operand(r4));
     }
     if (kR9Available == 1) {
       __ mov(r9, Operand(r4));

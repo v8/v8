@@ -25,29 +25,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_MARK_UNREACHABLE_H_
-#define V8_HYDROGEN_MARK_UNREACHABLE_H_
+// Flags: --allow-natives-syntax --load-elimination
 
-#include "hydrogen.h"
+// Test local load elimination of redundant loads and stores.
 
-namespace v8 {
-namespace internal {
+function B(x, y) {
+  this.x = x;
+  this.y = y;
+  return this;
+}
 
+function test_params1(a, b) {
+  var i = a.x;
+  var j = a.x;
+  var k = b.x;
+  var l = b.x;
+  return i + j + k + l;
+}
 
-class HMarkUnreachableBlocksPhase : public HPhase {
- public:
-  explicit HMarkUnreachableBlocksPhase(HGraph* graph)
-      : HPhase("H_Mark unreachable blocks", graph) { }
+assertEquals(14, test_params1(new B(3, 4), new B(4, 5)));
+assertEquals(110, test_params1(new B(11, 7), new B(44, 8)));
 
-  void Run();
+%OptimizeFunctionOnNextCall(test_params1);
 
- private:
-  void MarkUnreachableBlocks();
+assertEquals(6, test_params1(new B(1, 7), new B(2, 8)));
 
-  DISALLOW_COPY_AND_ASSIGN(HMarkUnreachableBlocksPhase);
-};
+function test_params2(a, b) {
+  var o = new B(a + 1, b);
+  o.x = a;
+  var i = o.x;
+  o.x = a;
+  var j = o.x;
+  o.x = b;
+  var k = o.x;
+  o.x = b;
+  var l = o.x;
+  return i + j + k + l;
+}
 
+assertEquals(14, test_params2(3, 4));
+assertEquals(110, test_params2(11, 44));
 
-} }  // namespace v8::internal
+%OptimizeFunctionOnNextCall(test_params2);
 
-#endif  // V8_HYDROGEN_MARK_UNREACHABLE_H_
+assertEquals(6, test_params2(1, 2));

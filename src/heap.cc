@@ -2196,7 +2196,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       RecordCopiedObject(heap, target);
       Isolate* isolate = heap->isolate();
       HeapProfiler* heap_profiler = isolate->heap_profiler();
-      if (heap_profiler->is_profiling()) {
+      if (heap_profiler->is_tracking_object_moves()) {
         heap_profiler->ObjectMoveEvent(source->address(), target->address(),
                                        size);
       }
@@ -2447,7 +2447,7 @@ void Heap::SelectScavengingVisitorsTable() {
       isolate()->logger()->is_logging() ||
       isolate()->cpu_profiler()->is_profiling() ||
       (isolate()->heap_profiler() != NULL &&
-       isolate()->heap_profiler()->is_profiling());
+       isolate()->heap_profiler()->is_tracking_object_moves());
 
   if (!incremental_marking()->IsMarking()) {
     if (!logging_and_profiling) {
@@ -4885,13 +4885,6 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
       AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
           reinterpret_cast<Address>(clone) + object_size);
       InitializeAllocationMemento(alloc_memento, site);
-      HeapProfiler* profiler = isolate()->heap_profiler();
-      if (profiler->is_tracking_allocations()) {
-        profiler->UpdateObjectSizeEvent(HeapObject::cast(clone)->address(),
-                                        object_size);
-        profiler->NewObjectEvent(alloc_memento->address(),
-                                 AllocationMemento::kSize);
-      }
     }
   }
 
