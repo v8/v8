@@ -2016,7 +2016,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegisterAtStart(val);
       if (val->CheckFlag(HInstruction::kUint32)) {
         LNumberTagU* result = new(zone()) LNumberTagU(value);
-        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       } else if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineAsRegister(new(zone()) LSmiTag(value));
       } else {
