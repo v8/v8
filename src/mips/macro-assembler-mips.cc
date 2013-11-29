@@ -3728,7 +3728,7 @@ void MacroAssembler::InvokeFunction(Register function,
 }
 
 
-void MacroAssembler::InvokeFunction(Register function,
+void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
@@ -3737,10 +3737,8 @@ void MacroAssembler::InvokeFunction(Register function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  // Contract with called JS functions requires that function is passed in a1.
-  ASSERT(function.is(a1));
-
   // Get the function and setup the context.
+  li(a1, function);
   lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -3748,17 +3746,6 @@ void MacroAssembler::InvokeFunction(Register function,
   // call sites.
   lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
   InvokeCode(a3, expected, actual, flag, call_wrapper, call_kind);
-}
-
-
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
-  li(a1, function);
-  InvokeFunction(a1, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
