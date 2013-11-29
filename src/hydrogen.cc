@@ -1602,7 +1602,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
   if_objectissmi.Else();
   {
     if (type->Is(Type::Smi())) {
-      if_objectissmi.Deopt("Excepted smi");
+      if_objectissmi.Deopt("Expected smi");
     } else {
       // Check if the object is a heap number.
       IfBuilder if_objectisnumber(this);
@@ -3570,15 +3570,8 @@ void TestContext::BuildBranch(HValue* value) {
   if (value != NULL && value->CheckFlag(HValue::kIsArguments)) {
     builder->Bailout(kArgumentsObjectValueInATestContext);
   }
-  HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
-  HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   ToBooleanStub::Types expected(condition()->to_boolean_types());
-  builder->FinishCurrentBlock(builder->New<HBranch>(
-          value, expected, empty_true, empty_false));
-
-  owner()->Goto(empty_true, if_true(), builder->function_state());
-  owner()->Goto(empty_false , if_false(), builder->function_state());
-  builder->set_current_block(NULL);
+  ReturnControl(owner()->New<HBranch>(value, expected), BailoutId::None());
 }
 
 
