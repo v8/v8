@@ -1198,8 +1198,6 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
-  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
-  bool allow_stub_calls() { return allow_stub_calls_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -1478,7 +1476,6 @@ class MacroAssembler: public Assembler {
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
   bool generating_stub_;
-  bool allow_stub_calls_;
   bool has_frame_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;

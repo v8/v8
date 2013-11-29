@@ -2952,18 +2952,11 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated(Isolate* isolate) {
-  return (!save_doubles_ || isolate->fp_stubs_generated()) &&
-          result_size_ == 1;
-}
-
-
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
-  RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   if (Serializer::enabled()) {
@@ -5287,69 +5280,6 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 }
 
 
-struct AheadOfTimeWriteBarrierStubList {
-  Register object, value, address;
-  RememberedSetAction action;
-};
-
-
-#define REG(Name) { kRegister_ ## Name ## _Code }
-
-static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
-  // Used in RegExpExecStub.
-  { REG(ebx), REG(eax), REG(edi), EMIT_REMEMBERED_SET },
-  // Used in CompileArrayPushCall.
-  { REG(ebx), REG(ecx), REG(edx), EMIT_REMEMBERED_SET },
-  { REG(ebx), REG(edi), REG(edx), OMIT_REMEMBERED_SET },
-  // Used in StoreStubCompiler::CompileStoreField and
-  // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
-  { REG(edx), REG(ecx), REG(ebx), EMIT_REMEMBERED_SET },
-  // GenerateStoreField calls the stub with two different permutations of
-  // registers.  This is the second.
-  { REG(ebx), REG(ecx), REG(edx), EMIT_REMEMBERED_SET },
-  // StoreIC::GenerateNormal via GenerateDictionaryStore
-  { REG(ebx), REG(edi), REG(edx), EMIT_REMEMBERED_SET },
-  // KeyedStoreIC::GenerateGeneric.
-  { REG(ebx), REG(edx), REG(ecx), EMIT_REMEMBERED_SET},
-  // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { REG(edi), REG(ebx), REG(ecx), EMIT_REMEMBERED_SET},
-  { REG(edx), REG(edi), REG(ebx), EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateMapChangeElementTransition
-  // and ElementsTransitionGenerator::GenerateSmiToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(edx), REG(ebx), REG(edi), EMIT_REMEMBERED_SET},
-  { REG(edx), REG(ebx), REG(edi), OMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(eax), REG(edx), REG(esi), EMIT_REMEMBERED_SET},
-  { REG(edx), REG(eax), REG(edi), EMIT_REMEMBERED_SET},
-  // StoreArrayLiteralElementStub::Generate
-  { REG(ebx), REG(eax), REG(ecx), EMIT_REMEMBERED_SET},
-  // FastNewClosureStub and StringAddStub::Generate
-  { REG(ecx), REG(edx), REG(ebx), EMIT_REMEMBERED_SET},
-  // StringAddStub::Generate
-  { REG(ecx), REG(eax), REG(ebx), EMIT_REMEMBERED_SET},
-  // Null termination.
-  { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
-};
-
-#undef REG
-
-bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
-  for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
-       !entry->object.is(no_reg);
-       entry++) {
-    if (object_.is(entry->object) &&
-        value_.is(entry->value) &&
-        address_.is(entry->address) &&
-        remembered_set_action_ == entry->action &&
-        save_fp_regs_mode_ == kDontSaveFPRegs) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub(kDontSaveFPRegs);
@@ -5357,20 +5287,6 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
   if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
     StoreBufferOverflowStub stub2(kSaveFPRegs);
     stub2.GetCode(isolate)->set_is_pregenerated(true);
-  }
-}
-
-
-void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {
-  for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
-       !entry->object.is(no_reg);
-       entry++) {
-    RecordWriteStub stub(entry->object,
-                         entry->value,
-                         entry->address,
-                         entry->action,
-                         kDontSaveFPRegs);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
   }
 }
 
@@ -5703,10 +5619,6 @@ void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
-    // It's always safe to call the entry hook stub, as the hook itself
-    // is not allowed to call back to V8.
-    AllowStubCallsScope allow_stub_calls(masm, true);
-
     ProfileEntryHookStub stub;
     masm->CallStub(&stub);
   }

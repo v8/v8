@@ -110,9 +110,6 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
     // Update the static counter each time a new code stub is generated.
     isolate->counters()->code_stubs()->Increment();
 
-    // Nested stubs are not allowed for leaves.
-    AllowStubCallsScope allow_scope(&masm, false);
-
     // Generate the code for the stub.
     masm.set_generating_stub(true);
     NoCurrentFrameScope scope(&masm);
@@ -148,7 +145,6 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   if (UseSpecialCache()
       ? FindCodeInSpecialCache(&code, isolate)
       : FindCodeInCache(&code, isolate)) {
-    ASSERT(IsPregenerated(isolate) == code->is_pregenerated());
     ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }

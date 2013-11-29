@@ -44,7 +44,6 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      allow_stub_calls_(true),
       has_frame_(false) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
@@ -2289,8 +2288,6 @@ void MacroAssembler::CallStub(CodeStub* stub,
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls_ ||
-         stub->CompilingCallsToThisStubIsGCSafe(isolate()));
   Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, cond);
 }
 
@@ -2435,8 +2432,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
-  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
-  return allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe(isolate());
+  return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
 
 
