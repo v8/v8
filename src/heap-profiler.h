@@ -73,15 +73,10 @@ class HeapProfiler {
 
   v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
                                                       Object** wrapper);
-  INLINE(bool is_profiling()) {
-    return snapshots_->is_tracking_objects();
-  }
-
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
-  bool is_tracking_allocations() {
-    return is_tracking_allocations_;
-  }
+  bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
+  bool is_tracking_allocations() const { return is_tracking_allocations_; }
 
   void StartHeapAllocationsRecording();
   void StopHeapAllocationsRecording();
@@ -97,6 +92,7 @@ class HeapProfiler {
   unsigned next_snapshot_uid_;
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
   bool is_tracking_allocations_;
+  bool is_tracking_object_moves_;
 };
 
 } }  // namespace v8::internal

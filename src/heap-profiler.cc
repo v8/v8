@@ -36,7 +36,8 @@ namespace internal {
 HeapProfiler::HeapProfiler(Heap* heap)
     : snapshots_(new HeapSnapshotsCollection(heap)),
       next_snapshot_uid_(1),
-      is_tracking_allocations_(false) {
+      is_tracking_allocations_(false),
+      is_tracking_object_moves_(false) {
 }
 
 
@@ -84,6 +85,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
     }
   }
   snapshots_->SnapshotGenerationFinished(result);
+  is_tracking_object_moves_ = true;
   return result;
 }
 
@@ -98,6 +100,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 
 void HeapProfiler::StartHeapObjectsTracking() {
   snapshots_->StartHeapObjectsTracking();
+  is_tracking_object_moves_ = true;
 }
 
 
@@ -159,7 +162,6 @@ void HeapProfiler::StartHeapAllocationsRecording() {
   StartHeapObjectsTracking();
   heap()->DisableInlineAllocation();
   is_tracking_allocations_ = true;
-  snapshots_->UpdateHeapObjectsMap();
 }
 
 

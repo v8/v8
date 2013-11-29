@@ -2768,7 +2768,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          int size,
                                          AllocationSpace dest) {
   HeapProfiler* heap_profiler = heap()->isolate()->heap_profiler();
-  if (heap_profiler->is_profiling()) {
+  if (heap_profiler->is_tracking_object_moves()) {
     heap_profiler->ObjectMoveEvent(src, dst, size);
   }
   ASSERT(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));

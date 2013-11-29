@@ -294,7 +294,6 @@ class HeapSnapshotsCollection {
 
   Heap* heap() const { return ids_.heap(); }
 
-  bool is_tracking_objects() { return is_tracking_objects_; }
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
     return ids_.PushHeapObjectsStats(stream);
   }
@@ -330,10 +329,7 @@ class HeapSnapshotsCollection {
 
   int FindUntrackedObjects() { return ids_.FindUntrackedObjects(); }
 
-  void UpdateHeapObjectsMap() { ids_.UpdateHeapObjectsMap(); }
-
  private:
-  bool is_tracking_objects_;  // Whether tracking object moves is needed.
   List<HeapSnapshot*> snapshots_;
   StringsStorage names_;
   // Mapping from HeapObject addresses to objects' uids.
