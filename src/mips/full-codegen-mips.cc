@@ -631,11 +631,13 @@ void FullCodeGenerator::StackValueContext::Plug(
   Label done;
   __ bind(materialize_true);
   __ LoadRoot(at, Heap::kTrueValueRootIndex);
+  // Push the value as the following branch can clobber at in long branch mode.
+  __ push(at);
   __ Branch(&done);
   __ bind(materialize_false);
   __ LoadRoot(at, Heap::kFalseValueRootIndex);
-  __ bind(&done);
   __ push(at);
+  __ bind(&done);
 }
 
 
