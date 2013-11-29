@@ -746,7 +746,7 @@ static void GenerateCallFunction(MacroAssembler* masm,
                                  Handle<Object> object,
                                  const ParameterCount& arguments,
                                  Label* miss,
-                                 Code::ExtraICState extra_ic_state) {
+                                 ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- r0: receiver
   //  -- r1: function to call
