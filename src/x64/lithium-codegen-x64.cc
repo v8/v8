@@ -4363,11 +4363,11 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         ToRegister(instr->temp()), kDontSaveFPRegs);
   } else {
+    ASSERT(ToRegister(instr->context()).is(rsi));
     PushSafepointRegistersScope scope(this);
     if (!object_reg.is(rax)) {
       __ movq(rax, object_reg);
     }
-    LoadContextFromDeferred(instr->context());
     __ Move(rbx, to_map);
     TransitionElementsKindStub stub(from_kind, to_kind);
     __ CallStub(&stub);

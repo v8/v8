@@ -2420,7 +2420,7 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
                                             new_map_reg, temp_reg);
     return result;
   } else {
-    LOperand* context = UseRegister(instr->context());
+    LOperand* context = UseFixed(instr->context(), esi);
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, context, NULL, NULL);
     return AssignPointerMap(result);

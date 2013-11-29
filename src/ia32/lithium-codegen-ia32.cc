@@ -4845,13 +4845,10 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
                          ToRegister(instr->temp()),
                          kDontSaveFPRegs);
   } else {
+    ASSERT(ToRegister(instr->context()).is(esi));
     PushSafepointRegistersScope scope(this);
     if (!object_reg.is(eax)) {
-      __ push(object_reg);
-    }
-    LoadContextFromDeferred(instr->context());
-    if (!object_reg.is(eax)) {
-      __ pop(eax);
+      __ mov(eax, object_reg);
     }
     __ mov(ebx, to_map);
     TransitionElementsKindStub stub(from_kind, to_kind);
