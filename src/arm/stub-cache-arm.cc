@@ -1611,10 +1611,12 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Handle<JSFunction> function,
     Handle<String> name,
     Code::StubType type) {
-  // If object is not an array or is observed, bail out to regular call.
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
   if (!object->IsJSArray() ||
       !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed()) {
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
     return Handle<Code>::null();
   }
 
@@ -1854,10 +1856,12 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
     Handle<JSFunction> function,
     Handle<String> name,
     Code::StubType type) {
-  // If object is not an array or is observed, bail out to regular call.
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
   if (!object->IsJSArray() ||
       !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed()) {
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
     return Handle<Code>::null();
   }
 

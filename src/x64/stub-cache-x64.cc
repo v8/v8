@@ -1637,18 +1637,12 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Handle<JSFunction> function,
     Handle<String> name,
     Code::StubType type) {
-  // ----------- S t a t e -------------
-  //  -- rcx                 : name
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
-  //  -- ...
-  //  -- rsp[(argc + 1) * 8] : receiver
-  // -----------------------------------
-
-  // If object is not an array or is observed, bail out to regular call.
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
   if (!object->IsJSArray() ||
       !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed()) {
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
     return Handle<Code>::null();
   }
 
@@ -1884,10 +1878,12 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
     Handle<JSFunction> function,
     Handle<String> name,
     Code::StubType type) {
-  // If object is not an array or is observed, bail out to regular call.
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
   if (!object->IsJSArray() ||
       !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed()) {
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
     return Handle<Code>::null();
   }
 

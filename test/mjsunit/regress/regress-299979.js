@@ -25,9 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that frozen arrays don't let their length change
-var a = Object.freeze([1]);
-assertThrows(function() { a.push(2); }, TypeError);
-assertEquals(1, a.length);
-assertThrows(function() { a.push(2); }, TypeError);
-assertEquals(1, a.length);
+
+(function(){
+  "use strict";
+  var list = Object.freeze([1, 2, 3]);
+  assertThrows(function() { list.unshift(4); }, TypeError);
+  assertThrows(function() { list.shift(); }, TypeError);
+})();

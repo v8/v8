@@ -111,6 +111,8 @@ var kMessages = {
   constructor_not_function:      ["Constructor ", "%0", " requires 'new'"],
   not_a_promise:                 ["%0", "is not a promise"],
   promise_cyclic:                ["Chaining cycle detected for promise", "%0"],
+  array_functions_on_frozen:     ["Cannot modify frozen array elements"],
+  array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
