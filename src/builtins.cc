@@ -281,11 +281,6 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
                               new_elms->address(),
                               new_elms->Size());
   }
-  if (profiler->is_tracking_allocations()) {
-    // Report filler object as a new allocation.
-    // Otherwise it will become an untracked object.
-    profiler->NewObjectEvent(elms->address(), elms->Size());
-  }
   return new_elms;
 }
 

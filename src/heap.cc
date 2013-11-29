@@ -4885,13 +4885,6 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
       AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
           reinterpret_cast<Address>(clone) + object_size);
       InitializeAllocationMemento(alloc_memento, site);
-      HeapProfiler* profiler = isolate()->heap_profiler();
-      if (profiler->is_tracking_allocations()) {
-        profiler->UpdateObjectSizeEvent(HeapObject::cast(clone)->address(),
-                                        object_size);
-        profiler->NewObjectEvent(alloc_memento->address(),
-                                 AllocationMemento::kSize);
-      }
     }
   }
 

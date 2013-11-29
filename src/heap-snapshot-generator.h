@@ -233,7 +233,6 @@ class HeapObjectsMap {
                                   unsigned int size,
                                   bool accessed = true);
   void MoveObject(Address from, Address to, int size);
-  void NewObject(Address addr, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;
@@ -318,7 +317,7 @@ class HeapSnapshotsCollection {
   void ObjectMoveEvent(Address from, Address to, int size) {
     ids_.MoveObject(from, to, size);
   }
-  void NewObjectEvent(Address addr, int size);
+  void AllocationEvent(Address addr, int size);
   void UpdateObjectSizeEvent(Address addr, int size) {
     ids_.UpdateObjectSize(addr, size);
   }

@@ -446,18 +446,6 @@ void HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
 }
 
 
-void HeapObjectsMap::NewObject(Address addr, int size) {
-  if (FLAG_heap_profiler_trace_objects) {
-    PrintF("New object         : %p %6d. Next address is %p\n",
-           addr,
-           size,
-           addr + size);
-  }
-  ASSERT(addr != NULL);
-  FindOrAddEntry(addr, size, false);
-}
-
-
 void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
   FindOrAddEntry(addr, size, false);
 }
@@ -823,11 +811,10 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
 }
 
 
-void HeapSnapshotsCollection::NewObjectEvent(Address addr, int size) {
+void HeapSnapshotsCollection::AllocationEvent(Address addr, int size) {
   DisallowHeapAllocation no_allocation;
-  ids_.NewObject(addr, size);
   if (allocation_tracker_ != NULL) {
-    allocation_tracker_->NewObjectEvent(addr, size);
+    allocation_tracker_->AllocationEvent(addr, size);
   }
 }
 

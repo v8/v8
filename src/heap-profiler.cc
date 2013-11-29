@@ -141,8 +141,8 @@ void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
 }
 
 
-void HeapProfiler::NewObjectEvent(Address addr, int size) {
-  snapshots_->NewObjectEvent(addr, size);
+void HeapProfiler::AllocationEvent(Address addr, int size) {
+  snapshots_->AllocationEvent(addr, size);
 }
 
 

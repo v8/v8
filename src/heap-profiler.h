@@ -64,7 +64,7 @@ class HeapProfiler {
 
   void ObjectMoveEvent(Address from, Address to, int size);
 
-  void NewObjectEvent(Address addr, int size);
+  void AllocationEvent(Address addr, int size);
 
   void UpdateObjectSizeEvent(Address addr, int size);
 
