@@ -43,6 +43,7 @@ class HCheckEliminationPhase : public HPhase {
       aliasing_(),
       redundant_(0),
       removed_(0),
+      removed_cho_(0),
       narrowed_(0),
       loads_(0),
       empty_(0),
@@ -60,6 +61,7 @@ class HCheckEliminationPhase : public HPhase {
   HAliasAnalyzer* aliasing_;
   int redundant_;
   int removed_;
+  int removed_cho_;
   int narrowed_;
   int loads_;
   int empty_;
