@@ -163,6 +163,7 @@ class ScannerBase {
     return current_literal_->length;
   }
 
+  // This should be is_onebyte or is_latin1; it doesn't mean ASCII for real.
   bool is_literal_ascii() {
     if (!current_literal_->Valid(current_.beg_pos)) {
       FillLiteral(current_, current_literal_);

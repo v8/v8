@@ -118,9 +118,24 @@ bool ExperimentalScanner<uint16_t>::FillLiteral(
     --end;
   }
   if (!token.has_escapes) {
-    literal->is_ascii = false;  // FIXME: utf16 can contain only ascii chars.
+    // UTF-16 can also contain only one byte chars. Note that is_ascii here
+    // means is_onebyte.
+    literal->is_ascii = true;
+    literal->buffer.Reset();
+    for (const uint16_t* cursor = start; cursor != end; ++cursor) {
+      if (*cursor >= unibrow::Latin1::kMaxChar) {
+        literal->is_ascii = false;
+        break;
+      }
+      literal->buffer.AddChar(*cursor);
+    }
     literal->length = end - start;
-    literal->utf16_string = Vector<const uint16_t>(start, literal->length);
+    if (literal->is_ascii) {
+      literal->ascii_string = literal->buffer.ascii_literal();
+    } else {
+      literal->buffer.Reset();
+      literal->utf16_string = Vector<const uint16_t>(start, literal->length);
+    }
     return true;
   }
   literal->buffer.Reset();

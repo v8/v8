@@ -196,6 +196,7 @@ struct TokenWithLocation {
       for (size_t i = 0; i < literal.size(); i++) {
         printf(is_ascii ? " %02x" : " %04x", literal[i]);
       }
+      printf(" (is ascii: %d)", is_ascii);
     }
     printf(" (last octal start: %d)\n", octal_beg);
   }
