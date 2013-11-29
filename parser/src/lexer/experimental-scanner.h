@@ -252,6 +252,7 @@ class ScannerBase {
     Vector<const char> ascii_string;
     Vector<const uc16> utf16_string;
     LiteralBuffer buffer;
+    LiteralDesc() : beg_pos(-1), is_ascii(false), length(0) { }
     bool Valid(int pos) { return beg_pos == pos; }
   };
 
