@@ -732,35 +732,6 @@ void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
 }
 
 
-static void GenerateCallFunction(MacroAssembler* masm,
-                                 Handle<Object> object,
-                                 const ParameterCount& arguments,
-                                 Label* miss,
-                                 ExtraICState extra_ic_state) {
-  // ----------- S t a t e -------------
-  //  -- a0: receiver
-  //  -- a1: function to call
-  // -----------------------------------
-  // Check that the function really is a function.
-  __ JumpIfSmi(a1, miss);
-  __ GetObjectType(a1, a3, a3);
-  __ Branch(miss, ne, a3, Operand(JS_FUNCTION_TYPE));
-
-  if (object->IsGlobalObject()) {
-    const int argc = arguments.immediate();
-    const int receiver_offset = argc * kPointerSize;
-    __ lw(a3, FieldMemOperand(a0, GlobalObject::kGlobalReceiverOffset));
-    __ sw(a3, MemOperand(sp, receiver_offset));
-  }
-
-  // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state)
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
-  __ InvokeFunction(a1, arguments, JUMP_FUNCTION, NullCallWrapper(), call_kind);
-}
-
-
 static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register receiver,
                                      Register holder,
@@ -942,7 +913,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
-  CallInterceptorCompiler(StubCompiler* stub_compiler,
+  CallInterceptorCompiler(CallStubCompiler* stub_compiler,
                           const ParameterCount& arguments,
                           Register name,
                           ExtraICState extra_ic_state)
@@ -1054,13 +1025,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       GenerateFastApiDirectCall(
           masm, optimization, arguments_.immediate(), false);
     } else {
-      CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
-          ? CALL_AS_FUNCTION
-          : CALL_AS_METHOD;
       Handle<JSFunction> function = optimization.constant_function();
-      ParameterCount expected(function);
-      __ InvokeFunction(function, expected, arguments_,
-                        JUMP_FUNCTION, NullCallWrapper(), call_kind);
+      stub_compiler_->GenerateJumpFunction(object, function);
     }
 
     // Deferred code for fast API call case---clean preallocated space.
@@ -1126,7 +1092,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ Branch(interceptor_succeeded, ne, v0, Operand(scratch));
   }
 
-  StubCompiler* stub_compiler_;
+  CallStubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
   ExtraICState extra_ic_state_;
@@ -1527,6 +1493,15 @@ void CallStubCompiler::GenerateNameCheck(Handle<Name> name, Label* miss) {
 }
 
 
+void CallStubCompiler::GenerateFunctionCheck(Register function,
+                                             Register scratch,
+                                             Label* miss) {
+  __ JumpIfSmi(function, miss);
+  __ GetObjectType(function, scratch, scratch);
+  __ Branch(miss, ne, scratch, Operand(JS_FUNCTION_TYPE));
+}
+
+
 void CallStubCompiler::GenerateLoadFunctionFromCell(
     Handle<Cell> cell,
     Handle<JSFunction> function,
@@ -1542,9 +1517,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(
     // the nice side effect that multiple closures based on the same
     // function can all use this call IC. Before we load through the
     // function, we have to verify that it still is a function.
-    __ JumpIfSmi(a1, miss);
-    __ GetObjectType(a1, a3, a3);
-    __ Branch(miss, ne, a3, Operand(JS_FUNCTION_TYPE));
+    GenerateFunctionCheck(a1, a3, miss);
 
     // Check the shared function info. Make sure it hasn't changed.
     __ li(a3, Handle<SharedFunctionInfo>(function->shared()));
@@ -1575,8 +1548,7 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
       object, holder, name, RECEIVER_MAP_CHECK, &miss);
   GenerateFastPropertyLoad(masm(), a1, reg, index.is_inobject(holder),
                            index.translate(holder), Representation::Tagged());
-
-  GenerateCallFunction(masm(), object, arguments(), &miss, extra_state_);
+  GenerateJumpFunction(object, a1, &miss);
 
   HandlerFrontendFooter(&miss);
 
@@ -1988,8 +1960,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
   __ bind(&miss);
   // Restore function name in a2.
   __ li(a2, name);
-  __ bind(&name_miss);
-  GenerateMissBranch();
+  HandlerFrontendFooter(&name_miss);
 
   // Return the generated code.
   return GetCode(type, name);
@@ -2053,8 +2024,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
   __ bind(&miss);
   // Restore function name in a2.
   __ li(a2, name);
-  __ bind(&name_miss);
-  GenerateMissBranch();
+  HandlerFrontendFooter(&name_miss);
 
   // Return the generated code.
   return GetCode(type, name);
@@ -2100,12 +2070,10 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
   StubRuntimeCallHelper call_helper;
   generator.GenerateSlow(masm(), call_helper);
 
-  // Tail call the full function. We do not have to patch the receiver
-  // because the function makes no use of it.
   __ bind(&slow);
-  ParameterCount expected(function);
-  __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  // We do not have to patch the receiver because the function makes no use of
+  // it.
+  GenerateJumpFunctionIgnoreReceiver(function);
 
   HandlerFrontendFooter(&miss);
 
@@ -2211,11 +2179,9 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   __ ctc1(a3, FCSR);
 
   __ bind(&slow);
-  // Tail call the full function. We do not have to patch the receiver
-  // because the function makes no use of it.
-  ParameterCount expected(function);
-  __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  // We do not have to patch the receiver because the function makes no use of
+  // it.
+  GenerateJumpFunctionIgnoreReceiver(function);
 
   HandlerFrontendFooter(&miss);
 
@@ -2292,12 +2258,10 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   __ sw(a3, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
   __ DropAndRet(argc + 1);
 
-  // Tail call the full function. We do not have to patch the receiver
-  // because the function makes no use of it.
   __ bind(&slow);
-  ParameterCount expected(function);
-  __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  // We do not have to patch the receiver because the function makes no use of
+  // it.
+  GenerateJumpFunctionIgnoreReceiver(function);
 
   HandlerFrontendFooter(&miss);
 
@@ -2352,8 +2316,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
   __ bind(&miss);
   FreeSpaceForFastApiCall(masm());
 
-  __ bind(&miss_before_stack_reserved);
-  GenerateMissBranch();
+  HandlerFrontendFooter(&miss_before_stack_reserved);
 
   // Return the generated code.
   return GetCode(function);
@@ -2372,7 +2335,7 @@ void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
 
 
 void CallStubCompiler::PatchGlobalProxy(Handle<Object> object) {
-  if (object->IsGlobalObject()) {
+  if (!object.is_null() && object->IsGlobalObject()) {
     const int argc = arguments().immediate();
     const int receiver_offset = argc * kPointerSize;
     __ lw(a3, FieldMemOperand(a0, GlobalObject::kGlobalReceiverOffset));
@@ -2468,39 +2431,17 @@ Register CallStubCompiler::HandlerFrontendHeader(Handle<Object> object,
 }
 
 
-void CallStubCompiler::CompileHandlerBackend(Handle<JSFunction> function) {
-  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
-  ParameterCount expected(function);
-  __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), call_kind);
-}
-
-
-Handle<Code> CallStubCompiler::CompileCallConstant(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Name> name,
-    CheckType check,
-    Handle<JSFunction> function) {
-  if (HasCustomCallGenerator(function)) {
-    Handle<Code> code = CompileCustomCall(object, holder,
-                                          Handle<Cell>::null(),
-                                          function, Handle<String>::cast(name),
-                                          Code::FAST);
-    // A null handle means bail out to the regular compiler code below.
-    if (!code.is_null()) return code;
-  }
-
-  Label miss;
-  HandlerFrontendHeader(object, holder, name, check, &miss);
+void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
+                                            Register function,
+                                            Label* miss) {
+  ASSERT(function.is(a1));
+  // Check that the function really is a function.
+  GenerateFunctionCheck(function, a3, miss);
+  if (!function.is(a1)) __ mov(a1, function);
   PatchGlobalProxy(object);
-  CompileHandlerBackend(function);
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(function);
+  // Invoke the function.
+  __ InvokeFunction(a1, arguments(), JUMP_FUNCTION,
+                    NullCallWrapper(), call_kind());
 }
 
 
@@ -2528,11 +2469,9 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // Restore receiver.
   __ lw(a0, MemOperand(sp, argc * kPointerSize));
 
-  GenerateCallFunction(masm(), object, arguments(), &miss, extra_state_);
+  GenerateJumpFunction(object, a0, &miss);
 
-  // Handle call cache miss.
-  __ bind(&miss);
-  GenerateMissBranch();
+  HandlerFrontendFooter(&miss);
 
   // Return the generated code.
   return GetCode(Code::FAST, name);
@@ -2555,26 +2494,12 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
 
   Label miss;
   HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
+  // Potentially loads a closure that matches the shared function info of the
+  // function, rather than function.
   GenerateLoadFunctionFromCell(cell, function, &miss);
-  PatchGlobalProxy(object);
-
-  // Set up the context (function already in r1).
-  __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-
-  // Jump to the cached code (tail call).
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->call_global_inline(), 1, a3, t0);
-  ParameterCount expected(function->shared()->formal_parameter_count());
-  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
-  // We call indirectly through the code field in the function to
-  // allow recompilation to take effect without changing any of the
-  // call sites.
-  __ lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  __ InvokeCode(a3, expected, arguments(), JUMP_FUNCTION,
-                NullCallWrapper(), call_kind);
-
+  GenerateJumpFunction(object, a1, function);
   HandlerFrontendFooter(&miss);
 
   // Return the generated code.
