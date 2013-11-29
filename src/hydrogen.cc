@@ -7560,12 +7560,6 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   // Found pattern f.apply(receiver, arguments).
   CHECK_ALIVE_OR_RETURN(VisitForValue(prop->obj()), true);
   HValue* function = Top();
-  // The function get here may be an undefined constant if lookup fails.
-  if (function->IsConstant() &&
-      !HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
-    Drop(1);
-    return false;
-  }
 
   AddCheckConstantFunction(expr->holder(), function, function_map);
   Drop(1);
@@ -7597,10 +7591,10 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     }
 
     Handle<JSFunction> known_function;
-    if (function->IsConstant()) {
-      HConstant* constant_function = HConstant::cast(function);
+    if (function->IsConstant() &&
+        HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
       known_function = Handle<JSFunction>::cast(
-          constant_function->handle(isolate()));
+          HConstant::cast(function)->handle(isolate()));
       int args_count = arguments_count - 1;  // Excluding receiver.
       if (TryInlineApply(known_function, expr, args_count)) return true;
     }
