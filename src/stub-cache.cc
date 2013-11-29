@@ -1128,66 +1128,9 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
-CallKind CallStubCompiler::call_kind() {
-  return CallICBase::Contextual::decode(extra_state_)
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
-}
-
-
 void CallStubCompiler::HandlerFrontendFooter(Label* miss) {
   __ bind(miss);
   GenerateMissBranch();
-}
-
-
-void CallStubCompiler::GenerateJumpFunctionIgnoreReceiver(
-    Handle<JSFunction> function) {
-  ParameterCount expected(function);
-  __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
-}
-
-
-void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
-                                            Handle<JSFunction> function) {
-  PatchGlobalProxy(object);
-  GenerateJumpFunctionIgnoreReceiver(function);
-}
-
-
-void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
-                                            Register actual_closure,
-                                            Handle<JSFunction> function) {
-  PatchGlobalProxy(object);
-  ParameterCount expected(function);
-  __ InvokeFunction(actual_closure, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
-}
-
-
-Handle<Code> CallStubCompiler::CompileCallConstant(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Name> name,
-    CheckType check,
-    Handle<JSFunction> function) {
-  if (HasCustomCallGenerator(function)) {
-    Handle<Code> code = CompileCustomCall(object, holder,
-                                          Handle<Cell>::null(),
-                                          function, Handle<String>::cast(name),
-                                          Code::FAST);
-    // A null handle means bail out to the regular compiler code below.
-    if (!code.is_null()) return code;
-  }
-
-  Label miss;
-  HandlerFrontendHeader(object, holder, name, check, &miss);
-  GenerateJumpFunction(object, function);
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(function);
 }
 
 
