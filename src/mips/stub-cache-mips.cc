@@ -2469,7 +2469,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // Restore receiver.
   __ lw(a0, MemOperand(sp, argc * kPointerSize));
 
-  GenerateJumpFunction(object, a0, &miss);
+  GenerateJumpFunction(object, a1, &miss);
 
   HandlerFrontendFooter(&miss);
 
