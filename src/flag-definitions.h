@@ -345,7 +345,7 @@ DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
 
-DEFINE_bool(new_string_add, true, "enable new string addition")
+DEFINE_bool(new_string_add, false, "enable new string addition")
 
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
