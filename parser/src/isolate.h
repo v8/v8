@@ -28,6 +28,8 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include <set>
+
 #include "../include/v8-debug.h"
 #include "allocation.h"
 #include "apiutils.h"
@@ -82,6 +84,7 @@ class RegExpStack;
 class SaveContext;
 class UnicodeCache;
 class ConsStringIteratorOp;
+class ScannerBase;
 class StringTracker;
 class StubCache;
 class SweeperThread;
@@ -1142,6 +1145,9 @@ class Isolate {
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
 
+  void AddScanner(ScannerBase* scanner);
+  void RemoveScanner(ScannerBase* scanner);
+
  private:
   Isolate();
 
@@ -1253,6 +1259,9 @@ class Isolate {
   // Traverse prototype chain to find out whether the object is derived from
   // the Error object.
   bool IsErrorObject(Handle<Object> obj);
+
+  static void UpdateScannersAfterGC(v8::Isolate*, GCType, GCCallbackFlags);
+  void UpdateScannersAfterGC();
 
   Atomic32 id_;
   EntryStackItem* entry_stack_;
@@ -1376,6 +1385,10 @@ class Isolate {
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
+
+  // Stores information about the ScannerBase objects currently alive, so that
+  // we can update the raw string pointers they hold after GC.
+  std::set<ScannerBase*> scanners_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

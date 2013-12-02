@@ -28,8 +28,6 @@
 #ifndef V8_LEXER_EXPERIMENTAL_SCANNER_H
 #define V8_LEXER_EXPERIMENTAL_SCANNER_H
 
-#include <set>
-
 #include "compiler.h"
 #include "isolate.h"
 #include "scanner.h"  // UnicodeCache.
@@ -70,22 +68,11 @@ class ScannerBase {
       harmony_numeric_literals_(false),
       harmony_modules_(false),
       harmony_scoping_(false) {
-    if (!scanners_) {
-      scanners_ = new std::set<ScannerBase*>();
-      isolate->heap()->AddGCEpilogueCallback(&ScannerBase::UpdateBuffersAfterGC,
-                                             kGCTypeAll, false);
-    }
-    scanners_->insert(this);
+    isolate->AddScanner(this);
   }
 
   virtual ~ScannerBase() {
-    scanners_->erase(this);
-    if (scanners_->empty()) {
-      isolate_->heap()->RemoveGCEpilogueCallback(
-          &ScannerBase::UpdateBuffersAfterGC);
-      delete scanners_;
-      scanners_ = NULL;
-    }
+    isolate_->RemoveScanner(this);
   }
 
   // Has to be called after creating the scanner and setting the flags.
@@ -110,6 +97,10 @@ class ScannerBase {
   // Returns the location of the last seen octal literal.
   virtual Location octal_position() const = 0;
   virtual void clear_octal_position() = 0;
+
+  // Sets the raw string pointer based on the string handle. Needs to be called
+  // right after GC.
+  virtual void UpdateBufferBasedOnHandle() = 0;
 
   // Returns the next token and advances input.
   Token::Value Next() {
@@ -260,9 +251,6 @@ class ScannerBase {
   };
 
   virtual void Scan() = 0;
-  virtual void SetBufferBasedOnHandle() = 0;
-
-  static void UpdateBuffersAfterGC(v8::Isolate*, GCType, GCCallbackFlags);
   virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal) = 0;
 
   Isolate* isolate_;
@@ -280,9 +268,6 @@ class ScannerBase {
   bool harmony_numeric_literals_;
   bool harmony_modules_;
   bool harmony_scoping_;
-
- private:
-  static std::set<ScannerBase*>* scanners_;
 };
 
 
@@ -301,7 +286,7 @@ class ExperimentalScanner : public ScannerBase {
         marker_(NULL),
         last_octal_end_(NULL) {
     ASSERT(source->IsFlat());
-    SetBufferBasedOnHandle();
+    UpdateBufferBasedOnHandle();
     current_.beg_pos = current_.end_pos = next_.beg_pos = next_.end_pos = 0;
   }
 
@@ -320,10 +305,7 @@ class ExperimentalScanner : public ScannerBase {
     last_octal_end_ = NULL;
   }
 
- protected:
-  virtual void Scan();
-
-  virtual void SetBufferBasedOnHandle() {
+  virtual void UpdateBufferBasedOnHandle() {
     // We get a raw pointer from the Handle, but we also update it every time
     // there is a GC, so it is safe.
     DisallowHeapAllocation no_gc;
@@ -339,6 +321,9 @@ class ExperimentalScanner : public ScannerBase {
       marker_ = buffer_ + marker_offset;
     }
   }
+
+ protected:
+  virtual void Scan();
 
   const Char* GetNewBufferBasedOnHandle() const;
 

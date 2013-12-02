@@ -30,17 +30,6 @@
 namespace v8 {
 namespace internal {
 
-std::set<ScannerBase*>* ScannerBase::scanners_ = NULL;
-
-void ScannerBase::UpdateBuffersAfterGC(v8::Isolate*, GCType, GCCallbackFlags) {
-  if (!scanners_) return;
-  for (std::set<ScannerBase*>::const_iterator it = scanners_->begin();
-       it != scanners_->end();
-       ++it)
-    (*it)->SetBufferBasedOnHandle();
-}
-
-
 template<>
 const uint8_t* ExperimentalScanner<uint8_t>::GetNewBufferBasedOnHandle() const {
   String::FlatContent content = source_handle_->GetFlatContent();

@@ -40,6 +40,7 @@
 #include "heap-profiler.h"
 #include "hydrogen.h"
 #include "isolate-inl.h"
+#include "lexer/experimental-scanner.h"
 #include "lithium-allocator.h"
 #include "log.h"
 #include "messages.h"
@@ -1298,6 +1299,22 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   return false;
 }
 
+
+void Isolate::UpdateScannersAfterGC(v8::Isolate* isolate,
+                                    GCType,
+                                    GCCallbackFlags) {
+  reinterpret_cast<i::Isolate*>(isolate)->UpdateScannersAfterGC();
+}
+
+
+void Isolate::UpdateScannersAfterGC() {
+  for (std::set<ScannerBase*>::const_iterator it = scanners_.begin();
+       it != scanners_.end();
+       ++it)
+    (*it)->UpdateBufferBasedOnHandle();
+}
+
+
 static int fatal_exception_depth = 0;
 
 void Isolate::DoThrow(Object* exception, MessageLocation* location) {
@@ -2518,6 +2535,23 @@ CodeStubInterfaceDescriptor*
 
 Object* Isolate::FindCodeObject(Address a) {
   return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);
+}
+
+
+void Isolate::AddScanner(ScannerBase* scanner) {
+  if (scanners_.empty()) {
+    heap()->AddGCEpilogueCallback(
+        &Isolate::UpdateScannersAfterGC, kGCTypeAll, false);
+  }
+  scanners_.insert(scanner);
+}
+
+
+void Isolate::RemoveScanner(ScannerBase* scanner) {
+  scanners_.erase(scanner);
+  if (scanners_.empty()) {
+    heap()->RemoveGCEpilogueCallback(&Isolate::UpdateScannersAfterGC);
+  }
 }
 
 
