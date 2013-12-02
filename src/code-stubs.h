@@ -41,7 +41,7 @@ namespace internal {
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
   V(CallConstruct)                       \
-  V(BinaryOp)                            \
+  V(BinaryOpIC)                          \
   V(StringAdd)                           \
   V(NewStringAdd)                        \
   V(SubString)                           \
@@ -125,9 +125,6 @@ namespace internal {
   CODE_STUB_LIST_ALL_PLATFORMS(V)    \
   CODE_STUB_LIST_ARM(V)              \
   CODE_STUB_LIST_MIPS(V)
-
-// Mode to overwrite BinaryExpression values.
-enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 // Stub is base classes of all stubs.
 class CodeStub BASE_EMBEDDED {
@@ -1061,177 +1058,56 @@ class KeyedArrayCallStub: public HICStub {
 };
 
 
-class BinaryOpStub: public HydrogenCodeStub {
+class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
  public:
-  BinaryOpStub(Token::Value op, OverwriteMode mode)
-      : HydrogenCodeStub(UNINITIALIZED), op_(op), mode_(mode) {
-    ASSERT(op <= LAST_TOKEN && op >= FIRST_TOKEN);
-    Initialize();
-  }
+  BinaryOpICStub(Token::Value op, OverwriteMode mode)
+      : HydrogenCodeStub(UNINITIALIZED), state_(op, mode) {}
 
-  explicit BinaryOpStub(ExtraICState state)
-      : op_(decode_token(OpBits::decode(state))),
-        mode_(OverwriteModeField::decode(state)),
-        fixed_right_arg_(
-            Maybe<int>(HasFixedRightArgBits::decode(state),
-                decode_arg_value(FixedRightArgValueBits::decode(state)))),
-        left_state_(LeftStateField::decode(state)),
-        right_state_(fixed_right_arg_.has_value
-            ? ((fixed_right_arg_.value <= Smi::kMaxValue) ? SMI : INT32)
-            : RightStateField::decode(state)),
-        result_state_(ResultStateField::decode(state)) {
-    // We don't deserialize the SSE2 Field, since this is only used to be able
-    // to include SSE2 as well as non-SSE2 versions in the snapshot. For code
-    // generation we always want it to reflect the current state.
-    ASSERT(!fixed_right_arg_.has_value ||
-           can_encode_arg_value(fixed_right_arg_.value));
-  }
-
-  static const int FIRST_TOKEN = Token::BIT_OR;
-  static const int LAST_TOKEN = Token::MOD;
+  explicit BinaryOpICStub(const BinaryOpIC::State& state) : state_(state) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
+
   virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor);
-  static void InitializeForIsolate(Isolate* isolate) {
-    BinaryOpStub binopStub(UNINITIALIZED);
-    binopStub.InitializeInterfaceDescriptor(
-        isolate, isolate->code_stub_interface_descriptor(CodeStub::BinaryOp));
+      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
+    return Code::BINARY_OP_IC;
   }
 
-  virtual Code::Kind GetCodeKind() const { return Code::BINARY_OP_IC; }
-  virtual InlineCacheState GetICState() {
-    if (Max(left_state_, right_state_) == NONE) {
-      return ::v8::internal::UNINITIALIZED;
-    }
-    if (Max(left_state_, right_state_) == GENERIC) return MEGAMORPHIC;
-    return MONOMORPHIC;
+  virtual InlineCacheState GetICState() V8_OVERRIDE {
+    return state_.GetICState();
+  }
+
+  virtual ExtraICState GetExtraICState() V8_OVERRIDE {
+    return state_.GetExtraICState();
   }
 
   virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
     ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
   }
 
-  virtual ExtraICState GetExtraICState() {
-    bool sse_field = Max(result_state_, Max(left_state_, right_state_)) > SMI &&
-                     CpuFeatures::IsSafeForSnapshot(SSE2);
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
 
-    return OpBits::encode(encode_token(op_))
-         | LeftStateField::encode(left_state_)
-         | RightStateField::encode(fixed_right_arg_.has_value
-                                       ? NONE : right_state_)
-         | ResultStateField::encode(result_state_)
-         | HasFixedRightArgBits::encode(fixed_right_arg_.has_value)
-         | FixedRightArgValueBits::encode(fixed_right_arg_.has_value
-                                              ? encode_arg_value(
-                                                  fixed_right_arg_.value)
-                                              : 0)
-         | SSE2Field::encode(sse_field)
-         | OverwriteModeField::encode(mode_);
-  }
+  const BinaryOpIC::State& state() const { return state_; }
 
-  bool CanReuseDoubleBox() {
-    return result_state_ <= NUMBER && result_state_ > SMI &&
-      ((left_state_ > SMI && left_state_ <= NUMBER &&
-        mode_ == OVERWRITE_LEFT) ||
-       (right_state_ > SMI && right_state_ <= NUMBER &&
-        mode_ == OVERWRITE_RIGHT));
-  }
+  virtual void PrintState(StringStream* stream) V8_OVERRIDE;
 
-  bool HasSideEffects(Isolate* isolate) const {
-    Handle<Type> left = GetLeftType(isolate);
-    Handle<Type> right = GetRightType(isolate);
-    return left->Maybe(Type::Receiver()) || right->Maybe(Type::Receiver());
-  }
-
-  virtual Handle<Code> GenerateCode(Isolate* isolate);
-
-  Maybe<Handle<Object> > Result(Handle<Object> left,
-                         Handle<Object> right,
-                         Isolate* isolate);
-
-  Token::Value operation() const { return op_; }
-  OverwriteMode mode() const { return mode_; }
-  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
-
-  Handle<Type> GetLeftType(Isolate* isolate) const;
-  Handle<Type> GetRightType(Isolate* isolate) const;
-  Handle<Type> GetResultType(Isolate* isolate) const;
-
-  void UpdateStatus(Handle<Object> left,
-                    Handle<Object> right,
-                    Maybe<Handle<Object> > result);
-
-  void PrintState(StringStream* stream);
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kLeft = 0;
+  static const int kRight = 1;
 
  private:
-  explicit BinaryOpStub(InitializationState state) : HydrogenCodeStub(state),
-                                                     op_(Token::ADD),
-                                                     mode_(NO_OVERWRITE) {
-    Initialize();
-  }
-  void Initialize();
+  static void GenerateAheadOfTime(Isolate* isolate,
+                                  const BinaryOpIC::State& state);
 
-  enum State { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
+  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpIC; }
+  virtual int NotMissMinorKey() V8_OVERRIDE { return GetExtraICState(); }
 
-  // We truncate the last bit of the token.
-  STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 5));
-  class LeftStateField:         public BitField<State, 0,  3> {};
-  // When fixed right arg is set, we don't need to store the right state.
-  // Thus the two fields can overlap.
-  class HasFixedRightArgBits:   public BitField<bool, 4, 1> {};
-  class FixedRightArgValueBits: public BitField<int,  5, 4> {};
-  class RightStateField:        public BitField<State, 5, 3> {};
-  class ResultStateField:       public BitField<State, 9, 3> {};
-  class SSE2Field:              public BitField<bool, 12, 1> {};
-  class OverwriteModeField:     public BitField<OverwriteMode, 13, 2> {};
-  class OpBits:                 public BitField<int, 15,  5> {};
+  BinaryOpIC::State state_;
 
-  virtual CodeStub::Major MajorKey() { return BinaryOp; }
-  virtual int NotMissMinorKey() { return GetExtraICState(); }
-
-  static Handle<Type> StateToType(State state,
-                                  Isolate* isolate);
-
-  static void Generate(Token::Value op,
-                       State left,
-                       int right,
-                       State result,
-                       OverwriteMode mode,
-                       Isolate* isolate);
-
-  static void Generate(Token::Value op,
-                       State left,
-                       State right,
-                       State result,
-                       OverwriteMode mode,
-                       Isolate* isolate);
-
-  void UpdateStatus(Handle<Object> object,
-                    State* state);
-
-  bool can_encode_arg_value(int32_t value) const;
-  int encode_arg_value(int32_t value) const;
-  int32_t decode_arg_value(int value)  const;
-  int encode_token(Token::Value op) const;
-  Token::Value decode_token(int op) const;
-
-  bool has_int_result() const {
-    return op_ == Token::BIT_XOR || op_ == Token::BIT_AND ||
-           op_ == Token::BIT_OR || op_ == Token::SAR || op_ == Token::SHL;
-  }
-
-  const char* StateToName(State state);
-
-  void PrintBaseName(StringStream* stream);
-
-  Token::Value op_;
-  OverwriteMode mode_;
-
-  Maybe<int> fixed_right_arg_;
-  State left_state_;
-  State right_state_;
-  State result_state_;
+  DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
 };
 
 

@@ -1838,12 +1838,7 @@ void Logger::LogCodeObject(Object* object) {
     case Code::FUNCTION:
     case Code::OPTIMIZED_FUNCTION:
       return;  // We log this later using LogCompiledFunctions.
-    case Code::BINARY_OP_IC: {
-      BinaryOpStub stub(code_object->extended_extra_ic_state());
-      description = stub.GetName().Detach();
-      tag = Logger::STUB_TAG;
-      break;
-    }
+    case Code::BINARY_OP_IC:
     case Code::COMPARE_IC:  // fall through
     case Code::COMPARE_NIL_IC:   // fall through
     case Code::TO_BOOLEAN_IC:  // fall through

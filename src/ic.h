@@ -810,24 +810,113 @@ class KeyedStoreIC: public StoreIC {
 };
 
 
+// Mode to overwrite BinaryExpression values.
+enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
+
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
 class BinaryOpIC: public IC {
  public:
-  enum TypeInfo {
-    UNINITIALIZED,
-    SMI,
-    INT32,
-    NUMBER,
-    ODDBALL,
-    STRING,  // Only used for addition operation.
-    GENERIC
+  class State V8_FINAL BASE_EMBEDDED {
+   public:
+    explicit State(ExtraICState extra_ic_state);
+
+    State(Token::Value op, OverwriteMode mode)
+        : op_(op), mode_(mode), left_kind_(NONE), right_kind_(NONE),
+          result_kind_(NONE) {
+      ASSERT_LE(FIRST_TOKEN, op);
+      ASSERT_LE(op, LAST_TOKEN);
+    }
+
+    InlineCacheState GetICState() const {
+      if (Max(left_kind_, right_kind_) == NONE) {
+        return ::v8::internal::UNINITIALIZED;
+      }
+      if (Max(left_kind_, right_kind_) == GENERIC) {
+        return ::v8::internal::MEGAMORPHIC;
+      }
+      if (Min(left_kind_, right_kind_) == GENERIC) {
+        return ::v8::internal::GENERIC;
+      }
+      return ::v8::internal::MONOMORPHIC;
+    }
+
+    ExtraICState GetExtraICState() const;
+
+    static void GenerateAheadOfTime(
+        Isolate*, void (*Generate)(Isolate*, const State&));
+
+    bool CanReuseDoubleBox() const {
+      return (result_kind_ > SMI && result_kind_ <= NUMBER) &&
+          ((mode_ == OVERWRITE_LEFT &&
+            left_kind_ > SMI && left_kind_ <= NUMBER) ||
+           (mode_ == OVERWRITE_RIGHT &&
+            right_kind_ > SMI && right_kind_ <= NUMBER));
+    }
+
+    bool HasSideEffects() const {
+      return Max(left_kind_, right_kind_) == GENERIC;
+    }
+
+    bool UseInlinedSmiCode() const {
+      return KindMaybeSmi(left_kind_) || KindMaybeSmi(right_kind_);
+    }
+
+    static const int FIRST_TOKEN = Token::BIT_OR;
+    static const int LAST_TOKEN = Token::MOD;
+
+    Token::Value op() const { return op_; }
+    OverwriteMode mode() const { return mode_; }
+    Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
+
+    Handle<Type> GetLeftType(Isolate* isolate) const {
+      return KindToType(left_kind_, isolate);
+    }
+    Handle<Type> GetRightType(Isolate* isolate) const {
+      return KindToType(right_kind_, isolate);
+    }
+    Handle<Type> GetResultType(Isolate* isolate) const;
+
+    void Print(StringStream* stream) const;
+
+    void Update(Handle<Object> left,
+                Handle<Object> right,
+                Handle<Object> result);
+
+   private:
+    enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
+
+    Kind UpdateKind(Handle<Object> object, Kind kind) const;
+
+    static const char* KindToString(Kind kind);
+    static Handle<Type> KindToType(Kind kind, Isolate* isolate);
+    static bool KindMaybeSmi(Kind kind) {
+      return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
+    }
+
+    // We truncate the last bit of the token.
+    STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 4));
+    class OpField:                 public BitField<int, 0, 4> {};
+    class OverwriteModeField:      public BitField<OverwriteMode, 4, 2> {};
+    class SSE2Field:               public BitField<bool, 6, 1> {};
+    class ResultKindField:         public BitField<Kind, 7, 3> {};
+    class LeftKindField:           public BitField<Kind, 10,  3> {};
+    // When fixed right arg is set, we don't need to store the right kind.
+    // Thus the two fields can overlap.
+    class HasFixedRightArgField:   public BitField<bool, 13, 1> {};
+    class FixedRightArgValueField: public BitField<int,  14, 4> {};
+    class RightKindField:          public BitField<Kind, 14, 3> {};
+
+    Token::Value op_;
+    OverwriteMode mode_;
+    Kind left_kind_;
+    Kind right_kind_;
+    Kind result_kind_;
+    Maybe<int> fixed_right_arg_;
   };
 
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
   static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
-
-  static const char* GetName(TypeInfo type_info);
 
   MUST_USE_RESULT MaybeObject* Transition(Handle<Object> left,
                                           Handle<Object> right);

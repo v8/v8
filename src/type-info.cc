@@ -410,28 +410,26 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
                                     Handle<Type>* right,
                                     Handle<Type>* result,
                                     Maybe<int>* fixed_right_arg,
-                                    Token::Value operation) {
+                                    Token::Value op) {
   Handle<Object> object = GetInfo(id);
   if (!object->IsCode()) {
     // For some binary ops we don't have ICs, e.g. Token::COMMA, but for the
-    // operations covered by the BinaryOpStub we should always have them.
-    ASSERT(!(operation >= BinaryOpStub::FIRST_TOKEN &&
-             operation <= BinaryOpStub::LAST_TOKEN));
+    // operations covered by the BinaryOpIC we should always have them.
+    ASSERT(op < BinaryOpIC::State::FIRST_TOKEN ||
+           op > BinaryOpIC::State::LAST_TOKEN);
     *left = *right = *result = handle(Type::None(), isolate_);
+    *fixed_right_arg = Maybe<int>();
     return;
   }
   Handle<Code> code = Handle<Code>::cast(object);
-  ASSERT(code->is_binary_op_stub());
+  ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
+  BinaryOpIC::State state(code->extended_extra_ic_state());
+  ASSERT_EQ(op, state.op());
 
-  BinaryOpStub stub(code->extended_extra_ic_state());
-
-  // Sanity check.
-  ASSERT(stub.operation() == operation);
-
-  *left = stub.GetLeftType(isolate());
-  *right = stub.GetRightType(isolate());
-  *result = stub.GetResultType(isolate());
-  *fixed_right_arg = stub.fixed_right_arg();
+  *left = state.GetLeftType(isolate());
+  *right = state.GetRightType(isolate());
+  *result = state.GetResultType(isolate());
+  *fixed_right_arg = state.fixed_right_arg();
 }
 
 
@@ -449,13 +447,11 @@ Handle<Type> TypeFeedbackOracle::ClauseType(TypeFeedbackId id) {
 
 Handle<Type> TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
-  Handle<Type> unknown(Type::None(), isolate_);
-  if (!object->IsCode()) return unknown;
+  if (!object->IsCode()) return handle(Type::None(), isolate_);
   Handle<Code> code = Handle<Code>::cast(object);
-  if (!code->is_binary_op_stub()) return unknown;
-
-  BinaryOpStub stub(code->extended_extra_ic_state());
-  return stub.GetLeftType(isolate());
+  ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
+  BinaryOpIC::State state(code->extended_extra_ic_state());
+  return state.GetLeftType(isolate());
 }
 
 
