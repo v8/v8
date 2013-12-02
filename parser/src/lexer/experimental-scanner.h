@@ -302,6 +302,7 @@ class ExperimentalScanner : public ScannerBase {
         last_octal_end_(NULL) {
     ASSERT(source->IsFlat());
     SetBufferBasedOnHandle();
+    current_.beg_pos = current_.end_pos = next_.beg_pos = next_.end_pos = 0;
   }
 
   virtual void Init() {
