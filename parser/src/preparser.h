@@ -49,10 +49,7 @@ class ParserBase {
         allow_for_of_(false) { }
   // TODO(mstarzinger): Only virtual until message reporting has been unified.
   // FIXME: Might need to continue to be virtual for the experimental branch.
-  virtual ~ParserBase() {
-    delete scanner_;
-    scanner_ = NULL;
-  }
+  virtual ~ParserBase() { }
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
