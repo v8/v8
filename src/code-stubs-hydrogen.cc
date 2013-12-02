@@ -469,7 +469,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 
   ASSERT(FLAG_allocation_site_pretenuring || (size == object_size));
   if (FLAG_allocation_site_pretenuring) {
-    BuildCreateAllocationMemento(object, object_size, allocation_site);
+    BuildCreateAllocationMemento(
+        object, Add<HConstant>(object_size), allocation_site);
   }
 
   environment()->Push(object);

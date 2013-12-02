@@ -4426,7 +4426,13 @@ void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
 void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
   Register result = ToRegister(instr->result());
   Register base = ToRegister(instr->base_object());
-  __ lea(result, Operand(base, instr->offset()));
+  if (instr->offset()->IsConstantOperand()) {
+    LConstantOperand* offset = LConstantOperand::cast(instr->offset());
+    __ lea(result, Operand(base, ToInteger32(offset)));
+  } else {
+    Register offset = ToRegister(instr->offset());
+    __ lea(result, Operand(base, offset, times_1, 0));
+  }
 }
 
 
