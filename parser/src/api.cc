@@ -1656,11 +1656,23 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 ScriptData* ScriptData::PreCompile(v8::Isolate* isolate,
                                    const char* input,
                                    int length) {
+  // FIXME: the string is UTF-8, so use the UTF-8 scanner whenever it's
+  // ready. This is ugly!
+  i::Utf8ToUtf16CharacterStream stream(
+      reinterpret_cast<const unsigned char*>(input), length);
+  i::uc16* new_chars = new i::uc16[length];
+  i::uc16* cursor = new_chars;
+  i::uc32 c;
+  while ((c = stream.Advance()) != -1)
+    *cursor++ = c;
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::HandleScope handle_scope(internal_isolate);
-  i::Handle<i::String> source = internal_isolate->factory()
-      ->NewStringFromAscii(i::Vector<const char>(input, length));
-  return i::PreParserApi::PreParse(internal_isolate, source);
+  i::Handle<i::String> source =
+      internal_isolate->factory()->NewStringFromTwoByte(
+          i::Vector<const i::uc16>(new_chars, cursor - new_chars));
+  ScriptData* data = i::PreParserApi::PreParse(internal_isolate, source);
+  delete[] new_chars;
+  return data;
 }
 
 
