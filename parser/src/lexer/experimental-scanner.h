@@ -63,7 +63,7 @@ class ScannerBase {
     : isolate_(isolate),
       unicode_cache_(isolate->unicode_cache()),
       has_line_terminator_before_next_(true),
-      has_multiline_comment_before_next_(true),
+      has_multiline_comment_before_next_(false),
       current_literal_(&literals_[0]),
       next_literal_(&literals_[1]),
       harmony_numeric_literals_(false),
@@ -258,6 +258,8 @@ class ScannerBase {
   UnicodeCache* unicode_cache_;
 
   bool has_line_terminator_before_next_;
+  // Whether there is a multiline comment *with a line break* before the next
+  // token.
   bool has_multiline_comment_before_next_;
 
   TokenDesc current_;  // desc for current token (as returned by Next())

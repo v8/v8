@@ -66,7 +66,7 @@ eos = [:eos:];
 "!"           <|token(NOT)|>
 
 "//"          <||SingleLineComment>
-"/*"          <start_multiline_comment||MultiLineComment>
+"/*"          <set_marker(2)||MultiLineComment>
 "<!--"        <||SingleLineComment>
 
 "<!-"        <|{
@@ -242,6 +242,6 @@ catch_all        <||continue>
 /\*+\//          <|skip|>
 # TODO find a way to generate the below rule
 /\*+[^\/*]/      <||continue>
-line_terminator  <||continue>
+line_terminator  <line_terminator_in_multiline_comment||continue>
 eos              <|terminate_illegal|>
 catch_all        <||continue>
