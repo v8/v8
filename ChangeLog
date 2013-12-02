@@ -1,3 +1,11 @@
+2013-12-02: Version 3.23.16
+
+        Array builtins need to be prevented from changing frozen objects, and
+        changing structure on sealed objects (Chromium issue 299979).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-29: Version 3.23.15
 
         Fix context register allocation in LTransitionElementsKind
