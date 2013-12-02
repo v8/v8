@@ -578,9 +578,9 @@ FunctionLiteral* Parser::ParseProgram() {
   fni_ = new(zone()) FuncNameInferrer(isolate(), zone());
 
   // Initialize parser state.
-  source->TryFlatten();
+  FlattenString(source);
   FunctionLiteral* result;
-  if (source->IsExternalTwoByteString()) {
+  if (source->IsTwoByteRepresentation()) {
     // Notice that the stream is destroyed at the end of the branch block.
     // The last line of the blocks can't be moved outside, even though they're
     // identical calls. // FIXME
@@ -711,7 +711,7 @@ FunctionLiteral* Parser::ParseLazy() {
     timer.Start();
   }
   // Initialize parser state.
-  source->TryFlatten();
+  FlattenString(source);
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
   FunctionLiteral* result = ParseLazy(
       source, shared_info->start_position(), shared_info->end_position());
@@ -726,7 +726,7 @@ FunctionLiteral* Parser::ParseLazy() {
 
 FunctionLiteral* Parser::ParseLazy(Handle<String> source, int start, int end) {
   delete scanner_;
-  if (source->IsExternalTwoByteString()) {
+  if (source->IsTwoByteRepresentation()) {
     scanner_ = new ExperimentalScanner<uint16_t>(source, isolate());
   } else {
     scanner_ = new ExperimentalScanner<uint8_t>(source, isolate());
