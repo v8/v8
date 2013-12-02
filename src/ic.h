@@ -595,7 +595,7 @@ class StoreIC: public IC {
   }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode);
+                                  ExtraICState extra_ic_state);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);
