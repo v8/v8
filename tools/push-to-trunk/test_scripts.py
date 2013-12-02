@@ -216,7 +216,12 @@ class SimpleMock(object):
     # callback for checking the context at the time of the call.
     if len(expected_call) == len(args) + 2:
       expected_call[len(args) + 1]()
-    return expected_call[len(args)]
+    return_value = expected_call[len(args)]
+
+    # If the return value is an exception, raise it instead of returning.
+    if isinstance(return_value, Exception):
+      raise return_value
+    return return_value
 
   def AssertFinished(self):
     if self._index < len(self._recipe) -1:
@@ -268,6 +273,9 @@ class ScriptTest(unittest.TestCase):
 
   def ReadURL(self, url):
     return self._url_mock.Call(url)
+
+  def Sleep(self, seconds):
+    pass
 
   def ExpectGit(self, *args):
     """Convenience wrapper."""
@@ -674,6 +682,7 @@ class ScriptTest(unittest.TestCase):
     os.environ["EDITOR"] = "vi"
 
     self.ExpectReadURL([
+      ["https://v8-status.appspot.com/lkgr", Exception("Network problem")],
       ["https://v8-status.appspot.com/lkgr", "100"],
     ])
 

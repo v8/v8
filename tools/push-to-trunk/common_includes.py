@@ -31,6 +31,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import time
 import urllib2
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
@@ -173,6 +174,7 @@ def MakeChangeLogBugReference(body):
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
 def Command(cmd, args="", prefix="", pipe=True):
+  # TODO(machenbach): Use timeout.
   cmd_line = "%s %s %s" % (prefix, cmd, args)
   print "Command: %s" % cmd_line
   try:
@@ -199,6 +201,9 @@ class SideEffectHandler(object):
       return url_fh.read()
     finally:
       url_fh.close()
+
+  def Sleep(seconds):
+    time.sleep(seconds)
 
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
@@ -231,6 +236,35 @@ class Step(object):
   def RunStep(self):
     raise NotImplementedError
 
+  def Retry(self, cb, retry_on=None, wait_plan=None):
+    """ Retry a function.
+    Params:
+      cb: The function to retry.
+      retry_on: A callback that takes the result of the function and returns
+                True if the function should be retried. A function throwing an
+                exception is always retried.
+      wait_plan: A list of waiting delays between retries in seconds. The
+                 maximum number of retries is len(wait_plan).
+    """
+    retry_on = retry_on or (lambda x: False)
+    wait_plan = list(wait_plan or [])
+    wait_plan.reverse()
+    while True:
+      got_exception = False
+      try:
+        result = cb()
+      except Exception:
+        got_exception = True
+      if got_exception or retry_on(result):
+        if not wait_plan:
+          raise Exception("Retried too often. Giving up.")
+        wait_time = wait_plan.pop()
+        print "Waiting for %f seconds." % wait_time
+        self._side_effect_handler.Sleep(wait_time)
+        print "Retrying..."
+      else:
+        return result
+
   def ReadLine(self, default=None):
     # Don't prompt in forced mode.
     if self._options and self._options.f and default is not None:
@@ -239,15 +273,18 @@ class Step(object):
     else:
       return self._side_effect_handler.ReadLine()
 
-  def Git(self, args="", prefix="", pipe=True):
-    return self._side_effect_handler.Command("git", args, prefix, pipe)
+  def Git(self, args="", prefix="", pipe=True, retry_on=None):
+    cmd = lambda: self._side_effect_handler.Command("git", args, prefix, pipe)
+    return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
     return self._side_effect_handler.Command(os.environ["EDITOR"], args,
                                              pipe=False)
 
-  def ReadURL(self, url):
-    return self._side_effect_handler.ReadURL(url)
+  def ReadURL(self, url, retry_on=None, wait_plan=None):
+    wait_plan = wait_plan or [3, 60, 600]
+    cmd = lambda: self._side_effect_handler.ReadURL(url)
+    return self.Retry(cmd, retry_on, wait_plan)
 
   def Die(self, msg=""):
     if msg != "":

@@ -62,7 +62,8 @@ class FetchLKGR(Step):
 
   def RunStep(self):
     lkgr_url = "https://v8-status.appspot.com/lkgr"
-    self.Persist("lkgr", self.ReadURL(lkgr_url))
+    # Retry several times since app engine might have issues.
+    self.Persist("lkgr", self.ReadURL(lkgr_url, wait_plan=[5, 20, 300, 300]))
 
 
 class PushToTrunk(Step):
