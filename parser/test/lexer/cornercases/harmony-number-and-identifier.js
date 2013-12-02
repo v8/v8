@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-harmony
+// Flags: --use-harmony --break-after-illegal
 
 // Harmony numeric literals.
 0b1101 0B1101 0o1234 0O1234
