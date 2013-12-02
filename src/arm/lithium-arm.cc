@@ -1474,7 +1474,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!right->CanBeZero());
       LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
-                                     UseOrConstant(right));
+                                     UseConstant(right));
       LInstruction* result = DefineAsRegister(mod);
       return (left->CanBeNegative() &&
               instr->CheckFlag(HValue::kBailoutOnMinusZero))

@@ -2047,8 +2047,7 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
 
 
 void LCodeGen::DoThrow(LThrow* instr) {
-  Register input_reg = EmitLoadRegister(instr->value(), ip);
-  __ push(input_reg);
+  __ push(ToRegister(instr->value()));
   ASSERT(ToRegister(instr->context()).is(cp));
   CallRuntime(Runtime::kThrow, 1, instr);
 
