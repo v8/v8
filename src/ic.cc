@@ -2619,7 +2619,7 @@ void BinaryOpIC::State::Update(Handle<Object> left,
   left_kind_ = UpdateKind(left, left_kind_);
   right_kind_ = UpdateKind(right, right_kind_);
 
-  int32_t fixed_right_arg_value;
+  int32_t fixed_right_arg_value = 0;
   bool has_fixed_right_arg =
       op_ == Token::MOD &&
       right->ToInt32(&fixed_right_arg_value) &&
