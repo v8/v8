@@ -387,30 +387,34 @@ void AstTyper::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void AstTyper::VisitAssignment(Assignment* expr) {
-  // TODO(rossberg): Can we clean this up?
-  if (expr->is_compound()) {
-    // Collect type feedback.
-    Expression* target = expr->target();
-    Property* prop = target->AsProperty();
-    if (prop != NULL) {
-      RECURSE(Visit(expr->target()));
-      expr->RecordTypeFeedback(oracle(), zone());
+  // Collect type feedback.
+  Property* prop = expr->target()->AsProperty();
+  if (prop != NULL) {
+    TypeFeedbackId id = expr->AssignmentFeedbackId();
+    expr->set_is_uninitialized(oracle()->StoreIsUninitialized(id));
+    if (!expr->IsUninitialized()) {
+      expr->set_is_pre_monomorphic(oracle()->StoreIsPreMonomorphic(id));
+      expr->set_is_monomorphic(oracle()->StoreIsMonomorphicNormal(id));
+      ASSERT(!expr->IsPreMonomorphic() || !expr->IsMonomorphic());
+      if (prop->key()->IsPropertyName()) {
+        Literal* lit_key = prop->key()->AsLiteral();
+        ASSERT(lit_key != NULL && lit_key->value()->IsString());
+        Handle<String> name = Handle<String>::cast(lit_key->value());
+        oracle()->AssignmentReceiverTypes(id, name, expr->GetReceiverTypes());
+      } else {
+        KeyedAccessStoreMode store_mode;
+        oracle()->KeyedAssignmentReceiverTypes(
+            id, expr->GetReceiverTypes(), &store_mode);
+        expr->set_store_mode(store_mode);
+      }
     }
-
-    RECURSE(Visit(expr->binary_operation()));
-
-    NarrowType(expr, expr->binary_operation()->bounds());
-  } else {
-    // Collect type feedback.
-    if (expr->target()->IsProperty()) {
-      expr->RecordTypeFeedback(oracle(), zone());
-    }
-
-    RECURSE(Visit(expr->target()));
-    RECURSE(Visit(expr->value()));
-
-    NarrowType(expr, expr->value()->bounds());
   }
+
+  Expression* rhs =
+      expr->is_compound() ? expr->binary_operation() : expr->value();
+  RECURSE(Visit(expr->target()));
+  RECURSE(Visit(rhs));
+  NarrowType(expr, rhs->bounds());
 
   VariableProxy* proxy = expr->target()->AsVariableProxy();
   if (proxy != NULL && proxy->var()->IsStackAllocated()) {

@@ -580,35 +580,6 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                                    Zone* zone) {
-  Property* prop = target()->AsProperty();
-  ASSERT(prop != NULL);
-  TypeFeedbackId id = AssignmentFeedbackId();
-  is_uninitialized_ = oracle->StoreIsUninitialized(id);
-  if (is_uninitialized_) return;
-
-  is_pre_monomorphic_ = oracle->StoreIsPreMonomorphic(id);
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
-  ASSERT(!is_pre_monomorphic_ || !is_monomorphic_);
-  receiver_types_.Clear();
-  if (prop->key()->IsPropertyName()) {
-    Literal* lit_key = prop->key()->AsLiteral();
-    ASSERT(lit_key != NULL && lit_key->value()->IsString());
-    Handle<String> name = Handle<String>::cast(lit_key->value());
-    oracle->StoreReceiverTypes(this, name, &receiver_types_);
-  } else if (is_monomorphic_) {
-    // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
-    store_mode_ = oracle->GetStoreMode(id);
-  } else if (oracle->StoreIsKeyedPolymorphic(id)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
-    store_mode_ = oracle->GetStoreMode(id);
-  }
-}
-
-
 bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
   // If there is an interceptor, we can't compute the target for a direct call.
   if (type->has_named_interceptor()) return false;
@@ -711,20 +682,21 @@ Handle<JSObject> Call::GetPrototypeForPrimitiveCheck(
 
 void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                               CallKind call_kind) {
-  is_monomorphic_ = oracle->CallIsMonomorphic(this);
+  is_monomorphic_ = oracle->CallIsMonomorphic(CallFeedbackId());
   Property* property = expression()->AsProperty();
   if (property == NULL) {
     // Function call.  Specialize for monomorphic calls.
-    if (is_monomorphic_) target_ = oracle->GetCallTarget(this);
+    if (is_monomorphic_) target_ = oracle->GetCallTarget(CallFeedbackId());
   } else if (property->key()->IsPropertyName()) {
     // Method call.  Specialize for the receiver types seen at runtime.
     Literal* key = property->key()->AsLiteral();
     ASSERT(key != NULL && key->value()->IsString());
     Handle<String> name = Handle<String>::cast(key->value());
-    check_type_ = oracle->GetCallCheckType(this);
+    check_type_ = oracle->GetCallCheckType(CallFeedbackId());
     receiver_types_.Clear();
     if (check_type_ == RECEIVER_MAP_CHECK) {
-      oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
+      oracle->CallReceiverTypes(CallFeedbackId(),
+          name, arguments()->length(), call_kind, &receiver_types_);
       is_monomorphic_ = is_monomorphic_ && receiver_types_.length() > 0;
     } else {
       holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
@@ -745,17 +717,19 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     }
   } else {
     if (is_monomorphic_) {
-      keyed_array_call_is_holey_ = oracle->KeyedArrayCallIsHoley(this);
+      keyed_array_call_is_holey_ =
+          oracle->KeyedArrayCallIsHoley(CallFeedbackId());
     }
   }
 }
 
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  allocation_info_cell_ = oracle->GetCallNewAllocationInfoCell(this);
-  is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
+  allocation_info_cell_ =
+      oracle->GetCallNewAllocationInfoCell(CallNewFeedbackId());
+  is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackId());
   if (is_monomorphic_) {
-    target_ = oracle->GetCallNewTarget(this);
+    target_ = oracle->GetCallNewTarget(CallNewFeedbackId());
     Object* value = allocation_info_cell_->value();
     ASSERT(!value->IsTheHole());
     if (value->IsAllocationSite()) {
@@ -767,9 +741,9 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(this)
-      ? oracle->GetObjectLiteralStoreMap(this)
-      : Handle<Map>::null();
+  TypeFeedbackId id = key()->LiteralFeedbackId();
+  receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(id)
+      ? oracle->GetObjectLiteralStoreMap(id) : Handle<Map>::null();
 }
 
 

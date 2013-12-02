@@ -197,30 +197,29 @@ bool TypeFeedbackOracle::StoreIsKeyedPolymorphic(TypeFeedbackId ast_id) {
 }
 
 
-bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
-  Handle<Object> value = GetInfo(expr->CallFeedbackId());
+bool TypeFeedbackOracle::CallIsMonomorphic(TypeFeedbackId id) {
+  Handle<Object> value = GetInfo(id);
   return value->IsMap() || value->IsAllocationSite() || value->IsJSFunction() ||
       value->IsSmi() ||
       (value->IsCode() && Handle<Code>::cast(value)->ic_state() == MONOMORPHIC);
 }
 
 
-bool TypeFeedbackOracle::KeyedArrayCallIsHoley(Call* expr) {
-  Handle<Object> value = GetInfo(expr->CallFeedbackId());
+bool TypeFeedbackOracle::KeyedArrayCallIsHoley(TypeFeedbackId id) {
+  Handle<Object> value = GetInfo(id);
   Handle<Code> code = Handle<Code>::cast(value);
   return KeyedArrayCallStub::IsHoley(code);
 }
 
 
-bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
-  Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
+bool TypeFeedbackOracle::CallNewIsMonomorphic(TypeFeedbackId id) {
+  Handle<Object> info = GetInfo(id);
   return info->IsAllocationSite() || info->IsJSFunction();
 }
 
 
-bool TypeFeedbackOracle::ObjectLiteralStoreIsMonomorphic(
-    ObjectLiteral::Property* prop) {
-  Handle<Object> map_or_code = GetInfo(prop->key()->LiteralFeedbackId());
+bool TypeFeedbackOracle::ObjectLiteralStoreIsMonomorphic(TypeFeedbackId id) {
+  Handle<Object> map_or_code = GetInfo(id);
   return map_or_code->IsMap();
 }
 
@@ -285,22 +284,21 @@ void TypeFeedbackOracle::LoadReceiverTypes(TypeFeedbackId id,
 }
 
 
-void TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
+void TypeFeedbackOracle::StoreReceiverTypes(TypeFeedbackId id,
                                             Handle<String> name,
                                             SmallMapList* types) {
   Code::Flags flags = Code::ComputeFlags(
       Code::HANDLER, MONOMORPHIC, kNoExtraICState,
       Code::NORMAL, Code::STORE_IC);
-  CollectReceiverTypes(expr->AssignmentFeedbackId(), name, flags, types);
+  CollectReceiverTypes(id, name, flags, types);
 }
 
 
-void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
+void TypeFeedbackOracle::CallReceiverTypes(TypeFeedbackId id,
                                            Handle<String> name,
+                                           int arity,
                                            CallKind call_kind,
                                            SmallMapList* types) {
-  int arity = expr->arguments()->length();
-
   // Note: Currently we do not take string extra ic data into account
   // here.
   ContextualMode contextual_mode = call_kind == CALL_AS_FUNCTION
@@ -311,12 +309,12 @@ void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::CALL_IC, extra_ic_state, OWN_MAP, Code::NORMAL, arity);
-  CollectReceiverTypes(expr->CallFeedbackId(), name, flags, types);
+  CollectReceiverTypes(id, name, flags, types);
 }
 
 
-CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
-  Handle<Object> value = GetInfo(expr->CallFeedbackId());
+CheckType TypeFeedbackOracle::GetCallCheckType(TypeFeedbackId id) {
+  Handle<Object> value = GetInfo(id);
   if (!value->IsSmi()) return RECEIVER_MAP_CHECK;
   CheckType check = static_cast<CheckType>(Smi::cast(*value)->value());
   ASSERT(check != RECEIVER_MAP_CHECK);
@@ -324,8 +322,8 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
-  Handle<Object> info = GetInfo(expr->CallFeedbackId());
+Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(TypeFeedbackId id) {
+  Handle<Object> info = GetInfo(id);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate_->global_context()->array_function());
   } else {
@@ -334,8 +332,8 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
-  Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
+Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(TypeFeedbackId id) {
+  Handle<Object> info = GetInfo(id);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate_->global_context()->array_function());
   } else {
@@ -344,15 +342,15 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
 }
 
 
-Handle<Cell> TypeFeedbackOracle::GetCallNewAllocationInfoCell(CallNew* expr) {
-  return GetInfoCell(expr->CallNewFeedbackId());
+Handle<Cell> TypeFeedbackOracle::GetCallNewAllocationInfoCell(
+    TypeFeedbackId id) {
+  return GetInfoCell(id);
 }
 
 
-Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(
-    ObjectLiteral::Property* prop) {
-  ASSERT(ObjectLiteralStoreIsMonomorphic(prop));
-  return Handle<Map>::cast(GetInfo(prop->key()->LiteralFeedbackId()));
+Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(TypeFeedbackId id) {
+  ASSERT(ObjectLiteralStoreIsMonomorphic(id));
+  return Handle<Map>::cast(GetInfo(id));
 }
 
 
@@ -479,6 +477,28 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
     receiver_types->Reserve(kMaxKeyedPolymorphism, zone());
     CollectKeyedReceiverTypes(id, receiver_types);
   }
+}
+
+
+void TypeFeedbackOracle::AssignmentReceiverTypes(
+    TypeFeedbackId id, Handle<String> name, SmallMapList* receiver_types) {
+  receiver_types->Clear();
+  StoreReceiverTypes(id, name, receiver_types);
+}
+
+
+void TypeFeedbackOracle::KeyedAssignmentReceiverTypes(
+    TypeFeedbackId id, SmallMapList* receiver_types,
+    KeyedAccessStoreMode* store_mode) {
+  receiver_types->Clear();
+  if (StoreIsMonomorphicNormal(id)) {
+    // Record receiver type for monomorphic keyed stores.
+    receiver_types->Add(StoreMonomorphicReceiverType(id), zone());
+  } else if (StoreIsKeyedPolymorphic(id)) {
+    receiver_types->Reserve(kMaxKeyedPolymorphism, zone());
+    CollectKeyedReceiverTypes(id, receiver_types);
+  }
+  *store_mode = GetStoreMode(id);
 }
 
 
