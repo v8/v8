@@ -273,7 +273,6 @@
           'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
           'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
-          'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': 'com.apple.compilers.llvmgcc42',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           'GCC_WARN_NON_VIRTUAL_DESTRUCTOR': 'YES', # -Wnon-virtual-dtor
@@ -292,6 +291,13 @@
             '-Wno-unused-parameter',
           ],
         },
+        'conditions': [
+          ['werror==""', {
+            'xcode_settings': {'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO'},
+          }, {
+            'xcode_settings': {'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES'},
+          }],
+        ],
         'target_conditions': [
           ['_type!="static_library"', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},
