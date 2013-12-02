@@ -2541,7 +2541,7 @@ Object* Isolate::FindCodeObject(Address a) {
 void Isolate::AddScanner(ScannerBase* scanner) {
   if (scanners_.empty()) {
     heap()->AddGCEpilogueCallback(
-        &Isolate::UpdateScannersAfterGC, kGCTypeAll, false);
+        &Isolate::UpdateScannersAfterGC, kGCTypeAll, true);
   }
   scanners_.insert(scanner);
 }
