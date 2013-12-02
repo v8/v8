@@ -121,6 +121,9 @@
   {% elif type == 'octal_inside_string' %}
      last_octal_end_ = cursor_;
      next_.has_escapes = true;
+  {% elif type == 'start_multiline_comment' %}
+     marker_ = cursor_ - 2;
+     has_multiline_comment_before_next_ = true;
   {% else %}
     uncompilable code for {{type}}
   {% endif -%}

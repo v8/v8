@@ -63,6 +63,7 @@ class ScannerBase {
     : isolate_(isolate),
       unicode_cache_(isolate->unicode_cache()),
       has_line_terminator_before_next_(true),
+      has_multiline_comment_before_next_(true),
       current_literal_(&literals_[0]),
       next_literal_(&literals_[1]),
       harmony_numeric_literals_(false),
@@ -105,6 +106,7 @@ class ScannerBase {
   // Returns the next token and advances input.
   Token::Value Next() {
     has_line_terminator_before_next_ = false;
+    has_multiline_comment_before_next_ = false;
     current_ = next_;
     std::swap(current_literal_, next_literal_);
     Scan();  // Virtual! Will fill in next_.
@@ -151,9 +153,8 @@ class ScannerBase {
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
   bool HasAnyLineTerminatorBeforeNext() const {
-    return has_line_terminator_before_next_;
-    // FIXME: do we need to distinguish between newlines inside and outside
-    // multiline comments? Atm doesn't look like we need to.
+    return has_line_terminator_before_next_ ||
+           has_multiline_comment_before_next_;
   }
 
   Vector<const char> literal_ascii_string() {
@@ -257,6 +258,7 @@ class ScannerBase {
   UnicodeCache* unicode_cache_;
 
   bool has_line_terminator_before_next_;
+  bool has_multiline_comment_before_next_;
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
@@ -373,6 +375,7 @@ void ExperimentalScanner<Char>::SeekForward(int pos) {
   start_ = cursor_;
   marker_ = cursor_;
   has_line_terminator_before_next_ = false;
+  has_multiline_comment_before_next_ = false;
   Scan();  // Fills in next_.
 }
 
