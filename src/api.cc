@@ -7497,8 +7497,9 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
 }
 
 
-void HeapProfiler::StartTrackingHeapObjects() {
-  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking();
+void HeapProfiler::StartTrackingHeapObjects(bool track_allocations) {
+  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking(
+      track_allocations);
 }
 
 
@@ -7537,12 +7538,12 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 
 
 void HeapProfiler::StartRecordingHeapAllocations() {
-  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapAllocationsRecording();
+  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking(true);
 }
 
 
 void HeapProfiler::StopRecordingHeapAllocations() {
-  reinterpret_cast<i::HeapProfiler*>(this)->StopHeapAllocationsRecording();
+  reinterpret_cast<i::HeapProfiler*>(this)->StopHeapObjectsTracking();
 }
 
 

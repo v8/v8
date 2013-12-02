@@ -98,9 +98,14 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 }
 
 
-void HeapProfiler::StartHeapObjectsTracking() {
-  snapshots_->StartHeapObjectsTracking();
+void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
+  snapshots_->StartHeapObjectsTracking(track_allocations);
   is_tracking_object_moves_ = true;
+  ASSERT(!is_tracking_allocations_);
+  if (track_allocations) {
+    heap()->DisableInlineAllocation();
+    is_tracking_allocations_ = true;
+  }
 }
 
 
@@ -111,6 +116,10 @@ SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
 
 void HeapProfiler::StopHeapObjectsTracking() {
   snapshots_->StopHeapObjectsTracking();
+  if (is_tracking_allocations_) {
+    heap()->EnableInlineAllocation();
+    is_tracking_allocations_ = false;
+  }
 }
 
 
@@ -155,20 +164,6 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
                                          RetainedObjectInfo* info) {
   // TODO(yurus, marja): Don't route this information through GlobalHandles.
   heap()->isolate()->global_handles()->SetRetainedObjectInfo(id, info);
-}
-
-
-void HeapProfiler::StartHeapAllocationsRecording() {
-  StartHeapObjectsTracking();
-  heap()->DisableInlineAllocation();
-  is_tracking_allocations_ = true;
-}
-
-
-void HeapProfiler::StopHeapAllocationsRecording() {
-  StopHeapObjectsTracking();
-  heap()->EnableInlineAllocation();
-  is_tracking_allocations_ = false;
 }
 
 

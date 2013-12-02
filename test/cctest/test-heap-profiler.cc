@@ -2191,7 +2191,7 @@ TEST(ArrayGrowLeftTrim) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->StartRecordingHeapAllocations();
+  heap_profiler->StartTrackingHeapObjects(true);
 
   CompileRun(
     "var a = [];\n"
@@ -2216,7 +2216,7 @@ TEST(ArrayGrowLeftTrim) {
   CHECK_NE(NULL, node);
   CHECK_GE(node->allocation_count(), 2);
   CHECK_GE(node->allocation_size(), 4 * 5);
-  heap_profiler->StopRecordingHeapAllocations();
+  heap_profiler->StopTrackingHeapObjects();
 }
 
 
@@ -2225,7 +2225,7 @@ TEST(TrackHeapAllocations) {
   LocalContext env;
 
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->StartRecordingHeapAllocations();
+  heap_profiler->StartTrackingHeapObjects(true);
 
   CompileRun(record_trace_tree_source);
 
@@ -2246,7 +2246,7 @@ TEST(TrackHeapAllocations) {
   CHECK_NE(NULL, node);
   CHECK_GE(node->allocation_count(), 100);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
-  heap_profiler->StopRecordingHeapAllocations();
+  heap_profiler->StopTrackingHeapObjects();
 }
 
 
@@ -2278,7 +2278,7 @@ TEST(TrackBumpPointerAllocations) {
   const char* names[] = { "(anonymous function)", "start", "f_0", "f_1" };
   // First check that normally all allocations are recorded.
   {
-    heap_profiler->StartRecordingHeapAllocations();
+    heap_profiler->StartTrackingHeapObjects(true);
 
     CompileRun(inline_heap_allocation_source);
 
@@ -2297,11 +2297,11 @@ TEST(TrackBumpPointerAllocations) {
     CHECK_NE(NULL, node);
     CHECK_GE(node->allocation_count(), 100);
     CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
-    heap_profiler->StopRecordingHeapAllocations();
+    heap_profiler->StopTrackingHeapObjects();
   }
 
   {
-    heap_profiler->StartRecordingHeapAllocations();
+    heap_profiler->StartTrackingHeapObjects(true);
 
     // Now check that not all allocations are tracked if we manually reenable
     // inline allocations.
@@ -2326,6 +2326,6 @@ TEST(TrackBumpPointerAllocations) {
     CHECK_LT(node->allocation_count(), 100);
 
     CcTest::heap()->DisableInlineAllocation();
-    heap_profiler->StopRecordingHeapAllocations();
+    heap_profiler->StopTrackingHeapObjects();
   }
 }
