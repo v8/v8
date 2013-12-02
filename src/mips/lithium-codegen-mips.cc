@@ -2000,7 +2000,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->right()).is(a0));
   ASSERT(ToRegister(instr->result()).is(v0));
 
-  BinaryOpStub stub(instr->op(), NO_OVERWRITE);
+  BinaryOpICStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   // Other arch use a nop here, to signal that there is no inlined
   // patchable code. Mips does not need the nop, since our marker
