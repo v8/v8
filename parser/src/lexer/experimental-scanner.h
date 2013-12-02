@@ -88,6 +88,29 @@ class ScannerBase {
     }
   }
 
+  // Has to be called after creating the scanner and setting the flags.
+  virtual void Init() = 0;
+
+  // Seek forward to the given position. This operation works for simple cases
+  // such as seeking forward until simple delimiter tokens, which is what it is
+  // used for. After this call, we will have the token at the given position as
+  // the "next" token. The "current" token will be invalid. FIXME: for utf-8,
+  // we need to decide if pos is counted in characters or in bytes.
+  virtual void SeekForward(int pos) = 0;
+  virtual void SetEnd(int pos) = 0;
+
+  // Scans the input as a regular expression pattern, previous character(s) must
+  // be /(=). Returns true if a pattern is scanned. FIXME: this won't work for
+  // utf-8 newlines.
+  virtual bool ScanRegExpPattern(bool seen_equal) = 0;
+  // Returns true if regexp flags are scanned (always since flags can
+  // be empty).
+  virtual bool ScanRegExpFlags() = 0;
+
+  // Returns the location of the last seen octal literal.
+  virtual Location octal_position() const = 0;
+  virtual void clear_octal_position() = 0;
+
   // Returns the next token and advances input.
   Token::Value Next() {
     has_line_terminator_before_next_ = false;
@@ -217,26 +240,6 @@ class ScannerBase {
         (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
 
-  // Seek forward to the given position. This operation works for simple cases
-  // such as seeking forward until simple delimiter tokens, which is what it is
-  // used for. After this call, we will have the token at the given position as
-  // the "next" token. The "current" token will be invalid. FIXME: for utf-8,
-  // we need to decide if pos is counted in characters or in bytes.
-  virtual void SeekForward(int pos) = 0;
-  virtual void SetEnd(int pos) = 0;
-
-  // Scans the input as a regular expression pattern, previous character(s) must
-  // be /(=). Returns true if a pattern is scanned. FIXME: this won't work for
-  // utf-8 newlines.
-  virtual bool ScanRegExpPattern(bool seen_equal) = 0;
-  // Returns true if regexp flags are scanned (always since flags can
-  // be empty).
-  virtual bool ScanRegExpFlags() = 0;
-
-  // Returns the location of the last seen octal literal.
-  virtual Location octal_position() const = 0;
-  virtual void clear_octal_position() = 0;
-
  protected:
   struct TokenDesc {
     Token::Value token;
@@ -299,6 +302,9 @@ class ExperimentalScanner : public ScannerBase {
         last_octal_end_(NULL) {
     ASSERT(source->IsFlat());
     SetBufferBasedOnHandle();
+  }
+
+  virtual void Init() {
     Scan();
   }
 

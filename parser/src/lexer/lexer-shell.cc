@@ -267,12 +267,13 @@ TimeDelta RunExperimentalScanner(Handle<String> source,
                                  int repeat,
                                  HarmonySettings harmony_settings) {
   ElapsedTimer timer;
-  timer.Start();
   ExperimentalScanner<Char> scanner(source, isolate);
   scanner.SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
   scanner.SetHarmonyModules(harmony_settings.modules);
   scanner.SetHarmonyScoping(harmony_settings.scoping);
 
+  timer.Start();
+  scanner.Init();
   Token::Value token;
   do {
     token = scanner.Next();

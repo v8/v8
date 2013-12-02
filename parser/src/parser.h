@@ -414,8 +414,6 @@ class Parser : public ParserBase {
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
-    delete scanner_;
-    scanner_ = NULL;
   }
 
   // Parses the source code represented by the compilation info and sets its
@@ -760,6 +758,8 @@ class Parser : public ParserBase {
   AstNodeFactory<AstConstructionVisitor>* factory() {
     return current_function_state_->factory();
   }
+
+  void SetScannerFlags();
 
   Isolate* isolate_;
   ZoneList<Handle<String> > symbol_cache_;

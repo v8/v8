@@ -553,12 +553,7 @@ Parser::Parser(CompilationInfo* info)
       info_(info) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
-  // FIXME: these can be done only when the ExperimentalScanner has been
-  // created, and they need to be redone when it's recreated.
-  // set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
-  // set_allow_modules(!info->is_native() && FLAG_harmony_modules);
   set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
-  // set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
@@ -581,19 +576,17 @@ FunctionLiteral* Parser::ParseProgram() {
   FlattenString(source);
   FunctionLiteral* result;
   if (source->IsTwoByteRepresentation()) {
-    // Notice that the stream is destroyed at the end of the branch block.
-    // The last line of the blocks can't be moved outside, even though they're
-    // identical calls. // FIXME
+    delete reusable_preparser_;
     delete scanner_;
     scanner_ = new ExperimentalScanner<uint16_t>(source, isolate());
-    // FIXME: set flags
-    result = DoParseProgram(info(), source);
   } else {
+    delete reusable_preparser_;
     delete scanner_;
     scanner_ = new ExperimentalScanner<uint8_t>(source, isolate());
-    // FIXME: set flags
-    result = DoParseProgram(info(), source);
   }
+  SetScannerFlags();
+  scanner_->Init();
+  result = DoParseProgram(info(), source);
 
   if (FLAG_trace_parse && result != NULL) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -725,15 +718,17 @@ FunctionLiteral* Parser::ParseLazy() {
 
 
 FunctionLiteral* Parser::ParseLazy(Handle<String> source, int start, int end) {
+  delete reusable_preparser_;
   delete scanner_;
   if (source->IsTwoByteRepresentation()) {
     scanner_ = new ExperimentalScanner<uint16_t>(source, isolate());
   } else {
     scanner_ = new ExperimentalScanner<uint8_t>(source, isolate());
   }
+  SetScannerFlags();
+  // We don't need to Init() if we immediately SeekForward.
   scanner_->SeekForward(start);
   scanner_->SetEnd(end);
-  // FIXME: set flags
 
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
   ASSERT(top_scope_ == NULL);
@@ -5672,6 +5667,13 @@ bool Parser::Parse() {
   }
   info()->SetFunction(result);
   return (result != NULL);
+}
+
+
+void Parser::SetScannerFlags() {
+  scanner_->SetHarmonyScoping(!info_->is_native() && FLAG_harmony_scoping);
+  scanner_->SetHarmonyModules(!info_->is_native() && FLAG_harmony_modules);
+  scanner_->SetHarmonyNumericLiterals(FLAG_harmony_numeric_literals);
 }
 
 } }  // namespace v8::internal
