@@ -1454,7 +1454,8 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     }
 
     if (lookup->IsPropertyCallbacks()) return true;
-
+    // JSGlobalProxy always goes via the runtime, so it's safe to cache.
+    if (receiver->IsJSGlobalProxy()) return true;
     // Currently normal holders in the prototype chain are not supported. They
     // would require a runtime positive lookup and verification that the details
     // have not changed.
@@ -1561,20 +1562,6 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
     return *result;
   }
 
-  if (receiver->IsJSGlobalProxy()) {
-    if (FLAG_use_ic && kind() != Code::KEYED_STORE_IC) {
-      // Generate a generic stub that goes to the runtime when we see a global
-      // proxy as receiver.
-      Handle<Code> stub = global_proxy_stub();
-      set_target(*stub);
-      TRACE_IC("StoreIC", name);
-    }
-    Handle<Object> result = JSReceiver::SetProperty(
-        receiver, name, value, NONE, strict_mode(), store_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
-    return *result;
-  }
-
   LookupResult lookup(isolate());
   bool can_store = LookupForWrite(receiver, name, value, &lookup, this);
   if (!can_store &&
@@ -1611,7 +1598,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Object> value) {
-  ASSERT(!receiver->IsJSGlobalProxy());
   ASSERT(lookup->IsFound());
 
   // These are not cacheable, so we never see such LookupResults here.
@@ -1629,6 +1615,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
                                      Handle<String> name,
                                      Handle<Object> value,
                                      InlineCacheHolderFlag cache_holder) {
+  if (object->IsJSGlobalProxy()) return slow_stub();
   ASSERT(cache_holder == OWN_MAP);
   // This is currently guaranteed by checks in StoreIC::Store.
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);

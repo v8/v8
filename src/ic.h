@@ -642,14 +642,6 @@ class StoreIC: public IC {
     }
   }
 
-  virtual Handle<Code> global_proxy_stub() {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_GlobalProxy();
-    }
-  }
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,

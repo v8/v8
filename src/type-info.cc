@@ -522,11 +522,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
   Handle<Object> object = GetInfo(ast_id);
   if (object->IsUndefined() || object->IsSmi()) return;
 
-  if (object.is_identical_to(isolate_->builtins()->StoreIC_GlobalProxy())) {
-    // TODO(fschneider): We could collect the maps and signal that
-    // we need a generic store (or load) here.
-    ASSERT(Handle<Code>::cast(object)->ic_state() == GENERIC);
-  } else if (object->IsMap()) {
+  if (object->IsMap()) {
     types->AddMapIfMissing(Handle<Map>::cast(object), zone());
   } else if (Handle<Code>::cast(object)->ic_state() == POLYMORPHIC ||
              Handle<Code>::cast(object)->ic_state() == MONOMORPHIC) {

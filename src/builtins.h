@@ -157,15 +157,11 @@ enum BuiltinExtraArguments {
                                     kNoExtraICState)                    \
   V(StoreIC_Generic_Strict,         STORE_IC, GENERIC,                  \
                                     StoreIC::kStrictModeState)          \
-  V(StoreIC_GlobalProxy,            STORE_IC, GENERIC,                  \
-                                    kNoExtraICState)                    \
   V(StoreIC_Initialize_Strict,      STORE_IC, UNINITIALIZED,            \
                                     StoreIC::kStrictModeState)          \
   V(StoreIC_PreMonomorphic_Strict,  STORE_IC, PREMONOMORPHIC,           \
                                     StoreIC::kStrictModeState)          \
   V(StoreIC_Megamorphic_Strict,     STORE_IC, MEGAMORPHIC,              \
-                                    StoreIC::kStrictModeState)          \
-  V(StoreIC_GlobalProxy_Strict,     STORE_IC, GENERIC,                  \
                                     StoreIC::kStrictModeState)          \
   V(StoreIC_Setter_ForDeopt,        STORE_IC, MONOMORPHIC,              \
                                     StoreIC::kStrictModeState)          \
