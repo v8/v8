@@ -39,17 +39,19 @@ namespace internal {
 class HCheckEliminationPhase : public HPhase {
  public:
   explicit HCheckEliminationPhase(HGraph* graph)
-    : HPhase("H_Check Elimination", graph),
-      aliasing_(),
-      redundant_(0),
-      removed_(0),
-      removed_cho_(0),
-      narrowed_(0),
-      loads_(0),
-      empty_(0),
-      compares_true_(0),
-      compares_false_(0),
-      transitions_(0) { }
+      : HPhase("H_Check Elimination", graph), aliasing_() {
+#ifdef DEBUG
+    redundant_ = 0;
+    removed_ = 0;
+    removed_cho_ = 0;
+    narrowed_ = 0;
+    loads_ = 0;
+    empty_ = 0;
+    compares_true_ = 0;
+    compares_false_ = 0;
+    transitions_ = 0;
+#endif
+  }
 
   void Run();
 
@@ -59,6 +61,7 @@ class HCheckEliminationPhase : public HPhase {
   void PrintStats();
 
   HAliasAnalyzer* aliasing_;
+#ifdef DEBUG
   int redundant_;
   int removed_;
   int removed_cho_;
@@ -68,6 +71,7 @@ class HCheckEliminationPhase : public HPhase {
   int compares_true_;
   int compares_false_;
   int transitions_;
+#endif
 };
 
 

@@ -651,8 +651,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                           ExtraICState extra_state)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
-        name_(name),
-        extra_state_(extra_state) {}
+        name_(name) {}
 
   void Compile(MacroAssembler* masm,
                Handle<JSObject> object,
@@ -828,7 +827,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   CallStubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
-  ExtraICState extra_state_;
 };
 
 
