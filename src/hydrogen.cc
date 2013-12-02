@@ -8858,8 +8858,10 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       case Token::MOD: {
         if (fixed_right_arg.has_value) {
           if (right->IsConstant()) {
-            ASSERT_EQ(fixed_right_arg.value,
-                      HConstant::cast(right)->Integer32Value());
+            HConstant* c_right = HConstant::cast(right);
+            if (c_right->HasInteger32Value()) {
+              ASSERT_EQ(fixed_right_arg.value, c_right->Integer32Value());
+            }
           } else {
             HConstant* fixed_right = Add<HConstant>(
                 static_cast<int>(fixed_right_arg.value));
