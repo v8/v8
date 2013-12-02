@@ -5608,9 +5608,35 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 // Create a ScannerBase for the preparser to use as input, and preparse the
 // source.
 ScriptDataImpl* PreParserApi::PreParse(Isolate* isolate,
-                                       Utf16CharacterStream* source) {
-  // FIXME(experimental-scanner): implement
-  return NULL;
+                                       Handle<String> source) {
+  CompleteParserRecorder recorder;
+  HistogramTimerScope timer(isolate->counters()->pre_parse());
+  ScannerBase* scanner = NULL;
+  if (source->IsTwoByteRepresentation()) {
+    scanner = new ExperimentalScanner<uint16_t>(source, isolate);
+  } else {
+    scanner = new ExperimentalScanner<uint8_t>(source, isolate);
+  }
+  intptr_t stack_limit = isolate->stack_guard()->real_climit();
+  PreParser preparser(scanner, &recorder, stack_limit);
+  preparser.set_allow_lazy(true);
+  preparser.set_allow_generators(FLAG_harmony_generators);
+  preparser.set_allow_for_of(FLAG_harmony_iteration);
+  preparser.set_allow_harmony_scoping(FLAG_harmony_scoping);
+  preparser.set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
+  scanner->Init();
+  PreParser::PreParseResult result = preparser.PreParseProgram();
+  if (result == PreParser::kPreParseStackOverflow) {
+    isolate->StackOverflow();
+    delete scanner;
+    return NULL;
+  }
+
+  // Extract the accumulated data from the recorder as a single
+  // contiguous vector that we are responsible for disposing.
+  Vector<unsigned> store = recorder.ExtractData();
+  delete scanner;
+  return new ScriptDataImpl(store);
 }
 
 

@@ -327,10 +327,11 @@ TEST(RegressChromium62639) {
   // and then used the invalid currently scanned literal. This always
   // failed in debug mode, and sometimes crashed in release mode.
 
-  i::Utf8ToUtf16CharacterStream stream(
-      reinterpret_cast<const i::byte*>(program),
-      static_cast<unsigned>(strlen(program)));
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
+  v8::HandleScope handles(CcTest::isolate());
+  i::Handle<i::String> source = isolate->factory()->NewStringFromAscii(
+      i::Vector<const char>(reinterpret_cast<const char*>(program),
+                            strlen(program)));
+  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, source);
   CHECK(data->HasError());
   delete data;
 }
@@ -356,8 +357,7 @@ TEST(Regress928) {
   v8::HandleScope handles(CcTest::isolate());
   i::Handle<i::String> source(
       factory->NewStringFromAscii(i::CStrVector(program)));
-  i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
+  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, source);
   CHECK(!data->HasError());
 
   data->Initialize();

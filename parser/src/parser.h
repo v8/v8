@@ -154,7 +154,7 @@ class PreParserApi {
   // preparser recorder object that is suited to the parser's purposes.  Also,
   // the preparser doesn't know about ScriptDataImpl.
   static ScriptDataImpl* PreParse(Isolate* isolate,
-                                  Utf16CharacterStream* source);
+                                  Handle<String> source);
 };
 
 

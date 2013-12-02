@@ -1656,24 +1656,18 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 ScriptData* ScriptData::PreCompile(v8::Isolate* isolate,
                                    const char* input,
                                    int length) {
-  i::Utf8ToUtf16CharacterStream stream(
-      reinterpret_cast<const unsigned char*>(input), length);
-  return i::PreParserApi::PreParse(
-      reinterpret_cast<i::Isolate*>(isolate), &stream);
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::HandleScope handle_scope(internal_isolate);
+  i::Handle<i::String> source = internal_isolate->factory()
+      ->NewStringFromAscii(i::Vector<const char>(input, length));
+  return i::PreParserApi::PreParse(internal_isolate, source);
 }
 
 
 ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Isolate* isolate = str->GetIsolate();
-  if (str->IsExternalTwoByteString()) {
-    i::ExternalTwoByteStringUtf16CharacterStream stream(
-      i::Handle<i::ExternalTwoByteString>::cast(str), 0, str->length());
-    return i::PreParserApi::PreParse(isolate, &stream);
-  } else {
-    i::GenericStringUtf16CharacterStream stream(str, 0, str->length());
-    return i::PreParserApi::PreParse(isolate, &stream);
-  }
+  return i::PreParserApi::PreParse(isolate, str);
 }
 
 
