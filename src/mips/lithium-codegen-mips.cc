@@ -3373,12 +3373,13 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
+  Register result = ToRegister(instr->result());
   Register scratch = scratch0();
 
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
   // passed unchanged to builtins and strict-mode functions.
-  Label global_object, receiver_ok;
+  Label global_object, result_in_receiver;
 
   // Do not transform the receiver to object for strict mode
   // functions.
@@ -3392,7 +3393,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
                   1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
   int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
   __ And(scratch, scratch, Operand(strict_mode_function_mask | native_mask));
-  __ Branch(&receiver_ok, ne, scratch, Operand(zero_reg));
+  __ Branch(&result_in_receiver, ne, scratch, Operand(zero_reg));
 
   // Normal function. Replace undefined or null with global receiver.
   __ LoadRoot(scratch, Heap::kNullValueRootIndex);
@@ -3407,13 +3408,21 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ GetObjectType(receiver, scratch, scratch);
   DeoptimizeIf(lt, instr->environment(),
                scratch, Operand(FIRST_SPEC_OBJECT_TYPE));
-  __ Branch(&receiver_ok);
+  __ Branch(&result_in_receiver);
 
   __ bind(&global_object);
-  __ lw(receiver, GlobalObjectOperand());
-  __ lw(receiver,
-         FieldMemOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
-  __ bind(&receiver_ok);
+  __ lw(result, GlobalObjectOperand());
+  __ lw(result,
+         FieldMemOperand(result, JSGlobalObject::kGlobalReceiverOffset));
+  if (result.is(receiver)) {
+    __ bind(&result_in_receiver);
+  } else {
+    Label result_ok;
+    __ Branch(&result_ok);
+    __ bind(&result_in_receiver);
+    __ mov(result, receiver);
+    __ bind(&result_ok);
+  }
 }
 
 
