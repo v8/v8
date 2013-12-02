@@ -974,7 +974,7 @@ void KeyedLoadDictionaryElementPlatformStub::Generate(
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub;
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
 }
 
 
@@ -1113,14 +1113,14 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub1(NOT_JS_FUNCTION_STUB_MODE);
   StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
+  stub1.GetCode(isolate);
+  stub2.GetCode(isolate);
 }
 
 
 void StubFailureTailCallTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTailCallTrampolineStub stub;
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
 }
 
 

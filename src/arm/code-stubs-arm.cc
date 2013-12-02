@@ -697,8 +697,8 @@ void WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   WriteInt32ToHeapNumberStub stub1(r1, r0, r2);
   WriteInt32ToHeapNumberStub stub2(r2, r0, r3);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
+  stub1.GetCode(isolate);
+  stub2.GetCode(isolate);
 }
 
 
@@ -1685,16 +1685,13 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   if (!stub.FindCodeInCache(&store_buffer_overflow_code, isolate)) {
       store_buffer_overflow_code = *stub.GetCode(isolate);
   }
-  save_doubles_code->set_is_pregenerated(true);
-  store_buffer_overflow_code->set_is_pregenerated(true);
   isolate->set_fp_stubs_generated(true);
 }
 
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
-  Handle<Code> code = stub.GetCode(isolate);
-  code->set_is_pregenerated(true);
+  stub.GetCode(isolate);
 }
 
 
@@ -5328,10 +5325,10 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
+  stub1.GetCode(isolate);
   // Hydrogen code stubs need stub2 at snapshot time.
   StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
+  stub2.GetCode(isolate);
 }
 
 
@@ -5832,12 +5829,12 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
+    stub.GetCode(isolate);
     if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
         (!FLAG_track_allocation_sites &&
          (kind == initial_kind || kind == initial_holey_kind))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode(isolate)->set_is_pregenerated(true);
+      stub1.GetCode(isolate);
     }
   }
 }
@@ -5859,11 +5856,11 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
     InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
-    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    stubh1.GetCode(isolate);
     InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
-    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    stubh2.GetCode(isolate);
     InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
-    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+    stubh3.GetCode(isolate);
   }
 }
 

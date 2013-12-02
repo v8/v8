@@ -2977,7 +2977,6 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
     if (!save_doubles.FindCodeInCache(&save_doubles_code, isolate)) {
       save_doubles_code = *(save_doubles.GetCode(isolate));
     }
-    save_doubles_code->set_is_pregenerated(true);
     isolate->set_fp_stubs_generated(true);
   }
 }
@@ -2985,8 +2984,7 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
-  Handle<Code> code = stub.GetCode(isolate);
-  code->set_is_pregenerated(true);
+  stub.GetCode(isolate);
 }
 
 
@@ -5283,10 +5281,10 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub(kDontSaveFPRegs);
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
   if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
     StoreBufferOverflowStub stub2(kSaveFPRegs);
-    stub2.GetCode(isolate)->set_is_pregenerated(true);
+    stub2.GetCode(isolate);
   }
 }
 
@@ -5777,12 +5775,12 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
+    stub.GetCode(isolate);
     if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
         (!FLAG_track_allocation_sites &&
          (kind == initial_kind || kind == initial_holey_kind))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode(isolate)->set_is_pregenerated(true);
+      stub1.GetCode(isolate);
     }
   }
 }
@@ -5804,11 +5802,11 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
     InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
-    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    stubh1.GetCode(isolate);
     InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
-    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    stubh2.GetCode(isolate);
     InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
-    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+    stubh3.GetCode(isolate);
   }
 }
 
