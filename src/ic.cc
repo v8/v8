@@ -1205,7 +1205,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
 
   Handle<Type> type = CurrentTypeOf(object, isolate());
   Handle<JSObject> holder(lookup->holder());
-  LoadStubCompiler compiler(isolate(), cache_holder, kind());
+  LoadStubCompiler compiler(isolate(), kNoExtraICState, cache_holder, kind());
 
   switch (lookup->type()) {
     case FIELD: {
