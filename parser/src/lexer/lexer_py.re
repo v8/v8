@@ -38,7 +38,7 @@ number =
   /\.[:digit:]+/ maybe_exponent |
   /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
 harmony_number = "0"[bBoO][:digit:]+;
-line_terminator_sequence = /[:line_terminator:]|\r\n/;
+line_terminator_sequence = /[:line_terminator:]|(\r\n|\n\r)/;
 eos = [:eos:];
 
 # grammar is
