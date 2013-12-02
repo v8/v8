@@ -47,7 +47,7 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = ["lexer"]
+DEFAULT_TESTS = ["lexer", "mjsunit", "cctest"]
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
