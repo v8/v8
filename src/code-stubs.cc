@@ -110,9 +110,6 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
     // Update the static counter each time a new code stub is generated.
     isolate->counters()->code_stubs()->Increment();
 
-    // Nested stubs are not allowed for leaves.
-    AllowStubCallsScope allow_scope(&masm, false);
-
     // Generate the code for the stub.
     masm.set_generating_stub(true);
     NoCurrentFrameScope scope(&masm);
@@ -148,7 +145,6 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   if (UseSpecialCache()
       ? FindCodeInSpecialCache(&code, isolate)
       : FindCodeInCache(&code, isolate)) {
-    ASSERT(IsPregenerated(isolate) == code->is_pregenerated());
     ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
@@ -978,7 +974,7 @@ void KeyedLoadDictionaryElementPlatformStub::Generate(
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub;
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
 }
 
 
@@ -1117,14 +1113,14 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub1(NOT_JS_FUNCTION_STUB_MODE);
   StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
+  stub1.GetCode(isolate);
+  stub2.GetCode(isolate);
 }
 
 
 void StubFailureTailCallTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTailCallTrampolineStub stub;
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
 }
 
 

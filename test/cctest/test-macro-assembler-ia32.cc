@@ -62,7 +62,6 @@ TEST(LoadAndStoreWithRepresentation) {
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
-  masm->set_allow_stub_calls(false);
   __ push(ebx);
   __ push(edx);
   __ sub(esp, Immediate(1 * kPointerSize));

@@ -2781,21 +2781,11 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated(Isolate* isolate) {
-#ifdef _WIN64
-  return result_size_ == 1;
-#else
-  return true;
-#endif
-}
-
-
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
-  RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   BinaryOpStub::GenerateAheadOfTime(isolate);
@@ -2808,9 +2798,9 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
   CEntryStub save_doubles(1, kSaveFPRegs);
-  save_doubles.GetCode(isolate)->set_is_pregenerated(true);
+  save_doubles.GetCode(isolate);
 }
 
 
@@ -5085,91 +5075,12 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 }
 
 
-struct AheadOfTimeWriteBarrierStubList {
-  Register object, value, address;
-  RememberedSetAction action;
-};
-
-
-#define REG(Name) { kRegister_ ## Name ## _Code }
-
-struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
-  // Used in RegExpExecStub.
-  { REG(rbx), REG(rax), REG(rdi), EMIT_REMEMBERED_SET },
-  // Used in CompileArrayPushCall.
-  { REG(rbx), REG(rcx), REG(rdx), EMIT_REMEMBERED_SET },
-  // Used in StoreStubCompiler::CompileStoreField and
-  // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
-  { REG(rdx), REG(rcx), REG(rbx), EMIT_REMEMBERED_SET },
-  // GenerateStoreField calls the stub with two different permutations of
-  // registers.  This is the second.
-  { REG(rbx), REG(rcx), REG(rdx), EMIT_REMEMBERED_SET },
-  // StoreIC::GenerateNormal via GenerateDictionaryStore.
-  { REG(rbx), REG(r8), REG(r9), EMIT_REMEMBERED_SET },
-  // KeyedStoreIC::GenerateGeneric.
-  { REG(rbx), REG(rdx), REG(rcx), EMIT_REMEMBERED_SET},
-  // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { REG(rdi), REG(rbx), REG(rcx), EMIT_REMEMBERED_SET},
-  { REG(rdx), REG(rdi), REG(rbx), EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateMapChangeElementTransition
-  // and ElementsTransitionGenerator::GenerateSmiToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(rdx), REG(rbx), REG(rdi), EMIT_REMEMBERED_SET},
-  { REG(rdx), REG(rbx), REG(rdi), OMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateSmiToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(rdx), REG(r11), REG(r15), EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(r11), REG(rax), REG(r15), EMIT_REMEMBERED_SET},
-  // StoreArrayLiteralElementStub::Generate
-  { REG(rbx), REG(rax), REG(rcx), EMIT_REMEMBERED_SET},
-  // FastNewClosureStub::Generate and
-  // StringAddStub::Generate
-  { REG(rcx), REG(rdx), REG(rbx), EMIT_REMEMBERED_SET},
-  // StringAddStub::Generate
-  { REG(rcx), REG(rax), REG(rbx), EMIT_REMEMBERED_SET},
-  // Null termination.
-  { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
-};
-
-#undef REG
-
-bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
-       !entry->object.is(no_reg);
-       entry++) {
-    if (object_.is(entry->object) &&
-        value_.is(entry->value) &&
-        address_.is(entry->address) &&
-        remembered_set_action_ == entry->action &&
-        save_fp_regs_mode_ == kDontSaveFPRegs) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
+  stub1.GetCode(isolate);
   StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
-}
-
-
-void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
-       !entry->object.is(no_reg);
-       entry++) {
-    RecordWriteStub stub(entry->object,
-                         entry->value,
-                         entry->address,
-                         entry->action,
-                         kDontSaveFPRegs);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
-  }
+  stub2.GetCode(isolate);
 }
 
 
@@ -5496,10 +5407,6 @@ void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
-    // It's always safe to call the entry hook stub, as the hook itself
-    // is not allowed to call back to V8.
-    AllowStubCallsScope allow_stub_calls(masm, true);
-
     ProfileEntryHookStub stub;
     masm->CallStub(&stub);
   }
@@ -5667,12 +5574,12 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
+    stub.GetCode(isolate);
     if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
         (!FLAG_track_allocation_sites &&
          (kind == initial_kind || kind == initial_holey_kind))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode(isolate)->set_is_pregenerated(true);
+      stub1.GetCode(isolate);
     }
   }
 }
@@ -5694,11 +5601,11 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
     InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
-    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    stubh1.GetCode(isolate);
     InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
-    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    stubh2.GetCode(isolate);
     InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
-    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+    stubh3.GetCode(isolate);
   }
 }
 

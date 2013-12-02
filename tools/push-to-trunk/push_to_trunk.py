@@ -102,7 +102,9 @@ class PrepareChangeLog(Step):
     if match:
       cl_url = "https://codereview.chromium.org/%s/description" % match.group(1)
       try:
-        body = self.ReadURL(cl_url)
+        # Fetch from Rietveld but only retry once with one second delay since
+        # there might be many revisions.
+        body = self.ReadURL(cl_url, wait_plan=[1])
       except urllib2.URLError:
         pass
     return body

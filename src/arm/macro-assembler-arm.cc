@@ -44,7 +44,6 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      allow_stub_calls_(true),
       has_frame_(false) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
@@ -1229,7 +1228,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
@@ -1238,8 +1237,10 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
+  // Contract with called JS functions requires that function is passed in r1.
+  ASSERT(function.is(r1));
+
   // Get the function and setup the context.
-  Move(r1, function);
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -1247,6 +1248,17 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   // call sites.
   ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   InvokeCode(r3, expected, actual, flag, call_wrapper, call_kind);
+}
+
+
+void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+                                    const ParameterCount& expected,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag,
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
+  Move(r1, function);
+  InvokeFunction(r1, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
@@ -2276,8 +2288,6 @@ void MacroAssembler::CallStub(CodeStub* stub,
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls_ ||
-         stub->CompilingCallsToThisStubIsGCSafe(isolate()));
   Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, cond);
 }
 
@@ -2422,8 +2432,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
-  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
-  return allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe(isolate());
+  return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
 
 

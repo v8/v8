@@ -161,16 +161,6 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
-  bool CompilingCallsToThisStubIsGCSafe(Isolate* isolate) {
-    bool is_pregenerated = IsPregenerated(isolate);
-    Code* code = NULL;
-    CHECK(!is_pregenerated || FindCodeInCache(&code, isolate));
-    return is_pregenerated;
-  }
-
-  // See comment above, where Instanceof is defined.
-  virtual bool IsPregenerated(Isolate* isolate) { return false; }
-
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void GenerateStubsRequiringBuiltinsAheadOfTime(Isolate* isolate);
   static void GenerateFPStubs(Isolate* isolate);
@@ -682,8 +672,6 @@ class CreateAllocationSiteStub : public HydrogenCodeStub {
   explicit CreateAllocationSiteStub() { }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
-
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
 
   static void GenerateAheadOfTime(Isolate* isolate);
 
@@ -1467,7 +1455,6 @@ class CEntryStub : public PlatformCodeStub {
   // time, so it's OK to call it from other stubs that can't cope with GC during
   // their code generation.  On machines that always have gp registers (x64) we
   // can generate both variants ahead of time.
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
   static void GenerateAheadOfTime(Isolate* isolate);
 
  protected:
@@ -1819,24 +1806,6 @@ class StringCharAtGenerator {
 };
 
 
-class AllowStubCallsScope {
- public:
-  AllowStubCallsScope(MacroAssembler* masm, bool allow)
-       : masm_(masm), previous_allow_(masm->allow_stub_calls()) {
-    masm_->set_allow_stub_calls(allow);
-  }
-  ~AllowStubCallsScope() {
-    masm_->set_allow_stub_calls(previous_allow_);
-  }
-
- private:
-  MacroAssembler* masm_;
-  bool previous_allow_;
-
-  DISALLOW_COPY_AND_ASSIGN(AllowStubCallsScope);
-};
-
-
 class KeyedLoadDictionaryElementStub : public HydrogenCodeStub {
  public:
   KeyedLoadDictionaryElementStub() {}
@@ -2084,11 +2053,6 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
     return ContextCheckModeBits::decode(bit_field_);
   }
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE {
-    // We only pre-generate stubs that verify correct context
-    return context_mode() == CONTEXT_CHECK_REQUIRED;
-  }
-
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void InstallDescriptors(Isolate* isolate);
 
@@ -2185,7 +2149,6 @@ class InternalArrayConstructorStubBase : public HydrogenCodeStub {
     kind_ = kind;
   }
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void InstallDescriptors(Isolate* isolate);
 
@@ -2449,8 +2412,6 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
   explicit StubFailureTrampolineStub(StubFunctionMode function_mode)
       : fp_registers_(CanUseFPRegisters()), function_mode_(function_mode) {}
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
-
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
@@ -2475,8 +2436,6 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
 class StubFailureTailCallTrampolineStub : public PlatformCodeStub {
  public:
   StubFailureTailCallTrampolineStub() : fp_registers_(CanUseFPRegisters()) {}
-
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
 
   static void GenerateAheadOfTime(Isolate* isolate);
 

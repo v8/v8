@@ -165,7 +165,6 @@ TEST(SmiMove) {
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -255,7 +254,6 @@ TEST(SmiCompare) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -306,7 +304,6 @@ TEST(Integer32ToSmi) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -435,7 +432,6 @@ TEST(Integer64PlusConstantToSmi) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -480,7 +476,6 @@ TEST(SmiCheck) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
   Condition cond;
@@ -729,7 +724,6 @@ TEST(SmiNeg) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -937,7 +931,7 @@ TEST(SmiAdd) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -946,7 +940,6 @@ TEST(SmiAdd) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1159,7 +1152,7 @@ TEST(SmiSub) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1168,7 +1161,6 @@ TEST(SmiSub) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1259,7 +1251,6 @@ TEST(SmiMul) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1366,7 +1357,6 @@ TEST(SmiDiv) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1477,7 +1467,6 @@ TEST(SmiMod) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1566,7 +1555,7 @@ TEST(SmiIndex) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1575,7 +1564,6 @@ TEST(SmiIndex) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1636,7 +1624,7 @@ TEST(SmiSelectNonSmi) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1645,7 +1633,6 @@ TEST(SmiSelectNonSmi) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);  // Avoid inline checks.
   EntryCode(masm);
   Label exit;
 
@@ -1716,7 +1703,7 @@ TEST(SmiAnd) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1725,7 +1712,6 @@ TEST(SmiAnd) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1798,7 +1784,7 @@ TEST(SmiOr) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1807,7 +1793,6 @@ TEST(SmiOr) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1882,7 +1867,7 @@ TEST(SmiXor) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1891,7 +1876,6 @@ TEST(SmiXor) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -1959,7 +1943,6 @@ TEST(SmiNot) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -2047,7 +2030,7 @@ TEST(SmiShiftLeft) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 7,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -2056,7 +2039,6 @@ TEST(SmiShiftLeft) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -2154,7 +2136,7 @@ TEST(SmiShiftLogicalRight) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 5,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -2163,7 +2145,6 @@ TEST(SmiShiftLogicalRight) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -2224,7 +2205,7 @@ TEST(SmiShiftArithmeticRight) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -2233,7 +2214,6 @@ TEST(SmiShiftArithmeticRight) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -2298,7 +2278,6 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   Label exit;
 
@@ -2342,7 +2321,6 @@ TEST(OperandOffset) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
 
   MacroAssembler* masm = &assembler;
-  masm->set_allow_stub_calls(false);
   Label exit;
 
   EntryCode(masm);
@@ -2695,7 +2673,6 @@ TEST(LoadAndStoreWithRepresentation) {
   HandleScope handles(isolate);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
-  masm->set_allow_stub_calls(false);
   EntryCode(masm);
   __ subq(rsp, Immediate(1 * kPointerSize));
   Label exit;

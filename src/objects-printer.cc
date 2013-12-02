@@ -556,6 +556,11 @@ void Map::MapPrint(FILE* out) {
   if (is_access_check_needed()) {
     PrintF(out, " - access_check_needed\n");
   }
+  if (is_frozen()) {
+    PrintF(out, " - frozen\n");
+  } else if (!is_extensible()) {
+    PrintF(out, " - sealed\n");
+  }
   PrintF(out, " - back pointer: ");
   GetBackPointer()->ShortPrint(out);
   PrintF(out, "\n - instance descriptors %s#%i: ",

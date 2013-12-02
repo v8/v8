@@ -631,11 +631,13 @@ void FullCodeGenerator::StackValueContext::Plug(
   Label done;
   __ bind(materialize_true);
   __ LoadRoot(at, Heap::kTrueValueRootIndex);
+  // Push the value as the following branch can clobber at in long branch mode.
+  __ push(at);
   __ Branch(&done);
   __ bind(materialize_false);
   __ LoadRoot(at, Heap::kFalseValueRootIndex);
-  __ bind(&done);
   __ push(at);
+  __ bind(&done);
 }
 
 
@@ -3734,6 +3736,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
     VisitForAccumulatorValue(args->at(1));
 
     __ pop(a1);
+    __ mov(a0, result_register());  // NewStringAddStub requires args in a0, a1.
     NewStringAddStub stub(STRING_ADD_CHECK_BOTH, NOT_TENURED);
     __ CallStub(&stub);
   } else {

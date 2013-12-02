@@ -307,6 +307,7 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
   if (array->map()->is_observed()) return NULL;
+  if (!array->map()->is_extensible()) return NULL;
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
@@ -1417,16 +1418,6 @@ static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
 
 static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
   StoreIC::GenerateMegamorphic(masm, kStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kNonStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kStrictMode);
 }
 
 
