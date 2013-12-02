@@ -7728,7 +7728,7 @@ TEST(LiveEditDisabled) {
   v8::internal::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Debug::SetLiveEditEnabled(false), env->GetIsolate();
+  v8::Debug::SetLiveEditEnabled(false, env->GetIsolate());
   CompileRun("%LiveEditCompareStrings('', '')");
 }
 
