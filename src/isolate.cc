@@ -1323,11 +1323,6 @@ MessageLocation Isolate::GetMessageLocation() {
 }
 
 
-void Isolate::TraceException(bool flag) {
-  FLAG_trace_exception = flag;  // TODO(isolates): This is an unfortunate use.
-}
-
-
 bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   ASSERT(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
