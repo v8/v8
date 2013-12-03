@@ -239,76 +239,73 @@ TEST(Preparsing) {
 
 
 TEST(StandAlonePreParser) {
-  // FIXME(experimental-scanner):
-  // v8::V8::Initialize();
+  v8::V8::Initialize();
 
-  // int marker;
-  // CcTest::i_isolate()->stack_guard()->SetStackLimit(
-  //     reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  // const char* programs[] = {
-  //     "{label: 42}",
-  //     "var x = 42;",
-  //     "function foo(x, y) { return x + y; }",
-  //     "%ArgleBargle(glop);",
-  //     "var x = new new Function('this.x = 42');",
-  //     NULL
-  // };
+  const char* programs[] = {
+      "{label: 42}",
+      "var x = 42;",
+      "function foo(x, y) { return x + y; }",
+      "%ArgleBargle(glop);",
+      "var x = new new Function('this.x = 42');",
+      NULL
+  };
 
-  // uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
-  // for (int i = 0; programs[i]; i++) {
-  //   const char* program = programs[i];
-  //   i::Utf8ToUtf16CharacterStream stream(
-  //       reinterpret_cast<const i::byte*>(program),
-  //       static_cast<unsigned>(strlen(program)));
-  //   i::CompleteParserRecorder log;
-  //   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  //   scanner.Initialize(&stream);
+  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
+  for (int i = 0; programs[i]; i++) {
+    i::HandleScope handle_scope(CcTest::i_isolate());
+    i::Handle<i::String> source =
+        CcTest::i_isolate()->factory()->NewStringFromAscii(
+            i::Vector<const char>(programs[i], strlen(programs[i])));
+    i::CompleteParserRecorder log;
+    i::ExperimentalScanner<uint8_t> scanner(source, CcTest::i_isolate());
+    scanner.Init();
 
-  //   i::PreParser preparser(&scanner, &log, stack_limit);
-  //   preparser.set_allow_lazy(true);
-  //   preparser.set_allow_natives_syntax(true);
-  //   i::PreParser::PreParseResult result = preparser.PreParseProgram();
-  //   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  //   i::ScriptDataImpl data(log.ExtractData());
-  //   CHECK(!data.has_error());
-  // }
+    i::PreParser preparser(&scanner, &log, stack_limit);
+    preparser.set_allow_lazy(true);
+    preparser.set_allow_natives_syntax(true);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+    i::ScriptDataImpl data(log.ExtractData());
+    CHECK(!data.has_error());
+  }
 }
 
 
 TEST(StandAlonePreParserNoNatives) {
-  // FIXME(experimental-scanner):
-  // v8::V8::Initialize();
+  v8::V8::Initialize();
 
-  // int marker;
-  // CcTest::i_isolate()->stack_guard()->SetStackLimit(
-  //     reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  // const char* programs[] = {
-  //     "%ArgleBargle(glop);",
-  //     "var x = %_IsSmi(42);",
-  //     NULL
-  // };
+  const char* programs[] = {
+      "%ArgleBargle(glop);",
+      "var x = %_IsSmi(42);",
+      NULL
+  };
 
-  // uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
-  // for (int i = 0; programs[i]; i++) {
-  //   const char* program = programs[i];
-  //   i::Utf8ToUtf16CharacterStream stream(
-  //       reinterpret_cast<const i::byte*>(program),
-  //       static_cast<unsigned>(strlen(program)));
-  //   i::CompleteParserRecorder log;
-  //   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  //   scanner.Initialize(&stream);
-
-  //   // Preparser defaults to disallowing natives syntax.
-  //   i::PreParser preparser(&scanner, &log, stack_limit);
-  //   preparser.set_allow_lazy(true);
-  //   i::PreParser::PreParseResult result = preparser.PreParseProgram();
-  //   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  //   i::ScriptDataImpl data(log.ExtractData());
-  //   // Data contains syntax error.
-  //   CHECK(data.has_error());
-  // }
+  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
+  for (int i = 0; programs[i]; i++) {
+    i::HandleScope handle_scope(CcTest::i_isolate());
+    i::Handle<i::String> source =
+        CcTest::i_isolate()->factory()->NewStringFromAscii(
+            i::Vector<const char>(programs[i], strlen(programs[i])));
+    i::CompleteParserRecorder log;
+    i::ExperimentalScanner<uint8_t> scanner(source, CcTest::i_isolate());
+    scanner.Init();
+    // Preparser defaults to disallowing natives syntax.
+    i::PreParser preparser(&scanner, &log, stack_limit);
+    preparser.set_allow_lazy(true);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+    i::ScriptDataImpl data(log.ExtractData());
+    // Data contains syntax error.
+    CHECK(data.has_error());
+  }
 }
 
 
@@ -382,31 +379,31 @@ TEST(Regress928) {
 
 
 TEST(PreParseOverflow) {
-  // FIXME(experimental-scanner):
-  // v8::V8::Initialize();
+  v8::V8::Initialize();
 
-  // int marker;
-  // CcTest::i_isolate()->stack_guard()->SetStackLimit(
-  //     reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  // size_t kProgramSize = 1024 * 1024;
-  // i::SmartArrayPointer<char> program(i::NewArray<char>(kProgramSize + 1));
-  // memset(*program, '(', kProgramSize);
-  // program[kProgramSize] = '\0';
+  size_t kProgramSize = 1024 * 1024;
+  i::SmartArrayPointer<char> program(i::NewArray<char>(kProgramSize + 1));
+  memset(*program, '(', kProgramSize);
+  program[kProgramSize] = '\0';
 
-  // uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
+  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
 
-  // i::Utf8ToUtf16CharacterStream stream(
-  //     reinterpret_cast<const i::byte*>(*program),
-  //     static_cast<unsigned>(kProgramSize));
-  // i::CompleteParserRecorder log;
-  // i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  // scanner.Initialize(&stream);
+  i::HandleScope handle_scope(CcTest::i_isolate());
+  i::Handle<i::String> source =
+      CcTest::i_isolate()->factory()->NewStringFromAscii(
+          i::Vector<const char>(*program, kProgramSize));
+  i::CompleteParserRecorder log;
+  i::ExperimentalScanner<uint8_t> scanner(source, CcTest::i_isolate());
+  scanner.Init();
 
-  // i::PreParser preparser(&scanner, &log, stack_limit);
-  // preparser.set_allow_lazy(true);
-  // i::PreParser::PreParseResult result = preparser.PreParseProgram();
-  // CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
+  i::PreParser preparser(&scanner, &log, stack_limit);
+  preparser.set_allow_lazy(true);
+  i::PreParser::PreParseResult result = preparser.PreParseProgram();
+  CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
 
 
@@ -1106,82 +1103,80 @@ void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
                              i::EnumSet<ParserFlag> flags) {
-  // FIXME(experimental-scanner):
-  // i::Isolate* isolate = CcTest::i_isolate();
-  // i::Factory* factory = isolate->factory();
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
 
-  // uintptr_t stack_limit = isolate->stack_guard()->real_climit();
+  uintptr_t stack_limit = isolate->stack_guard()->real_climit();
 
-  // // Preparse the data.
-  // i::CompleteParserRecorder log;
-  // {
-  //   i::Scanner scanner(isolate->unicode_cache());
-  //   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-  //   i::PreParser preparser(&scanner, &log, stack_limit);
-  //   SetParserFlags(&preparser, flags);
-  //   scanner.Initialize(&stream);
-  //   i::PreParser::PreParseResult result = preparser.PreParseProgram();
-  //   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  // }
-  // i::ScriptDataImpl data(log.ExtractData());
+  // Preparse the data.
+  i::CompleteParserRecorder log;
+  {
+    i::ExperimentalScanner<uint8_t> scanner(source, CcTest::i_isolate());
+    i::PreParser preparser(&scanner, &log, stack_limit);
+    SetParserFlags(&preparser, flags);
+    scanner.Init();
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+  }
+  i::ScriptDataImpl data(log.ExtractData());
 
-  // // Parse the data
-  // i::FunctionLiteral* function;
-  // {
-  //   i::Handle<i::Script> script = factory->NewScript(source);
-  //   i::CompilationInfoWithZone info(script);
-  //   i::Parser parser(&info);
-  //   SetParserFlags(&parser, flags);
-  //   info.MarkAsGlobal();
-  //   parser.Parse();
-  //   function = info.function();
-  // }
+  // Parse the data
+  i::FunctionLiteral* function;
+  {
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::CompilationInfoWithZone info(script);
+    i::Parser parser(&info);
+    SetParserFlags(&parser, flags);
+    info.MarkAsGlobal();
+    parser.Parse();
+    function = info.function();
+  }
 
-  // // Check that preparsing fails iff parsing fails.
-  // if (function == NULL) {
-  //   // Extract exception from the parser.
-  //   CHECK(isolate->has_pending_exception());
-  //   i::MaybeObject* maybe_object = isolate->pending_exception();
-  //   i::JSObject* exception = NULL;
-  //   CHECK(maybe_object->To(&exception));
-  //   i::Handle<i::JSObject> exception_handle(exception);
-  //   i::Handle<i::String> message_string =
-  //    i::Handle<i::String>::cast(i::GetProperty(exception_handle, "message"));
+  // Check that preparsing fails iff parsing fails.
+  if (function == NULL) {
+    // Extract exception from the parser.
+    CHECK(isolate->has_pending_exception());
+    i::MaybeObject* maybe_object = isolate->pending_exception();
+    i::JSObject* exception = NULL;
+    CHECK(maybe_object->To(&exception));
+    i::Handle<i::JSObject> exception_handle(exception);
+    i::Handle<i::String> message_string =
+     i::Handle<i::String>::cast(i::GetProperty(exception_handle, "message"));
 
-  //   if (!data.has_error()) {
-  //     i::OS::Print(
-  //         "Parser failed on:\n"
-  //         "\t%s\n"
-  //         "with error:\n"
-  //         "\t%s\n"
-  //         "However, the preparser succeeded",
-  //         *source->ToCString(), *message_string->ToCString());
-  //     CHECK(false);
-  //   }
-  //   // Check that preparser and parser produce the same error.
-  //   i::Handle<i::String> preparser_message = FormatMessage(&data);
-  //   if (!message_string->Equals(*preparser_message)) {
-  //     i::OS::Print(
-  //         "Expected parser and preparser to produce the same error on:\n"
-  //         "\t%s\n"
-  //         "However, found the following error messages\n"
-  //         "\tparser:    %s\n"
-  //         "\tpreparser: %s\n",
-  //         *source->ToCString(),
-  //         *message_string->ToCString(),
-  //         *preparser_message->ToCString());
-  //     CHECK(false);
-  //   }
-  // } else if (data.has_error()) {
-  //   i::OS::Print(
-  //       "Preparser failed on:\n"
-  //       "\t%s\n"
-  //       "with error:\n"
-  //       "\t%s\n"
-  //       "However, the parser succeeded",
-  //       *source->ToCString(), *FormatMessage(&data)->ToCString());
-  //   CHECK(false);
-  // }
+    if (!data.has_error()) {
+      i::OS::Print(
+          "Parser failed on:\n"
+          "\t%s\n"
+          "with error:\n"
+          "\t%s\n"
+          "However, the preparser succeeded",
+          *source->ToCString(), *message_string->ToCString());
+      CHECK(false);
+    }
+    // Check that preparser and parser produce the same error.
+    i::Handle<i::String> preparser_message = FormatMessage(&data);
+    if (!message_string->Equals(*preparser_message)) {
+      i::OS::Print(
+          "Expected parser and preparser to produce the same error on:\n"
+          "\t%s\n"
+          "However, found the following error messages\n"
+          "\tparser:    %s\n"
+          "\tpreparser: %s\n",
+          *source->ToCString(),
+          *message_string->ToCString(),
+          *preparser_message->ToCString());
+      CHECK(false);
+    }
+  } else if (data.has_error()) {
+    i::OS::Print(
+        "Preparser failed on:\n"
+        "\t%s\n"
+        "with error:\n"
+        "\t%s\n"
+        "However, the parser succeeded",
+        *source->ToCString(), *FormatMessage(&data)->ToCString());
+    CHECK(false);
+  }
 }
 
 
