@@ -866,14 +866,11 @@ class BinaryOpIC: public IC {
 
     Token::Value op() const { return op_; }
     OverwriteMode mode() const { return mode_; }
-    Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
     Handle<Type> GetLeftType(Isolate* isolate) const {
       return KindToType(left_kind_, isolate);
     }
-    Handle<Type> GetRightType(Isolate* isolate) const {
-      return KindToType(right_kind_, isolate);
-    }
+    Handle<Type> GetRightType(Isolate* isolate) const;
     Handle<Type> GetResultType(Isolate* isolate) const;
 
     void Print(StringStream* stream) const;

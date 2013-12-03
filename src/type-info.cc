@@ -407,7 +407,6 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
                                     Handle<Type>* left,
                                     Handle<Type>* right,
                                     Handle<Type>* result,
-                                    Maybe<int>* fixed_right_arg,
                                     Token::Value op) {
   Handle<Object> object = GetInfo(id);
   if (!object->IsCode()) {
@@ -416,7 +415,6 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
     ASSERT(op < BinaryOpIC::State::FIRST_TOKEN ||
            op > BinaryOpIC::State::LAST_TOKEN);
     *left = *right = *result = handle(Type::None(), isolate_);
-    *fixed_right_arg = Maybe<int>();
     return;
   }
   Handle<Code> code = Handle<Code>::cast(object);
@@ -427,7 +425,6 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   *left = state.GetLeftType(isolate());
   *right = state.GetRightType(isolate());
   *result = state.GetResultType(isolate());
-  *fixed_right_arg = state.fixed_right_arg();
 }
 
 

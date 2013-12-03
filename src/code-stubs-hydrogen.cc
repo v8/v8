@@ -922,14 +922,13 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, state.fixed_right_arg()));
+                    result_type));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
-                    left_type, right_type, result_type,
-                    state.fixed_right_arg()));
+                    left_type, right_type, result_type));
       }
       if_leftisstring.End();
       result = Pop();
@@ -941,14 +940,13 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, state.fixed_right_arg()));
+                    result_type));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
-                    left_type, right_type, result_type,
-                    state.fixed_right_arg()));
+                    left_type, right_type, result_type));
       }
       if_rightisstring.End();
       result = Pop();
@@ -956,8 +954,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   } else {
     result = BuildBinaryOperation(
             state.op(), left, right,
-            left_type, right_type, result_type,
-            state.fixed_right_arg());
+            left_type, right_type, result_type);
   }
 
   // If we encounter a generic argument, the number conversion is
