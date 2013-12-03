@@ -29,6 +29,22 @@
 
 // Flags: --allow-natives-syntax
 
+assertEquals("-Infinity", String(1/Math.sin(-0)));
+assertEquals(1, Math.cos(-0));
+assertEquals("-Infinity", String(1/Math.tan(-0)));
+
+// Assert that minus zero does not cause deopt.
+function no_deopt_on_minus_zero(x) {
+  return Math.sin(x) + Math.cos(x) + Math.tan(x);
+}
+
+no_deopt_on_minus_zero(1);
+no_deopt_on_minus_zero(1);
+%OptimizeFunctionOnNextCall(no_deopt_on_minus_zero);
+no_deopt_on_minus_zero(-0);
+assertOptimized(no_deopt_on_minus_zero);
+
+
 function sinTest() {
   assertEquals(0, Math.sin(0));
   assertEquals(1, Math.sin(Math.PI / 2));
@@ -169,14 +185,3 @@ for (var i = -1024; i < 1024; i++) {
 assertFalse(isNaN(Math.cos(1.57079632679489700)));
 assertFalse(isNaN(Math.cos(-1e-100)));
 assertFalse(isNaN(Math.cos(-1e-323)));
-
-
-function no_deopt_on_minus_zero(x) {
-  return Math.sin(x) + Math.cos(x) + Math.tan(x);
-}
-
-no_deopt_on_minus_zero(1);
-no_deopt_on_minus_zero(1);
-%OptimizeFunctionOnNextCall(no_deopt_on_minus_zero);
-no_deopt_on_minus_zero(-0);
-assertOptimized(no_deopt_on_minus_zero);

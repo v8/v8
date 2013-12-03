@@ -1435,16 +1435,15 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode) {
+                                  ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-
   Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, strict_mode,
+      Code::HANDLER, MONOMORPHIC, extra_ic_state,
       Code::NORMAL, Code::STORE_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, edx, ecx, ebx, no_reg);

@@ -3505,7 +3505,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       HInnerAllocatedObject::New(zone,
                                  context(),
                                  dominator_allocate,
-                                 dominator_size_constant,
+                                 dominator_size,
                                  type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
@@ -3601,11 +3601,9 @@ void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
 void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   ASSERT(filler_free_space_size_ == NULL);
   Zone* zone = block()->zone();
-  int32_t dominator_size =
-      HConstant::cast(dominating_allocate_->size())->GetInteger32Constant();
   HInstruction* free_space_instr =
       HInnerAllocatedObject::New(zone, context(), dominating_allocate_,
-      dominator_size, type());
+      dominating_allocate_->size(), type());
   free_space_instr->InsertBefore(this);
   HConstant* filler_map = HConstant::New(
       zone,

@@ -2131,18 +2131,18 @@ Local<String> Message::Get() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Message::Get()", return Local<String>());
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::String> raw_result = i::MessageHandler::GetMessage(isolate, obj);
   Local<String> result = Utils::ToLocal(raw_result);
-  return scope.Close(result);
+  return scope.Escape(result);
 }
 
 
 v8::Handle<Value> Message::GetScriptResourceName() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.name.
@@ -2151,14 +2151,14 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
                                                        isolate));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name(),
                                      isolate);
-  return scope.Close(Utils::ToLocal(resource_name));
+  return scope.Escape(Utils::ToLocal(resource_name));
 }
 
 
 v8::Handle<Value> Message::GetScriptData() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.data.
@@ -2166,21 +2166,21 @@ v8::Handle<Value> Message::GetScriptData() const {
       i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
                                                        isolate));
   i::Handle<i::Object> data(i::Script::cast(script->value())->data(), isolate);
-  return scope.Close(Utils::ToLocal(data));
+  return scope.Escape(Utils::ToLocal(data));
 }
 
 
 v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
   if (!stackFramesObj->IsJSArray()) return v8::Handle<v8::StackTrace>();
   i::Handle<i::JSArray> stackTrace =
       i::Handle<i::JSArray>::cast(stackFramesObj);
-  return scope.Close(Utils::StackTraceToLocal(stackTrace));
+  return scope.Escape(Utils::StackTraceToLocal(stackTrace));
 }
 
 
@@ -2300,14 +2300,14 @@ Local<String> Message::GetSourceLine() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Message::GetSourceLine()", return Local<String>());
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = CallV8HeapFunction("GetSourceLine",
                                                    Utils::OpenHandle(this),
                                                    &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::String>());
   if (result->IsString()) {
-    return scope.Close(Utils::ToLocal(i::Handle<i::String>::cast(result)));
+    return scope.Escape(Utils::ToLocal(i::Handle<i::String>::cast(result)));
   } else {
     return Local<String>();
   }
@@ -2331,11 +2331,11 @@ void Message::PrintCurrentStackTrace(FILE* out) {
 Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSArray> self = Utils::OpenHandle(this);
   i::Object* raw_object = self->GetElementNoExceptionThrown(isolate, index);
   i::Handle<i::JSObject> obj(i::JSObject::cast(raw_object));
-  return scope.Close(Utils::StackFrameToLocal(obj));
+  return scope.Escape(Utils::StackFrameToLocal(obj));
 }
 
 
@@ -2415,39 +2415,39 @@ int StackFrame::GetScriptId() const {
 Local<String> StackFrame::GetScriptName() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "scriptName");
   if (!name->IsString()) {
     return Local<String>();
   }
-  return scope.Close(Local<String>::Cast(Utils::ToLocal(name)));
+  return scope.Escape(Local<String>::Cast(Utils::ToLocal(name)));
 }
 
 
 Local<String> StackFrame::GetScriptNameOrSourceURL() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "scriptNameOrSourceURL");
   if (!name->IsString()) {
     return Local<String>();
   }
-  return scope.Close(Local<String>::Cast(Utils::ToLocal(name)));
+  return scope.Escape(Local<String>::Cast(Utils::ToLocal(name)));
 }
 
 
 Local<String> StackFrame::GetFunctionName() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "functionName");
   if (!name->IsString()) {
     return Local<String>();
   }
-  return scope.Close(Local<String>::Cast(Utils::ToLocal(name)));
+  return scope.Escape(Local<String>::Cast(Utils::ToLocal(name)));
 }
 
 
@@ -4158,7 +4158,7 @@ Local<v8::Object> Function::NewInstance(int argc,
   ENTER_V8(isolate);
   i::Logger::TimerEventScope timer_scope(
       isolate, i::Logger::TimerEventScope::v8_execute);
-  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSFunction> function = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4166,7 +4166,7 @@ Local<v8::Object> Function::NewInstance(int argc,
   i::Handle<i::Object> returned =
       i::Execution::New(function, argc, args, &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
-  return scope.Close(Utils::ToLocal(i::Handle<i::JSObject>::cast(returned)));
+  return scope.Escape(Utils::ToLocal(i::Handle<i::JSObject>::cast(returned)));
 }
 
 
@@ -7069,7 +7069,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   if (!isolate->IsInitialized()) return Local<Value>();
   ON_BAILOUT(isolate, "v8::Debug::GetMirror()", return Local<Value>());
   ENTER_V8(isolate);
-  v8::HandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  v8::EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Debug* isolate_debug = isolate->debug();
   isolate_debug->Load();
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
@@ -7081,11 +7081,10 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   const int kArgc = 1;
   v8::Handle<v8::Value> argv[kArgc] = { obj };
   EXCEPTION_PREAMBLE(isolate);
-  v8::Handle<v8::Value> result = v8_fun->Call(Utils::ToLocal(debug),
-                                              kArgc,
-                                              argv);
+  v8::Local<v8::Value> result =
+      v8_fun->Call(Utils::ToLocal(debug), kArgc, argv);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
-  return scope.Close(result);
+  return scope.Escape(result);
 }
 
 
@@ -7497,8 +7496,9 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
 }
 
 
-void HeapProfiler::StartTrackingHeapObjects() {
-  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking();
+void HeapProfiler::StartTrackingHeapObjects(bool track_allocations) {
+  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking(
+      track_allocations);
 }
 
 
@@ -7537,12 +7537,12 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 
 
 void HeapProfiler::StartRecordingHeapAllocations() {
-  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapAllocationsRecording();
+  reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking(true);
 }
 
 
 void HeapProfiler::StopRecordingHeapAllocations() {
-  reinterpret_cast<i::HeapProfiler*>(this)->StopHeapAllocationsRecording();
+  reinterpret_cast<i::HeapProfiler*>(this)->StopHeapObjectsTracking();
 }
 
 

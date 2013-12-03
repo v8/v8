@@ -127,6 +127,23 @@ class HCheckTable : public ZoneObject {
       new_entry->check_ = NULL;
       new_entry->maps_ = old_entry->maps_->Copy(phase_->zone());
     }
+    if (succ->predecessors()->length() == 1) {
+      HControlInstruction* end = succ->predecessors()->at(0)->end();
+      if (end->IsCompareMap() && end->SuccessorAt(0) == succ) {
+        // Learn on the true branch of if(CompareMap(x)).
+        HCompareMap* cmp = HCompareMap::cast(end);
+        HValue* object = cmp->value()->ActualValue();
+        HCheckTableEntry* entry = copy->Find(object);
+        if (entry == NULL) {
+          copy->Insert(object, cmp->map());
+        } else {
+          MapSet list = new(phase_->zone()) UniqueSet<Map>();
+          list->Add(cmp->map(), phase_->zone());
+          entry->maps_ = list;
+        }
+      }
+      // TODO(titzer): is it worthwhile to learn on false branch too?
+    }
     return copy;
   }
 

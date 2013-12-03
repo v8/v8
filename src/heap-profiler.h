@@ -53,7 +53,7 @@ class HeapProfiler {
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
 
-  void StartHeapObjectsTracking();
+  void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
 
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
@@ -77,9 +77,6 @@ class HeapProfiler {
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
   bool is_tracking_allocations() const { return is_tracking_allocations_; }
-
-  void StartHeapAllocationsRecording();
-  void StopHeapAllocationsRecording();
 
   int FindUntrackedObjects() {
     return snapshots_->FindUntrackedObjects();

@@ -364,8 +364,10 @@ enum IcCheckType { ELEMENT, PROPERTY };
 // The stub compilers compile stubs for the stub cache.
 class StubCompiler BASE_EMBEDDED {
  public:
-  explicit StubCompiler(Isolate* isolate)
-      : isolate_(isolate), masm_(isolate, NULL, 256), failure_(NULL) { }
+  explicit StubCompiler(Isolate* isolate,
+                        ExtraICState extra_ic_state = kNoExtraICState)
+      : isolate_(isolate), extra_ic_state_(extra_ic_state),
+        masm_(isolate, NULL, 256), failure_(NULL) { }
 
   // Functions to compile either CallIC or KeyedCallIC.  The specific kind
   // is extracted from the code flags.
@@ -489,6 +491,8 @@ class StubCompiler BASE_EMBEDDED {
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
   Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<Name> name);
 
+  ExtraICState extra_state() { return extra_ic_state_; }
+
   MacroAssembler* masm() { return &masm_; }
   void set_failure(Failure* failure) { failure_ = failure; }
 
@@ -504,6 +508,7 @@ class StubCompiler BASE_EMBEDDED {
 
  private:
   Isolate* isolate_;
+  const ExtraICState extra_ic_state_;
   MacroAssembler masm_;
   Failure* failure_;
 };
@@ -516,8 +521,11 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
  public:
   BaseLoadStoreStubCompiler(Isolate* isolate,
                             Code::Kind kind,
+                            ExtraICState extra_ic_state = kNoExtraICState,
                             InlineCacheHolderFlag cache_holder = OWN_MAP)
-      : StubCompiler(isolate), kind_(kind), cache_holder_(cache_holder) {
+      : StubCompiler(isolate, extra_ic_state),
+        kind_(kind),
+        cache_holder_(cache_holder) {
     InitializeRegisters();
   }
   virtual ~BaseLoadStoreStubCompiler() { }
@@ -589,7 +597,6 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   }
   void JitEvent(Handle<Name> name, Handle<Code> code);
 
-  virtual ExtraICState extra_state() { return kNoExtraICState; }
   virtual Register receiver() = 0;
   virtual Register name() = 0;
   virtual Register scratch1() = 0;
@@ -609,9 +616,11 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
 class LoadStubCompiler: public BaseLoadStoreStubCompiler {
  public:
   LoadStubCompiler(Isolate* isolate,
+                   ExtraICState extra_ic_state = kNoExtraICState,
                    InlineCacheHolderFlag cache_holder = OWN_MAP,
                    Code::Kind kind = Code::LOAD_IC)
-      : BaseLoadStoreStubCompiler(isolate, kind, cache_holder) { }
+      : BaseLoadStoreStubCompiler(isolate, kind, extra_ic_state,
+                                  cache_holder) { }
   virtual ~LoadStubCompiler() { }
 
   Handle<Code> CompileLoadField(Handle<Type> type,
@@ -708,8 +717,10 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
 class KeyedLoadStubCompiler: public LoadStubCompiler {
  public:
   KeyedLoadStubCompiler(Isolate* isolate,
+                        ExtraICState extra_ic_state = kNoExtraICState,
                         InlineCacheHolderFlag cache_holder = OWN_MAP)
-      : LoadStubCompiler(isolate, cache_holder, Code::KEYED_LOAD_IC) { }
+      : LoadStubCompiler(isolate, extra_ic_state, cache_holder,
+                         Code::KEYED_LOAD_IC) { }
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
@@ -732,10 +743,9 @@ class KeyedLoadStubCompiler: public LoadStubCompiler {
 class StoreStubCompiler: public BaseLoadStoreStubCompiler {
  public:
   StoreStubCompiler(Isolate* isolate,
-                    StrictModeFlag strict_mode,
+                    ExtraICState extra_ic_state,
                     Code::Kind kind = Code::STORE_IC)
-      : BaseLoadStoreStubCompiler(isolate, kind),
-        strict_mode_(strict_mode) { }
+      : BaseLoadStoreStubCompiler(isolate, kind, extra_ic_state) {}
 
   virtual ~StoreStubCompiler() { }
 
@@ -826,16 +836,11 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
   virtual Register scratch1() { return registers_[3]; }
   virtual Register scratch2() { return registers_[4]; }
   virtual Register scratch3() { return registers_[5]; }
-  StrictModeFlag strict_mode() { return strict_mode_; }
-  virtual ExtraICState extra_state() {
-    return StoreIC::ComputeExtraICState(strict_mode_);
-  }
 
  protected:
   static Register* registers();
 
  private:
-  StrictModeFlag strict_mode_;
   friend class BaseLoadStoreStubCompiler;
 };
 
@@ -843,10 +848,8 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
 class KeyedStoreStubCompiler: public StoreStubCompiler {
  public:
   KeyedStoreStubCompiler(Isolate* isolate,
-                         StrictModeFlag strict_mode,
-                         KeyedAccessStoreMode store_mode)
-      : StoreStubCompiler(isolate, strict_mode, Code::KEYED_STORE_IC),
-        store_mode_(store_mode) { }
+                         ExtraICState extra_ic_state)
+      : StoreStubCompiler(isolate, extra_ic_state, Code::KEYED_STORE_IC) {}
 
   Handle<Code> CompileStoreElement(Handle<Map> receiver_map);
 
@@ -859,10 +862,11 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
  protected:
-  virtual ExtraICState extra_state() {
-    return KeyedStoreIC::ComputeExtraICState(strict_mode(), store_mode_);
-  }
   static Register* registers();
+
+  KeyedAccessStoreMode store_mode() {
+    return KeyedStoreIC::GetKeyedAccessStoreMode(extra_state());
+  }
 
  private:
   Register transition_map() {
@@ -872,7 +876,6 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
   virtual void GenerateNameCheck(Handle<Name> name,
                                  Register name_reg,
                                  Label* miss);
-  KeyedAccessStoreMode store_mode_;
   friend class BaseLoadStoreStubCompiler;
 };
 
@@ -1000,7 +1003,6 @@ class CallStubCompiler: public StubCompiler {
 
   const ParameterCount arguments_;
   const Code::Kind kind_;
-  const ExtraICState extra_state_;
   const InlineCacheHolderFlag cache_holder_;
 };
 

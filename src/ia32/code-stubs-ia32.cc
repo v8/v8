@@ -330,7 +330,7 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpStub::InitializeInterfaceDescriptor(
+void BinaryOpICStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { edx, eax };
@@ -2961,9 +2961,9 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   if (Serializer::enabled()) {
     PlatformFeatureScope sse2(SSE2);
-    BinaryOpStub::GenerateAheadOfTime(isolate);
+    BinaryOpICStub::GenerateAheadOfTime(isolate);
   } else {
-    BinaryOpStub::GenerateAheadOfTime(isolate);
+    BinaryOpICStub::GenerateAheadOfTime(isolate);
   }
 }
 

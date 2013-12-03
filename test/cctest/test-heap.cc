@@ -935,7 +935,7 @@ TEST(EmptyHandleEscapeFrom) {
   Handle<JSObject> runaway;
 
   {
-      v8::HandleScope nested(CcTest::isolate());
+      v8::EscapableHandleScope nested(CcTest::isolate());
       Handle<JSObject> empty;
       runaway = empty.EscapeFrom(&nested);
   }

@@ -180,7 +180,7 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpStub::InitializeInterfaceDescriptor(
+void BinaryOpICStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { rdx, rax };
@@ -2788,7 +2788,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the store buffer overflow stubs are generated first.
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  BinaryOpStub::GenerateAheadOfTime(isolate);
+  BinaryOpICStub::GenerateAheadOfTime(isolate);
 }
 
 

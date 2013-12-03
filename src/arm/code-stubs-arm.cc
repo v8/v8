@@ -193,7 +193,7 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpStub::InitializeInterfaceDescriptor(
+void BinaryOpICStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { r1, r0 };
@@ -1666,7 +1666,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  BinaryOpStub::GenerateAheadOfTime(isolate);
+  BinaryOpICStub::GenerateAheadOfTime(isolate);
 }
 
 

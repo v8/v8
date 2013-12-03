@@ -2298,7 +2298,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   patch_site.EmitJumpIfSmi(scratch1, &smi_case);
 
   __ bind(&stub_call);
-  BinaryOpStub stub(op, mode);
+  BinaryOpICStub stub(op, mode);
   CallIC(stub.GetCode(isolate()), RelocInfo::CODE_TARGET,
          expr->BinaryOperationFeedbackId());
   patch_site.EmitPatchInfo();
@@ -2307,7 +2307,6 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ bind(&smi_case);
   // Smi case. This code works the same way as the smi-smi case in the type
   // recording binary operation stub, see
-  // BinaryOpStub::GenerateSmiSmiOperation for comments.
   switch (op) {
     case Token::SAR:
       __ GetLeastBitsFromSmi(scratch1, right, 5);
@@ -2376,7 +2375,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
   __ pop(r1);
-  BinaryOpStub stub(op, mode);
+  BinaryOpICStub stub(op, mode);
   JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
   CallIC(stub.GetCode(isolate()), RelocInfo::CODE_TARGET,
          expr->BinaryOperationFeedbackId());
@@ -4416,7 +4415,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Record position before stub call.
   SetSourcePosition(expr->position());
 
-  BinaryOpStub stub(Token::ADD, NO_OVERWRITE);
+  BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
   CallIC(stub.GetCode(isolate()),
          RelocInfo::CODE_TARGET,
          expr->CountBinOpFeedbackId());

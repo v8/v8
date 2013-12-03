@@ -1412,12 +1412,14 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kNonStrictMode);
+  StoreIC::GenerateMegamorphic(masm,
+                               StoreIC::ComputeExtraICState(kNonStrictMode));
 }
 
 
 static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kStrictMode);
+  StoreIC::GenerateMegamorphic(masm,
+                               StoreIC::ComputeExtraICState(kStrictMode));
 }
 
 

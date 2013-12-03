@@ -5609,21 +5609,21 @@ class HStoreCodeEntry V8_FINAL: public HTemplateInstruction<2> {
 };
 
 
-class HInnerAllocatedObject V8_FINAL: public HTemplateInstruction<1> {
+class HInnerAllocatedObject V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HInnerAllocatedObject* New(Zone* zone,
                                     HValue* context,
                                     HValue* value,
-                                    int offset,
+                                    HValue* offset,
                                     HType type = HType::Tagged()) {
     return new(zone) HInnerAllocatedObject(value, offset, type);
   }
 
   HValue* base_object() { return OperandAt(0); }
-  int offset() { return offset_; }
+  HValue* offset() { return OperandAt(1); }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
+    return index == 0 ? Representation::Tagged() : Representation::Integer32();
   }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -5631,15 +5631,16 @@ class HInnerAllocatedObject V8_FINAL: public HTemplateInstruction<1> {
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
 
  private:
-  HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
-      : HTemplateInstruction<1>(type), offset_(offset) {
+  HInnerAllocatedObject(HValue* value,
+                        HValue* offset,
+                        HType type = HType::Tagged())
+      : HTemplateInstruction<2>(type) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
+    SetOperandAt(1, offset);
     set_type(type);
     set_representation(Representation::Tagged());
   }
-
-  int offset_;
 };
 
 

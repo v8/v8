@@ -358,13 +358,13 @@ class HeapObjectsTracker {
   HeapObjectsTracker() {
     heap_profiler_ = i::Isolate::Current()->heap_profiler();
     CHECK_NE(NULL, heap_profiler_);
-    heap_profiler_->StartHeapAllocationsRecording();
+    heap_profiler_->StartHeapObjectsTracking(true);
   }
 
   ~HeapObjectsTracker() {
     i::Isolate::Current()->heap()->CollectAllAvailableGarbage();
     CHECK_EQ(0, heap_profiler_->FindUntrackedObjects());
-    heap_profiler_->StopHeapAllocationsRecording();
+    heap_profiler_->StopHeapObjectsTracking();
   }
 
  private:

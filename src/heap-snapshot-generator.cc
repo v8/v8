@@ -752,9 +752,10 @@ HeapSnapshotsCollection::~HeapSnapshotsCollection() {
 }
 
 
-void HeapSnapshotsCollection::StartHeapObjectsTracking() {
+void HeapSnapshotsCollection::StartHeapObjectsTracking(bool track_allocations) {
   ids_.UpdateHeapObjectsMap();
-  if (allocation_tracker_ == NULL) {
+  ASSERT(allocation_tracker_ == NULL);
+  if (track_allocations) {
     allocation_tracker_ = new AllocationTracker(&ids_, names());
   }
 }

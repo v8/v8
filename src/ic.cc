@@ -1205,7 +1205,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
 
   Handle<Type> type = CurrentTypeOf(object, isolate());
   Handle<JSObject> holder(lookup->holder());
-  LoadStubCompiler compiler(isolate(), cache_holder, kind());
+  LoadStubCompiler compiler(isolate(), kNoExtraICState, cache_holder, kind());
 
   switch (lookup->type()) {
     case FIELD: {
@@ -2317,76 +2317,464 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
 }
 
 
-const char* BinaryOpIC::GetName(TypeInfo type_info) {
-  switch (type_info) {
-    case UNINITIALIZED: return "Uninitialized";
-    case SMI: return "Smi";
-    case INT32: return "Int32";
-    case NUMBER: return "Number";
-    case ODDBALL: return "Oddball";
-    case STRING: return "String";
-    case GENERIC: return "Generic";
-    default: return "Invalid";
+BinaryOpIC::State::State(ExtraICState extra_ic_state) {
+  // We don't deserialize the SSE2 Field, since this is only used to be able
+  // to include SSE2 as well as non-SSE2 versions in the snapshot. For code
+  // generation we always want it to reflect the current state.
+  op_ = static_cast<Token::Value>(
+      FIRST_TOKEN + OpField::decode(extra_ic_state));
+  mode_ = OverwriteModeField::decode(extra_ic_state);
+  fixed_right_arg_ = Maybe<int>(
+      HasFixedRightArgField::decode(extra_ic_state),
+      1 << FixedRightArgValueField::decode(extra_ic_state));
+  left_kind_ = LeftKindField::decode(extra_ic_state);
+  if (fixed_right_arg_.has_value) {
+    right_kind_ = Smi::IsValid(fixed_right_arg_.value) ? SMI : INT32;
+  } else {
+    right_kind_ = RightKindField::decode(extra_ic_state);
+  }
+  result_kind_ = ResultKindField::decode(extra_ic_state);
+  ASSERT_LE(FIRST_TOKEN, op_);
+  ASSERT_LE(op_, LAST_TOKEN);
+}
+
+
+ExtraICState BinaryOpIC::State::GetExtraICState() const {
+  bool sse2 = (Max(result_kind_, Max(left_kind_, right_kind_)) > SMI &&
+               CpuFeatures::IsSafeForSnapshot(SSE2));
+  ExtraICState extra_ic_state =
+      SSE2Field::encode(sse2) |
+      OpField::encode(op_ - FIRST_TOKEN) |
+      OverwriteModeField::encode(mode_) |
+      LeftKindField::encode(left_kind_) |
+      ResultKindField::encode(result_kind_) |
+      HasFixedRightArgField::encode(fixed_right_arg_.has_value);
+  if (fixed_right_arg_.has_value) {
+    extra_ic_state = FixedRightArgValueField::update(
+        extra_ic_state, WhichPowerOf2(fixed_right_arg_.value));
+  } else {
+    extra_ic_state = RightKindField::update(extra_ic_state, right_kind_);
+  }
+  return extra_ic_state;
+}
+
+
+// static
+void BinaryOpIC::State::GenerateAheadOfTime(
+    Isolate* isolate, void (*Generate)(Isolate*, const State&)) {
+  // TODO(olivf) We should investigate why adding stubs to the snapshot is so
+  // expensive at runtime. When solved we should be able to add most binops to
+  // the snapshot instead of hand-picking them.
+  // Generated list of commonly used stubs
+#define GENERATE(op, left_kind, right_kind, result_kind, mode)  \
+  do {                                                          \
+    State state(op, mode);                                      \
+    state.left_kind_ = left_kind;                               \
+    state.fixed_right_arg_.has_value = false;                   \
+    state.right_kind_ = right_kind;                             \
+    state.result_kind_ = result_kind;                           \
+    Generate(isolate, state);                                   \
+  } while (false)
+  GENERATE(Token::ADD, INT32, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::ADD, INT32, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, INT32, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::ADD, INT32, INT32, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, INT32, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::ADD, INT32, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, INT32, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::ADD, INT32, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::ADD, INT32, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, INT32, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::ADD, NUMBER, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::ADD, NUMBER, INT32, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, NUMBER, INT32, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::ADD, NUMBER, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::ADD, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, NUMBER, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::ADD, NUMBER, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::ADD, NUMBER, SMI, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, NUMBER, SMI, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::ADD, SMI, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::ADD, SMI, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, SMI, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::ADD, SMI, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::ADD, SMI, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::ADD, SMI, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::ADD, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, INT32, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, INT32, INT32, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_AND, INT32, INT32, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, INT32, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_AND, INT32, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, INT32, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_AND, INT32, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_AND, INT32, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, NUMBER, INT32, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, NUMBER, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_AND, NUMBER, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, SMI, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_AND, SMI, INT32, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, SMI, NUMBER, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_AND, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_AND, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_AND, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_OR, INT32, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_OR, INT32, INT32, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_OR, INT32, INT32, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_OR, INT32, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_OR, INT32, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_OR, INT32, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_OR, INT32, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_OR, INT32, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_OR, NUMBER, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_OR, NUMBER, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_OR, NUMBER, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_OR, NUMBER, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_OR, NUMBER, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_OR, SMI, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_OR, SMI, INT32, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_OR, SMI, INT32, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_OR, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_OR, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_XOR, INT32, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, INT32, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_XOR, INT32, INT32, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_XOR, INT32, INT32, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, INT32, INT32, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_XOR, INT32, NUMBER, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, INT32, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, INT32, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_XOR, INT32, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::BIT_XOR, NUMBER, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, NUMBER, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, NUMBER, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, SMI, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, SMI, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_XOR, SMI, INT32, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_XOR, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::BIT_XOR, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::BIT_XOR, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::DIV, INT32, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::DIV, INT32, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, INT32, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, INT32, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, INT32, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::DIV, INT32, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, NUMBER, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, NUMBER, INT32, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, NUMBER, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, NUMBER, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::DIV, NUMBER, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, NUMBER, SMI, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, SMI, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::DIV, SMI, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, SMI, INT32, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, SMI, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, SMI, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::DIV, SMI, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::DIV, SMI, SMI, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, SMI, SMI, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::DIV, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::DIV, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::DIV, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::MOD, NUMBER, SMI, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::MOD, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::MOD, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, INT32, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::MUL, INT32, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, INT32, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, INT32, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, INT32, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::MUL, INT32, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, INT32, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, NUMBER, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, NUMBER, INT32, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, NUMBER, INT32, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::MUL, NUMBER, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, NUMBER, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, NUMBER, SMI, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, NUMBER, SMI, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::MUL, SMI, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::MUL, SMI, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, SMI, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, SMI, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, SMI, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::MUL, SMI, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::MUL, SMI, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::MUL, SMI, SMI, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::MUL, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::MUL, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SAR, INT32, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::SAR, INT32, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SAR, INT32, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SAR, NUMBER, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SAR, NUMBER, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SAR, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::SAR, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SHL, INT32, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::SHL, INT32, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::SHL, INT32, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SHL, INT32, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SHL, NUMBER, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SHL, SMI, SMI, INT32, NO_OVERWRITE);
+  GENERATE(Token::SHL, SMI, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::SHL, SMI, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::SHL, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SHL, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::SHL, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SHR, INT32, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SHR, INT32, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::SHR, INT32, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SHR, NUMBER, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SHR, NUMBER, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::SHR, NUMBER, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::SHR, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SHR, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::SHR, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::SUB, INT32, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::SUB, INT32, INT32, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::SUB, INT32, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::SUB, INT32, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::SUB, INT32, SMI, INT32, OVERWRITE_LEFT);
+  GENERATE(Token::SUB, INT32, SMI, INT32, OVERWRITE_RIGHT);
+  GENERATE(Token::SUB, NUMBER, INT32, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::SUB, NUMBER, INT32, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::SUB, NUMBER, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::SUB, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::SUB, NUMBER, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::SUB, NUMBER, SMI, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::SUB, NUMBER, SMI, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::SUB, NUMBER, SMI, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::SUB, SMI, INT32, INT32, NO_OVERWRITE);
+  GENERATE(Token::SUB, SMI, NUMBER, NUMBER, NO_OVERWRITE);
+  GENERATE(Token::SUB, SMI, NUMBER, NUMBER, OVERWRITE_LEFT);
+  GENERATE(Token::SUB, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT);
+  GENERATE(Token::SUB, SMI, SMI, SMI, NO_OVERWRITE);
+  GENERATE(Token::SUB, SMI, SMI, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::SUB, SMI, SMI, SMI, OVERWRITE_RIGHT);
+#undef GENERATE
+#define GENERATE(op, left_kind, fixed_right_arg_value, result_kind, mode) \
+  do {                                                                    \
+    State state(op, mode);                                                \
+    state.left_kind_ = left_kind;                                         \
+    state.fixed_right_arg_.has_value = true;                              \
+    state.fixed_right_arg_.value = fixed_right_arg_value;                 \
+    state.right_kind_ = SMI;                                              \
+    state.result_kind_ = result_kind;                                     \
+    Generate(isolate, state);                                             \
+  } while (false)
+  GENERATE(Token::MOD, SMI, 2, SMI, NO_OVERWRITE);
+  GENERATE(Token::MOD, SMI, 4, SMI, NO_OVERWRITE);
+  GENERATE(Token::MOD, SMI, 4, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::MOD, SMI, 8, SMI, NO_OVERWRITE);
+  GENERATE(Token::MOD, SMI, 16, SMI, OVERWRITE_LEFT);
+  GENERATE(Token::MOD, SMI, 32, SMI, NO_OVERWRITE);
+  GENERATE(Token::MOD, SMI, 2048, SMI, NO_OVERWRITE);
+#undef GENERATE
+}
+
+
+Handle<Type> BinaryOpIC::State::GetResultType(Isolate* isolate) const {
+  Kind result_kind = result_kind_;
+  if (HasSideEffects()) {
+    result_kind = NONE;
+  } else if (result_kind == GENERIC && op_ == Token::ADD) {
+    return handle(Type::Union(handle(Type::Number(), isolate),
+                              handle(Type::String(), isolate)), isolate);
+  } else if (result_kind == NUMBER && op_ == Token::SHR) {
+    return handle(Type::Unsigned32(), isolate);
+  }
+  ASSERT_NE(GENERIC, result_kind);
+  return KindToType(result_kind, isolate);
+}
+
+
+void BinaryOpIC::State::Print(StringStream* stream) const {
+  stream->Add("(%s", Token::Name(op_));
+  if (mode_ == OVERWRITE_LEFT) stream->Add("_ReuseLeft");
+  else if (mode_ == OVERWRITE_RIGHT) stream->Add("_ReuseRight");
+  stream->Add(":%s*", KindToString(left_kind_));
+  if (fixed_right_arg_.has_value) {
+    stream->Add("%d", fixed_right_arg_.value);
+  } else {
+    stream->Add("%s", KindToString(right_kind_));
+  }
+  stream->Add("->%s)", KindToString(result_kind_));
+}
+
+
+void BinaryOpIC::State::Update(Handle<Object> left,
+                               Handle<Object> right,
+                               Handle<Object> result) {
+  ExtraICState old_extra_ic_state = GetExtraICState();
+
+  left_kind_ = UpdateKind(left, left_kind_);
+  right_kind_ = UpdateKind(right, right_kind_);
+
+  int32_t fixed_right_arg_value = 0;
+  bool has_fixed_right_arg =
+      op_ == Token::MOD &&
+      right->ToInt32(&fixed_right_arg_value) &&
+      fixed_right_arg_value > 0 &&
+      IsPowerOf2(fixed_right_arg_value) &&
+      FixedRightArgValueField::is_valid(fixed_right_arg_value) &&
+      (left_kind_ == SMI || left_kind_ == INT32) &&
+      (result_kind_ == NONE || !fixed_right_arg_.has_value);
+  fixed_right_arg_ = Maybe<int32_t>(has_fixed_right_arg,
+                                    fixed_right_arg_value);
+
+  result_kind_ = UpdateKind(result, result_kind_);
+
+  if (!Token::IsTruncatingBinaryOp(op_)) {
+    Kind input_kind = Max(left_kind_, right_kind_);
+    if (result_kind_ < input_kind && input_kind <= NUMBER) {
+      result_kind_ = input_kind;
+    }
+  }
+
+  // Reset overwrite mode unless we can actually make use of it, or may be able
+  // to make use of it at some point in the future.
+  if ((mode_ == OVERWRITE_LEFT && left_kind_ > NUMBER) ||
+      (mode_ == OVERWRITE_RIGHT && right_kind_ > NUMBER) ||
+      result_kind_ > NUMBER) {
+    mode_ = NO_OVERWRITE;
+  }
+
+  if (old_extra_ic_state == GetExtraICState()) {
+    // Tagged operations can lead to non-truncating HChanges
+    if (left->IsUndefined() || left->IsBoolean()) {
+      left_kind_ = GENERIC;
+    } else if (right->IsUndefined() || right->IsBoolean()) {
+      right_kind_ = GENERIC;
+    } else {
+      // Since the X87 is too precise, we might bail out on numbers which
+      // actually would truncate with 64 bit precision.
+      ASSERT(!CpuFeatures::IsSupported(SSE2));
+      ASSERT(result_kind_ < NUMBER);
+      result_kind_ = NUMBER;
+    }
   }
 }
 
 
+BinaryOpIC::State::Kind BinaryOpIC::State::UpdateKind(Handle<Object> object,
+                                                      Kind kind) const {
+  Kind new_kind = GENERIC;
+  bool is_truncating = Token::IsTruncatingBinaryOp(op());
+  if (object->IsBoolean() && is_truncating) {
+    // Booleans will be automatically truncated by HChange.
+    new_kind = INT32;
+  } else if (object->IsUndefined()) {
+    // Undefined will be automatically truncated by HChange.
+    new_kind = is_truncating ? INT32 : NUMBER;
+  } else if (object->IsSmi()) {
+    new_kind = SMI;
+  } else if (object->IsHeapNumber()) {
+    double value = Handle<HeapNumber>::cast(object)->value();
+    new_kind = TypeInfo::IsInt32Double(value) ? INT32 : NUMBER;
+  } else if (object->IsString() && op() == Token::ADD) {
+    new_kind = STRING;
+  }
+  if (new_kind == INT32 && SmiValuesAre32Bits()) {
+    new_kind = NUMBER;
+  }
+  if (kind != NONE &&
+      ((new_kind <= NUMBER && kind > NUMBER) ||
+       (new_kind > NUMBER && kind <= NUMBER))) {
+    new_kind = GENERIC;
+  }
+  return Max(kind, new_kind);
+}
+
+
+// static
+const char* BinaryOpIC::State::KindToString(Kind kind) {
+  switch (kind) {
+    case NONE: return "None";
+    case SMI: return "Smi";
+    case INT32: return "Int32";
+    case NUMBER: return "Number";
+    case STRING: return "String";
+    case GENERIC: return "Generic";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
+// static
+Handle<Type> BinaryOpIC::State::KindToType(Kind kind, Isolate* isolate) {
+  Type* type = NULL;
+  switch (kind) {
+    case NONE: type = Type::None(); break;
+    case SMI: type = Type::Smi(); break;
+    case INT32: type = Type::Signed32(); break;
+    case NUMBER: type = Type::Number(); break;
+    case STRING: type = Type::String(); break;
+    case GENERIC: type = Type::Any(); break;
+  }
+  return handle(type, isolate);
+}
+
+
 MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
-  ExtraICState extra_ic_state = target()->extended_extra_ic_state();
-  BinaryOpStub stub(extra_ic_state);
+  State state(target()->extended_extra_ic_state());
 
-  Handle<Type> left_type = stub.GetLeftType(isolate());
-  Handle<Type> right_type = stub.GetRightType(isolate());
-  bool smi_was_enabled = left_type->Maybe(Type::Smi()) &&
-                         right_type->Maybe(Type::Smi());
+  // Compute the actual result using the builtin for the binary operation.
+  Object* builtin = isolate()->js_builtins_object()->javascript_builtin(
+      TokenToJSBuiltin(state.op()));
+  Handle<JSFunction> function = handle(JSFunction::cast(builtin), isolate());
+  bool caught_exception;
+  Handle<Object> result = Execution::Call(
+      isolate(), function, left, 1, &right, &caught_exception);
+  if (caught_exception) return Failure::Exception();
 
-  Maybe<Handle<Object> > result = stub.Result(left, right, isolate());
-  if (!result.has_value) return Failure::Exception();
+  // Compute the new state.
+  State old_state = state;
+  state.Update(left, right, result);
+
+  // Install the new stub.
+  BinaryOpICStub stub(state);
+  set_target(*stub.GetCode(isolate()));
 
   if (FLAG_trace_ic) {
-    char buffer[100];
-    NoAllocationStringAllocator allocator(buffer,
-                                        static_cast<unsigned>(sizeof(buffer)));
+    char buffer[150];
+    NoAllocationStringAllocator allocator(
+        buffer, static_cast<unsigned>(sizeof(buffer)));
     StringStream stream(&allocator);
-    stream.Add("[");
-    stub.PrintName(&stream);
-
-    stub.UpdateStatus(left, right, result);
-
+    stream.Add("[BinaryOpIC");
+    old_state.Print(&stream);
     stream.Add(" => ");
-    stub.PrintState(&stream);
-    stream.Add(" ");
+    state.Print(&stream);
+    stream.Add(" @ %p <- ", static_cast<void*>(*target()));
     stream.OutputToStdOut();
-    PrintF(" @ %p <- ", static_cast<void*>(*stub.GetCode(isolate())));
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
     PrintF("]\n");
-  } else {
-    stub.UpdateStatus(left, right, result);
   }
 
-  Handle<Code> code = stub.GetCode(isolate());
-  set_target(*code);
-
-  left_type = stub.GetLeftType(isolate());
-  right_type = stub.GetRightType(isolate());
-  bool enable_smi = left_type->Maybe(Type::Smi()) &&
-                    right_type->Maybe(Type::Smi());
-
-  if (!smi_was_enabled && enable_smi) {
+  // Patch the inlined smi code as necessary.
+  if (!old_state.UseInlinedSmiCode() && state.UseInlinedSmiCode()) {
     PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
-  } else if (smi_was_enabled && !enable_smi) {
+  } else if (old_state.UseInlinedSmiCode() && !state.UseInlinedSmiCode()) {
     PatchInlinedSmiCode(address(), DISABLE_INLINED_SMI_CHECK);
   }
 
-  ASSERT(result.has_value);
-  return static_cast<MaybeObject*>(*result.value);
+  return *result;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss) {
   HandleScope scope(isolate);
-  Handle<Object> left = args.at<Object>(0);
-  Handle<Object> right = args.at<Object>(1);
+  Handle<Object> left = args.at<Object>(BinaryOpICStub::kLeft);
+  Handle<Object> right = args.at<Object>(BinaryOpICStub::kRight);
   BinaryOpIC ic(isolate);
   return ic.Transition(left, right);
 }

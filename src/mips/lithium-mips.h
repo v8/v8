@@ -1778,19 +1778,19 @@ class LStoreCodeEntry V8_FINAL: public LTemplateInstruction<0, 1, 1> {
 };
 
 
-class LInnerAllocatedObject V8_FINAL: public LTemplateInstruction<1, 1, 0> {
+class LInnerAllocatedObject V8_FINAL: public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LInnerAllocatedObject(LOperand* base_object) {
+  LInnerAllocatedObject(LOperand* base_object, LOperand* offset) {
     inputs_[0] = base_object;
+    inputs_[1] = offset;
   }
 
-  LOperand* base_object() { return inputs_[0]; }
-  int offset() { return hydrogen()->offset(); }
+  LOperand* base_object() const { return inputs_[0]; }
+  LOperand* offset() const { return inputs_[1]; }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "sub-allocated-object")
-  DECLARE_HYDROGEN_ACCESSOR(InnerAllocatedObject)
+  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "inner-allocated-object")
 };
 
 

@@ -1,3 +1,8 @@
+2013-12-03: Version 3.23.17
+
+        Performance and stability improvements on all platforms.
+
+
 2013-12-02: Version 3.23.16
 
         Array builtins need to be prevented from changing frozen objects, and

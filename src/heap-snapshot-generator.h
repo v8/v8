@@ -296,7 +296,7 @@ class HeapSnapshotsCollection {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
     return ids_.PushHeapObjectsStats(stream);
   }
-  void StartHeapObjectsTracking();
+  void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
 
   HeapSnapshot* NewSnapshot(const char* name, unsigned uid);

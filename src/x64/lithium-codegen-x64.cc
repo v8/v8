@@ -1951,7 +1951,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->right()).is(rax));
   ASSERT(ToRegister(instr->result()).is(rax));
 
-  BinaryOpStub stub(instr->op(), NO_OVERWRITE);
+  BinaryOpICStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   __ nop();  // Signals no inlined code.
 }
@@ -3972,7 +3972,13 @@ void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
 void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
   Register result = ToRegister(instr->result());
   Register base = ToRegister(instr->base_object());
-  __ lea(result, Operand(base, instr->offset()));
+  if (instr->offset()->IsConstantOperand()) {
+    LConstantOperand* offset = LConstantOperand::cast(instr->offset());
+    __ lea(result, Operand(base, ToInteger32(offset)));
+  } else {
+    Register offset = ToRegister(instr->offset());
+    __ lea(result, Operand(base, offset, times_1, 0));
+  }
 }
 
 
