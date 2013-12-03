@@ -288,6 +288,9 @@ class ScriptTest(unittest.TestCase):
   def Sleep(self, seconds):
     pass
 
+  def GetDate(self):
+    return "1999-07-31"
+
   def ExpectGit(self, *args):
     """Convenience wrapper."""
     self._git_mock.Expect(*args)
@@ -444,35 +447,33 @@ class ScriptTest(unittest.TestCase):
 
     actual_cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
 
-    # TODO(machenbach): Mock out call to date() in order to make a fixed
-    # comparison here instead of a regexp match.
-    expected_cl = """\\d+\\-\\d+\\-\\d+: Version 3\\.22\\.5
+    expected_cl = """1999-07-31: Version 3.22.5
 
         Title text 1.
 
-        Title text 3 \\(Chromium issue 321\\).
+        Title text 3 (Chromium issue 321).
 
-        Performance and stability improvements on all platforms\\.
+        Performance and stability improvements on all platforms.
 #
-# The change log above is auto-generated\\. Please review if all relevant
-# commit messages from the list below are included\\.
-# All lines starting with # will be stripped\\.
+# The change log above is auto-generated. Please review if all relevant
+# commit messages from the list below are included.
+# All lines starting with # will be stripped.
 #
 #       Title text 1.
-#       \\(author1@chromium\\.org\\)
+#       (author1@chromium.org)
 #
-#       Title text 2 \\(Chromium issue 123\\).
-#       \\(author2@chromium\\.org\\)
+#       Title text 2 (Chromium issue 123).
+#       (author2@chromium.org)
 #
-#       Title text 3 \\(Chromium issue 321\\).
-#       \\(author3@chromium\\.org\\)
+#       Title text 3 (Chromium issue 321).
+#       (author3@chromium.org)
 #
-#       Title text 4 \\(Chromium issue 456\\).
-#       \\(author4@chromium\\.org\\)
+#       Title text 4 (Chromium issue 456).
+#       (author4@chromium.org)
 #
 #"""
 
-    self.assertTrue(re.match(expected_cl, actual_cl))
+    self.assertEquals(expected_cl, actual_cl)
     self.assertEquals("3", self.MakeStep().Restore("major"))
     self.assertEquals("22", self.MakeStep().Restore("minor"))
     self.assertEquals("5", self.MakeStep().Restore("build"))

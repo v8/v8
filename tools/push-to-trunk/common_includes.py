@@ -26,6 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import datetime
 import os
 import re
 import subprocess
@@ -202,8 +203,11 @@ class SideEffectHandler(object):
     finally:
       url_fh.close()
 
-  def Sleep(seconds):
+  def Sleep(self, seconds):
     time.sleep(seconds)
+
+  def GetDate(self):
+    return datetime.date.today().strftime("%Y-%m-%d")
 
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
@@ -285,6 +289,9 @@ class Step(object):
     wait_plan = wait_plan or [3, 60, 600]
     cmd = lambda: self._side_effect_handler.ReadURL(url)
     return self.Retry(cmd, retry_on, wait_plan)
+
+  def GetDate(self):
+    return self._side_effect_handler.GetDate()
 
   def Die(self, msg=""):
     if msg != "":

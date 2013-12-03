@@ -26,7 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import datetime
 import optparse
 import sys
 import tempfile
@@ -115,7 +114,7 @@ class PrepareChangeLog(Step):
     # These version numbers are used again later for the trunk commit.
     self.ReadAndPersistVersion()
 
-    date = datetime.date.today().strftime("%Y-%m-%d")
+    date = self.GetDate()
     self.Persist("date", date)
     output = "%s: Version %s.%s.%s\n\n" % (date,
                                            self._state["major"],
