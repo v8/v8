@@ -8732,9 +8732,11 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   Handle<Type> left_type = expr->left()->bounds().lower;
   Handle<Type> right_type = expr->right()->bounds().lower;
   Handle<Type> result_type = expr->bounds().lower;
+  Maybe<int> fixed_right_arg = expr->fixed_right_arg();
 
   HValue* result = HGraphBuilder::BuildBinaryOperation(
-      expr->op(), left, right, left_type, right_type, result_type);
+      expr->op(), left, right, left_type, right_type,
+      result_type, fixed_right_arg);
   // Add a simulate after instructions with observable side effects, and
   // after phis, which are the result of BuildBinaryOperation when we
   // inlined some complex subgraph.
@@ -8753,10 +8755,15 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     HValue* right,
     Handle<Type> left_type,
     Handle<Type> right_type,
-    Handle<Type> result_type) {
+    Handle<Type> result_type,
+    Maybe<int> fixed_right_arg) {
 
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
+
+  bool maybe_string_add = op == Token::ADD &&
+                          (left_type->Maybe(Type::String()) ||
+                           right_type->Maybe(Type::String()));
 
   if (left_type->Is(Type::None())) {
     Add<HDeoptimize>("Insufficient type feedback for LHS of binary operation",
@@ -8764,34 +8771,18 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     // TODO(rossberg): we should be able to get rid of non-continuous
     // defaults.
     left_type = handle(Type::Any(), isolate());
-  } else if (left_type->IsConstant()) {
-    HConstant* c_left = Add<HConstant>(left_type->AsConstant());
-    IfBuilder if_same(this);
-    if (c_left->HasDoubleValue()) {
-      if_same.If<HCompareNumericAndBranch>(left, c_left, Token::EQ);
-    } else {
-      if_same.If<HCompareObjectEqAndBranch>(left, c_left);
-    }
-    if_same.Then();
-    if_same.ElseDeopt("Unexpected LHS of binary operation");
-    left = c_left;
+  } else {
+    if (!maybe_string_add) left = TruncateToNumber(left, &left_type);
+    left_rep = Representation::FromType(left_type);
   }
 
   if (right_type->Is(Type::None())) {
     Add<HDeoptimize>("Insufficient type feedback for RHS of binary operation",
                      Deoptimizer::SOFT);
     right_type = handle(Type::Any(), isolate());
-  } else if (right_type->IsConstant()) {
-    HConstant* c_right = Add<HConstant>(right_type->AsConstant());
-    IfBuilder if_same(this);
-    if (c_right->HasDoubleValue()) {
-      if_same.If<HCompareNumericAndBranch>(right, c_right, Token::EQ);
-    } else {
-      if_same.If<HCompareObjectEqAndBranch>(right, c_right);
-    }
-    if_same.Then();
-    if_same.ElseDeopt("Unexpected RHS of binary operation");
-    right = c_right;
+  } else {
+    if (!maybe_string_add) right = TruncateToNumber(right, &right_type);
+    right_rep = Representation::FromType(right_type);
   }
 
   // Special case for string addition here.
@@ -8834,11 +8825,6 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     return AddUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
   }
 
-  left = TruncateToNumber(left, &left_type);
-  left_rep = Representation::FromType(left_type);
-  right = TruncateToNumber(right, &right_type);
-  right_rep = Representation::FromType(right_type);
-
   if (graph()->info()->IsStub()) {
     left = EnforceNumberType(left, left_type);
     right = EnforceNumberType(right, right_type);
@@ -8870,6 +8856,22 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         instr = AddUncasted<HMul>(left, right);
         break;
       case Token::MOD: {
+        if (fixed_right_arg.has_value) {
+          if (right->IsConstant()) {
+            HConstant* c_right = HConstant::cast(right);
+            if (c_right->HasInteger32Value()) {
+              ASSERT_EQ(fixed_right_arg.value, c_right->Integer32Value());
+            }
+          } else {
+            HConstant* fixed_right = Add<HConstant>(
+                static_cast<int>(fixed_right_arg.value));
+            IfBuilder if_same(this);
+            if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
+            if_same.Then();
+            if_same.ElseDeopt("Unexpected RHS of binary operation");
+            right = fixed_right;
+          }
+        }
         instr = AddUncasted<HMod>(left, right);
         break;
       }
