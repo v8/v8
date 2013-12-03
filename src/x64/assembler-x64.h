@@ -530,6 +530,10 @@ class CpuFeatures : public AllStatic {
 };
 
 
+#define ASSEMBLER_INSTRUCTION_LIST(V)  \
+  V(mov)
+
+
 class Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
@@ -658,6 +662,24 @@ class Assembler : public AssemblerBase {
   // Some mnemonics, such as "and", are the same as C++ keywords.
   // Naming conflicts with C++ keywords are resolved by adding a trailing '_'.
 
+#define DECLARE_INSTRUCTION(instruction)                \
+  template<class P1, class P2>                          \
+  void instruction##p(P1 p1, P2 p2) {                   \
+    emit_##instruction(p1, p2, kPointerSize);           \
+  }                                                     \
+                                                        \
+  template<class P1, class P2>                          \
+  void instruction##l(P1 p1, P2 p2) {                   \
+    emit_##instruction(p1, p2, kInt32Size);             \
+  }                                                     \
+                                                        \
+  template<class P1, class P2>                          \
+  void instruction##q(P1 p1, P2 p2) {                   \
+    emit_##instruction(p1, p2, kInt64Size);             \
+  }
+  ASSEMBLER_INSTRUCTION_LIST(DECLARE_INSTRUCTION)
+#undef DECLARE_INSTRUCTION
+
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m, where m must be a power of 2.
@@ -695,30 +717,15 @@ class Assembler : public AssemblerBase {
   void movw(const Operand& dst, Register src);
   void movw(const Operand& dst, Immediate imm);
 
-  void movl(Register dst, Register src);
-  void movl(Register dst, const Operand& src);
-  void movl(const Operand& dst, Register src);
-  void movl(const Operand& dst, Immediate imm);
-  // Load a 32-bit immediate value, zero-extended to 64 bits.
-  void movl(Register dst, Immediate imm32);
-
-  // Move 64 bit register value to 64-bit memory location.
-  void movq(const Operand& dst, Register src);
-  // Move 64 bit memory location to 64-bit register value.
-  void movq(Register dst, const Operand& src);
-  void movq(Register dst, Register src);
-  // Sign extends immediate 32-bit value to 64 bits.
-  void movq(Register dst, Immediate x);
   // Move the offset of the label location relative to the current
   // position (after the move) to the destination.
   void movl(const Operand& dst, Label* src);
 
-  // Move sign extended immediate to memory location.
-  void movq(const Operand& dst, Immediate value);
   // Loads a pointer into a register with a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value);
+  void movq(Register dst, uint64_t value);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
   void movsxbq(Register dst, const Operand& src);
@@ -1590,6 +1597,25 @@ class Assembler : public AssemblerBase {
   // numbers have a high bit set.
   inline void emit_optional_rex_32(const Operand& op);
 
+  template<class P1>
+  void emit_rex(P1 p1, int size) {
+    if (size == kInt64Size) {
+      emit_rex_64(p1);
+    } else {
+      ASSERT(size == kInt32Size);
+      emit_optional_rex_32(p1);
+    }
+  }
+
+  template<class P1, class P2>
+  void emit_rex(P1 p1, P2 p2, int size) {
+    if (size == kInt64Size) {
+      emit_rex_64(p1, p2);
+    } else {
+      ASSERT(size == kInt32Size);
+      emit_optional_rex_32(p1, p2);
+    }
+  }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes
@@ -1674,6 +1700,12 @@ class Assembler : public AssemblerBase {
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+
+  void emit_mov(Register dst, const Operand& src, int size);
+  void emit_mov(Register dst, Register src, int size);
+  void emit_mov(const Operand& dst, Register src, int size);
+  void emit_mov(Register dst, Immediate value, int size);
+  void emit_mov(const Operand& dst, Immediate value, int size);
 
   friend class CodePatcher;
   friend class EnsureSpace;
