@@ -55,8 +55,11 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
 # Use this to run several variants of the tests.
 VARIANT_FLAGS = [[]]
 MODE_FLAGS = {
-    "debug"   : [],
-    "release" : []}
+    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
+                 "--nofold-constants", "--enable-slow-asserts",
+                 "--debug-code", "--verify-heap"],
+    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
+                 "--nofold-constants"]}
 
 SUPPORTED_ARCHS = ["android_arm",
                    "android_ia32",
