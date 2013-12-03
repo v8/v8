@@ -614,6 +614,7 @@ HValue* CodeStubGraphBuilder<KeyedArrayCallStub>::BuildCodeStub() {
   info()->set_parameter_count(argc);
 
   HValue* receiver = Add<HParameter>(1);
+  BuildCheckHeapObject(receiver);
 
   // Load the expected initial array map from the context.
   JSArrayBuilder array_builder(this, casted_stub()->elements_kind());
