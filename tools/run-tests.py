@@ -147,6 +147,8 @@ def BuildOptions():
                     help=("The style of progress indicator"
                           " (verbose, dots, color, mono)"),
                     choices=progress.PROGRESS_INDICATORS.keys(), default="mono")
+  result.add_option("--quickcheck", default=False, action="store_true",
+                    help=("Quick check mode (skip slow/flaky tests)"))
   result.add_option("--report", help="Print a summary of the tests to be run",
                     default=False, action="store_true")
   result.add_option("--shard-count",
@@ -190,7 +192,7 @@ def ProcessOptions(options):
     options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode.lower() in ["debug", "release"]:
+    if not mode.lower() in ["debug", "release", "optdebug"]:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
@@ -226,9 +228,9 @@ def ProcessOptions(options):
     return reduce(lambda x, y: x + y, args) <= 1
 
   if not excl(options.no_stress, options.stress_only, options.no_variants,
-              bool(options.variants)):
-    print("Use only one of --no-stress, --stress-only, --no-variants or "
-          "--variants.")
+              bool(options.variants), options.quickcheck):
+    print("Use only one of --no-stress, --stress-only, --no-variants, "
+          "--variants, or --quickcheck.")
     return False
   if options.no_stress:
     VARIANTS = ["default", "nocrankshaft"]
@@ -241,6 +243,12 @@ def ProcessOptions(options):
     if not set(VARIANTS).issubset(VARIANT_FLAGS.keys()):
       print "All variants must be in %s" % str(VARIANT_FLAGS.keys())
       return False
+  if options.quickcheck:
+    VARIANTS = ["default", "stress"]
+    options.flaky_tests = "skip"
+    options.slow_tests = "skip"
+    options.pass_fail_tests = "skip"
+
   if not options.shell_dir:
     if options.shell:
       print "Warning: --shell is deprecated, use --shell-dir instead."
@@ -338,6 +346,9 @@ def Execute(arch, mode, args, options, suites, workspace):
       shell_dir = os.path.join(workspace, options.outdir,
                                "%s.%s" % (arch, mode))
   shell_dir = os.path.relpath(shell_dir)
+
+  if mode == "optdebug":
+    mode = "debug"  # "optdebug" is just an alias.
 
   # Populate context object.
   mode_flags = MODE_FLAGS[mode]
