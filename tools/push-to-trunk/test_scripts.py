@@ -103,6 +103,17 @@ class ToplevelTest(unittest.TestCase):
                       "        Title text 3 (Chromium issue 1234).\n\n",
                       MakeChangeLogBody(commits, True))
 
+  def testRegressWrongLogEntryOnTrue(self):
+    body = """
+Check elimination: Learn from if(CompareMap(x)) on true branch.
+
+BUG=
+R=verwaest@chromium.org
+
+Committed: https://code.google.com/p/v8/source/detail?r=18210
+"""
+    self.assertEquals("", MakeChangeLogBody([["title", body, "author"]], True))
+
   def testMakeChangeLogBugReferenceEmpty(self):
     self.assertEquals("", MakeChangeLogBugReference(""))
     self.assertEquals("", MakeChangeLogBugReference("LOG="))

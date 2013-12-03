@@ -105,7 +105,7 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
     title = title.strip()
     if auto_format:
       # Only add commits that set the LOG flag correctly.
-      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:Y(?:ES)?)|TRUE"
+      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:(?:Y(?:ES)?)|TRUE)"
       if not re.search(log_exp, body, flags=re.I | re.M):
         continue
       # Never include reverts.
