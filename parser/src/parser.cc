@@ -553,10 +553,13 @@ Parser::Parser(CompilationInfo* info)
       info_(info) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
+  set_allow_harmony_scoping(!info_->is_native() && FLAG_harmony_scoping);
+  set_allow_modules(!info_->is_native() && FLAG_harmony_modules);
   set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
+  set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
 }
 
 
@@ -5697,9 +5700,9 @@ bool Parser::Parse() {
 
 
 void Parser::SetScannerFlags() {
-  scanner_->SetHarmonyScoping(!info_->is_native() && FLAG_harmony_scoping);
-  scanner_->SetHarmonyModules(!info_->is_native() && FLAG_harmony_modules);
-  scanner_->SetHarmonyNumericLiterals(FLAG_harmony_numeric_literals);
+  scanner_->SetHarmonyScoping(allow_harmony_scoping_);
+  scanner_->SetHarmonyModules(allow_harmony_modules_);
+  scanner_->SetHarmonyNumericLiterals(allow_harmony_numeric_literals_);
 }
 
 } }  // namespace v8::internal

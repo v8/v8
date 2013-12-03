@@ -41,6 +41,9 @@ class ParserBase {
  public:
   ParserBase(ScannerBase* scanner, uintptr_t stack_limit)
       : scanner_(scanner),
+        allow_harmony_modules_(false),
+        allow_harmony_scoping_(false),
+        allow_harmony_numeric_literals_(false),
         stack_limit_(stack_limit),
         stack_overflow_(false),
         allow_lazy_(false),
@@ -57,10 +60,10 @@ class ParserBase {
   bool allow_natives_syntax() const { return allow_natives_syntax_; }
   bool allow_generators() const { return allow_generators_; }
   bool allow_for_of() const { return allow_for_of_; }
-  bool allow_modules() const { return scanner()->HarmonyModules(); }
-  bool allow_harmony_scoping() const { return scanner()->HarmonyScoping(); }
+  bool allow_modules() const { return allow_harmony_modules_; }
+  bool allow_harmony_scoping() const { return allow_harmony_scoping_; }
   bool allow_harmony_numeric_literals() const {
-    return scanner()->HarmonyNumericLiterals();
+    return allow_harmony_numeric_literals_;
   }
 
   // Setters that determine whether certain syntactical constructs are
@@ -69,12 +72,21 @@ class ParserBase {
   void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
   void set_allow_generators(bool allow) { allow_generators_ = allow; }
   void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
-  void set_allow_modules(bool allow) { scanner()->SetHarmonyModules(allow); }
+  void set_allow_modules(bool allow) {
+    allow_harmony_modules_ = allow;
+    if (scanner())
+      scanner()->SetHarmonyModules(allow);
+  }
+
   void set_allow_harmony_scoping(bool allow) {
-    scanner()->SetHarmonyScoping(allow);
+    allow_harmony_scoping_ = allow;
+    if (scanner())
+      scanner()->SetHarmonyScoping(allow);
   }
   void set_allow_harmony_numeric_literals(bool allow) {
-    scanner()->SetHarmonyNumericLiterals(allow);
+    allow_harmony_numeric_literals_ = allow;
+    if (scanner())
+      scanner()->SetHarmonyNumericLiterals(allow);
   }
 
  protected:
@@ -197,6 +209,9 @@ class ParserBase {
   };
 
   ScannerBase* scanner_;
+  bool allow_harmony_modules_;
+  bool allow_harmony_scoping_;
+  bool allow_harmony_numeric_literals_;
 
  private:
   uintptr_t stack_limit_;
