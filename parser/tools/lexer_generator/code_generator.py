@@ -52,34 +52,6 @@ class CodeGenerator:
     self.__inline = inline
     self.__switching = switching
 
-  def __state_cmp(self, left, right):
-    if left['original_node_number'] == self.__start_node_number:
-      return -1
-    if right['original_node_number'] == self.__start_node_number:
-      return 1
-    c = cmp(len(left['disjoint_keys']), len(right['disjoint_keys']))
-    if c:
-      return c
-    c = cmp(left['disjoint_keys'], right['disjoint_keys'])
-    if c:
-      return c
-    c = cmp(len(left['transitions']), len(right['transitions']))
-    if c:
-      return c
-    c = cmp(left['depth'], right['depth'])
-    if c:
-      return c
-    left_precendence = left['action'].precedence() if left['action'] else -1
-    right_precendence = right['action'].precedence() if right['action'] else -1
-    c = cmp(left_precendence, right_precendence)
-    if c:
-      return c
-    # if left['original_node_number'] != right['original_node_number']:
-    #   # TODO fix
-    #   print "noncanonical node ordering %d %d" % (left['original_node_number'],
-    #                                               right['original_node_number'])
-    return cmp(left['original_node_number'], right['original_node_number'])
-
   @staticmethod
   def __range_cmp(left, right):
     if left[0] == 'PRIMARY_RANGE':
@@ -124,7 +96,7 @@ class CodeGenerator:
       else:
         raise Exception()
     return {
-      'node_number' : state.node_number(),
+      'node_number' : None,
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
       'switch_transitions' : [],
@@ -133,7 +105,6 @@ class CodeGenerator:
       'disjoint_keys' : disjoint_keys,
       'has_goto_after_entry' : False,
       'inline' : None,
-      'depth' : None,
       'action' : action,
       'entry_action' : entry_action,
       'match_action' : match_action,
@@ -141,15 +112,6 @@ class CodeGenerator:
       'distinct_keys' : distinct_keys,
       'ranges' : ranges
     }
-
-  @staticmethod
-  def __compute_depths(node_number, depth, id_map):
-    state = id_map[node_number]
-    if state['depth'] != None:
-      return
-    state['depth'] = depth
-    for (k, transition_node) in state['transitions']:
-      CodeGenerator.__compute_depths(transition_node, depth + 1, id_map)
 
   def __set_inline(self, count, state):
     assert state['inline'] == None
@@ -269,18 +231,25 @@ class CodeGenerator:
     state['long_char_transitions'] = (long_class_transitions +
                                       catchall_transition) # must be last
 
-  def __canonicalize_traversal(self):
+  @staticmethod
+  def __reorder(current_node_number, id_map, dfa_states):
+    current_node = id_map[current_node_number]
+    if current_node['node_number'] != None:
+      return
+    current_node['node_number'] = len(dfa_states)
+    dfa_states.append(current_node)
+    for (key, node_number) in current_node['transitions']:
+      CodeGenerator.__reorder(node_number, id_map, dfa_states)
+
+  def __build_dfa_states(self):
     dfa_states = []
     self.__dfa.visit_all_states(lambda state, acc: dfa_states.append(state))
     encoding = self.__dfa.encoding()
     f = lambda state : CodeGenerator.__transform_state(encoding, state)
     dfa_states = map(f, dfa_states)
     id_map = {x['original_node_number'] : x for x in dfa_states}
-    CodeGenerator.__compute_depths(self.__start_node_number, 1, id_map)
-    dfa_states = sorted(dfa_states, cmp=self.__state_cmp)
-    # remap all node numbers
-    for i, state in enumerate(dfa_states):
-      state['node_number'] = i
+    dfa_states = []
+    CodeGenerator.__reorder(self.__start_node_number, id_map, dfa_states)
     def f((key, original_node_number)):
       return (key, id_map[original_node_number]['node_number'])
     for state in dfa_states:
@@ -289,7 +258,6 @@ class CodeGenerator:
     assert len(dfa_states) == self.__dfa.node_count()
     # store states
     self.__dfa_states = dfa_states
-    return id_map
 
   def __rewrite_gotos(self):
     goto_map = {}
@@ -313,7 +281,7 @@ class CodeGenerator:
 
   def process(self):
 
-    id_map = self.__canonicalize_traversal()
+    self.__build_dfa_states()
     self.__rewrite_gotos()
 
     dfa_states = self.__dfa_states
