@@ -118,7 +118,7 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
     fi
   fi
   echo ">>> Step $CURRENT_STEP: Preparation"
-  if [ $REVERT_FROM_BLEEDING_EDGE==1 ] ; then
+  if [ $REVERT_FROM_BLEEDING_EDGE -eq 1 ] ; then
     MERGE_TO_BRANCH="bleeding_edge"
   else
     MERGE_TO_BRANCH=$1
