@@ -1195,14 +1195,14 @@ void FastReturnValueCallback<Object>(
 template<typename T>
 Handle<Value> TestFastReturnValues() {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::EscapableHandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
   v8::FunctionCallback callback = &FastReturnValueCallback<T>;
   object_template->Set(env->GetIsolate(), "callback",
                        v8::FunctionTemplate::New(callback));
   v8::Local<v8::Object> object = object_template->NewInstance();
   (*env)->Global()->Set(v8_str("callback_object"), object);
-  return scope.Close(CompileRun("callback_object.callback()"));
+  return scope.Escape(CompileRun("callback_object.callback()"));
 }
 
 
@@ -4188,12 +4188,12 @@ THREADED_TEST(Array) {
 
 
 void HandleF(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
+  v8::EscapableHandleScope scope(args.GetIsolate());
   ApiTestFuzzer::Fuzz();
   Local<v8::Array> result = v8::Array::New(args.GetIsolate(), args.Length());
   for (int i = 0; i < args.Length(); i++)
     result->Set(i, args[i]);
-  args.GetReturnValue().Set(scope.Close(result));
+  args.GetReturnValue().Set(scope.Escape(result));
 }
 
 
@@ -13236,10 +13236,10 @@ THREADED_TEST(CheckForCrossContextObjectLiterals) {
 
 
 static v8::Handle<Value> NestedScope(v8::Local<Context> env) {
-  v8::HandleScope inner(env->GetIsolate());
+  v8::EscapableHandleScope inner(env->GetIsolate());
   env->Enter();
-  v8::Handle<Value> three = v8_num(3);
-  v8::Handle<Value> value = inner.Close(three);
+  v8::Local<Value> three = v8_num(3);
+  v8::Local<Value> value = inner.Escape(three);
   env->Exit();
   return value;
 }
@@ -13865,10 +13865,10 @@ THREADED_TEST(Regress54) {
   v8::HandleScope outer(isolate);
   static v8::Persistent<v8::ObjectTemplate> templ;
   if (templ.IsEmpty()) {
-    v8::HandleScope inner(isolate);
-    v8::Handle<v8::ObjectTemplate> local = v8::ObjectTemplate::New();
+    v8::EscapableHandleScope inner(isolate);
+    v8::Local<v8::ObjectTemplate> local = v8::ObjectTemplate::New();
     local->SetInternalFieldCount(1);
-    templ.Reset(isolate, inner.Close(local));
+    templ.Reset(isolate, inner.Escape(local));
   }
   v8::Handle<v8::Object> result =
       v8::Local<v8::ObjectTemplate>::New(isolate, templ)->NewInstance();
