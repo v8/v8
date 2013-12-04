@@ -5961,10 +5961,7 @@ class HObjectAccess V8_FINAL {
                 ? Representation::Smi() : Representation::Tagged());
   }
 
-  static HObjectAccess ForAllocationSiteOffset(int offset) {
-    ASSERT(offset >= HeapObject::kHeaderSize && offset < AllocationSite::kSize);
-    return HObjectAccess(kInobject, offset);
-  }
+  static HObjectAccess ForAllocationSiteOffset(int offset);
 
   static HObjectAccess ForAllocationSiteList() {
     return HObjectAccess(kExternalMemory, 0, Representation::Tagged());

@@ -4269,6 +4269,29 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
 }
 
 
+HObjectAccess HObjectAccess::ForAllocationSiteOffset(int offset) {
+  switch (offset) {
+    case AllocationSite::kTransitionInfoOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kNestedSiteOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kMementoFoundCountOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kMementoCreateCountOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kPretenureDecisionOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kDependentCodeOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kWeakNextOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    default:
+      UNREACHABLE();
+  }
+  return HObjectAccess(kInobject, offset);
+}
+
+
 HObjectAccess HObjectAccess::ForContextSlot(int index) {
   ASSERT(index >= 0);
   Portion portion = kInobject;
