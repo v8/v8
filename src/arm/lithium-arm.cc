@@ -1187,9 +1187,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathRound: return DoMathRound(instr);
     case kMathAbs: return DoMathAbs(instr);
     case kMathLog: return DoMathLog(instr);
-    case kMathSin: return DoMathSin(instr);
-    case kMathCos: return DoMathCos(instr);
-    case kMathTan: return DoMathTan(instr);
     case kMathExp: return DoMathExp(instr);
     case kMathSqrt: return DoMathSqrt(instr);
     case kMathPowHalf: return DoMathPowHalf(instr);
@@ -1229,27 +1226,6 @@ LInstruction* LChunkBuilder::DoMathAbs(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   LOperand* input = UseFixedDouble(instr->value(), d2);
   LMathLog* result = new(zone()) LMathLog(input);
-  return MarkAsCall(DefineFixedDouble(result, d2), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathSin(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), d2);
-  LMathSin* result = new(zone()) LMathSin(input);
-  return MarkAsCall(DefineFixedDouble(result, d2), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathCos(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), d2);
-  LMathCos* result = new(zone()) LMathCos(input);
-  return MarkAsCall(DefineFixedDouble(result, d2), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathTan(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), d2);
-  LMathTan* result = new(zone()) LMathTan(input);
   return MarkAsCall(DefineFixedDouble(result, d2), instr);
 }
 
@@ -2676,6 +2652,5 @@ LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
   LOperand* index = UseRegister(instr->index());
   return DefineAsRegister(new(zone()) LLoadFieldByIndex(object, index));
 }
-
 
 } }  // namespace v8::internal

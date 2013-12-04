@@ -1190,9 +1190,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathRound: return DoMathRound(instr);
     case kMathAbs: return DoMathAbs(instr);
     case kMathLog: return DoMathLog(instr);
-    case kMathSin: return DoMathSin(instr);
-    case kMathCos: return DoMathCos(instr);
-    case kMathTan: return DoMathTan(instr);
     case kMathExp: return DoMathExp(instr);
     case kMathSqrt: return DoMathSqrt(instr);
     case kMathPowHalf: return DoMathPowHalf(instr);
@@ -1206,27 +1203,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   LOperand* input = UseFixedDouble(instr->value(), f4);
   LMathLog* result = new(zone()) LMathLog(input);
-  return MarkAsCall(DefineFixedDouble(result, f4), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathSin(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), f4);
-  LMathSin* result = new(zone()) LMathSin(input);
-  return MarkAsCall(DefineFixedDouble(result, f4), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathCos(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), f4);
-  LMathCos* result = new(zone()) LMathCos(input);
-  return MarkAsCall(DefineFixedDouble(result, f4), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathTan(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), f4);
-  LMathTan* result = new(zone()) LMathTan(input);
   return MarkAsCall(DefineFixedDouble(result, f4), instr);
 }
 

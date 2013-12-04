@@ -96,9 +96,6 @@ namespace internal {
 double modulo(double x, double y);
 
 // Custom implementation of math functions.
-double fast_sin(double input);
-double fast_cos(double input);
-double fast_tan(double input);
 double fast_log(double input);
 double fast_exp(double input);
 double fast_sqrt(double input);

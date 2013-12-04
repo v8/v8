@@ -2638,9 +2638,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         case kMathPowHalf:
         case kMathLog:
         case kMathExp:
-        case kMathSin:
-        case kMathCos:
-        case kMathTan:
           return Representation::Double();
         case kMathAbs:
           return representation();
@@ -2685,9 +2682,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
       case kMathLog:
-      case kMathSin:
-      case kMathCos:
-      case kMathTan:
         set_representation(Representation::Double());
         // These operations use the TranscendentalCache, so they may allocate.
         SetGVNFlag(kChangesNewSpacePromotion);

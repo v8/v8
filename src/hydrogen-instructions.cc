@@ -1119,9 +1119,6 @@ const char* HUnaryMathOperation::OpName() const {
     case kMathRound: return "round";
     case kMathAbs: return "abs";
     case kMathLog: return "log";
-    case kMathSin: return "sin";
-    case kMathCos: return "cos";
-    case kMathTan: return "tan";
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
     case kMathPowHalf: return "pow-half";
@@ -3859,10 +3856,6 @@ HInstruction* HUnaryMathOperation::New(
     }
     if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
-        case kMathSin:
-        case kMathCos:
-        case kMathTan:
-          return H_CONSTANT_DOUBLE(OS::nan_value());
         case kMathExp:
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
         case kMathLog:
@@ -3880,12 +3873,6 @@ HInstruction* HUnaryMathOperation::New(
       }
     }
     switch (op) {
-      case kMathSin:
-        return H_CONSTANT_DOUBLE(fast_sin(d));
-      case kMathCos:
-        return H_CONSTANT_DOUBLE(fast_cos(d));
-      case kMathTan:
-        return H_CONSTANT_DOUBLE(fast_tan(d));
       case kMathExp:
         return H_CONSTANT_DOUBLE(fast_exp(d));
       case kMathLog:

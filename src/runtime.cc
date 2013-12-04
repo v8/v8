@@ -7655,7 +7655,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_acos) {
   isolate->counters()->math_acos()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::ACOS, x);
+  return isolate->heap()->AllocateHeapNumber(acos(x));
 }
 
 
@@ -7665,7 +7665,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_asin) {
   isolate->counters()->math_asin()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::ASIN, x);
+  return isolate->heap()->AllocateHeapNumber(asin(x));
 }
 
 
@@ -7675,7 +7675,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan) {
   isolate->counters()->math_atan()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::ATAN, x);
+  return isolate->heap()->AllocateHeapNumber(atan(x));
 }
 
 
@@ -7702,16 +7702,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
     result = atan2(x, y);
   }
   return isolate->heap()->AllocateHeapNumber(result);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cos) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_cos()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::COS, x);
 }
 
 
@@ -7742,7 +7732,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   isolate->counters()->math_log()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::LOG, x);
+  return isolate->heap()->AllocateHeapNumber(fast_log(x));
 }
 
 
@@ -7831,16 +7821,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sin) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_sin()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::SIN, x);
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
@@ -7848,16 +7828,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->AllocateHeapNumber(fast_sqrt(x));
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_tan()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::TAN, x);
 }
 
 

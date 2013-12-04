@@ -789,9 +789,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
   switch (type_) {
     // Add more cases when necessary.
-    case TranscendentalCache::SIN: return Runtime::kMath_sin;
-    case TranscendentalCache::COS: return Runtime::kMath_cos;
-    case TranscendentalCache::TAN: return Runtime::kMath_tan;
     case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
@@ -807,99 +804,10 @@ void TranscendentalCacheStub::GenerateOperation(
   // rbx: Bits of input double. Must be preserved.
   // rcx: Pointer to cache entry. Must be preserved.
   // st(0): Input double
-  Label done;
-  if (type == TranscendentalCache::SIN ||
-      type == TranscendentalCache::COS ||
-      type == TranscendentalCache::TAN) {
-    // Both fsin and fcos require arguments in the range +/-2^63 and
-    // return NaN for infinities and NaN. They can share all code except
-    // the actual fsin/fcos operation.
-    Label in_range;
-    // If argument is outside the range -2^63..2^63, fsin/cos doesn't
-    // work. We must reduce it to the appropriate range.
-    __ movq(rdi, rbx);
-    // Move exponent and sign bits to low bits.
-    __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
-    // Remove sign bit.
-    __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
-    int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
-    __ cmpl(rdi, Immediate(supported_exponent_limit));
-    __ j(below, &in_range);
-    // Check for infinity and NaN. Both return NaN for sin.
-    __ cmpl(rdi, Immediate(0x7ff));
-    Label non_nan_result;
-    __ j(not_equal, &non_nan_result, Label::kNear);
-    // Input is +/-Infinity or NaN. Result is NaN.
-    __ fstp(0);
-    // NaN is represented by 0x7ff8000000000000.
-    __ subq(rsp, Immediate(kPointerSize));
-    __ movl(Operand(rsp, 4), Immediate(0x7ff80000));
-    __ movl(Operand(rsp, 0), Immediate(0x00000000));
-    __ fld_d(Operand(rsp, 0));
-    __ addq(rsp, Immediate(kPointerSize));
-    __ jmp(&done);
-
-    __ bind(&non_nan_result);
-
-    // Use fpmod to restrict argument to the range +/-2*PI.
-    __ movq(rdi, rax);  // Save rax before using fnstsw_ax.
-    __ fldpi();
-    __ fadd(0);
-    __ fld(1);
-    // FPU Stack: input, 2*pi, input.
-    {
-      Label no_exceptions;
-      __ fwait();
-      __ fnstsw_ax();
-      // Clear if Illegal Operand or Zero Division exceptions are set.
-      __ testl(rax, Immediate(5));  // #IO and #ZD flags of FPU status word.
-      __ j(zero, &no_exceptions);
-      __ fnclex();
-      __ bind(&no_exceptions);
-    }
-
-    // Compute st(0) % st(1)
-    {
-      Label partial_remainder_loop;
-      __ bind(&partial_remainder_loop);
-      __ fprem1();
-      __ fwait();
-      __ fnstsw_ax();
-      __ testl(rax, Immediate(0x400));  // Check C2 bit of FPU status word.
-      // If C2 is set, computation only has partial result. Loop to
-      // continue computation.
-      __ j(not_zero, &partial_remainder_loop);
-  }
-    // FPU Stack: input, 2*pi, input % 2*pi
-    __ fstp(2);
-    // FPU Stack: input % 2*pi, 2*pi,
-    __ fstp(0);
-    // FPU Stack: input % 2*pi
-    __ movq(rax, rdi);  // Restore rax, pointer to the new HeapNumber.
-    __ bind(&in_range);
-    switch (type) {
-      case TranscendentalCache::SIN:
-        __ fsin();
-        break;
-      case TranscendentalCache::COS:
-        __ fcos();
-        break;
-      case TranscendentalCache::TAN:
-        // FPTAN calculates tangent onto st(0) and pushes 1.0 onto the
-        // FP register stack.
-        __ fptan();
-        __ fstp(0);  // Pop FP register stack.
-        break;
-      default:
-        UNREACHABLE();
-    }
-    __ bind(&done);
-  } else {
-    ASSERT(type == TranscendentalCache::LOG);
-    __ fldln2();
-    __ fxch();
-    __ fyl2x();
-  }
+  ASSERT(type == TranscendentalCache::LOG);
+  __ fldln2();
+  __ fxch();
+  __ fyl2x();
 }
 
 

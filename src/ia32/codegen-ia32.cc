@@ -66,9 +66,6 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   if (buffer == NULL) {
     // Fallback to library function if function cannot be created.
     switch (type) {
-      case TranscendentalCache::SIN: return &sin;
-      case TranscendentalCache::COS: return &cos;
-      case TranscendentalCache::TAN: return &tan;
       case TranscendentalCache::LOG: return &log;
       default: UNIMPLEMENTED();
     }
