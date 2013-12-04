@@ -5652,11 +5652,10 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 
 
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
+                                            HValue* value,
                                             HValue* new_space_dominator) {
-  if (object->IsInnerAllocatedObject()) {
-    return ReceiverObjectNeedsWriteBarrier(
-        HInnerAllocatedObject::cast(object)->base_object(),
-        new_space_dominator);
+  while (object->IsInnerAllocatedObject()) {
+    object = HInnerAllocatedObject::cast(object)->base_object();
   }
   if (object->IsConstant() && HConstant::cast(object)->IsCell()) {
     return false;
@@ -5668,7 +5667,17 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
   }
   if (object != new_space_dominator) return true;
   if (object->IsAllocate()) {
-    return !HAllocate::cast(object)->IsNewSpaceAllocation();
+    // Stores to new space allocations require no write barriers if the object
+    // is the new space dominator.
+    if (HAllocate::cast(object)->IsNewSpaceAllocation()) {
+      return false;
+    }
+    // Likewise we don't need a write barrier if we store a value that
+    // originates from the same allocation (via allocation folding).
+    while (value->IsInnerAllocatedObject()) {
+      value = HInnerAllocatedObject::cast(value)->base_object();
+    }
+    return object != value;
   }
   return true;
 }
@@ -6589,12 +6598,14 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     if (field_representation().IsInteger32()) return false;
     if (field_representation().IsExternal()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
-        ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
+        ReceiverObjectNeedsWriteBarrier(object(), value(),
+                                        new_space_dominator());
   }
 
   bool NeedsWriteBarrierForMap() {
     if (IsSkipWriteBarrier()) return false;
-    return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
+    return ReceiverObjectNeedsWriteBarrier(object(), transition(),
+                                           new_space_dominator());
   }
 
   Representation field_representation() const {
@@ -6756,7 +6767,8 @@ class HStoreKeyed V8_FINAL
       return false;
     } else {
       return StoringValueNeedsWriteBarrier(value()) &&
-          ReceiverObjectNeedsWriteBarrier(elements(), new_space_dominator());
+          ReceiverObjectNeedsWriteBarrier(elements(), value(),
+                                          new_space_dominator());
     }
   }
 
