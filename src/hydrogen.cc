@@ -2592,6 +2592,9 @@ void HGraphBuilder::BuildCreateAllocationMemento(
             AllocationSite::kMementoCreateCountOffset));
     memento_create_count = AddUncasted<HAdd>(
         memento_create_count, graph()->GetConstant1());
+    // This smi value is reset to zero after every gc, overflow isn't a problem
+    // since the counter is bounded by the new space size.
+    memento_create_count->ClearFlag(HValue::kCanOverflow);
     HStoreNamedField* store = Add<HStoreNamedField>(
         allocation_site, HObjectAccess::ForAllocationSiteOffset(
             AllocationSite::kMementoCreateCountOffset), memento_create_count);
