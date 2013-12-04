@@ -1097,16 +1097,22 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
   return chars;
 }
 
-static void ReadBufferWeakCallback(v8::Isolate* isolate,
-                                   Persistent<ArrayBuffer>* array_buffer,
-                                   uint8_t* data) {
-  size_t byte_length =
-      Local<ArrayBuffer>::New(isolate, *array_buffer)->ByteLength();
-  isolate->AdjustAmountOfExternalAllocatedMemory(
+
+struct DataAndPersistent {
+  uint8_t* data;
+  Persistent<ArrayBuffer> handle;
+};
+
+
+static void ReadBufferWeakCallback(
+    const v8::WeakCallbackData<ArrayBuffer, DataAndPersistent>& data) {
+  size_t byte_length = data.GetValue()->ByteLength();
+  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<intptr_t>(byte_length));
 
-  delete[] data;
-  array_buffer->Reset();
+  delete[] data.GetParameter()->data;
+  data.GetParameter()->handle.Reset();
+  delete data.GetParameter();
 }
 
 
@@ -1120,16 +1126,18 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   Isolate* isolate = args.GetIsolate();
-  uint8_t* data = reinterpret_cast<uint8_t*>(
+  DataAndPersistent* data = new DataAndPersistent;
+  data->data = reinterpret_cast<uint8_t*>(
       ReadChars(args.GetIsolate(), *filename, &length));
-  if (data == NULL) {
+  if (data->data == NULL) {
+    delete data;
     Throw(args.GetIsolate(), "Error reading file");
     return;
   }
   Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data, length);
-  v8::Persistent<v8::ArrayBuffer> weak_handle(isolate, buffer);
-  weak_handle.MakeWeak(data, ReadBufferWeakCallback);
-  weak_handle.MarkIndependent();
+  data->handle.Reset(isolate, buffer);
+  data->handle.SetWeak(data, ReadBufferWeakCallback);
+  data->handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
   args.GetReturnValue().Set(buffer);

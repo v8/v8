@@ -196,6 +196,13 @@ class List {
   DISALLOW_COPY_AND_ASSIGN(List);
 };
 
+
+template<typename T, class P>
+size_t GetMemoryUsedByList(const List<T, P>& list) {
+  return list.length() * sizeof(T) + sizeof(list);
+}
+
+
 class Map;
 class Type;
 class Code;

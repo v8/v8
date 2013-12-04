@@ -1763,10 +1763,10 @@ bool HasWeakGlobalHandle() {
 }
 
 
-static void PersistentHandleCallback(v8::Isolate* isolate,
-                                     v8::Persistent<v8::Value>* handle,
-                                     void*) {
-  handle->Reset();
+static void PersistentHandleCallback(
+    const v8::WeakCallbackData<v8::Object, v8::Persistent<v8::Object> >& data) {
+  data.GetParameter()->Reset();
+  delete data.GetParameter();
 }
 
 
@@ -1776,8 +1776,9 @@ TEST(WeakGlobalHandle) {
 
   CHECK(!HasWeakGlobalHandle());
 
-  v8::Persistent<v8::Object> handle(env->GetIsolate(), v8::Object::New());
-  handle.MakeWeak<v8::Value, void>(NULL, PersistentHandleCallback);
+  v8::Persistent<v8::Object>* handle =
+      new v8::Persistent<v8::Object>(env->GetIsolate(), v8::Object::New());
+  handle->SetWeak(handle, PersistentHandleCallback);
 
   CHECK(HasWeakGlobalHandle());
 }
@@ -2055,7 +2056,8 @@ void HeapProfilerExtension::FindUntrackedObjects(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::HeapProfiler* heap_profiler =
       reinterpret_cast<i::HeapProfiler*>(args.GetIsolate()->GetHeapProfiler());
-  int untracked_objects = heap_profiler->FindUntrackedObjects();
+  int untracked_objects =
+      heap_profiler->heap_object_map()->FindUntrackedObjects();
   args.GetReturnValue().Set(untracked_objects);
   CHECK_EQ(0, untracked_objects);
 }
@@ -2161,12 +2163,6 @@ static const char* record_trace_tree_source =
 "for (var i = 0; i < 100; i++) start();\n";
 
 
-static i::HeapSnapshot* ToInternal(const v8::HeapSnapshot* snapshot) {
-  return const_cast<i::HeapSnapshot*>(
-      reinterpret_cast<const i::HeapSnapshot*>(snapshot));
-}
-
-
 static AllocationTraceNode* FindNode(
     AllocationTracker* tracker, const Vector<const char*>& names) {
   AllocationTraceNode* node = tracker->trace_tree()->root();
@@ -2201,10 +2197,8 @@ TEST(ArrayGrowLeftTrim) {
     "    a.shift();\n");
 
   const char* names[] = { "(anonymous function)" };
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-      v8::String::NewFromUtf8(env->GetIsolate(), "Test1"));
-  i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
-  AllocationTracker* tracker = collection->allocation_tracker();
+  AllocationTracker* tracker =
+      reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
   CHECK_NE(NULL, tracker);
   // Resolve all function locations.
   tracker->PrepareForSerialization();
@@ -2229,10 +2223,8 @@ TEST(TrackHeapAllocations) {
 
   CompileRun(record_trace_tree_source);
 
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-      v8::String::NewFromUtf8(env->GetIsolate(), "Test"));
-  i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
-  AllocationTracker* tracker = collection->allocation_tracker();
+  AllocationTracker* tracker =
+      reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
   CHECK_NE(NULL, tracker);
   // Resolve all function locations.
   tracker->PrepareForSerialization();
@@ -2282,10 +2274,8 @@ TEST(TrackBumpPointerAllocations) {
 
     CompileRun(inline_heap_allocation_source);
 
-    const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-        v8::String::NewFromUtf8(env->GetIsolate(), "Test2"));
-    i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
-    AllocationTracker* tracker = collection->allocation_tracker();
+    AllocationTracker* tracker =
+        reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
     CHECK_NE(NULL, tracker);
     // Resolve all function locations.
     tracker->PrepareForSerialization();
@@ -2310,10 +2300,8 @@ TEST(TrackBumpPointerAllocations) {
 
     CompileRun(inline_heap_allocation_source);
 
-    const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-        v8::String::NewFromUtf8(env->GetIsolate(), "Test1"));
-    i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
-    AllocationTracker* tracker = collection->allocation_tracker();
+    AllocationTracker* tracker =
+        reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
     CHECK_NE(NULL, tracker);
     // Resolve all function locations.
     tracker->PrepareForSerialization();

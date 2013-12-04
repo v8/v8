@@ -220,7 +220,8 @@ endif
 # variables, don't override them (use the targets instead).
 ARCHES = ia32 x64 arm mipsel
 DEFAULT_ARCHES = ia32 x64 arm
-MODES = release debug
+MODES = release debug optdebug
+DEFAULT_MODES = release debug
 ANDROID_ARCHES = android_ia32 android_arm android_mipsel
 NACL_ARCHES = nacl_ia32 nacl_x64
 
@@ -247,6 +248,7 @@ NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 ENVFILE = $(OUTDIR)/environment
 
 .PHONY: all check clean dependencies $(ENVFILE).new native \
+        qc quickcheck \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
@@ -255,7 +257,7 @@ ENVFILE = $(OUTDIR)/environment
         must-set-NACL_SDK_ROOT
 
 # Target definitions. "all" is the default.
-all: $(MODES)
+all: $(DEFAULT_MODES)
 
 # Special target for the buildbots to use. Depends on $(OUTDIR)/Makefile
 # having been created before.
@@ -274,11 +276,12 @@ $(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
 $(ARCHES): $(addprefix $$@.,$(MODES))
 
 # Defines how to build a particular target (e.g. ia32.release).
-$(BUILDS): $(OUTDIR)/Makefile.$$(basename $$@)
-	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$(basename $@) \
+$(BUILDS): $(OUTDIR)/Makefile.$$@
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
 	         CXX="$(CXX)" LINK="$(LINK)" \
 	         BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
-	                     python -c "print raw_input().capitalize()") \
+	                     python -c "print \
+	                     raw_input().replace('opt', '').capitalize()") \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
 native: $(OUTDIR)/Makefile.native
@@ -350,39 +353,40 @@ native.check: native
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
 	    --arch-and-mode=. $(TESTFLAGS)
 
-FASTTESTFLAGS = --flaky-tests=skip --slow-tests=skip --pass-fail-tests=skip \
-                --variants=default,stress
-FASTTESTMODES = ia32.release,x64.release,ia32.debug,x64.debug,arm.debug
+FASTTESTMODES = ia32.release,x64.release,ia32.optdebug,x64.optdebug,arm.optdebug
 
-quickcheck:
-	@$(MAKE) all optdebug=on
-	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    --arch-and-mode=$(FASTTESTMODES) $(FASTTESTFLAGS) $(TESTFLAGS)
+COMMA = ,
+EMPTY =
+SPACE = $(EMPTY) $(EMPTY)
+quickcheck: $(subst $(COMMA),$(SPACE),$(FASTTESTMODES))
+	tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch-and-mode=$(FASTTESTMODES) $(TESTFLAGS) --quickcheck
 qc: quickcheck
 
 # Clean targets. You can clean each architecture individually, or everything.
 $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)):
-	rm -f $(OUTDIR)/Makefile.$(basename $@)
+	rm -f $(OUTDIR)/Makefile.$(basename $@)*
 	rm -rf $(OUTDIR)/$(basename $@).release
 	rm -rf $(OUTDIR)/$(basename $@).debug
-	find $(OUTDIR) -regex '.*\(host\|target\).$(basename $@)\.mk' -delete
+	find $(OUTDIR) -regex '.*\(host\|target\)\.$(basename $@).*\.mk' -delete
 
 native.clean:
 	rm -f $(OUTDIR)/Makefile.native
 	rm -rf $(OUTDIR)/native
-	find $(OUTDIR) -regex '.*\(host\|target\).native\.mk' -delete
+	find $(OUTDIR) -regex '.*\(host\|target\)\.native\.mk' -delete
 
 clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean
 
 # GYP file generation targets.
-OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
+OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
 $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
-	              -Dv8_target_arch=$(subst .,,$(suffix $@)) \
-	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS)
+	              -Dv8_target_arch=$(subst .,,$(suffix $(basename $@))) \
+	              -Dv8_optimized_debug=$(if $(findstring optdebug,$@),2,0) \
+	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \

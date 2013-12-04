@@ -2625,7 +2625,7 @@ void BinaryOpIC::State::Update(Handle<Object> left,
       right->ToInt32(&fixed_right_arg_value) &&
       fixed_right_arg_value > 0 &&
       IsPowerOf2(fixed_right_arg_value) &&
-      FixedRightArgValueField::is_valid(fixed_right_arg_value) &&
+      FixedRightArgValueField::is_valid(WhichPowerOf2(fixed_right_arg_value)) &&
       (left_kind_ == SMI || left_kind_ == INT32) &&
       (result_kind_ == NONE || !fixed_right_arg_.has_value);
   fixed_right_arg_ = Maybe<int32_t>(has_fixed_right_arg,

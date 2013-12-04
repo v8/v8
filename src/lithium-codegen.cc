@@ -147,4 +147,34 @@ int LCodeGenBase::GetNextEmittedBlock() const {
 }
 
 
+void LCodeGenBase::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
+  ZoneList<Handle<Map> > maps(1, zone());
+  ZoneList<Handle<JSObject> > objects(1, zone());
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    if (Code::IsWeakEmbeddedObject(code->kind(), it.rinfo()->target_object())) {
+      if (it.rinfo()->target_object()->IsMap()) {
+        Handle<Map> map(Map::cast(it.rinfo()->target_object()));
+        maps.Add(map, zone());
+      } else if (it.rinfo()->target_object()->IsJSObject()) {
+        Handle<JSObject> object(JSObject::cast(it.rinfo()->target_object()));
+        objects.Add(object, zone());
+      }
+    }
+  }
+#ifdef VERIFY_HEAP
+  // This disables verification of weak embedded objects after full GC.
+  // AddDependentCode can cause a GC, which would observe the state where
+  // this code is not yet in the depended code lists of the embedded maps.
+  NoWeakObjectVerificationScope disable_verification_of_embedded_objects;
+#endif
+  for (int i = 0; i < maps.length(); i++) {
+    maps.at(i)->AddDependentCode(DependentCode::kWeaklyEmbeddedGroup, code);
+  }
+  for (int i = 0; i < objects.length(); i++) {
+    AddWeakObjectToCodeDependency(isolate()->heap(), objects.at(i), code);
+  }
+}
+
+
 } }  // namespace v8::internal

@@ -363,7 +363,7 @@ class HeapObjectsTracker {
 
   ~HeapObjectsTracker() {
     i::Isolate::Current()->heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, heap_profiler_->FindUntrackedObjects());
+    CHECK_EQ(0, heap_profiler_->heap_object_map()->FindUntrackedObjects());
     heap_profiler_->StopHeapObjectsTracking();
   }
 

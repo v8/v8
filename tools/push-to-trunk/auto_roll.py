@@ -96,6 +96,9 @@ def RunAutoRoll(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.add_option("-f", "--force", dest="f",
+                    help="Don't prompt the user.",
+                    default=True, action="store_true")
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
                     default=0, type="int")
