@@ -7788,6 +7788,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
 }
 
 
+#define HYPERBOLIC_MATH_FUNCTION(name)                                         \
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_##name) {                          \
+  SealHandleScope shs(isolate);                                                \
+  ASSERT(args.length() == 1);                                                  \
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);                                            \
+  return isolate->heap()->AllocateHeapNumber(name(x));                         \
+}
+
+HYPERBOLIC_MATH_FUNCTION(asinh)
+HYPERBOLIC_MATH_FUNCTION(acosh)
+HYPERBOLIC_MATH_FUNCTION(atanh)
+
+#undef HYPERBOLIC_MATH_FUNCTION
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);

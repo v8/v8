@@ -190,6 +190,9 @@ namespace internal {
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
+  F(Math_asinh, 1, 1) \
+  F(Math_acosh, 1, 1) \
+  F(Math_atanh, 1, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
