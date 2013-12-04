@@ -47,80 +47,13 @@ function MathTrunc(x) {
 }
 
 
-// ES6 draft 09-27-13, section 20.2.2.30.
-function MathSinh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for NaN, +/-0 and +/-Infinity.
-  if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
-  return (MathExp(x) - MathExp(-x)) / 2;
-}
-
-
-// ES6 draft 09-27-13, section 20.2.2.12.
-function MathCosh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for NaN and +/-Infinity.
-  if (!NUMBER_IS_FINITE(x)) return x;
-  return (MathExp(x) + MathExp(-x)) / 2;
-}
-
-
-// ES6 draft 09-27-13, section 20.2.2.33.
-function MathTanh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for +/-0.
-  if (x === 0) return x;
-  // Returns +/-1 for +/-Infinity.
-  if (!NUMBER_IS_FINITE(x)) return MathSign(x);
-  var exp1 = MathExp(x);
-  var exp2 = MathExp(-x);
-  return (exp1 - exp2) / (exp1 + exp2);
-}
-
-
-// ES6 draft 09-27-13, section 20.2.2.5.
-function MathAsinh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for NaN, +/-0 and +/-Infinity.
-  if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
-  return %Math_asinh(x);
-}
-
-
-// ES6 draft 09-27-13, section 20.2.2.3.
-function MathAcosh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  if (x < 1) return NAN;
-  // Idempotent for NaN and +Infinity.
-  if (!NUMBER_IS_FINITE(x)) return x;
-  return %Math_acosh(x);
-}
-
-
-// ES6 draft 09-27-13, section 20.2.2.7.
-function MathAtanh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for +/-0.
-  if (x === 0) return x;
-  // Returns NaN for NaN and +/- Infinity.
-  if (!NUMBER_IS_FINITE(x)) return NAN;
-  return %Math_atanh(x);
-}
-
-
 function ExtendMath() {
   %CheckIsBootstrapping();
 
   // Set up the non-enumerable functions on the Math object.
   InstallFunctions($Math, DONT_ENUM, $Array(
     "sign", MathSign,
-    "trunc", MathTrunc,
-    "sinh", MathSinh,
-    "cosh", MathCosh,
-    "tanh", MathTanh,
-    "asinh", MathAsinh,
-    "acosh", MathAcosh,
-    "atanh", MathAtanh
+    "trunc", MathTrunc
   ));
 }
 
