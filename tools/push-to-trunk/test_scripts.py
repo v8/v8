@@ -53,6 +53,20 @@ TEST_CONFIG = {
 }
 
 
+def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None):
+  """Convenience wrapper."""
+  class Options(object):
+      pass
+  options = Options()
+  options.s = s
+  options.l = l
+  options.f = f
+  options.m = m
+  options.r = r
+  options.c = c
+  return options
+
+
 class ToplevelTest(unittest.TestCase):
   def testMakeComment(self):
     self.assertEquals("#   Line 1\n#   Line 2\n#",
@@ -260,12 +274,15 @@ class ScriptTest(unittest.TestCase):
       f.write("#define IS_CANDIDATE_VERSION 0\n")
     return name
 
-  def MakeStep(self, step_class=Step, state=None):
+  def MakeStep(self, step_class=Step, state=None, options=None):
     """Convenience wrapper."""
+    options = options or MakeOptions()
     return MakeStep(step_class=step_class, number=0, state=state,
-                    config=TEST_CONFIG, options=None, side_effect_handler=self)
+                    config=TEST_CONFIG, options=options,
+                    side_effect_handler=self)
 
   def GitMock(self, cmd, args="", pipe=True):
+    print "%s %s" % (cmd, args)
     return self._git_mock.Call(args)
 
   def LogMock(self, cmd, args=""):
@@ -555,7 +572,7 @@ class ScriptTest(unittest.TestCase):
     patch = FileToText(TEST_CONFIG[ PATCH_FILE])
     self.assertTrue(re.search(r"patch content", patch))
 
-  def _PushToTrunk(self, force=False):
+  def _PushToTrunk(self, force=False, manual=False):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
@@ -593,7 +610,8 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
-    force_flag = " -f" if force else ""
+    force_flag = " -f" if not manual else ""
+    review_suffix = "\n\nTBR=reviewer@chromium.org" if not manual else ""
     self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch\n"],
@@ -610,7 +628,7 @@ class ScriptTest(unittest.TestCase):
       ["log -1 rev1 --format=\"%B\"", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
       ["log -1 rev1 --format=\"%an\"", "author1@chromium.org\n"],
       [("commit -a -m \"Prepare push to trunk.  "
-        "Now working on version 3.22.6.\""),
+        "Now working on version 3.22.6.%s\"" % review_suffix),
        " 2 files changed\n",
         CheckPreparePush],
       ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
@@ -641,32 +659,33 @@ class ScriptTest(unittest.TestCase):
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
       ["branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""],
     ])
-    self.ExpectReadline([
-      "Y",  # Confirm last push.
-      "",  # Open editor.
-      "Y",  # Increment build number.
-      "reviewer@chromium.org",  # V8 reviewer.
-      "LGTX",  # Enter LGTM for V8 CL (wrong).
-      "LGTM",  # Enter LGTM for V8 CL.
-      "Y",  # Sanity check.
-      "reviewer@chromium.org",  # Chromium reviewer.
-    ])
-    if force:
-      # TODO(machenbach): The lgtm for the prepare push is just temporary.
-      # There should be no user input in "force" mode.
+
+    # Expected keyboard input in manual mode:
+    if manual:
+      self.ExpectReadline([
+        "Y",  # Confirm last push.
+        "",  # Open editor.
+        "Y",  # Increment build number.
+        "reviewer@chromium.org",  # V8 reviewer.
+        "LGTX",  # Enter LGTM for V8 CL (wrong).
+        "LGTM",  # Enter LGTM for V8 CL.
+        "Y",  # Sanity check.
+        "reviewer@chromium.org",  # Chromium reviewer.
+      ])
+
+    # Expected keyboard input in semi-automatic mode:
+    if not manual and not force:
       self.ExpectReadline([
         "LGTM",  # Enter LGTM for V8 CL.
       ])
 
-    class Options( object ):
-      pass
+    # No keyboard input in forced mode:
+    if force:
+      self.ExpectReadline([])
 
-    options = Options()
-    options.s = 0
-    options.l = None
-    options.f = force
-    options.r = "reviewer@chromium.org" if force else None
-    options.c = TEST_CONFIG[CHROMIUM]
+    options = MakeOptions(f=force, m=manual,
+                          r="reviewer@chromium.org" if not manual else None,
+                          c = TEST_CONFIG[CHROMIUM])
     RunPushToTrunk(TEST_CONFIG, options, self)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
@@ -681,7 +700,10 @@ class ScriptTest(unittest.TestCase):
     # since the git command that merges to the bleeding edge branch is mocked
     # out.
 
-  def testPushToTrunk(self):
+  def testPushToTrunkManual(self):
+    self._PushToTrunk(manual=True)
+
+  def testPushToTrunkSemiAutomatic(self):
     self._PushToTrunk()
 
   def testPushToTrunkForced(self):
@@ -689,9 +711,6 @@ class ScriptTest(unittest.TestCase):
 
   def testAutoRoll(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
-
-    # TODO(machenbach): Get rid of the editor check in automatic mode.
-    os.environ["EDITOR"] = "vi"
 
     self.ExpectReadURL([
       ["https://v8-status.appspot.com/lkgr", Exception("Network problem")],
@@ -705,14 +724,7 @@ class ScriptTest(unittest.TestCase):
       ["svn log -1 --oneline", "r101 | Text"],
     ])
 
-    # TODO(machenbach): Make a convenience wrapper for this.
-    class Options( object ):
-      pass
-
-    options = Options()
-    options.s = 0
-
-    auto_roll.RunAutoRoll(TEST_CONFIG, options, self)
+    auto_roll.RunAutoRoll(TEST_CONFIG, MakeOptions(m=False, f=True), self)
 
     self.assertEquals("100", self.MakeStep().Restore("lkgr"))
     self.assertEquals("101", self.MakeStep().Restore("latest"))

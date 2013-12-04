@@ -157,9 +157,6 @@ class EditChangeLog(Step):
            "entry, then edit its contents to your liking. When you're done, "
            "save the file and exit your EDITOR. ")
     self.ReadLine(default="")
-
-    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
-    # well tested.
     self.Editor(self.Config(CHANGELOG_ENTRY_FILE))
     handle, new_changelog = tempfile.mkstemp()
     os.close(handle)
@@ -214,7 +211,11 @@ class CommitLocal(Step):
                                               self._state["new_minor"],
                                               self._state["new_build"]))
     self.Persist("prep_commit_msg", prep_commit_msg)
-    if self.Git("commit -a -m \"%s\"" % prep_commit_msg) is None:
+
+    # Include optional TBR only in the git command. The persisted commit
+    # message is used for finding the commit again later.
+    review = "\n\nTBR=%s" % self._options.r if not self.IsManual() else ""
+    if self.Git("commit -a -m \"%s%s\"" % (prep_commit_msg, review)) is None:
       self.Die("'git commit -a' failed.")
 
 
@@ -364,7 +365,7 @@ class CommitSVN(Step):
       print("Sorry, grepping for the SVN revision failed. Please look for it "
             "in the last command's output above and provide it manually (just "
             "the number, without the leading \"r\").")
-      self.DieInForcedMode("Can't prompt in forced mode.")
+      self.DieNoManualMode("Can't prompt in forced mode.")
       while not trunk_revision:
         print "> ",
         trunk_revision = self.ReadLine()
@@ -389,7 +390,7 @@ class CheckChromium(Step):
   def Run(self):
     chrome_path = self._options.c
     if not chrome_path:
-      self.DieInForcedMode("Please specify the path to a Chromium checkout in "
+      self.DieNoManualMode("Please specify the path to a Chromium checkout in "
                           "forced mode.")
       print ("Do you have a \"NewGit\" Chromium checkout and want "
           "this script to automate creation of the roll CL? If yes, enter the "
@@ -457,12 +458,12 @@ class UploadCL(Step):
       rev = self._options.r
     else:
       print "Please enter the email address of a reviewer for the roll CL: ",
-      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      self.DieNoManualMode("A reviewer must be specified in forced mode.")
       rev = self.ReadLine()
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
-    force_flag = " -f" if self._options.f else ""
+    force_flag = " -f" if not self.IsManual() else ""
     if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
@@ -547,6 +548,9 @@ def BuildOptions():
   result.add_option("-l", "--last-push", dest="l",
                     help=("Manually specify the git commit ID "
                           "of the last push to trunk."))
+  result.add_option("-m", "--manual", dest="m",
+                    help="Prompt the user at every important step.",
+                    default=False, action="store_true")
   result.add_option("-r", "--reviewer", dest="r",
                     help=("Specify the account name to be used for reviews."))
   result.add_option("-s", "--step", dest="s",
@@ -559,11 +563,14 @@ def ProcessOptions(options):
   if options.s < 0:
     print "Bad step number %d" % options.s
     return False
-  if options.f and not options.r:
-    print "A reviewer (-r) is required in forced mode."
+  if not options.m and not options.r:
+    print "A reviewer (-r) is required in (semi-)automatic mode."
     return False
-  if options.f and not options.c:
-    print "A chromium checkout (-c) is required in forced mode."
+  if options.f and options.m:
+    print "Manual and forced mode cannot be combined."
+    return False
+  if not options.m and not options.c:
+    print "A chromium checkout (-c) is required in (semi-)automatic mode."
     return False
   return True
 

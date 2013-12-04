@@ -229,6 +229,12 @@ class Step(object):
   def Config(self, key):
     return self._config[key]
 
+  def IsForced(self):
+    return self._options and self._options.f
+
+  def IsManual(self):
+    return self._options and self._options.m
+
   def Run(self):
     if self._requires:
       self.RestoreIfUnset(self._requires)
@@ -271,7 +277,7 @@ class Step(object):
 
   def ReadLine(self, default=None):
     # Don't prompt in forced mode.
-    if self._options and self._options.f and default is not None:
+    if not self.IsManual() and default is not None:
       print "%s (forced)" % default
       return default
     else:
@@ -282,8 +288,9 @@ class Step(object):
     return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
-    return self._side_effect_handler.Command(os.environ["EDITOR"], args,
-                                             pipe=False)
+    if not self.IsForced():
+      return self._side_effect_handler.Command(os.environ["EDITOR"], args,
+                                               pipe=False)
 
   def ReadURL(self, url, retry_on=None, wait_plan=None):
     wait_plan = wait_plan or [3, 60, 600]
@@ -299,9 +306,9 @@ class Step(object):
     print "Exiting"
     raise Exception(msg)
 
-  def DieInForcedMode(self, msg=""):
-    if self._options and self._options.f:
-      msg = msg or "Not implemented in forced mode."
+  def DieNoManualMode(self, msg=""):
+    if not self.IsManual():
+      msg = msg or "Only available in manual mode."
       self.Die(msg)
 
   def Confirm(self, msg):
@@ -340,11 +347,9 @@ class Step(object):
     if not os.path.exists(self._config[DOT_GIT_LOCATION]):
       self.Die("This is not a git checkout, this script won't work for you.")
 
-    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
-    # well tested.
     # Cancel if EDITOR is unset or not executable.
-    if (not os.environ.get("EDITOR") or
-        Command("which", os.environ["EDITOR"]) is None):
+    if (not self.IsForced() and (not os.environ.get("EDITOR") or
+        Command("which", os.environ["EDITOR"]) is None)):
       self.Die("Please set your EDITOR environment variable, you'll need it.")
 
   def CommonPrepare(self):
@@ -413,9 +418,7 @@ class Step(object):
     answer = ""
     while answer != "LGTM":
       print "> ",
-      # TODO(machenbach): Add default="LGTM" to avoid prompt when script is
-      # well tested and when prepare push cl has TBR flag.
-      answer = self.ReadLine()
+      answer = self.ReadLine("LGTM" if self.IsForced() else None)
       if answer != "LGTM":
         print "That was not 'LGTM'."
 
@@ -423,7 +426,7 @@ class Step(object):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
           "'git add', and type \"RESOLVED<Return>\"")
-    self.DieInForcedMode()
+    self.DieNoManualMode()
     answer = ""
     while answer != "RESOLVED":
       if answer == "ABORT":
@@ -449,9 +452,9 @@ class UploadStep(Step):
       reviewer = self._options.r
     else:
       print "Please enter the email address of a V8 reviewer for your patch: ",
-      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    force_flag = " -f" if self._options.f else ""
+    force_flag = " -f" if not self.IsManual() else ""
     args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
