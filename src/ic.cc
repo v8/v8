@@ -2329,10 +2329,7 @@ BinaryOpIC::State::State(ExtraICState extra_ic_state) {
       1 << FixedRightArgValueField::decode(extra_ic_state));
   left_kind_ = LeftKindField::decode(extra_ic_state);
   if (fixed_right_arg_.has_value) {
-    // We have only 4 bits to encode the log2 of the fixed right arg, so the
-    // max value is 2^(2^4), which is always a SMI.
-    ASSERT(Smi::IsValid(fixed_right_arg_.value));
-    right_kind_ = SMI;
+    right_kind_ = Smi::IsValid(fixed_right_arg_.value) ? SMI : INT32;
   } else {
     right_kind_ = RightKindField::decode(extra_ic_state);
   }
@@ -2582,17 +2579,6 @@ void BinaryOpIC::State::GenerateAheadOfTime(
   GENERATE(Token::MOD, SMI, 32, SMI, NO_OVERWRITE);
   GENERATE(Token::MOD, SMI, 2048, SMI, NO_OVERWRITE);
 #undef GENERATE
-}
-
-
-Handle<Type> BinaryOpIC::State::GetRightType(Isolate* isolate) const {
-  if (fixed_right_arg_.has_value) {
-    Handle<Smi> value = handle(Smi::FromInt(fixed_right_arg_.value), isolate);
-    Handle<Type> type = handle(Type::Constant(value, isolate), isolate);
-    ASSERT(type->Is(KindToType(right_kind_, isolate)));
-    return type;
-  }
-  return KindToType(right_kind_, isolate);
 }
 
 
