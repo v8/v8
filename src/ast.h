@@ -1952,8 +1952,6 @@ class BinaryOperation V8_FINAL : public Expression {
   BailoutId RightId() const { return right_id_; }
 
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
-  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
-  void set_fixed_right_arg(Maybe<int> arg) { fixed_right_arg_ = arg; }
 
   virtual void RecordToBooleanTypeFeedback(
       TypeFeedbackOracle* oracle) V8_OVERRIDE;
@@ -1976,10 +1974,6 @@ class BinaryOperation V8_FINAL : public Expression {
   Token::Value op_;
   Expression* left_;
   Expression* right_;
-
-  // TODO(rossberg): the fixed arg should probably be represented as a Constant
-  // type for the RHS.
-  Maybe<int> fixed_right_arg_;
 
   // The short-circuit logical operations need an AST ID for their
   // right-hand subexpression.

@@ -1351,8 +1351,7 @@ class HGraphBuilder {
                                HValue* right,
                                Handle<Type> left_type,
                                Handle<Type> right_type,
-                               Handle<Type> result_type,
-                               Maybe<int> fixed_right_arg);
+                               Handle<Type> result_type);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
