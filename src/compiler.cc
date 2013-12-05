@@ -1056,6 +1056,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
 
 bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
+                                   Handle<Code> unoptimized,
                                    uint32_t osr_pc_offset) {
   bool compiling_for_osr = (osr_pc_offset != 0);
 
@@ -1078,11 +1079,10 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
   Handle<SharedFunctionInfo> shared = info->shared_info();
 
   if (compiling_for_osr) {
-    BailoutId osr_ast_id =
-        shared->code()->TranslatePcOffsetToAstId(osr_pc_offset);
+    BailoutId osr_ast_id = unoptimized->TranslatePcOffsetToAstId(osr_pc_offset);
     ASSERT(!osr_ast_id.IsNone());
     info->SetOptimizing(osr_ast_id);
-    info->set_osr_pc_offset(osr_pc_offset);
+    info->SetOsrInfo(unoptimized, osr_pc_offset);
 
     if (FLAG_trace_osr) {
       PrintF("[COSR - attempt to queue ");
@@ -1117,7 +1117,7 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
         RecompileJob::Status status = job->CreateGraph();
         if (status == RecompileJob::SUCCEEDED) {
           info.Detach();
-          shared->code()->set_profiler_ticks(0);
+          unoptimized->set_profiler_ticks(0);
           isolate->optimizing_compiler_thread()->QueueForOptimization(job);
           ASSERT(!isolate->has_pending_exception());
           return true;

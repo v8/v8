@@ -85,6 +85,7 @@ class CompilationInfo {
   Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
   uint32_t osr_pc_offset() const { return osr_pc_offset_; }
+  Handle<Code> osr_patched_code() const { return osr_patched_code_; }
   int opt_count() const { return opt_count_; }
   int num_parameters() const;
   int num_heap_slots() const;
@@ -265,6 +266,7 @@ class CompilationInfo {
     SaveHandle(&shared_info_);
     SaveHandle(&context_);
     SaveHandle(&script_);
+    SaveHandle(&osr_patched_code_);
   }
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
@@ -311,7 +313,8 @@ class CompilationInfo {
     return abort_due_to_dependency_;
   }
 
-  void set_osr_pc_offset(uint32_t pc_offset) {
+  void SetOsrInfo(Handle<Code> code, uint32_t pc_offset) {
+    osr_patched_code_ = code;
     osr_pc_offset_ = pc_offset;
   }
 
@@ -416,6 +419,10 @@ class CompilationInfo {
   // The pc_offset corresponding to osr_ast_id_ in unoptimized code.
   // We can look this up in the back edge table, but cache it for quick access.
   uint32_t osr_pc_offset_;
+  // The unoptimized code we patched for OSR may not be the shared code
+  // afterwards, since we may need to compile it again to include deoptimization
+  // data.  Keep track which code we patched.
+  Handle<Code> osr_patched_code_;
 
   // Flag whether compilation needs to be aborted due to dependency change.
   bool abort_due_to_dependency_;
@@ -626,6 +633,7 @@ class Compiler : public AllStatic {
   static bool CompileLazy(CompilationInfo* info);
 
   static bool RecompileConcurrent(Handle<JSFunction> function,
+                                  Handle<Code> unoptimized,
                                   uint32_t osr_pc_offset = 0);
 
   // Compile a shared function info object (the function is possibly lazily

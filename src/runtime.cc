@@ -8377,10 +8377,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
     function->ReplaceCode(function->shared()->code());
     return isolate->heap()->undefined_value();
   }
-  function->shared()->code()->set_profiler_ticks(0);
+  Handle<Code> shared_code(function->shared()->code());
+  shared_code->set_profiler_ticks(0);
   ASSERT(isolate->concurrent_recompilation_enabled());
-  if (!Compiler::RecompileConcurrent(function)) {
-    function->ReplaceCode(function->shared()->code());
+  if (!Compiler::RecompileConcurrent(function, shared_code)) {
+    function->ReplaceCode(*shared_code);
   }
   return isolate->heap()->undefined_value();
 }
@@ -8630,20 +8631,27 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, pc_offset, Uint32, args[1]);
   Handle<Code> unoptimized(function->shared()->code(), isolate);
 
-#ifdef DEBUG
+  // Passing the PC in the javascript frame from the caller directly is
+  // not GC safe, so we walk the stack to get it.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
+  if (!unoptimized->contains(frame->pc())) {
+    // Code on the stack may not be the code object referenced by the shared
+    // function info.  It may have been replaced to include deoptimization data.
+    unoptimized = Handle<Code>(frame->LookupCode());
+  }
+
+  uint32_t pc_offset = static_cast<uint32_t>(frame->pc() -
+                                             unoptimized->instruction_start());
+
+#ifdef DEBUG
   ASSERT_EQ(frame->function(), *function);
   ASSERT_EQ(frame->LookupCode(), *unoptimized);
   ASSERT(unoptimized->contains(frame->pc()));
-
-  ASSERT(pc_offset ==
-         static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start()));
 #endif  // DEBUG
 
   // We're not prepared to handle a function with arguments object.
@@ -8669,12 +8677,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 
     if (job == NULL) {
       if (IsSuitableForOnStackReplacement(isolate, function, unoptimized) &&
-          Compiler::RecompileConcurrent(function, pc_offset)) {
+          Compiler::RecompileConcurrent(function, unoptimized, pc_offset)) {
         if (function->IsMarkedForLazyRecompilation() ||
             function->IsMarkedForConcurrentRecompilation()) {
           // Prevent regular recompilation if we queue this for OSR.
           // TODO(yangguo): remove this as soon as OSR becomes one-shot.
-          function->ReplaceCode(*unoptimized);
+          function->ReplaceCode(function->shared()->code());
         }
         return NULL;
       }
