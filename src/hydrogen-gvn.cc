@@ -412,10 +412,13 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
 
       // Propagate loop side effects upwards.
       if (block->HasParentLoopHeader()) {
-        int header_id = block->parent_loop_header()->block_id();
-        loop_side_effects_[header_id].Add(block->IsLoopHeader()
-                                          ? loop_side_effects_[id]
-                                          : side_effects);
+        HBasicBlock* with_parent = block;
+        if (block->IsLoopHeader()) side_effects = loop_side_effects_[id];
+        do {
+          HBasicBlock* parent_block = with_parent->parent_loop_header();
+          loop_side_effects_[parent_block->block_id()].Add(side_effects);
+          with_parent = parent_block;
+        } while (with_parent->HasParentLoopHeader());
       }
     }
   }
@@ -567,7 +570,8 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
         }
 
         if (inputs_loop_invariant && ShouldMove(instr, loop_header)) {
-          TRACE_GVN_1("Hoisting loop invariant instruction %d\n", instr->id());
+          TRACE_GVN_2("Hoisting loop invariant instruction i%d to block B%d\n",
+                      instr->id(), pre_header->block_id());
           // Move the instruction out of the loop.
           instr->Unlink();
           instr->InsertBefore(pre_header->end());
