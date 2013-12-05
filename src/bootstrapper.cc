@@ -41,10 +41,11 @@
 #include "platform.h"
 #include "snapshot.h"
 #include "trig-table.h"
-#include "extensions/free-buffer-extension.h"
 #include "extensions/externalize-string-extension.h"
+#include "extensions/free-buffer-extension.h"
 #include "extensions/gc-extension.h"
 #include "extensions/statistics-extension.h"
+#include "extensions/trigger-failure-extension.h"
 #include "code-stubs.h"
 
 namespace v8 {
@@ -107,6 +108,7 @@ void Bootstrapper::InitializeOncePerProcess() {
   GCExtension::Register();
   ExternalizeStringExtension::Register();
   StatisticsExtension::Register();
+  TriggerFailureExtension::Register();
 }
 
 
@@ -2265,6 +2267,9 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
   }
   if (FLAG_track_gc_object_stats) {
     InstallExtension(isolate, "v8/statistics", &extension_states);
+  }
+  if (FLAG_expose_trigger_failure) {
+    InstallExtension(isolate, "v8/trigger-failure", &extension_states);
   }
 
   if (extensions == NULL) return true;
