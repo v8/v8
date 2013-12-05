@@ -899,12 +899,12 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ sw(receiver, MemOperand(sp, FCA::kHolderIndex * kPointerSize));
   // Write receiver to stack frame.
   int index = stack_space - 1;
-  __ sw(receiver, MemOperand(sp, index * kPointerSize));
+  __ sw(receiver, MemOperand(sp, index-- * kPointerSize));
   // Write the arguments to stack frame.
   for (int i = 0; i < argc; i++) {
     ASSERT(!receiver.is(values[i]));
     ASSERT(!scratch.is(values[i]));
-    __ sw(receiver, MemOperand(sp, index-- * kPointerSize));
+    __ sw(values[i], MemOperand(sp, index-- * kPointerSize));
   }
 
   GenerateFastApiDirectCall(masm, optimization, argc, true);
