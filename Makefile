@@ -273,7 +273,7 @@ mips mips.release mips.debug:
 .SECONDEXPANSION:
 $(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
 
-$(ARCHES): $(addprefix $$@.,$(MODES))
+$(ARCHES): $(addprefix $$@.,$(DEFAULT_MODES))
 
 # Defines how to build a particular target (e.g. ia32.release).
 $(BUILDS): $(OUTDIR)/Makefile.$$@
@@ -368,6 +368,7 @@ $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)):
 	rm -f $(OUTDIR)/Makefile.$(basename $@)*
 	rm -rf $(OUTDIR)/$(basename $@).release
 	rm -rf $(OUTDIR)/$(basename $@).debug
+	rm -rf $(OUTDIR)/$(basename $@).optdebug
 	find $(OUTDIR) -regex '.*\(host\|target\)\.$(basename $@).*\.mk' -delete
 
 native.clean:

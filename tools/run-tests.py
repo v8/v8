@@ -329,7 +329,10 @@ def Main():
       s.DownloadData()
 
   for (arch, mode) in options.arch_and_mode:
-    code = Execute(arch, mode, args, options, suites, workspace)
+    try:
+      code = Execute(arch, mode, args, options, suites, workspace)
+    except KeyboardInterrupt:
+      return 2
     exit_code = exit_code or code
   return exit_code
 
@@ -449,7 +452,7 @@ def Execute(arch, mode, args, options, suites, workspace):
       return exit_code
     overall_duration = time.time() - start_time
   except KeyboardInterrupt:
-    return 1
+    raise
 
   if options.time:
     verbose.PrintTestDurations(suites, overall_duration)
