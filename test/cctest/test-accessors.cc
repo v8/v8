@@ -205,21 +205,22 @@ THREADED_TEST(AccessorIC) {
     "var result = [];"
     "var key_0 = 'x0';"
     "var key_1 = 'x1';"
-    "for (var i = 0; i < 10; i++) {"
+    "for (var j = 0; j < 10; j++) {"
+    "  var i = 4*j;"
     "  holder.x0 = i;"
     "  result.push(obj.x0);"
-    "  holder.x1 = i;"
+    "  holder.x1 = i + 1;"
     "  result.push(obj.x1);"
-    "  holder[key_0] = i;"
+    "  holder[key_0] = i + 2;"
     "  result.push(obj[key_0]);"
-    "  holder[key_1] = i;"
+    "  holder[key_1] = i + 3;"
     "  result.push(obj[key_1]);"
     "}"
     "result"));
   CHECK_EQ(40, array->Length());
   for (int i = 0; i < 40; i++) {
     v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i/4), entry);
+    CHECK_EQ(v8::Integer::New(i), entry);
   }
 }
 
