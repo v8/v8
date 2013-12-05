@@ -167,5 +167,9 @@ if __name__ == '__main__':
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
   if platform.system() == 'Linux':
+    # --generator-output defines where the Makefile goes.
     gyp_args.append('--generator-output=out')
+    # -Goutput_dir defines where the build output goes, relative to the
+    # Makefile. Set it to . so that the build output doesn't end up in out/out.
+    gyp_args.append('-Goutput_dir=.')
   run_gyp(gyp_args)
