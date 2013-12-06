@@ -341,10 +341,6 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 
 void FullCodeGenerator::EmitProfilingCounterReset() {
   int reset_value = FLAG_interrupt_budget;
-  if (info_->ShouldSelfOptimize() && !FLAG_retry_self_opt) {
-    // Self-optimization is a one-off thing: if it fails, don't try again.
-    reset_value = Smi::kMaxValue;
-  }
   if (isolate()->IsDebuggerActive()) {
     // Detect debug break requests as soon as possible.
     reset_value = FLAG_interrupt_budget >> 4;
@@ -365,13 +361,10 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
   Comment cmnt(masm_, "[ Back edge bookkeeping");
   Label ok;
-  int weight = 1;
-  if (FLAG_weighted_back_edges) {
-    ASSERT(back_edge_target->is_bound());
-    int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
-    weight = Min(kMaxBackEdgeWeight,
-                 Max(1, distance / kCodeSizeMultiplier));
-  }
+  ASSERT(back_edge_target->is_bound());
+  int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
+  int weight = Min(kMaxBackEdgeWeight,
+                   Max(1, distance / kCodeSizeMultiplier));
   EmitProfilingCounterDecrement(weight);
   __ slt(at, a3, zero_reg);
   __ beq(at, zero_reg, &ok);
@@ -404,32 +397,24 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ push(v0);
       __ CallRuntime(Runtime::kTraceExit, 1);
     }
-    if (FLAG_interrupt_at_exit || FLAG_self_optimization) {
-      // Pretend that the exit is a backwards jump to the entry.
-      int weight = 1;
-      if (info_->ShouldSelfOptimize()) {
-        weight = FLAG_interrupt_budget / FLAG_self_opt_count;
-      } else if (FLAG_weighted_back_edges) {
-        int distance = masm_->pc_offset();
-        weight = Min(kMaxBackEdgeWeight,
-                     Max(1, distance / kCodeSizeMultiplier));
-      }
-      EmitProfilingCounterDecrement(weight);
-      Label ok;
-      __ Branch(&ok, ge, a3, Operand(zero_reg));
-      __ push(v0);
-      if (info_->ShouldSelfOptimize() && FLAG_direct_self_opt) {
-        __ lw(a2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-        __ push(a2);
-        __ CallRuntime(Runtime::kOptimizeFunctionOnNextCall, 1);
-      } else {
-        __ Call(isolate()->builtins()->InterruptCheck(),
-                RelocInfo::CODE_TARGET);
-      }
-      __ pop(v0);
-      EmitProfilingCounterReset();
-      __ bind(&ok);
+    // Pretend that the exit is a backwards jump to the entry.
+    int weight = 1;
+    if (info_->ShouldSelfOptimize()) {
+      weight = FLAG_interrupt_budget / FLAG_self_opt_count;
+    } else {
+      int distance = masm_->pc_offset();
+      weight = Min(kMaxBackEdgeWeight,
+                   Max(1, distance / kCodeSizeMultiplier));
     }
+    EmitProfilingCounterDecrement(weight);
+    Label ok;
+    __ Branch(&ok, ge, a3, Operand(zero_reg));
+    __ push(v0);
+    __ Call(isolate()->builtins()->InterruptCheck(),
+            RelocInfo::CODE_TARGET);
+    __ pop(v0);
+    EmitProfilingCounterReset();
+    __ bind(&ok);
 
 #ifdef DEBUG
     // Add a label for checking the size of the code used for returning.

@@ -347,32 +347,14 @@ DEFINE_bool(omit_map_checks_for_leaf_maps, true,
 
 DEFINE_bool(new_string_add, true, "enable new string addition")
 
-// Experimental profiler changes.
-DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
-DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
+// Profiler flags.
 DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
-DEFINE_bool(self_optimization, false,
-            "primitive functions trigger their own optimization")
-DEFINE_bool(direct_self_opt, false,
-            "call recompile stub directly when self-optimizing")
-DEFINE_bool(retry_self_opt, false, "re-try self-optimization if it failed")
-DEFINE_bool(interrupt_at_exit, false,
-            "insert an interrupt check at function exit")
-DEFINE_bool(weighted_back_edges, false,
-            "weight back edges by jump distance for interrupt triggering")
            // 0x1700 fits in the immediate field of an ARM instruction.
 DEFINE_int(interrupt_budget, 0x1700,
            "execution budget before interrupt is triggered")
 DEFINE_int(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
 DEFINE_int(self_opt_count, 130, "call count before self-optimization")
-
-DEFINE_implication(experimental_profiler, watch_ic_patching)
-DEFINE_implication(experimental_profiler, self_optimization)
-// Not implying direct_self_opt here because it seems to be a bad idea.
-DEFINE_implication(experimental_profiler, retry_self_opt)
-DEFINE_implication(experimental_profiler, interrupt_at_exit)
-DEFINE_implication(experimental_profiler, weighted_back_edges)
 
 DEFINE_bool(trace_opt_verbose, false, "extra verbose compilation tracing")
 DEFINE_implication(trace_opt_verbose, trace_opt)

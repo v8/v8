@@ -1688,7 +1688,6 @@ void Isolate::Deinit() {
     bootstrapper_->TearDown();
 
     if (runtime_profiler_ != NULL) {
-      runtime_profiler_->TearDown();
       delete runtime_profiler_;
       runtime_profiler_ = NULL;
     }
@@ -2049,7 +2048,6 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   runtime_profiler_ = new RuntimeProfiler(this);
-  runtime_profiler_->SetUp();
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
