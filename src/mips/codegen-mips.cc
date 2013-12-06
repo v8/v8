@@ -600,9 +600,10 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ bind(&done);
 }
 
-
+#ifdef DEBUG
 // nop(CODE_AGE_MARKER_NOP)
 static const uint32_t kCodeAgePatchFirstInstruction = 0x00010180;
+#endif
 
 static byte* GetNoCodeAgeSequence(uint32_t* length) {
   // The sequence of instructions that is patched out for aging code is the
