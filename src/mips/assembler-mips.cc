@@ -260,6 +260,12 @@ MemOperand::MemOperand(Register rm, int32_t offset) : Operand(rm) {
 }
 
 
+MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
+                       OffsetAddend offset_addend) : Operand(rm) {
+  offset_ = unit * multiplier + offset_addend;
+}
+
+
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
@@ -1620,6 +1626,15 @@ void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Ext instr has 'rt' field as dest, and two uint5: msb, lsb.
   ASSERT(kArchVariant == kMips32r2);
   GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos, EXT);
+}
+
+
+void Assembler::pref(int32_t hint, const MemOperand& rs) {
+  ASSERT(kArchVariant != kLoongson);
+  ASSERT(is_uint5(hint) && is_uint16(rs.offset_));
+  Instr instr = PREF | (rs.rm().code() << kRsShift) | (hint << kRtShift)
+      | (rs.offset_);
+  emit(instr);
 }
 
 

@@ -503,6 +503,12 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     OS::MemCopyUint8Function stub);
 OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     OS::MemCopyUint16Uint8Function stub);
+
+#elif defined(V8_HOST_ARCH_MIPS)
+OS::MemCopyUint8Function OS::memcopy_uint8_function = &OS::MemCopyUint8Wrapper;
+// Defined in codegen-mips.cc.
+OS::MemCopyUint8Function CreateMemCopyUint8Function(
+    OS::MemCopyUint8Function stub);
 #endif
 
 
@@ -517,6 +523,9 @@ void OS::PostSetUp() {
       CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
   OS::memcopy_uint16_uint8_function =
       CreateMemCopyUint16Uint8Function(&OS::MemCopyUint16Uint8Wrapper);
+#elif defined(V8_HOST_ARCH_MIPS)
+  OS::memcopy_uint8_function =
+      CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
 #endif
   init_fast_log_function();
   // fast_exp is initialized lazily.
