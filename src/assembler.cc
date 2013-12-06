@@ -306,7 +306,9 @@ int Label::pos() const {
 //                dropped, and last non-zero chunk tagged with 1.)
 
 
+#ifdef DEBUG
 const int kMaxStandardNonCompactModes = 14;
+#endif
 
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;

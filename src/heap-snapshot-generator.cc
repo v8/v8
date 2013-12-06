@@ -202,6 +202,7 @@ template <> struct SnapshotSizeConstants<8> {
 
 }  // namespace
 
+
 HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
                            const char* title,
                            unsigned uid)
@@ -218,6 +219,10 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
   STATIC_CHECK(
       sizeof(HeapEntry) ==
       SnapshotSizeConstants<kPointerSize>::kExpectedHeapEntrySize);
+  USE(SnapshotSizeConstants<4>::kExpectedHeapGraphEdgeSize);
+  USE(SnapshotSizeConstants<4>::kExpectedHeapEntrySize);
+  USE(SnapshotSizeConstants<8>::kExpectedHeapGraphEdgeSize);
+  USE(SnapshotSizeConstants<8>::kExpectedHeapEntrySize);
   for (int i = 0; i < VisitorSynchronization::kNumberOfSyncTags; ++i) {
     gc_subroot_indexes_[i] = HeapEntry::kNoEntry;
   }

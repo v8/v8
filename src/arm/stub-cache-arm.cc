@@ -927,12 +927,10 @@ class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(CallStubCompiler* stub_compiler,
                           const ParameterCount& arguments,
-                          Register name,
-                          ExtraICState extra_ic_state)
+                          Register name)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
-        name_(name),
-        extra_ic_state_(extra_ic_state) {}
+        name_(name) {}
 
   void Compile(MacroAssembler* masm,
                Handle<JSObject> object,
@@ -1107,7 +1105,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   CallStubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
-  ExtraICState extra_ic_state_;
 };
 
 
@@ -2466,7 +2463,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // Get the receiver from the stack.
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), r2, extra_state());
+  CallInterceptorCompiler compiler(this, arguments(), r2);
   compiler.Compile(masm(), object, holder, name, &lookup, r1, r3, r4, r0,
                    &miss);
 

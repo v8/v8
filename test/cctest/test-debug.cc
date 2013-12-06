@@ -70,65 +70,6 @@ using ::v8::internal::StrLength;
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80
 
-// --- A d d i t i o n a l   C h e c k   H e l p e r s
-
-
-// Helper function used by the CHECK_EQ function when given Address
-// arguments.  Should not be called directly.
-static inline void CheckEqualsHelper(const char* file, int line,
-                                     const char* expected_source,
-                                     ::v8::internal::Address expected,
-                                     const char* value_source,
-                                     ::v8::internal::Address value) {
-  if (expected != value) {
-    V8_Fatal(file, line, "CHECK_EQ(%s, %s) failed\n#   "
-                         "Expected: %i\n#   Found: %i",
-             expected_source, value_source, expected, value);
-  }
-}
-
-
-// Helper function used by the CHECK_NE function when given Address
-// arguments.  Should not be called directly.
-static inline void CheckNonEqualsHelper(const char* file, int line,
-                                        const char* unexpected_source,
-                                        ::v8::internal::Address unexpected,
-                                        const char* value_source,
-                                        ::v8::internal::Address value) {
-  if (unexpected == value) {
-    V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %i",
-             unexpected_source, value_source, value);
-  }
-}
-
-
-// Helper function used by the CHECK function when given code
-// arguments.  Should not be called directly.
-static inline void CheckEqualsHelper(const char* file, int line,
-                                     const char* expected_source,
-                                     const Code* expected,
-                                     const char* value_source,
-                                     const Code* value) {
-  if (expected != value) {
-    V8_Fatal(file, line, "CHECK_EQ(%s, %s) failed\n#   "
-                         "Expected: %p\n#   Found: %p",
-             expected_source, value_source, expected, value);
-  }
-}
-
-
-static inline void CheckNonEqualsHelper(const char* file, int line,
-                                        const char* expected_source,
-                                        const Code* expected,
-                                        const char* value_source,
-                                        const Code* value) {
-  if (expected == value) {
-    V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %p",
-             expected_source, value_source, value);
-  }
-}
-
-
 // --- H e l p e r   C l a s s e s
 
 

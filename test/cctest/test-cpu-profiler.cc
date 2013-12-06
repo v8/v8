@@ -59,10 +59,6 @@ TEST(StartStop) {
 }
 
 
-static inline i::Address ToAddress(int n) {
-  return reinterpret_cast<i::Address>(n);
-}
-
 static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
                                    i::Address frame2 = NULL,

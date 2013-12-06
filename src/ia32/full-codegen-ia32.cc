@@ -4833,9 +4833,11 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 
 static const byte kJnsInstruction = 0x79;
 static const byte kJnsOffset = 0x11;
-static const byte kCallInstruction = 0xe8;
 static const byte kNopByteOne = 0x66;
 static const byte kNopByteTwo = 0x90;
+#ifdef DEBUG
+static const byte kCallInstruction = 0xe8;
+#endif
 
 
 void BackEdgeTable::PatchAt(Code* unoptimized_code,

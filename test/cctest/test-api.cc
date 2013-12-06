@@ -6454,9 +6454,12 @@ TEST(UndetectableOptimized) {
 template <typename T> static void USE(T) { }
 
 
-// This test is not intended to be run, just type checked.
-static inline void PersistentHandles(v8::Isolate* isolate) {
-  USE(PersistentHandles);
+// The point of this test is type checking. We run it only so compilers
+// don't complain about an unused function.
+TEST(PersistentHandles) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
   Local<String> str = v8_str("foo");
   v8::Persistent<String> p_str(isolate, str);
   p_str.Reset();
@@ -18087,8 +18090,6 @@ THREADED_TEST(AddToJSFunctionResultCache) {
   ExpectString(code, "PASSED");
 }
 
-
-static const int k0CacheSize = 16;
 
 THREADED_TEST(FillJSFunctionResultCache) {
   i::FLAG_allow_natives_syntax = true;
