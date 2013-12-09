@@ -6064,7 +6064,7 @@ class DebuggerAgentProtocolServerThread : public i::Thread {
 
   void Run();
   void WaitForListening() { listening_.Wait(); }
-  char* body() { return *body_; }
+  char* body() { return body_.get(); }
 
  private:
   int port_;

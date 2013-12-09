@@ -824,7 +824,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
             SmartArrayPointer<char> c_script_name =
                 script_name->ToCString(DISALLOW_NULLS,
                                        ROBUST_STRING_TRAVERSAL);
-            PrintF(file, " at %s:%d", *c_script_name, line);
+            PrintF(file, " at %s:%d", c_script_name.get(), line);
           } else {
             PrintF(file, " at <unknown>:%d", line);
           }

@@ -55,9 +55,11 @@ class HeapProfiler {
 
   void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
-  AllocationTracker* allocation_tracker() { return *allocation_tracker_; }
-  HeapObjectsMap* heap_object_map() { return *ids_; }
-  StringsStorage* names() { return *names_; }
+  AllocationTracker* allocation_tracker() const {
+    return allocation_tracker_.get();
+  }
+  HeapObjectsMap* heap_object_map() const { return ids_.get(); }
+  StringsStorage* names() const { return names_.get(); }
 
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   int GetSnapshotsCount();
@@ -80,7 +82,9 @@ class HeapProfiler {
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
-  bool is_tracking_allocations() { return !allocation_tracker_.is_empty(); }
+  bool is_tracking_allocations() const {
+    return !allocation_tracker_.is_empty();
+  }
 
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
 

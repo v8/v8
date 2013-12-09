@@ -8204,7 +8204,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   bool exception = false;
   Handle<Object> result =
       Execution::New(Handle<JSFunction>::cast(bound_function),
-                     total_argc, *param_data, &exception);
+                     total_argc, param_data.get(), &exception);
   if (exception) {
     return Failure::Exception();
   }
@@ -13538,7 +13538,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
   CONVERT_ARG_CHECKED(String, arg, 0);
   SmartArrayPointer<char> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  FlagList::SetFlagsFromString(*flags, StrLength(*flags));
+  FlagList::SetFlagsFromString(flags.get(), StrLength(flags.get()));
   return isolate->heap()->undefined_value();
 }
 
@@ -14313,7 +14313,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AbortJS) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
-  OS::PrintError("abort: %s\n", *message->ToCString());
+  OS::PrintError("abort: %s\n", message->ToCString().get());
   isolate->PrintStack(stderr);
   OS::Abort();
   UNREACHABLE();

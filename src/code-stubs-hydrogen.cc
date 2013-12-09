@@ -300,7 +300,8 @@ static Handle<Code> DoGenerateCode(Isolate* isolate, Stub* stub) {
   Handle<Code> code = chunk->Codegen();
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     double ms = timer.Elapsed().InMillisecondsF();
-    PrintF("[Lazy compilation of %s took %0.3f ms]\n", *stub->GetName(), ms);
+    PrintF("[Lazy compilation of %s took %0.3f ms]\n",
+           stub->GetName().get(), ms);
   }
   return code;
 }

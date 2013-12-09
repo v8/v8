@@ -427,7 +427,7 @@ RegExpMacroAssembler::IrregexpImplementation
 
 
 Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
-  PrintF(" GetCode(%s);\n", *(source->ToCString()));
+  PrintF(" GetCode(%s);\n", source->ToCString().get());
   return assembler_->GetCode(source);
 }
 

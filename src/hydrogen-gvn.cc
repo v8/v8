@@ -520,7 +520,7 @@ void HGlobalValueNumberingPhase::LoopInvariantCodeMotion() {
       GVNFlagSet side_effects = loop_side_effects_[block->block_id()];
       TRACE_GVN_2("Try loop invariant motion for block B%d %s\n",
                   block->block_id(),
-                  *GetGVNFlagsString(side_effects));
+                  GetGVNFlagsString(side_effects).get());
 
       GVNFlagSet accumulated_first_time_depends;
       GVNFlagSet accumulated_first_time_changes;
@@ -545,7 +545,7 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
   TRACE_GVN_2("Loop invariant motion for B%d %s\n",
               block->block_id(),
-              *GetGVNFlagsString(depends_flags));
+              GetGVNFlagsString(depends_flags).get());
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
@@ -554,8 +554,8 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
       TRACE_GVN_4("Checking instruction %d (%s) %s. Loop %s\n",
                   instr->id(),
                   instr->Mnemonic(),
-                  *GetGVNFlagsString(instr->gvn_flags()),
-                  *GetGVNFlagsString(loop_kills));
+                  GetGVNFlagsString(instr->gvn_flags()).get(),
+                  GetGVNFlagsString(loop_kills).get());
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
       if (can_hoist && !graph()->use_optimistic_licm()) {
         can_hoist = block->IsLoopSuccessorDominator();
@@ -589,11 +589,11 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
       first_time_changes->Add(instr->ChangesFlags());
       if (!(previous_depends == *first_time_depends)) {
         TRACE_GVN_1("Updated first-time accumulated %s\n",
-                    *GetGVNFlagsString(*first_time_depends));
+                    GetGVNFlagsString(*first_time_depends).get());
       }
       if (!(previous_changes == *first_time_changes)) {
         TRACE_GVN_1("Updated first-time accumulated %s\n",
-                    *GetGVNFlagsString(*first_time_changes));
+                    GetGVNFlagsString(*first_time_changes).get());
       }
     }
     instr = next;
@@ -805,7 +805,7 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
         map->Kill(flags);
         dominators->Store(flags, instr);
         TRACE_GVN_2("Instruction %d %s\n", instr->id(),
-                    *GetGVNFlagsString(flags));
+                    GetGVNFlagsString(flags).get());
       }
       if (instr->CheckFlag(HValue::kUseGVN)) {
         ASSERT(!instr->HasObservableSideEffects());

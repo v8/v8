@@ -6782,7 +6782,7 @@ bool HOptimizedGraphBuilder::TryCallPolymorphicAsMonomorphic(
     SmartArrayPointer<char> caller_name =
         caller->shared()->DebugName()->ToCString();
     PrintF("Trying to inline the polymorphic call to %s from %s\n",
-           *name->ToCString(), *caller_name);
+           name->ToCString().get(), caller_name.get());
   }
 
   if (!TryInlineCall(expr)) {
@@ -6895,8 +6895,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
       SmartArrayPointer<char> caller_name =
           caller->shared()->DebugName()->ToCString();
       PrintF("Trying to inline the polymorphic call to %s from %s\n",
-             *name->ToCString(),
-             *caller_name);
+             name->ToCString().get(),
+             caller_name.get());
     }
     if (FLAG_polymorphic_inlining && TryInlineCall(expr)) {
       // Trying to inline will signal that we should bailout from the
@@ -6960,10 +6960,11 @@ void HOptimizedGraphBuilder::TraceInline(Handle<JSFunction> target,
     SmartArrayPointer<char> caller_name =
         caller->shared()->DebugName()->ToCString();
     if (reason == NULL) {
-      PrintF("Inlined %s called from %s.\n", *target_name, *caller_name);
+      PrintF("Inlined %s called from %s.\n", target_name.get(),
+             caller_name.get());
     } else {
       PrintF("Did not inline %s called from %s (%s).\n",
-             *target_name, *caller_name, reason);
+             target_name.get(), caller_name.get(), reason);
     }
   }
 }
@@ -10499,7 +10500,7 @@ void HEnvironment::PrintToStd() {
   HeapStringAllocator string_allocator;
   StringStream trace(&string_allocator);
   PrintTo(&trace);
-  PrintF("%s", *trace.ToCString());
+  PrintF("%s", trace.ToCString().get());
 }
 
 
@@ -10507,8 +10508,8 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
   Tag tag(this, "compilation");
   if (info->IsOptimizing()) {
     Handle<String> name = info->function()->debug_name();
-    PrintStringProperty("name", *name->ToCString());
-    PrintStringProperty("method", *name->ToCString());
+    PrintStringProperty("name", name->ToCString().get());
+    PrintStringProperty("method", name->ToCString().get());
   } else {
     CodeStub::Major major_key = info->code_stub()->MajorKey();
     PrintStringProperty("name", CodeStub::MajorName(major_key, false));
@@ -10728,7 +10729,8 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
 
 
 void HTracer::FlushToFile() {
-  AppendChars(filename_.start(), *trace_.ToCString(), trace_.length(), false);
+  AppendChars(filename_.start(), trace_.ToCString().get(), trace_.length(),
+              false);
   trace_.Reset();
 }
 

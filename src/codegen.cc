@@ -81,7 +81,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
           CodeStub::MajorName(info->code_stub()->MajorKey(), true);
       PrintF("%s", name == NULL ? "<unknown>" : name);
     } else {
-      PrintF("%s", *info->function()->debug_name()->ToCString());
+      PrintF("%s", info->function()->debug_name()->ToCString().get());
     }
     PrintF("]\n");
   }
@@ -162,7 +162,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       if (FLAG_print_unopt_code) {
         PrintF(tracing_scope.file(), "--- Unoptimized code ---\n");
         info->closure()->shared()->code()->Disassemble(
-            *function->debug_name()->ToCString(), tracing_scope.file());
+            function->debug_name()->ToCString().get(), tracing_scope.file());
       }
       PrintF(tracing_scope.file(), "--- Optimized code ---\n");
     } else {
@@ -177,7 +177,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       code->Disassemble(CodeStub::MajorName(major_key, false),
                         tracing_scope.file());
     } else {
-      code->Disassemble(*function->debug_name()->ToCString(),
+      code->Disassemble(function->debug_name()->ToCString().get(),
                         tracing_scope.file());
     }
     PrintF(tracing_scope.file(), "--- End code ---\n");

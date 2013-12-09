@@ -2498,7 +2498,7 @@ void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
 
 void HEnterInlined::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name = function()->debug_name()->ToCString();
-  stream->Add("%s, id=%d", *name, function()->id().ToInt());
+  stream->Add("%s, id=%d", name.get(), function()->id().ToInt());
 }
 
 
@@ -3109,7 +3109,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
 void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
 }
 
 
@@ -3247,7 +3247,7 @@ void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
   ASSERT(name()->IsString());
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
   stream->Add(" = ");
   value()->PrintNameTo(stream);
 }
@@ -4412,11 +4412,15 @@ void HObjectAccess::PrintTo(StringStream* stream) {
       break;
     case kDouble:  // fall through
     case kInobject:
-      if (!name_.is_null()) stream->Add(*String::cast(*name_)->ToCString());
+      if (!name_.is_null()) {
+        stream->Add(String::cast(*name_)->ToCString().get());
+      }
       stream->Add("[in-object]");
       break;
     case kBackingStore:
-      if (!name_.is_null()) stream->Add(*String::cast(*name_)->ToCString());
+      if (!name_.is_null()) {
+        stream->Add(String::cast(*name_)->ToCString().get());
+      }
       stream->Add("[backing-store]");
       break;
     case kExternalMemory:

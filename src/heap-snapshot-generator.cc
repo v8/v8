@@ -1859,8 +1859,8 @@ void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
     const char* name = name_format_string != NULL && reference_name->IsString()
         ? names_->GetFormatted(
               name_format_string,
-              *String::cast(reference_name)->ToCString(
-                  DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)) :
+              String::cast(reference_name)->ToCString(
+                  DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).get()) :
         names_->GetName(reference_name);
 
     filler_->SetNamedReference(type,

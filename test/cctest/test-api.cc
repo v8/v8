@@ -18277,7 +18277,8 @@ TEST(ContainsOnlyOneByte) {
   const int aligned_length = length*sizeof(uintptr_t)/sizeof(uint16_t);
   i::SmartArrayPointer<uintptr_t>
   aligned_contents(new uintptr_t[aligned_length]);
-  uint16_t* string_contents = reinterpret_cast<uint16_t*>(*aligned_contents);
+  uint16_t* string_contents =
+      reinterpret_cast<uint16_t*>(aligned_contents.get());
   // Set to contain only one byte.
   for (int i = 0; i < length-1; i++) {
     string_contents[i] = 0x41;
