@@ -168,10 +168,9 @@ ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
 
+#ifndef V8_SHARED
 const int MB = 1024 * 1024;
 
-
-#ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
   const char* name2 = reinterpret_cast<const char*>(key2);
