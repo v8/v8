@@ -1776,10 +1776,7 @@ Range* HDiv::InferRange(Zone* zone) {
     result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
                                   (a->CanBeMinusZero() ||
                                    (a->CanBeZero() && b->CanBeNegative())));
-    if (!a->Includes(kMinInt) ||
-        !b->Includes(-1) ||
-        CheckFlag(kAllUsesTruncatingToInt32)) {
-      // It is safe to clear kCanOverflow when kAllUsesTruncatingToInt32.
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(HValue::kCanOverflow);
     }
 
