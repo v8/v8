@@ -1548,9 +1548,6 @@ void Heap::Scavenge() {
 
   promotion_queue_.Destroy();
 
-  if (!FLAG_watch_ic_patching) {
-    isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
-  }
   incremental_marking()->UpdateMarkingDequeAfterScavenge();
 
   ScavengeWeakObjectRetainer weak_object_retainer(this);

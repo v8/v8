@@ -259,7 +259,7 @@ void LTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if typeof ");
   value()->PrintTo(stream);
   stream->Add(" == \"%s\" then B%d else B%d",
-              *hydrogen()->type_literal()->ToCString(),
+              hydrogen()->type_literal()->ToCString().get(),
               true_block_id(), false_block_id());
 }
 
@@ -312,13 +312,13 @@ void LCallKeyed::PrintDataTo(StringStream* stream) {
 
 void LCallNamed::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", *name_string, arity());
+  stream->Add("%s #%d / ", name_string.get(), arity());
 }
 
 
 void LCallGlobal::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", *name_string, arity());
+  stream->Add("%s #%d / ", name_string.get(), arity());
 }
 
 
@@ -384,7 +384,7 @@ void LStoreNamedField::PrintDataTo(StringStream* stream) {
 void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(".");
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
   stream->Add(" <- ");
   value()->PrintTo(stream);
 }
@@ -1187,9 +1187,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathRound: return DoMathRound(instr);
     case kMathAbs: return DoMathAbs(instr);
     case kMathLog: return DoMathLog(instr);
-    case kMathSin: return DoMathSin(instr);
-    case kMathCos: return DoMathCos(instr);
-    case kMathTan: return DoMathTan(instr);
     case kMathExp: return DoMathExp(instr);
     case kMathSqrt: return DoMathSqrt(instr);
     case kMathPowHalf: return DoMathPowHalf(instr);
@@ -1228,27 +1225,6 @@ LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
   LMathLog* result = new(zone()) LMathLog(input);
   return DefineSameAsFirst(result);
-}
-
-
-LInstruction* LChunkBuilder::DoMathSin(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), xmm1);
-  LMathSin* result = new(zone()) LMathSin(input);
-  return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathCos(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), xmm1);
-  LMathCos* result = new(zone()) LMathCos(input);
-  return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathTan(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), xmm1);
-  LMathTan* result = new(zone()) LMathTan(input);
-  return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
 }
 
 

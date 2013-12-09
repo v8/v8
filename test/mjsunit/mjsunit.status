@@ -99,6 +99,11 @@
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
   'regress/regress-2073': [SKIP],
+
+  ##############################################################################
+  # Tests verifying CHECK and ASSERT.
+  'verify-check-false': [FAIL, NO_VARIANTS],
+  'verify-assert-false': [NO_VARIANTS, ['mode == release', PASS], ['mode == debug', FAIL]],
 }],  # ALWAYS
 
 ##############################################################################

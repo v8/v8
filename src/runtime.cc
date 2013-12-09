@@ -7655,7 +7655,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_acos) {
   isolate->counters()->math_acos()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::ACOS, x);
+  return isolate->heap()->AllocateHeapNumber(acos(x));
 }
 
 
@@ -7665,7 +7665,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_asin) {
   isolate->counters()->math_asin()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::ASIN, x);
+  return isolate->heap()->AllocateHeapNumber(asin(x));
 }
 
 
@@ -7675,7 +7675,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan) {
   isolate->counters()->math_atan()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::ATAN, x);
+  return isolate->heap()->AllocateHeapNumber(atan(x));
 }
 
 
@@ -7702,16 +7702,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
     result = atan2(x, y);
   }
   return isolate->heap()->AllocateHeapNumber(result);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cos) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_cos()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::COS, x);
 }
 
 
@@ -7742,7 +7732,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   isolate->counters()->math_log()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::LOG, x);
+  return isolate->heap()->AllocateHeapNumber(fast_log(x));
 }
 
 
@@ -7831,16 +7821,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sin) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_sin()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::SIN, x);
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
@@ -7848,16 +7828,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->AllocateHeapNumber(fast_sqrt(x));
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_tan()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::TAN, x);
 }
 
 
@@ -8234,7 +8204,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   bool exception = false;
   Handle<Object> result =
       Execution::New(Handle<JSFunction>::cast(bound_function),
-                     total_argc, *param_data, &exception);
+                     total_argc, param_data.get(), &exception);
   if (exception) {
     return Failure::Exception();
   }
@@ -8407,10 +8377,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
     function->ReplaceCode(function->shared()->code());
     return isolate->heap()->undefined_value();
   }
-  function->shared()->code()->set_profiler_ticks(0);
+  Handle<Code> shared_code(function->shared()->code());
+  shared_code->set_profiler_ticks(0);
   ASSERT(isolate->concurrent_recompilation_enabled());
-  if (!Compiler::RecompileConcurrent(function)) {
-    function->ReplaceCode(function->shared()->code());
+  if (!Compiler::RecompileConcurrent(function, shared_code)) {
+    function->ReplaceCode(*shared_code);
   }
   return isolate->heap()->undefined_value();
 }
@@ -8660,20 +8631,27 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, pc_offset, Uint32, args[1]);
   Handle<Code> unoptimized(function->shared()->code(), isolate);
 
-#ifdef DEBUG
+  // Passing the PC in the javascript frame from the caller directly is
+  // not GC safe, so we walk the stack to get it.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
+  if (!unoptimized->contains(frame->pc())) {
+    // Code on the stack may not be the code object referenced by the shared
+    // function info.  It may have been replaced to include deoptimization data.
+    unoptimized = Handle<Code>(frame->LookupCode());
+  }
+
+  uint32_t pc_offset = static_cast<uint32_t>(frame->pc() -
+                                             unoptimized->instruction_start());
+
+#ifdef DEBUG
   ASSERT_EQ(frame->function(), *function);
   ASSERT_EQ(frame->LookupCode(), *unoptimized);
   ASSERT(unoptimized->contains(frame->pc()));
-
-  ASSERT(pc_offset ==
-         static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start()));
 #endif  // DEBUG
 
   // We're not prepared to handle a function with arguments object.
@@ -8699,12 +8677,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 
     if (job == NULL) {
       if (IsSuitableForOnStackReplacement(isolate, function, unoptimized) &&
-          Compiler::RecompileConcurrent(function, pc_offset)) {
+          Compiler::RecompileConcurrent(function, unoptimized, pc_offset)) {
         if (function->IsMarkedForLazyRecompilation() ||
             function->IsMarkedForConcurrentRecompilation()) {
           // Prevent regular recompilation if we queue this for OSR.
           // TODO(yangguo): remove this as soon as OSR becomes one-shot.
-          function->ReplaceCode(*unoptimized);
+          function->ReplaceCode(function->shared()->code());
         }
         return NULL;
       }
@@ -13560,7 +13538,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
   CONVERT_ARG_CHECKED(String, arg, 0);
   SmartArrayPointer<char> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  FlagList::SetFlagsFromString(*flags, StrLength(*flags));
+  FlagList::SetFlagsFromString(flags.get(), StrLength(flags.get()));
   return isolate->heap()->undefined_value();
 }
 
@@ -14335,7 +14313,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AbortJS) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
-  OS::PrintError("abort: %s\n", *message->ToCString());
+  OS::PrintError("abort: %s\n", message->ToCString().get());
   isolate->PrintStack(stderr);
   OS::Abort();
   UNREACHABLE();

@@ -25,27 +25,58 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+#include "trigger-failure-extension.h"
+#include "v8.h"
 
-function div(g) {
-  return (g/-1) ^ 1
+namespace v8 {
+namespace internal {
+
+
+const char* const TriggerFailureExtension::kSource =
+    "native function triggerCheckFalse();"
+    "native function triggerAssertFalse();"
+    "native function triggerSlowAssertFalse();";
+
+
+v8::Handle<v8::FunctionTemplate>
+TriggerFailureExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate,
+    v8::Handle<v8::String> str) {
+  if (strcmp(*v8::String::Utf8Value(str), "triggerCheckFalse") == 0) {
+    return v8::FunctionTemplate::New(
+        TriggerFailureExtension::TriggerCheckFalse);
+  } else if (strcmp(*v8::String::Utf8Value(str), "triggerAssertFalse") == 0) {
+    return v8::FunctionTemplate::New(
+        TriggerFailureExtension::TriggerAssertFalse);
+  } else {
+    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(str), "triggerSlowAssertFalse"));
+    return v8::FunctionTemplate::New(
+        TriggerFailureExtension::TriggerSlowAssertFalse);
+  }
 }
 
-var kMinInt = 1 << 31;
-var expected_MinInt = div(kMinInt);
-var expected_minus_zero = div(0);
-%OptimizeFunctionOnNextCall(div);
-assertEquals(expected_MinInt, div(kMinInt));
-assertEquals(expected_minus_zero , div(0));
 
-function mul(g) {
-  return (g * -1) ^ 1
+void TriggerFailureExtension::TriggerCheckFalse(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(false);
 }
 
-expected_MinInt = mul(kMinInt);
-expected_minus_zero = mul(0);
-%OptimizeFunctionOnNextCall(mul);
-assertEquals(expected_MinInt, mul(kMinInt));
-assertOptimized(mul);
-assertEquals(expected_minus_zero , mul(0));
-assertOptimized(mul);
+
+void TriggerFailureExtension::TriggerAssertFalse(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ASSERT(false);
+}
+
+
+void TriggerFailureExtension::TriggerSlowAssertFalse(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  SLOW_ASSERT(false);
+}
+
+
+void TriggerFailureExtension::Register() {
+  static TriggerFailureExtension trigger_failure_extension;
+  static v8::DeclareExtension declaration(&trigger_failure_extension);
+}
+
+} }  // namespace v8::internal

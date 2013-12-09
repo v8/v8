@@ -811,9 +811,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_the_hole_nan();
   static ExternalReference address_of_uint32_bias();
 
-  static ExternalReference math_sin_double_function(Isolate* isolate);
-  static ExternalReference math_cos_double_function(Isolate* isolate);
-  static ExternalReference math_tan_double_function(Isolate* isolate);
   static ExternalReference math_log_double_function(Isolate* isolate);
 
   static ExternalReference math_exp_constants(int constant_index);

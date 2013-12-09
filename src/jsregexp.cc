@@ -645,8 +645,8 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
 #if defined(V8_INTERPRETED_REGEXP) && defined(DEBUG)
   if (FLAG_trace_regexp_bytecodes) {
     String* pattern = regexp->Pattern();
-    PrintF("\n\nRegexp match:   /%s/\n\n", *(pattern->ToCString()));
-    PrintF("\n\nSubject string: '%s'\n\n", *(subject->ToCString()));
+    PrintF("\n\nRegexp match:   /%s/\n\n", pattern->ToCString().get());
+    PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
   }
 #endif
   int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
@@ -1151,7 +1151,7 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
 #ifdef DEBUG
   if (FLAG_print_code) {
     CodeTracer::Scope trace_scope(heap->isolate()->GetCodeTracer());
-    Handle<Code>::cast(code)->Disassemble(*pattern->ToCString(),
+    Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(),
                                           trace_scope.file());
   }
   if (FLAG_trace_regexp_assembler) {
@@ -4374,7 +4374,7 @@ void DotPrinter::PrintNode(const char* label, RegExpNode* node) {
   stream()->Add("\"];\n");
   Visit(node);
   stream()->Add("}\n");
-  printf("%s", *(stream()->ToCString()));
+  printf("%s", stream()->ToCString().get());
 }
 
 
@@ -4669,7 +4669,7 @@ void DispatchTable::Dump() {
   StringStream stream(&alloc);
   DispatchTableDumper dumper(&stream);
   tree()->ForEach(&dumper);
-  OS::PrintError("%s", *stream.ToCString());
+  OS::PrintError("%s", stream.ToCString().get());
 }
 
 

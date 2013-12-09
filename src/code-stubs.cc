@@ -80,8 +80,8 @@ SmartArrayPointer<const char> CodeStub::GetName() {
 
 void CodeStub::RecordCodeGeneration(Code* code, Isolate* isolate) {
   SmartArrayPointer<const char> name = GetName();
-  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
+  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, name.get()));
+  GDBJIT(AddCode(GDBJITInterface::STUB, name.get(), code));
   Counters* counters = isolate->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }
@@ -164,7 +164,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-      new_object->Disassemble(*GetName(), trace_scope.file());
+      new_object->Disassemble(GetName().get(), trace_scope.file());
       PrintF(trace_scope.file(), "\n");
     }
 #endif

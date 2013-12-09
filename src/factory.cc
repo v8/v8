@@ -896,10 +896,10 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       if (space > 0) {
         MaybeObject* maybe_arg = args->GetElement(isolate(), i);
         Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
-        const char* arg = *arg_str->ToCString();
+        SmartArrayPointer<char> arg = arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
-        OS::StrNCpy(v2, arg, space);
-        space -= Min(space, strlen(arg));
+        OS::StrNCpy(v2, arg.get(), space);
+        space -= Min(space, strlen(arg.get()));
         p = &buffer[kBufferSize] - space;
       }
     }

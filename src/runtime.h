@@ -101,7 +101,7 @@ namespace internal {
   F(GetOptimizationStatus, -1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(UnblockConcurrentRecompilation, 0, 1) \
-  F(CompileForOnStackReplacement, 2, 1) \
+  F(CompileForOnStackReplacement, 1, 1) \
   F(SetAllocationTimeout, 2, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(AllocateInTargetSpace, 2, 1) \
@@ -180,16 +180,13 @@ namespace internal {
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
   F(Math_atan2, 2, 1) \
-  F(Math_cos, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \
   F(Math_log, 1, 1) \
   F(Math_pow, 2, 1) \
   F(Math_pow_cfunction, 2, 1) \
   F(RoundNumber, 1, 1) \
-  F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
-  F(Math_tan, 1, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \

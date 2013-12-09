@@ -6494,12 +6494,6 @@ class Script: public Struct {
   V(Math, ceil, MathCeil)                           \
   V(Math, abs, MathAbs)                             \
   V(Math, log, MathLog)                             \
-  V(Math, sin, MathSin)                             \
-  V(Math, cos, MathCos)                             \
-  V(Math, tan, MathTan)                             \
-  V(Math, asin, MathASin)                           \
-  V(Math, acos, MathACos)                           \
-  V(Math, atan, MathATan)                           \
   V(Math, exp, MathExp)                             \
   V(Math, sqrt, MathSqrt)                           \
   V(Math, pow, MathPow)                             \

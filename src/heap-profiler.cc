@@ -118,7 +118,7 @@ void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   is_tracking_object_moves_ = true;
   ASSERT(!is_tracking_allocations());
   if (track_allocations) {
-    allocation_tracker_.Reset(new AllocationTracker(*ids_, *names_));
+    allocation_tracker_.Reset(new AllocationTracker(ids_.get(), names_.get()));
     heap()->DisableInlineAllocation();
   }
 }

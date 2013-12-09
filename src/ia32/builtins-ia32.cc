@@ -1316,17 +1316,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Lookup and calculate pc offset.
-    __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-    __ mov(ebx, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
-    __ sub(edx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ sub(edx, FieldOperand(ebx, SharedFunctionInfo::kCodeOffset));
-    __ SmiTag(edx);
-
-    // Pass both function and pc offset as arguments.
+    // Pass function as argument.
     __ push(eax);
-    __ push(edx);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
   Label skip;

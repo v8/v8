@@ -647,8 +647,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(CallStubCompiler* stub_compiler,
                           const ParameterCount& arguments,
-                          Register name,
-                          ExtraICState extra_state)
+                          Register name)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
         name_(name) {}
@@ -2589,7 +2588,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), ecx, extra_state());
+  CallInterceptorCompiler compiler(this, arguments(), ecx);
   compiler.Compile(masm(), object, holder, name, &lookup, edx, ebx, edi, eax,
                    &miss);
 

@@ -1697,9 +1697,11 @@ void BackEdgeTable::Revert(Isolate* isolate,
 void BackEdgeTable::AddStackCheck(CompilationInfo* info) {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = info->isolate();
-  Code* code = info->shared_info()->code();
+  Code* code = *info->osr_patched_code();
   Address pc = code->instruction_start() + info->osr_pc_offset();
-  ASSERT_EQ(ON_STACK_REPLACEMENT, GetBackEdgeState(isolate, code, pc));
+  ASSERT_EQ(info->osr_ast_id().ToInt(),
+            code->TranslatePcOffsetToAstId(info->osr_pc_offset()).ToInt());
+  ASSERT_NE(INTERRUPT, GetBackEdgeState(isolate, code, pc));
   Code* patch = isolate->builtins()->builtin(Builtins::kOsrAfterStackCheck);
   PatchAt(code, pc, OSR_AFTER_STACK_CHECK, patch);
 }
@@ -1708,8 +1710,10 @@ void BackEdgeTable::AddStackCheck(CompilationInfo* info) {
 void BackEdgeTable::RemoveStackCheck(CompilationInfo* info) {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = info->isolate();
-  Code* code = info->shared_info()->code();
+  Code* code = *info->osr_patched_code();
   Address pc = code->instruction_start() + info->osr_pc_offset();
+  ASSERT_EQ(info->osr_ast_id().ToInt(),
+            code->TranslatePcOffsetToAstId(info->osr_pc_offset()).ToInt());
   if (GetBackEdgeState(isolate, code, pc) == OSR_AFTER_STACK_CHECK) {
     Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
     PatchAt(code, pc, ON_STACK_REPLACEMENT, patch);

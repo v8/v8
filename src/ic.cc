@@ -440,9 +440,6 @@ static int ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state) {
 
 
 void IC::PostPatching(Address address, Code* target, Code* old_target) {
-  if (FLAG_type_info_threshold == 0 && !FLAG_watch_ic_patching) {
-    return;
-  }
   Isolate* isolate = target->GetHeap()->isolate();
   Code* host = isolate->
       inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
@@ -465,10 +462,8 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
         TypeFeedbackInfo::cast(host->type_feedback_info());
     info->change_own_type_change_checksum();
   }
-  if (FLAG_watch_ic_patching) {
-    host->set_profiler_ticks(0);
-    isolate->runtime_profiler()->NotifyICChanged();
-  }
+  host->set_profiler_ticks(0);
+  isolate->runtime_profiler()->NotifyICChanged();
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its
   // unoptimized version for the benefit of later inlining.

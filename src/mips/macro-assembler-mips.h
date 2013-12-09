@@ -601,11 +601,16 @@ class MacroAssembler: public Assembler {
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
 
+  void Pref(int32_t hint, const MemOperand& rs);
+
 
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
+
+  void Ulw(Register rd, const MemOperand& rs);
+  void Usw(Register rd, const MemOperand& rs);
 
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);

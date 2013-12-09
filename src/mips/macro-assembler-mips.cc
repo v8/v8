@@ -789,7 +789,28 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
 }
 
 
+void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
+  if (kArchVariant == kLoongson) {
+    lw(zero_reg, rs);
+  } else {
+    pref(hint, rs);
+  }
+}
+
+
 //------------Pseudo-instructions-------------
+
+void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
+  lwr(rd, rs);
+  lwl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+}
+
+
+void MacroAssembler::Usw(Register rd, const MemOperand& rs) {
+  swr(rd, rs);
+  swl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+}
+
 
 void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   AllowDeferredHandleDereference smi_check;

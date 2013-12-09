@@ -1119,9 +1119,6 @@ const char* HUnaryMathOperation::OpName() const {
     case kMathRound: return "round";
     case kMathAbs: return "abs";
     case kMathLog: return "log";
-    case kMathSin: return "sin";
-    case kMathCos: return "cos";
-    case kMathTan: return "tan";
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
     case kMathPowHalf: return "pow-half";
@@ -1536,7 +1533,7 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
       *tag = kStringTag;
       return;
     case IS_INTERNALIZED_STRING:
-      *mask = kIsNotInternalizedMask;
+      *mask = kIsNotStringMask | kIsNotInternalizedMask;
       *tag = kInternalizedTag;
       return;
     default:
@@ -1779,10 +1776,7 @@ Range* HDiv::InferRange(Zone* zone) {
     result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
                                   (a->CanBeMinusZero() ||
                                    (a->CanBeZero() && b->CanBeNegative())));
-    if (!a->Includes(kMinInt) ||
-        !b->Includes(-1) ||
-        CheckFlag(kAllUsesTruncatingToInt32)) {
-      // It is safe to clear kCanOverflow when kAllUsesTruncatingToInt32.
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(HValue::kCanOverflow);
     }
 
@@ -2501,7 +2495,7 @@ void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
 
 void HEnterInlined::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name = function()->debug_name()->ToCString();
-  stream->Add("%s, id=%d", *name, function()->id().ToInt());
+  stream->Add("%s, id=%d", name.get(), function()->id().ToInt());
 }
 
 
@@ -3112,7 +3106,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
 void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
 }
 
 
@@ -3250,7 +3244,7 @@ void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
   ASSERT(name()->IsString());
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
   stream->Add(" = ");
   value()->PrintNameTo(stream);
 }
@@ -3859,10 +3853,6 @@ HInstruction* HUnaryMathOperation::New(
     }
     if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
-        case kMathSin:
-        case kMathCos:
-        case kMathTan:
-          return H_CONSTANT_DOUBLE(OS::nan_value());
         case kMathExp:
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
         case kMathLog:
@@ -3880,12 +3870,6 @@ HInstruction* HUnaryMathOperation::New(
       }
     }
     switch (op) {
-      case kMathSin:
-        return H_CONSTANT_DOUBLE(fast_sin(d));
-      case kMathCos:
-        return H_CONSTANT_DOUBLE(fast_cos(d));
-      case kMathTan:
-        return H_CONSTANT_DOUBLE(fast_tan(d));
       case kMathExp:
         return H_CONSTANT_DOUBLE(fast_exp(d));
       case kMathLog:
@@ -4269,6 +4253,29 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
 }
 
 
+HObjectAccess HObjectAccess::ForAllocationSiteOffset(int offset) {
+  switch (offset) {
+    case AllocationSite::kTransitionInfoOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kNestedSiteOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kMementoFoundCountOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kMementoCreateCountOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kPretenureDecisionOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kDependentCodeOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kWeakNextOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    default:
+      UNREACHABLE();
+  }
+  return HObjectAccess(kInobject, offset);
+}
+
+
 HObjectAccess HObjectAccess::ForContextSlot(int index) {
   ASSERT(index >= 0);
   Portion portion = kInobject;
@@ -4402,11 +4409,15 @@ void HObjectAccess::PrintTo(StringStream* stream) {
       break;
     case kDouble:  // fall through
     case kInobject:
-      if (!name_.is_null()) stream->Add(*String::cast(*name_)->ToCString());
+      if (!name_.is_null()) {
+        stream->Add(String::cast(*name_)->ToCString().get());
+      }
       stream->Add("[in-object]");
       break;
     case kBackingStore:
-      if (!name_.is_null()) stream->Add(*String::cast(*name_)->ToCString());
+      if (!name_.is_null()) {
+        stream->Add(String::cast(*name_)->ToCString().get());
+      }
       stream->Add("[backing-store]");
       break;
     case kExternalMemory:

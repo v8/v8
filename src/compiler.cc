@@ -235,8 +235,7 @@ void CompilationInfo::DisableOptimization() {
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
 bool CompilationInfo::ShouldSelfOptimize() {
-  return FLAG_self_optimization &&
-      FLAG_crankshaft &&
+  return FLAG_crankshaft &&
       !function()->flags()->Contains(kDontSelfOptimize) &&
       !function()->dont_optimize() &&
       function()->scope()->AllowsLazyCompilation() &&
@@ -460,7 +459,7 @@ RecompileJob::Status RecompileJob::CreateGraph() {
   if (FLAG_trace_hydrogen) {
     Handle<String> name = info()->function()->debug_name();
     PrintF("-----------------------------------------------------------\n");
-    PrintF("Compiling method %s using hydrogen\n", *name->ToCString());
+    PrintF("Compiling method %s using hydrogen\n", name->ToCString().get());
     isolate()->GetHTracer()->TraceCompilation(info());
   }
 
@@ -1056,6 +1055,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
 
 bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
+                                   Handle<Code> unoptimized,
                                    uint32_t osr_pc_offset) {
   bool compiling_for_osr = (osr_pc_offset != 0);
 
@@ -1078,11 +1078,10 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
   Handle<SharedFunctionInfo> shared = info->shared_info();
 
   if (compiling_for_osr) {
-    BailoutId osr_ast_id =
-        shared->code()->TranslatePcOffsetToAstId(osr_pc_offset);
+    BailoutId osr_ast_id = unoptimized->TranslatePcOffsetToAstId(osr_pc_offset);
     ASSERT(!osr_ast_id.IsNone());
     info->SetOptimizing(osr_ast_id);
-    info->set_osr_pc_offset(osr_pc_offset);
+    info->SetOsrInfo(unoptimized, osr_pc_offset);
 
     if (FLAG_trace_osr) {
       PrintF("[COSR - attempt to queue ");
@@ -1100,30 +1099,30 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
   isolate->counters()->total_compile_size()->Increment(compiled_size);
 
   {
-    CompilationHandleScope handle_scope(*info);
+    CompilationHandleScope handle_scope(info.get());
 
-    if (!compiling_for_osr && InstallCodeFromOptimizedCodeMap(*info)) {
+    if (!compiling_for_osr && InstallCodeFromOptimizedCodeMap(info.get())) {
       return true;
     }
 
-    if (Parser::Parse(*info)) {
+    if (Parser::Parse(info.get())) {
       LanguageMode language_mode = info->function()->language_mode();
       info->SetLanguageMode(language_mode);
       shared->set_language_mode(language_mode);
       info->SaveHandles();
 
-      if (Rewriter::Rewrite(*info) && Scope::Analyze(*info)) {
-        RecompileJob* job = new(info->zone()) RecompileJob(*info);
+      if (Rewriter::Rewrite(info.get()) && Scope::Analyze(info.get())) {
+        RecompileJob* job = new(info->zone()) RecompileJob(info.get());
         RecompileJob::Status status = job->CreateGraph();
         if (status == RecompileJob::SUCCEEDED) {
           info.Detach();
-          shared->code()->set_profiler_ticks(0);
+          unoptimized->set_profiler_ticks(0);
           isolate->optimizing_compiler_thread()->QueueForOptimization(job);
           ASSERT(!isolate->has_pending_exception());
           return true;
         } else if (status == RecompileJob::BAILED_OUT) {
           isolate->clear_pending_exception();
-          InstallFullCode(*info);
+          InstallFullCode(info.get());
         }
       }
     }
@@ -1140,7 +1139,7 @@ Handle<Code> Compiler::InstallOptimizedCode(RecompileJob* job) {
   // Except when OSR already disabled optimization for some reason.
   if (info->shared_info()->optimization_disabled()) {
     info->AbortOptimization();
-    InstallFullCode(*info);
+    InstallFullCode(info.get());
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** aborting optimization for ");
       info->closure()->PrintName();
@@ -1172,14 +1171,14 @@ Handle<Code> Compiler::InstallOptimizedCode(RecompileJob* job) {
            status == RecompileJob::BAILED_OUT);
   }
 
-  InstallCodeCommon(*info);
+  InstallCodeCommon(info.get());
   if (status == RecompileJob::SUCCEEDED) {
     Handle<Code> code = info->code();
     ASSERT(info->shared_info()->scope_info() != ScopeInfo::Empty(isolate));
     info->closure()->ReplaceCode(*code);
     if (info->shared_info()->SearchOptimizedCodeMap(
             info->closure()->context()->native_context()) == -1) {
-      InsertCodeIntoOptimizedCodeMap(*info);
+      InsertCodeIntoOptimizedCodeMap(info.get());
     }
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Optimized code for ");
@@ -1188,7 +1187,7 @@ Handle<Code> Compiler::InstallOptimizedCode(RecompileJob* job) {
     }
   } else {
     info->AbortOptimization();
-    InstallFullCode(*info);
+    InstallFullCode(info.get());
   }
   // Optimized code is finally replacing unoptimized code.  Reset the latter's
   // profiler ticks to prevent too soon re-opt after a deopt.

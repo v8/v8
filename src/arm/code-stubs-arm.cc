@@ -1418,18 +1418,6 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
   }
   AllowExternalCallThatCantCauseGC scope(masm);
   switch (type_) {
-    case TranscendentalCache::SIN:
-      __ CallCFunction(ExternalReference::math_sin_double_function(isolate),
-          0, 1);
-      break;
-    case TranscendentalCache::COS:
-      __ CallCFunction(ExternalReference::math_cos_double_function(isolate),
-          0, 1);
-      break;
-    case TranscendentalCache::TAN:
-      __ CallCFunction(ExternalReference::math_tan_double_function(isolate),
-          0, 1);
-      break;
     case TranscendentalCache::LOG:
       __ CallCFunction(ExternalReference::math_log_double_function(isolate),
           0, 1);
@@ -1445,9 +1433,6 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
 Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
   switch (type_) {
     // Add more cases when necessary.
-    case TranscendentalCache::SIN: return Runtime::kMath_sin;
-    case TranscendentalCache::COS: return Runtime::kMath_cos;
-    case TranscendentalCache::TAN: return Runtime::kMath_tan;
     case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();

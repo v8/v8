@@ -340,6 +340,8 @@
         '../../src/extensions/gc-extension.h',
         '../../src/extensions/statistics-extension.cc',
         '../../src/extensions/statistics-extension.h',
+        '../../src/extensions/trigger-failure-extension.cc',
+        '../../src/extensions/trigger-failure-extension.h',
         '../../src/factory.cc',
         '../../src/factory.h',
         '../../src/fast-dtoa.cc',

@@ -691,12 +691,12 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
     }
   }
   PrintF(stderr, "[couldn't find pc offset for node=%d]\n", id.ToInt());
-  PrintF(stderr, "[method: %s]\n", *shared->DebugName()->ToCString());
+  PrintF(stderr, "[method: %s]\n", shared->DebugName()->ToCString().get());
   // Print the source code if available.
   HeapStringAllocator string_allocator;
   StringStream stream(&string_allocator);
   shared->SourceCodePrint(&stream, -1);
-  PrintF(stderr, "[source:\n%s\n]", *stream.ToCString());
+  PrintF(stderr, "[source:\n%s\n]", stream.ToCString().get());
 
   FATAL("unable to find pc offset during deoptimization");
   return -1;

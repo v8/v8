@@ -39,9 +39,6 @@ namespace internal {
 
 UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   switch (type) {
-    case TranscendentalCache::SIN: return &sin;
-    case TranscendentalCache::COS: return &cos;
-    case TranscendentalCache::TAN: return &tan;
     case TranscendentalCache::LOG: return &log;
     default: UNIMPLEMENTED();
   }
@@ -836,8 +833,10 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 #undef __
 
+#ifdef DEBUG
 // add(r0, pc, Operand(-8))
 static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
+#endif
 
 static byte* GetNoCodeAgeSequence(uint32_t* length) {
   // The sequence of instructions that is patched out for aging code is the

@@ -59,10 +59,6 @@ TEST(StartStop) {
 }
 
 
-static inline i::Address ToAddress(int n) {
-  return reinterpret_cast<i::Address>(n);
-}
-
 static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
                                    i::Address frame2 = NULL,
@@ -147,7 +143,7 @@ TEST(CodeEvents) {
   SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
           &generator, NULL, TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, *processor);
+  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
@@ -162,7 +158,7 @@ TEST(CodeEvents) {
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(*processor, aaa_code->address());
+  EnqueueTickSampleEvent(processor.get(), aaa_code->address());
 
   processor->StopSynchronously();
 
@@ -209,19 +205,19 @@ TEST(TickEvents) {
   SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
           &generator, NULL, TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, *processor);
+  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, 5);
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
-  EnqueueTickSampleEvent(*processor, frame1_code->instruction_start());
+  EnqueueTickSampleEvent(processor.get(), frame1_code->instruction_start());
   EnqueueTickSampleEvent(
-      *processor,
+      processor.get(),
       frame2_code->instruction_start() + frame2_code->ExecutableSize() / 2,
       frame1_code->instruction_start() + frame2_code->ExecutableSize() / 2);
   EnqueueTickSampleEvent(
-      *processor,
+      processor.get(),
       frame3_code->instruction_end() - 1,
       frame2_code->instruction_end() - 1,
       frame1_code->instruction_end() - 1);
@@ -278,7 +274,7 @@ TEST(Issue1398) {
   SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
           &generator, NULL, TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, *processor);
+  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 

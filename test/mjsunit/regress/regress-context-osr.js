@@ -25,27 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
-function div(g) {
-  return (g/-1) ^ 1
+"use strict";
+function f() {
+  try { } catch (e) { }
 }
 
-var kMinInt = 1 << 31;
-var expected_MinInt = div(kMinInt);
-var expected_minus_zero = div(0);
-%OptimizeFunctionOnNextCall(div);
-assertEquals(expected_MinInt, div(kMinInt));
-assertEquals(expected_minus_zero , div(0));
-
-function mul(g) {
-  return (g * -1) ^ 1
+for (this.x = 0; this.x < 1; ++this.x) {
+  for (this.y = 0; this.y < 1; ++this.y) {
+    for (this.ll = 0; this.ll < 70670; ++this.ll) {
+      f();
+    }
+  }
 }
-
-expected_MinInt = mul(kMinInt);
-expected_minus_zero = mul(0);
-%OptimizeFunctionOnNextCall(mul);
-assertEquals(expected_MinInt, mul(kMinInt));
-assertOptimized(mul);
-assertEquals(expected_minus_zero , mul(0));
-assertOptimized(mul);

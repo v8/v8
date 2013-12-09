@@ -1182,7 +1182,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         fatal_exception_depth++;
         PrintF(stderr,
                "%s\n\nFROM\n",
-               *MessageHandler::GetLocalizedMessage(this, message_obj));
+               MessageHandler::GetLocalizedMessage(this, message_obj).get());
         PrintCurrentStackTrace(stderr);
         OS::Abort();
       }
@@ -1197,13 +1197,13 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       if (exception->IsString() && location->script()->name()->IsString()) {
         OS::PrintError(
             "Extension or internal compilation error: %s in %s at line %d.\n",
-            *String::cast(exception)->ToCString(),
-            *String::cast(location->script()->name())->ToCString(),
+            String::cast(exception)->ToCString().get(),
+            String::cast(location->script()->name())->ToCString().get(),
             line_number + 1);
       } else if (location->script()->name()->IsString()) {
         OS::PrintError(
             "Extension or internal compilation error in %s at line %d.\n",
-            *String::cast(location->script()->name())->ToCString(),
+            String::cast(location->script()->name())->ToCString().get(),
             line_number + 1);
       } else {
         OS::PrintError("Extension or internal compilation error.\n");
@@ -1688,7 +1688,6 @@ void Isolate::Deinit() {
     bootstrapper_->TearDown();
 
     if (runtime_profiler_ != NULL) {
-      runtime_profiler_->TearDown();
       delete runtime_profiler_;
       runtime_profiler_ = NULL;
     }
@@ -2049,7 +2048,6 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   runtime_profiler_ = new RuntimeProfiler(this);
-  runtime_profiler_->SetUp();
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.

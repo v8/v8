@@ -1683,7 +1683,7 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       SmartArrayPointer<char> debug_name =
           shared->DebugName()->ToCString();
       if (debug_name[0] != 0) {
-        accumulator->Add("<SharedFunctionInfo %s>", *debug_name);
+        accumulator->Add("<SharedFunctionInfo %s>", debug_name.get());
       } else {
         accumulator->Add("<SharedFunctionInfo>");
       }
@@ -9913,7 +9913,7 @@ void JSFunction::SetInstanceClassName(String* name) {
 
 void JSFunction::PrintName(FILE* out) {
   SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
-  PrintF(out, "%s", *name);
+  PrintF(out, "%s", name.get());
 }
 
 

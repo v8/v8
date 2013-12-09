@@ -903,7 +903,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
         source->ToCString(DISALLOW_NULLS,
                           FAST_STRING_TRAVERSAL,
                           start, length, NULL);
-    PrintF(out, "%s", *source_string);
+    PrintF(out, "%s", source_string.get());
   }
   // Script files are often large, hard to read.
   // PrintF(out, "\n - script =");

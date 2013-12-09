@@ -27,25 +27,15 @@
 
 // Flags: --allow-natives-syntax
 
-function div(g) {
-  return (g/-1) ^ 1
+function do_div(x, y) {
+  return (x / y) | 0;
 }
 
-var kMinInt = 1 << 31;
-var expected_MinInt = div(kMinInt);
-var expected_minus_zero = div(0);
-%OptimizeFunctionOnNextCall(div);
-assertEquals(expected_MinInt, div(kMinInt));
-assertEquals(expected_minus_zero , div(0));
+// Preparation.
+assertEquals(17, do_div(51, 3));
+assertEquals(13, do_div(65, 5));
+%OptimizeFunctionOnNextCall(do_div);
+assertEquals(11, do_div(77, 7));
 
-function mul(g) {
-  return (g * -1) ^ 1
-}
-
-expected_MinInt = mul(kMinInt);
-expected_minus_zero = mul(0);
-%OptimizeFunctionOnNextCall(mul);
-assertEquals(expected_MinInt, mul(kMinInt));
-assertOptimized(mul);
-assertEquals(expected_minus_zero , mul(0));
-assertOptimized(mul);
+// The actual test. We should not trigger a floating point exception.
+assertEquals(-2147483648, do_div(-2147483648, -1));

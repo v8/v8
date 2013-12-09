@@ -27,25 +27,14 @@
 
 // Flags: --allow-natives-syntax
 
-function div(g) {
-  return (g/-1) ^ 1
+// A bug in r15773, when masks for internalized string and string types
+// were reorganized.
+function equal(o1, o2) {
+  return (o1 == o2);
 }
-
-var kMinInt = 1 << 31;
-var expected_MinInt = div(kMinInt);
-var expected_minus_zero = div(0);
-%OptimizeFunctionOnNextCall(div);
-assertEquals(expected_MinInt, div(kMinInt));
-assertEquals(expected_minus_zero , div(0));
-
-function mul(g) {
-  return (g * -1) ^ 1
-}
-
-expected_MinInt = mul(kMinInt);
-expected_minus_zero = mul(0);
-%OptimizeFunctionOnNextCall(mul);
-assertEquals(expected_MinInt, mul(kMinInt));
-assertOptimized(mul);
-assertEquals(expected_minus_zero , mul(0));
-assertOptimized(mul);
+var a = "abc";
+var b = "abc";
+equal(a, b);
+equal(a, b);
+%OptimizeFunctionOnNextCall(equal);
+assertTrue(equal(1.3, 1.3));

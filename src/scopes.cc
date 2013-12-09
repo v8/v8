@@ -800,7 +800,7 @@ static void Indent(int n, const char* str) {
 
 static void PrintName(Handle<String> name) {
   SmartArrayPointer<char> s = name->ToCString(DISALLOW_NULLS);
-  PrintF("%s", *s);
+  PrintF("%s", s.get());
 }
 
 

@@ -25,27 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+#ifndef V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_
+#define V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_
 
-function div(g) {
-  return (g/-1) ^ 1
-}
+#include "v8.h"
 
-var kMinInt = 1 << 31;
-var expected_MinInt = div(kMinInt);
-var expected_minus_zero = div(0);
-%OptimizeFunctionOnNextCall(div);
-assertEquals(expected_MinInt, div(kMinInt));
-assertEquals(expected_minus_zero , div(0));
+namespace v8 {
+namespace internal {
 
-function mul(g) {
-  return (g * -1) ^ 1
-}
+class TriggerFailureExtension : public v8::Extension {
+ public:
+  TriggerFailureExtension() : v8::Extension("v8/trigger-failure", kSource) {}
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
+      v8::Handle<v8::String> name);
+  static void TriggerCheckFalse(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void TriggerAssertFalse(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void TriggerSlowAssertFalse(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Register();
 
-expected_MinInt = mul(kMinInt);
-expected_minus_zero = mul(0);
-%OptimizeFunctionOnNextCall(mul);
-assertEquals(expected_MinInt, mul(kMinInt));
-assertOptimized(mul);
-assertEquals(expected_minus_zero , mul(0));
-assertOptimized(mul);
+ private:
+  static const char* const kSource;
+};
+
+} }  // namespace v8::internal
+
+#endif  // V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_

@@ -5318,7 +5318,6 @@ static i::Handle<i::Context> CreateEnvironment(
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
     }
-    isolate->runtime_profiler()->Reset();
   }
   // Leave V8.
 

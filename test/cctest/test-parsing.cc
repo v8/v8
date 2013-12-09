@@ -390,13 +390,13 @@ TEST(PreParseOverflow) {
 
   size_t kProgramSize = 1024 * 1024;
   i::SmartArrayPointer<char> program(i::NewArray<char>(kProgramSize + 1));
-  memset(*program, '(', kProgramSize);
+  memset(program.get(), '(', kProgramSize);
   program[kProgramSize] = '\0';
 
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
 
   i::Utf8ToUtf16CharacterStream stream(
-      reinterpret_cast<const i::byte*>(*program),
+      reinterpret_cast<const i::byte*>(program.get()),
       static_cast<unsigned>(kProgramSize));
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
@@ -447,7 +447,7 @@ void TestCharacterStream(const char* ascii_source,
   i::Vector<const char> ascii_vector(ascii_source, static_cast<int>(length));
   i::Handle<i::String> ascii_string(
       factory->NewStringFromAscii(ascii_vector));
-  TestExternalResource resource(*uc16_buffer, length);
+  TestExternalResource resource(uc16_buffer.get(), length);
   i::Handle<i::String> uc16_string(
       factory->NewExternalStringFromTwoByte(&resource));
 
@@ -1152,7 +1152,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           "with error:\n"
           "\t%s\n"
           "However, the preparser succeeded",
-          *source->ToCString(), *message_string->ToCString());
+          source->ToCString().get(), message_string->ToCString().get());
       CHECK(false);
     }
     // Check that preparser and parser produce the same error.
@@ -1164,9 +1164,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           "However, found the following error messages\n"
           "\tparser:    %s\n"
           "\tpreparser: %s\n",
-          *source->ToCString(),
-          *message_string->ToCString(),
-          *preparser_message->ToCString());
+          source->ToCString().get(),
+          message_string->ToCString().get(),
+          preparser_message->ToCString().get());
       CHECK(false);
     }
   } else if (data.has_error()) {
@@ -1176,7 +1176,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "with error:\n"
         "\t%s\n"
         "However, the parser succeeded",
-        *source->ToCString(), *FormatMessage(&data)->ToCString());
+        source->ToCString().get(), FormatMessage(&data)->ToCString().get());
     CHECK(false);
   }
 }

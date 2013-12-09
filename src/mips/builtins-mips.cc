@@ -969,18 +969,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Lookup and calculate pc offset.
-    __ lw(a1, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ lw(a2, FieldMemOperand(a0, JSFunction::kSharedFunctionInfoOffset));
-    __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kCodeOffset));
-    __ Subu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ Subu(a1, a1, a2);
-    __ SmiTag(a1);
-
-    // Pass both function and pc offset as arguments.
+    // Pass function as argument.
     __ push(a0);
-    __ push(a1);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
   // If the code object is null, just return to the unoptimized code.

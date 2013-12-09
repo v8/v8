@@ -196,9 +196,6 @@ double fast_##name(double x) {                           \
   return (*fast_##name##_function)(x);                   \
 }
 
-UNARY_MATH_FUNCTION(sin, CreateTranscendentalFunction(TranscendentalCache::SIN))
-UNARY_MATH_FUNCTION(cos, CreateTranscendentalFunction(TranscendentalCache::COS))
-UNARY_MATH_FUNCTION(tan, CreateTranscendentalFunction(TranscendentalCache::TAN))
 UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
@@ -217,9 +214,6 @@ void MathSetup() {
 #ifdef _WIN64
   init_modulo_function();
 #endif
-  init_fast_sin_function();
-  init_fast_cos_function();
-  init_fast_tan_function();
   init_fast_log_function();
   // fast_exp is initialized lazily.
   init_fast_sqrt_function();

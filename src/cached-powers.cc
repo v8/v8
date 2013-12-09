@@ -133,7 +133,10 @@ static const CachedPower kCachedPowers[] = {
   {V8_2PART_UINT64_C(0xaf87023b, 9bf0ee6b), 1066, 340},
 };
 
+#ifdef DEBUG
 static const int kCachedPowersLength = ARRAY_SIZE(kCachedPowers);
+#endif
+
 static const int kCachedPowersOffset = 348;  // -1 * the first decimal_exponent.
 static const double kD_1_LOG2_10 = 0.30102999566398114;  //  1 / lg(10)
 // Difference between the decimal exponents in the table above.
