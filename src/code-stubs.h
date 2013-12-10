@@ -245,6 +245,7 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
+  STATIC_ASSERT(NUMBER_OF_IDS < (1 << kStubMajorKeyBits));
   class MajorKeyBits: public BitField<uint32_t, 0, kStubMajorKeyBits> {};
   class MinorKeyBits: public BitField<uint32_t,
       kStubMajorKeyBits, kStubMinorKeyBits> {};  // NOLINT

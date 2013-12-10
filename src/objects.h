@@ -311,7 +311,7 @@ static const ExtraICState kNoExtraICState = 0;
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
-const int kStubMajorKeyBits = 6;
+const int kStubMajorKeyBits = 7;
 const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 
 // All Maps have a field instance_type containing a InstanceType.
@@ -5484,7 +5484,7 @@ class Code: public HeapObject {
   static const int kStubMajorKeyFirstBit = kIsCrankshaftedBit + 1;
   static const int kSafepointTableOffsetFirstBit =
       kStubMajorKeyFirstBit + kStubMajorKeyBits;
-  static const int kSafepointTableOffsetBitCount = 25;
+  static const int kSafepointTableOffsetBitCount = 24;
 
   STATIC_ASSERT(kStubMajorKeyFirstBit + kStubMajorKeyBits <= 32);
   STATIC_ASSERT(kSafepointTableOffsetFirstBit +
