@@ -1082,9 +1082,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       CompileCallLoadPropertyWithInterceptor(
           masm, receiver, holder, name_, holder_obj,
           IC::kLoadPropertyWithInterceptorOnly);
-      __ pop(receiver);
       __ pop(name_);
       __ pop(holder);
+      __ pop(receiver);
     }
     // If interceptor returns no-result sentinel, call the constant function.
     __ LoadRoot(scratch, Heap::kNoInterceptorResultSentinelRootIndex);
