@@ -4335,7 +4335,10 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare loop.
   Label result_not_equal;
   GenerateAsciiCharsCompareLoop(masm, left, right, min_length, scratch2,
-                                &result_not_equal, Label::kNear);
+                                &result_not_equal,
+                                // In debug-code mode, SmiTest below might push
+                                // the target label outside the near range.
+                                Label::kFar);
 
   // Completed loop without finding different characters.
   // Compare lengths (precomputed).
