@@ -799,15 +799,17 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            Label* interceptor_succeeded) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(holder);  // Save the holder.
-      __ push(name_);  // Save the name.
+      __ push(receiver);
+      __ push(holder);
+      __ push(name_);
 
       CompileCallLoadPropertyWithInterceptor(
           masm, receiver, holder, name_, holder_obj,
           IC::kLoadPropertyWithInterceptorOnly);
 
-      __ pop(name_);  // Restore the name.
-      __ pop(holder);  // Restore the holder.
+      __ pop(name_);
+      __ pop(holder);
+      __ pop(receiver);
       // Leave the internal frame.
     }
 
