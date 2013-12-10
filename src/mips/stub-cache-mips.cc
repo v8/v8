@@ -1078,12 +1078,13 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
 
-      __ Push(holder, name_);
+      __ Push(receiver, holder, name_);
       CompileCallLoadPropertyWithInterceptor(
           masm, receiver, holder, name_, holder_obj,
           IC::kLoadPropertyWithInterceptorOnly);
-      __ pop(name_);  // Restore the name.
-      __ pop(holder);  // Restore the holder.
+      __ pop(receiver);
+      __ pop(name_);
+      __ pop(holder);
     }
     // If interceptor returns no-result sentinel, call the constant function.
     __ LoadRoot(scratch, Heap::kNoInterceptorResultSentinelRootIndex);
