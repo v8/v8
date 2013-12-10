@@ -1839,6 +1839,7 @@ class RootMarkingVisitor : public ObjectVisitor {
 
 
 // Helper class for pruning the string table.
+template<bool finalize_external_strings>
 class StringTableCleaner : public ObjectVisitor {
  public:
   explicit StringTableCleaner(Heap* heap)
@@ -1850,22 +1851,20 @@ class StringTableCleaner : public ObjectVisitor {
       Object* o = *p;
       if (o->IsHeapObject() &&
           !Marking::MarkBitFrom(HeapObject::cast(o)).Get()) {
-        // Check if the internalized string being pruned is external. We need to
-        // delete the associated external data as this string is going away.
-
-        // Since no objects have yet been moved we can safely access the map of
-        // the object.
-        if (o->IsExternalString()) {
+        if (finalize_external_strings) {
+          ASSERT(o->IsExternalString());
           heap_->FinalizeExternalString(String::cast(*p));
+        } else {
+          pointers_removed_++;
         }
         // Set the entry to the_hole_value (as deleted).
         *p = heap_->the_hole_value();
-        pointers_removed_++;
       }
     }
   }
 
   int PointersRemoved() {
+    ASSERT(!finalize_external_strings);
     return pointers_removed_;
   }
 
@@ -1873,6 +1872,10 @@ class StringTableCleaner : public ObjectVisitor {
   Heap* heap_;
   int pointers_removed_;
 };
+
+
+typedef StringTableCleaner<false> InternalizedStringTableCleaner;
+typedef StringTableCleaner<true> ExternalStringTableCleaner;
 
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
@@ -2398,10 +2401,12 @@ void MarkCompactCollector::AfterMarking() {
   // string table.  Cannot use string_table() here because the string
   // table is marked.
   StringTable* string_table = heap()->string_table();
-  StringTableCleaner v(heap());
-  string_table->IterateElements(&v);
-  string_table->ElementsRemoved(v.PointersRemoved());
-  heap()->external_string_table_.Iterate(&v);
+  InternalizedStringTableCleaner internalized_visitor(heap());
+  string_table->IterateElements(&internalized_visitor);
+  string_table->ElementsRemoved(internalized_visitor.PointersRemoved());
+
+  ExternalStringTableCleaner external_visitor(heap());
+  heap()->external_string_table_.Iterate(&external_visitor);
   heap()->external_string_table_.CleanUp();
 
   // Process the weak references.

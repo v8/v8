@@ -5733,8 +5733,8 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     external = obj;
   }
 
-  ASSERT(external->IsExternalString());
-  if (result && !external->IsInternalizedString()) {
+  if (result) {
+    ASSERT(external->IsExternalString());
     isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;
@@ -5791,8 +5791,8 @@ bool v8::String::MakeExternal(
     external = obj;
   }
 
-  ASSERT(external->IsExternalString());
-  if (result && !external->IsInternalizedString()) {
+  if (result) {
+    ASSERT(external->IsExternalString());
     isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;

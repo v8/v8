@@ -17342,6 +17342,55 @@ TEST(ExternalStringCollectedAtTearDown) {
 }
 
 
+TEST(ExternalInternalizedStringCollectedAtTearDown) {
+  int destroyed = 0;
+  v8::Isolate* isolate = v8::Isolate::New();
+  { v8::Isolate::Scope isolate_scope(isolate);
+    LocalContext env(isolate);
+    v8::HandleScope handle_scope(isolate);
+    CompileRun("var ring = 'One string to test them all';");
+    const char* s = "One string to test them all";
+    TestAsciiResource* inscription =
+        new TestAsciiResource(i::StrDup(s), &destroyed);
+    v8::Local<v8::String> ring = CompileRun("ring")->ToString();
+    CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
+    ring->MakeExternal(inscription);
+    // Ring is still alive.  Orcs are roaming freely across our lands.
+    CHECK_EQ(0, destroyed);
+    USE(ring);
+  }
+
+  isolate->Dispose();
+  // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
+  CHECK_EQ(1, destroyed);
+}
+
+
+TEST(ExternalInternalizedStringCollectedAtGC) {
+  int destroyed = 0;
+  { LocalContext env;
+    v8::HandleScope handle_scope(env->GetIsolate());
+    CompileRun("var ring = 'One string to test them all';");
+    const char* s = "One string to test them all";
+    TestAsciiResource* inscription =
+        new TestAsciiResource(i::StrDup(s), &destroyed);
+    v8::Local<v8::String> ring = CompileRun("ring")->ToString();
+    CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
+    ring->MakeExternal(inscription);
+    // Ring is still alive.  Orcs are roaming freely across our lands.
+    CHECK_EQ(0, destroyed);
+    USE(ring);
+  }
+
+  // Garbage collector deals swift blows to evil.
+  CcTest::i_isolate()->compilation_cache()->Clear();
+  CcTest::heap()->CollectAllAvailableGarbage();
+
+  // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
+  CHECK_EQ(1, destroyed);
+}
+
+
 static double DoubleFromBits(uint64_t value) {
   double target;
   i::OS::MemCopy(&target, &value, sizeof(target));
