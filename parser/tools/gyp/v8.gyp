@@ -303,7 +303,8 @@
         }, {
           'toolsets': ['target'],
           'dependencies': ['generated-lexer'],
-        }],
+        }]
+      ],
       'variables': {
         'optimize': 'max',
       },
