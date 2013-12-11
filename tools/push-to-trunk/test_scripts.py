@@ -35,6 +35,8 @@ from common_includes import *
 import push_to_trunk
 from push_to_trunk import *
 import auto_roll
+from auto_roll import FetchLatestRevision
+from auto_roll import CheckLastPush
 
 
 TEST_CONFIG = {
@@ -731,6 +733,16 @@ Performance and stability improvements on all platforms."""
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
 
+  def testCheckLastPushRecently(self):
+    self.ExpectGit([
+      ["svn log -1 --oneline", "r101 | Text"],
+      ["svn log -1 --oneline ChangeLog", "r99 | Prepare push to trunk..."],
+    ])
+
+    state = {}
+    self.MakeStep(FetchLatestRevision, state=state).Run()
+    self.assertRaises(Exception, self.MakeStep(CheckLastPush, state=state).Run)
+
   def testAutoRoll(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
 
@@ -744,6 +756,7 @@ Performance and stability improvements on all platforms."""
       ["status -s -b -uno", "## some_branch\n"],
       ["svn fetch", ""],
       ["svn log -1 --oneline", "r101 | Text"],
+      ["svn log -1 --oneline ChangeLog", "r65 | Prepare push to trunk..."],
     ])
 
     auto_roll.RunAutoRoll(TEST_CONFIG, MakeOptions(m=False, f=True), self)
