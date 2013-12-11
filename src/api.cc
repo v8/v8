@@ -7202,10 +7202,6 @@ void CpuProfile::Delete() {
   i::CpuProfiler* profiler = isolate->cpu_profiler();
   ASSERT(profiler != NULL);
   profiler->DeleteProfile(reinterpret_cast<i::CpuProfile*>(this));
-  if (profiler->GetProfilesCount() == 0) {
-    // If this was the last profile, clean up all accessory data as well.
-    profiler->DeleteAllProfiles();
-  }
 }
 
 

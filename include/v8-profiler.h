@@ -132,10 +132,6 @@ class V8_EXPORT CpuProfile {
   /**
    * Deletes the profile and removes it from CpuProfiler's list.
    * All pointers to nodes previously returned become invalid.
-   * Profiles with the same uid but obtained using different
-   * security token are not deleted, but become inaccessible
-   * using FindProfile method. It is embedder's responsibility
-   * to call Delete on these profiles.
    */
   void Delete();
 };

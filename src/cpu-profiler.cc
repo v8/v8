@@ -176,6 +176,10 @@ void CpuProfiler::DeleteAllProfiles() {
 void CpuProfiler::DeleteProfile(CpuProfile* profile) {
   profiles_->RemoveProfile(profile);
   delete profile;
+  if (profiles_->profiles()->is_empty() && !is_profiling_) {
+    // If this was the last profile, clean up all accessory data as well.
+    ResetProfiles();
+  }
 }
 
 

@@ -1533,3 +1533,37 @@ TEST(FunctionDetails) {
   CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a",
                        script_a->GetId(), 3, 14);
 }
+
+
+TEST(DontStopOnFinishedProfileDelete) {
+  const char* extensions[] = { "v8/profiler" };
+  v8::ExtensionConfiguration config(1, extensions);
+  LocalContext env(&config);
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handleScope(isolate);
+
+  v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
+
+  CHECK_EQ(0, profiler->GetProfileCount());
+  v8::Handle<v8::String> outer = v8::String::NewFromUtf8(isolate, "outer");
+  profiler->StartCpuProfiling(outer);
+  CHECK_EQ(0, profiler->GetProfileCount());
+
+  v8::Handle<v8::String> inner = v8::String::NewFromUtf8(isolate, "inner");
+  profiler->StartCpuProfiling(inner);
+  CHECK_EQ(0, profiler->GetProfileCount());
+
+  const v8::CpuProfile* inner_profile = profiler->StopCpuProfiling(inner);
+  CHECK(inner_profile);
+  CHECK_EQ(1, profiler->GetProfileCount());
+  const_cast<v8::CpuProfile*>(inner_profile)->Delete();
+  inner_profile = NULL;
+  CHECK_EQ(0, profiler->GetProfileCount());
+
+  const v8::CpuProfile* outer_profile = profiler->StopCpuProfiling(outer);
+  CHECK(outer_profile);
+  CHECK_EQ(1, profiler->GetProfileCount());
+  const_cast<v8::CpuProfile*>(outer_profile)->Delete();
+  outer_profile = NULL;
+  CHECK_EQ(0, profiler->GetProfileCount());
+}
