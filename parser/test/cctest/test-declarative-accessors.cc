@@ -42,8 +42,7 @@ class HandleArray : public Malloced {
   void Reset() {
     for (unsigned i = 0; i < kArraySize; i++) {
       if (handles_[i].IsEmpty()) continue;
-      handles_[i].Dispose();
-      handles_[i].Clear();
+      handles_[i].Reset();
     }
   }
   v8::Persistent<v8::Value> handles_[kArraySize];

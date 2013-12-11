@@ -1351,14 +1351,27 @@ class Assembler : public AssemblerBase {
   void movaps(XMMRegister dst, XMMRegister src);
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
+  void shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   void cvttss2si(Register dst, const Operand& src);
   void cvttss2si(Register dst, XMMRegister src);
   void cvtlsi2ss(XMMRegister dst, Register src);
 
   void andps(XMMRegister dst, XMMRegister src);
+  void andps(XMMRegister dst, const Operand& src);
   void orps(XMMRegister dst, XMMRegister src);
+  void orps(XMMRegister dst, const Operand& src);
   void xorps(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, const Operand& src);
+
+  void addps(XMMRegister dst, XMMRegister src);
+  void addps(XMMRegister dst, const Operand& src);
+  void subps(XMMRegister dst, XMMRegister src);
+  void subps(XMMRegister dst, const Operand& src);
+  void mulps(XMMRegister dst, XMMRegister src);
+  void mulps(XMMRegister dst, const Operand& src);
+  void divps(XMMRegister dst, XMMRegister src);
+  void divps(XMMRegister dst, const Operand& src);
 
   void movmskps(Register dst, XMMRegister src);
 

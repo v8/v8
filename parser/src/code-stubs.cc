@@ -43,12 +43,18 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
     : register_param_count_(-1),
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
+      continuation_type_(NORMAL_CONTINUATION),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
       has_miss_handler_(false) { }
+
+
+void CodeStub::GenerateStubsRequiringBuiltinsAheadOfTime(Isolate* isolate) {
+  StubFailureTailCallTrampolineStub::GenerateAheadOfTime(isolate);
+}
 
 
 bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
@@ -580,6 +586,14 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
   ASSERT(result_state_ <= (has_int_result() ? INT32 : NUMBER) ||
          op_ == Token::ADD);
 
+  // Reset overwrite mode unless we can actually make use of it, or may be able
+  // to make use of it at some point in the future.
+  if ((mode_ == OVERWRITE_LEFT && left_state_ > NUMBER) ||
+      (mode_ == OVERWRITE_RIGHT && right_state_ > NUMBER) ||
+      result_state_ > NUMBER) {
+    mode_ = NO_OVERWRITE;
+  }
+
   if (old_state == GetExtraICState()) {
     // Tagged operations can lead to non-truncating HChanges
     if (left->IsUndefined() || left->IsBoolean()) {
@@ -958,7 +972,8 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void KeyedLoadDictionaryElementStub::Generate(MacroAssembler* masm) {
+void KeyedLoadDictionaryElementPlatformStub::Generate(
+    MacroAssembler* masm) {
   KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);
 }
 
@@ -1106,6 +1121,12 @@ void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
   stub1.GetCode(isolate)->set_is_pregenerated(true);
   stub2.GetCode(isolate)->set_is_pregenerated(true);
+}
+
+
+void StubFailureTailCallTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
+  StubFailureTailCallTrampolineStub stub;
+  stub.GetCode(isolate)->set_is_pregenerated(true);
 }
 
 

@@ -826,7 +826,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a2);
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -861,7 +861,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -891,7 +891,7 @@ void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
 }
 
 
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- ra     : return address
   //  -- a0     : key
@@ -904,9 +904,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   __ Push(a1, a0);
 
   // Perform tail call to the entry.
-  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
-      ? ExternalReference(IC_Utility(kKeyedLoadIC_MissForceGeneric), isolate)
-      : ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
 
   __ TailCallExternalReference(ref, 2, 1);
 }
@@ -1131,7 +1130,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -1354,10 +1353,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &slow);
   // Get the map of the object.
   __ lw(receiver_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks.  We need
-  // to do this because this generic stub does not perform map checks.
+  // Check that the receiver does not require access checks and is not observed.
+  // The generic stub does not perform map checks or handle observed objects.
   __ lbu(t0, FieldMemOperand(receiver_map, Map::kBitFieldOffset));
-  __ And(t0, t0, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ And(t0, t0, Operand(1 << Map::kIsAccessCheckNeeded |
+                         1 << Map::kIsObserved));
   __ Branch(&slow, ne, t0, Operand(zero_reg));
   // Check if the object is a JS array or not.
   __ lbu(t0, FieldMemOperand(receiver_map, Map::kInstanceTypeOffset));
@@ -1452,11 +1452,11 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
        IC_Utility(kKeyedLoadPropertyWithInterceptor), masm->isolate()), 2, 1);
 
   __ bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- a0     : value
   //  -- a1     : key
@@ -1467,10 +1467,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // Push receiver, key and value for runtime call.
   __ Push(a2, a1, a0);
 
-  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
-      ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
-                          masm->isolate())
-      : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

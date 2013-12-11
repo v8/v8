@@ -451,6 +451,15 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 
+Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
+    int aliased_context_slot) {
+  Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(
+      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE));
+  entry->set_aliased_context_slot(aliased_context_slot);
+  return entry;
+}
+
+
 Handle<DeclaredAccessorDescriptor> Factory::NewDeclaredAccessorDescriptor() {
   return Handle<DeclaredAccessorDescriptor>::cast(
       NewStruct(DECLARED_ACCESSOR_DESCRIPTOR_TYPE));
@@ -626,11 +635,12 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
   int instance_size_delta = extra_inobject_properties * kPointerSize;
   int max_instance_size_delta =
       JSObject::kMaxInstanceSize - copy->instance_size();
-  if (instance_size_delta > max_instance_size_delta) {
+  int max_extra_properties = max_instance_size_delta >> kPointerSizeLog2;
+  if (extra_inobject_properties > max_extra_properties) {
     // If the instance size overflows, we allocate as many properties
     // as we can as inobject properties.
     instance_size_delta = max_instance_size_delta;
-    extra_inobject_properties = max_instance_size_delta >> kPointerSizeLog2;
+    extra_inobject_properties = max_extra_properties;
   }
   // Adjust the map with the extra inobject properties.
   int inobject_properties =

@@ -967,6 +967,12 @@ class MacroAssembler: public Assembler {
   // handler chain.
   void ThrowUncatchable(Register value);
 
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason, Register rs, Operand rt);
+
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
@@ -1199,8 +1205,10 @@ class MacroAssembler: public Assembler {
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  void CallRuntime(Runtime::FunctionId id,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
   // Convenience function: call an external reference.
@@ -1365,12 +1373,35 @@ class MacroAssembler: public Assembler {
     Addu(dst, src, src);
   }
 
+  // Try to convert int32 to smi. If the value is to large, preserve
+  // the original value and jump to not_a_smi. Destroys scratch and
+  // sets flags.
+  void TrySmiTag(Register reg, Register scratch, Label* not_a_smi) {
+    TrySmiTag(reg, reg, scratch, not_a_smi);
+  }
+  void TrySmiTag(Register dst,
+                 Register src,
+                 Register scratch,
+                 Label* not_a_smi) {
+    SmiTagCheckOverflow(at, src, scratch);
+    BranchOnOverflow(not_a_smi, scratch);
+    mov(dst, at);
+  }
+
   void SmiUntag(Register reg) {
     sra(reg, reg, kSmiTagSize);
   }
 
   void SmiUntag(Register dst, Register src) {
     sra(dst, src, kSmiTagSize);
+  }
+
+  // Test if the register contains a smi.
+  inline void SmiTst(Register value, Register scratch) {
+    And(scratch, value, Operand(kSmiTagMask));
+  }
+  inline void NonNegativeSmiTst(Register value, Register scratch) {
+    And(scratch, value, Operand(kSmiTagMask | kSmiSignMask));
   }
 
   // Untag the source value into destination and jump if source is a smi.
@@ -1451,6 +1482,12 @@ class MacroAssembler: public Assembler {
                                               Label* failure);
 
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
+
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 Register scratch,
+                                 uint32_t encoding_mask);
 
   // Test that both first and second are sequential ASCII strings.
   // Assume that they are non-smis.

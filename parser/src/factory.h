@@ -224,6 +224,9 @@ class Factory {
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
 
+  Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
+      int aliased_context_slot);
+
   Handle<DeclaredAccessorDescriptor> NewDeclaredAccessorDescriptor();
 
   Handle<DeclaredAccessorInfo> NewDeclaredAccessorInfo();

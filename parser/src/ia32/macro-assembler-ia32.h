@@ -583,6 +583,12 @@ class MacroAssembler: public Assembler {
   // Throw past all JS frames to the top JS entry frame.
   void ThrowUncatchable(Register value);
 
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
+
   // ---------------------------------------------------------------------------
   // Inline caching support
 
@@ -771,8 +777,10 @@ class MacroAssembler: public Assembler {
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  void CallRuntime(Runtime::FunctionId id,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
   // Convenience function: call an external reference.
@@ -940,6 +948,11 @@ class MacroAssembler: public Assembler {
 
   void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
                            Label::Distance distance = Label::kFar);
+
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
 
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());

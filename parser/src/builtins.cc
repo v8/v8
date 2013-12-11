@@ -311,6 +311,7 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
     Heap* heap, Object* receiver, Arguments* args, int first_added_arg) {
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
+  if (array->map()->is_observed()) return NULL;
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
@@ -1103,7 +1104,7 @@ BUILTIN(StrictModePoisonPill) {
 static inline Object* FindHidden(Heap* heap,
                                  Object* object,
                                  FunctionTemplateInfo* type) {
-  if (object->IsInstanceOf(type)) return object;
+  if (type->IsTemplateFor(object)) return object;
   Object* proto = object->GetPrototype(heap->isolate());
   if (proto->IsJSObject() &&
       JSObject::cast(proto)->map()->is_hidden_prototype()) {
@@ -1350,12 +1351,7 @@ static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
 
 
 static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, MISS);
-}
-
-
-static void Generate_KeyedLoadIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
+  KeyedLoadIC::GenerateMiss(masm);
 }
 
 
@@ -1475,12 +1471,7 @@ static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, MISS);
-}
-
-
-static void Generate_KeyedStoreIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
+  KeyedStoreIC::GenerateMiss(masm);
 }
 
 

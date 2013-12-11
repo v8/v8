@@ -599,4 +599,44 @@ TEST(AssemblerIa32Extractps) {
 }
 
 
+typedef int (*F8)(float x, float y);
+TEST(AssemblerIa32SSE) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, SSE2);
+    __ movss(xmm0, Operand(esp, kPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
+    __ shufps(xmm0, xmm0, 0x0);
+    __ shufps(xmm1, xmm1, 0x0);
+    __ movaps(xmm2, xmm1);
+    __ addps(xmm2, xmm0);
+    __ mulps(xmm2, xmm1);
+    __ subps(xmm2, xmm0);
+    __ divps(xmm2, xmm1);
+    __ cvttss2si(eax, xmm2);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Code* code = Code::cast(isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked());
+  CHECK(code->IsCode());
+#ifdef OBJECT_PRINT
+  Code::cast(code)->Print();
+#endif
+
+  F8 f = FUNCTION_CAST<F8>(Code::cast(code)->entry());
+  CHECK_EQ(2, f(1.0, 2.0));
+}
+
+
 #undef __

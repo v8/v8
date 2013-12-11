@@ -150,25 +150,6 @@ bool Object::IsAccessorInfo() {
 }
 
 
-bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
-  // There is a constraint on the object; check.
-  if (!this->IsJSObject()) return false;
-  // Fetch the constructor function of the object.
-  Object* cons_obj = JSObject::cast(this)->map()->constructor();
-  if (!cons_obj->IsJSFunction()) return false;
-  JSFunction* fun = JSFunction::cast(cons_obj);
-  // Iterate through the chain of inheriting function templates to
-  // see if the required one occurs.
-  for (Object* type = fun->shared()->function_data();
-       type->IsFunctionTemplateInfo();
-       type = FunctionTemplateInfo::cast(type)->parent_template()) {
-    if (type == expected) return true;
-  }
-  // Didn't find the required type in the inheritance chain.
-  return false;
-}
-
-
 bool Object::IsSmi() {
   return HAS_SMI_TAG(this);
 }
@@ -1330,8 +1311,12 @@ bool JSObject::ShouldTrackAllocationInfo() {
 
 
 void AllocationSite::Initialize() {
+  set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::FromInt(0));
+  set_memento_create_count(Smi::FromInt(0));
+  set_memento_found_count(Smi::FromInt(0));
+  set_pretenure_decision(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
                      SKIP_WRITE_BARRIER);
 }
@@ -1364,6 +1349,21 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   return type == JS_ARRAY_TYPE;
+}
+
+
+inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
+    Reason reason) {
+  switch (reason) {
+    case TENURING:
+      return DependentCode::kAllocationSiteTenuringChangedGroup;
+      break;
+    case TRANSITIONS:
+      return DependentCode::kAllocationSiteTransitionChangedGroup;
+      break;
+  }
+  UNREACHABLE();
+  return DependentCode::kAllocationSiteTransitionChangedGroup;
 }
 
 
@@ -3651,16 +3651,13 @@ bool Map::owns_descriptors() {
 }
 
 
-void Map::set_is_observed(bool is_observed) {
-  ASSERT(instance_type() < FIRST_JS_OBJECT_TYPE ||
-         instance_type() > LAST_JS_OBJECT_TYPE ||
-         has_slow_elements_kind() || has_external_array_elements());
-  set_bit_field3(IsObserved::update(bit_field3(), is_observed));
+void Map::set_has_instance_call_handler() {
+  set_bit_field3(HasInstanceCallHandler::update(bit_field3(), true));
 }
 
 
-bool Map::is_observed() {
-  return IsObserved::decode(bit_field3());
+bool Map::has_instance_call_handler() {
+  return HasInstanceCallHandler::decode(bit_field3());
 }
 
 
@@ -3880,35 +3877,33 @@ inline void Code::set_is_crankshafted(bool value) {
 
 
 int Code::major_key() {
-  ASSERT(kind() == STUB ||
-         kind() == HANDLER ||
-         kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC ||
-         kind() == COMPARE_NIL_IC ||
-         kind() == STORE_IC ||
-         kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC ||
-         kind() == TO_BOOLEAN_IC);
+  ASSERT(has_major_key());
   return StubMajorKeyField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
 void Code::set_major_key(int major) {
-  ASSERT(kind() == STUB ||
-         kind() == HANDLER ||
-         kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC ||
-         kind() == COMPARE_NIL_IC ||
-         kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC ||
-         kind() == STORE_IC ||
-         kind() == KEYED_STORE_IC ||
-         kind() == TO_BOOLEAN_IC);
+  ASSERT(has_major_key());
   ASSERT(0 <= major && major < 256);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = StubMajorKeyField::update(previous, major);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+}
+
+
+bool Code::has_major_key() {
+  return kind() == STUB ||
+      kind() == HANDLER ||
+      kind() == BINARY_OP_IC ||
+      kind() == COMPARE_IC ||
+      kind() == COMPARE_NIL_IC ||
+      kind() == LOAD_IC ||
+      kind() == KEYED_LOAD_IC ||
+      kind() == STORE_IC ||
+      kind() == KEYED_STORE_IC ||
+      kind() == KEYED_CALL_IC ||
+      kind() == TO_BOOLEAN_IC;
 }
 
 
@@ -4169,9 +4164,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
+                                          InlineCacheHolderFlag holder,
                                           StubType type,
-                                          int argc,
-                                          InlineCacheHolderFlag holder) {
+                                          int argc) {
   return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 
@@ -4556,6 +4551,10 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
+ACCESSORS_TO_SMI(AllocationSite, memento_found_count, kMementoFoundCountOffset)
+ACCESSORS_TO_SMI(AllocationSite, memento_create_count,
+                 kMementoCreateCountOffset)
+ACCESSORS_TO_SMI(AllocationSite, pretenure_decision, kPretenureDecisionOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
@@ -5460,6 +5459,16 @@ void JSArrayBuffer::set_is_external(bool value) {
 }
 
 
+bool JSArrayBuffer::should_be_freed() {
+  return BooleanBit::get(flag(), kShouldBeFreed);
+}
+
+
+void JSArrayBuffer::set_should_be_freed(bool value) {
+  set_flag(BooleanBit::set(flag(), kShouldBeFreed, value));
+}
+
+
 ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
 ACCESSORS(JSArrayBuffer, weak_first_view, Object, kWeakFirstViewOffset)
 
@@ -5942,7 +5951,7 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
 bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
   Object* function_template = expected_receiver_type();
   if (!function_template->IsFunctionTemplateInfo()) return true;
-  return receiver->IsInstanceOf(FunctionTemplateInfo::cast(function_template));
+  return FunctionTemplateInfo::cast(function_template)->IsTemplateFor(receiver);
 }
 
 

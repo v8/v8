@@ -194,6 +194,15 @@ class Representation {
 };
 
 
+static const int kDescriptorIndexBitCount = 10;
+// The maximum number of descriptors we want in a descriptor array (should
+// fit in a page).
+static const int kMaxNumberOfDescriptors =
+    (1 << kDescriptorIndexBitCount) - 2;
+static const int kInvalidEnumCacheSentinel =
+    (1 << kDescriptorIndexBitCount) - 1;
+
+
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {
@@ -284,9 +293,14 @@ class PropertyDetails BASE_EMBEDDED {
   class DictionaryStorageField:   public BitField<uint32_t,           7, 24> {};
 
   // Bit fields for fast objects.
-  class DescriptorPointer:        public BitField<uint32_t,           6, 11> {};
-  class RepresentationField:      public BitField<uint32_t,          17,  4> {};
-  class FieldIndexField:          public BitField<uint32_t,          21, 10> {};
+  class RepresentationField:      public BitField<uint32_t,           6,  4> {};
+  class DescriptorPointer:        public BitField<uint32_t, 10,
+      kDescriptorIndexBitCount> {};  // NOLINT
+  class FieldIndexField:          public BitField<uint32_t,
+      10 + kDescriptorIndexBitCount,
+      kDescriptorIndexBitCount> {};  // NOLINT
+  // All bits for fast objects must fix in a smi.
+  STATIC_ASSERT(10 + kDescriptorIndexBitCount + kDescriptorIndexBitCount <= 31);
 
   static const int kInitialIndex = 1;
 

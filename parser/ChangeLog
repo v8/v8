@@ -1,3 +1,85 @@
+2013-11-22: Version 3.23.10
+
+        Remove preemption thread and API.
+        (issue 3004)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-21: Version 3.23.9
+
+        API: Change AdjustAmountOfExternalAllocatedMemory calls to use int64_t
+        instead of intptr_t.
+
+        Remove deprecated v8::SetResourceConstraints without Isolate parameter.
+
+        Remove deprecated v8-defaults.h and defaults.cc.
+        (Chromium issue 312241)
+
+        Make it possible to add more than one piece of embedder data to
+        isolates.
+        (Chromium issue 317398)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-20: Version 3.23.8
+
+        Fixed crashes exposed though fuzzing.
+        (Chromium issue 320948)
+
+        Deprecated v8::External::New without Isolate parameter.
+
+        Made number of available threads isolate-dependent and exposed it to
+        ResourceConstraints.
+        (issue 2991)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-19: Version 3.23.7
+
+        Bugfix: dependent code field in AllocationSite was keeping code objects
+        alive even after context death.
+        (Chromium issue 320532)
+
+        Fixed data view accessors to throw execptions on offsets bigger than
+        size_t.
+        (issue 3013)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-18: Version 3.23.6
+
+        Limit size of dehoistable array indices.
+        (Chromium issues 319835, 319860)
+
+        Limit the size for typed arrays to MaxSmi.
+        (Chromium issue 319722)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-15: Version 3.23.5
+
+        Fixed missing type feedback check for Generic*String addition.
+        (Chromium issue 318671)
+
+        Fixed duplicate check in DependentCode::Insert.
+        (Chromium issue 318454)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-14: Version 3.23.4
+
+        Fixed overflow in TypedArray initialization function.
+        (Chromium issue 319120)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-13: Version 3.23.3
 
         Fixed compilation with GCC 4.8.

@@ -155,7 +155,6 @@ class LChunkBuilder;
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
-  V(Random)                                    \
   V(RegExpLiteral)                             \
   V(Return)                                    \
   V(Ror)                                       \
@@ -642,6 +641,7 @@ class HValue : public ZoneObject {
   virtual ~HValue() {}
 
   virtual int position() const { return RelocInfo::kNoPosition; }
+  virtual int operand_position(int index) const { return position(); }
 
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
@@ -1105,6 +1105,102 @@ class HValue : public ZoneObject {
   }
 
 
+// A helper class to represent per-operand position information attached to
+// the HInstruction in the compact form. Uses tagging to distinguish between
+// case when only instruction's position is available and case when operands'
+// positions are also available.
+// In the first case it contains intruction's position as a tagged value.
+// In the second case it points to an array which contains instruction's
+// position and operands' positions.
+// TODO(vegorov): what we really want to track here is a combination of
+// source position and a script id because cross script inlining can easily
+// result in optimized functions composed of several scripts.
+class HPositionInfo {
+ public:
+  explicit HPositionInfo(int pos) : data_(TagPosition(pos)) { }
+
+  int position() const {
+    if (has_operand_positions()) {
+      return static_cast<int>(operand_positions()[kInstructionPosIndex]);
+    }
+    return static_cast<int>(UntagPosition(data_));
+  }
+
+  void set_position(int pos) {
+    if (has_operand_positions()) {
+      operand_positions()[kInstructionPosIndex] = pos;
+    } else {
+      data_ = TagPosition(pos);
+    }
+  }
+
+  void ensure_storage_for_operand_positions(Zone* zone, int operand_count) {
+    if (has_operand_positions()) {
+      return;
+    }
+
+    const int length = kFirstOperandPosIndex + operand_count;
+    intptr_t* positions =
+        zone->NewArray<intptr_t>(length);
+    for (int i = 0; i < length; i++) {
+      positions[i] = RelocInfo::kNoPosition;
+    }
+
+    const int pos = position();
+    data_ = reinterpret_cast<intptr_t>(positions);
+    set_position(pos);
+
+    ASSERT(has_operand_positions());
+  }
+
+  int operand_position(int idx) const {
+    if (!has_operand_positions()) {
+      return position();
+    }
+    return static_cast<int>(*operand_position_slot(idx));
+  }
+
+  void set_operand_position(int idx, int pos) {
+    *operand_position_slot(idx) = pos;
+  }
+
+ private:
+  static const intptr_t kInstructionPosIndex = 0;
+  static const intptr_t kFirstOperandPosIndex = 1;
+
+  intptr_t* operand_position_slot(int idx) const {
+    ASSERT(has_operand_positions());
+    return &(operand_positions()[kFirstOperandPosIndex + idx]);
+  }
+
+  bool has_operand_positions() const {
+    return !IsTaggedPosition(data_);
+  }
+
+  intptr_t* operand_positions() const {
+    ASSERT(has_operand_positions());
+    return reinterpret_cast<intptr_t*>(data_);
+  }
+
+  static const intptr_t kPositionTag = 1;
+  static const intptr_t kPositionShift = 1;
+  static bool IsTaggedPosition(intptr_t val) {
+    return (val & kPositionTag) != 0;
+  }
+  static intptr_t UntagPosition(intptr_t val) {
+    ASSERT(IsTaggedPosition(val));
+    return val >> kPositionShift;
+  }
+  static intptr_t TagPosition(intptr_t val) {
+    const intptr_t result = (val << kPositionShift) | kPositionTag;
+    ASSERT(UntagPosition(result) == val);
+    return result;
+  }
+
+  intptr_t data_;
+};
+
+
 class HInstruction : public HValue {
  public:
   HInstruction* next() const { return next_; }
@@ -1119,12 +1215,26 @@ class HInstruction : public HValue {
   void InsertAfter(HInstruction* previous);
 
   // The position is a write-once variable.
-  virtual int position() const V8_OVERRIDE { return position_; }
-  bool has_position() const { return position_ != RelocInfo::kNoPosition; }
+  virtual int position() const V8_OVERRIDE {
+    return position_.position();
+  }
+  bool has_position() const {
+    return position_.position() != RelocInfo::kNoPosition;
+  }
   void set_position(int position) {
     ASSERT(!has_position());
     ASSERT(position != RelocInfo::kNoPosition);
-    position_ = position;
+    position_.set_position(position);
+  }
+
+  virtual int operand_position(int index) const V8_OVERRIDE {
+    const int pos = position_.operand_position(index);
+    return (pos != RelocInfo::kNoPosition) ? pos : position();
+  }
+  void set_operand_position(Zone* zone, int index, int pos) {
+    ASSERT(0 <= index && index < OperandCount());
+    position_.ensure_storage_for_operand_positions(zone, OperandCount());
+    position_.set_operand_position(index, pos);
   }
 
   bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
@@ -1160,7 +1270,7 @@ class HInstruction : public HValue {
 
   HInstruction* next_;
   HInstruction* previous_;
-  int position_;
+  HPositionInfo position_;
 
   friend class HBasicBlock;
 };
@@ -1564,7 +1674,8 @@ class HUseConst V8_FINAL : public HUnaryOperation {
 
 class HForceRepresentation V8_FINAL : public HTemplateInstruction<1> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HForceRepresentation, HValue*, Representation);
+  static HInstruction* New(Zone* zone, HValue* context, HValue* value,
+                           Representation required_representation);
 
   HValue* value() { return OperandAt(0); }
 
@@ -2286,19 +2397,38 @@ class HCallNamed V8_FINAL : public HUnaryCall {
 };
 
 
+enum CallMode {
+  NORMAL_CALL,
+  TAIL_CALL
+};
+
+
 class HCallFunction V8_FINAL : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallFunction, HValue*, int);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(
+      HCallFunction, HValue*, int, CallMode);
+
+  bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
 
   HValue* context() { return first(); }
   HValue* function() { return second(); }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction)
 
- private:
-  HCallFunction(HValue* context, HValue* function, int argument_count)
-      : HBinaryCall(context, function, argument_count) {
+  virtual int argument_delta() const V8_OVERRIDE {
+    if (IsTailCall()) return 0;
+    return -argument_count();
   }
+
+ private:
+  HCallFunction(HValue* context,
+                HValue* function,
+                int argument_count,
+                CallMode mode = NORMAL_CALL)
+      : HBinaryCall(context, function, argument_count), call_mode_(mode) {
+  }
+  CallMode call_mode_;
 };
 
 
@@ -3685,6 +3815,11 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     return representation();
   }
 
+  void SetOperandPositions(Zone* zone, int left_pos, int right_pos) {
+    set_operand_position(zone, 1, left_pos);
+    set_operand_position(zone, 2, right_pos);
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
  private:
@@ -4118,6 +4253,11 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
+  void SetOperandPositions(Zone* zone, int left_pos, int right_pos) {
+    set_operand_position(zone, 0, left_pos);
+    set_operand_position(zone, 1, right_pos);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
  private:
@@ -4468,20 +4608,27 @@ class HTypeofIsAndBranch V8_FINAL : public HUnaryControlInstruction {
   DECLARE_INSTRUCTION_FACTORY_P2(HTypeofIsAndBranch, HValue*, Handle<String>);
 
   Handle<String> type_literal() { return type_literal_; }
+  bool compares_number_type() { return compares_number_type_; }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(TypeofIsAndBranch)
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
+    return Representation::None();
   }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
  private:
   HTypeofIsAndBranch(HValue* value, Handle<String> type_literal)
       : HUnaryControlInstruction(value, NULL, NULL),
-        type_literal_(type_literal) { }
+        type_literal_(type_literal) {
+    Heap* heap = type_literal->GetHeap();
+    compares_number_type_ = type_literal->Equals(heap->number_string());
+  }
 
   Handle<String> type_literal_;
+  bool compares_number_type_ : 1;
 };
 
 
@@ -4573,28 +4720,6 @@ class HPower V8_FINAL : public HTemplateInstruction<2> {
   virtual bool IsDeletable() const V8_OVERRIDE {
     return !right()->representation().IsTagged();
   }
-};
-
-
-class HRandom V8_FINAL : public HTemplateInstruction<1> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HRandom, HValue*);
-
-  HValue* global_object() { return OperandAt(0); }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(Random)
-
- private:
-  explicit HRandom(HValue* global_object) {
-    SetOperandAt(0, global_object);
-    set_representation(Representation::Double());
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
 
@@ -4753,10 +4878,7 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
   static HInstruction* New(Zone* zone,
                            HValue* context,
                            HValue* left,
-                           HValue* right,
-                           Maybe<int> fixed_right_arg);
-
-  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
+                           HValue* right);
 
   bool HasPowerOf2Divisor() {
     if (right()->IsConstant() &&
@@ -4790,15 +4912,10 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
  private:
   HMod(HValue* context,
        HValue* left,
-       HValue* right,
-       Maybe<int> fixed_right_arg)
-      : HArithmeticBinaryOperation(context, left, right),
-        fixed_right_arg_(fixed_right_arg) {
+       HValue* right) : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
   }
-
-  const Maybe<int> fixed_right_arg_;
 };
 
 
@@ -6122,6 +6239,7 @@ class ArrayInstructionInterface {
   virtual HValue* GetKey() = 0;
   virtual void SetKey(HValue* key) = 0;
   virtual void SetIndexOffset(uint32_t index_offset) = 0;
+  virtual int MaxIndexOffsetBits() = 0;
   virtual bool IsDehoisted() = 0;
   virtual void SetDehoisted(bool is_dehoisted) = 0;
   virtual ~ArrayInstructionInterface() { };
@@ -6160,6 +6278,9 @@ class HLoadKeyed V8_FINAL
   uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
   void SetIndexOffset(uint32_t index_offset) {
     bit_field_ = IndexOffsetField::update(bit_field_, index_offset);
+  }
+  virtual int MaxIndexOffsetBits() {
+    return kBitsForIndexOffset;
   }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
@@ -6547,6 +6668,9 @@ class HStoreKeyed V8_FINAL
   ElementsKind elements_kind() const { return elements_kind_; }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  virtual int MaxIndexOffsetBits() {
+    return 31 - ElementsKindToShiftSize(elements_kind_);
+  }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
   bool IsDehoisted() { return is_dehoisted_; }
@@ -7127,31 +7251,35 @@ class HSeqStringGetChar V8_FINAL : public HTemplateInstruction<2> {
 };
 
 
-class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<3> {
+class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<4> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P4(HSeqStringSetChar, String::Encoding,
-                                 HValue*, HValue*, HValue*);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(
+      HSeqStringSetChar, String::Encoding,
+      HValue*, HValue*, HValue*);
 
   String::Encoding encoding() { return encoding_; }
-  HValue* string() { return OperandAt(0); }
-  HValue* index() { return OperandAt(1); }
-  HValue* value() { return OperandAt(2); }
+  HValue* context() { return OperandAt(0); }
+  HValue* string() { return OperandAt(1); }
+  HValue* index() { return OperandAt(2); }
+  HValue* value() { return OperandAt(3); }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return (index == 0) ? Representation::Tagged()
+    return (index <= 1) ? Representation::Tagged()
                         : Representation::Integer32();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar)
 
  private:
-  HSeqStringSetChar(String::Encoding encoding,
+  HSeqStringSetChar(HValue* context,
+                    String::Encoding encoding,
                     HValue* string,
                     HValue* index,
                     HValue* value) : encoding_(encoding) {
-    SetOperandAt(0, string);
-    SetOperandAt(1, index);
-    SetOperandAt(2, value);
+    SetOperandAt(0, context);
+    SetOperandAt(1, string);
+    SetOperandAt(2, index);
+    SetOperandAt(3, value);
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesStringChars);
   }
@@ -7180,6 +7308,8 @@ class HCheckMapValue V8_FINAL : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(CheckMapValue)
 
  protected:
+  virtual int RedefinedOperandIndex() { return 0; }
+
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     return true;
   }

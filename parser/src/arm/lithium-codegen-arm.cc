@@ -98,6 +98,38 @@ void LCodeGen::Abort(BailoutReason reason) {
 }
 
 
+void LCodeGen::SaveCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Save clobbered callee double registers");
+  int count = 0;
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  while (!save_iterator.Done()) {
+    __ vstr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
+            MemOperand(sp, count * kDoubleSize));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
+void LCodeGen::RestoreCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Restore clobbered callee double registers");
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  int count = 0;
+  while (!save_iterator.Done()) {
+    __ vldr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
+             MemOperand(sp, count * kDoubleSize));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
@@ -158,16 +190,7 @@ bool LCodeGen::GeneratePrologue() {
   }
 
   if (info()->saves_caller_doubles()) {
-    Comment(";;; Save clobbered callee double registers");
-    int count = 0;
-    BitVector* doubles = chunk()->allocated_double_registers();
-    BitVector::Iterator save_iterator(doubles);
-    while (!save_iterator.Done()) {
-      __ vstr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
-              MemOperand(sp, count * kDoubleSize));
-      save_iterator.Advance();
-      count++;
-    }
+    SaveCallerDoubles();
   }
 
   // Possibly allocate a local context.
@@ -260,7 +283,7 @@ bool LCodeGen::GenerateDeferredCode() {
         __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
         __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ add(fp, sp, Operand(2 * kPointerSize));
+        __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -313,6 +336,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     }
     if (deopt_jump_table_[i].needs_frame) {
+      ASSERT(!info()->saves_caller_doubles());
       __ mov(ip, Operand(ExternalReference::ForDeoptEntry(entry)));
       if (needs_frame.is_bound()) {
         __ b(&needs_frame);
@@ -325,11 +349,15 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         ASSERT(info()->IsStub());
         __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ add(fp, sp, Operand(2 * kPointerSize));
+        __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         __ mov(lr, Operand(pc), LeaveCC, al);
         __ mov(pc, ip);
       }
     } else {
+      if (info()->saves_caller_doubles()) {
+        ASSERT(info()->IsStub());
+        RestoreCallerDoubles();
+      }
       __ mov(lr, Operand(pc), LeaveCC, al);
       __ mov(pc, Operand(ExternalReference::ForDeoptEntry(entry)));
     }
@@ -509,17 +537,36 @@ Operand LCodeGen::ToOperand(LOperand* op) {
 }
 
 
+static int ArgumentsOffsetWithoutFrame(int index) {
+  ASSERT(index < 0);
+  return -(index + 1) * kPointerSize;
+}
+
+
 MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
   ASSERT(!op->IsRegister());
   ASSERT(!op->IsDoubleRegister());
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
-  return MemOperand(fp, StackSlotOffset(op->index()));
+  if (NeedsEagerFrame()) {
+    return MemOperand(fp, StackSlotOffset(op->index()));
+  } else {
+    // Retrieve parameter without eager stack-frame relative to the
+    // stack-pointer.
+    return MemOperand(sp, ArgumentsOffsetWithoutFrame(op->index()));
+  }
 }
 
 
 MemOperand LCodeGen::ToHighMemOperand(LOperand* op) const {
   ASSERT(op->IsDoubleStackSlot());
-  return MemOperand(fp, StackSlotOffset(op->index()) + kPointerSize);
+  if (NeedsEagerFrame()) {
+    return MemOperand(fp, StackSlotOffset(op->index()) + kPointerSize);
+  } else {
+    // Retrieve parameter without eager stack-frame relative to the
+    // stack-pointer.
+    return MemOperand(
+        sp, ArgumentsOffsetWithoutFrame(op->index()) + kPointerSize);
+  }
 }
 
 
@@ -809,7 +856,10 @@ void LCodeGen::DeoptimizeIf(Condition condition,
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
-  if (condition == al && frame_is_built_) {
+  // Go through jump table if we need to handle condition, build frame, or
+  // restore caller doubles.
+  if (condition == al && frame_is_built_ &&
+      !info()->saves_caller_doubles()) {
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -1114,36 +1164,6 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&left_is_not_negative);
     __ and_(result_reg, left_reg, Operand(divisor - 1));
     __ bind(&done);
-
-  } else if (hmod->fixed_right_arg().has_value) {
-    Register left_reg = ToRegister(instr->left());
-    Register right_reg = ToRegister(instr->right());
-    Register result_reg = ToRegister(instr->result());
-
-    int32_t divisor = hmod->fixed_right_arg().value;
-    ASSERT(IsPowerOf2(divisor));
-
-    // Check if our assumption of a fixed right operand still holds.
-    __ cmp(right_reg, Operand(divisor));
-    DeoptimizeIf(ne, instr->environment());
-
-    Label left_is_not_negative, done;
-    if (left->CanBeNegative()) {
-      __ cmp(left_reg, Operand::Zero());
-      __ b(pl, &left_is_not_negative);
-      __ rsb(result_reg, left_reg, Operand::Zero());
-      __ and_(result_reg, result_reg, Operand(divisor - 1));
-      __ rsb(result_reg, result_reg, Operand::Zero(), SetCC);
-      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(eq, instr->environment());
-      }
-      __ b(&done);
-    }
-
-    __ bind(&left_is_not_negative);
-    __ and_(result_reg, left_reg, Operand(divisor - 1));
-    __ bind(&done);
-
   } else if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm(), SUDIV);
 
@@ -2008,17 +2028,13 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   Register value = ToRegister(instr->value());
 
   if (FLAG_debug_code) {
-    Register scratch = scratch0();
-    __ ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-
-    __ and_(scratch, scratch,
-            Operand(kStringRepresentationMask | kStringEncodingMask));
+    Register index = ToRegister(instr->index());
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(scratch, Operand(encoding == String::ONE_BYTE_ENCODING
-                            ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(eq, kUnexpectedStringType);
+    int encoding_mask =
+        instr->hydrogen()->encoding() == String::ONE_BYTE_ENCODING
+        ? one_byte_seq_type : two_byte_seq_type;
+    __ EmitSeqStringSetCharCheck(string, index, value, encoding_mask);
   }
 
   MemOperand operand = BuildSeqStringOperand(string, instr->index(), encoding);
@@ -2944,16 +2960,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
   if (info()->saves_caller_doubles()) {
-    ASSERT(NeedsEagerFrame());
-    BitVector* doubles = chunk()->allocated_double_registers();
-    BitVector::Iterator save_iterator(doubles);
-    int count = 0;
-    while (!save_iterator.Done()) {
-      __ vldr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
-               MemOperand(sp, count * kDoubleSize));
-      save_iterator.Advance();
-      count++;
-    }
+    RestoreCallerDoubles();
   }
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
@@ -3201,20 +3208,35 @@ void LCodeGen::DoLoadExternalArrayPointer(
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
-  if (instr->length()->IsConstantOperand() &&
-      instr->index()->IsConstantOperand()) {
-    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+  // There are two words between the frame pointer and the last argument.
+  // Subtracting from length accounts for one of them add one more.
+  if (instr->length()->IsConstantOperand()) {
     int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    int index = (const_length - const_index) + 1;
-    __ ldr(result, MemOperand(arguments, index * kPointerSize));
-  } else {
+    if (instr->index()->IsConstantOperand()) {
+      int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+      int index = (const_length - const_index) + 1;
+      __ ldr(result, MemOperand(arguments, index * kPointerSize));
+    } else {
+      Register index = ToRegister(instr->index());
+      __ rsb(result, index, Operand(const_length + 1));
+      __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
+    }
+  } else if (instr->index()->IsConstantOperand()) {
+      Register length = ToRegister(instr->length());
+      int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+      int loc = const_index - 1;
+      if (loc != 0) {
+        __ sub(result, length, Operand(loc));
+        __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
+      } else {
+        __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+      }
+    } else {
     Register length = ToRegister(instr->length());
     Register index = ToRegister(instr->index());
-    // There are two words between the frame pointer and the last argument.
-    // Subtracting from length accounts for one of them add one more.
-    __ sub(length, length, index);
-    __ add(length, length, Operand(1));
-    __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+    __ sub(result, length, index);
+    __ add(result, result, Operand(1));
+    __ ldr(result, MemOperand(arguments, result, LSL, kPointerSizeLog2));
   }
 }
 
@@ -3934,68 +3956,6 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
-void LCodeGen::DoRandom(LRandom* instr) {
-  // Assert that the register size is indeed the size of each seed.
-  static const int kSeedSize = sizeof(uint32_t);
-  STATIC_ASSERT(kPointerSize == kSeedSize);
-
-  // Load native context
-  Register global_object = ToRegister(instr->global_object());
-  Register native_context = global_object;
-  __ ldr(native_context, FieldMemOperand(
-          global_object, GlobalObject::kNativeContextOffset));
-
-  // Load state (FixedArray of the native context's random seeds)
-  static const int kRandomSeedOffset =
-      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  Register state = native_context;
-  __ ldr(state, FieldMemOperand(native_context, kRandomSeedOffset));
-
-  // Load state[0].
-  Register state0 = ToRegister(instr->scratch());
-  __ ldr(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
-  // Load state[1].
-  Register state1 = ToRegister(instr->scratch2());
-  __ ldr(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
-
-  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  Register scratch3 = ToRegister(instr->scratch3());
-  Register scratch4 = scratch0();
-  __ and_(scratch3, state0, Operand(0xFFFF));
-  __ mov(scratch4, Operand(18273));
-  __ mul(scratch3, scratch3, scratch4);
-  __ add(state0, scratch3, Operand(state0, LSR, 16));
-  // Save state[0].
-  __ str(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
-
-  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ and_(scratch3, state1, Operand(0xFFFF));
-  __ mov(scratch4, Operand(36969));
-  __ mul(scratch3, scratch3, scratch4);
-  __ add(state1, scratch3, Operand(state1, LSR, 16));
-  // Save state[1].
-  __ str(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
-
-  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  Register random = scratch4;
-  __ and_(random, state1, Operand(0x3FFFF));
-  __ add(random, random, Operand(state0, LSL, 14));
-
-  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-  // Create this constant using mov/orr to avoid PC relative load.
-  __ mov(scratch3, Operand(0x41000000));
-  __ orr(scratch3, scratch3, Operand(0x300000));
-  // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
-  DwVfpRegister result = ToDoubleRegister(instr->result());
-  __ vmov(result, random, scratch3);
-  // Move 0x4130000000000000 to VFP.
-  __ mov(scratch4, Operand::Zero());
-  DwVfpRegister scratch5 = double_scratch0();
-  __ vmov(scratch5, scratch4, scratch3);
-  __ vsub(result, result, scratch5);
-}
-
-
 void LCodeGen::DoMathExp(LMathExp* instr) {
   DwVfpRegister input = ToDoubleRegister(instr->value());
   DwVfpRegister result = ToDoubleRegister(instr->result());
@@ -4107,7 +4067,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  if (instr->hydrogen()->IsTailCall()) {
+    if (NeedsEagerFrame()) __ mov(sp, fp);
+    __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  } else {
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 
@@ -5473,19 +5438,22 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ Push(Smi::FromInt(size));
   }
 
+  int flags = AllocateDoubleAlignFlag::encode(
+      instr->hydrogen()->MustAllocateDoubleAligned());
   if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr,
-                            instr->context());
+    flags = AllocateTargetSpace::update(flags, OLD_POINTER_SPACE);
   } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr,
-                            instr->context());
+    flags = AllocateTargetSpace::update(flags, OLD_DATA_SPACE);
   } else {
-    CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr,
-                            instr->context());
+    flags = AllocateTargetSpace::update(flags, NEW_SPACE);
   }
+  __ Push(Smi::FromInt(flags));
+
+  CallRuntimeFromDeferred(
+      Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(r0, result);
 }
 

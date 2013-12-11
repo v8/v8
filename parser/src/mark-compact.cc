@@ -564,7 +564,7 @@ void MarkCompactCollector::ClearMarkbits() {
 
 void MarkCompactCollector::StartSweeperThreads() {
   sweeping_pending_ = true;
-  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
   }
 }
@@ -572,7 +572,7 @@ void MarkCompactCollector::StartSweeperThreads() {
 
 void MarkCompactCollector::WaitUntilSweepingCompleted() {
   ASSERT(sweeping_pending_ == true);
-  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
   sweeping_pending_ = false;
@@ -586,7 +586,7 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
 intptr_t MarkCompactCollector::
              StealMemoryFromSweeperThreads(PagedSpace* space) {
   intptr_t freed_bytes = 0;
-  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     freed_bytes += isolate()->sweeper_threads()[i]->StealMemory(space);
   }
   space->AddToAccountingStats(freed_bytes);
@@ -2541,6 +2541,17 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 
+  // Iterate over allocation sites, removing dependent code that is not
+  // otherwise kept alive by strong references.
+  Object* undefined = heap()->undefined_value();
+  for (Object* site = heap()->allocation_sites_list();
+       site != undefined;
+       site = AllocationSite::cast(site)->weak_next()) {
+    if (IsMarked(site)) {
+      ClearNonLiveDependentCode(AllocationSite::cast(site)->dependent_code());
+    }
+  }
+
   if (heap_->weak_object_to_code_table()->IsHashTable()) {
     WeakHashTable* table =
         WeakHashTable::cast(heap_->weak_object_to_code_table());
@@ -2644,6 +2655,7 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(
 
     if (IsMarked(code) && !code->marked_for_deoptimization()) {
       code->set_marked_for_deoptimization(true);
+      code->InvalidateEmbeddedObjects();
       have_code_to_deoptimize_ = true;
     }
     entries->clear_at(i);
@@ -4101,8 +4113,10 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
   SweeperType how_to_sweep =
       FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
-  if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
-  if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
+  if (isolate()->num_sweeper_threads() > 0) {
+    if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
+    if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
+  }
   if (FLAG_expose_gc) how_to_sweep = CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
 

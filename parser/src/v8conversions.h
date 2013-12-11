@@ -55,17 +55,39 @@ double StringToDouble(UnicodeCache* unicode_cache,
 // Converts a string into an integer.
 double StringToInt(UnicodeCache* unicode_cache, String* str, int radix);
 
-// Converts a number into size_t.
-inline size_t NumberToSize(Isolate* isolate,
-                           Object* number) {
+inline bool TryNumberToSize(Isolate* isolate,
+                            Object* number, size_t* result) {
   SealHandleScope shs(isolate);
   if (number->IsSmi()) {
-    return Smi::cast(number)->value();
+    int value = Smi::cast(number)->value();
+    ASSERT(
+        static_cast<unsigned>(Smi::kMaxValue)
+          <= std::numeric_limits<size_t>::max());
+    if (value >= 0) {
+      *result = static_cast<size_t>(value);
+      return true;
+    }
+    return false;
   } else {
     ASSERT(number->IsHeapNumber());
     double value = HeapNumber::cast(number)->value();
-    return static_cast<size_t>(value);
+    if (value >= 0 &&
+        value <= std::numeric_limits<size_t>::max()) {
+      *result = static_cast<size_t>(value);
+      return true;
+    } else {
+      return false;
+    }
   }
+}
+
+// Converts a number into size_t.
+inline size_t NumberToSize(Isolate* isolate,
+                           Object* number) {
+  size_t result = 0;
+  bool is_valid = TryNumberToSize(isolate, number, &result);
+  CHECK(is_valid);
+  return result;
 }
 
 } }  // namespace v8::internal

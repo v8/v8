@@ -29,7 +29,6 @@
 
 #include "v8.h"
 
-#include "allocation-inl.h"
 #include "ast.h"
 #include "bootstrapper.h"
 #include "codegen.h"
@@ -131,205 +130,6 @@ v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
   return TRY_CATCH_FROM_ADDRESS(try_catch_handler_address());
 }
 
-
-int SystemThreadManager::NumberOfParallelSystemThreads(
-    ParallelSystemComponent type) {
-  int number_of_threads = Min(CPU::NumberOfProcessorsOnline(), kMaxThreads);
-  ASSERT(number_of_threads > 0);
-  if (number_of_threads ==  1) {
-    return 0;
-  }
-  if (type == PARALLEL_SWEEPING) {
-    return number_of_threads;
-  } else if (type == CONCURRENT_SWEEPING) {
-    return number_of_threads - 1;
-  }
-  return 1;
-}
-
-
-// Create a dummy thread that will wait forever on a semaphore. The only
-// purpose for this thread is to have some stack area to save essential data
-// into for use by a stacks only core dump (aka minidump).
-class PreallocatedMemoryThread: public Thread {
- public:
-  char* data() {
-    if (data_ready_semaphore_ != NULL) {
-      // Initial access is guarded until the data has been published.
-      data_ready_semaphore_->Wait();
-      delete data_ready_semaphore_;
-      data_ready_semaphore_ = NULL;
-    }
-    return data_;
-  }
-
-  unsigned length() {
-    if (data_ready_semaphore_ != NULL) {
-      // Initial access is guarded until the data has been published.
-      data_ready_semaphore_->Wait();
-      delete data_ready_semaphore_;
-      data_ready_semaphore_ = NULL;
-    }
-    return length_;
-  }
-
-  // Stop the PreallocatedMemoryThread and release its resources.
-  void StopThread() {
-    keep_running_ = false;
-    wait_for_ever_semaphore_->Signal();
-
-    // Wait for the thread to terminate.
-    Join();
-
-    if (data_ready_semaphore_ != NULL) {
-      delete data_ready_semaphore_;
-      data_ready_semaphore_ = NULL;
-    }
-
-    delete wait_for_ever_semaphore_;
-    wait_for_ever_semaphore_ = NULL;
-  }
-
- protected:
-  // When the thread starts running it will allocate a fixed number of bytes
-  // on the stack and publish the location of this memory for others to use.
-  void Run() {
-    EmbeddedVector<char, 15 * 1024> local_buffer;
-
-    // Initialize the buffer with a known good value.
-    OS::StrNCpy(local_buffer, "Trace data was not generated.\n",
-                local_buffer.length());
-
-    // Publish the local buffer and signal its availability.
-    data_ = local_buffer.start();
-    length_ = local_buffer.length();
-    data_ready_semaphore_->Signal();
-
-    while (keep_running_) {
-      // This thread will wait here until the end of time.
-      wait_for_ever_semaphore_->Wait();
-    }
-
-    // Make sure we access the buffer after the wait to remove all possibility
-    // of it being optimized away.
-    OS::StrNCpy(local_buffer, "PreallocatedMemoryThread shutting down.\n",
-                local_buffer.length());
-  }
-
-
- private:
-  PreallocatedMemoryThread()
-      : Thread("v8:PreallocMem"),
-        keep_running_(true),
-        wait_for_ever_semaphore_(new Semaphore(0)),
-        data_ready_semaphore_(new Semaphore(0)),
-        data_(NULL),
-        length_(0) {
-  }
-
-  // Used to make sure that the thread keeps looping even for spurious wakeups.
-  bool keep_running_;
-
-  // This semaphore is used by the PreallocatedMemoryThread to wait for ever.
-  Semaphore* wait_for_ever_semaphore_;
-  // Semaphore to signal that the data has been initialized.
-  Semaphore* data_ready_semaphore_;
-
-  // Location and size of the preallocated memory block.
-  char* data_;
-  unsigned length_;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(PreallocatedMemoryThread);
-};
-
-
-void Isolate::PreallocatedMemoryThreadStart() {
-  if (preallocated_memory_thread_ != NULL) return;
-  preallocated_memory_thread_ = new PreallocatedMemoryThread();
-  preallocated_memory_thread_->Start();
-}
-
-
-void Isolate::PreallocatedMemoryThreadStop() {
-  if (preallocated_memory_thread_ == NULL) return;
-  preallocated_memory_thread_->StopThread();
-  // Done with the thread entirely.
-  delete preallocated_memory_thread_;
-  preallocated_memory_thread_ = NULL;
-}
-
-
-void Isolate::PreallocatedStorageInit(size_t size) {
-  ASSERT(free_list_.next_ == &free_list_);
-  ASSERT(free_list_.previous_ == &free_list_);
-  PreallocatedStorage* free_chunk =
-      reinterpret_cast<PreallocatedStorage*>(new char[size]);
-  free_list_.next_ = free_list_.previous_ = free_chunk;
-  free_chunk->next_ = free_chunk->previous_ = &free_list_;
-  free_chunk->size_ = size - sizeof(PreallocatedStorage);
-  preallocated_storage_preallocated_ = true;
-}
-
-
-void* Isolate::PreallocatedStorageNew(size_t size) {
-  if (!preallocated_storage_preallocated_) {
-    return FreeStoreAllocationPolicy().New(size);
-  }
-  ASSERT(free_list_.next_ != &free_list_);
-  ASSERT(free_list_.previous_ != &free_list_);
-
-  size = (size + kPointerSize - 1) & ~(kPointerSize - 1);
-  // Search for exact fit.
-  for (PreallocatedStorage* storage = free_list_.next_;
-       storage != &free_list_;
-       storage = storage->next_) {
-    if (storage->size_ == size) {
-      storage->Unlink();
-      storage->LinkTo(&in_use_list_);
-      return reinterpret_cast<void*>(storage + 1);
-    }
-  }
-  // Search for first fit.
-  for (PreallocatedStorage* storage = free_list_.next_;
-       storage != &free_list_;
-       storage = storage->next_) {
-    if (storage->size_ >= size + sizeof(PreallocatedStorage)) {
-      storage->Unlink();
-      storage->LinkTo(&in_use_list_);
-      PreallocatedStorage* left_over =
-          reinterpret_cast<PreallocatedStorage*>(
-              reinterpret_cast<char*>(storage + 1) + size);
-      left_over->size_ = storage->size_ - size - sizeof(PreallocatedStorage);
-      ASSERT(size + left_over->size_ + sizeof(PreallocatedStorage) ==
-             storage->size_);
-      storage->size_ = size;
-      left_over->LinkTo(&free_list_);
-      return reinterpret_cast<void*>(storage + 1);
-    }
-  }
-  // Allocation failure.
-  ASSERT(false);
-  return NULL;
-}
-
-
-// We don't attempt to coalesce.
-void Isolate::PreallocatedStorageDelete(void* p) {
-  if (p == NULL) {
-    return;
-  }
-  if (!preallocated_storage_preallocated_) {
-    FreeStoreAllocationPolicy::Delete(p);
-    return;
-  }
-  PreallocatedStorage* storage = reinterpret_cast<PreallocatedStorage*>(p) - 1;
-  ASSERT(storage->next_->previous_ == storage);
-  ASSERT(storage->previous_->next_ == storage);
-  storage->Unlink();
-  storage->LinkTo(&free_list_);
-}
 
 Isolate* Isolate::default_isolate_ = NULL;
 Thread::LocalStorageKey Isolate::isolate_key_;
@@ -854,24 +654,12 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 }
 
 
-void Isolate::PrintStack() {
-  PrintStack(stdout);
-}
-
-
 void Isolate::PrintStack(FILE* out) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
-
-    StringAllocator* allocator;
-    if (preallocated_message_space_ == NULL) {
-      allocator = new HeapStringAllocator();
-    } else {
-      allocator = preallocated_message_space_;
-    }
-
     StringStream::ClearMentionedObjectCache(this);
-    StringStream accumulator(allocator);
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     accumulator.OutputToFile(out);
@@ -879,10 +667,6 @@ void Isolate::PrintStack(FILE* out) {
     accumulator.Log(this);
     incomplete_message_ = NULL;
     stack_trace_nesting_level_ = 0;
-    if (preallocated_message_space_ == NULL) {
-      // Remove the HeapStringAllocator created above.
-      delete allocator;
-    }
   } else if (stack_trace_nesting_level_ == 1) {
     stack_trace_nesting_level_++;
     OS::PrintError(
@@ -1752,13 +1536,11 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 
 
 Isolate::Isolate()
-    : state_(UNINITIALIZED),
-      embedder_data_(NULL),
+    : embedder_data_(),
+      state_(UNINITIALIZED),
       entry_stack_(NULL),
       stack_trace_nesting_level_(0),
       incomplete_message_(NULL),
-      preallocated_memory_thread_(NULL),
-      preallocated_message_space_(NULL),
       bootstrapper_(NULL),
       runtime_profiler_(NULL),
       compilation_cache_(NULL),
@@ -1780,14 +1562,10 @@ Isolate::Isolate()
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
       runtime_zone_(this),
-      in_use_list_(0),
-      free_list_(0),
-      preallocated_storage_preallocated_(false),
       inner_pointer_to_code_cache_(NULL),
       write_iterator_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
-      context_switcher_(NULL),
       thread_manager_(NULL),
       fp_stubs_generated_(false),
       has_installed_extensions_(false),
@@ -1807,6 +1585,8 @@ Isolate::Isolate()
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(NULL),
       sweeper_thread_(NULL),
+      num_sweeper_threads_(0),
+      max_available_threads_(0),
       stress_deopt_count_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
@@ -1899,18 +1679,20 @@ void Isolate::Deinit() {
     debugger()->UnloadDebugger();
 #endif
 
-    if (FLAG_concurrent_recompilation) {
+    if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();
       delete optimizing_compiler_thread_;
+      optimizing_compiler_thread_ = NULL;
     }
 
-    if (FLAG_sweeper_threads > 0) {
-      for (int i = 0; i < FLAG_sweeper_threads; i++) {
-        sweeper_thread_[i]->Stop();
-        delete sweeper_thread_[i];
-      }
-      delete[] sweeper_thread_;
+    for (int i = 0; i < num_sweeper_threads_; i++) {
+      sweeper_thread_[i]->Stop();
+      delete sweeper_thread_[i];
+      sweeper_thread_[i] = NULL;
     }
+    delete[] sweeper_thread_;
+    sweeper_thread_ = NULL;
+
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
@@ -1924,17 +1706,8 @@ void Isolate::Deinit() {
 
     delete deoptimizer_data_;
     deoptimizer_data_ = NULL;
-    if (FLAG_preemption) {
-      v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-      v8::Locker::StopPreemption(reinterpret_cast<v8::Isolate*>(this));
-    }
     builtins_.TearDown();
     bootstrapper_->TearDown();
-
-    // Remove the external reference to the preallocated stack memory.
-    delete preallocated_message_space_;
-    preallocated_message_space_ = NULL;
-    PreallocatedMemoryThreadStop();
 
     if (runtime_profiler_ != NULL) {
       runtime_profiler_->TearDown();
@@ -2044,8 +1817,6 @@ Isolate::~Isolate() {
   delete write_iterator_;
   write_iterator_ = NULL;
 
-  delete context_switcher_;
-  context_switcher_ = NULL;
   delete thread_manager_;
   thread_manager_ = NULL;
 
@@ -2234,11 +2005,6 @@ bool Isolate::Init(Deserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData(memory_allocator_);
 
-  if (FLAG_concurrent_recompilation) {
-    optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
-    optimizing_compiler_thread_->Start();
-  }
-
   const bool create_heap_objects = (des == NULL);
   if (create_heap_objects && !heap_.CreateHeapObjects()) {
     V8::FatalProcessOutOfMemory("heap object creation");
@@ -2255,20 +2021,31 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
 
-  // Only preallocate on the first initialization.
-  if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {
-    // Start the thread which will set aside some memory.
-    PreallocatedMemoryThreadStart();
-    preallocated_message_space_ =
-        new NoAllocationStringAllocator(
-            preallocated_memory_thread_->data(),
-            preallocated_memory_thread_->length());
-    PreallocatedStorageInit(preallocated_memory_thread_->length() / 4);
+  if (create_heap_objects) heap_.CreateStubsRequiringBuiltins();
+
+  // Set default value if not yet set.
+  // TODO(yangguo): move this to ResourceConstraints::ConfigureDefaults
+  // once ResourceConstraints becomes an argument to the Isolate constructor.
+  if (max_available_threads_ < 1) {
+    // Choose the default between 1 and 4.
+    max_available_threads_ = Max(Min(CPU::NumberOfProcessorsOnline(), 4), 1);
   }
 
-  if (FLAG_preemption) {
-    v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-    v8::Locker::StartPreemption(reinterpret_cast<v8::Isolate*>(this), 100);
+  num_sweeper_threads_ = SweeperThread::NumberOfThreads(max_available_threads_);
+
+  if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
+    PrintF("Concurrent recompilation has been disabled for tracing.\n");
+  } else if (OptimizingCompilerThread::Enabled(max_available_threads_)) {
+    optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
+    optimizing_compiler_thread_->Start();
+  }
+
+  if (num_sweeper_threads_ > 0) {
+    sweeper_thread_ = new SweeperThread*[num_sweeper_threads_];
+    for (int i = 0; i < num_sweeper_threads_; i++) {
+      sweeper_thread_[i] = new SweeperThread(this);
+      sweeper_thread_[i]->Start();
+    }
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2331,6 +2108,7 @@ bool Isolate::Init(Deserializer* des) {
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
+    StubFailureTailCallTrampolineStub::GenerateAheadOfTime(this);
     // TODO(mstarzinger): The following is an ugly hack to make sure the
     // interface descriptor is initialized even when stubs have been
     // deserialized out of the snapshot without the graph builder.
@@ -2346,14 +2124,6 @@ bool Isolate::Init(Deserializer* des) {
     FastNewClosureStub::InstallDescriptors(this);
     NumberToStringStub::InstallDescriptors(this);
     NewStringAddStub::InstallDescriptors(this);
-  }
-
-  if (FLAG_sweeper_threads > 0) {
-    sweeper_thread_ = new SweeperThread*[FLAG_sweeper_threads];
-    for (int i = 0; i < FLAG_sweeper_threads; i++) {
-      sweeper_thread_[i] = new SweeperThread(this);
-      sweeper_thread_[i]->Start();
-    }
   }
 
   initialized_from_snapshot_ = (des != NULL);

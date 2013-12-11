@@ -105,6 +105,7 @@ class NumberObject;
 class Object;
 class ObjectOperationDescriptor;
 class ObjectTemplate;
+class Platform;
 class Primitive;
 class RawOperationDescriptor;
 class Signature;
@@ -1735,7 +1736,7 @@ class V8_EXPORT String : public Primitive {
    * the function calls 'strlen' to determine the buffer length.
    */
   V8_DEPRECATED(
-      "Use NewFromOneByte instead",
+      "Use NewFromUtf8 instead",
       V8_INLINE static Local<String> New(const char* data, int length = -1));
 
   /** Allocates a new string from 16-bit character codes.*/
@@ -2534,7 +2535,7 @@ class V8_EXPORT Function : public Object {
   /**
    * Returns scriptId object.
    */
-  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId()) const;
+  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId() const);
 
   /**
    * Returns scriptId.
@@ -2898,7 +2899,7 @@ class V8_EXPORT Date : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      double NumberValue()) const { return ValueOf(); }
+      double NumberValue() const) { return ValueOf(); }
 
   /**
    * A specialization of Value::NumberValue that is more efficient
@@ -2936,7 +2937,7 @@ class V8_EXPORT NumberObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      double NumberValue()) const { return ValueOf(); }
+      double NumberValue() const) { return ValueOf(); }
 
   /**
    * Returns the Number held by the object.
@@ -2959,7 +2960,7 @@ class V8_EXPORT BooleanObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      bool BooleanValue()) const { return ValueOf(); }
+      bool BooleanValue() const) { return ValueOf(); }
 
   /**
    * Returns the Boolean held by the object.
@@ -2982,7 +2983,7 @@ class V8_EXPORT StringObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      Local<String> StringValue()) const { return ValueOf(); }
+      Local<String> StringValue() const) { return ValueOf(); }
 
   /**
    * Returns the String held by the object.
@@ -3007,7 +3008,7 @@ class V8_EXPORT SymbolObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      Local<Symbol> SymbolValue()) const { return ValueOf(); }
+      Local<Symbol> SymbolValue() const) { return ValueOf(); }
 
   /**
    * Returns the Symbol held by the object.
@@ -3074,8 +3075,7 @@ class V8_EXPORT RegExp : public Object {
 class V8_EXPORT External : public Value {
  public:
   static Local<External> New(Isolate* isolate, void* value);
-  // Deprecated, do not use.
-  static Local<External> New(void* value);
+  V8_DEPRECATED("Will be removed", static Local<External> New(void *value));
   V8_INLINE static External* Cast(Value* obj);
   void* Value() const;
  private:
@@ -3803,27 +3803,43 @@ V8_INLINE Handle<Boolean> False(Isolate* isolate);
 class V8_EXPORT ResourceConstraints {
  public:
   ResourceConstraints();
+
+  /**
+   * Configures the constraints with reasonable default values based on the
+   * capabilities of the current device the VM is running on.
+   *
+   * \param physical_memory The total amount of physical memory on the current
+   *   device, in bytes.
+   * \param number_of_processors The number of CPUs available on the current
+   *   device.
+   */
+  void ConfigureDefaults(uint64_t physical_memory,
+                         uint32_t number_of_processors);
+  V8_DEPRECATED("Will be removed",
+                void ConfigureDefaults(uint64_t physical_memory));
+
   int max_young_space_size() const { return max_young_space_size_; }
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
-  int max_executable_size() { return max_executable_size_; }
+  int max_executable_size() const { return max_executable_size_; }
   void set_max_executable_size(int value) { max_executable_size_ = value; }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
+  int max_available_threads() const { return max_available_threads_; }
+  // Set the number of threads available to V8, assuming at least 1.
+  void set_max_available_threads(int value) {
+    max_available_threads_ = value;
+  }
 
  private:
   int max_young_space_size_;
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
+  int max_available_threads_;
 };
-
-
-V8_DEPRECATED(
-    "Use SetResourceConstraints(isolate, constraints) instead",
-    bool V8_EXPORT SetResourceConstraints(ResourceConstraints* constraints));
 
 
 /**
@@ -4039,15 +4055,35 @@ class V8_EXPORT Isolate {
   void Dispose();
 
   /**
-   * Associate embedder-specific data with the isolate
+   * Associate embedder-specific data with the isolate. This legacy method
+   * puts the data in the 0th slot. It will be deprecated soon.
    */
   V8_INLINE void SetData(void* data);
 
   /**
-   * Retrieve embedder-specific data from the isolate.
+   * Associate embedder-specific data with the isolate. |slot| has to be
+   * between 0 and GetNumberOfDataSlots() - 1.
+   */
+  V8_INLINE void SetData(uint32_t slot, void* data);
+
+  /**
+   * Retrieve embedder-specific data from the isolate. This legacy method
+   * retrieves the data from slot 0. It will be deprecated soon.
    * Returns NULL if SetData has never been called.
    */
   V8_INLINE void* GetData();
+
+  /**
+   * Retrieve embedder-specific data from the isolate.
+   * Returns NULL if SetData has never been called for the given |slot|.
+   */
+  V8_INLINE void* GetData(uint32_t slot);
+
+  /**
+   * Returns the maximum number of available embedder data slots. Valid slots
+   * are in the range of 0 - GetNumberOfDataSlots() - 1.
+   */
+  V8_INLINE static uint32_t GetNumberOfDataSlots();
 
   /**
    * Get statistics about the heap memory usage.
@@ -4067,7 +4103,7 @@ class V8_EXPORT Isolate {
    *   kept alive by JavaScript objects.
    * \returns the adjusted value.
    */
-  intptr_t AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes);
+  int64_t AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
 
   /**
    * Returns heap profiler for this isolate. Will return NULL until the isolate
@@ -4650,8 +4686,8 @@ class V8_EXPORT V8 {
 
   V8_DEPRECATED(
       "Use Isolate::AdjustAmountOfExternalAllocatedMemory instead",
-      static intptr_t AdjustAmountOfExternalAllocatedMemory(
-          intptr_t change_in_bytes));
+      static int64_t AdjustAmountOfExternalAllocatedMemory(
+          int64_t change_in_bytes));
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
@@ -4762,6 +4798,18 @@ class V8_EXPORT V8 {
    * invoke this method when using the bundled ICU. Returns true on success.
    */
   static bool InitializeICU();
+
+  /**
+   * Sets the v8::Platform to use. This should be invoked before V8 is
+   * initialized.
+   */
+  static void InitializePlatform(Platform* platform);
+
+  /**
+   * Clears all references to the v8::Platform. This should be invoked after
+   * V8 was disposed.
+   */
+  static void ShutdownPlatform();
 
  private:
   V8();
@@ -5237,20 +5285,6 @@ class V8_EXPORT Locker {
   ~Locker();
 
   /**
-   * Start preemption.
-   *
-   * When preemption is started, a timer is fired every n milliseconds
-   * that will switch between multiple threads that are in contention
-   * for the V8 lock.
-   */
-  static void StartPreemption(Isolate* isolate, int every_n_ms);
-
-  /**
-   * Stop preemption.
-   */
-  static void StopPreemption(Isolate* isolate);
-
-  /**
    * Returns whether or not the locker for a given isolate, is locked by the
    * current thread.
    */
@@ -5441,8 +5475,8 @@ class Internals {
   static const int kExternalTwoByteRepresentationTag = 0x02;
   static const int kExternalAsciiRepresentationTag = 0x06;
 
-  static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
-  static const int kIsolateRootsOffset = 3 * kApiPointerSize;
+  static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
+  static const int kIsolateRootsOffset = 5 * kApiPointerSize;
   static const int kUndefinedValueRootIndex = 5;
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
@@ -5465,6 +5499,8 @@ class Internals {
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
+
+  static const uint32_t kNumIsolateDataSlots = 4;
 
   V8_EXPORT static void CheckInitializedImpl(v8::Isolate* isolate);
   V8_INLINE static void CheckInitialized(v8::Isolate* isolate) {
@@ -5529,15 +5565,17 @@ class Internals {
     *addr = static_cast<uint8_t>((*addr & ~kNodeStateMask) | value);
   }
 
-  V8_INLINE static void SetEmbedderData(v8::Isolate* isolate, void* data) {
-    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) +
-        kIsolateEmbedderDataOffset;
+  V8_INLINE static void SetEmbedderData(v8::Isolate *isolate,
+                                        uint32_t slot,
+                                        void *data) {
+    uint8_t *addr = reinterpret_cast<uint8_t *>(isolate) +
+                    kIsolateEmbedderDataOffset + slot * kApiPointerSize;
     *reinterpret_cast<void**>(addr) = data;
   }
 
-  V8_INLINE static void* GetEmbedderData(v8::Isolate* isolate) {
+  V8_INLINE static void* GetEmbedderData(v8::Isolate* isolate, uint32_t slot) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) +
-        kIsolateEmbedderDataOffset;
+        kIsolateEmbedderDataOffset + slot * kApiPointerSize;
     return *reinterpret_cast<void**>(addr);
   }
 
@@ -6009,7 +6047,7 @@ Handle<Boolean> Boolean::New(bool value) {
 
 
 void Template::Set(const char* name, v8::Handle<Data> value) {
-  Set(v8::String::New(name), value);
+  Set(v8::String::NewFromUtf8(Isolate::GetCurrent(), name), value);
 }
 
 
@@ -6463,13 +6501,31 @@ Handle<Boolean> False(Isolate* isolate) {
 
 void Isolate::SetData(void* data) {
   typedef internal::Internals I;
-  I::SetEmbedderData(this, data);
+  I::SetEmbedderData(this, 0, data);
 }
 
 
 void* Isolate::GetData() {
   typedef internal::Internals I;
-  return I::GetEmbedderData(this);
+  return I::GetEmbedderData(this, 0);
+}
+
+
+void Isolate::SetData(uint32_t slot, void* data) {
+  typedef internal::Internals I;
+  I::SetEmbedderData(this, slot, data);
+}
+
+
+void* Isolate::GetData(uint32_t slot) {
+  typedef internal::Internals I;
+  return I::GetEmbedderData(this, slot);
+}
+
+
+uint32_t Isolate::GetNumberOfDataSlots() {
+  typedef internal::Internals I;
+  return I::kNumIsolateDataSlots;
 }
 
 

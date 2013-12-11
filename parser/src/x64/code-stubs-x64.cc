@@ -114,6 +114,17 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx, rax };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+    FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -131,6 +142,19 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedArrayCallStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rcx };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->continuation_type_ = TAIL_CALL_CONTINUATION;
+  descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedCallIC_MissFromStubFailure);
 }
 
 
@@ -4224,15 +4248,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ testb(rbx, Immediate(kStringEncodingMask));
-    // Make long jumps when allocations tracking is on due to
-    // RecordObjectAllocation inside MacroAssembler::Allocate.
-    Label::Distance jump_distance =
-        masm->isolate()->heap_profiler()->is_tracking_allocations()
-        ? Label::kFar
-        : Label::kNear;
-    __ j(zero, &two_byte_slice, jump_distance);
+    __ j(zero, &two_byte_slice, Label::kNear);
     __ AllocateAsciiSlicedString(rax, rbx, r14, &runtime);
-    __ jmp(&set_slice_header, jump_distance);
+    __ jmp(&set_slice_header, Label::kNear);
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(rax, rbx, r14, &runtime);
     __ bind(&set_slice_header);
@@ -5458,6 +5476,24 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
+  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  __ movq(rdi, rax);
+  int parameter_count_offset =
+      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+  __ movq(rax, MemOperand(rbp, parameter_count_offset));
+  // The parameter count above includes the receiver for the arguments passed to
+  // the deoptimization handler. Subtract the receiver for the parameter count
+  // for the call.
+  __ subl(rax, Immediate(1));
+  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  ParameterCount argument_count(rax);
+  __ InvokeFunction(
+      rdi, argument_count, JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     // It's always safe to call the entry hook stub, as the hook itself
@@ -5593,10 +5629,12 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       __ Assert(equal, kExpectedAllocationSiteInCell);
     }
 
-    // Save the resulting elements kind in type info
-    __ Integer32ToSmi(rdx, rdx);
-    __ movq(FieldOperand(rcx, AllocationSite::kTransitionInfoOffset), rdx);
-    __ SmiToInteger32(rdx, rdx);
+    // Save the resulting elements kind in type info. We can't just store r3
+    // in the AllocationSite::transition_info field because elements kind is
+    // restricted to a portion of the field...upper bits need to be left alone.
+    STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+    __ SmiAddConstant(FieldOperand(rcx, AllocationSite::kTransitionInfoOffset),
+                      Smi::FromInt(kFastElementsKindPackedToHoley));
 
     __ bind(&normal_sequence);
     int last_index = GetSequenceIndexFromFastElementsKind(
@@ -5738,8 +5776,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
          masm->isolate()->factory()->allocation_site_map());
   __ j(not_equal, &no_info);
 
+  // Only look at the lower 16 bits of the transition info.
   __ movq(rdx, FieldOperand(rdx, AllocationSite::kTransitionInfoOffset));
   __ SmiToInteger32(rdx, rdx);
+  STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+  __ and_(rdx, Immediate(AllocationSite::ElementsKindBits::kMask));
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 
   __ bind(&no_info);

@@ -181,7 +181,8 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   // Always use the actual stack slots when calculating the fp to sp
   // delta adding two for the function and context.
   unsigned stack_slots = code->stack_slots();
-  unsigned fp_to_sp_delta = ((stack_slots + 2) * kPointerSize);
+  unsigned fp_to_sp_delta = (stack_slots * kPointerSize) +
+      StandardFrameConstants::kFixedFrameSizeFromFp;
 
   Deoptimizer* deoptimizer = new Deoptimizer(isolate,
                                              function,
@@ -890,7 +891,8 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
     // If the optimized frame had alignment padding, adjust the frame pointer
     // to point to the new position of the old frame pointer after padding
     // is removed. Subtract 2 * kPointerSize for the context and function slots.
-    top_address = input_->GetRegister(fp_reg.code()) - (2 * kPointerSize) -
+    top_address = input_->GetRegister(fp_reg.code()) -
+        StandardFrameConstants::kFixedFrameSizeFromFp -
         height_in_bytes + has_alignment_padding_ * kPointerSize;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
@@ -1303,14 +1305,14 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
            "  translating %s stub => height=%u\n", kind, height_in_bytes);
   }
 
-  // We need 1 stack entry for the return address + 4 stack entries from
-  // StackFrame::INTERNAL (FP, context, frame type, code object, see
+  // We need 1 stack entry for the return address and enough entries for the
+  // StackFrame::INTERNAL (FP, context, frame type and code object - see
   // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
   // entry for the implicit return value, see
   // StoreStubCompiler::CompileStoreViaSetter.
-  unsigned fixed_frame_entries = (kPCOnStackSize / kPointerSize) +
-                                 (kFPOnStackSize / kPointerSize) + 3 +
-                                 (is_setter_stub_frame ? 1 : 0);
+  unsigned fixed_frame_entries =
+      (StandardFrameConstants::kFixedFrameSize / kPointerSize) + 1 +
+      (is_setter_stub_frame ? 1 : 0);
   unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -1465,8 +1467,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   int output_frame_size = height_in_bytes + fixed_frame_size;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
-           "  translating %s => StubFailureTrampolineStub, height=%d\n",
+           "  translating %s => StubFailure%sTrampolineStub, height=%d\n",
            CodeStub::MajorName(static_cast<CodeStub::Major>(major_key), false),
+           descriptor->HasTailCallContinuation() ? "TailCall" : "",
            height_in_bytes);
   }
 
@@ -1482,7 +1485,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // context and function slots.
   Register fp_reg = StubFailureTrampolineFrame::fp_register();
   intptr_t top_address = input_->GetRegister(fp_reg.code()) -
-      (2 * kPointerSize) - height_in_bytes;
+      StandardFrameConstants::kFixedFrameSizeFromFp - height_in_bytes;
   output_frame->SetTop(top_address);
 
   // Read caller's PC (JSFunction continuation) from the input frame.
@@ -1538,7 +1541,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
            top_address + output_frame_offset, output_frame_offset, value);
   }
 
-  intptr_t caller_arg_count = 0;
+  intptr_t caller_arg_count = descriptor->HasTailCallContinuation()
+      ? compiled_code_->arguments_count() + 1 : 0;
   bool arg_count_known = !descriptor->stack_parameter_count_.is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
@@ -1634,15 +1638,18 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   // Compute this frame's PC, state, and continuation.
   Code* trampoline = NULL;
-  StubFunctionMode function_mode = descriptor->function_mode_;
-  StubFailureTrampolineStub(function_mode).FindCodeInCache(&trampoline,
-                                                           isolate_);
+  if (descriptor->HasTailCallContinuation()) {
+    StubFailureTailCallTrampolineStub().FindCodeInCache(&trampoline, isolate_);
+  } else {
+    StubFunctionMode function_mode = descriptor->function_mode_;
+    StubFailureTrampolineStub(function_mode).FindCodeInCache(&trampoline,
+                                                             isolate_);
+  }
   ASSERT(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));
   output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
-  Code* notify_failure =
-      isolate_->builtins()->builtin(Builtins::kNotifyStubFailure);
+  Code* notify_failure = NotifyStubFailureBuiltin();
   output_frame->SetContinuation(
       reinterpret_cast<intptr_t>(notify_failure->entry()));
 }
@@ -2448,8 +2455,9 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 unsigned Deoptimizer::ComputeInputFrameSize() const {
   unsigned fixed_size = ComputeFixedSize(function_);
   // The fp-to-sp delta already takes the context and the function
-  // into account so we have to avoid double counting them (-2).
-  unsigned result = fixed_size + fp_to_sp_delta_ - (2 * kPointerSize);
+  // into account so we have to avoid double counting them.
+  unsigned result = fixed_size + fp_to_sp_delta_ -
+      StandardFrameConstants::kFixedFrameSizeFromFp;
 #ifdef DEBUG
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,26 +24,19 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#ifndef V8_ALLOCATION_INL_H_
-#define V8_ALLOCATION_INL_H_
-
-#include "allocation.h"
-
-namespace v8 {
-namespace internal {
+//
+// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
+// Flags: --track-allocation-sites --noalways-opt
+// Flags: --stress-runs=8 --send-idle-notification --gc-global
 
 
-void* PreallocatedStorageAllocationPolicy::New(size_t size) {
-  return Isolate::Current()->PreallocatedStorageNew(size);
-}
-
-
-void PreallocatedStorageAllocationPolicy::Delete(void* p) {
-  return Isolate::Current()->PreallocatedStorageDelete(p);
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_ALLOCATION_INL_H_
+function bar() { return new Array(); }
+bar();
+bar();
+%OptimizeFunctionOnNextCall(bar);
+a = bar();
+function foo(len) { return new Array(len); }
+foo(0);
+foo(0);
+%OptimizeFunctionOnNextCall(bar);
+foo(0);

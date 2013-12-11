@@ -372,6 +372,9 @@ class RelocInfo BASE_EMBEDDED {
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   double data64() const { return data64_; }
+  uint64_t raw_data64() {
+    return BitCast<uint64_t>(data64_);
+  }
   Code* host() const { return host_; }
 
   // Apply a relocation by delta bytes
@@ -715,7 +718,6 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference flush_icache_function(Isolate* isolate);
   static ExternalReference perform_gc_function(Isolate* isolate);
-  static ExternalReference random_uint32_function(Isolate* isolate);
   static ExternalReference transcendental_cache_array_address(Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
 

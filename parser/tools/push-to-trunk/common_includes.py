@@ -30,6 +30,8 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
+import urllib2
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 TEMP_BRANCH = "TEMP_BRANCH"
@@ -67,12 +69,110 @@ def MSub(rexp, replacement, text):
   return re.sub(rexp, replacement, text, flags=re.MULTILINE)
 
 
+def Fill80(line):
+  # Replace tabs and remove surrounding space.
+  line = re.sub(r"\t", r"        ", line.strip())
+
+  # Format with 8 characters indentation and line width 80.
+  return textwrap.fill(line, width=80, initial_indent="        ",
+                       subsequent_indent="        ")
+
+
 def GetLastChangeLogEntries(change_log_file):
   result = []
   for line in LinesInFile(change_log_file):
     if re.search(r"^\d{4}-\d{2}-\d{2}:", line) and result: break
     result.append(line)
   return "".join(result)
+
+
+def MakeComment(text):
+  return MSub(r"^( ?)", "#", text)
+
+
+def StripComments(text):
+  # Use split not splitlines to keep terminal newlines.
+  return "\n".join(filter(lambda x: not x.startswith("#"), text.split("\n")))
+
+
+def MakeChangeLogBody(commit_messages, auto_format=False):
+  result = ""
+  added_titles = set()
+  for (title, body, author) in commit_messages:
+    # TODO(machenbach): Reload the commit description from rietveld in order to
+    # catch late changes.
+    title = title.strip()
+    if auto_format:
+      # Only add commits that set the LOG flag correctly.
+      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:Y(?:ES)?)|TRUE"
+      if not re.search(log_exp, body, flags=re.I | re.M):
+        continue
+      # Never include reverts.
+      if title.startswith("Revert "):
+        continue
+      # Don't include duplicates.
+      if title in added_titles:
+        continue
+
+    # TODO(machenbach): Let python do all formatting. Get raw git title, attach
+    # issue and add/move dot to the end - all in one line. Make formatting and
+    # indentation afterwards.
+
+    # Add the commit's title line.
+    result += "%s\n" % Fill80(title)
+    added_titles.add(title)
+
+    # Add bug references.
+    result += MakeChangeLogBugReference(body)
+
+    # Append the commit's author for reference if not in auto-format mode.
+    if not auto_format:
+      result += "%s\n" % Fill80("(%s)" % author.strip())
+
+    result += "\n"
+  return result
+
+
+def MakeChangeLogBugReference(body):
+  """Grep for "BUG=xxxx" lines in the commit message and convert them to
+  "(issue xxxx)".
+  """
+  crbugs = []
+  v8bugs = []
+
+  def AddIssues(text):
+    ref = re.match(r"^BUG[ \t]*=[ \t]*(.+)$", text.strip())
+    if not ref:
+      return
+    for bug in ref.group(1).split(","):
+      bug = bug.strip()
+      match = re.match(r"^v8:(\d+)$", bug)
+      if match: v8bugs.append(int(match.group(1)))
+      else:
+        match = re.match(r"^(?:chromium:)?(\d+)$", bug)
+        if match: crbugs.append(int(match.group(1)))
+
+  # Add issues to crbugs and v8bugs.
+  map(AddIssues, body.splitlines())
+
+  # Filter duplicates, sort, stringify.
+  crbugs = map(str, sorted(set(crbugs)))
+  v8bugs = map(str, sorted(set(v8bugs)))
+
+  bug_groups = []
+  def FormatIssues(prefix, bugs):
+    if len(bugs) > 0:
+      plural = "s" if len(bugs) > 1 else ""
+      bug_groups.append("%sissue%s %s" % (prefix, plural, ", ".join(bugs)))
+
+  FormatIssues("", v8bugs)
+  FormatIssues("Chromium ", crbugs)
+
+  if len(bug_groups) > 0:
+    # Format with 8 characters indentation and max 80 character lines.
+    return "%s\n" % Fill80("(%s)" % ", ".join(bug_groups))
+  else:
+    return ""
 
 
 # Some commands don't like the pipe, e.g. calling vi from within the script or
@@ -97,39 +197,35 @@ class SideEffectHandler(object):
   def ReadLine(self):
     return sys.stdin.readline().strip()
 
+  def ReadURL(self, url):
+    # pylint: disable=E1121
+    url_fh = urllib2.urlopen(url, None, 60)
+    try:
+      return url_fh.read()
+    finally:
+      url_fh.close()
+
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
 class Step(object):
-  def __init__(self, text="", requires=None):
+  def __init__(self, text, requires, number, config, state, options, handler):
     self._text = text
-    self._number = -1
     self._requires = requires
-    self._side_effect_handler = DEFAULT_SIDE_EFFECT_HANDLER
-
-  def SetNumber(self, number):
     self._number = number
-
-  def SetConfig(self, config):
     self._config = config
-
-  def SetState(self, state):
     self._state = state
-
-  def SetOptions(self, options):
     self._options = options
-
-  def SetSideEffectHandler(self, handler):
     self._side_effect_handler = handler
+    assert self._number >= 0
+    assert self._config is not None
+    assert self._state is not None
+    assert self._side_effect_handler is not None
 
   def Config(self, key):
     return self._config[key]
 
   def Run(self):
-    assert self._number >= 0
-    assert self._config is not None
-    assert self._state is not None
-    assert self._side_effect_handler is not None
     if self._requires:
       self.RestoreIfUnset(self._requires)
       if not self._state[self._requires]:
@@ -140,8 +236,13 @@ class Step(object):
   def RunStep(self):
     raise NotImplementedError
 
-  def ReadLine(self):
-    return self._side_effect_handler.ReadLine()
+  def ReadLine(self, default=None):
+    # Don't prompt in forced mode.
+    if self._options and self._options.f and default is not None:
+      print "%s (forced)" % default
+      return default
+    else:
+      return self._side_effect_handler.ReadLine()
 
   def Git(self, args="", prefix="", pipe=True):
     return self._side_effect_handler.Command("git", args, prefix, pipe)
@@ -150,15 +251,23 @@ class Step(object):
     return self._side_effect_handler.Command(os.environ["EDITOR"], args,
                                              pipe=False)
 
+  def ReadURL(self, url):
+    return self._side_effect_handler.ReadURL(url)
+
   def Die(self, msg=""):
     if msg != "":
       print "Error: %s" % msg
     print "Exiting"
     raise Exception(msg)
 
+  def DieInForcedMode(self, msg=""):
+    if self._options and self._options.f:
+      msg = msg or "Not implemented in forced mode."
+      self.Die(msg)
+
   def Confirm(self, msg):
     print "%s [Y/n] " % msg,
-    answer = self.ReadLine()
+    answer = self.ReadLine(default="Y")
     return answer == "" or answer == "Y" or answer == "y"
 
   def DeleteBranch(self, name):
@@ -192,6 +301,8 @@ class Step(object):
     if not os.path.exists(self._config[DOT_GIT_LOCATION]):
       self.Die("This is not a git checkout, this script won't work for you.")
 
+    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
+    # well tested.
     # Cancel if EDITOR is unset or not executable.
     if (not os.environ.get("EDITOR") or
         Command("which", os.environ["EDITOR"]) is None):
@@ -216,8 +327,10 @@ class Step(object):
     if self.Git("svn fetch") is None:
       self.Die("'git svn fetch' failed.")
 
+  def PrepareBranch(self):
     # Get ahold of a safe temporary branch and check it out.
-    if current_branch != self._config[TEMP_BRANCH]:
+    self.RestoreIfUnset("current_branch")
+    if self._state["current_branch"] != self._config[TEMP_BRANCH]:
       self.DeleteBranch(self._config[TEMP_BRANCH])
       self.Git("checkout -b %s" % self._config[TEMP_BRANCH])
 
@@ -261,6 +374,8 @@ class Step(object):
     answer = ""
     while answer != "LGTM":
       print "> ",
+      # TODO(machenbach): Add default="LGTM" to avoid prompt when script is
+      # well tested and when prepare push cl has TBR flag.
       answer = self.ReadLine()
       if answer != "LGTM":
         print "That was not 'LGTM'."
@@ -269,6 +384,7 @@ class Step(object):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
           "'git add', and type \"RESOLVED<Return>\"")
+    self.DieInForcedMode()
     answer = ""
     while answer != "RESOLVED":
       if answer == "ABORT":
@@ -286,12 +402,53 @@ class Step(object):
 
 
 class UploadStep(Step):
-  def __init__(self):
-    Step.__init__(self, "Upload for code review.")
+  MESSAGE = "Upload for code review."
 
   def RunStep(self):
-    print "Please enter the email address of a V8 reviewer for your patch: ",
-    reviewer = self.ReadLine()
-    args = "cl upload -r \"%s\" --send-mail" % reviewer
-    if self.Git(args,pipe=False) is None:
+    if self._options.r:
+      print "Using account %s for review." % self._options.r
+      reviewer = self._options.r
+    else:
+      print "Please enter the email address of a V8 reviewer for your patch: ",
+      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      reviewer = self.ReadLine()
+    force_flag = " -f" if self._options.f else ""
+    args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
+    # TODO(machenbach): Check output in forced mode. Verify that all required
+    # base files were uploaded, if not retry.
+    if self.Git(args, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
+
+
+def MakeStep(step_class=Step, number=0, state=None, config=None,
+             options=None, side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+    # Allow to pass in empty dictionaries.
+    state = state if state is not None else {}
+    config = config if config is not None else {}
+
+    try:
+      message = step_class.MESSAGE
+    except AttributeError:
+      message = step_class.__name__
+    try:
+      requires = step_class.REQUIRES
+    except AttributeError:
+      requires = None
+
+    return step_class(message, requires, number=number, config=config,
+                      state=state, options=options,
+                      handler=side_effect_handler)
+
+
+def RunScript(step_classes,
+              config,
+              options,
+              side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+  state = {}
+  steps = []
+  for (number, step_class) in enumerate(step_classes):
+    steps.append(MakeStep(step_class, number, state, config,
+                          options, side_effect_handler))
+
+  for step in steps[options.s:]:
+    step.Run()

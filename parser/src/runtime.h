@@ -103,8 +103,7 @@ namespace internal {
   F(CompileForOnStackReplacement, 2, 1) \
   F(SetAllocationTimeout, 2, 1) \
   F(AllocateInNewSpace, 1, 1) \
-  F(AllocateInOldPointerSpace, 1, 1) \
-  F(AllocateInOldDataSpace, 1, 1) \
+  F(AllocateInTargetSpace, 2, 1) \
   F(SetNativeFlag, 1, 1) \
   F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
@@ -113,6 +112,7 @@ namespace internal {
   F(FlattenString, 1, 1) \
   F(MigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
+  F(MaxSmi, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -190,7 +190,6 @@ namespace internal {
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
-  F(PopulateTrigonometricTable, 3, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -408,6 +407,7 @@ namespace internal {
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
   F(ThrowNotDateError, 0, 1) \
+  F(ThrowMessage, 1, 1) \
   F(StackGuard, 0, 1) \
   F(Interrupt, 0, 1) \
   F(PromoteScheduledException, 0, 1) \
@@ -622,7 +622,6 @@ namespace internal {
   F(OneByteSeqStringSetChar, 3, 1)                                           \
   F(TwoByteSeqStringSetChar, 3, 1)                                           \
   F(ObjectEquals, 2, 1)                                                      \
-  F(RandomHeapNumber, 0, 1)                                                  \
   F(IsObject, 1, 1)                                                          \
   F(IsFunction, 1, 1)                                                        \
   F(IsUndetectableObject, 1, 1)                                              \
@@ -843,6 +842,9 @@ class Runtime : public AllStatic {
 
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
+
+class AllocateDoubleAlignFlag:    public BitField<bool,            0, 1> {};
+class AllocateTargetSpace:        public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag:     public BitField<bool,         0, 1> {};
 class DeclareGlobalsNativeFlag:   public BitField<bool,         1, 1> {};

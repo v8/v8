@@ -112,6 +112,8 @@ class ElementsTransitionGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);
 };
 
+static const int kNumberDictionaryProbes = 4;
+
 
 } }  // namespace v8::internal
 

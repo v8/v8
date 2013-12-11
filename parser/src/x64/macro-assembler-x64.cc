@@ -3206,6 +3206,39 @@ void MacroAssembler::TaggedToI(Register result_reg,
 }
 
 
+void MacroAssembler::Throw(BailoutReason reason) {
+#ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
+  if (msg != NULL) {
+    RecordComment("Throw message: ");
+    RecordComment(msg);
+  }
+#endif
+
+  push(rax);
+  Push(Smi::FromInt(reason));
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kThrowMessage, 1);
+  } else {
+    CallRuntime(Runtime::kThrowMessage, 1);
+  }
+  // Control will not return here.
+  int3();
+}
+
+
+void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+  Label L;
+  j(NegateCondition(cc), &L);
+  Throw(reason);
+  // will not return here
+  bind(&L);
+}
+
+
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   movq(descriptors, FieldOperand(map, Map::kDescriptorsOffset));
@@ -3906,6 +3939,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+// Compute the hash code from the untagged key.  This must be kept in sync with
+// ComputeIntegerHash in utils.h and KeyedLoadGenericElementStub in
+// code-stub-hydrogen.cc
 void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   // First of all we assign the hash seed to scratch.
   LoadRoot(scratch, Heap::kHashSeedRootIndex);
@@ -3980,8 +4016,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   decl(r1);
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use r2 for index calculations and keep the hash intact in r0.
     movq(r2, r0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -3999,7 +4034,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                            r2,
                            times_pointer_size,
                            SeededNumberDictionary::kElementsStartOffset));
-    if (i != (kProbes - 1)) {
+    if (i != (kNumberDictionaryProbes - 1)) {
       j(equal, &done);
     } else {
       j(not_equal, miss);
@@ -4081,10 +4116,7 @@ void MacroAssembler::Allocate(int object_size,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
-  if (!FLAG_inline_new ||
-      // TODO(mstarzinger): Implement more efficiently by keeping then
-      // bump-pointer allocation area empty instead of recompiling code.
-      isolate()->heap_profiler()->is_tracking_allocations()) {
+  if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4164,10 +4196,7 @@ void MacroAssembler::Allocate(Register object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  if (!FLAG_inline_new ||
-      // TODO(mstarzinger): Implement more efficiently by keeping then
-      // bump-pointer allocation area empty instead of recompiling code.
-      isolate()->heap_profiler()->is_tracking_allocations()) {
+  if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4635,6 +4664,39 @@ int MacroAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
 }
 
 
+void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
+                                               Register index,
+                                               Register value,
+                                               uint32_t encoding_mask) {
+  Label is_object;
+  JumpIfNotSmi(string, &is_object);
+  Throw(kNonObject);
+  bind(&is_object);
+
+  push(value);
+  movq(value, FieldOperand(string, HeapObject::kMapOffset));
+  movzxbq(value, FieldOperand(value, Map::kInstanceTypeOffset));
+
+  andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+  cmpq(value, Immediate(encoding_mask));
+  pop(value);
+  ThrowIf(not_equal, kUnexpectedStringType);
+
+  // The index is assumed to be untagged coming in, tag it to compare with the
+  // string length without using a temp register, it is restored at the end of
+  // this function.
+  Integer32ToSmi(index, index);
+  SmiCompare(index, FieldOperand(string, String::kLengthOffset));
+  ThrowIf(greater_equal, kIndexIsTooLarge);
+
+  SmiCompare(index, Smi::FromInt(0));
+  ThrowIf(less, kIndexIsNegative);
+
+  // Restore the index
+  SmiToInteger32(index, index);
+}
+
+
 void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   int frame_alignment = OS::ActivationFrameAlignment();
   ASSERT(frame_alignment != 0);
@@ -4919,7 +4981,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
 
   EnumLength(rdx, rbx);
-  Cmp(rdx, Smi::FromInt(Map::kInvalidEnumCache));
+  Cmp(rdx, Smi::FromInt(kInvalidEnumCacheSentinel));
   j(equal, call_runtime);
 
   jmp(&start);

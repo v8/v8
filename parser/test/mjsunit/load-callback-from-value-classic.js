@@ -25,30 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_DEFAULTS_H_
-#define V8_V8_DEFAULTS_H_
+Object.defineProperty(Boolean.prototype, "v",
+                      {get:function() { return this; }});
 
-#include "v8.h"
+function f(b) {
+  return b.v;
+}
 
-/**
- * Default configuration support for the V8 JavaScript engine.
- */
-namespace v8 {
-
-/**
- * Configures the constraints with reasonable default values based on the
- * capabilities of the current device the VM is running on.
- */
-bool V8_EXPORT ConfigureResourceConstraintsForCurrentPlatform(
-    ResourceConstraints* constraints);
-
-
-/**
- * Convience function which performs SetResourceConstraints with the settings
- * returned by ConfigureResourceConstraintsForCurrentPlatform.
- */
-bool V8_EXPORT SetDefaultResourceConstraintsForCurrentPlatform();
-
-}  // namespace v8
-
-#endif  // V8_V8_DEFAULTS_H_
+assertEquals("object", typeof f(true));
+assertEquals("object", typeof f(true));
+assertEquals("object", typeof f(true));
+assertEquals("object", typeof f(true));

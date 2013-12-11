@@ -1596,8 +1596,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   int flags = expr->fast_elements()
       ? ObjectLiteral::kFastElements
@@ -1607,7 +1606,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      depth > 1 || Serializer::enabled() ||
+      expr->depth() > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1726,8 +1725,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1754,7 +1752,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         DONT_TRACK_ALLOCATION_SITE,
         length);
     __ CallStub(&stub);
-  } else if (depth > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
@@ -3273,47 +3271,6 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-
-  __ AllocateHeapNumber(rbx, rcx, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
-
-  __ bind(&slow_allocate_heapnumber);
-  // Allocate a heap number.
-  __ CallRuntime(Runtime::kNumberAlloc, 0);
-  __ movq(rbx, rax);
-
-  __ bind(&heapnumber_allocated);
-
-  // Return a random uint32 number in rax.
-  // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
-  __ PrepareCallCFunction(1);
-  __ movq(arg_reg_1,
-          ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ movq(arg_reg_1,
-          FieldOperand(arg_reg_1, GlobalObject::kNativeContextOffset));
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
-  // Convert 32 random bits in rax to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-  __ movd(xmm1, rcx);
-  __ movd(xmm0, rax);
-  __ cvtss2sd(xmm1, xmm1);
-  __ xorps(xmm0, xmm1);
-  __ subsd(xmm0, xmm1);
-  __ movsd(FieldOperand(rbx, HeapNumber::kValueOffset), xmm0);
-
-  __ movq(rax, rbx);
-  context()->Plug(rax);
-}
-
-
 void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   // Load the arguments on the stack and call the stub.
   SubStringStub stub;
@@ -3407,30 +3364,6 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
-                                                  Register index,
-                                                  Register value,
-                                                  uint32_t encoding_mask) {
-  __ Check(masm()->CheckSmi(index), kNonSmiIndex);
-  __ Check(masm()->CheckSmi(value), kNonSmiValue);
-
-  __ SmiCompare(index, FieldOperand(string, String::kLengthOffset));
-  __ Check(less, kIndexIsTooLarge);
-
-  __ SmiCompare(index, Smi::FromInt(0));
-  __ Check(greater_equal, kIndexIsNegative);
-
-  __ push(value);
-  __ movq(value, FieldOperand(string, HeapObject::kMapOffset));
-  __ movzxbq(value, FieldOperand(value, Map::kInstanceTypeOffset));
-
-  __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
-  __ cmpq(value, Immediate(encoding_mask));
-  __ Check(equal, kUnexpectedStringType);
-  __ pop(value);
-}
-
-
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
@@ -3441,17 +3374,23 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
+  VisitForAccumulatorValue(args->at(0));  // string
   __ pop(value);
   __ pop(index);
-  VisitForAccumulatorValue(args->at(0));  // string
 
   if (FLAG_debug_code) {
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+    __ ThrowIf(NegateCondition(__ CheckSmi(value)), kNonSmiValue);
+    __ ThrowIf(NegateCondition(__ CheckSmi(index)), kNonSmiValue);
   }
 
   __ SmiToInteger32(value, value);
   __ SmiToInteger32(index, index);
+
+  if (FLAG_debug_code) {
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    __ EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+  }
+
   __ movb(FieldOperand(string, index, times_1, SeqOneByteString::kHeaderSize),
           value);
   context()->Plug(string);
@@ -3468,17 +3407,23 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
+  VisitForAccumulatorValue(args->at(0));  // string
   __ pop(value);
   __ pop(index);
-  VisitForAccumulatorValue(args->at(0));  // string
 
   if (FLAG_debug_code) {
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+    __ ThrowIf(NegateCondition(__ CheckSmi(value)), kNonSmiValue);
+    __ ThrowIf(NegateCondition(__ CheckSmi(index)), kNonSmiValue);
   }
 
   __ SmiToInteger32(value, value);
   __ SmiToInteger32(index, index);
+
+  if (FLAG_debug_code) {
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+  }
+
   __ movw(FieldOperand(string, index, times_2, SeqTwoByteString::kHeaderSize),
           value);
   context()->Plug(rax);

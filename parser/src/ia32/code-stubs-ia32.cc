@@ -118,6 +118,17 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { edx, ecx };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -135,6 +146,19 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedArrayCallStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { ecx };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->continuation_type_ = TAIL_CALL_CONTINUATION;
+  descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedCallIC_MissFromStubFailure);
 }
 
 
@@ -5659,6 +5683,24 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
+  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  __ call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  __ mov(edi, eax);
+  int parameter_count_offset =
+      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+  __ mov(eax, MemOperand(ebp, parameter_count_offset));
+  // The parameter count above includes the receiver for the arguments passed to
+  // the deoptimization handler. Subtract the receiver for the parameter count
+  // for the call.
+  __ sub(eax, Immediate(1));
+  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  ParameterCount argument_count(eax);
+  __ InvokeFunction(
+      edi, argument_count, JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     // It's always safe to call the entry hook stub, as the hook itself
@@ -5785,10 +5827,12 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       __ Assert(equal, kExpectedAllocationSiteInCell);
     }
 
-    // Save the resulting elements kind in type info
-    __ SmiTag(edx);
-    __ mov(FieldOperand(ecx, AllocationSite::kTransitionInfoOffset), edx);
-    __ SmiUntag(edx);
+    // Save the resulting elements kind in type info. We can't just store r3
+    // in the AllocationSite::transition_info field because elements kind is
+    // restricted to a portion of the field...upper bits need to be left alone.
+    STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+    __ add(FieldOperand(ecx, AllocationSite::kTransitionInfoOffset),
+           Immediate(Smi::FromInt(kFastElementsKindPackedToHoley)));
 
     __ bind(&normal_sequence);
     int last_index = GetSequenceIndexFromFastElementsKind(
@@ -5929,8 +5973,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
       masm->isolate()->factory()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
+  // Only look at the lower 16 bits of the transition info.
   __ mov(edx, FieldOperand(edx, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(edx);
+  STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+  __ and_(edx, Immediate(AllocationSite::ElementsKindBits::kMask));
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 
   __ bind(&no_info);

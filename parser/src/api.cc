@@ -563,13 +563,50 @@ ResourceConstraints::ResourceConstraints()
   : max_young_space_size_(0),
     max_old_space_size_(0),
     max_executable_size_(0),
-    stack_limit_(NULL) { }
+    stack_limit_(NULL),
+    max_available_threads_(0) { }
+
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
+                                            uint32_t number_of_processors) {
+  const int lump_of_memory = (i::kPointerSize / 4) * i::MB;
+#if V8_OS_ANDROID
+  // Android has higher physical memory requirements before raising the maximum
+  // heap size limits since it has no swap space.
+  const uint64_t low_limit = 512ul * i::MB;
+  const uint64_t medium_limit = 1ul * i::GB;
+  const uint64_t high_limit = 2ul * i::GB;
+#else
+  const uint64_t low_limit = 512ul * i::MB;
+  const uint64_t medium_limit = 768ul * i::MB;
+  const uint64_t high_limit = 1ul  * i::GB;
+#endif
+
+  // The young_space_size should be a power of 2 and old_generation_size should
+  // be a multiple of Page::kPageSize.
+  if (physical_memory <= low_limit) {
+    set_max_young_space_size(2 * lump_of_memory);
+    set_max_old_space_size(128 * lump_of_memory);
+    set_max_executable_size(96 * lump_of_memory);
+  } else if (physical_memory <= medium_limit) {
+    set_max_young_space_size(8 * lump_of_memory);
+    set_max_old_space_size(256 * lump_of_memory);
+    set_max_executable_size(192 * lump_of_memory);
+  } else if (physical_memory <= high_limit) {
+    set_max_young_space_size(16 * lump_of_memory);
+    set_max_old_space_size(512 * lump_of_memory);
+    set_max_executable_size(256 * lump_of_memory);
+  } else {
+    set_max_young_space_size(16 * lump_of_memory);
+    set_max_old_space_size(700 * lump_of_memory);
+    set_max_executable_size(256 * lump_of_memory);
+  }
+
+  set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
+}
 
 
-bool SetResourceConstraints(ResourceConstraints* constraints) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
-  return SetResourceConstraints(reinterpret_cast<Isolate*>(isolate),
-                                constraints);
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
+  ConfigureDefaults(physical_memory, i::CPU::NumberOfProcessorsOnline());
 }
 
 
@@ -591,6 +628,8 @@ bool SetResourceConstraints(Isolate* v8_isolate,
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
+
+  isolate->set_max_available_threads(constraints->max_available_threads());
   return true;
 }
 
@@ -1228,7 +1267,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
   i::Handle<i::TypeSwitchInfo> info = Utils::OpenHandle(this);
   i::FixedArray* types = i::FixedArray::cast(info->types());
   for (int i = 0; i < types->length(); i++) {
-    if (obj->IsInstanceOf(i::FunctionTemplateInfo::cast(types->get(i))))
+    if (i::FunctionTemplateInfo::cast(types->get(i))->IsTemplateFor(*obj))
       return i + 1;
   }
   return 0;
@@ -3316,7 +3355,7 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
   ENTER_V8(isolate);
   i::JSObject* object = *Utils::OpenHandle(this);
   i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
-  while (!object->IsInstanceOf(tmpl_info)) {
+  while (!tmpl_info->IsTemplateFor(object)) {
     i::Object* prototype = object->GetPrototype();
     if (!prototype->IsJSObject()) return Local<Object>();
     object = i::JSObject::cast(prototype);
@@ -3368,13 +3407,14 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
 
 
 Local<String> v8::Object::ObjectProtoToString() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::ObjectProtoToString()",
+  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
+  ON_BAILOUT(i_isolate, "v8::Object::ObjectProtoToString()",
              return Local<v8::String>());
-  ENTER_V8(isolate);
+  ENTER_V8(i_isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
 
-  i::Handle<i::Object> name(self->class_name(), isolate);
+  i::Handle<i::Object> name(self->class_name(), i_isolate);
 
   // Native implementation of Object.prototype.toString (v8natives.js):
   //   var c = %_ClassOf(this);
@@ -3382,13 +3422,11 @@ Local<String> v8::Object::ObjectProtoToString() {
   //   return "[object " + c + "]";
 
   if (!name->IsString()) {
-    return v8::String::New("[object ]");
-
+    return v8::String::NewFromUtf8(isolate, "[object ]");
   } else {
     i::Handle<i::String> class_name = i::Handle<i::String>::cast(name);
     if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Arguments"))) {
-      return v8::String::New("[object Object]");
-
+      return v8::String::NewFromUtf8(isolate, "[object Object]");
     } else {
       const char* prefix = "[object ";
       Local<String> str = Utils::ToLocal(class_name);
@@ -3414,7 +3452,8 @@ Local<String> v8::Object::ObjectProtoToString() {
       i::OS::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
       // Copy the buffer into a heap-allocated string and return it.
-      Local<String> result = v8::String::New(buf.start(), buf_len);
+      Local<String> result = v8::String::NewFromUtf8(
+          isolate, buf.start(), String::kNormalString, buf_len);
       return result;
     }
   }
@@ -5012,6 +5051,24 @@ static void* ExternalValue(i::Object* obj) {
 // --- E n v i r o n m e n t ---
 
 
+void v8::V8::InitializePlatform(Platform* platform) {
+#ifdef V8_USE_DEFAULT_PLATFORM
+  FATAL("Can't override v8::Platform when using default implementation");
+#else
+  i::V8::InitializePlatform(platform);
+#endif
+}
+
+
+void v8::V8::ShutdownPlatform() {
+#ifdef V8_USE_DEFAULT_PLATFORM
+  FATAL("Can't override v8::Platform when using default implementation");
+#else
+  i::V8::ShutdownPlatform();
+#endif
+}
+
+
 bool v8::V8::Initialize() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate != NULL && isolate->IsInitialized()) {
@@ -5397,7 +5454,7 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
   ON_BAILOUT(i::Isolate::Current(), "v8::FunctionTemplate::HasInstanceOf()",
              return false);
   i::Object* obj = *Utils::OpenHandle(*value);
-  return obj->IsInstanceOf(*Utils::OpenHandle(this));
+  return Utils::OpenHandle(this)->IsTemplateFor(obj);
 }
 
 
@@ -6102,8 +6159,10 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 
   ASSERT(byte_offset % sizeof(ElementType) == 0);
 
+  CHECK(length <= (std::numeric_limits<size_t>::max() / sizeof(ElementType)));
+  size_t byte_length = length * sizeof(ElementType);
   SetupArrayBufferView(
-      isolate, obj, buffer, byte_offset, length * sizeof(ElementType));
+      isolate, obj, buffer, byte_offset, byte_length);
 
   i::Handle<i::Object> length_object =
     isolate->factory()->NewNumberFromSize(length);
@@ -6354,14 +6413,14 @@ void V8::SetFailedAccessCheckCallbackFunction(
 }
 
 
-intptr_t Isolate::AdjustAmountOfExternalAllocatedMemory(
-    intptr_t change_in_bytes) {
+int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
+    int64_t change_in_bytes) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   return heap->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 }
 
 
-intptr_t V8::AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes) {
+int64_t V8::AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes) {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate == NULL || !isolate->IsInitialized()) {
     return 0;

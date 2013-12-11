@@ -1412,8 +1412,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
-// Compute the hash code from the untagged key.  This must be kept in sync
-// with ComputeIntegerHash in utils.h.
+// Compute the hash code from the untagged key.  This must be kept in sync with
+// ComputeIntegerHash in utils.h and KeyedLoadGenericElementStub in
+// code-stub-hydrogen.cc
 //
 // Note: r0 will contain hash code
 void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
@@ -1489,8 +1490,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   dec(r1);
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use r2 for index calculations and keep the hash intact in r0.
     mov(r2, r0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -1508,7 +1508,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                           r2,
                           times_pointer_size,
                           SeededNumberDictionary::kElementsStartOffset));
-    if (i != (kProbes - 1)) {
+    if (i != (kNumberDictionaryProbes - 1)) {
       j(equal, &done);
     } else {
       j(not_equal, miss);
@@ -3065,6 +3065,40 @@ void MacroAssembler::Abort(BailoutReason reason) {
 }
 
 
+void MacroAssembler::Throw(BailoutReason reason) {
+#ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
+  if (msg != NULL) {
+    RecordComment("Throw message: ");
+    RecordComment(msg);
+  }
+#endif
+
+  push(eax);
+  push(Immediate(Smi::FromInt(reason)));
+  // Disable stub call restrictions to always allow calls to throw.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kThrowMessage, 1);
+  } else {
+    CallRuntime(Runtime::kThrowMessage, 1);
+  }
+  // will not return here
+  int3();
+}
+
+
+void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+  Label L;
+  j(NegateCondition(cc), &L);
+  Throw(reason);
+  // will not return here
+  bind(&L);
+}
+
+
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   mov(descriptors, FieldOperand(map, Map::kDescriptorsOffset));
@@ -3227,6 +3261,42 @@ void MacroAssembler::JumpIfNotUniqueName(Operand operand,
   j(not_equal, not_unique_name, distance);
 
   bind(&succeed);
+}
+
+
+void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
+                                               Register index,
+                                               Register value,
+                                               uint32_t encoding_mask) {
+  Label is_object;
+  JumpIfNotSmi(string, &is_object, Label::kNear);
+  Throw(kNonObject);
+  bind(&is_object);
+
+  push(value);
+  mov(value, FieldOperand(string, HeapObject::kMapOffset));
+  movzx_b(value, FieldOperand(value, Map::kInstanceTypeOffset));
+
+  and_(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+  cmp(value, Immediate(encoding_mask));
+  pop(value);
+  ThrowIf(not_equal, kUnexpectedStringType);
+
+  // The index is assumed to be untagged coming in, tag it to compare with the
+  // string length without using a temp register, it is restored at the end of
+  // this function.
+  SmiTag(index);
+  // Can't use overflow here directly, compiler can't seem to disambiguate.
+  ThrowIf(NegateCondition(no_overflow), kIndexIsTooLarge);
+
+  cmp(index, FieldOperand(string, String::kLengthOffset));
+  ThrowIf(greater_equal, kIndexIsTooLarge);
+
+  cmp(index, Immediate(Smi::FromInt(0)));
+  ThrowIf(less, kIndexIsNegative);
+
+  // Restore the index
+  SmiUntag(index);
 }
 
 
@@ -3546,7 +3616,7 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
   mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
 
   EnumLength(edx, ebx);
-  cmp(edx, Immediate(Smi::FromInt(Map::kInvalidEnumCache)));
+  cmp(edx, Immediate(Smi::FromInt(kInvalidEnumCacheSentinel)));
   j(equal, call_runtime);
 
   jmp(&start);

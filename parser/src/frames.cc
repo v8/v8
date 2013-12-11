@@ -38,8 +38,6 @@
 #include "string-stream.h"
 #include "vm-state-inl.h"
 
-#include "allocation-inl.h"
-
 namespace v8 {
 namespace internal {
 
@@ -1397,6 +1395,11 @@ Code* StubFailureTrampolineFrame::unchecked_code() const {
 
   StubFailureTrampolineStub(JS_FUNCTION_STUB_MODE).
       FindCodeInCache(&trampoline, isolate());
+  if (trampoline->contains(pc())) {
+    return trampoline;
+  }
+
+  StubFailureTailCallTrampolineStub().FindCodeInCache(&trampoline, isolate());
   if (trampoline->contains(pc())) {
     return trampoline;
   }

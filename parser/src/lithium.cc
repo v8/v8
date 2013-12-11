@@ -233,41 +233,12 @@ void LPointerMap::PrintTo(StringStream* stream) {
 }
 
 
-int ElementsKindToShiftSize(ElementsKind elements_kind) {
-  switch (elements_kind) {
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return 0;
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return 1;
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-      return 2;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-      return 3;
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case DICTIONARY_ELEMENTS:
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      return kPointerSizeLog2;
-  }
-  UNREACHABLE();
-  return 0;
-}
-
-
 int StackSlotOffset(int index) {
   if (index >= 0) {
     // Local or spill slot. Skip the frame pointer, function, and
     // context in the fixed part of the frame.
-    return -(index + 3) * kPointerSize;
+    return -(index + 1) * kPointerSize -
+        StandardFrameConstants::kFixedFrameSizeFromFp;
   } else {
     // Incoming parameter. Skip the return address.
     return -(index + 1) * kPointerSize + kFPOnStackSize + kPCOnStackSize;
@@ -372,7 +343,8 @@ int LChunk::GetParameterStackSlot(int index) const {
   // shift all parameter indexes down by the number of parameters, and
   // make sure they end up negative so they are distinguishable from
   // spill slots.
-  int result = index - info()->scope()->num_parameters() - 1;
+  int result = index - info()->num_parameters() - 1;
+
   ASSERT(result < 0);
   return result;
 }

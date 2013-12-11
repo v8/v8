@@ -59,7 +59,6 @@
         ['component=="shared_library"', {
           'type': '<(component)',
           'sources': [
-            '../../src/defaults.cc',
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
@@ -141,6 +140,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
@@ -183,6 +183,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
@@ -199,6 +200,32 @@
             'V8_SHARED',
           ],
         }],
+      ]
+    },
+    { 'target_name': 'generate_trig_table',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
+      'actions': [
+        {
+          'action_name': 'generate',
+          'inputs': [
+            '../../tools/generate-trig-table.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/generate-trig-table.py',
+            '<@(_outputs)',
+          ],
+        },
       ]
     },
     {
@@ -272,6 +299,8 @@
           'toolsets': ['target'],
           'dependencies': ['generated-lexer'],
         }],
+      'dependencies': [
+        'generate_trig_table',
       ],
       'variables': {
         'optimize': 'max',
@@ -287,6 +316,8 @@
         '../../src/allocation.h',
         '../../src/allocation-site-scopes.cc',
         '../../src/allocation-site-scopes.h',
+        '../../src/allocation-tracker.cc',
+        '../../src/allocation-tracker.h',
         '../../src/api.cc',
         '../../src/api.h',
         '../../src/apiutils.h',
@@ -349,6 +380,8 @@
         '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
+        '../../src/default-platform.cc',
+        '../../src/default-platform.h',
         '../../src/deoptimizer.cc',
         '../../src/deoptimizer.h',
         '../../src/disasm.h',
@@ -938,10 +971,6 @@
             'BUILDING_V8_SHARED',
             'V8_SHARED',
           ],
-        }, {
-          'sources': [
-            '../../src/defaults.cc',
-          ],
         }],
         ['v8_postmortem_support=="true"', {
           'sources': [
@@ -962,6 +991,12 @@
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icudata',
+          ],
+        }],
+        ['v8_use_default_platform==0', {
+          'sources!': [
+            '../../src/default-platform.cc',
+            '../../src/default-platform.h',
           ],
         }],
       ],

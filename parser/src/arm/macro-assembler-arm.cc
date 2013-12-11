@@ -620,22 +620,26 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
   // Number of d-regs not known at snapshot time.
   ASSERT(!Serializer::enabled());
   PushSafepointRegisters();
-  sub(sp, sp, Operand(DwVfpRegister::NumAllocatableRegisters() *
-                      kDoubleSize));
-  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); i++) {
-    vstr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
+  // Only save allocatable registers.
+  ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
+  ASSERT(DwVfpRegister::NumReservedRegisters() == 2);
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    vstm(db_w, sp, d16, d31);
   }
+  vstm(db_w, sp, d0, d13);
 }
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
   // Number of d-regs not known at snapshot time.
   ASSERT(!Serializer::enabled());
-  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); i++) {
-    vldr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
+  // Only save allocatable registers.
+  ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
+  ASSERT(DwVfpRegister::NumReservedRegisters() == 2);
+  vldm(ia_w, sp, d0, d13);
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    vldm(ia_w, sp, d16, d31);
   }
-  add(sp, sp, Operand(DwVfpRegister::NumAllocatableRegisters() *
-                      kDoubleSize));
   PopSafepointRegisters();
 }
 
@@ -858,102 +862,12 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
 }
 
 
-void MacroAssembler::LoadNumber(Register object,
-                                LowDwVfpRegister dst,
-                                Register heap_number_map,
-                                Register scratch,
-                                Label* not_number) {
-  Label is_smi, done;
-
-  UntagAndJumpIfSmi(scratch, object, &is_smi);
-  JumpIfNotHeapNumber(object, heap_number_map, scratch, not_number);
-
-  vldr(dst, FieldMemOperand(object, HeapNumber::kValueOffset));
-  b(&done);
-
-  // Handle loading a double from a smi.
-  bind(&is_smi);
-  vmov(dst.high(), scratch);
-  vcvt_f64_s32(dst, dst.high());
-
-  bind(&done);
-}
-
-
-void MacroAssembler::LoadNumberAsInt32Double(Register object,
-                                             DwVfpRegister double_dst,
-                                             Register heap_number_map,
-                                             Register scratch,
-                                             LowDwVfpRegister double_scratch,
-                                             Label* not_int32) {
-  ASSERT(!scratch.is(object));
-  ASSERT(!heap_number_map.is(object) && !heap_number_map.is(scratch));
-
-  Label done, obj_is_not_smi;
-
-  UntagAndJumpIfNotSmi(scratch, object, &obj_is_not_smi);
-  vmov(double_scratch.low(), scratch);
-  vcvt_f64_s32(double_dst, double_scratch.low());
-  b(&done);
-
-  bind(&obj_is_not_smi);
-  JumpIfNotHeapNumber(object, heap_number_map, scratch, not_int32);
-
-  // Load the number.
-  // Load the double value.
-  vldr(double_dst, FieldMemOperand(object, HeapNumber::kValueOffset));
-
-  TestDoubleIsInt32(double_dst, double_scratch);
-  // Jump to not_int32 if the operation did not succeed.
-  b(ne, not_int32);
-
-  bind(&done);
-}
-
-
-void MacroAssembler::LoadNumberAsInt32(Register object,
-                                       Register dst,
-                                       Register heap_number_map,
-                                       Register scratch,
-                                       DwVfpRegister double_scratch0,
-                                       LowDwVfpRegister double_scratch1,
-                                       Label* not_int32) {
-  ASSERT(!dst.is(object));
-  ASSERT(!scratch.is(object));
-
-  Label done, maybe_undefined;
-
-  UntagAndJumpIfSmi(dst, object, &done);
-
-  JumpIfNotHeapNumber(object, heap_number_map, scratch, &maybe_undefined);
-
-  // Object is a heap number.
-  // Convert the floating point value to a 32-bit integer.
-  // Load the double value.
-  vldr(double_scratch0, FieldMemOperand(object, HeapNumber::kValueOffset));
-
-  TryDoubleToInt32Exact(dst, double_scratch0, double_scratch1);
-  // Jump to not_int32 if the operation did not succeed.
-  b(ne, not_int32);
-  b(&done);
-
-  bind(&maybe_undefined);
-  CompareRoot(object, Heap::kUndefinedValueRootIndex);
-  b(ne, not_int32);
-  // |undefined| is truncated to 0.
-  mov(dst, Operand(Smi::FromInt(0)));
-  // Fall through.
-
-  bind(&done);
-}
-
-
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   if (frame_mode == BUILD_STUB_FRAME) {
     stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
-    add(fp, sp, Operand(2 * kPointerSize));
+    add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(
         this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
@@ -969,7 +883,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
       nop(ip.code());
       // Adjust FP to point to saved FP.
-      add(fp, sp, Operand(2 * kPointerSize));
+      add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     }
   }
 }
@@ -982,7 +896,9 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ip);
   mov(ip, Operand(CodeObject()));
   push(ip);
-  add(fp, sp, Operand(3 * kPointerSize));  // Adjust FP to point to saved FP.
+  // Adjust FP to point to saved FP.
+  add(fp, sp,
+      Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }
 
 
@@ -1590,6 +1506,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+// Compute the hash code from the untagged key.  This must be kept in sync with
+// ComputeIntegerHash in utils.h and KeyedLoadGenericElementStub in
+// code-stub-hydrogen.cc
 void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
   // First of all we assign the hash seed to scratch.
   LoadRoot(scratch, Heap::kHashSeedRootIndex);
@@ -1656,8 +1575,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   sub(t1, t1, Operand(1));
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  static const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use t2 for index calculations and keep the hash intact in t0.
     mov(t2, t0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -1674,7 +1592,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     add(t2, elements, Operand(t2, LSL, kPointerSizeLog2));
     ldr(ip, FieldMemOperand(t2, SeededNumberDictionary::kElementsStartOffset));
     cmp(key, Operand(ip));
-    if (i != kProbes - 1) {
+    if (i != kNumberDictionaryProbes - 1) {
       b(eq, &done);
     } else {
       b(ne, miss);
@@ -3475,6 +3393,42 @@ int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
 }
 
 
+void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
+                                               Register index,
+                                               Register value,
+                                               uint32_t encoding_mask) {
+  Label is_object;
+  SmiTst(string);
+  ThrowIf(eq, kNonObject);
+
+  ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
+  ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
+
+  and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
+  cmp(ip, Operand(encoding_mask));
+  ThrowIf(ne, kUnexpectedStringType);
+
+  // The index is assumed to be untagged coming in, tag it to compare with the
+  // string length without using a temp register, it is restored at the end of
+  // this function.
+  Label index_tag_ok, index_tag_bad;
+  TrySmiTag(index, index, &index_tag_bad);
+  b(&index_tag_ok);
+  bind(&index_tag_bad);
+  Throw(kIndexIsTooLarge);
+  bind(&index_tag_ok);
+
+  ldr(ip, FieldMemOperand(string, String::kLengthOffset));
+  cmp(index, ip);
+  ThrowIf(ge, kIndexIsTooLarge);
+
+  cmp(index, Operand(Smi::FromInt(0)));
+  ThrowIf(lt, kIndexIsNegative);
+
+  SmiUntag(index, index);
+}
+
+
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           int num_double_arguments,
                                           Register scratch) {
@@ -3858,6 +3812,52 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 }
 
 
+void MacroAssembler::Throw(BailoutReason reason) {
+  Label throw_start;
+  bind(&throw_start);
+#ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
+  if (msg != NULL) {
+    RecordComment("Throw message: ");
+    RecordComment(msg);
+  }
+#endif
+
+  mov(r0, Operand(Smi::FromInt(reason)));
+  push(r0);
+  // Disable stub call restrictions to always allow calls to throw.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kThrowMessage, 1);
+  } else {
+    CallRuntime(Runtime::kThrowMessage, 1);
+  }
+  // will not return here
+  if (is_const_pool_blocked()) {
+    // If the calling code cares throw the exact number of
+    // instructions generated, we insert padding here to keep the size
+    // of the ThrowMessage macro constant.
+    static const int kExpectedThrowMessageInstructions = 10;
+    int throw_instructions = InstructionsGeneratedSince(&throw_start);
+    ASSERT(throw_instructions <= kExpectedThrowMessageInstructions);
+    while (throw_instructions++ < kExpectedThrowMessageInstructions) {
+      nop();
+    }
+  }
+}
+
+
+void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+  Label L;
+  b(NegateCondition(cc), &L);
+  Throw(reason);
+  // will not return here
+  bind(&L);
+}
+
+
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   ldr(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
@@ -3888,7 +3888,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
 
   EnumLength(r3, r1);
-  cmp(r3, Operand(Smi::FromInt(Map::kInvalidEnumCache)));
+  cmp(r3, Operand(Smi::FromInt(kInvalidEnumCacheSentinel)));
   b(eq, call_runtime);
 
   jmp(&start);

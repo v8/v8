@@ -95,7 +95,7 @@ namespace internal {
 // a concurrent compilation context.
 
 
-#define PRIMITIVE_TYPE_LIST(V)           \
+#define BITSET_TYPE_LIST(V)              \
   V(None,                0)              \
   V(Null,                1 << 0)         \
   V(Undefined,           1 << 1)         \
@@ -113,9 +113,8 @@ namespace internal {
   V(RegExp,              1 << 13)        \
   V(OtherObject,         1 << 14)        \
   V(Proxy,               1 << 15)        \
-  V(Internal,            1 << 16)
-
-#define COMPOSED_TYPE_LIST(V)                                       \
+  V(Internal,            1 << 16)        \
+  \
   V(Oddball,         kBoolean | kNull | kUndefined)                 \
   V(Signed32,        kSmi | kOtherSigned32)                         \
   V(Number,          kSigned32 | kUnsigned32 | kDouble)             \
@@ -131,24 +130,19 @@ namespace internal {
   V(NonNumber,       kAny - kNumber)                                \
   V(Detectable,      kAllocated - kUndetectable)
 
-#define TYPE_LIST(V)     \
-  PRIMITIVE_TYPE_LIST(V) \
-  COMPOSED_TYPE_LIST(V)
-
-
 
 class Type : public Object {
  public:
   #define DEFINE_TYPE_CONSTRUCTOR(type, value)           \
     static Type* type() { return from_bitset(k##type); }
-  TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
+  BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
   #undef DEFINE_TYPE_CONSTRUCTOR
 
-  static Type* Class(Handle<Map> map) { return from_handle(map); }
-  static Type* Constant(Handle<HeapObject> value) {
+  static Type* Class(Handle<i::Map> map) { return from_handle(map); }
+  static Type* Constant(Handle<i::HeapObject> value) {
     return Constant(value, value->GetIsolate());
   }
-  static Type* Constant(Handle<v8::internal::Object> value, Isolate* isolate) {
+  static Type* Constant(Handle<i::Object> value, Isolate* isolate) {
     return from_handle(isolate->factory()->NewBox(value));
   }
 
@@ -156,15 +150,25 @@ class Type : public Object {
   static Type* Intersect(Handle<Type> type1, Handle<Type> type2);
   static Type* Optional(Handle<Type> type);  // type \/ Undefined
 
-  bool Is(Type* that) { return (this == that) ? true : SlowIs(that); }
+  static Type* Of(Handle<i::Object> value) {
+    return from_bitset(LubBitset(*value));
+  }
+
+  bool Is(Type* that) { return this == that || SlowIs(that); }
   bool Is(Handle<Type> that) { return this->Is(*that); }
   bool Maybe(Type* that);
   bool Maybe(Handle<Type> that) { return this->Maybe(*that); }
 
+  // State-dependent versions of Of and Is that consider subtyping between
+  // a constant and its map class.
+  static Type* OfCurrently(Handle<i::Object> value);
+  bool IsCurrently(Type* that);
+  bool IsCurrently(Handle<Type> that)  { return this->IsCurrently(*that); }
+
   bool IsClass() { return is_class(); }
   bool IsConstant() { return is_constant(); }
-  Handle<Map> AsClass() { return as_class(); }
-  Handle<v8::internal::Object> AsConstant() { return as_constant(); }
+  Handle<i::Map> AsClass() { return as_class(); }
+  Handle<i::Object> AsConstant() { return as_constant(); }
 
   int NumClasses();
   int NumConstants();
@@ -191,16 +195,16 @@ class Type : public Object {
     int index_;
   };
 
-  Iterator<Map> Classes() {
-    if (this->is_bitset()) return Iterator<Map>();
-    return Iterator<Map>(this->handle());
+  Iterator<i::Map> Classes() {
+    if (this->is_bitset()) return Iterator<i::Map>();
+    return Iterator<i::Map>(this->handle());
   }
-  Iterator<v8::internal::Object> Constants() {
-    if (this->is_bitset()) return Iterator<v8::internal::Object>();
-    return Iterator<v8::internal::Object>(this->handle());
+  Iterator<i::Object> Constants() {
+    if (this->is_bitset()) return Iterator<i::Object>();
+    return Iterator<i::Object>(this->handle());
   }
 
-  static Type* cast(v8::internal::Object* object) {
+  static Type* cast(i::Object* object) {
     Type* t = static_cast<Type*>(object);
     ASSERT(t->is_bitset() || t->is_class() ||
            t->is_constant() || t->is_union());
@@ -221,7 +225,7 @@ class Type : public Object {
 
   enum {
     #define DECLARE_TYPE(type, value) k##type = (value),
-    TYPE_LIST(DECLARE_TYPE)
+    BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
     kUnusedEOL = 0
   };
@@ -235,24 +239,24 @@ class Type : public Object {
   bool SlowIs(Type* that);
 
   int as_bitset() { return Smi::cast(this)->value(); }
-  Handle<Map> as_class() { return Handle<Map>::cast(handle()); }
-  Handle<v8::internal::Object> as_constant() {
-    Handle<Box> box = Handle<Box>::cast(handle());
-    return v8::internal::handle(box->value(), box->GetIsolate());
+  Handle<i::Map> as_class() { return Handle<i::Map>::cast(handle()); }
+  Handle<i::Object> as_constant() {
+    Handle<i::Box> box = Handle<i::Box>::cast(handle());
+    return i::handle(box->value(), box->GetIsolate());
   }
   Handle<Unioned> as_union() { return Handle<Unioned>::cast(handle()); }
 
   Handle<Type> handle() { return handle_via_isolate_of(this); }
   Handle<Type> handle_via_isolate_of(Type* type) {
     ASSERT(type->IsHeapObject());
-    return v8::internal::handle(this, HeapObject::cast(type)->GetIsolate());
+    return i::handle(this, i::HeapObject::cast(type)->GetIsolate());
   }
 
   static Type* from_bitset(int bitset) {
-    return static_cast<Type*>(Object::cast(Smi::FromInt(bitset)));
+    return static_cast<Type*>(i::Object::cast(i::Smi::FromInt(bitset)));
   }
-  static Type* from_handle(Handle<HeapObject> handle) {
-    return static_cast<Type*>(Object::cast(*handle));
+  static Type* from_handle(Handle<i::HeapObject> handle) {
+    return static_cast<Type*>(i::Object::cast(*handle));
   }
 
   static Handle<Type> union_get(Handle<Unioned> unioned, int i) {
@@ -263,34 +267,16 @@ class Type : public Object {
 
   int LubBitset();  // least upper bound that's a bitset
   int GlbBitset();  // greatest lower bound that's a bitset
+
+  static int LubBitset(i::Object* value);
+  static int LubBitset(i::Map* map);
+
   bool InUnion(Handle<Unioned> unioned, int current_size);
   int ExtendUnion(Handle<Unioned> unioned, int current_size);
   int ExtendIntersection(
       Handle<Unioned> unioned, Handle<Type> type, int current_size);
 
-  static const char* GetComposedName(int type) {
-    switch (type) {
-      #define PRINT_COMPOSED_TYPE(type, value)  \
-      case k##type:                             \
-        return # type;
-      COMPOSED_TYPE_LIST(PRINT_COMPOSED_TYPE)
-      #undef PRINT_COMPOSED_TYPE
-    }
-    return NULL;
-  }
-
-  static const char* GetPrimitiveName(int type) {
-    switch (type) {
-      #define PRINT_PRIMITIVE_TYPE(type, value)  \
-      case k##type:                              \
-        return # type;
-      PRIMITIVE_TYPE_LIST(PRINT_PRIMITIVE_TYPE)
-      #undef PRINT_PRIMITIVE_TYPE
-      default:
-        UNREACHABLE();
-        return "InvalidType";
-    }
-  }
+  static const char* bitset_name(int bitset);
 };
 
 

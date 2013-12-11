@@ -1114,7 +1114,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
   __ CmpObjectType(ecx, LAST_JS_PROXY_TYPE, ecx);
   __ j(above, &non_proxy);
-  __ mov(ebx, Immediate(Smi::FromInt(0)));  // Zero indicates proxy
+  __ Set(ebx, Immediate(Smi::FromInt(0)));  // Zero indicates proxy
   __ bind(&non_proxy);
   __ push(ebx);  // Smi
   __ push(eax);  // Array
@@ -1575,8 +1575,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   int flags = expr->fast_elements()
       ? ObjectLiteral::kFastElements
@@ -1586,7 +1585,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      depth > 1 || Serializer::enabled() ||
+      expr->depth() > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1705,8 +1704,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1733,7 +1731,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         DONT_TRACK_ALLOCATION_SITE,
         length);
     __ CallStub(&stub);
-  } else if (depth > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
@@ -3298,57 +3296,6 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-
-  __ AllocateHeapNumber(edi, ebx, ecx, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
-
-  __ bind(&slow_allocate_heapnumber);
-  // Allocate a heap number.
-  __ CallRuntime(Runtime::kNumberAlloc, 0);
-  __ mov(edi, eax);
-
-  __ bind(&heapnumber_allocated);
-
-  __ PrepareCallCFunction(1, ebx);
-  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ mov(eax, FieldOperand(eax, GlobalObject::kNativeContextOffset));
-  __ mov(Operand(esp, 0), eax);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
-  // Convert 32 random bits in eax to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  // This is implemented on both SSE2 and FPU.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope fscope(masm(), SSE2);
-    __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-    __ movd(xmm1, ebx);
-    __ movd(xmm0, eax);
-    __ cvtss2sd(xmm1, xmm1);
-    __ xorps(xmm0, xmm1);
-    __ subsd(xmm0, xmm1);
-    __ movsd(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
-  } else {
-    // 0x4130000000000000 is 1.0 x 2^20 as a double.
-    __ mov(FieldOperand(edi, HeapNumber::kExponentOffset),
-           Immediate(0x41300000));
-    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), eax);
-    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
-    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), Immediate(0));
-    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
-    __ fsubp(1);
-    __ fstp_d(FieldOperand(edi, HeapNumber::kValueOffset));
-  }
-  __ mov(eax, edi);
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   // Load the arguments on the stack and call the stub.
   SubStringStub stub;
@@ -3440,32 +3387,6 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
-                                                  Register index,
-                                                  Register value,
-                                                  uint32_t encoding_mask) {
-  __ test(index, Immediate(kSmiTagMask));
-  __ Check(zero, kNonSmiIndex);
-  __ test(value, Immediate(kSmiTagMask));
-  __ Check(zero, kNonSmiValue);
-
-  __ cmp(index, FieldOperand(string, String::kLengthOffset));
-  __ Check(less, kIndexIsTooLarge);
-
-  __ cmp(index, Immediate(Smi::FromInt(0)));
-  __ Check(greater_equal, kIndexIsNegative);
-
-  __ push(value);
-  __ mov(value, FieldOperand(string, HeapObject::kMapOffset));
-  __ movzx_b(value, FieldOperand(value, Map::kInstanceTypeOffset));
-
-  __ and_(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
-  __ cmp(value, Immediate(encoding_mask));
-  __ Check(equal, kUnexpectedStringType);
-  __ pop(value);
-}
-
-
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
@@ -3476,18 +3397,26 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(value);
-  __ pop(index);
   VisitForAccumulatorValue(args->at(0));  // string
 
+  __ pop(value);
+  __ pop(index);
 
   if (FLAG_debug_code) {
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+    __ test(value, Immediate(kSmiTagMask));
+    __ ThrowIf(not_zero, kNonSmiValue);
+    __ test(index, Immediate(kSmiTagMask));
+    __ ThrowIf(not_zero, kNonSmiValue);
   }
 
   __ SmiUntag(value);
   __ SmiUntag(index);
+
+  if (FLAG_debug_code) {
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    __ EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+  }
+
   __ mov_b(FieldOperand(string, index, times_1, SeqOneByteString::kHeaderSize),
            value);
   context()->Plug(string);
@@ -3504,13 +3433,19 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
+  VisitForAccumulatorValue(args->at(0));  // string
   __ pop(value);
   __ pop(index);
-  VisitForAccumulatorValue(args->at(0));  // string
 
   if (FLAG_debug_code) {
+    __ test(value, Immediate(kSmiTagMask));
+    __ ThrowIf(not_zero, kNonSmiValue);
+    __ test(index, Immediate(kSmiTagMask));
+    __ ThrowIf(not_zero, kNonSmiValue);
+    __ SmiUntag(index);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+    __ EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+    __ SmiTag(index);
   }
 
   __ SmiUntag(value);

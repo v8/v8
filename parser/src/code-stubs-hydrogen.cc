@@ -210,7 +210,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 template <class Stub>
 class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
  public:
-  explicit CodeStubGraphBuilder(Isolate* isolate, Stub* stub)
+  CodeStubGraphBuilder(Isolate* isolate, Stub* stub)
       : CodeStubGraphBuilderBase(isolate, stub) {}
 
  protected:
@@ -511,6 +511,22 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
                             AllocationSite::kNestedSiteOffset),
                         graph()->GetConstant0());
 
+  // Pretenuring calculation fields.
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kMementoFoundCountOffset),
+                        graph()->GetConstant0());
+
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kMementoCreateCountOffset),
+                        graph()->GetConstant0());
+
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kPretenureDecisionOffset),
+                        graph()->GetConstant0());
+
   // Store an empty fixed array for the code dependency.
   HConstant* empty_fixed_array =
     Add<HConstant>(isolate()->factory()->empty_fixed_array());
@@ -590,6 +606,32 @@ HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
 
 
 Handle<Code> KeyedLoadFieldStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<KeyedArrayCallStub>::BuildCodeStub() {
+  int argc = casted_stub()->argc() + 1;
+  info()->set_parameter_count(argc);
+
+  HValue* receiver = Add<HParameter>(1);
+
+  // Load the expected initial array map from the context.
+  JSArrayBuilder array_builder(this, casted_stub()->elements_kind());
+  HValue* map = array_builder.EmitMapCode();
+
+  HValue* checked_receiver = Add<HCheckMapValue>(receiver, map);
+
+  HValue* function = BuildUncheckedMonomorphicElementAccess(
+      checked_receiver, GetParameter(0),
+      NULL, true, casted_stub()->elements_kind(),
+      false, NEVER_RETURN_HOLE, STANDARD_STORE);
+  return Add<HCallFunction>(function, argc, TAIL_CALL);
+}
+
+
+Handle<Code> KeyedArrayCallStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 
@@ -694,27 +736,7 @@ HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
   HInstruction* argument = Add<HAccessArgumentsAt>(
       elements, constant_one, constant_zero);
 
-  HConstant* max_alloc_length =
-      Add<HConstant>(JSObject::kInitialMaxFastElementArray);
-  const int initial_capacity = JSArray::kPreallocatedArrayElements;
-  HConstant* initial_capacity_node = Add<HConstant>(initial_capacity);
-
-  HInstruction* checked_arg = Add<HBoundsCheck>(argument, max_alloc_length);
-  IfBuilder if_builder(this);
-  if_builder.If<HCompareNumericAndBranch>(checked_arg, constant_zero,
-                                          Token::EQ);
-  if_builder.Then();
-  Push(initial_capacity_node);  // capacity
-  Push(constant_zero);  // length
-  if_builder.Else();
-  Push(checked_arg);  // capacity
-  Push(checked_arg);  // length
-  if_builder.End();
-
-  // Figure out total size
-  HValue* length = Pop();
-  HValue* capacity = Pop();
-  return array_builder->AllocateArray(capacity, length, true);
+  return BuildAllocateArrayFromLength(array_builder, argument);
 }
 
 
@@ -725,11 +747,16 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
   // the array because they aren't compatible with a smi array.
   // If it's a double array, no problem, and if it's fast then no
   // problem either because doubles are boxed.
+  //
+  // TODO(mvstanton): consider an instruction to memset fill the array
+  // with zero in this case instead.
   HValue* length = GetArgumentsLength();
-  bool fill_with_hole = IsFastSmiElementsKind(kind);
+  JSArrayBuilder::FillMode fill_mode = IsFastSmiElementsKind(kind)
+      ? JSArrayBuilder::FILL_WITH_HOLE
+      : JSArrayBuilder::DONT_FILL_WITH_HOLE;
   HValue* new_object = array_builder->AllocateArray(length,
                                                     length,
-                                                    fill_with_hole);
+                                                    fill_mode);
   HValue* elements = array_builder->GetElementsLocation();
   ASSERT(elements != NULL);
 
@@ -885,17 +912,17 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
       if_leftisstring.If<HIsStringAndBranch>(left);
       if_leftisstring.Then();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, stub->fixed_right_arg(), true)));
+                    result_type, stub->fixed_right_arg()));
       }
       if_leftisstring.Else();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true)));
+                    stub->fixed_right_arg()));
       }
       if_leftisstring.End();
       result = Pop();
@@ -904,26 +931,26 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
       if_rightisstring.If<HIsStringAndBranch>(right);
       if_rightisstring.Then();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, stub->fixed_right_arg(), true)));
+                    result_type, stub->fixed_right_arg()));
       }
       if_rightisstring.Else();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true)));
+                    stub->fixed_right_arg()));
       }
       if_rightisstring.End();
       result = Pop();
     }
   } else {
-    result = AddInstruction(BuildBinaryOperation(
+    result = BuildBinaryOperation(
             stub->operation(), left, right,
             left_type, right_type, result_type,
-            stub->fixed_right_arg(), true));
+            stub->fixed_right_arg());
   }
 
   // If we encounter a generic argument, the number conversion is
@@ -981,16 +1008,10 @@ HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    IfBuilder if_leftnotstring(this);
-    if_leftnotstring.IfNot<HIsStringAndBranch>(left);
-    if_leftnotstring.Then();
-    if_leftnotstring.Deopt("Expected string for LHS of string addition");
+    left = BuildCheckString(left);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    IfBuilder if_rightnotstring(this);
-    if_rightnotstring.IfNot<HIsStringAndBranch>(right);
-    if_rightnotstring.Then();
-    if_rightnotstring.Deopt("Expected string for RHS of string addition");
+    right = BuildCheckString(right);
   }
 
   return BuildStringAdd(left, right, pretenure_flag);
@@ -1288,6 +1309,22 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
 
 
 Handle<Code> FastNewClosureStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(0);
+  HValue* key = GetParameter(1);
+
+  Add<HCheckSmi>(key);
+
+  return BuildUncheckedDictionaryElementLoad(receiver, key);
+}
+
+
+Handle<Code> KeyedLoadDictionaryElementStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 

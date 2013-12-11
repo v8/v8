@@ -100,8 +100,7 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
 }
 
 
-InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object,
-                                                JSObject* holder) {
+InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object) {
   if (object->IsJSObject()) return OWN_MAP;
 
   // If the object is a value, we use the prototype map for the cache.
@@ -111,13 +110,46 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object,
 }
 
 
-JSObject* IC::GetCodeCacheHolder(Isolate* isolate,
+HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
                                  Object* object,
                                  InlineCacheHolderFlag holder) {
-  Object* map_owner =
-      holder == OWN_MAP ? object : object->GetPrototype(isolate);
-  ASSERT(map_owner->IsJSObject());
-  return JSObject::cast(map_owner);
+  if (object->IsSmi()) holder = PROTOTYPE_MAP;
+  Object* map_owner = holder == OWN_MAP
+      ? object : object->GetPrototype(isolate);
+  return HeapObject::cast(map_owner);
+}
+
+
+InlineCacheHolderFlag IC::GetCodeCacheFlag(Type* type) {
+  if (type->Is(Type::Boolean()) ||
+      type->Is(Type::Number()) ||
+      type->Is(Type::String()) ||
+      type->Is(Type::Symbol())) {
+    return PROTOTYPE_MAP;
+  }
+  return OWN_MAP;
+}
+
+
+Handle<Map> IC::GetCodeCacheHolder(InlineCacheHolderFlag flag,
+                                   Type* type,
+                                   Isolate* isolate) {
+  if (flag == PROTOTYPE_MAP) {
+    Context* context = isolate->context()->native_context();
+    JSFunction* constructor;
+    if (type->Is(Type::Boolean())) {
+      constructor = context->boolean_function();
+    } else if (type->Is(Type::Number())) {
+      constructor = context->number_function();
+    } else if (type->Is(Type::String())) {
+      constructor = context->string_function();
+    } else {
+      ASSERT(type->Is(Type::Symbol()));
+      constructor = context->symbol_function();
+    }
+    return handle(JSObject::cast(constructor->instance_prototype())->map());
+  }
+  return type->AsClass();
 }
 
 

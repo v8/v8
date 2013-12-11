@@ -397,7 +397,7 @@ static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
                                          v8::Persistent<v8::Value>* handle,
                                          void* id) {
   if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
-  handle->Dispose();
+  handle->Reset();
 }
 
 
@@ -760,7 +760,7 @@ TEST(JSArray) {
   CHECK(array->HasFastSmiOrObjectElements());
 
   // array[length] = name.
-  array->SetElement(0, *name, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(array, 0, name, NONE, kNonStrictMode);
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(array->GetElement(isolate, 0), *name);
 
@@ -775,7 +775,7 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  array->SetElement(int_length, *name, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(array, int_length, name, NONE, kNonStrictMode);
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
@@ -805,8 +805,8 @@ TEST(JSObjectCopy) {
   JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
   JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
 
-  obj->SetElement(0, *first, NONE, kNonStrictMode)->ToObjectChecked();
-  obj->SetElement(1, *second, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(obj, 0, first, NONE, kNonStrictMode);
+  JSReceiver::SetElement(obj, 1, second, NONE, kNonStrictMode);
 
   // Make the clone.
   Handle<JSObject> clone = JSObject::Copy(obj);
@@ -822,8 +822,8 @@ TEST(JSObjectCopy) {
   JSReceiver::SetProperty(clone, first, two, NONE, kNonStrictMode);
   JSReceiver::SetProperty(clone, second, one, NONE, kNonStrictMode);
 
-  clone->SetElement(0, *second, NONE, kNonStrictMode)->ToObjectChecked();
-  clone->SetElement(1, *first, NONE, kNonStrictMode)->ToObjectChecked();
+  JSReceiver::SetElement(clone, 0, second, NONE, kNonStrictMode);
+  JSReceiver::SetElement(clone, 1, first, NONE, kNonStrictMode);
 
   CHECK_EQ(obj->GetElement(isolate, 1), clone->GetElement(isolate, 0));
   CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 1));
@@ -1787,12 +1787,12 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
-    ctx1p.Dispose();
+    ctx1p.Reset();
     v8::V8::ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose();
+  ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1833,12 +1833,12 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose();
+    ctx1p.Reset();
     v8::V8::ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose();
+  ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1877,12 +1877,12 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose();
+    ctx1p.Reset();
     v8::V8::ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose();
+  ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1925,12 +1925,12 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose();
+    ctx1p.Reset();
     v8::V8::ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose();
+  ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -2963,8 +2963,6 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
   // after the first time the accessor is fired.  We use external string
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
-  FLAG_use_ic = false;  // ICs retain objects.
-  FLAG_concurrent_recompilation = false;
   v8::HandleScope scope(CcTest::isolate());
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
@@ -2987,6 +2985,8 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
 
 
 TEST(ReleaseStackTraceData) {
+  FLAG_use_ic = false;  // ICs retain objects.
+  FLAG_concurrent_recompilation = false;
   CcTest::InitializeVM();
   static const char* source1 = "var error = null;            "
   /* Normal Error */           "try {                        "
@@ -3515,4 +3515,105 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   // This big step should be sufficient to mark the whole array.
   marking->Step(100 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
   ASSERT(marking->IsComplete());
+}
+
+
+TEST(DisableInlineAllocation) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun("function test() {"
+             "  var x = [];"
+             "  for (var i = 0; i < 10; i++) {"
+             "    x[i] = [ {}, [1,2,3], [1,x,3] ];"
+             "  }"
+             "}"
+             "function run() {"
+             "  %OptimizeFunctionOnNextCall(test);"
+             "  test();"
+             "  %DeoptimizeFunction(test);"
+             "}");
+
+  // Warm-up with inline allocation enabled.
+  CompileRun("test(); test(); run();");
+
+  // Run test with inline allocation disabled.
+  CcTest::heap()->DisableInlineAllocation();
+  CompileRun("run()");
+
+  // Run test with inline allocation disabled and pretenuring.
+  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
+  CompileRun("run()");
+
+  // Run test with inline allocation re-enabled.
+  CcTest::heap()->EnableInlineAllocation();
+  CompileRun("run()");
+}
+
+
+static int AllocationSitesCount(Heap* heap) {
+  int count = 0;
+  for (Object* site = heap->allocation_sites_list();
+       !(site->IsUndefined());
+       site = AllocationSite::cast(site)->weak_next()) {
+    count++;
+  }
+  return count;
+}
+
+
+TEST(EnsureAllocationSiteDependentCodesProcessed) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+  GlobalHandles* global_handles = isolate->global_handles();
+
+  if (!isolate->use_crankshaft()) return;
+
+  // The allocation site at the head of the list is ours.
+  Handle<AllocationSite> site;
+  {
+    LocalContext context;
+    v8::HandleScope scope(context->GetIsolate());
+
+    int count = AllocationSitesCount(heap);
+    CompileRun("var bar = function() { return (new Array()); };"
+               "var a = bar();"
+               "bar();"
+               "bar();");
+
+    // One allocation site should have been created.
+    int new_count = AllocationSitesCount(heap);
+    CHECK_EQ(new_count, (count + 1));
+    site = Handle<AllocationSite>::cast(
+        global_handles->Create(
+            AllocationSite::cast(heap->allocation_sites_list())));
+
+    CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
+
+    DependentCode::GroupStartIndexes starts(site->dependent_code());
+    CHECK_GE(starts.number_of_entries(), 1);
+    int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
+    CHECK(site->dependent_code()->is_code_at(index));
+    Code* function_bar = site->dependent_code()->code_at(index);
+    Handle<JSFunction> bar_handle =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("bar"))));
+    CHECK_EQ(bar_handle->code(), function_bar);
+  }
+
+  // Now make sure that a gc should get rid of the function, even though we
+  // still have the allocation site alive.
+  for (int i = 0; i < 4; i++) {
+    heap->CollectAllGarbage(false);
+  }
+
+  // The site still exists because of our global handle, but the code is no
+  // longer referred to by dependent_code().
+  DependentCode::GroupStartIndexes starts(site->dependent_code());
+  int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
+  CHECK(!(site->dependent_code()->is_code_at(index)));
 }

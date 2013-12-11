@@ -614,6 +614,69 @@ observer2.assertCallbackRecords([
   }
 ]);
 
+// ArrayPush cached stub
+reset();
+
+function pushMultiple(arr) {
+  arr.push('a');
+  arr.push('b');
+  arr.push('c');
+}
+
+for (var i = 0; i < 5; i++) {
+  var arr = [];
+  pushMultiple(arr);
+}
+
+for (var i = 0; i < 5; i++) {
+  reset();
+  var arr = [];
+  Object.observe(arr, observer.callback);
+  pushMultiple(arr);
+  Object.unobserve(arr, observer.callback);
+  Object.deliverChangeRecords(observer.callback);
+  observer.assertCallbackRecords([
+    { object: arr, type: 'add', name: '0' },
+    { object: arr, type: 'update', name: 'length', oldValue: 0 },
+    { object: arr, type: 'add', name: '1' },
+    { object: arr, type: 'update', name: 'length', oldValue: 1 },
+    { object: arr, type: 'add', name: '2' },
+    { object: arr, type: 'update', name: 'length', oldValue: 2 },
+  ]);
+}
+
+
+// ArrayPop cached stub
+reset();
+
+function popMultiple(arr) {
+  arr.pop();
+  arr.pop();
+  arr.pop();
+}
+
+for (var i = 0; i < 5; i++) {
+  var arr = ['a', 'b', 'c'];
+  popMultiple(arr);
+}
+
+for (var i = 0; i < 5; i++) {
+  reset();
+  var arr = ['a', 'b', 'c'];
+  Object.observe(arr, observer.callback);
+  popMultiple(arr);
+  Object.unobserve(arr, observer.callback);
+  Object.deliverChangeRecords(observer.callback);
+  observer.assertCallbackRecords([
+    { object: arr, type: 'delete', name: '2', oldValue: 'c' },
+    { object: arr, type: 'update', name: 'length', oldValue: 3 },
+    { object: arr, type: 'delete', name: '1', oldValue: 'b' },
+    { object: arr, type: 'update', name: 'length', oldValue: 2 },
+    { object: arr, type: 'delete', name: '0', oldValue: 'a' },
+    { object: arr, type: 'update', name: 'length', oldValue: 1 },
+  ]);
+}
+
 
 reset();
 function RecursiveThingy() {}

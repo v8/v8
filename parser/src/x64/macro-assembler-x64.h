@@ -792,6 +792,11 @@ class MacroAssembler: public Assembler {
       Label* on_fail,
       Label::Distance near_jump = Label::kFar);
 
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
+
   // Checks if the given register or operand is a unique name
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
                            Label::Distance distance = Label::kFar);
@@ -1058,6 +1063,12 @@ class MacroAssembler: public Assembler {
   // Propagate an uncatchable exception out of the current JS stack.
   void ThrowUncatchable(Register value);
 
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
+
   // ---------------------------------------------------------------------------
   // Inline caching support
 
@@ -1255,8 +1266,10 @@ class MacroAssembler: public Assembler {
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  void CallRuntime(Runtime::FunctionId id,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
   // Convenience function: call an external reference.
