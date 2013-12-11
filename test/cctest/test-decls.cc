@@ -648,9 +648,9 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   virtual void PostInitializeContext(Handle<Context> context) {
     Local<Object> global_object = context->Global();
     Local<Object> hidden_proto = hidden_proto_->GetFunction()->NewInstance();
-    context->DetachGlobal();
-    context->Global()->SetPrototype(hidden_proto);
-    context->ReattachGlobal(global_object);
+    Local<Object> inner_global =
+        Local<Object>::Cast(global_object->GetPrototype());
+    inner_global->SetPrototype(hidden_proto);
   }
 
   // Use the hidden prototype as the holder for the interceptors.

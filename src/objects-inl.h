@@ -5891,16 +5891,13 @@ PropertyAttributes JSReceiver::GetElementAttribute(uint32_t index) {
 }
 
 
-// TODO(504): this may be useful in other places too where JSGlobalProxy
-// is used.
-Object* JSObject::BypassGlobalProxy() {
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return GetHeap()->undefined_value();
-    ASSERT(proto->IsJSGlobalObject());
-    return proto;
-  }
-  return this;
+bool JSGlobalObject::IsDetached() {
+  return JSGlobalProxy::cast(global_receiver())->IsDetachedFrom(this);
+}
+
+
+bool JSGlobalProxy::IsDetachedFrom(GlobalObject* global) {
+  return GetPrototype() != global;
 }
 
 

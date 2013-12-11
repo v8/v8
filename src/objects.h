@@ -878,6 +878,7 @@ class DictionaryElementsAccessor;
 class ElementsAccessor;
 class Failure;
 class FixedArrayBase;
+class GlobalObject;
 class ObjectVisitor;
 class StringStream;
 class Type;
@@ -7412,6 +7413,8 @@ class JSGlobalProxy : public JSObject {
   // Casting.
   static inline JSGlobalProxy* cast(Object* obj);
 
+  inline bool IsDetachedFrom(GlobalObject* global);
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalProxy)
   DECLARE_VERIFIER(JSGlobalProxy)
@@ -7480,6 +7483,8 @@ class JSGlobalObject: public GlobalObject {
   // Ensure that the global object has a cell for the given property name.
   static Handle<PropertyCell> EnsurePropertyCell(Handle<JSGlobalObject> global,
                                                  Handle<Name> name);
+
+  inline bool IsDetached();
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalObject)

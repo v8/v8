@@ -275,6 +275,7 @@ namespace internal {
   \
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
+  F(IsAttachedGlobal, 1, 1) \
   F(ResolvePossiblyDirectEval, 5, 2) \
   \
   F(SetProperty, -1 /* 4 or 5 */, 1) \
