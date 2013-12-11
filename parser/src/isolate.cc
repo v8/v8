@@ -1199,7 +1199,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         fatal_exception_depth++;
         PrintF(stderr,
                "%s\n\nFROM\n",
-               *MessageHandler::GetLocalizedMessage(this, message_obj));
+               MessageHandler::GetLocalizedMessage(this, message_obj).get());
         PrintCurrentStackTrace(stderr);
         OS::Abort();
       }
@@ -1214,13 +1214,13 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       if (exception->IsString() && location->script()->name()->IsString()) {
         OS::PrintError(
             "Extension or internal compilation error: %s in %s at line %d.\n",
-            *String::cast(exception)->ToCString(),
-            *String::cast(location->script()->name())->ToCString(),
+            String::cast(exception)->ToCString().get(),
+            String::cast(location->script()->name())->ToCString().get(),
             line_number + 1);
       } else if (location->script()->name()->IsString()) {
         OS::PrintError(
             "Extension or internal compilation error in %s at line %d.\n",
-            *String::cast(location->script()->name())->ToCString(),
+            String::cast(location->script()->name())->ToCString().get(),
             line_number + 1);
       } else {
         OS::PrintError("Extension or internal compilation error.\n");
@@ -1337,11 +1337,6 @@ MessageLocation Isolate::GetMessageLocation() {
   }
 
   return MessageLocation();
-}
-
-
-void Isolate::TraceException(bool flag) {
-  FLAG_trace_exception = flag;  // TODO(isolates): This is an unfortunate use.
 }
 
 
@@ -1710,7 +1705,6 @@ void Isolate::Deinit() {
     bootstrapper_->TearDown();
 
     if (runtime_profiler_ != NULL) {
-      runtime_profiler_->TearDown();
       delete runtime_profiler_;
       runtime_profiler_ = NULL;
     }
@@ -2071,15 +2065,24 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   runtime_profiler_ = new RuntimeProfiler(this);
-  runtime_profiler_->SetUp();
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
   if (!create_heap_objects &&
-      (FLAG_log_code || FLAG_ll_prof || logger_->is_logging_code_events())) {
+      (FLAG_log_code ||
+       FLAG_ll_prof ||
+       FLAG_perf_jit_prof ||
+       FLAG_perf_basic_prof ||
+       logger_->is_logging_code_events())) {
     HandleScope scope(this);
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());
+  }
+
+  // If we are profiling with the Linux perf tool, we need to disable
+  // code relocation.
+  if (FLAG_perf_jit_prof || FLAG_perf_basic_prof) {
+    FLAG_compact_code_space = false;
   }
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
@@ -2116,7 +2119,7 @@ bool Isolate::Init(Deserializer* des) {
                                    DONT_TRACK_ALLOCATION_SITE, 0);
     stub.InitializeInterfaceDescriptor(
         this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
-    BinaryOpStub::InitializeForIsolate(this);
+    BinaryOpICStub::InstallDescriptors(this);
     CompareNilICStub::InitializeForIsolate(this);
     ToBooleanStub::InitializeForIsolate(this);
     ArrayConstructorStubBase::InstallDescriptors(this);

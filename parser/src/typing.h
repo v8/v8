@@ -84,7 +84,7 @@ class AstTyper: public AstVisitor {
 
   int variable_index(Variable* var) {
     return var->IsStackLocal() ? var->index() :
-           var->IsParameter() ? -var->index() : kNoVar;
+           var->IsParameter() ? -var->index() - 1 : kNoVar;
   }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);

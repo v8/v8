@@ -406,8 +406,6 @@ void MarkCompactCollector::CollectGarbage() {
   ASSERT(state_ == PREPARE_GC);
   ASSERT(encountered_weak_collections_ == Smi::FromInt(0));
 
-  heap()->allocation_mementos_found_ = 0;
-
   MarkLiveObjects();
   ASSERT(heap_->incremental_marking()->IsStopped());
 
@@ -449,11 +447,6 @@ void MarkCompactCollector::CollectGarbage() {
     marking_parity_ = EVEN_MARKING_PARITY;
   }
 
-  if (FLAG_trace_track_allocation_sites &&
-      heap()->allocation_mementos_found_ > 0) {
-    PrintF("AllocationMementos found during mark-sweep = %d\n",
-           heap()->allocation_mementos_found_);
-  }
   tracer_ = NULL;
 }
 
@@ -1846,6 +1839,7 @@ class RootMarkingVisitor : public ObjectVisitor {
 
 
 // Helper class for pruning the string table.
+template<bool finalize_external_strings>
 class StringTableCleaner : public ObjectVisitor {
  public:
   explicit StringTableCleaner(Heap* heap)
@@ -1857,22 +1851,20 @@ class StringTableCleaner : public ObjectVisitor {
       Object* o = *p;
       if (o->IsHeapObject() &&
           !Marking::MarkBitFrom(HeapObject::cast(o)).Get()) {
-        // Check if the internalized string being pruned is external. We need to
-        // delete the associated external data as this string is going away.
-
-        // Since no objects have yet been moved we can safely access the map of
-        // the object.
-        if (o->IsExternalString()) {
+        if (finalize_external_strings) {
+          ASSERT(o->IsExternalString());
           heap_->FinalizeExternalString(String::cast(*p));
+        } else {
+          pointers_removed_++;
         }
         // Set the entry to the_hole_value (as deleted).
         *p = heap_->the_hole_value();
-        pointers_removed_++;
       }
     }
   }
 
   int PointersRemoved() {
+    ASSERT(!finalize_external_strings);
     return pointers_removed_;
   }
 
@@ -1882,12 +1874,24 @@ class StringTableCleaner : public ObjectVisitor {
 };
 
 
+typedef StringTableCleaner<false> InternalizedStringTableCleaner;
+typedef StringTableCleaner<true> ExternalStringTableCleaner;
+
+
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
 class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
  public:
   virtual Object* RetainAs(Object* object) {
     if (Marking::MarkBitFrom(HeapObject::cast(object)).Get()) {
+      return object;
+    } else if (object->IsAllocationSite() &&
+               !(AllocationSite::cast(object)->IsZombie())) {
+      // "dead" AllocationSites need to live long enough for a traversal of new
+      // space. These sites get a one-time reprieve.
+      AllocationSite* site = AllocationSite::cast(object);
+      site->MarkZombie();
+      site->GetHeap()->mark_compact_collector()->MarkAllocationSite(site);
       return object;
     } else {
       return NULL;
@@ -2000,12 +2004,7 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
       int size = object->Size();
       survivors_size += size;
 
-      if (FLAG_trace_track_allocation_sites && object->IsJSObject()) {
-        if (AllocationMemento::FindForJSObject(JSObject::cast(object), true)
-            != NULL) {
-          heap()->allocation_mementos_found_++;
-        }
-      }
+      Heap::UpdateAllocationSiteFeedback(object);
 
       offset++;
       current_cell >>= 1;
@@ -2095,6 +2094,12 @@ void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
   // Explicitly mark the prefix.
   string_table->IteratePrefix(visitor);
   ProcessMarkingDeque();
+}
+
+
+void MarkCompactCollector::MarkAllocationSite(AllocationSite* site) {
+  MarkBit mark_bit = Marking::MarkBitFrom(site);
+  SetMark(site, mark_bit);
 }
 
 
@@ -2396,10 +2401,12 @@ void MarkCompactCollector::AfterMarking() {
   // string table.  Cannot use string_table() here because the string
   // table is marked.
   StringTable* string_table = heap()->string_table();
-  StringTableCleaner v(heap());
-  string_table->IterateElements(&v);
-  string_table->ElementsRemoved(v.PointersRemoved());
-  heap()->external_string_table_.Iterate(&v);
+  InternalizedStringTableCleaner internalized_visitor(heap());
+  string_table->IterateElements(&internalized_visitor);
+  string_table->ElementsRemoved(internalized_visitor.PointersRemoved());
+
+  ExternalStringTableCleaner external_visitor(heap());
+  heap()->external_string_table_.Iterate(&external_visitor);
   heap()->external_string_table_.CleanUp();
 
   // Process the weak references.
@@ -2418,11 +2425,6 @@ void MarkCompactCollector::AfterMarking() {
     if (FLAG_flush_code && !FLAG_flush_code_incrementally) {
       EnableCodeFlushing(false);
     }
-  }
-
-  if (!FLAG_watch_ic_patching) {
-    // Clean up dead objects from the runtime profiler.
-    heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
   }
 
   if (FLAG_track_gc_object_stats) {
@@ -2766,7 +2768,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          int size,
                                          AllocationSpace dest) {
   HeapProfiler* heap_profiler = heap()->isolate()->heap_profiler();
-  if (heap_profiler->is_profiling()) {
+  if (heap_profiler->is_tracking_object_moves()) {
     heap_profiler->ObjectMoveEvent(src, dst, size);
   }
   ASSERT(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));
@@ -3511,12 +3513,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   // Update pointers from external string table.
   heap_->UpdateReferencesInExternalStringTable(
       &UpdateReferenceInExternalStringTableEntry);
-
-  if (!FLAG_watch_ic_patching) {
-    // Update JSFunction pointers from the runtime profiler.
-    heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
-        &updating_visitor);
-  }
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessWeakReferences(&evacuation_object_retainer);

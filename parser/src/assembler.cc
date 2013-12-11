@@ -306,7 +306,9 @@ int Label::pos() const {
 //                dropped, and last non-zero chunk tagged with 1.)
 
 
+#ifdef DEBUG
 const int kMaxStandardNonCompactModes = 14;
+#endif
 
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
@@ -1418,47 +1420,8 @@ static double mod_two_doubles(double x, double y) {
 }
 
 
-static double math_sin_double(double x) {
-  return sin(x);
-}
-
-
-static double math_cos_double(double x) {
-  return cos(x);
-}
-
-
-static double math_tan_double(double x) {
-  return tan(x);
-}
-
-
 static double math_log_double(double x) {
   return log(x);
-}
-
-
-ExternalReference ExternalReference::math_sin_double_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_sin_double),
-                                    BUILTIN_FP_CALL));
-}
-
-
-ExternalReference ExternalReference::math_cos_double_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_cos_double),
-                                    BUILTIN_FP_CALL));
-}
-
-
-ExternalReference ExternalReference::math_tan_double_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_tan_double),
-                                    BUILTIN_FP_CALL));
 }
 
 

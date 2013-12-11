@@ -693,7 +693,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2: receiver
   // r3: argc
   // r4: argv
-  // r5-r6, r7 (if not FLAG_enable_ool_constant_pool) and cp may be clobbered
+  // r5-r6, r8 (if not FLAG_enable_ool_constant_pool) and cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the internal frame.
@@ -734,7 +734,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(r5, Operand(r4));
     __ mov(r6, Operand(r4));
     if (!FLAG_enable_ool_constant_pool) {
-      __ mov(r7, Operand(r4));
+      __ mov(r8, Operand(r4));
     }
     if (kR9Available == 1) {
       __ mov(r9, Operand(r4));
@@ -938,18 +938,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Lookup and calculate pc offset.
-    __ ldr(r1, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ ldr(r2, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCodeOffset));
-    __ sub(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ sub(r1, r1, r2);
-    __ SmiTag(r1);
-
-    // Pass both function and pc offset as arguments.
+    // Pass function as argument.
     __ push(r0);
-    __ push(r1);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
   // If the code object is null, just return to the unoptimized code.

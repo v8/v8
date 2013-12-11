@@ -33,7 +33,7 @@
   ##############################################################################
   # Flaky tests.
   # BUG(v8:2921).
-  'debug-step-4-in-frame': [PASS, FAIL],
+  'debug-step-4-in-frame': [PASS, FAIL, SLOW],
 
   ##############################################################################
   # Fails.
@@ -99,6 +99,11 @@
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
   'regress/regress-2073': [SKIP],
+
+  ##############################################################################
+  # Tests verifying CHECK and ASSERT.
+  'verify-check-false': [FAIL, NO_VARIANTS],
+  'verify-assert-false': [NO_VARIANTS, ['mode == release', PASS], ['mode == debug', FAIL]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -160,6 +165,18 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
+
+  ############################################################################
+  # Slow tests.
+  'regress/regress-2185-2': [PASS, SLOW],
+  'mirror-object': [PASS, SLOW],
+  'compiler/osr-with-args': [PASS, SLOW],
+  'array-sort': [PASS, SLOW],
+  'packed-elements': [PASS, SLOW],
+  'regress/regress-91008': [PASS, SLOW],
+  'regress/regress-2790': [PASS, SLOW],
+  'regress/regress-json-stringify-gc': [PASS, SLOW],
+  'regress/regress-1122': [PASS, SLOW],
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################

@@ -206,7 +206,8 @@ TEST(Preparsing) {
   {
     i::FLAG_lazy = true;
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::Local<v8::String> script_source = v8::String::NewExternal(resource);
+    v8::Local<v8::String> script_source =
+        v8::String::NewExternal(isolate, resource);
     v8::Script::Compile(script_source, NULL, preparse);
   }
 
@@ -214,7 +215,8 @@ TEST(Preparsing) {
     i::FLAG_lazy = false;
 
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::Local<v8::String> script_source = v8::String::NewExternal(resource);
+    v8::Local<v8::String> script_source =
+        v8::String::NewExternal(isolate, resource);
     v8::Script::New(script_source, NULL, preparse, v8::Local<v8::String>());
   }
   delete preparse;
@@ -387,7 +389,7 @@ TEST(PreParseOverflow) {
 
   size_t kProgramSize = 1024 * 1024;
   i::SmartArrayPointer<char> program(i::NewArray<char>(kProgramSize + 1));
-  memset(*program, '(', kProgramSize);
+  memset(program.get(), '(', kProgramSize);
   program[kProgramSize] = '\0';
 
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
@@ -395,7 +397,7 @@ TEST(PreParseOverflow) {
   i::HandleScope handle_scope(CcTest::i_isolate());
   i::Handle<i::String> source =
       CcTest::i_isolate()->factory()->NewStringFromAscii(
-          i::Vector<const char>(*program, kProgramSize));
+          i::Vector<const char>(program.get(), kProgramSize));
   i::CompleteParserRecorder log;
   i::ExperimentalScanner<uint8_t> scanner(source, CcTest::i_isolate());
   scanner.Init();
@@ -445,7 +447,7 @@ void TestCharacterStream(const char* ascii_source,
   i::Vector<const char> ascii_vector(ascii_source, static_cast<int>(length));
   i::Handle<i::String> ascii_string(
       factory->NewStringFromAscii(ascii_vector));
-  TestExternalResource resource(*uc16_buffer, length);
+  TestExternalResource resource(uc16_buffer.get(), length);
   i::Handle<i::String> uc16_string(
       factory->NewExternalStringFromTwoByte(&resource));
 
@@ -1149,7 +1151,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           "with error:\n"
           "\t%s\n"
           "However, the preparser succeeded",
-          *source->ToCString(), *message_string->ToCString());
+          source->ToCString().get(), message_string->ToCString().get());
       CHECK(false);
     }
     // Check that preparser and parser produce the same error.
@@ -1161,9 +1163,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           "However, found the following error messages\n"
           "\tparser:    %s\n"
           "\tpreparser: %s\n",
-          *source->ToCString(),
-          *message_string->ToCString(),
-          *preparser_message->ToCString());
+          source->ToCString().get(),
+          message_string->ToCString().get(),
+          preparser_message->ToCString().get());
       CHECK(false);
     }
   } else if (data.has_error()) {
@@ -1173,7 +1175,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "with error:\n"
         "\t%s\n"
         "However, the parser succeeded",
-        *source->ToCString(), *FormatMessage(&data)->ToCString());
+        source->ToCString().get(), FormatMessage(&data)->ToCString().get());
     CHECK(false);
   }
 }

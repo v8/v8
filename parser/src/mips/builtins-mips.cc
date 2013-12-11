@@ -813,12 +813,9 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // internal frame to make the code faster, since we shouldn't have to do stack
   // crawls in MakeCodeYoung. This seems a bit fragile.
 
-  __ mov(a0, ra);
-  // Adjust a0 to point to the head of the PlatformCodeAge sequence
+  // Set a0 to point to the head of the PlatformCodeAge sequence.
   __ Subu(a0, a0,
       Operand((kNoCodeAgeSequenceLength - 1) * Assembler::kInstrSize));
-  // Restore the original return address of the function
-  __ mov(ra, at);
 
   // The following registers must be saved and restored when calling through to
   // the runtime:
@@ -855,12 +852,9 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   // save/restore the registers without worrying about which of them contain
   // pointers.
 
-  __ mov(a0, ra);
-  // Adjust a0 to point to the head of the PlatformCodeAge sequence
+  // Set a0 to point to the head of the PlatformCodeAge sequence.
   __ Subu(a0, a0,
       Operand((kNoCodeAgeSequenceLength - 1) * Assembler::kInstrSize));
-  // Restore the original return address of the function
-  __ mov(ra, at);
 
   // The following registers must be saved and restored when calling through to
   // the runtime:
@@ -975,18 +969,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Lookup and calculate pc offset.
-    __ lw(a1, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ lw(a2, FieldMemOperand(a0, JSFunction::kSharedFunctionInfoOffset));
-    __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kCodeOffset));
-    __ Subu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ Subu(a1, a1, a2);
-    __ SmiTag(a1);
-
-    // Pass both function and pc offset as arguments.
+    // Pass function as argument.
     __ push(a0);
-    __ push(a1);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
   // If the code object is null, just return to the unoptimized code.

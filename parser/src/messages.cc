@@ -43,15 +43,15 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
                                           Handle<Object> message_obj) {
   SmartArrayPointer<char> str = GetLocalizedMessage(isolate, message_obj);
   if (loc == NULL) {
-    PrintF("%s\n", *str);
+    PrintF("%s\n", str.get());
   } else {
     HandleScope scope(isolate);
     Handle<Object> data(loc->script()->name(), isolate);
     SmartArrayPointer<char> data_str;
     if (data->IsString())
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
-    PrintF("%s:%i: %s\n", *data_str ? *data_str : "<unknown>",
-           loc->start_pos(), *str);
+    PrintF("%s:%i: %s\n", data_str.get() ? data_str.get() : "<unknown>",
+           loc->start_pos(), str.get());
   }
 }
 

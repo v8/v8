@@ -60,6 +60,13 @@
   # running several variants. Note that this still takes ages, because there
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
+
+  ############################################################################
+  # Slow tests.
+  'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -89,6 +96,13 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  ############################################################################
+  # Slow tests.
+  'test-api/Threading1': [PASS, SLOW],
+  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading3': [PASS, SLOW],
+  'test-api/Threading4': [PASS, SLOW],
 }],  # 'arch == arm'
 
 ##############################################################################

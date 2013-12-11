@@ -601,11 +601,16 @@ class MacroAssembler: public Assembler {
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
 
+  void Pref(int32_t hint, const MemOperand& rs);
+
 
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
+
+  void Ulw(Register rd, const MemOperand& rs);
+  void Usw(Register rd, const MemOperand& rs);
 
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
@@ -912,6 +917,13 @@ class MacroAssembler: public Assembler {
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
+                      const ParameterCount& actual,
+                      InvokeFlag flag,
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
+
+  void InvokeFunction(Register function,
+                      const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper,
@@ -1341,8 +1353,6 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
-  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
-  bool allow_stub_calls() { return allow_stub_calls_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -1639,7 +1649,6 @@ class MacroAssembler: public Assembler {
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
   bool generating_stub_;
-  bool allow_stub_calls_;
   bool has_frame_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;

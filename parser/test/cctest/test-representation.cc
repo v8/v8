@@ -121,4 +121,8 @@ TEST(RepresentationMoreGeneralThan) {
   TestPairNegative(Representation::HeapObject(), Representation::Integer32());
   TestPairPositive(Representation::Double(), Representation::Integer32());
   TestPairPositive(Representation::Tagged(), Representation::Integer32());
+
+  TestPairNegative(Representation::None(), Representation::External());
+  TestPairNegative(Representation::External(), Representation::External());
+  TestPairPositive(Representation::External(), Representation::None());
 }

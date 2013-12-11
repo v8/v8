@@ -425,6 +425,11 @@ function ArrayPop() {
     return;
   }
 
+  if ($Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.pop"]);
+  }
+
   if (%IsObserved(this))
     return ObservedArrayPop.call(this, n);
 
@@ -462,11 +467,16 @@ function ArrayPush() {
                         ["Array.prototype.push"]);
   }
 
+  var n = TO_UINT32(this.length);
+  var m = %_ArgumentsLength();
+  if (m > 0 && $Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.push"]);
+  }
+
   if (%IsObserved(this))
     return ObservedArrayPush.apply(this, arguments);
 
-  var n = TO_UINT32(this.length);
-  var m = %_ArgumentsLength();
   for (var i = 0; i < m; i++) {
     this[i+n] = %_Arguments(i);
   }
@@ -604,6 +614,11 @@ function ArrayShift() {
     return;
   }
 
+  if ($Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.shift"]);
+  }
+
   if (%IsObserved(this))
     return ObservedArrayShift.call(this, len);
 
@@ -645,15 +660,32 @@ function ArrayUnshift(arg1) {  // length == 1
                         ["Array.prototype.unshift"]);
   }
 
+  var len = TO_UINT32(this.length);
+  var num_arguments = %_ArgumentsLength();
+  var is_sealed = $Object.isSealed(this);
+
+  if (num_arguments > 0 && is_sealed) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.unshift"]);
+  }
+
   if (%IsObserved(this))
     return ObservedArrayUnshift.apply(this, arguments);
 
-  var len = TO_UINT32(this.length);
-  var num_arguments = %_ArgumentsLength();
-
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) && !is_sealed) {
     SmartMove(this, 0, 0, len, num_arguments);
   } else {
+    if (num_arguments == 0 && $Object.isFrozen(this)) {
+      // In the zero argument case, values from the prototype come into the
+      // object. This can't be allowed on frozen arrays.
+      for (var i = 0; i < len; i++) {
+        if (!this.hasOwnProperty(i) && !IS_UNDEFINED(this[i])) {
+          throw MakeTypeError("array_functions_on_frozen",
+                              ["Array.prototype.shift"]);
+        }
+      }
+    }
+
     SimpleMove(this, 0, 0, len, num_arguments);
   }
 
@@ -663,7 +695,7 @@ function ArrayUnshift(arg1) {  // length == 1
 
   this.length = len + num_arguments;
 
-  return len + num_arguments;
+  return this.length;
 }
 
 
@@ -801,6 +833,14 @@ function ArraySplice(start, delete_count) {
   var deleted_elements = [];
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
+
+  if (del_count != num_elements_to_add && $Object.isSealed(this)) {
+    throw MakeTypeError("array_functions_change_sealed",
+                        ["Array.prototype.splice"]);
+  } else if (del_count > 0 && $Object.isFrozen(this)) {
+    throw MakeTypeError("array_functions_on_frozen",
+                        ["Array.prototype.splice"]);
+  }
 
   var use_simple_splice = true;
   if (IS_ARRAY(this) &&

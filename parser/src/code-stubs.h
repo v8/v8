@@ -41,7 +41,7 @@ namespace internal {
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
   V(CallConstruct)                       \
-  V(BinaryOp)                            \
+  V(BinaryOpIC)                          \
   V(StringAdd)                           \
   V(NewStringAdd)                        \
   V(SubString)                           \
@@ -126,9 +126,6 @@ namespace internal {
   CODE_STUB_LIST_ARM(V)              \
   CODE_STUB_LIST_MIPS(V)
 
-// Mode to overwrite BinaryExpression values.
-enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
-
 // Stub is base classes of all stubs.
 class CodeStub BASE_EMBEDDED {
  public:
@@ -161,16 +158,6 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
-  bool CompilingCallsToThisStubIsGCSafe(Isolate* isolate) {
-    bool is_pregenerated = IsPregenerated(isolate);
-    Code* code = NULL;
-    CHECK(!is_pregenerated || FindCodeInCache(&code, isolate));
-    return is_pregenerated;
-  }
-
-  // See comment above, where Instanceof is defined.
-  virtual bool IsPregenerated(Isolate* isolate) { return false; }
-
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void GenerateStubsRequiringBuiltinsAheadOfTime(Isolate* isolate);
   static void GenerateFPStubs(Isolate* isolate);
@@ -193,8 +180,8 @@ class CodeStub BASE_EMBEDDED {
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
   }
-  virtual Code::ExtraICState GetExtraICState() {
-    return Code::kNoExtraICState;
+  virtual ExtraICState GetExtraICState() {
+    return kNoExtraICState;
   }
   virtual Code::StubType GetStubType() {
     return Code::NORMAL;
@@ -258,6 +245,7 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
+  STATIC_ASSERT(NUMBER_OF_IDS < (1 << kStubMajorKeyBits));
   class MajorKeyBits: public BitField<uint32_t, 0, kStubMajorKeyBits> {};
   class MinorKeyBits: public BitField<uint32_t,
       kStubMajorKeyBits, kStubMinorKeyBits> {};  // NOLINT
@@ -683,8 +671,6 @@ class CreateAllocationSiteStub : public HydrogenCodeStub {
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
-
   static void GenerateAheadOfTime(Isolate* isolate);
 
   virtual void InitializeInterfaceDescriptor(
@@ -846,8 +832,8 @@ class StoreICStub: public ICStub {
       : ICStub(kind), strict_mode_(strict_mode) { }
 
  protected:
-  virtual Code::ExtraICState GetExtraICState() {
-    return strict_mode_;
+  virtual ExtraICState GetExtraICState() {
+    return StoreIC::ComputeExtraICState(strict_mode_);
   }
 
  private:
@@ -958,9 +944,8 @@ class LoadFieldStub: public HandlerStub {
 
 class StoreGlobalStub : public HandlerStub {
  public:
-  StoreGlobalStub(StrictModeFlag strict_mode, bool is_constant) {
-    bit_field_ = StrictModeBits::encode(strict_mode) |
-        IsConstantBits::encode(is_constant);
+  explicit StoreGlobalStub(bool is_constant) {
+    bit_field_ = IsConstantBits::encode(is_constant);
   }
 
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
@@ -983,7 +968,7 @@ class StoreGlobalStub : public HandlerStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  virtual Code::ExtraICState GetExtraICState() { return bit_field_; }
+  virtual ExtraICState GetExtraICState() { return bit_field_; }
 
   bool is_constant() {
     return IsConstantBits::decode(bit_field_);
@@ -1003,9 +988,8 @@ class StoreGlobalStub : public HandlerStub {
   virtual int NotMissMinorKey() { return GetExtraICState(); }
   Major MajorKey() { return StoreGlobal; }
 
-  class StrictModeBits: public BitField<StrictModeFlag, 0, 1> {};
-  class IsConstantBits: public BitField<bool, 1, 1> {};
-  class RepresentationBits: public BitField<Representation::Kind, 2, 8> {};
+  class IsConstantBits: public BitField<bool, 0, 1> {};
+  class RepresentationBits: public BitField<Representation::Kind, 1, 8> {};
 
   int bit_field_;
 
@@ -1038,7 +1022,7 @@ class KeyedArrayCallStub: public HICStub {
   }
 
   virtual Code::Kind kind() const { return Code::KEYED_CALL_IC; }
-  virtual Code::ExtraICState GetExtraICState() { return bit_field_; }
+  virtual ExtraICState GetExtraICState() { return bit_field_; }
 
   ElementsKind elements_kind() {
     return HoleyBits::decode(bit_field_) ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
@@ -1048,7 +1032,7 @@ class KeyedArrayCallStub: public HICStub {
   virtual int GetStubFlags() { return argc(); }
 
   static bool IsHoley(Handle<Code> code) {
-    Code::ExtraICState state = code->extra_ic_state();
+    ExtraICState state = code->extra_ic_state();
     return HoleyBits::decode(state);
   }
 
@@ -1075,177 +1059,56 @@ class KeyedArrayCallStub: public HICStub {
 };
 
 
-class BinaryOpStub: public HydrogenCodeStub {
+class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
  public:
-  BinaryOpStub(Token::Value op, OverwriteMode mode)
-      : HydrogenCodeStub(UNINITIALIZED), op_(op), mode_(mode) {
-    ASSERT(op <= LAST_TOKEN && op >= FIRST_TOKEN);
-    Initialize();
-  }
+  BinaryOpICStub(Token::Value op, OverwriteMode mode)
+      : HydrogenCodeStub(UNINITIALIZED), state_(op, mode) {}
 
-  explicit BinaryOpStub(Code::ExtraICState state)
-      : op_(decode_token(OpBits::decode(state))),
-        mode_(OverwriteModeField::decode(state)),
-        fixed_right_arg_(
-            Maybe<int>(HasFixedRightArgBits::decode(state),
-                decode_arg_value(FixedRightArgValueBits::decode(state)))),
-        left_state_(LeftStateField::decode(state)),
-        right_state_(fixed_right_arg_.has_value
-            ? ((fixed_right_arg_.value <= Smi::kMaxValue) ? SMI : INT32)
-            : RightStateField::decode(state)),
-        result_state_(ResultStateField::decode(state)) {
-    // We don't deserialize the SSE2 Field, since this is only used to be able
-    // to include SSE2 as well as non-SSE2 versions in the snapshot. For code
-    // generation we always want it to reflect the current state.
-    ASSERT(!fixed_right_arg_.has_value ||
-           can_encode_arg_value(fixed_right_arg_.value));
-  }
-
-  static const int FIRST_TOKEN = Token::BIT_OR;
-  static const int LAST_TOKEN = Token::MOD;
+  explicit BinaryOpICStub(const BinaryOpIC::State& state) : state_(state) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
+
   virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor);
-  static void InitializeForIsolate(Isolate* isolate) {
-    BinaryOpStub binopStub(UNINITIALIZED);
-    binopStub.InitializeInterfaceDescriptor(
-        isolate, isolate->code_stub_interface_descriptor(CodeStub::BinaryOp));
+      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
+    return Code::BINARY_OP_IC;
   }
 
-  virtual Code::Kind GetCodeKind() const { return Code::BINARY_OP_IC; }
-  virtual InlineCacheState GetICState() {
-    if (Max(left_state_, right_state_) == NONE) {
-      return ::v8::internal::UNINITIALIZED;
-    }
-    if (Max(left_state_, right_state_) == GENERIC) return MEGAMORPHIC;
-    return MONOMORPHIC;
+  virtual InlineCacheState GetICState() V8_OVERRIDE {
+    return state_.GetICState();
+  }
+
+  virtual ExtraICState GetExtraICState() V8_OVERRIDE {
+    return state_.GetExtraICState();
   }
 
   virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
     ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
   }
 
-  virtual Code::ExtraICState GetExtraICState() {
-    bool sse_field = Max(result_state_, Max(left_state_, right_state_)) > SMI &&
-                     CpuFeatures::IsSafeForSnapshot(SSE2);
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
 
-    return OpBits::encode(encode_token(op_))
-         | LeftStateField::encode(left_state_)
-         | RightStateField::encode(fixed_right_arg_.has_value
-                                       ? NONE : right_state_)
-         | ResultStateField::encode(result_state_)
-         | HasFixedRightArgBits::encode(fixed_right_arg_.has_value)
-         | FixedRightArgValueBits::encode(fixed_right_arg_.has_value
-                                              ? encode_arg_value(
-                                                  fixed_right_arg_.value)
-                                              : 0)
-         | SSE2Field::encode(sse_field)
-         | OverwriteModeField::encode(mode_);
-  }
+  const BinaryOpIC::State& state() const { return state_; }
 
-  bool CanReuseDoubleBox() {
-    return result_state_ <= NUMBER && result_state_ > SMI &&
-      ((left_state_ > SMI && left_state_ <= NUMBER &&
-        mode_ == OVERWRITE_LEFT) ||
-       (right_state_ > SMI && right_state_ <= NUMBER &&
-        mode_ == OVERWRITE_RIGHT));
-  }
+  virtual void PrintState(StringStream* stream) V8_OVERRIDE;
 
-  bool HasSideEffects(Isolate* isolate) const {
-    Handle<Type> left = GetLeftType(isolate);
-    Handle<Type> right = GetRightType(isolate);
-    return left->Maybe(Type::Receiver()) || right->Maybe(Type::Receiver());
-  }
-
-  virtual Handle<Code> GenerateCode(Isolate* isolate);
-
-  Maybe<Handle<Object> > Result(Handle<Object> left,
-                         Handle<Object> right,
-                         Isolate* isolate);
-
-  Token::Value operation() const { return op_; }
-  OverwriteMode mode() const { return mode_; }
-  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
-
-  Handle<Type> GetLeftType(Isolate* isolate) const;
-  Handle<Type> GetRightType(Isolate* isolate) const;
-  Handle<Type> GetResultType(Isolate* isolate) const;
-
-  void UpdateStatus(Handle<Object> left,
-                    Handle<Object> right,
-                    Maybe<Handle<Object> > result);
-
-  void PrintState(StringStream* stream);
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kLeft = 0;
+  static const int kRight = 1;
 
  private:
-  explicit BinaryOpStub(InitializationState state) : HydrogenCodeStub(state),
-                                                     op_(Token::ADD),
-                                                     mode_(NO_OVERWRITE) {
-    Initialize();
-  }
-  void Initialize();
+  static void GenerateAheadOfTime(Isolate* isolate,
+                                  const BinaryOpIC::State& state);
 
-  enum State { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
+  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpIC; }
+  virtual int NotMissMinorKey() V8_OVERRIDE { return GetExtraICState(); }
 
-  // We truncate the last bit of the token.
-  STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 5));
-  class LeftStateField:         public BitField<State, 0,  3> {};
-  // When fixed right arg is set, we don't need to store the right state.
-  // Thus the two fields can overlap.
-  class HasFixedRightArgBits:   public BitField<bool, 4, 1> {};
-  class FixedRightArgValueBits: public BitField<int,  5, 4> {};
-  class RightStateField:        public BitField<State, 5, 3> {};
-  class ResultStateField:       public BitField<State, 9, 3> {};
-  class SSE2Field:              public BitField<bool, 12, 1> {};
-  class OverwriteModeField:     public BitField<OverwriteMode, 13, 2> {};
-  class OpBits:                 public BitField<int, 15,  5> {};
+  BinaryOpIC::State state_;
 
-  virtual CodeStub::Major MajorKey() { return BinaryOp; }
-  virtual int NotMissMinorKey() { return GetExtraICState(); }
-
-  static Handle<Type> StateToType(State state,
-                                  Isolate* isolate);
-
-  static void Generate(Token::Value op,
-                       State left,
-                       int right,
-                       State result,
-                       OverwriteMode mode,
-                       Isolate* isolate);
-
-  static void Generate(Token::Value op,
-                       State left,
-                       State right,
-                       State result,
-                       OverwriteMode mode,
-                       Isolate* isolate);
-
-  void UpdateStatus(Handle<Object> object,
-                    State* state);
-
-  bool can_encode_arg_value(int32_t value) const;
-  int encode_arg_value(int32_t value) const;
-  int32_t decode_arg_value(int value)  const;
-  int encode_token(Token::Value op) const;
-  Token::Value decode_token(int op) const;
-
-  bool has_int_result() const {
-    return op_ == Token::BIT_XOR || op_ == Token::BIT_AND ||
-           op_ == Token::BIT_OR || op_ == Token::SAR || op_ == Token::SHL;
-  }
-
-  const char* StateToName(State state);
-
-  void PrintBaseName(StringStream* stream);
-
-  Token::Value op_;
-  OverwriteMode mode_;
-
-  Maybe<int> fixed_right_arg_;
-  State left_state_;
-  State right_state_;
-  State result_state_;
+  DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
 };
 
 
@@ -1366,7 +1229,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   explicit CompareNilICStub(NilValue nil) : nil_value_(nil) { }
 
-  CompareNilICStub(Code::ExtraICState ic_state,
+  CompareNilICStub(ExtraICState ic_state,
                    InitializationState init_state = INITIALIZED)
       : HydrogenCodeStub(init_state),
         nil_value_(NilValueField::decode(ic_state)),
@@ -1403,7 +1266,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
 
-  virtual Code::ExtraICState GetExtraICState() {
+  virtual ExtraICState GetExtraICState() {
     return NilValueField::encode(nil_value_) |
            TypesField::encode(state_.ToIntegral());
   }
@@ -1469,7 +1332,6 @@ class CEntryStub : public PlatformCodeStub {
   // time, so it's OK to call it from other stubs that can't cope with GC during
   // their code generation.  On machines that always have gp registers (x64) we
   // can generate both variants ahead of time.
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
   static void GenerateAheadOfTime(Isolate* isolate);
 
  protected:
@@ -1821,24 +1683,6 @@ class StringCharAtGenerator {
 };
 
 
-class AllowStubCallsScope {
- public:
-  AllowStubCallsScope(MacroAssembler* masm, bool allow)
-       : masm_(masm), previous_allow_(masm->allow_stub_calls()) {
-    masm_->set_allow_stub_calls(allow);
-  }
-  ~AllowStubCallsScope() {
-    masm_->set_allow_stub_calls(previous_allow_);
-  }
-
- private:
-  MacroAssembler* masm_;
-  bool previous_allow_;
-
-  DISALLOW_COPY_AND_ASSIGN(AllowStubCallsScope);
-};
-
-
 class KeyedLoadDictionaryElementStub : public HydrogenCodeStub {
  public:
   KeyedLoadDictionaryElementStub() {}
@@ -2086,11 +1930,6 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
     return ContextCheckModeBits::decode(bit_field_);
   }
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE {
-    // We only pre-generate stubs that verify correct context
-    return context_mode() == CONTEXT_CHECK_REQUIRED;
-  }
-
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void InstallDescriptors(Isolate* isolate);
 
@@ -2187,7 +2026,6 @@ class InternalArrayConstructorStubBase : public HydrogenCodeStub {
     kind_ = kind;
   }
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void InstallDescriptors(Isolate* isolate);
 
@@ -2332,7 +2170,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   explicit ToBooleanStub(Types types = Types())
       : types_(types) { }
-  explicit ToBooleanStub(Code::ExtraICState state)
+  explicit ToBooleanStub(ExtraICState state)
       : types_(static_cast<byte>(state)) { }
 
   bool UpdateStatus(Handle<Object> object);
@@ -2359,7 +2197,7 @@ class ToBooleanStub: public HydrogenCodeStub {
     return ToBooleanStub(UNINITIALIZED).GetCode(isolate);
   }
 
-  virtual Code::ExtraICState GetExtraICState() {
+  virtual ExtraICState GetExtraICState() {
     return types_.ToIntegral();
   }
 
@@ -2451,8 +2289,6 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
   explicit StubFailureTrampolineStub(StubFunctionMode function_mode)
       : fp_registers_(CanUseFPRegisters()), function_mode_(function_mode) {}
 
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
-
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
@@ -2477,8 +2313,6 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
 class StubFailureTailCallTrampolineStub : public PlatformCodeStub {
  public:
   StubFailureTailCallTrampolineStub() : fp_registers_(CanUseFPRegisters()) {}
-
-  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
 
   static void GenerateAheadOfTime(Isolate* isolate);
 

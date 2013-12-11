@@ -739,6 +739,10 @@ class MarkCompactCollector {
   // marking its contents.
   void MarkWeakObjectToCodeTable();
 
+  // Special case for processing weak references in a full collection. We need
+  // to artifically keep AllocationSites alive for a time.
+  void MarkAllocationSite(AllocationSite* site);
+
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();

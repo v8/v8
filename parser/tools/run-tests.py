@@ -28,6 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import itertools
 import multiprocessing
 import optparse
 import os
@@ -95,6 +96,12 @@ def BuildOptions():
   result.add_option("--flaky-tests",
                     help="Regard tests marked as flaky (run|skip|dontcare)",
                     default="dontcare")
+  result.add_option("--slow-tests",
+                    help="Regard slow tests (run|skip|dontcare)",
+                    default="dontcare")
+  result.add_option("--pass-fail-tests",
+                    help="Regard pass|fail tests (run|skip|dontcare)",
+                    default="dontcare")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
@@ -126,12 +133,16 @@ def BuildOptions():
   result.add_option("--no-variants", "--novariants",
                     help="Don't run any testing variants",
                     default=False, dest="no_variants", action="store_true")
+  result.add_option("--variants",
+                    help="Comma-separated list of testing variants")
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("-p", "--progress",
                     help=("The style of progress indicator"
                           " (verbose, dots, color, mono)"),
                     choices=progress.PROGRESS_INDICATORS.keys(), default="mono")
+  result.add_option("--quickcheck", default=False, action="store_true",
+                    help=("Quick check mode (skip slow/flaky tests)"))
   result.add_option("--report", help="Print a summary of the tests to be run",
                     default=False, action="store_true")
   result.add_option("--shard-count",
@@ -165,15 +176,17 @@ def BuildOptions():
 
 def ProcessOptions(options):
   global VARIANT_FLAGS
+  global VARIANTS
 
   # Architecture and mode related stuff.
   if options.arch_and_mode:
-    tokens = options.arch_and_mode.split(".")
-    options.arch = tokens[0]
-    options.mode = tokens[1]
+    options.arch_and_mode = [arch_and_mode.split(".")
+        for arch_and_mode in options.arch_and_mode.split(",")]
+    options.arch = ",".join([tokens[0] for tokens in options.arch_and_mode])
+    options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode.lower() in ["debug", "release"]:
+    if not mode.lower() in ["debug", "release", "optdebug"]:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
@@ -183,6 +196,11 @@ def ProcessOptions(options):
     if not arch in SUPPORTED_ARCHS:
       print "Unknown architecture %s" % arch
       return False
+
+  # Store the final configuration in arch_and_mode list. Don't overwrite
+  # predefined arch_and_mode since it is more expressive than arch and mode.
+  if not options.arch_and_mode:
+    options.arch_and_mode = itertools.product(options.arch, options.mode)
 
   # Special processing of other options, sorted alphabetically.
 
@@ -203,26 +221,47 @@ def ProcessOptions(options):
     """Returns true if zero or one of multiple arguments are true."""
     return reduce(lambda x, y: x + y, args) <= 1
 
-  if not excl(options.no_stress, options.stress_only, options.no_variants):
-    print "Use only one of --no-stress, --stress-only or --no-variants."
+  if not excl(options.no_stress, options.stress_only, options.no_variants,
+              bool(options.variants), options.quickcheck):
+    print("Use only one of --no-stress, --stress-only, --no-variants, "
+          "--variants, or --quickcheck.")
     return False
   if options.no_stress:
-    VARIANT_FLAGS = [[], ["--nocrankshaft"]]
+    VARIANTS = ["default", "nocrankshaft"]
   if options.no_variants:
-    VARIANT_FLAGS = [[]]
+    VARIANTS = ["default"]
+  if options.stress_only:
+    VARIANTS = ["stress"]
+  if options.variants:
+    VARIANTS = options.variants.split(",")
+    if not set(VARIANTS).issubset(VARIANT_FLAGS.keys()):
+      print "All variants must be in %s" % str(VARIANT_FLAGS.keys())
+      return False
+  if options.quickcheck:
+    VARIANTS = ["default", "stress"]
+    options.flaky_tests = "skip"
+    options.slow_tests = "skip"
+    options.pass_fail_tests = "skip"
+
   if not options.shell_dir:
     if options.shell:
       print "Warning: --shell is deprecated, use --shell-dir instead."
       options.shell_dir = os.path.dirname(options.shell)
-  if options.stress_only:
-    VARIANT_FLAGS = [["--stress-opt", "--always-opt"]]
   if options.valgrind:
     run_valgrind = os.path.join("tools", "run-valgrind.py")
     # This is OK for distributed running, so we don't need to set no_network.
     options.command_prefix = (["python", "-u", run_valgrind] +
                               options.command_prefix)
-  if not options.flaky_tests in ["run", "skip", "dontcare"]:
-    print "Unknown flaky test mode %s" % options.flaky_tests
+  def CheckTestMode(name, option):
+    if not option in ["run", "skip", "dontcare"]:
+      print "Unknown %s mode %s" % (name, option)
+      return False
+    return True
+  if not CheckTestMode("flaky test", options.flaky_tests):
+    return False
+  if not CheckTestMode("slow test", options.slow_tests):
+    return False
+  if not CheckTestMode("pass|fail test", options.pass_fail_tests):
     return False
   return True
 
@@ -261,14 +300,14 @@ def Main():
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 
   if len(args) == 0:
-    suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
+    suite_paths = [ s for s in DEFAULT_TESTS if s in suite_paths ]
   else:
     args_suites = set()
     for arg in args:
       suite = arg.split(os.path.sep)[0]
       if not suite in args_suites:
         args_suites.add(suite)
-    suite_paths = [ s for s in suite_paths if s in args_suites ]
+    suite_paths = [ s for s in args_suites if s in suite_paths ]
 
   suites = []
   for root in suite_paths:
@@ -281,10 +320,12 @@ def Main():
     for s in suites:
       s.DownloadData()
 
-  for mode in options.mode:
-    for arch in options.arch:
+  for (arch, mode) in options.arch_and_mode:
+    try:
       code = Execute(arch, mode, args, options, suites, workspace)
-      exit_code = exit_code or code
+    except KeyboardInterrupt:
+      return 2
+    exit_code = exit_code or code
   return exit_code
 
 
@@ -300,6 +341,9 @@ def Execute(arch, mode, args, options, suites, workspace):
       shell_dir = os.path.join(workspace, options.outdir,
                                "%s.%s" % (arch, mode))
   shell_dir = os.path.relpath(shell_dir)
+
+  if mode == "optdebug":
+    mode = "debug"  # "optdebug" is just an alias.
 
   # Populate context object.
   mode_flags = MODE_FLAGS[mode]
@@ -337,13 +381,15 @@ def Execute(arch, mode, args, options, suites, workspace):
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
-    s.FilterTestCasesByStatus(options.warn_unused, options.flaky_tests)
+    s.FilterTestCasesByStatus(options.warn_unused, options.flaky_tests,
+                              options.slow_tests, options.pass_fail_tests)
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
+    variant_flags = [VARIANT_FLAGS[var] for var in VARIANTS]
     s.tests = [ t.CopyAddingFlags(v)
                 for t in s.tests
-                for v in s.VariantFlags(t, VARIANT_FLAGS) ]
+                for v in s.VariantFlags(t, variant_flags) ]
     s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
     num_tests += len(s.tests)
     for t in s.tests:
@@ -398,7 +444,7 @@ def Execute(arch, mode, args, options, suites, workspace):
       return exit_code
     overall_duration = time.time() - start_time
   except KeyboardInterrupt:
-    return 1
+    raise
 
   if options.time:
     verbose.PrintTestDurations(suites, overall_duration)

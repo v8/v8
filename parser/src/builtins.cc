@@ -153,8 +153,8 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 #endif
 
 
-static inline bool CalledAsConstructor(Isolate* isolate) {
 #ifdef DEBUG
+static inline bool CalledAsConstructor(Isolate* isolate) {
   // Calculate the result using a full stack frame iterator and check
   // that the state of the stack is as we assume it to be in the
   // code below.
@@ -163,7 +163,6 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   it.Advance();
   StackFrame* frame = it.frame();
   bool reference_result = frame->is_construct();
-#endif
   Address fp = Isolate::c_entry_fp(isolate->thread_local_top());
   // Because we know fp points to an exit frame we can use the relevant
   // part of ExitFrame::ComputeCallerState directly.
@@ -180,6 +179,7 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   ASSERT_EQ(result, reference_result);
   return result;
 }
+#endif
 
 
 // ----------------------------------------------------------------------------
@@ -276,15 +276,10 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   FixedArrayBase* new_elms = FixedArrayBase::cast(HeapObject::FromAddress(
       elms->address() + size_delta));
   HeapProfiler* profiler = heap->isolate()->heap_profiler();
-  if (profiler->is_profiling()) {
+  if (profiler->is_tracking_object_moves()) {
     profiler->ObjectMoveEvent(elms->address(),
                               new_elms->address(),
                               new_elms->Size());
-    if (profiler->is_tracking_allocations()) {
-      // Report filler object as a new allocation.
-      // Otherwise it will become an untracked object.
-      profiler->NewObjectEvent(elms->address(), elms->Size());
-    }
   }
   return new_elms;
 }
@@ -312,6 +307,7 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
   if (array->map()->is_observed()) return NULL;
+  if (!array->map()->is_extensible()) return NULL;
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
@@ -1385,11 +1381,6 @@ static void Generate_StoreIC_Slow(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_Slow_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateSlow(masm);
-}
-
-
 static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
   StoreIC::GenerateInitialize(masm);
 }
@@ -1420,28 +1411,15 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_Normal_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateNormal(masm);
-}
-
-
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kNonStrictMode);
+  StoreIC::GenerateMegamorphic(masm,
+                               StoreIC::ComputeExtraICState(kNonStrictMode));
 }
 
 
 static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kNonStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kStrictMode);
+  StoreIC::GenerateMegamorphic(masm,
+                               StoreIC::ComputeExtraICState(kStrictMode));
 }
 
 
@@ -1476,11 +1454,6 @@ static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
-}
-
-
-static void Generate_KeyedStoreIC_Slow_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }
 
@@ -1667,13 +1640,14 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
-#define DEF_FUNCTION_PTR_H(aname, kind, extra)                              \
+#define DEF_FUNCTION_PTR_H(aname, kind)                                     \
     functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
     functions->c_code = NULL;                                               \
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
     functions->flags = Code::ComputeFlags(                                  \
-        Code::HANDLER, MONOMORPHIC, extra, Code::NORMAL, Code::kind);       \
+        Code::HANDLER, MONOMORPHIC, kNoExtraICState,                        \
+        Code::NORMAL, Code::kind);                                          \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
@@ -1805,7 +1779,7 @@ Handle<Code> Builtins::name() {                             \
       reinterpret_cast<Code**>(builtin_address(k##name));   \
   return Handle<Code>(code_address);                        \
 }
-#define DEFINE_BUILTIN_ACCESSOR_H(name, kind, extra)        \
+#define DEFINE_BUILTIN_ACCESSOR_H(name, kind)               \
 Handle<Code> Builtins::name() {                             \
   Code** code_address =                                     \
       reinterpret_cast<Code**>(builtin_address(k##name));   \

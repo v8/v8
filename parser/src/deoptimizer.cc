@@ -691,12 +691,12 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
     }
   }
   PrintF(stderr, "[couldn't find pc offset for node=%d]\n", id.ToInt());
-  PrintF(stderr, "[method: %s]\n", *shared->DebugName()->ToCString());
+  PrintF(stderr, "[method: %s]\n", shared->DebugName()->ToCString().get());
   // Print the source code if available.
   HeapStringAllocator string_allocator;
   StringStream stream(&string_allocator);
   shared->SourceCodePrint(&stream, -1);
-  PrintF(stderr, "[source:\n%s\n]", *stream.ToCString());
+  PrintF(stderr, "[source:\n%s\n]", stream.ToCString().get());
 
   FATAL("unable to find pc offset during deoptimization");
   return -1;
@@ -1522,6 +1522,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   output_frame->SetRegister(context_reg.code(), value);
   output_frame_offset -= kPointerSize;
   output_frame->SetFrameSlot(output_frame_offset, value);
+  ASSERT(reinterpret_cast<Object*>(value)->IsContext());
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"

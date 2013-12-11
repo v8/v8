@@ -1434,11 +1434,11 @@ class HGoto V8_FINAL : public HTemplateControlInstruction<1, 0> {
 
 class HDeoptimize V8_FINAL : public HTemplateControlInstruction<1, 0> {
  public:
-  static HInstruction* New(Zone* zone,
-                           HValue* context,
-                           const char* reason,
-                           Deoptimizer::BailoutType type,
-                           HBasicBlock* unreachable_continuation) {
+  static HDeoptimize* New(Zone* zone,
+                          HValue* context,
+                          const char* reason,
+                          Deoptimizer::BailoutType type,
+                          HBasicBlock* unreachable_continuation) {
     return new(zone) HDeoptimize(reason, type, unreachable_continuation);
   }
 
@@ -2638,9 +2638,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         case kMathPowHalf:
         case kMathLog:
         case kMathExp:
-        case kMathSin:
-        case kMathCos:
-        case kMathTan:
           return Representation::Double();
         case kMathAbs:
           return representation();
@@ -2685,9 +2682,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
       case kMathLog:
-      case kMathSin:
-      case kMathCos:
-      case kMathTan:
         set_representation(Representation::Double());
         // These operations use the TranscendentalCache, so they may allocate.
         SetGVNFlag(kChangesNewSpacePromotion);
@@ -4029,6 +4023,8 @@ class HBoundsCheck V8_FINAL : public HTemplateInstruction<2> {
  protected:
   friend class HBoundsCheckBaseIndexInformation;
 
+  virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
+
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
   bool skip_check_;
   HValue* base_;
@@ -4732,8 +4728,9 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
 
   // Add is only commutative if two integer values are added and not if two
   // tagged values are added (because it might be a String concatenation).
+  // We also do not commute (pointer + offset).
   virtual bool IsCommutative() const V8_OVERRIDE {
-    return !representation().IsTagged();
+    return !representation().IsTagged() && !representation().IsExternal();
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(
@@ -4768,6 +4765,10 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
       SetFlag(kUseGVN);
     }
   }
+
+  virtual Representation RepresentationFromInputs() V8_OVERRIDE;
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
@@ -5432,9 +5433,11 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
                         HValue* size,
                         HType type,
                         PretenureFlag pretenure_flag,
-                        InstanceType instance_type) {
+                        InstanceType instance_type,
+                        Handle<AllocationSite> allocation_site =
+                            Handle<AllocationSite>::null()) {
     return new(zone) HAllocate(context, size, type, pretenure_flag,
-        instance_type);
+        instance_type, allocation_site);
   }
 
   // Maximum instance size for which allocations will be inlined.
@@ -5507,7 +5510,9 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             HValue* size,
             HType type,
             PretenureFlag pretenure_flag,
-            InstanceType instance_type)
+            InstanceType instance_type,
+            Handle<AllocationSite> allocation_site =
+                Handle<AllocationSite>::null())
       : HTemplateInstruction<2>(type),
         dominating_allocate_(NULL),
         filler_free_space_size_(NULL),
@@ -5535,6 +5540,14 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     }
     clear_next_map_word_ = pretenure_flag == NOT_TENURED &&
         AllocationSite::CanTrack(instance_type);
+
+    if (FLAG_trace_pretenuring) {
+      PrintF("HAllocate with AllocationSite %p %s\n",
+             allocation_site.is_null()
+                 ? static_cast<void*>(NULL)
+                 : static_cast<void*>(*allocation_site),
+             pretenure_flag == TENURED ? "tenured" : "not tenured");
+    }
   }
 
   void UpdateSize(HValue* size) {
@@ -5590,21 +5603,21 @@ class HStoreCodeEntry V8_FINAL: public HTemplateInstruction<2> {
 };
 
 
-class HInnerAllocatedObject V8_FINAL: public HTemplateInstruction<1> {
+class HInnerAllocatedObject V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HInnerAllocatedObject* New(Zone* zone,
                                     HValue* context,
                                     HValue* value,
-                                    int offset,
+                                    HValue* offset,
                                     HType type = HType::Tagged()) {
     return new(zone) HInnerAllocatedObject(value, offset, type);
   }
 
   HValue* base_object() { return OperandAt(0); }
-  int offset() { return offset_; }
+  HValue* offset() { return OperandAt(1); }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
+    return index == 0 ? Representation::Tagged() : Representation::Integer32();
   }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -5612,15 +5625,16 @@ class HInnerAllocatedObject V8_FINAL: public HTemplateInstruction<1> {
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
 
  private:
-  HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
-      : HTemplateInstruction<1>(type), offset_(offset) {
+  HInnerAllocatedObject(HValue* value,
+                        HValue* offset,
+                        HType type = HType::Tagged())
+      : HTemplateInstruction<2>(type) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
+    SetOperandAt(1, offset);
     set_type(type);
     set_representation(Representation::Tagged());
   }
-
-  int offset_;
 };
 
 
@@ -5632,11 +5646,10 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 
 
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
+                                            HValue* value,
                                             HValue* new_space_dominator) {
-  if (object->IsInnerAllocatedObject()) {
-    return ReceiverObjectNeedsWriteBarrier(
-        HInnerAllocatedObject::cast(object)->base_object(),
-        new_space_dominator);
+  while (object->IsInnerAllocatedObject()) {
+    object = HInnerAllocatedObject::cast(object)->base_object();
   }
   if (object->IsConstant() && HConstant::cast(object)->IsCell()) {
     return false;
@@ -5648,7 +5661,17 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
   }
   if (object != new_space_dominator) return true;
   if (object->IsAllocate()) {
-    return !HAllocate::cast(object)->IsNewSpaceAllocation();
+    // Stores to new space allocations require no write barriers if the object
+    // is the new space dominator.
+    if (HAllocate::cast(object)->IsNewSpaceAllocation()) {
+      return false;
+    }
+    // Likewise we don't need a write barrier if we store a value that
+    // originates from the same allocation (via allocation folding).
+    while (value->IsInnerAllocatedObject()) {
+      value = HInnerAllocatedObject::cast(value)->base_object();
+    }
+    return object != value;
   }
   return true;
 }
@@ -5932,10 +5955,7 @@ class HObjectAccess V8_FINAL {
                 ? Representation::Smi() : Representation::Tagged());
   }
 
-  static HObjectAccess ForAllocationSiteOffset(int offset) {
-    ASSERT(offset >= HeapObject::kHeaderSize && offset < AllocationSite::kSize);
-    return HObjectAccess(kInobject, offset);
-  }
+  static HObjectAccess ForAllocationSiteOffset(int offset);
 
   static HObjectAccess ForAllocationSiteList() {
     return HObjectAccess(kExternalMemory, 0, Representation::Tagged());
@@ -6062,6 +6082,43 @@ class HObjectAccess V8_FINAL {
   // Create an access for the payload of a Cell or JSGlobalPropertyCell.
   static HObjectAccess ForCellPayload(Isolate* isolate);
 
+  static HObjectAccess ForJSTypedArrayLength() {
+    return HObjectAccess::ForJSObjectOffset(JSTypedArray::kLengthOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferBackingStore() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBuffer::kBackingStoreOffset, Representation::External());
+  }
+
+  static HObjectAccess ForExternalArrayExternalPointer() {
+    return HObjectAccess::ForJSObjectOffset(
+        ExternalArray::kExternalPointerOffset, Representation::External());
+  }
+
+  static HObjectAccess ForJSArrayBufferViewWeakNext() {
+    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kWeakNextOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferWeakFirstView() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBuffer::kWeakFirstViewOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewBuffer() {
+    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kBufferOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewByteOffset() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBufferView::kByteOffsetOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewByteLength() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBufferView::kByteLengthOffset);
+  }
+
   void PrintTo(StringStream* stream);
 
   inline bool Equals(HObjectAccess that) const {
@@ -6159,7 +6216,11 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
       set_representation(Representation::Integer32());
     } else if (representation.IsSmi()) {
       set_type(HType::Smi());
-      set_representation(representation);
+      if (SmiValuesAre32Bits()) {
+        set_representation(Representation::Integer32());
+      } else {
+        set_representation(representation);
+      }
     } else if (representation.IsDouble() ||
                representation.IsExternal() ||
                representation.IsInteger32()) {
@@ -6478,6 +6539,8 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
       } else if (field_representation().IsDouble() ||
                  field_representation().IsSmi()) {
         return field_representation();
+      } else if (field_representation().IsExternal()) {
+        return Representation::External();
       }
     }
     return Representation::Tagged();
@@ -6530,12 +6593,14 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     if (field_representation().IsInteger32()) return false;
     if (field_representation().IsExternal()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
-        ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
+        ReceiverObjectNeedsWriteBarrier(object(), value(),
+                                        new_space_dominator());
   }
 
   bool NeedsWriteBarrierForMap() {
     if (IsSkipWriteBarrier()) return false;
-    return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
+    return ReceiverObjectNeedsWriteBarrier(object(), transition(),
+                                           new_space_dominator());
   }
 
   Representation field_representation() const {
@@ -6697,7 +6762,8 @@ class HStoreKeyed V8_FINAL
       return false;
     } else {
       return StoringValueNeedsWriteBarrier(value()) &&
-          ReceiverObjectNeedsWriteBarrier(elements(), new_space_dominator());
+          ReceiverObjectNeedsWriteBarrier(elements(), value(),
+                                          new_space_dominator());
     }
   }
 

@@ -171,6 +171,8 @@ class Execution : public AllStatic {
   static Handle<Object> TryGetConstructorDelegate(Isolate* isolate,
                                                   Handle<Object> object,
                                                   bool* has_pending_exception);
+
+  static void RunMicrotasks(Isolate* isolate);
 };
 
 

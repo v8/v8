@@ -92,10 +92,12 @@ TEST(WeakArrayBuffersFromApi) {
   int start = CountArrayBuffersInWeakList(isolate->heap());
   {
     v8::HandleScope s1(context->GetIsolate());
-    v8::Handle<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(256);
+    v8::Handle<v8::ArrayBuffer> ab1 =
+        v8::ArrayBuffer::New(context->GetIsolate(), 256);
     {
       v8::HandleScope s2(context->GetIsolate());
-      v8::Handle<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(128);
+      v8::Handle<v8::ArrayBuffer> ab2 =
+          v8::ArrayBuffer::New(context->GetIsolate(), 128);
 
       Handle<JSArrayBuffer> iab1 = v8::Utils::OpenHandle(*ab1);
       Handle<JSArrayBuffer> iab2 = v8::Utils::OpenHandle(*ab2);
@@ -186,7 +188,8 @@ void TestViewFromApi() {
   Isolate* isolate = GetIsolateFrom(&context);
 
   v8::HandleScope s1(context->GetIsolate());
-  v8::Handle<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(2048);
+  v8::Handle<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New(context->GetIsolate(), 2048);
   Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
   {
     v8::HandleScope s2(context->GetIsolate());

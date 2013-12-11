@@ -425,8 +425,12 @@ class V8_EXPORT HeapProfiler {
    * Starts tracking of heap objects population statistics. After calling
    * this method, all heap objects relocations done by the garbage collector
    * are being registered.
+   *
+   * |track_allocations| parameter controls whether stack trace of each
+   * allocation in the heap will be recorded and reported as part of
+   * HeapSnapshot.
    */
-  void StartTrackingHeapObjects();
+  void StartTrackingHeapObjects(bool track_allocations = false);
 
   /**
    * Adds a new time interval entry to the aggregated statistics array. The
@@ -479,13 +483,15 @@ class V8_EXPORT HeapProfiler {
    * Starts recording JS allocations immediately as they arrive and tracking of
    * heap objects population statistics.
    */
-  void StartRecordingHeapAllocations();
+  V8_DEPRECATED("Use StartTrackingHeapObjects instead",
+                void StartRecordingHeapAllocations());
 
   /**
    * Stops recording JS allocations and tracking of heap objects population
    * statistics, cleans all collected heap objects population statistics data.
    */
-  void StopRecordingHeapAllocations();
+  V8_DEPRECATED("Use StopTrackingHeapObjects instead",
+                void StopRecordingHeapAllocations());
 
 
  private:

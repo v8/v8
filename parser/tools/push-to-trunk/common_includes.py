@@ -26,11 +26,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import datetime
 import os
 import re
 import subprocess
 import sys
 import textwrap
+import time
 import urllib2
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
@@ -99,12 +101,12 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
   result = ""
   added_titles = set()
   for (title, body, author) in commit_messages:
-    # TODO(machenbach): Reload the commit description from rietveld in order to
-    # catch late changes.
+    # TODO(machenbach): Better check for reverts. A revert should remove the
+    # original CL from the actual log entry.
     title = title.strip()
     if auto_format:
       # Only add commits that set the LOG flag correctly.
-      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:Y(?:ES)?)|TRUE"
+      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:(?:Y(?:ES)?)|TRUE)"
       if not re.search(log_exp, body, flags=re.I | re.M):
         continue
       # Never include reverts.
@@ -114,16 +116,12 @@ def MakeChangeLogBody(commit_messages, auto_format=False):
       if title in added_titles:
         continue
 
-    # TODO(machenbach): Let python do all formatting. Get raw git title, attach
-    # issue and add/move dot to the end - all in one line. Make formatting and
-    # indentation afterwards.
-
-    # Add the commit's title line.
-    result += "%s\n" % Fill80(title)
+    # Add and format the commit's title and bug reference. Move dot to the end.
     added_titles.add(title)
-
-    # Add bug references.
-    result += MakeChangeLogBugReference(body)
+    raw_title = re.sub(r"(\.|\?|!)$", "", title)
+    bug_reference = MakeChangeLogBugReference(body)
+    space = " " if bug_reference else ""
+    result += "%s\n" % Fill80("%s%s%s." % (raw_title, space, bug_reference))
 
     # Append the commit's author for reference if not in auto-format mode.
     if not auto_format:
@@ -169,8 +167,7 @@ def MakeChangeLogBugReference(body):
   FormatIssues("Chromium ", crbugs)
 
   if len(bug_groups) > 0:
-    # Format with 8 characters indentation and max 80 character lines.
-    return "%s\n" % Fill80("(%s)" % ", ".join(bug_groups))
+    return "(%s)" % ", ".join(bug_groups)
   else:
     return ""
 
@@ -178,6 +175,7 @@ def MakeChangeLogBugReference(body):
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
 def Command(cmd, args="", prefix="", pipe=True):
+  # TODO(machenbach): Use timeout.
   cmd_line = "%s %s %s" % (prefix, cmd, args)
   print "Command: %s" % cmd_line
   try:
@@ -205,6 +203,12 @@ class SideEffectHandler(object):
     finally:
       url_fh.close()
 
+  def Sleep(self, seconds):
+    time.sleep(seconds)
+
+  def GetDate(self):
+    return datetime.date.today().strftime("%Y-%m-%d")
+
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
@@ -225,6 +229,12 @@ class Step(object):
   def Config(self, key):
     return self._config[key]
 
+  def IsForced(self):
+    return self._options and self._options.f
+
+  def IsManual(self):
+    return self._options and self._options.m
+
   def Run(self):
     if self._requires:
       self.RestoreIfUnset(self._requires)
@@ -236,23 +246,59 @@ class Step(object):
   def RunStep(self):
     raise NotImplementedError
 
+  def Retry(self, cb, retry_on=None, wait_plan=None):
+    """ Retry a function.
+    Params:
+      cb: The function to retry.
+      retry_on: A callback that takes the result of the function and returns
+                True if the function should be retried. A function throwing an
+                exception is always retried.
+      wait_plan: A list of waiting delays between retries in seconds. The
+                 maximum number of retries is len(wait_plan).
+    """
+    retry_on = retry_on or (lambda x: False)
+    wait_plan = list(wait_plan or [])
+    wait_plan.reverse()
+    while True:
+      got_exception = False
+      try:
+        result = cb()
+      except Exception:
+        got_exception = True
+      if got_exception or retry_on(result):
+        if not wait_plan:
+          raise Exception("Retried too often. Giving up.")
+        wait_time = wait_plan.pop()
+        print "Waiting for %f seconds." % wait_time
+        self._side_effect_handler.Sleep(wait_time)
+        print "Retrying..."
+      else:
+        return result
+
   def ReadLine(self, default=None):
     # Don't prompt in forced mode.
-    if self._options and self._options.f and default is not None:
+    if not self.IsManual() and default is not None:
       print "%s (forced)" % default
       return default
     else:
       return self._side_effect_handler.ReadLine()
 
-  def Git(self, args="", prefix="", pipe=True):
-    return self._side_effect_handler.Command("git", args, prefix, pipe)
+  def Git(self, args="", prefix="", pipe=True, retry_on=None):
+    cmd = lambda: self._side_effect_handler.Command("git", args, prefix, pipe)
+    return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
-    return self._side_effect_handler.Command(os.environ["EDITOR"], args,
-                                             pipe=False)
+    if not self.IsForced():
+      return self._side_effect_handler.Command(os.environ["EDITOR"], args,
+                                               pipe=False)
 
-  def ReadURL(self, url):
-    return self._side_effect_handler.ReadURL(url)
+  def ReadURL(self, url, retry_on=None, wait_plan=None):
+    wait_plan = wait_plan or [3, 60, 600]
+    cmd = lambda: self._side_effect_handler.ReadURL(url)
+    return self.Retry(cmd, retry_on, wait_plan)
+
+  def GetDate(self):
+    return self._side_effect_handler.GetDate()
 
   def Die(self, msg=""):
     if msg != "":
@@ -260,9 +306,9 @@ class Step(object):
     print "Exiting"
     raise Exception(msg)
 
-  def DieInForcedMode(self, msg=""):
-    if self._options and self._options.f:
-      msg = msg or "Not implemented in forced mode."
+  def DieNoManualMode(self, msg=""):
+    if not self.IsManual():
+      msg = msg or "Only available in manual mode."
       self.Die(msg)
 
   def Confirm(self, msg):
@@ -301,11 +347,9 @@ class Step(object):
     if not os.path.exists(self._config[DOT_GIT_LOCATION]):
       self.Die("This is not a git checkout, this script won't work for you.")
 
-    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
-    # well tested.
     # Cancel if EDITOR is unset or not executable.
-    if (not os.environ.get("EDITOR") or
-        Command("which", os.environ["EDITOR"]) is None):
+    if (not self.IsForced() and (not os.environ.get("EDITOR") or
+        Command("which", os.environ["EDITOR"]) is None)):
       self.Die("Please set your EDITOR environment variable, you'll need it.")
 
   def CommonPrepare(self):
@@ -374,9 +418,7 @@ class Step(object):
     answer = ""
     while answer != "LGTM":
       print "> ",
-      # TODO(machenbach): Add default="LGTM" to avoid prompt when script is
-      # well tested and when prepare push cl has TBR flag.
-      answer = self.ReadLine()
+      answer = self.ReadLine("LGTM" if self.IsForced() else None)
       if answer != "LGTM":
         print "That was not 'LGTM'."
 
@@ -384,7 +426,7 @@ class Step(object):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
           "'git add', and type \"RESOLVED<Return>\"")
-    self.DieInForcedMode()
+    self.DieNoManualMode()
     answer = ""
     while answer != "RESOLVED":
       if answer == "ABORT":
@@ -410,9 +452,9 @@ class UploadStep(Step):
       reviewer = self._options.r
     else:
       print "Please enter the email address of a V8 reviewer for your patch: ",
-      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    force_flag = " -f" if self._options.f else ""
+    force_flag = " -f" if not self.IsManual() else ""
     args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.

@@ -236,7 +236,7 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
       space = retry_space;
     } else {
       if (profiler->is_tracking_allocations() && result->To(&object)) {
-        profiler->NewObjectEvent(object->address(), size_in_bytes);
+        profiler->AllocationEvent(object->address(), size_in_bytes);
       }
       return result;
     }
@@ -260,7 +260,7 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
   }
   if (result->IsFailure()) old_gen_exhausted_ = true;
   if (profiler->is_tracking_allocations() && result->To(&object)) {
-    profiler->NewObjectEvent(object->address(), size_in_bytes);
+    profiler->AllocationEvent(object->address(), size_in_bytes);
   }
   return result;
 }
@@ -483,6 +483,18 @@ void Heap::ScavengePointer(HeapObject** p) {
 }
 
 
+void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
+  if (FLAG_allocation_site_pretenuring && object->IsJSObject()) {
+    AllocationMemento* memento = AllocationMemento::FindForJSObject(
+        JSObject::cast(object), true);
+    if (memento != NULL) {
+      ASSERT(memento->IsValid());
+      memento->GetAllocationSite()->IncrementMementoFoundCount();
+    }
+  }
+}
+
+
 void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   ASSERT(object->GetIsolate()->heap()->InFromSpace(object));
 
@@ -501,12 +513,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  if (FLAG_trace_track_allocation_sites && object->IsJSObject()) {
-    if (AllocationMemento::FindForJSObject(JSObject::cast(object), true) !=
-        NULL) {
-      object->GetIsolate()->heap()->allocation_mementos_found_++;
-    }
-  }
+  UpdateAllocationSiteFeedback(object);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
@@ -756,23 +763,10 @@ Address TranscendentalCache::cache_array_address() {
 
 double TranscendentalCache::SubCache::Calculate(double input) {
   switch (type_) {
-    case ACOS:
-      return acos(input);
-    case ASIN:
-      return asin(input);
-    case ATAN:
-      return atan(input);
-    case COS:
-      return fast_cos(input);
-    case EXP:
-      return exp(input);
     case LOG:
       return fast_log(input);
-    case SIN:
-      return fast_sin(input);
-    case TAN:
-      return fast_tan(input);
     default:
+      UNREACHABLE();
       return 0.0;  // Never happens.
   }
 }

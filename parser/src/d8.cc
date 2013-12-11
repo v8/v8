@@ -168,10 +168,9 @@ ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
 
+#ifndef V8_SHARED
 const int MB = 1024 * 1024;
 
-
-#ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
   const char* name2 = reinterpret_cast<const char*>(key2);
@@ -610,19 +609,19 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
 Handle<Array> Shell::GetCompletions(Isolate* isolate,
                                     Handle<String> text,
                                     Handle<String> full) {
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
   v8::Local<v8::Context> utility_context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(utility_context);
   Handle<Object> global = utility_context->Global();
-  Handle<Value> fun =
+  Local<Value> fun =
       global->Get(String::NewFromUtf8(isolate, "GetCompletions"));
   static const int kArgc = 3;
   v8::Local<v8::Context> evaluation_context =
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   Handle<Value> argv[kArgc] = { evaluation_context->Global(), text, full };
-  Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  return handle_scope.Close(Handle<Array>::Cast(val));
+  Local<Value> val = Local<Function>::Cast(fun)->Call(global, kArgc, argv);
+  return handle_scope.Escape(Local<Array>::Cast(val));
 }
 
 
@@ -966,7 +965,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, NULL, global_template);
   ASSERT(!context.IsEmpty());
   Context::Scope scope(context);
@@ -986,7 +985,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   context->Global()->Set(String::NewFromUtf8(isolate, "arguments"),
                          Utils::ToLocal(arguments_jsarray));
 #endif  // V8_SHARED
-  return handle_scope.Close(context);
+  return handle_scope.Escape(context);
 }
 
 
@@ -1097,16 +1096,22 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
   return chars;
 }
 
-static void ReadBufferWeakCallback(v8::Isolate* isolate,
-                                   Persistent<ArrayBuffer>* array_buffer,
-                                   uint8_t* data) {
-  size_t byte_length =
-      Local<ArrayBuffer>::New(isolate, *array_buffer)->ByteLength();
-  isolate->AdjustAmountOfExternalAllocatedMemory(
+
+struct DataAndPersistent {
+  uint8_t* data;
+  Persistent<ArrayBuffer> handle;
+};
+
+
+static void ReadBufferWeakCallback(
+    const v8::WeakCallbackData<ArrayBuffer, DataAndPersistent>& data) {
+  size_t byte_length = data.GetValue()->ByteLength();
+  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<intptr_t>(byte_length));
 
-  delete[] data;
-  array_buffer->Reset();
+  delete[] data.GetParameter()->data;
+  data.GetParameter()->handle.Reset();
+  delete data.GetParameter();
 }
 
 
@@ -1120,16 +1125,18 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   Isolate* isolate = args.GetIsolate();
-  uint8_t* data = reinterpret_cast<uint8_t*>(
+  DataAndPersistent* data = new DataAndPersistent;
+  data->data = reinterpret_cast<uint8_t*>(
       ReadChars(args.GetIsolate(), *filename, &length));
-  if (data == NULL) {
+  if (data->data == NULL) {
+    delete data;
     Throw(args.GetIsolate(), "Error reading file");
     return;
   }
-  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
-  v8::Persistent<v8::ArrayBuffer> weak_handle(isolate, buffer);
-  weak_handle.MakeWeak(data, ReadBufferWeakCallback);
-  weak_handle.MarkIndependent();
+  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data, length);
+  data->handle.Reset(isolate, buffer);
+  data->handle.SetWeak(data, ReadBufferWeakCallback);
+  data->handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
   args.GetReturnValue().Set(buffer);

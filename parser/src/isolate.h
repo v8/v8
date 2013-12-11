@@ -362,7 +362,7 @@ typedef List<HeapObject*> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
-  V(bool, observer_delivery_pending, false)                                    \
+  V(bool, microtask_pending, false)                                           \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
   V(CodeTracer*, code_tracer, NULL)                                            \
@@ -787,9 +787,6 @@ class Isolate {
   // Attempts to compute the current source location, storing the
   // result in the target out parameter.
   void ComputeLocation(MessageLocation* target);
-
-  // Override command line flag.
-  void TraceException(bool flag);
 
   // Out of resource exception helpers.
   Failure* StackOverflow();

@@ -78,7 +78,8 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
       var newLength = ToPositiveInteger(length, "invalid_typed_array_length");
       newByteLength = newLength * ELEMENT_SIZE;
     }
-    if (offset + newByteLength > bufferByteLength) {
+    if ((offset + newByteLength > bufferByteLength)
+        || (newLength > %MaxSmi())) {
       throw MakeRangeError("invalid_typed_array_length");
     }
     %TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
@@ -98,6 +99,9 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   function NAMEConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
     var l = ToPositiveInteger(length, "invalid_typed_array_length");
+    if (l > %MaxSmi()) {
+      throw MakeRangeError("invalid_typed_array_length");
+    }
     if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
       for (var i = 0; i < l; i++) {
         // It is crucial that we let any execptions from arrayLike[i]

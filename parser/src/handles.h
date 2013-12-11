@@ -83,7 +83,7 @@ class Handle {
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
-  inline Handle<T> EscapeFrom(v8::HandleScope* scope);
+  inline Handle<T> EscapeFrom(v8::EscapableHandleScope* scope);
 
 #ifdef DEBUG
   enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };

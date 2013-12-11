@@ -205,6 +205,9 @@ var knownProblems = {
   "_OneByteSeqStringSetChar": true,
   "_TwoByteSeqStringSetChar": true,
 
+  // Only applicable to TypedArrays.
+  "TypedArrayInitialize": true,
+
   // Only applicable to generators.
   "_GeneratorNext": true,
   "_GeneratorThrow": true,

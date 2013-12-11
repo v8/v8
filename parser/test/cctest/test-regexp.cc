@@ -132,7 +132,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 
 #define CHECK_PARSE_ERROR(input) CHECK(!CheckParse(input))
-#define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
+#define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, Parse(input).get())
 #define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
 #define CHECK_MIN_MAX(input, min, max)                                         \
   { MinMaxPair min_max = CheckMinMaxMatch(input);                              \
@@ -399,7 +399,7 @@ static void ExpectError(const char* input,
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
-  CHECK_EQ(expected, *str);
+  CHECK_EQ(expected, str.get());
 }
 
 
@@ -430,7 +430,7 @@ TEST(Errors) {
     accumulator.Add("()");
   }
   SmartArrayPointer<const char> many_captures(accumulator.ToCString());
-  ExpectError(*many_captures, kTooManyCaptures);
+  ExpectError(many_captures.get(), kTooManyCaptures);
 }
 
 

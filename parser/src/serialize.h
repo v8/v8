@@ -364,7 +364,7 @@ class Deserializer: public SerializerDeserializer {
     high_water_[space_index] = address + size;
     HeapProfiler* profiler = isolate_->heap_profiler();
     if (profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(address, size);
+      profiler->AllocationEvent(address, size);
     }
     return address;
   }

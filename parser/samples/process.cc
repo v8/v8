@@ -311,7 +311,7 @@ Persistent<ObjectTemplate> JsHttpRequestProcessor::map_template_;
 // JavaScript object.
 Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
   // Handle scope for temporary handles.
-  HandleScope handle_scope(GetIsolate());
+  EscapableHandleScope handle_scope(GetIsolate());
 
   // Fetch the template for creating JavaScript map wrappers.
   // It only has to be created once, which we do on demand.
@@ -323,7 +323,7 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
       Local<ObjectTemplate>::New(GetIsolate(), map_template_);
 
   // Create an empty map wrapper.
-  Handle<Object> result = templ->NewInstance();
+  Local<Object> result = templ->NewInstance();
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
@@ -336,7 +336,7 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
   // of these handles will go away when the handle scope is deleted
   // we need to call Close to let one, the result, escape into the
   // outer handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 
@@ -399,14 +399,14 @@ void JsHttpRequestProcessor::MapSet(Local<String> name,
 
 Handle<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
     Isolate* isolate) {
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
 
-  Handle<ObjectTemplate> result = ObjectTemplate::New();
+  Local<ObjectTemplate> result = ObjectTemplate::New();
   result->SetInternalFieldCount(1);
   result->SetNamedPropertyHandler(MapGet, MapSet);
 
   // Again, return the result through the current handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 
@@ -420,7 +420,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
  */
 Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
   // Handle scope for temporary handles.
-  HandleScope handle_scope(GetIsolate());
+  EscapableHandleScope handle_scope(GetIsolate());
 
   // Fetch the template for creating JavaScript http request wrappers.
   // It only has to be created once, which we do on demand.
@@ -432,7 +432,7 @@ Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
       Local<ObjectTemplate>::New(GetIsolate(), request_template_);
 
   // Create an empty http request wrapper.
-  Handle<Object> result = templ->NewInstance();
+  Local<Object> result = templ->NewInstance();
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
@@ -445,7 +445,7 @@ Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
   // of these handles will go away when the handle scope is deleted
   // we need to call Close to let one, the result, escape into the
   // outer handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 
@@ -509,9 +509,9 @@ void JsHttpRequestProcessor::GetUserAgent(
 
 Handle<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate(
     Isolate* isolate) {
-  HandleScope handle_scope(isolate);
+  EscapableHandleScope handle_scope(isolate);
 
-  Handle<ObjectTemplate> result = ObjectTemplate::New();
+  Local<ObjectTemplate> result = ObjectTemplate::New();
   result->SetInternalFieldCount(1);
 
   // Add accessors for each of the fields of the request.
@@ -529,7 +529,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate(
       GetUserAgent);
 
   // Again, return the result through the current handle scope.
-  return handle_scope.Close(result);
+  return handle_scope.Escape(result);
 }
 
 

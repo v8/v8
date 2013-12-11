@@ -133,7 +133,6 @@ class LCodeGen;
   V(LoadRoot)                                   \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
-  V(MathCos)                                    \
   V(MathExp)                                    \
   V(MathFloor)                                  \
   V(MathFloorOfDiv)                             \
@@ -141,9 +140,7 @@ class LCodeGen;
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
   V(MathRound)                                  \
-  V(MathSin)                                    \
   V(MathSqrt)                                   \
-  V(MathTan)                                    \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -789,42 +786,6 @@ class LMathLog V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathLog, "math-log")
-};
-
-
-class LMathSin V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LMathSin(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MathSin, "math-sin")
-};
-
-
-class LMathCos V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LMathCos(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MathCos, "math-cos")
-};
-
-
-class LMathTan V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LMathTan(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MathTan, "math-tan")
 };
 
 
@@ -1801,19 +1762,19 @@ class LStoreCodeEntry V8_FINAL: public LTemplateInstruction<0, 1, 1> {
 };
 
 
-class LInnerAllocatedObject V8_FINAL: public LTemplateInstruction<1, 1, 0> {
+class LInnerAllocatedObject V8_FINAL: public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LInnerAllocatedObject(LOperand* base_object) {
+  LInnerAllocatedObject(LOperand* base_object, LOperand* offset) {
     inputs_[0] = base_object;
+    inputs_[1] = offset;
   }
 
-  LOperand* base_object() { return inputs_[0]; }
-  int offset() { return hydrogen()->offset(); }
+  LOperand* base_object() const { return inputs_[0]; }
+  LOperand* offset() const { return inputs_[1]; }
 
   virtual void PrintDataTo(StringStream* stream);
 
-  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "sub-allocated-object")
-  DECLARE_HYDROGEN_ACCESSOR(InnerAllocatedObject)
+  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "inner-allocated-object")
 };
 
 
@@ -2787,9 +2748,6 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   LInstruction* DoMathRound(HUnaryMathOperation* instr);
   LInstruction* DoMathAbs(HUnaryMathOperation* instr);
   LInstruction* DoMathLog(HUnaryMathOperation* instr);
-  LInstruction* DoMathSin(HUnaryMathOperation* instr);
-  LInstruction* DoMathCos(HUnaryMathOperation* instr);
-  LInstruction* DoMathTan(HUnaryMathOperation* instr);
   LInstruction* DoMathExp(HUnaryMathOperation* instr);
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);

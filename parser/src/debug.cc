@@ -3137,7 +3137,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::Local<v8::Function> fun =
         v8::Local<v8::Function>::Cast(api_exec_state->Get(fun_name));
 
-    v8::Handle<v8::Boolean> running = v8::Boolean::New(auto_continue);
+    v8::Handle<v8::Boolean> running = v8::Boolean::New(isolate, auto_continue);
     static const int kArgc = 1;
     v8::Handle<Value> argv[kArgc] = { running };
     cmd_processor = v8::Local<v8::Object>::Cast(
@@ -3640,7 +3640,7 @@ v8::Handle<v8::Object> MessageImpl::GetEventData() const {
 
 
 v8::Handle<v8::String> MessageImpl::GetJSON() const {
-  v8::HandleScope scope(
+  v8::EscapableHandleScope scope(
       reinterpret_cast<v8::Isolate*>(event_data_->GetIsolate()));
 
   if (IsEvent()) {
@@ -3656,7 +3656,7 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
     if (caught_exception || !json->IsString()) {
       return v8::Handle<v8::String>();
     }
-    return scope.Close(v8::Utils::ToLocal(Handle<String>::cast(json)));
+    return scope.Escape(v8::Utils::ToLocal(Handle<String>::cast(json)));
   } else {
     return v8::Utils::ToLocal(response_json_);
   }

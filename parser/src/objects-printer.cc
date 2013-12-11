@@ -556,6 +556,11 @@ void Map::MapPrint(FILE* out) {
   if (is_access_check_needed()) {
     PrintF(out, " - access_check_needed\n");
   }
+  if (is_frozen()) {
+    PrintF(out, " - frozen\n");
+  } else if (!is_extensible()) {
+    PrintF(out, " - sealed\n");
+  }
   PrintF(out, " - back pointer: ");
   GetBackPointer()->ShortPrint(out);
   PrintF(out, "\n - instance descriptors %s#%i: ",
@@ -862,8 +867,13 @@ void JSFunction::JSFunctionPrint(FILE* out) {
   shared()->name()->Print(out);
   PrintF(out, "\n - context = ");
   context()->ShortPrint(out);
-  PrintF(out, "\n - literals = ");
-  literals()->ShortPrint(out);
+  if (shared()->bound()) {
+    PrintF(out, "\n - bindings = ");
+    function_bindings()->ShortPrint(out);
+  } else {
+    PrintF(out, "\n - literals = ");
+    literals()->ShortPrint(out);
+  }
   PrintF(out, "\n - code = ");
   code()->ShortPrint(out);
   PrintF(out, "\n");
@@ -893,7 +903,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
         source->ToCString(DISALLOW_NULLS,
                           FAST_STRING_TRAVERSAL,
                           start, length, NULL);
-    PrintF(out, "%s", *source_string);
+    PrintF(out, "%s", source_string.get());
   }
   // Script files are often large, hard to read.
   // PrintF(out, "\n - script =");

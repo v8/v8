@@ -924,9 +924,9 @@ class ForInStatement V8_FINAL : public ForEachStatement {
   }
 
   TypeFeedbackId ForInFeedbackId() const { return reuse(PrepareId()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   enum ForInType { FAST_FOR_IN, SLOW_FOR_IN };
   ForInType for_in_type() const { return for_in_type_; }
+  void set_for_in_type(ForInType type) { for_in_type_ = type; }
 
   BailoutId BodyId() const { return body_id_; }
   BailoutId PrepareId() const { return prepare_id_; }
@@ -1122,8 +1122,8 @@ class CaseClause V8_FINAL : public AstNode {
 
   // Type feedback information.
   TypeFeedbackId CompareId() { return compare_id_; }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   Handle<Type> compare_type() { return compare_type_; }
+  void set_compare_type(Handle<Type> type) { compare_type_ = type; }
 
  private:
   CaseClause(Isolate* isolate,
@@ -1604,6 +1604,12 @@ class ArrayLiteral V8_FINAL : public MaterializedLiteral {
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
 
+  enum Flags {
+    kNoFlags = 0,
+    kShallowElements = 1,
+    kDisableMementos = 1 << 1
+  };
+
  protected:
   ArrayLiteral(Isolate* isolate,
                ZoneList<Expression*>* values,
@@ -1685,7 +1691,6 @@ class Property V8_FINAL : public Expression {
   bool IsFunctionPrototype() const { return is_function_prototype_; }
 
   // Type feedback information.
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
@@ -1698,6 +1703,12 @@ class Property V8_FINAL : public Expression {
   bool HasNoTypeInformation() {
     return is_uninitialized_ || is_pre_monomorphic_;
   }
+  void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
+  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
+  void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
+  void set_is_string_access(bool b) { is_string_access_ = b; }
+  void set_is_function_prototype(bool b) { is_function_prototype_ = b; }
+
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
  protected:
@@ -1990,7 +2001,6 @@ class CountOperation V8_FINAL : public Expression {
 
   Expression* expression() const { return expression_; }
 
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
@@ -1999,6 +2009,9 @@ class CountOperation V8_FINAL : public Expression {
     return store_mode_;
   }
   Handle<Type> type() const { return type_; }
+  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
+  void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
+  void set_type(Handle<Type> type) { type_ = type; }
 
   BailoutId AssignmentId() const { return assignment_id_; }
 
@@ -2129,7 +2142,6 @@ class Assignment V8_FINAL : public Expression {
 
   // Type feedback information.
   TypeFeedbackId AssignmentFeedbackId() { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   bool IsUninitialized() { return is_uninitialized_; }
   bool IsPreMonomorphic() { return is_pre_monomorphic_; }
@@ -2142,6 +2154,10 @@ class Assignment V8_FINAL : public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() V8_OVERRIDE {
     return store_mode_;
   }
+  void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
+  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
+  void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
+  void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
 
  protected:
   Assignment(Isolate* isolate,

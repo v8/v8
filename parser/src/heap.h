@@ -1416,14 +1416,6 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
-  // Makes a new internalized string object
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* CreateInternalizedString(
-      const char* str, int length, int hash);
-  MUST_USE_RESULT MaybeObject* CreateInternalizedString(String* str);
-
   // Write barrier support for address[offset] = o.
   INLINE(void RecordWrite(Address address, int offset));
 
@@ -1455,6 +1447,11 @@ class Heap {
   // the heap's from space.
   static inline void ScavengePointer(HeapObject** p);
   static inline void ScavengeObject(HeapObject** p, HeapObject* object);
+
+  // An object may have an AllocationSite associated with it through a trailing
+  // AllocationMemento. Its feedback should be updated when objects are found
+  // in the heap.
+  static inline void UpdateAllocationSiteFeedback(HeapObject* object);
 
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
@@ -1892,9 +1889,6 @@ class Heap {
 
   bool flush_monomorphic_ics_;
 
-  // AllocationMementos found in new space.
-  int allocation_mementos_found_;
-
   int scan_on_scavenge_pages_;
 
   NewSpace new_space_;
@@ -2110,6 +2104,8 @@ class Heap {
   void InitializeJSObjectFromMap(JSObject* obj,
                                  FixedArray* properties,
                                  Map* map);
+  void InitializeAllocationMemento(AllocationMemento* memento,
+                                   AllocationSite* allocation_site);
 
   bool CreateInitialMaps();
   bool CreateInitialObjects();
@@ -2900,7 +2896,7 @@ class RegExpResultsCache {
 
 class TranscendentalCache {
  public:
-  enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
+  enum Type { LOG, kNumberOfCaches};
   static const int kTranscendentalTypeBits = 3;
   STATIC_ASSERT((1 << kTranscendentalTypeBits) >= kNumberOfCaches);
 

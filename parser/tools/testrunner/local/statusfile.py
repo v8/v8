@@ -59,7 +59,11 @@ for var in ["debug", "release", "android_arm", "android_ia32", "arm", "ia32",
 
 
 def DoSkip(outcomes):
-  return SKIP in outcomes or SLOW in outcomes
+  return SKIP in outcomes
+
+
+def IsSlow(outcomes):
+  return SLOW in outcomes
 
 
 def OnlyStandardVariant(outcomes):

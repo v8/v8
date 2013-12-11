@@ -92,10 +92,10 @@
             'conditions': [
               ['armcompiler=="yes"', {
                 'conditions': [
-                  [ 'armv7==1', {
+                  [ 'arm_version==7', {
                     'cflags': ['-march=armv7-a',],
                   }],
-                  [ 'armv7==1 or armv7=="default"', {
+                  [ 'arm_version==7 or arm_version=="default"', {
                     'conditions': [
                       [ 'arm_neon==1', {
                         'cflags': ['-mfpu=neon',],
@@ -127,7 +127,7 @@
               }, {
                 # armcompiler=="no"
                 'conditions': [
-                  [ 'armv7==1 or armv7=="default"', {
+                  [ 'arm_version==7 or arm_version=="default"', {
                     'defines': [
                       'CAN_USE_ARMV7_INSTRUCTIONS=1',
                     ],
@@ -180,10 +180,10 @@
             'conditions': [
               ['armcompiler=="yes"', {
                 'conditions': [
-                  [ 'armv7==1', {
+                  [ 'arm_version==7', {
                     'cflags': ['-march=armv7-a',],
                   }],
-                  [ 'armv7==1 or armv7=="default"', {
+                  [ 'arm_version==7 or arm_version=="default"', {
                     'conditions': [
                       [ 'arm_neon==1', {
                         'cflags': ['-mfpu=neon',],
@@ -215,7 +215,7 @@
               }, {
                 # armcompiler=="no"
                 'conditions': [
-                  [ 'armv7==1 or armv7=="default"', {
+                  [ 'arm_version==7 or arm_version=="default"', {
                     'defines': [
                       'CAN_USE_ARMV7_INSTRUCTIONS=1',
                     ],

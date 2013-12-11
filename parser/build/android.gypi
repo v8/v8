@@ -146,7 +146,7 @@
               '-Wl,--icf=safe',
             ],
           }],
-          ['target_arch=="arm" and armv7==1', {
+          ['target_arch=="arm" and arm_version==7', {
             'cflags': [
               '-march=armv7-a',
               '-mtune=cortex-a8',
@@ -164,12 +164,12 @@
               '-I<(android_stlport_include)',
             ],
             'conditions': [
-              ['target_arch=="arm" and armv7==1', {
+              ['target_arch=="arm" and arm_version==7', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/armeabi-v7a',
                 ],
               }],
-              ['target_arch=="arm" and armv7==0', {
+              ['target_arch=="arm" and arm_version < 7', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/armeabi',
                 ],

@@ -1369,7 +1369,7 @@ void LAllocator::BuildLiveRanges() {
           ASSERT(chunk_->info()->IsOptimizing());
           AllowHandleDereference allow_deref;
           PrintF("Function: %s\n",
-                 *chunk_->info()->function()->debug_name()->ToCString());
+                 chunk_->info()->function()->debug_name()->ToCString().get());
         }
         PrintF("Value %d used before first definition!\n", operand_index);
         LiveRange* range = LiveRangeFor(operand_index);

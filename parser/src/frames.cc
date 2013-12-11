@@ -824,7 +824,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
             SmartArrayPointer<char> c_script_name =
                 script_name->ToCString(DISALLOW_NULLS,
                                        ROBUST_STRING_TRAVERSAL);
-            PrintF(file, " at %s:%d", *c_script_name, line);
+            PrintF(file, " at %s:%d", c_script_name.get(), line);
           } else {
             PrintF(file, " at <unknown>:%d", line);
           }
@@ -984,14 +984,16 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       // to construct a stack trace, the receiver is always in a stack slot.
       opcode = static_cast<Translation::Opcode>(it.Next());
       ASSERT(opcode == Translation::STACK_SLOT ||
-             opcode == Translation::LITERAL);
+             opcode == Translation::LITERAL ||
+             opcode == Translation::CAPTURED_OBJECT ||
+             opcode == Translation::DUPLICATED_OBJECT);
       int index = it.Next();
 
       // Get the correct receiver in the optimized frame.
       Object* receiver = NULL;
       if (opcode == Translation::LITERAL) {
         receiver = data->LiteralArray()->get(index);
-      } else {
+      } else if (opcode == Translation::STACK_SLOT) {
         // Positive index means the value is spilled to the locals
         // area. Negative means it is stored in the incoming parameter
         // area.
@@ -1007,6 +1009,12 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
               ? this->receiver()
               : this->GetParameter(parameter_index);
         }
+      } else {
+        // TODO(3029): Materializing a captured object (or duplicated
+        // object) is hard, we return undefined for now. This breaks the
+        // produced stack trace, as constructor frames aren't marked as
+        // such anymore.
+        receiver = isolate()->heap()->undefined_value();
       }
 
       Code* code = function->shared()->code();

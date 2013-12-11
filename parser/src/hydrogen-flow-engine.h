@@ -138,12 +138,19 @@ class HFlowEngine {
       }
 
       // Propagate the block state forward to all successor blocks.
-      for (int i = 0; i < block->end()->SuccessorCount(); i++) {
+      int max = block->end()->SuccessorCount();
+      for (int i = 0; i < max; i++) {
         HBasicBlock* succ = block->end()->SuccessorAt(i);
         IncrementPredecessorCount(succ);
         if (StateAt(succ) == NULL) {
           // This is the first state to reach the successor.
-          SetStateAt(succ, state->Copy(succ, zone_));
+          if (max == 1 && succ->predecessors()->length() == 1) {
+            // Optimization: successor can inherit this state.
+            SetStateAt(succ, state);
+          } else {
+            // Successor needs a copy of the state.
+            SetStateAt(succ, state->Copy(succ, zone_));
+          }
         } else {
           // Merge the current state with the state already at the successor.
           SetStateAt(succ, state->Merge(succ, StateAt(succ), zone_));

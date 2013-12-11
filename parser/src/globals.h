@@ -187,8 +187,13 @@ typedef byte* Address;
 # define V8_INTPTR_C(x)   (x ## LL)
 # define V8_PTR_PREFIX    "I64"
 #elif V8_HOST_ARCH_64_BIT
-# define V8_UINT64_C(x)   (x ## UL)
-# define V8_INT64_C(x)    (x ## L)
+# if V8_OS_MACOSX
+#  define V8_UINT64_C(x)   (x ## ULL)
+#  define V8_INT64_C(x)    (x ## LL)
+# else
+#  define V8_UINT64_C(x)   (x ## UL)
+#  define V8_INT64_C(x)    (x ## L)
+# endif
 # define V8_INTPTR_C(x)   (x ## L)
 # define V8_PTR_PREFIX    "l"
 #else
@@ -208,13 +213,12 @@ typedef byte* Address;
 #define V8PRIuPTR V8_PTR_PREFIX "u"
 
 // Fix for Mac OS X defining uintptr_t as "unsigned long":
-#if defined(__APPLE__) && defined(__MACH__)
+#if V8_OS_MACOSX
 #undef V8PRIxPTR
 #define V8PRIxPTR "lx"
 #endif
 
-#if (defined(__APPLE__) && defined(__MACH__)) || \
-    defined(__FreeBSD__) || defined(__OpenBSD__)
+#if V8_OS_MACOSX || defined(__FreeBSD__) || defined(__OpenBSD__)
 #define USING_BSD_ABI
 #endif
 
