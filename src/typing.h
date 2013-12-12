@@ -83,8 +83,11 @@ class AstTyper: public AstVisitor {
   void ExitEffects() { store_ = store_.Pop(); }
 
   int variable_index(Variable* var) {
+    // Stack locals have the range [0 .. l]
+    // Parameters have the range [-1 .. p]
+    // We map this to [-p-2 .. -1, 0 .. l]
     return var->IsStackLocal() ? var->index() :
-           var->IsParameter() ? -var->index() - 1 : kNoVar;
+           var->IsParameter() ? -var->index() - 2 : kNoVar;
   }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
