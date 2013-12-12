@@ -6039,7 +6039,10 @@ class Map: public HeapObject {
   // deprecated, it is directly returned. Otherwise, the non-deprecated version
   // is found by re-transitioning from the root of the transition tree using the
   // descriptor array of the map. Returns NULL if no updated map is found.
-  Map* CurrentMapForDeprecated();
+  // This method also applies any pending migrations along the prototype chain.
+  static Handle<Map> CurrentMapForDeprecated(Handle<Map> map);
+  // Same as above, but does not touch the prototype chain.
+  static Handle<Map> CurrentMapForDeprecatedInternal(Handle<Map> map);
 
   static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
