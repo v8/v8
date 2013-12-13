@@ -1,3 +1,20 @@
+2013-12-13: Version 3.24.1
+
+        Fix polymorphic inlined calls with migrating prototypes.
+
+        Fixed global object leak caused by overwriting the global receiver (the
+        global proxy) in the global object with the global object itself
+        (Chromium issue 324812).
+
+        Initialize Date parse cache with SMI instead of double to workaround
+        sharing mutable heap numbers in snapshot (Chromium issue 280531).
+
+        Switch armv7 setting to arm_version==7 in v8 gyp files (Chromium issue
+        234135).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-12-09: Version 3.24.0
 
         Performance and stability improvements on all platforms.
