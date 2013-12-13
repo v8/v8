@@ -3915,6 +3915,17 @@ int Code::arguments_count() {
 }
 
 
+// For initialization.
+void Code::set_raw_kind_specific_flags1(int value) {
+  WRITE_INT_FIELD(this, kKindSpecificFlags1Offset, value);
+}
+
+
+void Code::set_raw_kind_specific_flags2(int value) {
+  WRITE_INT_FIELD(this, kKindSpecificFlags2Offset, value);
+}
+
+
 inline bool Code::is_crankshafted() {
   return IsCrankshaftedField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));

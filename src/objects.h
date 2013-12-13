@@ -5150,6 +5150,9 @@ class Code: public HeapObject {
   inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
   inline bool is_keyed_stub();
 
+  inline void set_raw_kind_specific_flags1(int value);
+  inline void set_raw_kind_specific_flags2(int value);
+
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
   inline void set_major_key(int value);

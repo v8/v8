@@ -4228,6 +4228,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(reloc_info);
   code->set_flags(flags);
+  code->set_raw_kind_specific_flags1(0);
+  code->set_raw_kind_specific_flags2(0);
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
