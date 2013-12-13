@@ -1938,12 +1938,7 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
 
 void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   DisallowHeapAllocation no_allocation;
-
-  // Both the external string table and the string table may contain
-  // external strings, but neither lists them exhaustively, nor is the
-  // intersection set empty.  Therefore we iterate over the external string
-  // table first, ignoring internalized strings, and then over the
-  // internalized string table.
+  // All external strings are listed in the external string table.
 
   class ExternalStringTableVisitorAdapter : public ObjectVisitor {
    public:
@@ -1951,13 +1946,9 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
         v8::ExternalResourceVisitor* visitor) : visitor_(visitor) {}
     virtual void VisitPointers(Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
-        // Visit non-internalized external strings,
-        // since internalized strings are listed in the string table.
-        if (!(*p)->IsInternalizedString()) {
-          ASSERT((*p)->IsExternalString());
-          visitor_->VisitExternalString(Utils::ToLocal(
-              Handle<String>(String::cast(*p))));
-        }
+        ASSERT((*p)->IsExternalString());
+        visitor_->VisitExternalString(Utils::ToLocal(
+            Handle<String>(String::cast(*p))));
       }
     }
    private:
@@ -1965,25 +1956,6 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   } external_string_table_visitor(visitor);
 
   external_string_table_.Iterate(&external_string_table_visitor);
-
-  class StringTableVisitorAdapter : public ObjectVisitor {
-   public:
-    explicit StringTableVisitorAdapter(
-        v8::ExternalResourceVisitor* visitor) : visitor_(visitor) {}
-    virtual void VisitPointers(Object** start, Object** end) {
-      for (Object** p = start; p < end; p++) {
-        if ((*p)->IsExternalString()) {
-          ASSERT((*p)->IsInternalizedString());
-          visitor_->VisitExternalString(Utils::ToLocal(
-              Handle<String>(String::cast(*p))));
-        }
-      }
-    }
-   private:
-    v8::ExternalResourceVisitor* visitor_;
-  } string_table_visitor(visitor);
-
-  string_table()->IterateElements(&string_table_visitor);
 }
 
 
@@ -4256,6 +4228,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(reloc_info);
   code->set_flags(flags);
+  code->set_raw_kind_specific_flags1(0);
+  code->set_raw_kind_specific_flags2(0);
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
   }

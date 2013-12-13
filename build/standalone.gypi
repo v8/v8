@@ -117,7 +117,7 @@
       }],
     ],
     # Default ARM variable settings.
-    'armv7%': 'default',
+    'arm_version%': 'default',
     'arm_neon%': 0,
     'arm_fpu%': 'vfpv3',
     'arm_float_abi%': 'default',

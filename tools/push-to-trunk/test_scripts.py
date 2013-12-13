@@ -35,6 +35,8 @@ from common_includes import *
 import push_to_trunk
 from push_to_trunk import *
 import auto_roll
+from auto_roll import FetchLatestRevision
+from auto_roll import CheckLastPush
 
 
 TEST_CONFIG = {
@@ -543,16 +545,10 @@ class ScriptTest(unittest.TestCase):
     cl = GetLastChangeLogEntries(TEST_CONFIG[CHANGELOG_FILE])
     self.assertEquals(cl_chunk, cl)
 
-  def testSquashCommits(self):
+  def _TestSquashCommits(self, change_log, expected_msg):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
     with open(TEST_CONFIG[CHANGELOG_ENTRY_FILE], "w") as f:
-      f.write("1999-11-11: Version 3.22.5\n")
-      f.write("\n")
-      f.write("        Log text 1.\n")
-      f.write("        Chromium issue 12345\n")
-      f.write("\n")
-      f.write("        Performance and stability improvements on all "
-              "platforms.\n")
+      f.write(change_log)
 
     self.ExpectGit([
       ["diff svn/trunk hash1", "patch content"],
@@ -562,15 +558,43 @@ class ScriptTest(unittest.TestCase):
     self.MakeStep().Persist("date", "1999-11-11")
 
     self.MakeStep(SquashCommits).Run()
-
-    msg = FileToText(TEST_CONFIG[COMMITMSG_FILE])
-    self.assertTrue(re.search(r"Version 3\.22\.5", msg))
-    self.assertTrue(re.search(r"Performance and stability", msg))
-    self.assertTrue(re.search(r"Log text 1\. Chromium issue 12345", msg))
-    self.assertFalse(re.search(r"\d+\-\d+\-\d+", msg))
+    self.assertEquals(FileToText(TEST_CONFIG[COMMITMSG_FILE]), expected_msg)
 
     patch = FileToText(TEST_CONFIG[ PATCH_FILE])
     self.assertTrue(re.search(r"patch content", patch))
+
+  def testSquashCommitsUnformatted(self):
+    change_log = """1999-11-11: Version 3.22.5
+
+        Log text 1.
+        Chromium issue 12345
+
+        Performance and stability improvements on all platforms.\n"""
+    commit_msg = """Version 3.22.5
+
+Log text 1. Chromium issue 12345
+
+Performance and stability improvements on all platforms."""
+    self._TestSquashCommits(change_log, commit_msg)
+
+  def testSquashCommitsFormatted(self):
+    change_log = """1999-11-11: Version 3.22.5
+
+        Long commit message that fills more than 80 characters (Chromium issue
+        12345).
+
+        Performance and stability improvements on all platforms.\n"""
+    commit_msg = """Version 3.22.5
+
+Long commit message that fills more than 80 characters (Chromium issue 12345).
+
+Performance and stability improvements on all platforms."""
+    self._TestSquashCommits(change_log, commit_msg)
+
+  def testSquashCommitsQuotationMarks(self):
+    change_log = """Line with "quotation marks".\n"""
+    commit_msg = """Line with "quotation marks"."""
+    self._TestSquashCommits(change_log, commit_msg)
 
   def _PushToTrunk(self, force=False, manual=False):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
@@ -709,6 +733,16 @@ class ScriptTest(unittest.TestCase):
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
 
+  def testCheckLastPushRecently(self):
+    self.ExpectGit([
+      ["svn log -1 --oneline", "r101 | Text"],
+      ["svn log -1 --oneline ChangeLog", "r99 | Prepare push to trunk..."],
+    ])
+
+    state = {}
+    self.MakeStep(FetchLatestRevision, state=state).Run()
+    self.assertRaises(Exception, self.MakeStep(CheckLastPush, state=state).Run)
+
   def testAutoRoll(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
 
@@ -722,6 +756,7 @@ class ScriptTest(unittest.TestCase):
       ["status -s -b -uno", "## some_branch\n"],
       ["svn fetch", ""],
       ["svn log -1 --oneline", "r101 | Text"],
+      ["svn log -1 --oneline ChangeLog", "r65 | Prepare push to trunk..."],
     ])
 
     auto_roll.RunAutoRoll(TEST_CONFIG, MakeOptions(m=False, f=True), self)

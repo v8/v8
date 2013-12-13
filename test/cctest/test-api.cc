@@ -8527,8 +8527,6 @@ TEST(ContextDetachGlobal) {
   // Detach env2's global, and reuse the global object of env2
   env2->Exit();
   env2->DetachGlobal();
-  // env2 has a new global object.
-  CHECK(!env2->Global()->Equals(global2));
 
   v8::Handle<Context> env3 = Context::New(env1->GetIsolate(),
                                           0,
@@ -8563,7 +8561,7 @@ TEST(ContextDetachGlobal) {
 }
 
 
-TEST(DetachAndReattachGlobal) {
+TEST(DetachGlobal) {
   LocalContext env1;
   v8::HandleScope scope(env1->GetIsolate());
 
@@ -8628,16 +8626,58 @@ TEST(DetachAndReattachGlobal) {
   // so access should be blocked.
   result = CompileRun("other.p");
   CHECK(result->IsUndefined());
+}
 
-  // Detach the global for env3 and reattach it to env2.
-  env3->DetachGlobal();
-  env2->ReattachGlobal(global2);
 
-  // Check that we have access to other.p again in env1.  |other| is now
-  // the global object for env2 which has the same security token as env1.
-  result = CompileRun("other.p");
-  CHECK(result->IsInt32());
-  CHECK_EQ(42, result->Int32Value());
+TEST(DetachedAccesses) {
+  LocalContext env1;
+  v8::HandleScope scope(env1->GetIsolate());
+
+  // Create second environment.
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
+
+  Local<Value> foo = v8_str("foo");
+
+  // Set same security token for env1 and env2.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  {
+    v8::Context::Scope scope(env2);
+    CompileRun(
+        "var x = 'x';"
+        "function get_x() { return this.x; }"
+        "function get_x_w() { return get_x(); }"
+        "");
+    env1->Global()->Set(v8_str("get_x"), CompileRun("get_x"));
+    env1->Global()->Set(v8_str("get_x_w"), CompileRun("get_x_w"));
+  }
+
+  Local<Object> env2_global = env2->Global();
+  env2_global->TurnOnAccessCheck();
+  env2->DetachGlobal();
+
+  Local<Value> result;
+  result = CompileRun("get_x()");
+  CHECK(result->IsUndefined());
+  result = CompileRun("get_x_w()");
+  CHECK(result->IsUndefined());
+
+  // Reattach env2's proxy
+  env2 = Context::New(env1->GetIsolate(),
+                      0,
+                      v8::Handle<v8::ObjectTemplate>(),
+                      env2_global);
+  env2->SetSecurityToken(foo);
+  {
+    v8::Context::Scope scope(env2);
+    CompileRun("var x = 'x2';");
+  }
+
+  result = CompileRun("get_x()");
+  CHECK(result->IsUndefined());
+  result = CompileRun("get_x_w()");
+  CHECK_EQ(v8_str("x2"), result);
 }
 
 
@@ -14251,8 +14291,10 @@ THREADED_TEST(TurnOnAccessCheck) {
   }
 
   // Detach the global and turn on access check.
+  Local<Object> hidden_global = Local<Object>::Cast(
+      context->Global()->GetPrototype());
   context->DetachGlobal();
-  context->Global()->TurnOnAccessCheck();
+  hidden_global->TurnOnAccessCheck();
 
   // Failing access check to property get results in undefined.
   CHECK(f1->Call(global, 0, NULL)->IsUndefined());
@@ -14336,8 +14378,10 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
 
   // Detach the global and turn on access check now blocking access to property
   // a and function h.
+  Local<Object> hidden_global = Local<Object>::Cast(
+      context->Global()->GetPrototype());
   context->DetachGlobal();
-  context->Global()->TurnOnAccessCheck();
+  hidden_global->TurnOnAccessCheck();
 
   // Failing access check to property get results in undefined.
   CHECK(f1->Call(global, 0, NULL)->IsUndefined());
@@ -14353,11 +14397,11 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
   // Now compile the source again. And get the newly compiled functions, except
   // for h for which access is blocked.
   CompileRun(source);
-  f1 = Local<Function>::Cast(context->Global()->Get(v8_str("f1")));
-  f2 = Local<Function>::Cast(context->Global()->Get(v8_str("f2")));
-  g1 = Local<Function>::Cast(context->Global()->Get(v8_str("g1")));
-  g2 = Local<Function>::Cast(context->Global()->Get(v8_str("g2")));
-  CHECK(context->Global()->Get(v8_str("h"))->IsUndefined());
+  f1 = Local<Function>::Cast(hidden_global->Get(v8_str("f1")));
+  f2 = Local<Function>::Cast(hidden_global->Get(v8_str("f2")));
+  g1 = Local<Function>::Cast(hidden_global->Get(v8_str("g1")));
+  g2 = Local<Function>::Cast(hidden_global->Get(v8_str("g2")));
+  CHECK(hidden_global->Get(v8_str("h"))->IsUndefined());
 
   // Failing access check to property get results in undefined.
   CHECK(f1->Call(global, 0, NULL)->IsUndefined());
@@ -15223,23 +15267,6 @@ THREADED_TEST(ReplaceConstantFunction) {
   CHECK(!obj->Get(foo_string)->IsUndefined());
 }
 
-
-// Regression test for http://crbug.com/16276.
-THREADED_TEST(Regress16276) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  // Force the IC in f to be a dictionary load IC.
-  CompileRun("function f(obj) { return obj.x; }\n"
-             "var obj = { x: { foo: 42 }, y: 87 };\n"
-             "var x = obj.x;\n"
-             "delete obj.y;\n"
-             "for (var i = 0; i < 5; i++) f(obj);");
-  // Detach the global object to make 'this' refer directly to the
-  // global object (not the proxy), and make sure that the dictionary
-  // load IC doesn't mess up loading directly from the global object.
-  context->DetachGlobal();
-  CHECK_EQ(42, CompileRun("f(this).foo")->Int32Value());
-}
 
 static void CheckElementValue(i::Isolate* isolate,
                               int expected,
@@ -17337,6 +17364,55 @@ TEST(ExternalStringCollectedAtTearDown) {
   }
 
   isolate->Dispose();
+  // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
+  CHECK_EQ(1, destroyed);
+}
+
+
+TEST(ExternalInternalizedStringCollectedAtTearDown) {
+  int destroyed = 0;
+  v8::Isolate* isolate = v8::Isolate::New();
+  { v8::Isolate::Scope isolate_scope(isolate);
+    LocalContext env(isolate);
+    v8::HandleScope handle_scope(isolate);
+    CompileRun("var ring = 'One string to test them all';");
+    const char* s = "One string to test them all";
+    TestAsciiResource* inscription =
+        new TestAsciiResource(i::StrDup(s), &destroyed);
+    v8::Local<v8::String> ring = CompileRun("ring")->ToString();
+    CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
+    ring->MakeExternal(inscription);
+    // Ring is still alive.  Orcs are roaming freely across our lands.
+    CHECK_EQ(0, destroyed);
+    USE(ring);
+  }
+
+  isolate->Dispose();
+  // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
+  CHECK_EQ(1, destroyed);
+}
+
+
+TEST(ExternalInternalizedStringCollectedAtGC) {
+  int destroyed = 0;
+  { LocalContext env;
+    v8::HandleScope handle_scope(env->GetIsolate());
+    CompileRun("var ring = 'One string to test them all';");
+    const char* s = "One string to test them all";
+    TestAsciiResource* inscription =
+        new TestAsciiResource(i::StrDup(s), &destroyed);
+    v8::Local<v8::String> ring = CompileRun("ring")->ToString();
+    CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
+    ring->MakeExternal(inscription);
+    // Ring is still alive.  Orcs are roaming freely across our lands.
+    CHECK_EQ(0, destroyed);
+    USE(ring);
+  }
+
+  // Garbage collector deals swift blows to evil.
+  CcTest::i_isolate()->compilation_cache()->Clear();
+  CcTest::heap()->CollectAllAvailableGarbage();
+
   // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
   CHECK_EQ(1, destroyed);
 }

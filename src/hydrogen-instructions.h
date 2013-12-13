@@ -6216,7 +6216,11 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
       set_representation(Representation::Integer32());
     } else if (representation.IsSmi()) {
       set_type(HType::Smi());
-      set_representation(representation);
+      if (SmiValuesAre32Bits()) {
+        set_representation(Representation::Integer32());
+      } else {
+        set_representation(representation);
+      }
     } else if (representation.IsDouble() ||
                representation.IsExternal() ||
                representation.IsInteger32()) {

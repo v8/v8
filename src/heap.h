@@ -1416,14 +1416,6 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
-  // Makes a new internalized string object
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* CreateInternalizedString(
-      const char* str, int length, int hash);
-  MUST_USE_RESULT MaybeObject* CreateInternalizedString(String* str);
-
   // Write barrier support for address[offset] = o.
   INLINE(void RecordWrite(Address address, int offset));
 

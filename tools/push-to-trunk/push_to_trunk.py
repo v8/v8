@@ -257,31 +257,19 @@ class SquashCommits(Step):
     args = "diff svn/trunk %s" % self._state["prepare_commit_hash"]
     TextToFile(self.Git(args), self.Config(PATCH_FILE))
 
-    # Convert the ChangeLog entry to commit message format:
-    # - remove date
-    # - remove indentation
-    # - merge paragraphs into single long lines, keeping empty lines between
-    #   them.
+    # Convert the ChangeLog entry to commit message format.
     self.RestoreIfUnset("date")
-    changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
+    text = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
 
-    # TODO(machenbach): This could create a problem if the changelog contained
-    # any quotation marks.
-    text = Command("echo \"%s\" \
-        | sed -e \"s/^%s: //\" \
-        | sed -e 's/^ *//' \
-        | awk '{ \
-            if (need_space == 1) {\
-              printf(\" \");\
-            };\
-            printf(\"%%s\", $0);\
-            if ($0 ~ /^$/) {\
-              printf(\"\\n\\n\");\
-              need_space = 0;\
-            } else {\
-              need_space = 1;\
-            }\
-          }'" % (changelog_entry, self._state["date"]))
+    # Remove date and trailing white space.
+    text = re.sub(r"^%s: " % self._state["date"], "", text.rstrip())
+
+    # Remove indentation and merge paragraphs into single long lines, keeping
+    # empty lines between them.
+    def SplitMapJoin(split_text, fun, join_text):
+      return lambda text: join_text.join(map(fun, text.split(split_text)))
+    strip = lambda line: line.strip()
+    text = SplitMapJoin("\n\n", SplitMapJoin("\n", strip, " "), "\n\n")(text)
 
     if not text:
       self.Die("Commit message editing failed.")

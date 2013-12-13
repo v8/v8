@@ -394,8 +394,6 @@ void AstTyper::VisitAssignment(Assignment* expr) {
     expr->set_is_uninitialized(oracle()->StoreIsUninitialized(id));
     if (!expr->IsUninitialized()) {
       expr->set_is_pre_monomorphic(oracle()->StoreIsPreMonomorphic(id));
-      expr->set_is_monomorphic(oracle()->StoreIsMonomorphicNormal(id));
-      ASSERT(!expr->IsPreMonomorphic() || !expr->IsMonomorphic());
       if (prop->key()->IsPropertyName()) {
         Literal* lit_key = prop->key()->AsLiteral();
         ASSERT(lit_key != NULL && lit_key->value()->IsString());
@@ -407,6 +405,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
             id, expr->GetReceiverTypes(), &store_mode);
         expr->set_store_mode(store_mode);
       }
+      ASSERT(!expr->IsPreMonomorphic() || !expr->IsMonomorphic());
     }
   }
 
@@ -445,8 +444,6 @@ void AstTyper::VisitProperty(Property* expr) {
   expr->set_is_uninitialized(oracle()->LoadIsUninitialized(id));
   if (!expr->IsUninitialized()) {
     expr->set_is_pre_monomorphic(oracle()->LoadIsPreMonomorphic(id));
-    expr->set_is_monomorphic(oracle()->LoadIsMonomorphicNormal(id));
-    ASSERT(!expr->IsPreMonomorphic() || !expr->IsMonomorphic());
     if (expr->key()->IsPropertyName()) {
       Literal* lit_key = expr->key()->AsLiteral();
       ASSERT(lit_key != NULL && lit_key->value()->IsString());
@@ -461,6 +458,7 @@ void AstTyper::VisitProperty(Property* expr) {
           id, expr->GetReceiverTypes(), &is_string);
       expr->set_is_string_access(is_string);
     }
+    ASSERT(!expr->IsPreMonomorphic() || !expr->IsMonomorphic());
   }
 
   RECURSE(Visit(expr->obj()));
@@ -551,7 +549,6 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
   TypeFeedbackId store_id = expr->CountStoreFeedbackId();
-  expr->set_is_monomorphic(oracle()->StoreIsMonomorphicNormal(store_id));
   expr->set_store_mode(oracle()->GetStoreMode(store_id));
   oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
   expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));

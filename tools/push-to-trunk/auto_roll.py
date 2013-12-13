@@ -57,6 +57,24 @@ class FetchLatestRevision(Step):
     self.Persist("latest", match.group(1))
 
 
+class CheckLastPush(Step):
+  MESSAGE = "Checking last V8 push to trunk."
+
+  def RunStep(self):
+    self.RestoreIfUnset("latest")
+    log = self.Git("svn log -1 --oneline ChangeLog").strip()
+    match = re.match(r"^r(\d+) \| Prepare push to trunk", log)
+    if match:
+      latest = int(self._state["latest"])
+      last_push = int(match.group(1))
+      # TODO(machebach): This metric counts all revisions. It could be
+      # improved by counting only the revisions on bleeding_edge.
+      if latest - last_push < 10:
+        # This makes sure the script doesn't push twice in a row when the cron
+        # job retries several times.
+        self.Die("Last push too recently: %d" % last_push)
+
+
 class FetchLKGR(Step):
   MESSAGE = "Fetching V8 LKGR."
 
@@ -77,6 +95,10 @@ class PushToTrunk(Step):
     if latest == lkgr:
       print "ToT (r%d) is clean. Pushing to trunk." % latest
       # TODO(machenbach): Call push to trunk script.
+      # TODO(machenbach): Update the script before calling it.
+      # self._side_effect_handler.Command(
+      #     "tools/push-to-trunk/push-to-trunk.py",
+      #     "-f -c %s -r %s" % (self._options.c, self._options.r))
     else:
       print("ToT (r%d) is ahead of the LKGR (r%d). Skipping push to trunk."
             % (latest, lkgr))
@@ -88,6 +110,7 @@ def RunAutoRoll(config,
   step_classes = [
     Preparation,
     FetchLatestRevision,
+    CheckLastPush,
     FetchLKGR,
     PushToTrunk,
   ]
@@ -96,9 +119,11 @@ def RunAutoRoll(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
-  result.add_option("-f", "--force", dest="f",
-                    help="Don't prompt the user.",
-                    default=True, action="store_true")
+  result.add_option("-c", "--chromium", dest="c",
+                    help=("Specify the path to your Chromium src/ "
+                          "directory to automate the V8 roll."))
+  result.add_option("-r", "--reviewer", dest="r",
+                    help=("Specify the account name to be used for reviews."))
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
                     default=0, type="int")
@@ -108,6 +133,10 @@ def BuildOptions():
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
+  if not options.c or not options.r:
+    print "You need to specify the chromium src location and a reviewer."
+    parser.print_help()
+    return 1
   RunAutoRoll(CONFIG, options)
 
 if __name__ == "__main__":

@@ -138,12 +138,17 @@ ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
 endif 
 # arm specific flags.
-# armv7=false/true
+# arm_version=<number | "default">
+ifneq ($(strip $(arm_version)),)
+  GYPFLAGS += -Darm_version=$(arm_version)
+else
+# Deprecated (use arm_version instead): armv7=false/true
 ifeq ($(armv7), false)
-  GYPFLAGS += -Darmv7=0
+  GYPFLAGS += -Darm_version=6
 else
 ifeq ($(armv7), true)
-  GYPFLAGS += -Darmv7=1
+  GYPFLAGS += -Darm_version=7
+endif
 endif
 endif
 # vfp2=off. Deprecated, use armfpu=

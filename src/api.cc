@@ -5409,6 +5409,12 @@ v8::Local<v8::Object> Context::Global() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();
   i::Handle<i::Object> global(context->global_proxy(), isolate);
+  // TODO(dcarney): This should always return the global proxy
+  // but can't presently as calls to GetProtoype will return the wrong result.
+  if (i::Handle<i::JSGlobalProxy>::cast(
+          global)->IsDetachedFrom(context->global_object())) {
+     global = i::Handle<i::Object>(context->global_object(), isolate);
+  }
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(global));
 }
 
@@ -5418,16 +5424,6 @@ void Context::DetachGlobal() {
   i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
   isolate->bootstrapper()->DetachGlobal(context);
-}
-
-
-void Context::ReattachGlobal(Handle<Object> global_object) {
-  i::Handle<i::Context> context = Utils::OpenHandle(this);
-  i::Isolate* isolate = context->GetIsolate();
-  ENTER_V8(isolate);
-  i::Handle<i::JSGlobalProxy> global_proxy =
-      i::Handle<i::JSGlobalProxy>::cast(Utils::OpenHandle(*global_object));
-  isolate->bootstrapper()->ReattachGlobal(context, global_proxy);
 }
 
 
@@ -5733,8 +5729,8 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     external = obj;
   }
 
-  ASSERT(external->IsExternalString());
-  if (result && !external->IsInternalizedString()) {
+  if (result) {
+    ASSERT(external->IsExternalString());
     isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;
@@ -5791,8 +5787,8 @@ bool v8::String::MakeExternal(
     external = obj;
   }
 
-  ASSERT(external->IsExternalString());
-  if (result && !external->IsInternalizedString()) {
+  if (result) {
+    ASSERT(external->IsExternalString());
     isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;
@@ -7206,10 +7202,6 @@ void CpuProfile::Delete() {
   i::CpuProfiler* profiler = isolate->cpu_profiler();
   ASSERT(profiler != NULL);
   profiler->DeleteProfile(reinterpret_cast<i::CpuProfile*>(this));
-  if (profiler->GetProfilesCount() == 0) {
-    // If this was the last profile, clean up all accessory data as well.
-    profiler->DeleteAllProfiles();
-  }
 }
 
 
