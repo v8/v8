@@ -48,7 +48,7 @@ endif
 
 ifeq ($(ARCH), android_arm)
   DEFINES  = target_arch=arm v8_target_arch=arm android_target_arch=arm
-  DEFINES += arm_neon=0 armv7=1
+  DEFINES += arm_neon=0 arm_version=7
   TOOLCHAIN_ARCH = arm-linux-androideabi-4.6
 else
   ifeq ($(ARCH), android_mipsel)
@@ -77,8 +77,8 @@ endif
 DEFINES += host_os=${HOST_OS}
 
 .SECONDEXPANSION:
-$(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$(basename $$@)
-	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$(basename $@) \
+$(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$@
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
 	            CXX="$(ANDROID_TOOLCHAIN)/bin/*-g++" \
 	            AR="$(ANDROID_TOOLCHAIN)/bin/*-ar" \
 	            RANLIB="$(ANDROID_TOOLCHAIN)/bin/*-ranlib" \
@@ -90,13 +90,13 @@ $(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$(basename $$@)
 	            builddir="$(shell pwd)/$(OUTDIR)/$@"
 
 # Android GYP file generation targets.
-ANDROID_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ANDROID_ARCHES))
+ANDROID_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ANDROID_BUILDS))
 $(ANDROID_MAKEFILES):
-	@GYP_GENERATORS=make-android \
+	GYP_GENERATORS=make-android \
 	GYP_DEFINES="${DEFINES}" \
 	CC="${ANDROID_TOOLCHAIN}/bin/*-gcc" \
 	CXX="${ANDROID_TOOLCHAIN}/bin/*-g++" \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
-	              -S.${ARCH} ${GYPFLAGS}
+	              -S$(suffix $(basename $@))$(suffix $@) ${GYPFLAGS}
