@@ -38,6 +38,12 @@ CONFIG = {
 }
 
 
+class AutoRollOptions(CommonOptions):
+  def __init__(self, options):
+    super(AutoRollOptions, self).__init__(options)
+    self.requires_editor = False
+
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
@@ -137,7 +143,7 @@ def Main():
     print "You need to specify the chromium src location and a reviewer."
     parser.print_help()
     return 1
-  RunAutoRoll(CONFIG, options)
+  RunAutoRoll(CONFIG, AutoRollOptions(options))
 
 if __name__ == "__main__":
   sys.exit(Main())
