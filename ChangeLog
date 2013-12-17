@@ -1,3 +1,10 @@
+2013-12-17: Version 3.24.2
+
+        Flush instruction cache for deserialized code objects.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-12-13: Version 3.24.1
 
         Fix polymorphic inlined calls with migrating prototypes.

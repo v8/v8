@@ -377,6 +377,7 @@ class Deserializer: public SerializerDeserializer {
     return HeapObject::FromAddress(high_water_[space] - offset);
   }
 
+  void FlushICacheForNewCodeObjects();
 
   // Cached current isolate.
   Isolate* isolate_;

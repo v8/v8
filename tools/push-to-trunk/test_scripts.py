@@ -35,8 +35,9 @@ from common_includes import *
 import push_to_trunk
 from push_to_trunk import *
 import auto_roll
-from auto_roll import FetchLatestRevision
+from auto_roll import AutoRollOptions
 from auto_roll import CheckLastPush
+from auto_roll import FetchLatestRevision
 
 
 TEST_CONFIG = {
@@ -230,14 +231,14 @@ class SimpleMock(object):
     # The number of arguments in the expectation must match the actual
     # arguments.
     if len(args) > len(expected_call):
-      raise Exception("When calling %s with arguments, the expectations "
-                      "must consist of at least as many arguments.")
+      raise NoRetryException("When calling %s with arguments, the "
+          "expectations must consist of at least as many arguments.")
 
     # Compare expected and actual arguments.
     for (expected_arg, actual_arg) in zip(expected_call, args):
       if expected_arg != actual_arg:
-        raise Exception("Expected: %s - Actual: %s"
-                        % (expected_arg, actual_arg))
+        raise NoRetryException("Expected: %s - Actual: %s"
+                               % (expected_arg, actual_arg))
 
     # The expectation list contains a mandatory return value and an optional
     # callback for checking the context at the time of the call.
@@ -252,8 +253,8 @@ class SimpleMock(object):
 
   def AssertFinished(self):
     if self._index < len(self._recipe) -1:
-      raise Exception("Called %s too seldom: %d vs. %d"
-                      % (self._name, self._index, len(self._recipe)))
+      raise NoRetryException("Called %s too seldom: %d vs. %d"
+                             % (self._name, self._index, len(self._recipe)))
 
 
 class ScriptTest(unittest.TestCase):
@@ -278,7 +279,7 @@ class ScriptTest(unittest.TestCase):
 
   def MakeStep(self, step_class=Step, state=None, options=None):
     """Convenience wrapper."""
-    options = options or MakeOptions()
+    options = options or CommonOptions(MakeOptions())
     return MakeStep(step_class=step_class, number=0, state=state,
                     config=TEST_CONFIG, options=options,
                     side_effect_handler=self)
@@ -710,7 +711,7 @@ Performance and stability improvements on all platforms."""
     options = MakeOptions(f=force, m=manual,
                           r="reviewer@chromium.org" if not manual else None,
                           c = TEST_CONFIG[CHROMIUM])
-    RunPushToTrunk(TEST_CONFIG, options, self)
+    RunPushToTrunk(TEST_CONFIG, PushToTrunkOptions(options), self)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
     self.assertTrue(re.search("\"v8_revision\": \"123456\"", deps))
@@ -759,7 +760,9 @@ Performance and stability improvements on all platforms."""
       ["svn log -1 --oneline ChangeLog", "r65 | Prepare push to trunk..."],
     ])
 
-    auto_roll.RunAutoRoll(TEST_CONFIG, MakeOptions(m=False, f=True), self)
+    auto_roll.RunAutoRoll(TEST_CONFIG,
+                          AutoRollOptions(MakeOptions(m=False, f=True)),
+                          self)
 
     self.assertEquals("100", self.MakeStep().Restore("lkgr"))
     self.assertEquals("101", self.MakeStep().Restore("latest"))
@@ -768,7 +771,7 @@ Performance and stability improvements on all platforms."""
 class SystemTest(unittest.TestCase):
   def testReload(self):
     step = MakeStep(step_class=PrepareChangeLog, number=0, state={}, config={},
-                    options=None,
+                    options=CommonOptions(MakeOptions()),
                     side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER)
     body = step.Reload(
 """------------------------------------------------------------------------

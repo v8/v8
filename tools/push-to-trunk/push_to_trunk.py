@@ -52,6 +52,16 @@ CONFIG = {
 }
 
 
+class PushToTrunkOptions(CommonOptions):
+  def __init__(self, options):
+    super(PushToTrunkOptions, self).__init__(options, options.m)
+    self.requires_editor = not options.f
+    self.wait_for_lgtm = not options.f
+    self.tbr_commit = not options.m
+    self.l = options.l
+    self.r = options.r
+    self.c = options.c
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
@@ -214,7 +224,7 @@ class CommitLocal(Step):
 
     # Include optional TBR only in the git command. The persisted commit
     # message is used for finding the commit again later.
-    review = "\n\nTBR=%s" % self._options.r if not self.IsManual() else ""
+    review = "\n\nTBR=%s" % self._options.r if self._options.tbr_commit else ""
     if self.Git("commit -a -m \"%s%s\"" % (prep_commit_msg, review)) is None:
       self.Die("'git commit -a' failed.")
 
@@ -441,7 +451,7 @@ class UploadCL(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    if self._options and self._options.r:
+    if self._options.r:
       print "Using account %s for review." % self._options.r
       rev = self._options.r
     else:
@@ -451,7 +461,7 @@ class UploadCL(Step):
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
-    force_flag = " -f" if not self.IsManual() else ""
+    force_flag = " -f" if self._options.force_upload else ""
     if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
@@ -569,7 +579,7 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
-  RunPushToTrunk(CONFIG, options)
+  RunPushToTrunk(CONFIG, PushToTrunkOptions(options))
 
 if __name__ == "__main__":
   sys.exit(Main())
