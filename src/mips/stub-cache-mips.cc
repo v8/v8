@@ -1024,6 +1024,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           masm, optimization, arguments_.immediate(), false);
     } else {
       Handle<JSFunction> function = optimization.constant_function();
+      __ Move(a0, receiver);
       stub_compiler_->GenerateJumpFunction(object, function);
     }
 
