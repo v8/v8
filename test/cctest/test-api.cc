@@ -94,7 +94,7 @@ void RunWithProfiler(void (*test)()) {
 
   cpu_profiler->StartCpuProfiling(profile_name);
   (*test)();
-  cpu_profiler->DeleteAllCpuProfiles();
+  reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->DeleteAllProfiles();
 }
 
 

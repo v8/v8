@@ -380,7 +380,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate)
       sampling_interval_(TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(new CpuProfilesCollection(isolate->heap())),
-      next_profile_uid_(1),
       generator_(NULL),
       processor_(NULL),
       is_profiling_(false) {
@@ -395,7 +394,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
       sampling_interval_(TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(test_profiles),
-      next_profile_uid_(1),
       generator_(test_generator),
       processor_(test_processor),
       is_profiling_(false) {
@@ -421,7 +419,7 @@ void CpuProfiler::ResetProfiles() {
 
 
 void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
-  if (profiles_->StartProfiling(title, next_profile_uid_++, record_samples)) {
+  if (profiles_->StartProfiling(title, record_samples)) {
     StartProcessorIfNotStarted();
   }
   processor_->AddCurrentStack(isolate_);

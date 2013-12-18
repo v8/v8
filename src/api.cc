@@ -6963,11 +6963,6 @@ void CpuProfile::Delete() {
 }
 
 
-unsigned CpuProfile::GetUid() const {
-  return reinterpret_cast<const i::CpuProfile*>(this)->uid();
-}
-
-
 Handle<String> CpuProfile::GetTitle() const {
   i::Isolate* isolate = i::Isolate::Current();
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
@@ -7005,21 +7000,10 @@ int CpuProfile::GetSamplesCount() const {
 }
 
 
-int CpuProfiler::GetProfileCount() {
-  return reinterpret_cast<i::CpuProfiler*>(this)->GetProfilesCount();
-}
-
-
 void CpuProfiler::SetSamplingInterval(int us) {
   ASSERT(us >= 0);
   return reinterpret_cast<i::CpuProfiler*>(this)->set_sampling_interval(
       i::TimeDelta::FromMicroseconds(us));
-}
-
-
-const CpuProfile* CpuProfiler::GetCpuProfile(int index) {
-  return reinterpret_cast<const CpuProfile*>(
-      reinterpret_cast<i::CpuProfiler*>(this)->GetProfile(index));
 }
 
 
@@ -7033,11 +7017,6 @@ const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
   return reinterpret_cast<const CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           *Utils::OpenHandle(*title)));
-}
-
-
-void CpuProfiler::DeleteAllCpuProfiles() {
-  reinterpret_cast<i::CpuProfiler*>(this)->DeleteAllProfiles();
 }
 
 
