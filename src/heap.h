@@ -2057,6 +2057,11 @@ class Heap {
   void GarbageCollectionPrologue();
   void GarbageCollectionEpilogue();
 
+  // Pretenuring decisions are made based on feedback collected during new
+  // space evacuation. Note that between feedback collection and calling this
+  // method object in old space must not move.
+  void ProcessPretenuringFeedback();
+
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           const char** reason);
@@ -2382,6 +2387,11 @@ class Heap {
 #ifdef VERIFY_HEAP
   int no_weak_object_verification_scope_depth_;
 #endif
+
+
+  static const int kAllocationSiteScratchpadSize = 256;
+  int allocation_sites_scratchpad_length;
+  AllocationSite* allocation_sites_scratchpad[kAllocationSiteScratchpadSize];
 
   static const int kMaxMarkSweepsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;

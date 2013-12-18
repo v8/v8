@@ -8136,7 +8136,9 @@ class AllocationSite: public Struct {
   class UnusedBits:             public BitField<int,          15, 14> {};
   class DoNotInlineBit:         public BitField<bool,         29,  1> {};
 
-  inline void IncrementMementoFoundCount();
+  // Increments the mementos found counter and returns true when the first
+  // memento was found for a given allocation site.
+  inline bool IncrementMementoFoundCount();
 
   inline void IncrementMementoCreateCount();
 

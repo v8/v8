@@ -1370,9 +1370,12 @@ inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
 }
 
 
-inline void AllocationSite::IncrementMementoFoundCount() {
+inline bool AllocationSite::IncrementMementoFoundCount() {
+  if (IsZombie()) return false;
+
   int value = memento_found_count()->value();
   set_memento_found_count(Smi::FromInt(value + 1));
+  return value == 0;
 }
 
 

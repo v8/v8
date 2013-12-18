@@ -490,7 +490,15 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
         object, true);
     if (memento != NULL) {
       ASSERT(memento->IsValid());
-      memento->GetAllocationSite()->IncrementMementoFoundCount();
+      bool add_to_scratchpad =
+          memento->GetAllocationSite()->IncrementMementoFoundCount();
+      Heap* heap = object->GetIsolate()->heap();
+      if (add_to_scratchpad && heap->allocation_sites_scratchpad_length <
+              kAllocationSiteScratchpadSize) {
+        heap->allocation_sites_scratchpad[
+            heap->allocation_sites_scratchpad_length++] =
+                memento->GetAllocationSite();
+      }
     }
   }
 }
