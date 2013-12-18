@@ -89,7 +89,6 @@ namespace internal {
 // generated code both in runtime and compiled code.
 typedef double (*UnaryMathFunction)(double x);
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type);
 UnaryMathFunction CreateExpFunction();
 UnaryMathFunction CreateSqrtFunction();
 

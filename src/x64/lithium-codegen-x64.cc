@@ -968,12 +968,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::TranscendentalCache: {
-      TranscendentalCacheStub stub(instr->transcendental_type(),
-                                   TranscendentalCacheStub::TAGGED);
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -1904,7 +1898,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ movaps(xmm_scratch, left);
       ASSERT(right.is(xmm1));
       __ CallCFunction(
-          ExternalReference::double_fp_operation(Token::MOD, isolate()), 2);
+          ExternalReference::mod_two_doubles_operation(isolate()), 2);
       __ movaps(result, xmm_scratch);
       break;
     }
@@ -3732,7 +3726,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ xorps(xmm_scratch, xmm_scratch);
   __ ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
-  __ j(equal, &zero, Label::kNear);
+  __ j(not_carry, &zero, Label::kNear);
   ExternalReference nan =
       ExternalReference::address_of_canonical_non_hole_nan();
   Operand nan_operand = masm()->ExternalOperand(nan);

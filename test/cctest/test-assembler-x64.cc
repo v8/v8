@@ -615,7 +615,8 @@ TEST(StackAlignmentForSSE2) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
-  global_template->Set(v8_str("do_sse2"), v8::FunctionTemplate::New(DoSSE2));
+  global_template->Set(v8_str("do_sse2"),
+                       v8::FunctionTemplate::New(isolate, DoSSE2));
 
   LocalContext env(NULL, global_template);
   CompileRun(

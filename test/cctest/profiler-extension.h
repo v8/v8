@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,42 +24,20 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Tests of profiles generator and utilities.
 
-#include "gc-extension.h"
-#include "platform.h"
+#include "../include/v8-profiler.h"
 
-namespace v8 {
-namespace internal {
-
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, GCExtension::GC);
-}
-
-
-void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  if (args[0]->BooleanValue()) {
-    isolate->heap()->CollectGarbage(NEW_SPACE, "gc extension");
-  } else {
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  }
-}
-
-
-void GCExtension::Register() {
-  static char buffer[50];
-  Vector<char> temp_vector(buffer, sizeof(buffer));
-  if (FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0) {
-    OS::SNPrintF(temp_vector, "native function %s();", FLAG_expose_gc_as);
-  } else {
-    OS::SNPrintF(temp_vector, "native function gc();");
-  }
-
-  static GCExtension gc_extension(buffer);
-  static v8::DeclareExtension declaration(&gc_extension);
-}
-
-} }  // namespace v8::internal
+class ProfilerExtension : public v8::Extension {
+ public:
+  ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
+      v8::Handle<v8::String> name);
+  static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static const v8::CpuProfile* last_profile;
+ private:
+  static const char* kSource;
+};

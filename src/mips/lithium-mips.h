@@ -487,10 +487,6 @@ class LCallStub V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
   DECLARE_HYDROGEN_ACCESSOR(CallStub)
-
-  TranscendentalCache::Type transcendental_type() {
-    return hydrogen()->transcendental_type();
-  }
 };
 
 

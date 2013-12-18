@@ -95,7 +95,8 @@ static v8::Local<v8::ObjectTemplate> CreateConstructor(
     const char* descriptor_name = NULL,
     v8::Handle<v8::DeclaredAccessorDescriptor> descriptor =
         v8::Handle<v8::DeclaredAccessorDescriptor>()) {
-  v8::Local<v8::FunctionTemplate> constructor = v8::FunctionTemplate::New();
+  v8::Local<v8::FunctionTemplate> constructor =
+      v8::FunctionTemplate::New(context->GetIsolate());
   v8::Local<v8::ObjectTemplate> obj_template = constructor->InstanceTemplate();
   // Setup object template.
   if (descriptor_name != NULL && !descriptor.IsEmpty()) {

@@ -107,13 +107,13 @@ v8::Handle<v8::ObjectTemplate> CreateGlobalTemplate(
     v8::FunctionCallback doloop) {
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   global->Set(v8::String::NewFromUtf8(isolate, "terminate"),
-              v8::FunctionTemplate::New(terminate));
+              v8::FunctionTemplate::New(isolate, terminate));
   global->Set(v8::String::NewFromUtf8(isolate, "fail"),
-              v8::FunctionTemplate::New(Fail));
+              v8::FunctionTemplate::New(isolate, Fail));
   global->Set(v8::String::NewFromUtf8(isolate, "loop"),
-              v8::FunctionTemplate::New(Loop));
+              v8::FunctionTemplate::New(isolate, Loop));
   global->Set(v8::String::NewFromUtf8(isolate, "doloop"),
-              v8::FunctionTemplate::New(doloop));
+              v8::FunctionTemplate::New(isolate, doloop));
   return global;
 }
 
@@ -242,27 +242,28 @@ void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Test that we correctly handle termination exceptions if they are
 // triggered by the creation of error objects in connection with ICs.
 TEST(TerminateLoadICException) {
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   global->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "terminate_or_return_object"),
-      v8::FunctionTemplate::New(TerminateOrReturnObject));
-  global->Set(v8::String::NewFromUtf8(CcTest::isolate(), "fail"),
-              v8::FunctionTemplate::New(Fail));
-  global->Set(v8::String::NewFromUtf8(CcTest::isolate(), "loop"),
-              v8::FunctionTemplate::New(LoopGetProperty));
+      v8::String::NewFromUtf8(isolate, "terminate_or_return_object"),
+      v8::FunctionTemplate::New(isolate, TerminateOrReturnObject));
+  global->Set(v8::String::NewFromUtf8(isolate, "fail"),
+              v8::FunctionTemplate::New(isolate, Fail));
+  global->Set(v8::String::NewFromUtf8(isolate, "loop"),
+              v8::FunctionTemplate::New(isolate, LoopGetProperty));
 
   v8::Handle<v8::Context> context =
-      v8::Context::New(CcTest::isolate(), NULL, global);
+      v8::Context::New(isolate, NULL, global);
   v8::Context::Scope context_scope(context);
-  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source = v8::String::NewFromUtf8(
-      CcTest::isolate(), "try { loop(); fail(); } catch(e) { fail(); }");
+      isolate, "try { loop(); fail(); } catch(e) { fail(); }");
   call_count = 0;
   v8::Script::Compile(source)->Run();
   // Test that we can run the code again after thread termination.
-  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
   call_count = 0;
   v8::Script::Compile(source)->Run();
 }
@@ -299,20 +300,21 @@ void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Test that reentry into V8 while the termination exception is still pending
 // (has not yet unwound the 0-level JS frame) does not crash.
 TEST(TerminateAndReenterFromThreadItself) {
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(
-      CcTest::isolate(), TerminateCurrentThread, ReenterAfterTermination);
+      isolate, TerminateCurrentThread, ReenterAfterTermination);
   v8::Handle<v8::Context> context =
-      v8::Context::New(CcTest::isolate(), NULL, global);
+      v8::Context::New(isolate, NULL, global);
   v8::Context::Scope context_scope(context);
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Handle<v8::String> source = v8::String::NewFromUtf8(
-      CcTest::isolate(), "try { loop(); fail(); } catch(e) { fail(); }");
+      isolate, "try { loop(); fail(); } catch(e) { fail(); }");
   v8::Script::Compile(source)->Run();
-  CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
   // Check we can run JS again after termination.
   CHECK(v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(),
+      v8::String::NewFromUtf8(isolate,
                               "function f() { return true; }"
                               "f()"))
             ->Run()

@@ -723,19 +723,19 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::AddOSMethods(Isolate* isolate, Handle<ObjectTemplate> os_templ) {
   os_templ->Set(String::NewFromUtf8(isolate, "system"),
-                FunctionTemplate::New(System));
+                FunctionTemplate::New(isolate, System));
   os_templ->Set(String::NewFromUtf8(isolate, "chdir"),
-                FunctionTemplate::New(ChangeDirectory));
+                FunctionTemplate::New(isolate, ChangeDirectory));
   os_templ->Set(String::NewFromUtf8(isolate, "setenv"),
-                FunctionTemplate::New(SetEnvironment));
+                FunctionTemplate::New(isolate, SetEnvironment));
   os_templ->Set(String::NewFromUtf8(isolate, "unsetenv"),
-                FunctionTemplate::New(UnsetEnvironment));
+                FunctionTemplate::New(isolate, UnsetEnvironment));
   os_templ->Set(String::NewFromUtf8(isolate, "umask"),
-                FunctionTemplate::New(SetUMask));
+                FunctionTemplate::New(isolate, SetUMask));
   os_templ->Set(String::NewFromUtf8(isolate, "mkdirp"),
-                FunctionTemplate::New(MakeDirectory));
+                FunctionTemplate::New(isolate, MakeDirectory));
   os_templ->Set(String::NewFromUtf8(isolate, "rmdir"),
-                FunctionTemplate::New(RemoveDirectory));
+                FunctionTemplate::New(isolate, RemoveDirectory));
 }
 
 }  // namespace v8

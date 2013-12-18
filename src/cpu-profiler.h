@@ -268,7 +268,6 @@ class CpuProfiler : public CodeEventListener {
   Isolate* isolate_;
   TimeDelta sampling_interval_;
   CpuProfilesCollection* profiles_;
-  unsigned next_profile_uid_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   bool saved_is_logging_;

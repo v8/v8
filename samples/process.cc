@@ -162,7 +162,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   // built-in global functions.
   Handle<ObjectTemplate> global = ObjectTemplate::New();
   global->Set(String::NewFromUtf8(GetIsolate(), "log"),
-              FunctionTemplate::New(LogCallback));
+              FunctionTemplate::New(GetIsolate(), LogCallback));
 
   // Each processor gets its own context so different processors don't
   // affect each other. Context::New returns a persistent handle which

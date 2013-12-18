@@ -47,6 +47,7 @@
         'gay-fixed.cc',
         'gay-precision.cc',
         'gay-shortest.cc',
+        'profiler-extension.cc',
         'test-accessors.cc',
         'test-alloc.cc',
         'test-api.cc',

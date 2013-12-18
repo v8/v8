@@ -444,4 +444,4 @@ dependencies:
 	    --revision 1685
 	svn checkout --force \
 	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
-	    third_party/icu --revision 214189
+	    third_party/icu --revision 239289

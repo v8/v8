@@ -212,4 +212,10 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
 }
 
 
+void HeapProfiler::ClearHeapObjectMap() {
+  ids_.Reset(new HeapObjectsMap(heap()));
+  if (!is_tracking_allocations()) is_tracking_object_moves_ = false;
+}
+
+
 } }  // namespace v8::internal

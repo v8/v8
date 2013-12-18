@@ -1297,19 +1297,6 @@ void JSObject::ValidateElements() {
 }
 
 
-bool JSObject::ShouldTrackAllocationInfo() {
-  if (AllocationSite::CanTrack(map()->instance_type())) {
-    if (!IsJSArray()) {
-      return true;
-    }
-
-    return AllocationSite::GetMode(GetElementsKind()) ==
-        TRACK_ALLOCATION_SITE;
-  }
-  return false;
-}
-
-
 void AllocationSite::Initialize() {
   set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());

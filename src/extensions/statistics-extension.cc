@@ -38,7 +38,7 @@ v8::Handle<v8::FunctionTemplate> StatisticsExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate,
     v8::Handle<v8::String> str) {
   ASSERT(strcmp(*v8::String::Utf8Value(str), "getV8Statistics") == 0);
-  return v8::FunctionTemplate::New(StatisticsExtension::GetCounters);
+  return v8::FunctionTemplate::New(isolate, StatisticsExtension::GetCounters);
 }
 
 

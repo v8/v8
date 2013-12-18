@@ -1223,8 +1223,7 @@ LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->value()->representation().IsDouble());
   LOperand* input = UseRegisterAtStart(instr->value());
-  LMathLog* result = new(zone()) LMathLog(input);
-  return DefineSameAsFirst(result);
+  return MarkAsCall(DefineSameAsFirst(new(zone()) LMathLog(input)), instr);
 }
 
 

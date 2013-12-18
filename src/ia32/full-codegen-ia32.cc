@@ -977,6 +977,16 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Handle<Code> ic = CompareIC::GetUninitialized(isolate(), Token::EQ_STRICT);
     CallIC(ic, RelocInfo::CODE_TARGET, clause->CompareId());
     patch_site.EmitPatchInfo();
+
+    Label skip;
+    __ jmp(&skip, Label::kNear);
+    PrepareForBailout(clause, TOS_REG);
+    __ cmp(eax, isolate()->factory()->true_value());
+    __ j(not_equal, &next_test);
+    __ Drop(1);
+    __ jmp(clause->body_target());
+    __ bind(&skip);
+
     __ test(eax, eax);
     __ j(not_equal, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
@@ -3660,13 +3670,11 @@ void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitMathLog(CallRuntime* expr) {
-  // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::TAGGED);
+  // Load the argument on the stack and call the runtime function.
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
-  __ CallStub(&stub);
+  __ CallRuntime(Runtime::kMath_log, 1);
   context()->Plug(eax);
 }
 

@@ -1045,13 +1045,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::TranscendentalCache: {
-      __ lw(a0, MemOperand(sp, 0));
-      TranscendentalCacheStub stub(instr->transcendental_type(),
-                                   TranscendentalCacheStub::TAGGED);
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -1945,7 +1938,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ PrepareCallCFunction(0, 2, scratch0());
       __ SetCallCDoubleArguments(left, right);
       __ CallCFunction(
-          ExternalReference::double_fp_operation(Token::MOD, isolate()),
+          ExternalReference::mod_two_doubles_operation(isolate()),
           0, 2);
       // Move the result in the double result register.
       __ GetCFunctionDoubleResult(result);
@@ -3864,13 +3857,11 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  ASSERT(ToDoubleRegister(instr->result()).is(f4));
-  // Set the context register to a GC-safe fake value. Clobbering it is
-  // OK because this instruction is marked as a call.
-  __ mov(cp, zero_reg);
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::UNTAGGED);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  __ PrepareCallCFunction(0, 1, scratch0());
+  __ SetCallCDoubleArguments(ToDoubleRegister(instr->value()));
+  __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
+                   0, 1);
+  __ GetCFunctionDoubleResult(ToDoubleRegister(instr->result()));
 }
 
 

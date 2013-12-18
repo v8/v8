@@ -37,15 +37,6 @@ namespace v8 {
 namespace internal {
 
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  switch (type) {
-    case TranscendentalCache::LOG: return &log;
-    default: UNIMPLEMENTED();
-  }
-  return NULL;
-}
-
-
 #define __ masm.
 
 

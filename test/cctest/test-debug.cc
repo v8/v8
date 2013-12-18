@@ -4476,33 +4476,34 @@ TEST(InterceptorPropertyMirror) {
 TEST(HiddenPrototypePropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
-  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
-  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "x"),
+  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
+  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "x"),
                               v8::Number::New(0));
-  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
   t1->SetHiddenPrototype(true);
-  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "y"),
+  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "y"),
                               v8::Number::New(1));
-  v8::Handle<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New(isolate);
   t2->SetHiddenPrototype(true);
-  t2->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "z"),
+  t2->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "z"),
                               v8::Number::New(2));
-  v8::Handle<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
-  t3->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "u"),
+  v8::Handle<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New(isolate);
+  t3->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "u"),
                               v8::Number::New(3));
 
   // Create object and set them on the global object.
   v8::Handle<v8::Object> o0 = t0->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o0"), o0);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o0"), o0);
   v8::Handle<v8::Object> o1 = t1->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o1"), o1);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o1"), o1);
   v8::Handle<v8::Object> o2 = t2->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o2"), o2);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o2"), o2);
   v8::Handle<v8::Object> o3 = t3->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o3"), o3);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o3"), o3);
 
   // Get mirrors for the four objects.
   CompileRun(
@@ -4527,7 +4528,7 @@ TEST(HiddenPrototypePropertyMirror) {
 
   // Set o1 as prototype for o0. o1 has the hidden prototype flag so all
   // properties on o1 should be seen on o0.
-  o0->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), o1);
+  o0->Set(v8::String::NewFromUtf8(isolate, "__proto__"), o1);
   CHECK_EQ(2, CompileRun(
               "o0_mirror.propertyNames().length")->Int32Value());
   CHECK_EQ(0, CompileRun(
@@ -4538,7 +4539,7 @@ TEST(HiddenPrototypePropertyMirror) {
   // Set o2 as prototype for o0 (it will end up after o1 as o1 has the hidden
   // prototype flag. o2 also has the hidden prototype flag so all properties
   // on o2 should be seen on o0 as well as properties on o1.
-  o0->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), o2);
+  o0->Set(v8::String::NewFromUtf8(isolate, "__proto__"), o2);
   CHECK_EQ(3, CompileRun(
               "o0_mirror.propertyNames().length")->Int32Value());
   CHECK_EQ(0, CompileRun(
@@ -4554,7 +4555,7 @@ TEST(HiddenPrototypePropertyMirror) {
   // from o1 and o2 should still be seen on o0.
   // Final prototype chain: o0 -> o1 -> o2 -> o3
   // Hidden prototypes:           ^^    ^^
-  o0->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), o3);
+  o0->Set(v8::String::NewFromUtf8(isolate, "__proto__"), o3);
   CHECK_EQ(3, CompileRun(
               "o0_mirror.propertyNames().length")->Int32Value());
   CHECK_EQ(1, CompileRun(
@@ -4657,18 +4658,19 @@ TEST(NativeGetterThrowingErrorPropertyMirror) {
 TEST(NoHiddenProperties) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
   // Create an object in the global scope.
   const char* source = "var obj = {a: 1};";
-  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), source))
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate, source))
       ->Run();
   v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(
-      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "obj")));
+      env->Global()->Get(v8::String::NewFromUtf8(isolate, "obj")));
   // Set a hidden property on the object.
   obj->SetHiddenValue(
-      v8::String::NewFromUtf8(env->GetIsolate(), "v8::test-debug::a"),
+      v8::String::NewFromUtf8(isolate, "v8::test-debug::a"),
       v8::Int32::New(11));
 
   // Get mirror for the object with property getter.
@@ -4685,34 +4687,34 @@ TEST(NoHiddenProperties) {
       "obj_mirror.property('a').value().value() == 1")->BooleanValue());
 
   // Object created by t0 will become hidden prototype of object 'obj'.
-  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
-  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "b"),
+  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
+  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "b"),
                               v8::Number::New(2));
   t0->SetHiddenPrototype(true);
-  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
-  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "c"),
+  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
+  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "c"),
                               v8::Number::New(3));
 
   // Create proto objects, add hidden properties to them and set them on
   // the global object.
   v8::Handle<v8::Object> protoObj = t0->GetFunction()->NewInstance();
   protoObj->SetHiddenValue(
-      v8::String::NewFromUtf8(env->GetIsolate(), "v8::test-debug::b"),
+      v8::String::NewFromUtf8(isolate, "v8::test-debug::b"),
       v8::Int32::New(12));
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "protoObj"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "protoObj"),
                      protoObj);
   v8::Handle<v8::Object> grandProtoObj = t1->GetFunction()->NewInstance();
   grandProtoObj->SetHiddenValue(
-      v8::String::NewFromUtf8(env->GetIsolate(), "v8::test-debug::c"),
+      v8::String::NewFromUtf8(isolate, "v8::test-debug::c"),
       v8::Int32::New(13));
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "grandProtoObj"),
+      v8::String::NewFromUtf8(isolate, "grandProtoObj"),
       grandProtoObj);
 
   // Setting prototypes: obj->protoObj->grandProtoObj
-  protoObj->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"),
+  protoObj->Set(v8::String::NewFromUtf8(isolate, "__proto__"),
                 grandProtoObj);
-  obj->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), protoObj);
+  obj->Set(v8::String::NewFromUtf8(isolate, "__proto__"), protoObj);
 
   // Get mirror for the object with property getter.
   CompileRun("var obj_mirror = debug.MakeMirror(obj);");
@@ -5207,7 +5209,7 @@ void V8Thread::Run() {
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->Set(
       v8::String::NewFromUtf8(env->GetIsolate(), "ThreadedAtBarrier1"),
-      v8::FunctionTemplate::New(ThreadedAtBarrier1));
+      v8::FunctionTemplate::New(CcTest::isolate(), ThreadedAtBarrier1));
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
                                                      NULL,
                                                      global_template);
@@ -5568,16 +5570,16 @@ TEST(CallFunctionInDebugger) {
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->Set(
       v8::String::NewFromUtf8(CcTest::isolate(), "CheckFrameCount"),
-      v8::FunctionTemplate::New(CheckFrameCount));
+      v8::FunctionTemplate::New(CcTest::isolate(), CheckFrameCount));
   global_template->Set(
       v8::String::NewFromUtf8(CcTest::isolate(), "CheckSourceLine"),
-      v8::FunctionTemplate::New(CheckSourceLine));
+      v8::FunctionTemplate::New(CcTest::isolate(), CheckSourceLine));
   global_template->Set(
       v8::String::NewFromUtf8(CcTest::isolate(), "CheckDataParameter"),
-      v8::FunctionTemplate::New(CheckDataParameter));
+      v8::FunctionTemplate::New(CcTest::isolate(), CheckDataParameter));
   global_template->Set(
       v8::String::NewFromUtf8(CcTest::isolate(), "CheckClosure"),
-      v8::FunctionTemplate::New(CheckClosure));
+      v8::FunctionTemplate::New(CcTest::isolate(), CheckClosure));
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
                                                      NULL,
                                                      global_template);
@@ -7427,7 +7429,7 @@ TEST(DebugBreakStackInspection) {
       CompileFunction(&env, frame_local_value_source, "frame_local_value");
 
   v8::Handle<v8::FunctionTemplate> schedule_break_template =
-      v8::FunctionTemplate::New(ScheduleBreak);
+      v8::FunctionTemplate::New(env->GetIsolate(), ScheduleBreak);
   v8::Handle<v8::Function> schedule_break =
       schedule_break_template->GetFunction();
   env->Global()->Set(v8_str("scheduleBreak"), schedule_break);

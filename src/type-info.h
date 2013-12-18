@@ -303,8 +303,6 @@ class TypeFeedbackOracle: public ZoneObject {
 
   Handle<Type> CountType(TypeFeedbackId id);
 
-  Handle<Type> ClauseType(TypeFeedbackId id);
-
   Zone* zone() const { return zone_; }
   Isolate* isolate() const { return isolate_; }
 

@@ -96,9 +96,6 @@ class V8_EXPORT CpuProfileNode {
  */
 class V8_EXPORT CpuProfile {
  public:
-  /** Returns CPU profile UID (assigned by the profiler.) */
-  unsigned GetUid() const;
-
   /** Returns CPU profile title. */
   Handle<String> GetTitle() const;
 
@@ -151,15 +148,6 @@ class V8_EXPORT CpuProfiler {
   void SetSamplingInterval(int us);
 
   /**
-   * Returns the number of profiles collected (doesn't include
-   * profiles that are being collected at the moment of call.)
-   */
-  int GetProfileCount();
-
-  /** Returns a profile by index. */
-  const CpuProfile* GetCpuProfile(int index);
-
-  /**
    * Starts collecting CPU profile. Title may be an empty string. It
    * is allowed to have several profiles being collected at
    * once. Attempts to start collecting several profiles with the same
@@ -177,13 +165,6 @@ class V8_EXPORT CpuProfiler {
    * If the title given is empty, finishes the last profile started.
    */
   const CpuProfile* StopCpuProfiling(Handle<String> title);
-
-  /**
-   * Deletes all existing profiles, also cancelling all profiling
-   * activity.  All previously returned pointers to profiles and their
-   * contents become invalid after this call.
-   */
-  void DeleteAllCpuProfiles();
 
   /**
    * Tells the profiler whether the embedder is idle.
@@ -389,6 +370,19 @@ class V8_EXPORT HeapProfiler {
   SnapshotObjectId GetObjectId(Handle<Value> value);
 
   /**
+   * Returns heap object with given SnapshotObjectId if the object is alive,
+   * otherwise empty handle is returned.
+   */
+  Handle<Value> FindObjectById(SnapshotObjectId id);
+
+  /**
+   * Clears internal map from SnapshotObjectId to heap object. The new objects
+   * will not be added into it unless a heap snapshot is taken or heap object
+   * tracking is kicked off.
+   */
+  void ClearObjectIds();
+
+  /**
    * A constant for invalid SnapshotObjectId. GetSnapshotObjectId will return
    * it in case heap profiler cannot find id  for the object passed as
    * parameter. HeapSnapshot::GetNodeById will always return NULL for such id.
@@ -474,21 +468,6 @@ class V8_EXPORT HeapProfiler {
    * Sets a RetainedObjectInfo for an object group (see V8::SetObjectGroupId).
    */
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
-
-  /**
-   * Starts recording JS allocations immediately as they arrive and tracking of
-   * heap objects population statistics.
-   */
-  V8_DEPRECATED("Use StartTrackingHeapObjects instead",
-                void StartRecordingHeapAllocations());
-
-  /**
-   * Stops recording JS allocations and tracking of heap objects population
-   * statistics, cleans all collected heap objects population statistics data.
-   */
-  V8_DEPRECATED("Use StopTrackingHeapObjects instead",
-                void StopRecordingHeapAllocations());
-
 
  private:
   HeapProfiler();

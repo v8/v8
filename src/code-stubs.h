@@ -56,7 +56,6 @@ namespace internal {
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
-  V(TranscendentalCache)                 \
   V(Instanceof)                          \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
@@ -1176,10 +1175,6 @@ class ICCompareStub: public PlatformCodeStub {
                              CompareIC::State* right_state,
                              CompareIC::State* handler_state,
                              Token::Value* op);
-
-  static CompareIC::State CompareState(int minor_key) {
-    return static_cast<CompareIC::State>(HandlerStateField::decode(minor_key));
-  }
 
   virtual InlineCacheState GetICState();
 

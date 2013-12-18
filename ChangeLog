@@ -1,3 +1,10 @@
+2013-12-18: Version 3.24.4
+
+        Removed all stuff marked as V8_DEPRECATED.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-12-17: Version 3.24.3
 
         Performance and stability improvements on all platforms.

@@ -747,56 +747,6 @@ void Heap::CompletelyClearInstanceofCache() {
 }
 
 
-MaybeObject* TranscendentalCache::Get(Type type, double input) {
-  SubCache* cache = caches_[type];
-  if (cache == NULL) {
-    caches_[type] = cache = new SubCache(isolate_, type);
-  }
-  return cache->Get(input);
-}
-
-
-Address TranscendentalCache::cache_array_address() {
-  return reinterpret_cast<Address>(caches_);
-}
-
-
-double TranscendentalCache::SubCache::Calculate(double input) {
-  switch (type_) {
-    case LOG:
-      return fast_log(input);
-    default:
-      UNREACHABLE();
-      return 0.0;  // Never happens.
-  }
-}
-
-
-MaybeObject* TranscendentalCache::SubCache::Get(double input) {
-  Converter c;
-  c.dbl = input;
-  int hash = Hash(c);
-  Element e = elements_[hash];
-  if (e.in[0] == c.integers[0] &&
-      e.in[1] == c.integers[1]) {
-    ASSERT(e.output != NULL);
-    isolate_->counters()->transcendental_cache_hit()->Increment();
-    return e.output;
-  }
-  double answer = Calculate(input);
-  isolate_->counters()->transcendental_cache_miss()->Increment();
-  Object* heap_number;
-  { MaybeObject* maybe_heap_number =
-        isolate_->heap()->AllocateHeapNumber(answer);
-    if (!maybe_heap_number->ToObject(&heap_number)) return maybe_heap_number;
-  }
-  elements_[hash].in[0] = c.integers[0];
-  elements_[hash].in[1] = c.integers[1];
-  elements_[hash].output = heap_number;
-  return heap_number;
-}
-
-
 AlwaysAllocateScope::AlwaysAllocateScope() {
   // We shouldn't hit any nested scopes, because that requires
   // non-handle code to call handle code. The code still works but

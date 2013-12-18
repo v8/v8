@@ -2323,6 +2323,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void HandleLiteralCompareNil(CompareOperation* expr,
                                Expression* sub_expr,
                                NilValue nil);
+  HControlInstruction* BuildCompareInstruction(Token::Value op,
+                                               HValue* left,
+                                               HValue* right,
+                                               Handle<Type> left_type,
+                                               Handle<Type> right_type,
+                                               Handle<Type> combined_type,
+                                               int left_position,
+                                               int right_position,
+                                               BailoutId bailout_id);
 
   HInstruction* BuildStringCharCodeAt(HValue* string,
                                       HValue* index);

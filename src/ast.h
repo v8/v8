@@ -115,17 +115,14 @@ namespace internal {
   V(CountOperation)                             \
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
-  V(ThisFunction)
-
-#define AUXILIARY_NODE_LIST(V)                  \
+  V(ThisFunction)                               \
   V(CaseClause)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
   MODULE_NODE_LIST(V)                           \
   STATEMENT_NODE_LIST(V)                        \
-  EXPRESSION_NODE_LIST(V)                       \
-  AUXILIARY_NODE_LIST(V)
+  EXPRESSION_NODE_LIST(V)
 
 // Forward declarations
 class AstConstructionVisitor;
@@ -1105,7 +1102,7 @@ class WithStatement V8_FINAL : public Statement {
 };
 
 
-class CaseClause V8_FINAL : public AstNode {
+class CaseClause V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(CaseClause)
 
@@ -1147,15 +1144,10 @@ class SwitchStatement V8_FINAL : public BreakableStatement {
   void Initialize(Expression* tag, ZoneList<CaseClause*>* cases) {
     tag_ = tag;
     cases_ = cases;
-    switch_type_ = UNKNOWN_SWITCH;
   }
 
   Expression* tag() const { return tag_; }
   ZoneList<CaseClause*>* cases() const { return cases_; }
-
-  enum SwitchType { UNKNOWN_SWITCH, SMI_SWITCH, STRING_SWITCH, GENERIC_SWITCH };
-  SwitchType switch_type() const { return switch_type_; }
-  void set_switch_type(SwitchType switch_type) { switch_type_ = switch_type; }
 
  protected:
   SwitchStatement(Isolate* isolate, ZoneStringList* labels, int pos)
@@ -1166,7 +1158,6 @@ class SwitchStatement V8_FINAL : public BreakableStatement {
  private:
   Expression* tag_;
   ZoneList<CaseClause*>* cases_;
-  SwitchType switch_type_;
 };
 
 

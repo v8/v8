@@ -115,14 +115,14 @@ const char* TraceExtension::kSource =
 v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Handle<String> name) {
   if (name->Equals(String::NewFromUtf8(isolate, "trace"))) {
-    return v8::FunctionTemplate::New(TraceExtension::Trace);
+    return v8::FunctionTemplate::New(isolate, TraceExtension::Trace);
   } else if (name->Equals(
                  String::NewFromUtf8(isolate, "js_trace"))) {
-    return v8::FunctionTemplate::New(TraceExtension::JSTrace);
+    return v8::FunctionTemplate::New(isolate, TraceExtension::JSTrace);
   } else if (name->Equals(String::NewFromUtf8(isolate, "js_entry_sp"))) {
-    return v8::FunctionTemplate::New(TraceExtension::JSEntrySP);
+    return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySP);
   } else if (name->Equals(String::NewFromUtf8(isolate, "js_entry_sp_level2"))) {
-    return v8::FunctionTemplate::New(TraceExtension::JSEntrySPLevel2);
+    return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySPLevel2);
   } else {
     CHECK(false);
     return v8::Handle<v8::FunctionTemplate>();
@@ -232,7 +232,7 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void CreateFramePointerGrabberConstructor(v8::Local<v8::Context> context,
                                           const char* constructor_name) {
     Local<v8::FunctionTemplate> constructor_template =
-        v8::FunctionTemplate::New(construct_call);
+        v8::FunctionTemplate::New(context->GetIsolate(), construct_call);
     constructor_template->SetClassName(v8_str("FPGrabber"));
     Local<Function> fun = constructor_template->GetFunction();
     context->Global()->Set(v8_str(constructor_name), fun);

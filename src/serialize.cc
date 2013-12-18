@@ -378,30 +378,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       17,
       "Debug::step_in_fp_addr()");
 #endif
-  Add(ExternalReference::double_fp_operation(Token::ADD, isolate).address(),
-      UNCLASSIFIED,
-      18,
-      "add_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::SUB, isolate).address(),
-      UNCLASSIFIED,
-      19,
-      "sub_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::MUL, isolate).address(),
-      UNCLASSIFIED,
-      20,
-      "mul_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::DIV, isolate).address(),
-      UNCLASSIFIED,
-      21,
-      "div_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::MOD, isolate).address(),
+  Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       UNCLASSIFIED,
       22,
       "mod_two_doubles");
-  Add(ExternalReference::compare_doubles(isolate).address(),
-      UNCLASSIFIED,
-      23,
-      "compare_doubles");
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
       UNCLASSIFIED,
@@ -429,10 +409,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       29,
       "KeyedLookupCache::field_offsets()");
-  Add(ExternalReference::transcendental_cache_array_address(isolate).address(),
-      UNCLASSIFIED,
-      30,
-      "TranscendentalCache::caches()");
   Add(ExternalReference::handle_scope_next_address(isolate).address(),
       UNCLASSIFIED,
       31,

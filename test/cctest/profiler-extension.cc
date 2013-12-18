@@ -24,62 +24,49 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Tests of profiles generator and utilities.
 
-#include "trigger-failure-extension.h"
-#include "v8.h"
+#include "profiler-extension.h"
 
-namespace v8 {
-namespace internal {
+#include "cctest.h"
 
+const v8::CpuProfile* ProfilerExtension::last_profile = NULL;
+const char* ProfilerExtension::kSource =
+    "native function startProfiling();"
+    "native function stopProfiling();";
 
-const char* const TriggerFailureExtension::kSource =
-    "native function triggerCheckFalse();"
-    "native function triggerAssertFalse();"
-    "native function triggerSlowAssertFalse();";
-
-
-v8::Handle<v8::FunctionTemplate>
-TriggerFailureExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
-  if (strcmp(*v8::String::Utf8Value(str), "triggerCheckFalse") == 0) {
-    return v8::FunctionTemplate::New(
-        isolate,
-        TriggerFailureExtension::TriggerCheckFalse);
-  } else if (strcmp(*v8::String::Utf8Value(str), "triggerAssertFalse") == 0) {
-    return v8::FunctionTemplate::New(
-        isolate,
-        TriggerFailureExtension::TriggerAssertFalse);
+v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Handle<v8::String> name) {
+  if (name->Equals(v8::String::NewFromUtf8(isolate, "startProfiling"))) {
+    return v8::FunctionTemplate::New(ProfilerExtension::StartProfiling);
+  } else if (name->Equals(v8::String::NewFromUtf8(isolate, "stopProfiling"))) {
+    return v8::FunctionTemplate::New(ProfilerExtension::StopProfiling);
   } else {
-    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(str), "triggerSlowAssertFalse"));
-    return v8::FunctionTemplate::New(
-        isolate,
-        TriggerFailureExtension::TriggerSlowAssertFalse);
+    CHECK(false);
+    return v8::Handle<v8::FunctionTemplate>();
   }
 }
 
 
-void TriggerFailureExtension::TriggerCheckFalse(
+void ProfilerExtension::StartProfiling(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(false);
+  last_profile = NULL;
+  v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
+  cpu_profiler->StartCpuProfiling((args.Length() > 0)
+      ? args[0].As<v8::String>()
+      : v8::String::Empty(args.GetIsolate()));
 }
 
 
-void TriggerFailureExtension::TriggerAssertFalse(
+void ProfilerExtension::StopProfiling(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  ASSERT(false);
+  v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
+  last_profile = cpu_profiler->StopCpuProfiling((args.Length() > 0)
+      ? args[0].As<v8::String>()
+      : v8::String::Empty(args.GetIsolate()));
 }
 
 
-void TriggerFailureExtension::TriggerSlowAssertFalse(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  SLOW_ASSERT(false);
-}
-
-
-void TriggerFailureExtension::Register() {
-  static TriggerFailureExtension trigger_failure_extension;
-  static v8::DeclareExtension declaration(&trigger_failure_extension);
-}
-
-} }  // namespace v8::internal
+static ProfilerExtension kProfilerExtension;
+v8::DeclareExtension kProfilerExtensionDeclaration(&kProfilerExtension);
