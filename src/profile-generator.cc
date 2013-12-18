@@ -487,7 +487,6 @@ CpuProfilesCollection::~CpuProfilesCollection() {
 
 bool CpuProfilesCollection::StartProfiling(const char* title,
                                            bool record_samples) {
-  ASSERT(uid > 0);
   current_profiles_semaphore_.Wait();
   if (current_profiles_.length() >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
