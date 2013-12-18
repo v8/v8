@@ -7235,6 +7235,19 @@ SnapshotObjectId HeapProfiler::GetObjectId(Handle<Value> value) {
 }
 
 
+Handle<Value> HeapProfiler::FindObjectById(SnapshotObjectId id) {
+  i::Handle<i::Object> obj =
+      reinterpret_cast<i::HeapProfiler*>(this)->FindHeapObjectById(id);
+  if (obj.is_null()) return Local<Value>();
+  return Utils::ToLocal(obj);
+}
+
+
+void HeapProfiler::ClearObjectIds() {
+  reinterpret_cast<i::HeapProfiler*>(this)->ClearHeapObjectMap();
+}
+
+
 const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
     Handle<String> title,
     ActivityControl* control,

@@ -389,6 +389,19 @@ class V8_EXPORT HeapProfiler {
   SnapshotObjectId GetObjectId(Handle<Value> value);
 
   /**
+   * Returns heap object with given SnapshotObjectId if the object is alive,
+   * otherwise empty handle is returned.
+   */
+  Handle<Value> FindObjectById(SnapshotObjectId id);
+
+  /**
+   * Clears internal map from SnapshotObjectId to heap object. The new objects
+   * will not be added into it unless a heap snapshot is taken or heap object
+   * tracking is kicked off.
+   */
+  void ClearObjectIds();
+
+  /**
    * A constant for invalid SnapshotObjectId. GetSnapshotObjectId will return
    * it in case heap profiler cannot find id  for the object passed as
    * parameter. HeapSnapshot::GetNodeById will always return NULL for such id.

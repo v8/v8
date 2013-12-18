@@ -1041,6 +1041,49 @@ TEST(HeapSnapshotObjectsStats) {
 }
 
 
+TEST(HeapObjectIds) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  const int kLength = 10;
+  v8::Handle<v8::Object> objects[kLength];
+  v8::SnapshotObjectId ids[kLength];
+
+  heap_profiler->StartTrackingHeapObjects(false);
+
+  for (int i = 0; i < kLength; i++) {
+    objects[i] = v8::Object::New(isolate);
+  }
+  GetHeapStatsUpdate(heap_profiler);
+
+  for (int i = 0; i < kLength; i++) {
+    v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
+    CHECK_NE(v8::HeapProfiler::kUnknownObjectId, static_cast<int>(id));
+    ids[i] = id;
+  }
+
+  heap_profiler->StopTrackingHeapObjects();
+  CcTest::heap()->CollectAllAvailableGarbage();
+
+  for (int i = 0; i < kLength; i++) {
+    v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
+    CHECK_EQ(static_cast<int>(ids[i]), static_cast<int>(id));
+    v8::Handle<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
+    CHECK_EQ(objects[i], obj);
+  }
+
+  heap_profiler->ClearObjectIds();
+  for (int i = 0; i < kLength; i++) {
+    v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
+    CHECK_EQ(v8::HeapProfiler::kUnknownObjectId, static_cast<int>(id));
+    v8::Handle<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
+    CHECK(obj.IsEmpty());
+  }
+}
+
+
 static void CheckChildrenIds(const v8::HeapSnapshot* snapshot,
                              const v8::HeapGraphNode* node,
                              int level, int max_level) {
