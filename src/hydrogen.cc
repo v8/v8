@@ -1296,7 +1296,8 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
                                                  ElementsKind kind,
                                                  HValue* length,
                                                  HValue* key,
-                                                 bool is_js_array) {
+                                                 bool is_js_array,
+                                                 bool is_store) {
   IfBuilder length_checker(this);
 
   Token::Value token = IsHoleyElementsKind(kind) ? Token::GTE : Token::EQ;
@@ -1337,6 +1338,13 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
     Add<HStoreNamedField>(object, HObjectAccess::ForArrayLength(kind),
                           new_length);
+  }
+
+  if (is_store && kind == FAST_SMI_ELEMENTS) {
+    HValue* checked_elements = environment()->Top();
+
+    // Write zero to ensure that the new element is initialized with some smi.
+    Add<HStoreKeyed>(checked_elements, key, graph()->GetConstant0(), kind);
   }
 
   length_checker.Else();
@@ -2102,7 +2110,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     NoObservableSideEffectsScope no_effects(this);
     elements = BuildCheckForCapacityGrow(checked_object, elements,
                                          elements_kind, length, key,
-                                         is_js_array);
+                                         is_js_array, is_store);
     checked_key = key;
   } else {
     checked_key = Add<HBoundsCheck>(key, length);
@@ -2266,7 +2274,10 @@ HInstruction* HGraphBuilder::AddElementAccess(
     if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
       val = Add<HClampToUint8>(val);
     }
-    return Add<HStoreKeyed>(elements, checked_key, val, elements_kind);
+    return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
+                            elements_kind == FAST_SMI_ELEMENTS
+                              ? STORE_TO_INITIALIZED_ENTRY
+                              : INITIALIZING_STORE);
   }
 
   ASSERT(!is_store);

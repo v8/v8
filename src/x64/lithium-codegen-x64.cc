@@ -4241,7 +4241,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
-  Register elements = ToRegister(instr->elements());
+  HStoreKeyed* hinstr = instr->hydrogen();
   LOperand* key = instr->key();
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
@@ -4250,38 +4250,56 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // input gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->IsDehoisted()) {
+    if (hinstr->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
       // and the dehoisted address computation happens in 64 bits
       __ movsxlq(key_reg, key_reg);
     }
   }
 
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Representation representation = hinstr->value()->representation();
+
+  if (representation.IsInteger32()) {
+    ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    ASSERT(hinstr->elements_kind() == FAST_SMI_ELEMENTS);
+    // Store int value directly to upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
+
   Operand operand =
       BuildFastArrayOperand(instr->elements(),
                             key,
                             FAST_ELEMENTS,
-                            FixedArray::kHeaderSize - kHeapObjectTag,
+                            offset,
                             instr->additional_index());
+
   if (instr->value()->IsRegister()) {
-    __ movq(operand, ToRegister(instr->value()));
+    __ Store(operand, ToRegister(instr->value()), representation);
   } else {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (IsInteger32Constant(operand_value)) {
-      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
-      __ Move(operand, smi_value);
+      int32_t value = ToInteger32(operand_value);
+      if (representation.IsSmi()) {
+        __ Move(operand, Smi::FromInt(value));
+
+      } else {
+        __ movl(operand, Immediate(value));
+      }
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       __ Move(operand, handle_value);
     }
   }
 
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
+  if (hinstr->NeedsWriteBarrier()) {
+    Register elements = ToRegister(instr->elements());
     ASSERT(instr->value()->IsRegister());
     Register value = ToRegister(instr->value());
-    ASSERT(!instr->key()->IsConstantOperand());
-    SmiCheck check_needed =
-        instr->hydrogen()->value()->IsHeapObject()
+    ASSERT(!key->IsConstantOperand());
+    SmiCheck check_needed = hinstr->value()->IsHeapObject()
             ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
     Register key_reg(ToRegister(key));

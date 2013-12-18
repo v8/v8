@@ -6684,6 +6684,8 @@ class HStoreKeyed V8_FINAL
  public:
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind);
+  DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
+                                 ElementsKind, StoreFieldOrKeyedMode);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     // kind_fast:       tagged[int32] = tagged
@@ -6702,7 +6704,9 @@ class HStoreKeyed V8_FINAL
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
     }
-
+    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+      return Representation::Integer32();
+    }
     if (IsFastSmiElementsKind(elements_kind())) {
       return Representation::Smi();
     }
@@ -6720,11 +6724,14 @@ class HStoreKeyed V8_FINAL
     if (IsUninitialized()) {
       return Representation::None();
     }
-    if (IsFastSmiElementsKind(elements_kind())) {
-      return Representation::Smi();
-    }
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
+    }
+    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+      return Representation::Integer32();
+    }
+    if (IsFastSmiElementsKind(elements_kind())) {
+      return Representation::Smi();
     }
     if (is_external()) {
       return Representation::Integer32();
@@ -6739,6 +6746,7 @@ class HStoreKeyed V8_FINAL
   bool value_is_smi() const {
     return IsFastSmiElementsKind(elements_kind_);
   }
+  StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
   ElementsKind elements_kind() const { return elements_kind_; }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
@@ -6784,15 +6792,20 @@ class HStoreKeyed V8_FINAL
 
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
-              ElementsKind elements_kind)
+              ElementsKind elements_kind,
+              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
       is_uninitialized_(false),
+      store_mode_(store_mode),
       new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
+
+    ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
+           elements_kind == FAST_SMI_ELEMENTS);
 
     if (IsFastObjectElementsKind(elements_kind)) {
       SetFlag(kTrackSideEffectDominators);
@@ -6820,6 +6833,7 @@ class HStoreKeyed V8_FINAL
   uint32_t index_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
+  StoreFieldOrKeyedMode store_mode_: 1;
   HValue* new_space_dominator_;
 };
 

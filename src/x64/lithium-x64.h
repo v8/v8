@@ -2710,6 +2710,9 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   // An input operand in a register that may be trashed.
   MUST_USE_RESULT LOperand* UseTempRegister(HValue* value);
 
+  // An input operand in a register that may be trashed or a constant operand.
+  MUST_USE_RESULT LOperand* UseTempRegisterOrConstant(HValue* value);
+
   // An input operand in a register or stack slot.
   MUST_USE_RESULT LOperand* Use(HValue* value);
   MUST_USE_RESULT LOperand* UseAtStart(HValue* value);
