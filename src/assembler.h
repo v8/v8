@@ -718,7 +718,6 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference flush_icache_function(Isolate* isolate);
   static ExternalReference perform_gc_function(Isolate* isolate);
-  static ExternalReference transcendental_cache_array_address(Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
 
   static ExternalReference get_date_field_function(Isolate* isolate);
@@ -784,9 +783,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_space_high_promotion_mode_active_address(
       Isolate* isolate);
 
-  static ExternalReference double_fp_operation(Token::Value operation,
-                                               Isolate* isolate);
-  static ExternalReference compare_doubles(Isolate* isolate);
+  static ExternalReference mod_two_doubles_operation(Isolate* isolate);
   static ExternalReference power_double_double_function(Isolate* isolate);
   static ExternalReference power_double_int_function(Isolate* isolate);
 

@@ -1349,12 +1349,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::TranscendentalCache: {
-      TranscendentalCacheStub stub(instr->transcendental_type(),
-                                   TranscendentalCacheStub::TAGGED);
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -2259,7 +2253,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
         __ movsd(Operand(esp, 0 * kDoubleSize), left);
         __ movsd(Operand(esp, 1 * kDoubleSize), right);
         __ CallCFunction(
-            ExternalReference::double_fp_operation(Token::MOD, isolate()),
+            ExternalReference::mod_two_doubles_operation(isolate()),
             4);
 
         // Return value is in st(0) on ia32.
@@ -2303,7 +2297,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
         ASSERT(left.is(result));
         X87PrepareToWrite(result);
         __ CallCFunction(
-            ExternalReference::double_fp_operation(Token::MOD, isolate()),
+            ExternalReference::mod_two_doubles_operation(isolate()),
             4);
 
         // Return value is in st(0) on ia32.

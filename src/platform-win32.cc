@@ -196,7 +196,6 @@ double fast_##name(double x) {                           \
   return (*fast_##name##_function)(x);                   \
 }
 
-UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 

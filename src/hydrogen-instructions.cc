@@ -3880,7 +3880,7 @@ HInstruction* HUnaryMathOperation::New(
       case kMathExp:
         return H_CONSTANT_DOUBLE(fast_exp(d));
       case kMathLog:
-        return H_CONSTANT_DOUBLE(fast_log(d));
+        return H_CONSTANT_DOUBLE(log(d));
       case kMathSqrt:
         return H_CONSTANT_DOUBLE(fast_sqrt(d));
       case kMathPowHalf:

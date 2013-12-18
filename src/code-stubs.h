@@ -56,7 +56,6 @@ namespace internal {
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
-  V(TranscendentalCache)                 \
   V(Instanceof)                          \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \

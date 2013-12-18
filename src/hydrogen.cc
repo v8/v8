@@ -10146,11 +10146,10 @@ void HOptimizedGraphBuilder::GenerateMathPow(CallRuntime* call) {
 
 
 void HOptimizedGraphBuilder::GenerateMathLog(CallRuntime* call) {
-  ASSERT_EQ(1, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HCallStub* result = New<HCallStub>(CodeStub::TranscendentalCache, 1);
-  result->set_transcendental_type(TranscendentalCache::LOG);
-  Drop(1);
+  ASSERT(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HInstruction* result = NewUncasted<HUnaryMathOperation>(value, kMathLog);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

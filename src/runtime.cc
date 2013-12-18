@@ -7732,7 +7732,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   isolate->counters()->math_log()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(fast_log(x));
+  return isolate->heap()->AllocateHeapNumber(log(x));
 }
 
 

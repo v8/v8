@@ -2682,10 +2682,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
       case kMathLog:
-        set_representation(Representation::Double());
-        // These operations use the TranscendentalCache, so they may allocate.
-        SetGVNFlag(kChangesNewSpacePromotion);
-        break;
       case kMathExp:
       case kMathSqrt:
       case kMathPowHalf:
@@ -5287,13 +5283,6 @@ class HCallStub V8_FINAL : public HUnaryCall {
 
   HValue* context() { return value(); }
 
-  void set_transcendental_type(TranscendentalCache::Type transcendental_type) {
-    transcendental_type_ = transcendental_type;
-  }
-  TranscendentalCache::Type transcendental_type() {
-    return transcendental_type_;
-  }
-
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(CallStub)
@@ -5301,12 +5290,10 @@ class HCallStub V8_FINAL : public HUnaryCall {
  private:
   HCallStub(HValue* context, CodeStub::Major major_key, int argument_count)
       : HUnaryCall(context, argument_count),
-        major_key_(major_key),
-        transcendental_type_(TranscendentalCache::kNumberOfCaches) {
+        major_key_(major_key) {
   }
 
   CodeStub::Major major_key_;
-  TranscendentalCache::Type transcendental_type_;
 };
 
 

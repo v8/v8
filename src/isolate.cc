@@ -1532,7 +1532,6 @@ Isolate::Isolate()
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
-      transcendental_cache_(NULL),
       memory_allocator_(NULL),
       keyed_lookup_cache_(NULL),
       context_slot_cache_(NULL),
@@ -1769,8 +1768,6 @@ Isolate::~Isolate() {
   delete keyed_lookup_cache_;
   keyed_lookup_cache_ = NULL;
 
-  delete transcendental_cache_;
-  transcendental_cache_ = NULL;
   delete stub_cache_;
   stub_cache_ = NULL;
   delete stats_table_;
@@ -1935,7 +1932,6 @@ bool Isolate::Init(Deserializer* des) {
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
   compilation_cache_ = new CompilationCache(this);
-  transcendental_cache_ = new TranscendentalCache(this);
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
