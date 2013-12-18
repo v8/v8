@@ -1039,6 +1039,15 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     CallIC(ic, RelocInfo::CODE_TARGET, clause->CompareId());
     patch_site.EmitPatchInfo();
 
+    Label skip;
+    __ b(&skip);
+    PrepareForBailout(clause, TOS_REG);
+    __ LoadRoot(at, Heap::kTrueValueRootIndex);
+    __ Branch(&next_test, ne, v0, Operand(at));
+    __ Drop(1);
+    __ jmp(clause->body_target());
+    __ bind(&skip);
+
     __ Branch(&next_test, ne, v0, Operand(zero_reg));
     __ Drop(1);  // Switch value is no longer needed.
     __ Branch(clause->body_target());
