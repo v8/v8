@@ -20736,6 +20736,9 @@ THREADED_TEST(SemaphoreInterruption) {
 }
 
 
+#endif  // V8_OS_POSIX
+
+
 static bool NamedAccessAlwaysBlocked(Local<v8::Object> global,
                                      Local<Value> name,
                                      v8::AccessType type,
@@ -21022,7 +21025,258 @@ THREADED_TEST(CrankshaftInterceptorFieldWrite) {
 }
 
 
-#endif  // V8_OS_POSIX
+class RequestInterruptTestBase {
+ public:
+  RequestInterruptTestBase()
+      : env_(),
+        isolate_(env_->GetIsolate()),
+        sem_(0),
+        warmup_(20000),
+        should_continue_(true) {
+  }
+
+  virtual ~RequestInterruptTestBase() { }
+
+  virtual void TestBody() = 0;
+
+  void RunTest() {
+    i::FLAG_print_opt_code = true;
+    i::FLAG_code_comments = true;
+    i::FLAG_print_code_stubs = true;
+    InterruptThread i_thread(this);
+    i_thread.Start();
+
+    v8::HandleScope handle_scope(isolate_);
+
+    TestBody();
+
+    isolate_->ClearInterrupt();
+  }
+
+  void WakeUpInterruptor() {
+    sem_.Signal();
+  }
+
+  bool should_continue() const { return should_continue_; }
+
+  bool ShouldContinue() {
+    if (warmup_ > 0) {
+      if (--warmup_ == 0) {
+        WakeUpInterruptor();
+      }
+    }
+
+    return should_continue_;
+  }
+
+ protected:
+  static void ShouldContinueCallback(
+      const v8::FunctionCallbackInfo<Value>& info) {
+    RequestInterruptTestBase* test =
+        reinterpret_cast<RequestInterruptTestBase*>(
+            info.Data().As<v8::External>()->Value());
+    info.GetReturnValue().Set(test->ShouldContinue());
+  }
+
+  class InterruptThread : public i::Thread {
+   public:
+    explicit InterruptThread(RequestInterruptTestBase* test)
+        : Thread("RequestInterruptTest"), test_(test) {}
+
+    virtual void Run() {
+      test_->sem_.Wait();
+      test_->isolate_->RequestInterrupt(&OnInterrupt, test_);
+    }
+
+    static void OnInterrupt(v8::Isolate* isolate, void* data) {
+      reinterpret_cast<RequestInterruptTestBase*>(data)->
+          should_continue_ = false;
+    }
+
+   private:
+     RequestInterruptTestBase* test_;
+  };
+
+  LocalContext env_;
+  v8::Isolate* isolate_;
+  i::Semaphore sem_;
+  int warmup_;
+  bool should_continue_;
+};
+
+
+class RequestInterruptTestWithFunctionCall : public RequestInterruptTestBase {
+ public:
+  virtual void TestBody() {
+    Local<Function> func = Function::New(
+        isolate_, ShouldContinueCallback, v8::External::New(isolate_, this));
+    env_->Global()->Set(v8_str("ShouldContinue"), func);
+
+    CompileRun("while (ShouldContinue()) { }");
+  }
+};
+
+
+class RequestInterruptTestWithMethodCall : public RequestInterruptTestBase {
+ public:
+  virtual void TestBody() {
+    v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
+    v8::Local<v8::Template> proto = t->PrototypeTemplate();
+    proto->Set(v8_str("shouldContinue"), Function::New(
+        isolate_, ShouldContinueCallback, v8::External::New(isolate_, this)));
+    env_->Global()->Set(v8_str("Klass"), t->GetFunction());
+
+    CompileRun("var obj = new Klass; while (obj.shouldContinue()) { }");
+  }
+};
+
+
+class RequestInterruptTestWithAccessor : public RequestInterruptTestBase {
+ public:
+  virtual void TestBody() {
+    v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
+    v8::Local<v8::Template> proto = t->PrototypeTemplate();
+    proto->SetAccessorProperty(v8_str("shouldContinue"), FunctionTemplate::New(
+        isolate_, ShouldContinueCallback, v8::External::New(isolate_, this)));
+    env_->Global()->Set(v8_str("Klass"), t->GetFunction());
+
+    CompileRun("var obj = new Klass; while (obj.shouldContinue) { }");
+  }
+};
+
+
+class RequestInterruptTestWithNativeAccessor : public RequestInterruptTestBase {
+ public:
+  virtual void TestBody() {
+    v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
+    v8::Local<v8::Template> proto = t->PrototypeTemplate();
+    proto->SetNativeDataProperty(v8_str("shouldContinue"),
+                                 &ShouldContinueNativeGetter,
+                                 NULL,
+                                 v8::External::New(isolate_, this));
+    env_->Global()->Set(v8_str("Klass"), t->GetFunction());
+
+    CompileRun("var obj = new Klass; while (obj.shouldContinue) { }");
+  }
+
+ private:
+  static void ShouldContinueNativeGetter(
+      Local<String> property,
+      const v8::PropertyCallbackInfo<v8::Value>& info) {
+    RequestInterruptTestBase* test =
+        reinterpret_cast<RequestInterruptTestBase*>(
+            info.Data().As<v8::External>()->Value());
+    info.GetReturnValue().Set(test->ShouldContinue());
+  }
+};
+
+
+class RequestInterruptTestWithMethodCallAndInterceptor
+    : public RequestInterruptTestBase {
+ public:
+  virtual void TestBody() {
+    v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
+    v8::Local<v8::Template> proto = t->PrototypeTemplate();
+    proto->Set(v8_str("shouldContinue"), Function::New(
+        isolate_, ShouldContinueCallback, v8::External::New(isolate_, this)));
+    v8::Local<v8::ObjectTemplate> instance_template = t->InstanceTemplate();
+    instance_template->SetNamedPropertyHandler(EmptyInterceptor);
+
+    env_->Global()->Set(v8_str("Klass"), t->GetFunction());
+
+    CompileRun("var obj = new Klass; while (obj.shouldContinue()) { }");
+  }
+
+ private:
+  static void EmptyInterceptor(
+      Local<String> property,
+      const v8::PropertyCallbackInfo<v8::Value>& info) {
+  }
+};
+
+
+class RequestInterruptTestWithMathAbs : public RequestInterruptTestBase {
+ public:
+  virtual void TestBody() {
+    env_->Global()->Set(v8_str("WakeUpInterruptor"), Function::New(
+        isolate_,
+        WakeUpInterruptorCallback,
+        v8::External::New(isolate_, this)));
+
+    env_->Global()->Set(v8_str("ShouldContinue"), Function::New(
+        isolate_,
+        ShouldContinueCallback,
+        v8::External::New(isolate_, this)));
+
+    i::FLAG_allow_natives_syntax = true;
+    CompileRun("function loopish(o) {"
+               "  var pre = 10;"
+               "  while (o.abs(1) > 0) {"
+               "    if (o.abs(1) >= 0 && !ShouldContinue()) break;"
+               "    if (pre > 0) {"
+               "      if (--pre === 0) WakeUpInterruptor(o === Math);"
+               "    }"
+               "  }"
+               "}"
+               "var i = 50;"
+               "var obj = {abs: function () { return i-- }, x: null};"
+               "delete obj.x;"
+               "loopish(obj);"
+               "%OptimizeFunctionOnNextCall(loopish);"
+               "loopish(Math);");
+
+    i::FLAG_allow_natives_syntax = false;
+  }
+
+ private:
+  static void WakeUpInterruptorCallback(
+      const v8::FunctionCallbackInfo<Value>& info) {
+    if (!info[0]->BooleanValue()) return;
+
+    RequestInterruptTestBase* test =
+        reinterpret_cast<RequestInterruptTestBase*>(
+            info.Data().As<v8::External>()->Value());
+    test->WakeUpInterruptor();
+  }
+
+  static void ShouldContinueCallback(
+      const v8::FunctionCallbackInfo<Value>& info) {
+    RequestInterruptTestBase* test =
+        reinterpret_cast<RequestInterruptTestBase*>(
+            info.Data().As<v8::External>()->Value());
+    info.GetReturnValue().Set(test->should_continue());
+  }
+};
+
+
+THREADED_TEST(RequestInterruptTestWithFunctionCall) {
+  RequestInterruptTestWithFunctionCall().RunTest();
+}
+
+
+THREADED_TEST(RequestInterruptTestWithMethodCall) {
+  RequestInterruptTestWithMethodCall().RunTest();
+}
+
+
+THREADED_TEST(RequestInterruptTestWithAccessor) {
+  RequestInterruptTestWithAccessor().RunTest();
+}
+
+
+THREADED_TEST(RequestInterruptTestWithNativeAccessor) {
+  RequestInterruptTestWithNativeAccessor().RunTest();
+}
+
+
+THREADED_TEST(RequestInterruptTestWithMethodCallAndInterceptor) {
+  RequestInterruptTestWithMethodCallAndInterceptor().RunTest();
+}
+
+
+THREADED_TEST(RequestInterruptTestWithMathAbs) {
+  RequestInterruptTestWithMathAbs().RunTest();
+}
 
 
 static Local<Value> function_new_expected_env;

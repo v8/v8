@@ -1245,7 +1245,7 @@ class HInstruction : public HValue {
   virtual void Verify() V8_OVERRIDE;
 #endif
 
-  virtual bool IsCall() { return false; }
+  virtual bool HasStackCheck() { return false; }
 
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
 
@@ -2243,8 +2243,6 @@ class HCall : public HTemplateInstruction<V> {
     return -argument_count();
   }
 
-  virtual bool IsCall() V8_FINAL V8_OVERRIDE { return true; }
-
  private:
   int argument_count_;
 };
@@ -2316,6 +2314,12 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
   Handle<JSFunction> known_function() { return known_function_; }
   int formal_parameter_count() const { return formal_parameter_count_; }
 
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return !known_function().is_null() &&
+        (known_function()->code()->kind() == Code::FUNCTION ||
+         known_function()->code()->kind() == Code::OPTIMIZED_FUNCTION);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
 
  private:
@@ -2346,6 +2350,11 @@ class HCallConstantFunction V8_FINAL : public HCall<0> {
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
+  }
+
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return (function()->code()->kind() == Code::FUNCTION ||
+        function()->code()->kind() == Code::OPTIMIZED_FUNCTION);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallConstantFunction)
@@ -2463,6 +2472,11 @@ class HCallKnownGlobal V8_FINAL : public HCall<0> {
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
+  }
+
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return (target()->code()->kind() == Code::FUNCTION ||
+        target()->code()->kind() == Code::OPTIMIZED_FUNCTION);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallKnownGlobal)
