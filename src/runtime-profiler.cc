@@ -66,7 +66,7 @@ static const int kOSRCodeSizeAllowanceBase =
     100 * FullCodeGenerator::kCodeSizeMultiplier;
 
 static const int kOSRCodeSizeAllowancePerTick =
-    3 * FullCodeGenerator::kCodeSizeMultiplier;
+    4 * FullCodeGenerator::kCodeSizeMultiplier;
 
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
