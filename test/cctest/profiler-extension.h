@@ -27,7 +27,7 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "v8-profiler.h"
+#include "../include/v8-profiler.h"
 
 class ProfilerExtension : public v8::Extension {
  public:
