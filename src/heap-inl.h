@@ -484,9 +484,10 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
-  if (FLAG_allocation_site_pretenuring && object->IsJSObject()) {
-    AllocationMemento* memento = AllocationMemento::FindForJSObject(
-        JSObject::cast(object), true);
+  if (FLAG_allocation_site_pretenuring &&
+      AllocationSite::CanTrack(object->map()->instance_type())) {
+    AllocationMemento* memento = AllocationMemento::FindForHeapObject(
+        object, true);
     if (memento != NULL) {
       ASSERT(memento->IsValid());
       memento->GetAllocationSite()->IncrementMementoFoundCount();

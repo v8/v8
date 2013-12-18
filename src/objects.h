@@ -8259,8 +8259,8 @@ class AllocationMemento: public Struct {
   DECLARE_VERIFIER(AllocationMemento)
 
   // Returns NULL if no AllocationMemento is available for object.
-  static AllocationMemento* FindForJSObject(JSObject* object,
-                                            bool in_GC = false);
+  static AllocationMemento* FindForHeapObject(HeapObject* object,
+                                              bool in_GC = false);
   static inline AllocationMemento* cast(Object* obj);
 
  private:

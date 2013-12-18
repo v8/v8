@@ -9184,14 +9184,14 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object,
-                                                      bool in_GC) {
-  // Currently, AllocationMemento objects are only allocated immediately
-  // after JSArrays and some JSObjects in NewSpace. Detecting whether a
-  // memento is present involves carefully checking the object immediately
-  // after the current object (if there is one) to see if it's an
-  // AllocationMemento.
-  if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
+AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
+                                                        bool in_GC) {
+  // AllocationMemento objects are only allocated immediately after objects in
+  // NewSpace. Detecting whether a memento is present involves carefully
+  // checking the object immediately after the current object (if there is one)
+  // to see if it's an AllocationMemento.
+  ASSERT(object->GetHeap()->InNewSpace(object));
+  if (FLAG_track_allocation_sites) {
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
     Address top;
@@ -12899,7 +12899,9 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     return this;
   }
 
-  AllocationMemento* memento = AllocationMemento::FindForJSObject(this);
+  if (!GetHeap()->InNewSpace(this)) return this;
+
+  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this);
   if (memento == NULL || !memento->IsValid()) {
     return this;
   }
