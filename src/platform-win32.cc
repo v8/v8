@@ -213,7 +213,6 @@ void MathSetup() {
 #ifdef _WIN64
   init_modulo_function();
 #endif
-  init_fast_log_function();
   // fast_exp is initialized lazily.
   init_fast_sqrt_function();
 }
