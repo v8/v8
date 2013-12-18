@@ -3057,6 +3057,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
+  HLoadKeyed* hinstr = instr->hydrogen();
   Register result = ToRegister(instr->result());
   LOperand* key = instr->key();
   if (!key->IsConstantOperand()) {
@@ -3066,24 +3067,37 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that
     // case must be handled here, too.
-    if (instr->hydrogen()->IsDehoisted()) {
+    if (hinstr->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
       // and the dehoisted address computation happens in 64 bits
       __ movsxlq(key_reg, key_reg);
     }
   }
 
-  // Load the result.
-  __ movq(result,
+  bool requires_hole_check = hinstr->RequiresHoleCheck();
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Representation representation = hinstr->representation();
+
+  if (representation.IsInteger32() &&
+      hinstr->elements_kind() == FAST_SMI_ELEMENTS) {
+    ASSERT(!requires_hole_check);
+    // Read int value directly from upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
+
+  __ Load(result,
           BuildFastArrayOperand(instr->elements(),
                                 key,
                                 FAST_ELEMENTS,
-                                FixedArray::kHeaderSize - kHeapObjectTag,
-                                instr->additional_index()));
+                                offset,
+                                instr->additional_index()),
+          representation);
 
   // Check for the hole value.
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
+  if (requires_hole_check) {
+    if (IsFastSmiElementsKind(hinstr->elements_kind())) {
       Condition smi = __ CheckSmi(result);
       DeoptimizeIf(NegateCondition(smi), instr->environment());
     } else {

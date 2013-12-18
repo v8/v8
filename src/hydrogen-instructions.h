@@ -6407,7 +6407,11 @@ class HLoadKeyed V8_FINAL
             (!IsHoleyElementsKind(elements_kind) ||
              mode == NEVER_RETURN_HOLE)) {
           set_type(HType::Smi());
-          set_representation(Representation::Smi());
+          if (SmiValuesAre32Bits() && !RequiresHoleCheck()) {
+            set_representation(Representation::Integer32());
+          } else {
+            set_representation(Representation::Smi());
+          }
         } else {
           set_representation(Representation::Tagged());
         }
