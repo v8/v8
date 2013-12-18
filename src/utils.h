@@ -1118,6 +1118,7 @@ class BailoutId {
 
   bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
+  bool operator!=(const BailoutId& other) const { return id_ != other.id_; }
 
  private:
   static const int kNoneId = -1;
