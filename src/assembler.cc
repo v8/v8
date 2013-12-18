@@ -1388,15 +1388,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 #endif  // V8_INTERPRETED_REGEXP
 
 
-static double math_log_double(double x) {
-  return log(x);
-}
-
-
 ExternalReference ExternalReference::math_log_double_function(
     Isolate* isolate) {
+  typedef double (*d2d)(double x);
   return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_log_double),
+                                    FUNCTION_ADDR(static_cast<d2d>(log)),
                                     BUILTIN_FP_CALL));
 }
 
