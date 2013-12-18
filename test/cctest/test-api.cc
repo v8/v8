@@ -21040,9 +21040,6 @@ class RequestInterruptTestBase {
   virtual void TestBody() = 0;
 
   void RunTest() {
-    i::FLAG_print_opt_code = true;
-    i::FLAG_code_comments = true;
-    i::FLAG_print_code_stubs = true;
     InterruptThread i_thread(this);
     i_thread.Start();
 
