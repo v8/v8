@@ -9193,10 +9193,11 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
   if (combined_type->Is(Type::Receiver())) {
     if (Token::IsEqualityOp(op)) {
       // Can we get away with map check and not instance type check?
+      HValue* operand_to_check =
+          left->block()->block_id() < right->block()->block_id() ? left : right;
       if (combined_type->IsClass()) {
         Handle<Map> map = combined_type->AsClass();
-        AddCheckMap(left, map);
-        AddCheckMap(right, map);
+        AddCheckMap(operand_to_check, map);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);
         if (FLAG_emit_opt_code_positions) {
@@ -9205,10 +9206,9 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         }
         return result;
       } else {
-        BuildCheckHeapObject(left);
-        Add<HCheckInstanceType>(left, HCheckInstanceType::IS_SPEC_OBJECT);
-        BuildCheckHeapObject(right);
-        Add<HCheckInstanceType>(right, HCheckInstanceType::IS_SPEC_OBJECT);
+        BuildCheckHeapObject(operand_to_check);
+        Add<HCheckInstanceType>(operand_to_check,
+                                HCheckInstanceType::IS_SPEC_OBJECT);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);
         return result;
