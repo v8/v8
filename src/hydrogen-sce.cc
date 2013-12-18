@@ -43,7 +43,7 @@ void HStackCheckEliminationPhase::Run() {
       HBasicBlock* dominator = back_edge;
       while (true) {
         for (HInstructionIterator it(dominator); !it.Done(); it.Advance()) {
-          if (it.Current()->HasStackCheck()) {
+          if (it.Current()->IsCall()) {
             block->loop_information()->stack_check()->Eliminate();
             break;
           }

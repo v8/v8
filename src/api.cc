@@ -6500,17 +6500,6 @@ void V8::CancelTerminateExecution(Isolate* isolate) {
 }
 
 
-void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
-  reinterpret_cast<i::Isolate*>(this)->stack_guard()->RequestInterrupt(
-      callback, data);
-}
-
-
-void Isolate::ClearInterrupt() {
-  reinterpret_cast<i::Isolate*>(this)->stack_guard()->ClearInterrupt();
-}
-
-
 Isolate* Isolate::GetCurrent() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   return reinterpret_cast<Isolate*>(isolate);
