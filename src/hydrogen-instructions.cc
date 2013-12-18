@@ -3495,11 +3495,18 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   dominator_allocate->clear_next_map_word_ = clear_next_map_word_;
 
   // After that replace the dominated allocate instruction.
+  HInstruction* inner_offset = HConstant::CreateAndInsertBefore(
+      zone,
+      context(),
+      dominator_size_constant,
+      Representation::None(),
+      this);
+
   HInstruction* dominated_allocate_instr =
       HInnerAllocatedObject::New(zone,
                                  context(),
                                  dominator_allocate,
-                                 dominator_size,
+                                 inner_offset,
                                  type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
