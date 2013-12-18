@@ -1121,7 +1121,7 @@ CaseClause::CaseClause(Isolate* isolate,
                        Expression* label,
                        ZoneList<Statement*>* statements,
                        int pos)
-    : AstNode(pos),
+    : Expression(isolate, pos),
       label_(label),
       statements_(statements),
       compare_type_(Type::None(), isolate),

@@ -115,17 +115,14 @@ namespace internal {
   V(CountOperation)                             \
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
-  V(ThisFunction)
-
-#define AUXILIARY_NODE_LIST(V)                  \
+  V(ThisFunction)                               \
   V(CaseClause)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
   MODULE_NODE_LIST(V)                           \
   STATEMENT_NODE_LIST(V)                        \
-  EXPRESSION_NODE_LIST(V)                       \
-  AUXILIARY_NODE_LIST(V)
+  EXPRESSION_NODE_LIST(V)
 
 // Forward declarations
 class AstConstructionVisitor;
@@ -1105,7 +1102,7 @@ class WithStatement V8_FINAL : public Statement {
 };
 
 
-class CaseClause V8_FINAL : public AstNode {
+class CaseClause V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(CaseClause)
 

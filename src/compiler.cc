@@ -355,7 +355,6 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
   }
   MODULE_NODE_LIST(DEF_VISIT)
   DECLARATION_NODE_LIST(DEF_VISIT)
-  AUXILIARY_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 };
 
