@@ -267,6 +267,9 @@ bool Object::HasValidElements() {
 
 MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
                                            Representation representation) {
+  if (FLAG_track_fields && representation.IsSmi() && IsUninitialized()) {
+    return Smi::FromInt(0);
+  }
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
   if (IsUninitialized()) {

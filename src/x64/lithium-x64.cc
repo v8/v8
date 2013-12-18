@@ -2296,7 +2296,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
   } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
-    val = UseTempRegister(instr->value());
+    val = UseRegister(instr->value());
   } else if (FLAG_track_double_fields &&
              instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());
