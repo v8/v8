@@ -3640,7 +3640,7 @@ void HAllocate::ClearNextMapWord(int offset) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =
         HStoreNamedField::New(zone, context(), this, access,
-            block()->graph()->GetConstantNull());
+            block()->graph()->GetConstant0());
     clear_next_map->ClearAllSideEffects();
     clear_next_map->InsertAfter(this);
   }
