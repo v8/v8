@@ -320,18 +320,6 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
 }
 
 
-Handle<Type> TypeFeedbackOracle::ClauseType(TypeFeedbackId id) {
-  Handle<Object> info = GetInfo(id);
-  Handle<Type> result(Type::None(), isolate_);
-  if (info->IsCode() && Handle<Code>::cast(info)->is_compare_ic_stub()) {
-    Handle<Code> code = Handle<Code>::cast(info);
-    CompareIC::State state = ICCompareStub::CompareState(code->stub_info());
-    result = CompareIC::StateToType(isolate_, state);
-  }
-  return result;
-}
-
-
 Handle<Type> TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
   if (!object->IsCode()) return handle(Type::None(), isolate_);

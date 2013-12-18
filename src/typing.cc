@@ -222,24 +222,23 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
   RECURSE(Visit(stmt->tag()));
 
   ZoneList<CaseClause*>* clauses = stmt->cases();
-  SwitchStatement::SwitchType switch_type = stmt->switch_type();
   Effects local_effects(zone());
   bool complex_effects = false;  // True for label effects or fall-through.
 
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
+
     Effects clause_effects = EnterEffects();
 
     if (!clause->is_default()) {
       Expression* label = clause->label();
-      SwitchStatement::SwitchType label_switch_type =
-          label->IsSmiLiteral() ? SwitchStatement::SMI_SWITCH :
-          label->IsStringLiteral() ? SwitchStatement::STRING_SWITCH :
-              SwitchStatement::GENERIC_SWITCH;
-      if (switch_type == SwitchStatement::UNKNOWN_SWITCH)
-        switch_type = label_switch_type;
-      else if (switch_type != label_switch_type)
-        switch_type = SwitchStatement::GENERIC_SWITCH;
+      // Collect type feedback.
+      Handle<Type> tag_type, label_type, combined_type;
+      oracle()->CompareType(clause->CompareId(),
+                            &tag_type, &label_type, &combined_type);
+      NarrowLowerType(stmt->tag(), tag_type);
+      NarrowLowerType(label, label_type);
+      clause->set_compare_type(combined_type);
 
       RECURSE(Visit(label));
       if (!clause_effects.IsEmpty()) complex_effects = true;
@@ -259,20 +258,6 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
     store_.Forget();  // Reached this in unknown state.
   } else {
     store_.Seq(local_effects);
-  }
-
-  if (switch_type == SwitchStatement::UNKNOWN_SWITCH)
-    switch_type = SwitchStatement::GENERIC_SWITCH;
-  stmt->set_switch_type(switch_type);
-
-  // Collect type feedback.
-  // TODO(rossberg): can we eliminate this special case and extra loop?
-  if (switch_type == SwitchStatement::SMI_SWITCH) {
-    for (int i = 0; i < clauses->length(); ++i) {
-      CaseClause* clause = clauses->at(i);
-      if (!clause->is_default())
-        clause->set_compare_type(oracle()->ClauseType(clause->CompareId()));
-    }
   }
 }
 

@@ -1176,10 +1176,6 @@ class ICCompareStub: public PlatformCodeStub {
                              CompareIC::State* handler_state,
                              Token::Value* op);
 
-  static CompareIC::State CompareState(int minor_key) {
-    return static_cast<CompareIC::State>(HandlerStateField::decode(minor_key));
-  }
-
   virtual InlineCacheState GetICState();
 
  private:
