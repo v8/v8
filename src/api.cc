@@ -1368,13 +1368,15 @@ Local<ObjectTemplate> ObjectTemplate::New(
 // Ensure that the object template has a constructor.  If no
 // constructor is available we create one.
 static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
+    i::Isolate* isolate,
     ObjectTemplate* object_template) {
   i::Object* obj = Utils::OpenHandle(object_template)->constructor();
   if (!obj ->IsUndefined()) {
     i::FunctionTemplateInfo* info = i::FunctionTemplateInfo::cast(obj);
-    return i::Handle<i::FunctionTemplateInfo>(info, info->GetIsolate());
+    return i::Handle<i::FunctionTemplateInfo>(info, isolate);
   }
-  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<FunctionTemplate> templ =
+      FunctionTemplate::New(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::FunctionTemplateInfo> constructor = Utils::OpenHandle(*templ);
   constructor->set_instance_template(*Utils::OpenHandle(object_template));
   Utils::OpenHandle(object_template)->set_constructor(*constructor);
@@ -1396,6 +1398,7 @@ static inline void AddPropertyToTemplate(
 
 
 static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
+    i::Isolate* isolate,
     Template* template_obj) {
   return Utils::OpenHandle(template_obj);
 }
@@ -1403,8 +1406,9 @@ static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
 
 // TODO(dcarney): remove this with ObjectTemplate::SetAccessor
 static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
+    i::Isolate* isolate,
     ObjectTemplate* object_template) {
-  EnsureConstructor(object_template);
+  EnsureConstructor(isolate, object_template);
   return Utils::OpenHandle(object_template);
 }
 
@@ -1425,7 +1429,7 @@ static bool TemplateSetAccessor(
   i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(
       name, getter, setter, data, settings, attribute, signature);
   if (obj.is_null()) return false;
-  i::Handle<i::TemplateInfo> info = GetTemplateInfo(template_obj);
+  i::Handle<i::TemplateInfo> info = GetTemplateInfo(isolate, template_obj);
   AddPropertyToTemplate(info, obj);
   return true;
 }
@@ -1477,7 +1481,7 @@ void ObjectTemplate::SetNamedPropertyHandler(
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(this);
+  EnsureConstructor(isolate, this);
   i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
       Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
@@ -1504,7 +1508,7 @@ void ObjectTemplate::MarkAsUndetectable() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(this);
+  EnsureConstructor(isolate, this);
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
@@ -1520,7 +1524,7 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(this);
+  EnsureConstructor(isolate, this);
 
   i::Handle<i::Struct> struct_info =
       isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE);
@@ -1553,7 +1557,7 @@ void ObjectTemplate::SetIndexedPropertyHandler(
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(this);
+  EnsureConstructor(isolate, this);
   i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
       Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
@@ -1581,7 +1585,7 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(this);
+  EnsureConstructor(isolate, this);
   i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
       Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
@@ -1615,7 +1619,7 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
     // The internal field count is set by the constructor function's
     // construct code, so we ensure that there is a constructor
     // function to do the setting.
-    EnsureConstructor(this);
+    EnsureConstructor(isolate, this);
   }
   Utils::OpenHandle(this)->set_internal_field_count(i::Smi::FromInt(value));
 }
@@ -5140,11 +5144,11 @@ static i::Handle<i::Context> CreateEnvironment(
 
     if (!global_template.IsEmpty()) {
       // Make sure that the global_template has a constructor.
-      global_constructor = EnsureConstructor(*global_template);
+      global_constructor = EnsureConstructor(isolate, *global_template);
 
       // Create a fresh template for the global proxy object.
       proxy_template = ObjectTemplate::New();
-      proxy_constructor = EnsureConstructor(*proxy_template);
+      proxy_constructor = EnsureConstructor(isolate, *proxy_template);
 
       // Set the global template to be the prototype template of
       // global proxy template.

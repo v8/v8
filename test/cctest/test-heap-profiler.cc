@@ -2087,6 +2087,7 @@ HeapProfilerExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
                                                  v8::Handle<v8::String> name) {
   if (name->Equals(v8::String::NewFromUtf8(isolate, "findUntrackedObjects"))) {
     return v8::FunctionTemplate::New(
+        isolate,
         HeapProfilerExtension::FindUntrackedObjects);
   } else {
     CHECK(false);

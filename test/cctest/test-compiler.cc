@@ -60,7 +60,7 @@ const char* PrintExtension::kSource = "native function print();";
 v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate,
     v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(PrintExtension::Print);
+  return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
 }
 
 

@@ -716,29 +716,30 @@ class TestApiCallbacks {
 // code.
 TEST(NativeAccessorUninitializedIC) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
-
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate);
   v8::Local<v8::ObjectTemplate> instance_template =
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors(100);
   v8::Local<v8::External> data =
-      v8::External::New(env->GetIsolate(), &accessors);
+      v8::External::New(isolate, &accessors);
   instance_template->SetAccessor(
-      v8::String::NewFromUtf8(env->GetIsolate(), "foo"),
+      v8::String::NewFromUtf8(isolate, "foo"),
       &TestApiCallbacks::Getter, &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func = func_template->GetFunction();
   v8::Local<v8::Object> instance = func->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      instance);
 
   v8::Script::Compile(
-      v8::String::NewFromUtf8(env->GetIsolate(), native_accessor_test_source))
+      v8::String::NewFromUtf8(isolate, native_accessor_test_source))
       ->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
+      env->Global()->Get(v8::String::NewFromUtf8(isolate, "start")));
 
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
@@ -747,9 +748,9 @@ TEST(NativeAccessorUninitializedIC) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
-      GetChild(env->GetIsolate(), root, "start");
-  GetChild(env->GetIsolate(), startNode, "get foo");
-  GetChild(env->GetIsolate(), startNode, "set foo");
+      GetChild(isolate, root, "start");
+  GetChild(isolate, startNode, "get foo");
+  GetChild(isolate, startNode, "set foo");
 
   const_cast<v8::CpuProfile*>(profile)->Delete();
 }
@@ -760,29 +761,30 @@ TEST(NativeAccessorUninitializedIC) {
 // hot and to trigger optimizations.
 TEST(NativeAccessorMonomorphicIC) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
-
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate);
   v8::Local<v8::ObjectTemplate> instance_template =
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors(1);
   v8::Local<v8::External> data =
-      v8::External::New(env->GetIsolate(), &accessors);
+      v8::External::New(isolate, &accessors);
   instance_template->SetAccessor(
-      v8::String::NewFromUtf8(env->GetIsolate(), "foo"),
+      v8::String::NewFromUtf8(isolate, "foo"),
       &TestApiCallbacks::Getter, &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func = func_template->GetFunction();
   v8::Local<v8::Object> instance = func->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      instance);
 
   v8::Script::Compile(
-      v8::String::NewFromUtf8(env->GetIsolate(), native_accessor_test_source))
+      v8::String::NewFromUtf8(isolate, native_accessor_test_source))
       ->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
+      env->Global()->Get(v8::String::NewFromUtf8(isolate, "start")));
 
   {
     // Make sure accessors ICs are in monomorphic state before starting
@@ -801,9 +803,9 @@ TEST(NativeAccessorMonomorphicIC) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
-      GetChild(env->GetIsolate(), root, "start");
-  GetChild(env->GetIsolate(), startNode, "get foo");
-  GetChild(env->GetIsolate(), startNode, "set foo");
+      GetChild(isolate, root, "start");
+  GetChild(isolate, startNode, "get foo");
+  GetChild(isolate, startNode, "set foo");
 
   const_cast<v8::CpuProfile*>(profile)->Delete();
 }
@@ -818,32 +820,35 @@ static const char* native_method_test_source = "function start(count) {\n"
 
 TEST(NativeMethodUninitializedIC) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   TestApiCallbacks callbacks(100);
   v8::Local<v8::External> data =
-      v8::External::New(env->GetIsolate(), &callbacks);
+      v8::External::New(isolate, &callbacks);
 
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate);
   func_template->SetClassName(
-      v8::String::NewFromUtf8(env->GetIsolate(), "Test_InstanceCostructor"));
+      v8::String::NewFromUtf8(isolate, "Test_InstanceCostructor"));
   v8::Local<v8::ObjectTemplate> proto_template =
       func_template->PrototypeTemplate();
   v8::Local<v8::Signature> signature =
-      v8::Signature::New(env->GetIsolate(), func_template);
-  proto_template->Set(v8::String::NewFromUtf8(env->GetIsolate(), "fooMethod"),
-                      v8::FunctionTemplate::New(&TestApiCallbacks::Callback,
+      v8::Signature::New(isolate, func_template);
+  proto_template->Set(v8::String::NewFromUtf8(isolate, "fooMethod"),
+                      v8::FunctionTemplate::New(isolate,
+                                                &TestApiCallbacks::Callback,
                                                 data, signature, 0));
 
   v8::Local<v8::Function> func = func_template->GetFunction();
   v8::Local<v8::Object> instance = func->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      instance);
 
   v8::Script::Compile(v8::String::NewFromUtf8(
-                          env->GetIsolate(), native_method_test_source))->Run();
+                          isolate, native_method_test_source))->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
+      env->Global()->Get(v8::String::NewFromUtf8(isolate, "start")));
 
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
@@ -852,8 +857,8 @@ TEST(NativeMethodUninitializedIC) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
-      GetChild(env->GetIsolate(), root, "start");
-  GetChild(env->GetIsolate(), startNode, "fooMethod");
+      GetChild(isolate, root, "start");
+  GetChild(isolate, startNode, "fooMethod");
 
   const_cast<v8::CpuProfile*>(profile)->Delete();
 }
@@ -861,32 +866,35 @@ TEST(NativeMethodUninitializedIC) {
 
 TEST(NativeMethodMonomorphicIC) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   TestApiCallbacks callbacks(1);
   v8::Local<v8::External> data =
-      v8::External::New(env->GetIsolate(), &callbacks);
+      v8::External::New(isolate, &callbacks);
 
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate);
   func_template->SetClassName(
-      v8::String::NewFromUtf8(env->GetIsolate(), "Test_InstanceCostructor"));
+      v8::String::NewFromUtf8(isolate, "Test_InstanceCostructor"));
   v8::Local<v8::ObjectTemplate> proto_template =
       func_template->PrototypeTemplate();
   v8::Local<v8::Signature> signature =
-      v8::Signature::New(env->GetIsolate(), func_template);
-  proto_template->Set(v8::String::NewFromUtf8(env->GetIsolate(), "fooMethod"),
-                      v8::FunctionTemplate::New(&TestApiCallbacks::Callback,
+      v8::Signature::New(isolate, func_template);
+  proto_template->Set(v8::String::NewFromUtf8(isolate, "fooMethod"),
+                      v8::FunctionTemplate::New(isolate,
+                                                &TestApiCallbacks::Callback,
                                                 data, signature, 0));
 
   v8::Local<v8::Function> func = func_template->GetFunction();
   v8::Local<v8::Object> instance = func->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      instance);
 
   v8::Script::Compile(v8::String::NewFromUtf8(
-                          env->GetIsolate(), native_method_test_source))->Run();
+                          isolate, native_method_test_source))->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
+      env->Global()->Get(v8::String::NewFromUtf8(isolate, "start")));
   {
     // Make sure method ICs are in monomorphic state before starting
     // profiling.
@@ -903,10 +911,10 @@ TEST(NativeMethodMonomorphicIC) {
       RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-  GetChild(env->GetIsolate(), root, "start");
+  GetChild(isolate, root, "start");
   const v8::CpuProfileNode* startNode =
-      GetChild(env->GetIsolate(), root, "start");
-  GetChild(env->GetIsolate(), startNode, "fooMethod");
+      GetChild(isolate, root, "start");
+  GetChild(isolate, startNode, "fooMethod");
 
   const_cast<v8::CpuProfile*>(profile)->Delete();
 }
@@ -1171,7 +1179,7 @@ TEST(JsNativeJsSample) {
   v8::HandleScope scope(env->GetIsolate());
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      CallJsFunction);
+      env->GetIsolate(), CallJsFunction);
   v8::Local<v8::Function> func = func_template->GetFunction();
   func->SetName(v8::String::NewFromUtf8(env->GetIsolate(), "CallJsFunction"));
   env->Global()->Set(
@@ -1254,7 +1262,7 @@ TEST(JsNativeJsRuntimeJsSample) {
   v8::HandleScope scope(env->GetIsolate());
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      CallJsFunction);
+      env->GetIsolate(), CallJsFunction);
   v8::Local<v8::Function> func = func_template->GetFunction();
   func->SetName(v8::String::NewFromUtf8(env->GetIsolate(), "CallJsFunction"));
   env->Global()->Set(
@@ -1341,14 +1349,14 @@ TEST(JsNative1JsNative2JsSample) {
   v8::HandleScope scope(env->GetIsolate());
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      CallJsFunction);
+      env->GetIsolate(), CallJsFunction);
   v8::Local<v8::Function> func1 = func_template->GetFunction();
   func1->SetName(v8::String::NewFromUtf8(env->GetIsolate(), "CallJsFunction1"));
   env->Global()->Set(
       v8::String::NewFromUtf8(env->GetIsolate(), "CallJsFunction1"), func1);
 
   v8::Local<v8::Function> func2 = v8::FunctionTemplate::New(
-      CallJsFunction2)->GetFunction();
+      env->GetIsolate(), CallJsFunction2)->GetFunction();
   func2->SetName(v8::String::NewFromUtf8(env->GetIsolate(), "CallJsFunction2"));
   env->Global()->Set(
       v8::String::NewFromUtf8(env->GetIsolate(), "CallJsFunction2"), func2);

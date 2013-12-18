@@ -379,7 +379,7 @@ TEST(HiddenPrototypeObservation) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
   LocalContext context(isolate.GetIsolate());
-  Handle<FunctionTemplate> tmpl = FunctionTemplate::New();
+  Handle<FunctionTemplate> tmpl = FunctionTemplate::New(isolate.GetIsolate());
   tmpl->SetHiddenPrototype(true);
   tmpl->InstanceTemplate()->Set(
       String::NewFromUtf8(isolate.GetIsolate(), "foo"), Number::New(75));

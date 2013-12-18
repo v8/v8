@@ -101,19 +101,19 @@ v8::Handle<v8::Context> CreateShellContext(v8::Isolate* isolate) {
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   // Bind the global 'print' function to the C++ Print callback.
   global->Set(v8::String::NewFromUtf8(isolate, "print"),
-              v8::FunctionTemplate::New(Print));
+              v8::FunctionTemplate::New(isolate, Print));
   // Bind the global 'read' function to the C++ Read callback.
   global->Set(v8::String::NewFromUtf8(isolate, "read"),
-              v8::FunctionTemplate::New(Read));
+              v8::FunctionTemplate::New(isolate, Read));
   // Bind the global 'load' function to the C++ Load callback.
   global->Set(v8::String::NewFromUtf8(isolate, "load"),
-              v8::FunctionTemplate::New(Load));
+              v8::FunctionTemplate::New(isolate, Load));
   // Bind the 'quit' function
   global->Set(v8::String::NewFromUtf8(isolate, "quit"),
-              v8::FunctionTemplate::New(Quit));
+              v8::FunctionTemplate::New(isolate, Quit));
   // Bind the 'version' function
   global->Set(v8::String::NewFromUtf8(isolate, "version"),
-              v8::FunctionTemplate::New(Version));
+              v8::FunctionTemplate::New(isolate, Version));
 
   return v8::Context::New(isolate, NULL, global);
 }

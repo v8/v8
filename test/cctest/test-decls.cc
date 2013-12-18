@@ -118,7 +118,7 @@ void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
-  Local<FunctionTemplate> function = FunctionTemplate::New();
+  Local<FunctionTemplate> function = FunctionTemplate::New(isolate);
   Local<Value> data = External::New(CcTest::isolate(), this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
                                                &HandleSet,
@@ -634,7 +634,7 @@ TEST(AbsentInPrototype) {
 class ExistsInHiddenPrototypeContext: public DeclarationContext {
  public:
   ExistsInHiddenPrototypeContext() {
-    hidden_proto_ = FunctionTemplate::New();
+    hidden_proto_ = FunctionTemplate::New(CcTest::isolate());
     hidden_proto_->SetHiddenPrototype(true);
   }
 
