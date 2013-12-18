@@ -2117,8 +2117,6 @@ class JSObject: public JSReceiver {
   bool HasDictionaryArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
-  inline bool ShouldTrackAllocationInfo();
-
   inline void set_map_and_elements(
       Map* map,
       FixedArrayBase* value,
