@@ -4156,7 +4156,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ xorps(xmm_scratch, xmm_scratch);
   __ ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
-  __ j(equal, &zero, Label::kNear);
+  __ j(not_carry, &zero, Label::kNear);
   ExternalReference nan =
       ExternalReference::address_of_canonical_non_hole_nan();
   __ movsd(input_reg, Operand::StaticVariable(nan));
