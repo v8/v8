@@ -460,7 +460,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* size_in_bytes = Add<HConstant>(size);
 
   HInstruction* object = Add<HAllocate>(size_in_bytes, HType::JSObject(),
-      isolate()->heap()->GetPretenureMode(), JS_OBJECT_TYPE);
+      NOT_TENURED, JS_OBJECT_TYPE);
 
   for (int i = 0; i < object_size; i += kPointerSize) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
