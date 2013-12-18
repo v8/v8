@@ -9949,8 +9949,7 @@ class ArrayConcatVisitor {
   }
 
   inline void clear_storage() {
-    isolate_->global_handles()->Destroy(
-        Handle<Object>::cast(storage_).location());
+    GlobalHandles::Destroy(Handle<Object>::cast(storage_).location());
   }
 
   inline void set_storage(FixedArray* storage) {
@@ -13806,8 +13805,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
 
   // Make object handle weak so we can delete the data format once GC kicks in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
-                          NULL,
+  GlobalHandles::MakeWeak(wrapper.location(),
+                          reinterpret_cast<void*>(wrapper.location()),
                           DateFormat::DeleteDateFormat);
   return *local_object;
 }
@@ -13910,8 +13909,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateNumberFormat) {
           NONE));
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
-                          NULL,
+  GlobalHandles::MakeWeak(wrapper.location(),
+                          reinterpret_cast<void*>(wrapper.location()),
                           NumberFormat::DeleteNumberFormat);
   return *local_object;
 }
@@ -14022,8 +14021,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCollator) {
           NONE));
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
-                          NULL,
+  GlobalHandles::MakeWeak(wrapper.location(),
+                          reinterpret_cast<void*>(wrapper.location()),
                           Collator::DeleteCollator);
   return *local_object;
 }
@@ -14098,8 +14097,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateBreakIterator) {
   // Make object handle weak so we can delete the break iterator once GC kicks
   // in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
-                          NULL,
+  GlobalHandles::MakeWeak(wrapper.location(),
+                          reinterpret_cast<void*>(wrapper.location()),
                           BreakIterator::DeleteBreakIterator);
   return *local_object;
 }

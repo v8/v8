@@ -225,17 +225,15 @@ Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
 // collector will call the weak callback on the global handle
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
-static void ClearWrapperCache(v8::Isolate* v8_isolate,
-                              Persistent<v8::Value>* handle,
-                              void*) {
-  Handle<Object> cache = Utils::OpenPersistent(handle);
-  JSValue* wrapper = JSValue::cast(*cache);
+static void ClearWrapperCache(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  Object** location = reinterpret_cast<Object**>(data.GetParameter());
+  JSValue* wrapper = JSValue::cast(*location);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
-  ASSERT(foreign->foreign_address() ==
-         reinterpret_cast<Address>(cache.location()));
+  ASSERT_EQ(foreign->foreign_address(), reinterpret_cast<Address>(location));
   foreign->set_foreign_address(0);
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-  isolate->global_handles()->Destroy(cache.location());
+  GlobalHandles::Destroy(location);
+  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   isolate->counters()->script_wrappers()->Decrement();
 }
 
@@ -267,9 +265,9 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   // for future use. The cache will automatically be cleared by the
   // garbage collector when it is not used anymore.
   Handle<Object> handle = isolate->global_handles()->Create(*result);
-  isolate->global_handles()->MakeWeak(handle.location(),
-                                      NULL,
-                                      &ClearWrapperCache);
+  GlobalHandles::MakeWeak(handle.location(),
+                          reinterpret_cast<void*>(handle.location()),
+                          &ClearWrapperCache);
   script->wrapper()->set_foreign_address(
       reinterpret_cast<Address>(handle.location()));
   return result;

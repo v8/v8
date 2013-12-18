@@ -201,9 +201,8 @@ class ScriptCache : private HashMap {
   void Clear();
 
   // Weak handle callback for scripts in the cache.
-  static void HandleWeakScript(v8::Isolate* isolate,
-                               v8::Persistent<v8::Value>* obj,
-                               void* data);
+  static void HandleWeakScript(
+      const v8::WeakCallbackData<v8::Value, void>& data);
 
   Isolate* isolate_;
   // List used during GC to temporarily store id's of collected scripts.
@@ -403,9 +402,8 @@ class Debug {
   static const int kEstimatedNofBreakPointsInFunction = 16;
 
   // Passed to MakeWeak.
-  static void HandleWeakDebugInfo(v8::Isolate* isolate,
-                                  v8::Persistent<v8::Value>* obj,
-                                  void* data);
+  static void HandleWeakDebugInfo(
+      const v8::WeakCallbackData<v8::Value, void>& data);
 
   friend class Debugger;
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc

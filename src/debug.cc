@@ -646,11 +646,10 @@ void ScriptCache::Add(Handle<Script> script) {
   // Globalize the script object, make it weak and use the location of the
   // global handle as the value in the hash map.
   Handle<Script> script_ =
-      Handle<Script>::cast(
-          (global_handles->Create(*script)));
-  global_handles->MakeWeak(reinterpret_cast<Object**>(script_.location()),
-                           this,
-                           ScriptCache::HandleWeakScript);
+      Handle<Script>::cast(global_handles->Create(*script));
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()),
+                          this,
+                          ScriptCache::HandleWeakScript);
   entry->value = script_.location();
 }
 
@@ -680,36 +679,37 @@ void ScriptCache::ProcessCollectedScripts() {
 
 
 void ScriptCache::Clear() {
-  GlobalHandles* global_handles = isolate_->global_handles();
   // Iterate the script cache to get rid of all the weak handles.
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
     ASSERT(entry != NULL);
     Object** location = reinterpret_cast<Object**>(entry->value);
     ASSERT((*location)->IsScript());
-    global_handles->ClearWeakness(location);
-    global_handles->Destroy(location);
+    GlobalHandles::ClearWeakness(location);
+    GlobalHandles::Destroy(location);
   }
   // Clear the content of the hash map.
   HashMap::Clear();
 }
 
 
-void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
-                                   v8::Persistent<v8::Value>* obj,
-                                   void* data) {
-  ScriptCache* script_cache = reinterpret_cast<ScriptCache*>(data);
-  // Find the location of the global handle.
-  Script** location =
-      reinterpret_cast<Script**>(Utils::OpenPersistent(*obj).location());
-  ASSERT((*location)->IsScript());
+void ScriptCache::HandleWeakScript(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  // Retrieve the script identifier.
+  Handle<Object> object = Utils::OpenHandle(*data.GetValue());
+  int id = Handle<Script>::cast(object)->id()->value();
+  void* key = reinterpret_cast<void*>(id);
+  uint32_t hash = Hash(id);
 
-  // Remove the entry from the cache.
-  int id = (*location)->id()->value();
-  script_cache->Remove(reinterpret_cast<void*>(id), Hash(id));
+  // Remove the corresponding entry from the cache.
+  ScriptCache* script_cache =
+      reinterpret_cast<ScriptCache*>(data.GetParameter());
+  HashMap::Entry* entry = script_cache->Lookup(key, hash, false);
+  Object** location = reinterpret_cast<Object**>(entry->value);
+  script_cache->Remove(key, hash);
   script_cache->collected_scripts_.Add(id);
 
   // Clear the weak handle.
-  obj->Reset();
+  GlobalHandles::Destroy(location);
 }
 
 
@@ -728,11 +728,11 @@ void Debug::SetUp(bool create_heap_objects) {
 }
 
 
-void Debug::HandleWeakDebugInfo(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value>* obj,
-                                void* data) {
-  Debug* debug = reinterpret_cast<Isolate*>(isolate)->debug();
-  DebugInfoListNode* node = reinterpret_cast<DebugInfoListNode*>(data);
+void Debug::HandleWeakDebugInfo(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
+  DebugInfoListNode* node =
+      reinterpret_cast<DebugInfoListNode*>(data.GetParameter());
   // We need to clear all breakpoints associated with the function to restore
   // original code and avoid patching the code twice later because
   // the function will live in the heap until next gc, and can be found by
@@ -741,29 +741,27 @@ void Debug::HandleWeakDebugInfo(v8::Isolate* isolate,
   it.ClearAllDebugBreak();
   debug->RemoveDebugInfo(node->debug_info());
 #ifdef DEBUG
-  node = debug->debug_info_list_;
-  while (node != NULL) {
-    ASSERT(node != reinterpret_cast<DebugInfoListNode*>(data));
-    node = node->next();
+  for (DebugInfoListNode* n = debug->debug_info_list_;
+       n != NULL;
+       n = n->next()) {
+    ASSERT(n != node);
   }
 #endif
 }
 
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
-  GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   // Globalize the request debug info object and make it weak.
-  debug_info_ = Handle<DebugInfo>::cast(
-      (global_handles->Create(debug_info)));
-  global_handles->MakeWeak(reinterpret_cast<Object**>(debug_info_.location()),
-                           this,
-                           Debug::HandleWeakDebugInfo);
+  GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
+  debug_info_ = Handle<DebugInfo>::cast(global_handles->Create(debug_info));
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(debug_info_.location()),
+                          this,
+                          Debug::HandleWeakDebugInfo);
 }
 
 
 DebugInfoListNode::~DebugInfoListNode() {
-  debug_info_->GetIsolate()->global_handles()->Destroy(
-      reinterpret_cast<Object**>(debug_info_.location()));
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_.location()));
 }
 
 
@@ -921,8 +919,7 @@ void Debug::Unload() {
   DestroyScriptCache();
 
   // Clear debugger context global handle.
-  isolate_->global_handles()->Destroy(
-      reinterpret_cast<Object**>(debug_context_.location()));
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
 }
 
@@ -3249,12 +3246,12 @@ void Debugger::SetEventListener(Handle<Object> callback,
   // Clear the global handles for the event listener and the event listener data
   // object.
   if (!event_listener_.is_null()) {
-    global_handles->Destroy(
+    GlobalHandles::Destroy(
         reinterpret_cast<Object**>(event_listener_.location()));
     event_listener_ = Handle<Object>();
   }
   if (!event_listener_data_.is_null()) {
-    global_handles->Destroy(
+    GlobalHandles::Destroy(
         reinterpret_cast<Object**>(event_listener_data_.location()));
     event_listener_data_ = Handle<Object>();
   }
