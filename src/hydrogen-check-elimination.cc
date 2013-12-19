@@ -127,9 +127,14 @@ class HCheckTable : public ZoneObject {
       new_entry->check_ = NULL;
       new_entry->maps_ = old_entry->maps_->Copy(phase_->zone());
     }
-    if (succ->predecessors()->length() == 1) {
-      HControlInstruction* end = succ->predecessors()->at(0)->end();
-      if (end->IsCompareMap() && end->SuccessorAt(0) == succ) {
+    copy->cursor_ = cursor_;
+    copy->size_ = size_;
+
+    // Branch-sensitive analysis for certain comparisons may add more facts
+    // to the state for the successor on the true branch.
+    HControlInstruction* end = succ->predecessors()->at(0)->end();
+    if (succ->predecessors()->length() == 1 && end->SuccessorAt(0) == succ) {
+      if (end->IsCompareMap()) {
         // Learn on the true branch of if(CompareMap(x)).
         HCompareMap* cmp = HCompareMap::cast(end);
         HValue* object = cmp->value()->ActualValue();
@@ -141,9 +146,29 @@ class HCheckTable : public ZoneObject {
           list->Add(cmp->map(), phase_->zone());
           entry->maps_ = list;
         }
+      } else if (end->IsCompareObjectEqAndBranch()) {
+        // Learn on the true branch of if(CmpObjectEq(x, y)).
+        HCompareObjectEqAndBranch* cmp =
+          HCompareObjectEqAndBranch::cast(end);
+        HValue* left = cmp->left()->ActualValue();
+        HValue* right = cmp->right()->ActualValue();
+        HCheckTableEntry* le = copy->Find(left);
+        HCheckTableEntry* re = copy->Find(right);
+        if (le == NULL) {
+          if (re != NULL) {
+            copy->Insert(left, NULL, re->maps_->Copy(zone));
+          }
+        } else if (re == NULL) {
+          copy->Insert(right, NULL, le->maps_->Copy(zone));
+        } else {
+          MapSet intersect = le->maps_->Intersect(re->maps_, zone);
+          le->maps_ = intersect;
+          re->maps_ = intersect->Copy(zone);
+        }
       }
-      // TODO(titzer): is it worthwhile to learn on false branch too?
+      // Learning on false branches requires storing negative facts.
     }
+
     return copy;
   }
 
