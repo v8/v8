@@ -3057,6 +3057,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
+  HLoadKeyed* hinstr = instr->hydrogen();
   Register result = ToRegister(instr->result());
   LOperand* key = instr->key();
   if (!key->IsConstantOperand()) {
@@ -3066,24 +3067,37 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that
     // case must be handled here, too.
-    if (instr->hydrogen()->IsDehoisted()) {
+    if (hinstr->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
       // and the dehoisted address computation happens in 64 bits
       __ movsxlq(key_reg, key_reg);
     }
   }
 
-  // Load the result.
-  __ movq(result,
+  bool requires_hole_check = hinstr->RequiresHoleCheck();
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Representation representation = hinstr->representation();
+
+  if (representation.IsInteger32() &&
+      hinstr->elements_kind() == FAST_SMI_ELEMENTS) {
+    ASSERT(!requires_hole_check);
+    // Read int value directly from upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
+
+  __ Load(result,
           BuildFastArrayOperand(instr->elements(),
                                 key,
                                 FAST_ELEMENTS,
-                                FixedArray::kHeaderSize - kHeapObjectTag,
-                                instr->additional_index()));
+                                offset,
+                                instr->additional_index()),
+          representation);
 
   // Check for the hole value.
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
+  if (requires_hole_check) {
+    if (IsFastSmiElementsKind(hinstr->elements_kind())) {
       Condition smi = __ CheckSmi(result);
       DeoptimizeIf(NegateCondition(smi), instr->environment());
     } else {
@@ -3924,13 +3938,14 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
+  HStoreNamedField* hinstr = instr->hydrogen();
   Representation representation = instr->representation();
 
-  HObjectAccess access = instr->hydrogen()->access();
+  HObjectAccess access = hinstr->access();
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    ASSERT(!hinstr->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(value.is(rax));
@@ -3950,7 +3965,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-      if (!IsSmiConstant(operand_value)) {
+      if (!IsInteger32Constant(operand_value) &&
+          !IsSmiConstant(operand_value)) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     }
@@ -3961,7 +3977,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     } else {
-      if (!instr->hydrogen()->value()->type().IsHeapObject()) {
+      if (!hinstr->value()->type().IsHeapObject()) {
         Register value = ToRegister(instr->value());
         Condition cc = masm()->CheckSmi(value);
         DeoptimizeIf(cc, instr->environment());
@@ -3970,14 +3986,14 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
-    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    ASSERT(!hinstr->NeedsWriteBarrier());
     XMMRegister value = ToDoubleRegister(instr->value());
     __ movsd(FieldOperand(object, offset), value);
     return;
   }
 
   if (!transition.is_null()) {
-    if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
+    if (!hinstr->NeedsWriteBarrierForMap()) {
       __ Move(FieldOperand(object, HeapObject::kMapOffset), transition);
     } else {
       Register temp = ToRegister(instr->temp());
@@ -3995,9 +4011,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
-  SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
-          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
+  SmiCheck check_needed = hinstr->value()->IsHeapObject()
+                          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   Register write_register = object;
   if (!access.IsInobject()) {
@@ -4005,26 +4020,41 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ movq(write_register, FieldOperand(object, JSObject::kPropertiesOffset));
   }
 
-  if (instr->value()->IsConstantOperand()) {
-    LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-    if (operand_value->IsRegister()) {
-      Register value = ToRegister(operand_value);
-      __ Store(FieldOperand(write_register, offset), value, representation);
-    } else if (representation.IsInteger32()) {
-      int32_t value = ToInteger32(operand_value);
-      ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-      __ movl(FieldOperand(write_register, offset), Immediate(value));
-    } else {
-      Handle<Object> handle_value = ToHandle(operand_value);
-      ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-      __ Move(FieldOperand(write_register, offset), handle_value);
-    }
-  } else {
-    Register value = ToRegister(instr->value());
-    __ Store(FieldOperand(write_register, offset), value, representation);
+  if (representation.IsSmi() &&
+      hinstr->value()->representation().IsInteger32()) {
+    ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    // Store int value directly to upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+    representation = Representation::Integer32();
   }
 
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
+  Operand operand = FieldOperand(write_register, offset);
+
+  if (instr->value()->IsRegister()) {
+    Register value = ToRegister(instr->value());
+    __ Store(operand, value, representation);
+  } else {
+    LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
+    if (IsInteger32Constant(operand_value)) {
+      ASSERT(!hinstr->NeedsWriteBarrier());
+      int32_t value = ToInteger32(operand_value);
+      if (representation.IsSmi()) {
+        __ Move(operand, Smi::FromInt(value));
+
+      } else {
+        __ movl(operand, Immediate(value));
+      }
+
+    } else {
+      Handle<Object> handle_value = ToHandle(operand_value);
+      ASSERT(!hinstr->NeedsWriteBarrier());
+      __ Move(operand, handle_value);
+    }
+  }
+
+  if (hinstr->NeedsWriteBarrier()) {
     Register value = ToRegister(instr->value());
     Register temp = access.IsInobject() ? ToRegister(instr->temp()) : object;
     // Update the write barrier for the object for in-object properties.
@@ -4211,7 +4241,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
-  Register elements = ToRegister(instr->elements());
+  HStoreKeyed* hinstr = instr->hydrogen();
   LOperand* key = instr->key();
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
@@ -4220,38 +4250,56 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // input gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->IsDehoisted()) {
+    if (hinstr->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
       // and the dehoisted address computation happens in 64 bits
       __ movsxlq(key_reg, key_reg);
     }
   }
 
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Representation representation = hinstr->value()->representation();
+
+  if (representation.IsInteger32()) {
+    ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    ASSERT(hinstr->elements_kind() == FAST_SMI_ELEMENTS);
+    // Store int value directly to upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
+
   Operand operand =
       BuildFastArrayOperand(instr->elements(),
                             key,
                             FAST_ELEMENTS,
-                            FixedArray::kHeaderSize - kHeapObjectTag,
+                            offset,
                             instr->additional_index());
+
   if (instr->value()->IsRegister()) {
-    __ movq(operand, ToRegister(instr->value()));
+    __ Store(operand, ToRegister(instr->value()), representation);
   } else {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (IsInteger32Constant(operand_value)) {
-      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
-      __ Move(operand, smi_value);
+      int32_t value = ToInteger32(operand_value);
+      if (representation.IsSmi()) {
+        __ Move(operand, Smi::FromInt(value));
+
+      } else {
+        __ movl(operand, Immediate(value));
+      }
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       __ Move(operand, handle_value);
     }
   }
 
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
+  if (hinstr->NeedsWriteBarrier()) {
+    Register elements = ToRegister(instr->elements());
     ASSERT(instr->value()->IsRegister());
     Register value = ToRegister(instr->value());
-    ASSERT(!instr->key()->IsConstantOperand());
-    SmiCheck check_needed =
-        instr->hydrogen()->value()->IsHeapObject()
+    ASSERT(!key->IsConstantOperand());
+    SmiCheck check_needed = hinstr->value()->IsHeapObject()
             ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
     Register key_reg(ToRegister(key));

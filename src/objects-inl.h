@@ -267,6 +267,9 @@ bool Object::HasValidElements() {
 
 MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
                                            Representation representation) {
+  if (FLAG_track_fields && representation.IsSmi() && IsUninitialized()) {
+    return Smi::FromInt(0);
+  }
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
   if (IsUninitialized()) {
@@ -1367,9 +1370,12 @@ inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
 }
 
 
-inline void AllocationSite::IncrementMementoFoundCount() {
+inline bool AllocationSite::IncrementMementoFoundCount() {
+  if (IsZombie()) return false;
+
   int value = memento_found_count()->value();
   set_memento_found_count(Smi::FromInt(value + 1));
+  return value == 0;
 }
 
 

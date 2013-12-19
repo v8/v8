@@ -162,6 +162,15 @@ void V8::FireCallCompletedCallback(Isolate* isolate) {
 
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
+
+  if (FLAG_predictable) {
+    if (FLAG_random_seed == 0) {
+      // Avoid random seeds in predictable mode.
+      FLAG_random_seed = 12347;
+    }
+    FLAG_hash_seed = 0;
+  }
+
   if (FLAG_stress_compaction) {
     FLAG_force_marking_deque_overflows = true;
     FLAG_gc_global = true;

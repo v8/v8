@@ -69,6 +69,9 @@
 #define DEFINE_implication(whenflag, thenflag) \
   if (FLAG_##whenflag) FLAG_##thenflag = true;
 
+#define DEFINE_neg_implication(whenflag, thenflag) \
+  if (FLAG_##whenflag) FLAG_##thenflag = false;
+
 #else
 #error No mode supplied when including flags.defs
 #endif
@@ -88,6 +91,10 @@
 
 #ifndef DEFINE_implication
 #define DEFINE_implication(whenflag, thenflag)
+#endif
+
+#ifndef DEFINE_neg_implication
+#define DEFINE_neg_implication(whenflag, thenflag)
 #endif
 
 #define COMMA ,
@@ -628,6 +635,14 @@ DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
 DEFINE_bool(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
 
+DEFINE_bool(predictable, false, "enable predictable mode")
+DEFINE_neg_implication(predictable, randomize_hashes)
+DEFINE_neg_implication(predictable, concurrent_recompilation)
+DEFINE_neg_implication(predictable, concurrent_osr)
+DEFINE_neg_implication(predictable, concurrent_sweeping)
+DEFINE_neg_implication(predictable, parallel_sweeping)
+
+
 //
 // Dev shell flags
 //
@@ -875,6 +890,7 @@ DEFINE_bool(enable_ool_constant_pool, false,
 #undef DEFINE_float
 #undef DEFINE_args
 #undef DEFINE_implication
+#undef DEFINE_neg_implication
 #undef DEFINE_ALIAS_bool
 #undef DEFINE_ALIAS_int
 #undef DEFINE_ALIAS_string

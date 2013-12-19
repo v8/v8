@@ -148,6 +148,7 @@ Heap::Heap()
 #ifdef VERIFY_HEAP
       no_weak_object_verification_scope_depth_(0),
 #endif
+      allocation_sites_scratchpad_length(0),
       promotion_queue_(this),
       configured_(false),
       chunks_queued_for_free_(NULL),
@@ -503,25 +504,45 @@ void Heap::RepairFreeListsAfterBoot() {
 }
 
 
-void Heap::GarbageCollectionEpilogue() {
+void Heap::ProcessPretenuringFeedback() {
   if (FLAG_allocation_site_pretenuring) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
     int allocation_mementos_found = 0;
+    int allocation_sites = 0;
+    int active_allocation_sites = 0;
 
-    Object* cur = allocation_sites_list();
-    while (cur->IsAllocationSite()) {
-      AllocationSite* casted = AllocationSite::cast(cur);
-      allocation_mementos_found += casted->memento_found_count()->value();
-      if (casted->DigestPretenuringFeedback()) {
-        if (casted->GetPretenureMode() == TENURED) {
+    // If the scratchpad overflowed, we have to iterate over the allocation
+    // stites list.
+    bool use_scratchpad =
+        allocation_sites_scratchpad_length < kAllocationSiteScratchpadSize;
+
+    int i = 0;
+    Object* list_element = allocation_sites_list();
+    while (use_scratchpad ?
+              i < allocation_sites_scratchpad_length :
+              list_element->IsAllocationSite()) {
+      AllocationSite* site = use_scratchpad ?
+        allocation_sites_scratchpad[i] : AllocationSite::cast(list_element);
+      allocation_mementos_found += site->memento_found_count()->value();
+      if (site->memento_found_count()->value() > 0) {
+        active_allocation_sites++;
+      }
+      if (site->DigestPretenuringFeedback()) {
+        if (site->GetPretenureMode() == TENURED) {
           tenure_decisions++;
         } else {
           dont_tenure_decisions++;
         }
       }
-      cur = casted->weak_next();
+      allocation_sites++;
+      if (use_scratchpad) {
+        i++;
+      } else {
+        list_element = site->weak_next();
+      }
     }
+    allocation_sites_scratchpad_length = 0;
 
     // TODO(mvstanton): Pretenure decisions are only made once for an allocation
     // site. Find a sane way to decide about revisiting the decision later.
@@ -530,14 +551,21 @@ void Heap::GarbageCollectionEpilogue() {
         (allocation_mementos_found > 0 ||
          tenure_decisions > 0 ||
          dont_tenure_decisions > 0)) {
-      PrintF("GC: (#mementos, #tenure decisions, #donttenure decisions) "
-             "(%d, %d, %d)\n",
+      PrintF("GC: (mode, #visited allocation sites, #active allocation sites, "
+             "#mementos, #tenure decisions, #donttenure decisions) "
+             "(%s, %d, %d, %d, %d, %d)\n",
+             use_scratchpad ? "use scratchpad" : "use list",
+             allocation_sites,
+             active_allocation_sites,
              allocation_mementos_found,
              tenure_decisions,
              dont_tenure_decisions);
     }
   }
+}
 
+
+void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
 
   // In release mode, we only zap the from space under heap verification.
@@ -1563,6 +1591,8 @@ void Heap::Scavenge() {
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
+
+  ProcessPretenuringFeedback();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 

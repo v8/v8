@@ -508,6 +508,13 @@ LOperand* LChunkBuilder::UseTempRegister(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseTempRegisterOrConstant(HValue* value) {
+  return value->IsConstant()
+      ? chunk_->DefineConstantOperand(HConstant::cast(value))
+      : UseTempRegister(value);
+}
+
+
 LOperand* LChunkBuilder::Use(HValue* value) {
   return Use(value, new(zone()) LUnallocated(LUnallocated::NONE));
 }
@@ -2177,17 +2184,20 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     LOperand* key = NULL;
     LOperand* val = NULL;
 
-    if (instr->value()->representation().IsDouble()) {
+    Representation value_representation = instr->value()->representation();
+    if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
       val = UseTempRegister(instr->value());
       key = UseRegisterOrConstantAtStart(instr->key());
     } else {
-      ASSERT(instr->value()->representation().IsSmiOrTagged());
-      object = UseTempRegister(instr->elements());
+      ASSERT(value_representation.IsSmiOrTagged() ||
+             value_representation.IsInteger32());
       if (needs_write_barrier) {
+        object = UseTempRegister(instr->elements());
         val = UseTempRegister(instr->value());
         key = UseTempRegister(instr->key());
       } else {
+        object = UseRegisterAtStart(instr->elements());
         val = UseRegisterOrConstantAtStart(instr->value());
         key = UseRegisterOrConstantAtStart(instr->key());
       }
@@ -2296,7 +2306,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
   } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
-    val = UseTempRegister(instr->value());
+    val = UseRegister(instr->value());
   } else if (FLAG_track_double_fields &&
              instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());

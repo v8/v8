@@ -1272,7 +1272,8 @@ class HGraphBuilder {
                                     ElementsKind kind,
                                     HValue* length,
                                     HValue* key,
-                                    bool is_js_array);
+                                    bool is_js_array,
+                                    bool is_store);
 
   HValue* BuildCopyElementsOnWrite(HValue* object,
                                    HValue* elements,

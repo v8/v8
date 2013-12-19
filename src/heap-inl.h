@@ -484,12 +484,21 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
-  if (FLAG_allocation_site_pretenuring && object->IsJSObject()) {
-    AllocationMemento* memento = AllocationMemento::FindForJSObject(
-        JSObject::cast(object), true);
+  if (FLAG_allocation_site_pretenuring &&
+      AllocationSite::CanTrack(object->map()->instance_type())) {
+    AllocationMemento* memento = AllocationMemento::FindForHeapObject(
+        object, true);
     if (memento != NULL) {
       ASSERT(memento->IsValid());
-      memento->GetAllocationSite()->IncrementMementoFoundCount();
+      bool add_to_scratchpad =
+          memento->GetAllocationSite()->IncrementMementoFoundCount();
+      Heap* heap = object->GetIsolate()->heap();
+      if (add_to_scratchpad && heap->allocation_sites_scratchpad_length <
+              kAllocationSiteScratchpadSize) {
+        heap->allocation_sites_scratchpad[
+            heap->allocation_sites_scratchpad_length++] =
+                memento->GetAllocationSite();
+      }
     }
   }
 }

@@ -1296,7 +1296,8 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
                                                  ElementsKind kind,
                                                  HValue* length,
                                                  HValue* key,
-                                                 bool is_js_array) {
+                                                 bool is_js_array,
+                                                 bool is_store) {
   IfBuilder length_checker(this);
 
   Token::Value token = IsHoleyElementsKind(kind) ? Token::GTE : Token::EQ;
@@ -1337,6 +1338,13 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
     Add<HStoreNamedField>(object, HObjectAccess::ForArrayLength(kind),
                           new_length);
+  }
+
+  if (is_store && kind == FAST_SMI_ELEMENTS) {
+    HValue* checked_elements = environment()->Top();
+
+    // Write zero to ensure that the new element is initialized with some smi.
+    Add<HStoreKeyed>(checked_elements, key, graph()->GetConstant0(), kind);
   }
 
   length_checker.Else();
@@ -2102,7 +2110,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     NoObservableSideEffectsScope no_effects(this);
     elements = BuildCheckForCapacityGrow(checked_object, elements,
                                          elements_kind, length, key,
-                                         is_js_array);
+                                         is_js_array, is_store);
     checked_key = key;
   } else {
     checked_key = Add<HBoundsCheck>(key, length);
@@ -2266,7 +2274,10 @@ HInstruction* HGraphBuilder::AddElementAccess(
     if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
       val = Add<HClampToUint8>(val);
     }
-    return Add<HStoreKeyed>(elements, checked_key, val, elements_kind);
+    return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
+                            elements_kind == FAST_SMI_ELEMENTS
+                              ? STORE_TO_INITIALIZED_ENTRY
+                              : INITIALIZING_STORE);
   }
 
   ASSERT(!is_store);
@@ -5206,9 +5217,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     }
   } else {
     // This is a normal store.
-    instr = New<HStoreNamedField>(checked_object->ActualValue(),
-                                  field_access,
-                                  value);
+    instr = New<HStoreNamedField>(
+        checked_object->ActualValue(), field_access, value,
+        transition_to_field ? INITIALIZING_STORE : STORE_TO_INITIALIZED_ENTRY);
   }
 
   if (transition_to_field) {
@@ -9159,15 +9170,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnInstruction(result, expr->id());
   }
 
-  // Cases handled below depend on collected type feedback. They should
-  // soft deoptimize when there is no type feedback.
-  if (combined_type->Is(Type::None())) {
-    Add<HDeoptimize>("Insufficient type feedback for combined type "
-                     "of binary operation",
-                     Deoptimizer::SOFT);
-    combined_type = left_type = right_type = handle(Type::Any(), isolate());
-  }
-
   HControlInstruction* compare = BuildCompareInstruction(
       op, left, right, left_type, right_type, combined_type,
       expr->left()->position(), expr->right()->position(), expr->id());
@@ -9186,6 +9188,15 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     int left_position,
     int right_position,
     BailoutId bailout_id) {
+  // Cases handled below depend on collected type feedback. They should
+  // soft deoptimize when there is no type feedback.
+  if (combined_type->Is(Type::None())) {
+    Add<HDeoptimize>("Insufficient type feedback for combined type "
+                     "of binary operation",
+                     Deoptimizer::SOFT);
+    combined_type = left_type = right_type = handle(Type::Any(), isolate());
+  }
+
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
   Representation combined_rep = Representation::FromType(combined_type);
@@ -9193,10 +9204,11 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
   if (combined_type->Is(Type::Receiver())) {
     if (Token::IsEqualityOp(op)) {
       // Can we get away with map check and not instance type check?
+      HValue* operand_to_check =
+          left->block()->block_id() < right->block()->block_id() ? left : right;
       if (combined_type->IsClass()) {
         Handle<Map> map = combined_type->AsClass();
-        AddCheckMap(left, map);
-        AddCheckMap(right, map);
+        AddCheckMap(operand_to_check, map);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);
         if (FLAG_emit_opt_code_positions) {
@@ -9205,10 +9217,9 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         }
         return result;
       } else {
-        BuildCheckHeapObject(left);
-        Add<HCheckInstanceType>(left, HCheckInstanceType::IS_SPEC_OBJECT);
-        BuildCheckHeapObject(right);
-        Add<HCheckInstanceType>(right, HCheckInstanceType::IS_SPEC_OBJECT);
+        BuildCheckHeapObject(operand_to_check);
+        Add<HCheckInstanceType>(operand_to_check,
+                                HCheckInstanceType::IS_SPEC_OBJECT);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);
         return result;
@@ -9441,7 +9452,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       Add<HStoreNamedField>(object, access, result);
     } else {
       Representation representation = details.representation();
-      HInstruction* value_instruction = Add<HConstant>(value);
+      HInstruction* value_instruction;
 
       if (representation.IsDouble()) {
         // Allocate a HeapNumber box and store the value into it.
@@ -9456,8 +9467,12 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
         Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),
-            value_instruction);
+                              Add<HConstant>(value));
         value_instruction = double_box;
+      } else if (representation.IsSmi() && value->IsUninitialized()) {
+        value_instruction = graph()->GetConstant0();
+      } else {
+        value_instruction = Add<HConstant>(value);
       }
 
       Add<HStoreNamedField>(object, access, value_instruction);

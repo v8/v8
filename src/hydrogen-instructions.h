@@ -6407,7 +6407,11 @@ class HLoadKeyed V8_FINAL
             (!IsHoleyElementsKind(elements_kind) ||
              mode == NEVER_RETURN_HOLE)) {
           set_type(HType::Smi());
-          set_representation(Representation::Smi());
+          if (SmiValuesAre32Bits() && !RequiresHoleCheck()) {
+            set_representation(Representation::Integer32());
+          } else {
+            set_representation(Representation::Smi());
+          }
         } else {
           set_representation(Representation::Tagged());
         }
@@ -6499,10 +6503,20 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
 };
 
 
+// Indicates whether the store is a store to an entry that was previously
+// initialized or not.
+enum StoreFieldOrKeyedMode {
+  INITIALIZING_STORE,
+  STORE_TO_INITIALIZED_ENTRY
+};
+
+
 class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P4(HStoreNamedField, HValue*,
+                                 HObjectAccess, HValue*, StoreFieldOrKeyedMode);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField)
 
@@ -6523,8 +6537,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
           field_representation().IsUInteger16() ||
           field_representation().IsInteger32()) {
         return Representation::Integer32();
-      } else if (field_representation().IsDouble() ||
-                 field_representation().IsSmi()) {
+      } else if (field_representation().IsDouble()) {
+        return field_representation();
+      } else if (field_representation().IsSmi()) {
+        if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+          return Representation::Integer32();
+        }
         return field_representation();
       } else if (field_representation().IsExternal()) {
         return Representation::External();
@@ -6551,6 +6569,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HObjectAccess access() const { return access_; }
   HValue* new_space_dominator() const { return new_space_dominator_; }
   bool has_transition() const { return has_transition_; }
+  StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
 
   Handle<Map> transition_map() const {
     if (has_transition()) {
@@ -6601,11 +6620,13 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  private:
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,
-                   HValue* val)
+                   HValue* val,
+                   StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
-        has_transition_(false) {
+        has_transition_(false),
+        store_mode_(store_mode) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
@@ -6616,6 +6637,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
+  StoreFieldOrKeyedMode store_mode_ : 1;
 };
 
 
@@ -6662,6 +6684,8 @@ class HStoreKeyed V8_FINAL
  public:
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind);
+  DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
+                                 ElementsKind, StoreFieldOrKeyedMode);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     // kind_fast:       tagged[int32] = tagged
@@ -6680,7 +6704,9 @@ class HStoreKeyed V8_FINAL
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
     }
-
+    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+      return Representation::Integer32();
+    }
     if (IsFastSmiElementsKind(elements_kind())) {
       return Representation::Smi();
     }
@@ -6698,11 +6724,14 @@ class HStoreKeyed V8_FINAL
     if (IsUninitialized()) {
       return Representation::None();
     }
-    if (IsFastSmiElementsKind(elements_kind())) {
-      return Representation::Smi();
-    }
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
+    }
+    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+      return Representation::Integer32();
+    }
+    if (IsFastSmiElementsKind(elements_kind())) {
+      return Representation::Smi();
     }
     if (is_external()) {
       return Representation::Integer32();
@@ -6717,6 +6746,7 @@ class HStoreKeyed V8_FINAL
   bool value_is_smi() const {
     return IsFastSmiElementsKind(elements_kind_);
   }
+  StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
   ElementsKind elements_kind() const { return elements_kind_; }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
@@ -6762,15 +6792,20 @@ class HStoreKeyed V8_FINAL
 
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
-              ElementsKind elements_kind)
+              ElementsKind elements_kind,
+              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
       is_uninitialized_(false),
+      store_mode_(store_mode),
       new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
+
+    ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
+           elements_kind == FAST_SMI_ELEMENTS);
 
     if (IsFastObjectElementsKind(elements_kind)) {
       SetFlag(kTrackSideEffectDominators);
@@ -6798,6 +6833,7 @@ class HStoreKeyed V8_FINAL
   uint32_t index_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
+  StoreFieldOrKeyedMode store_mode_: 1;
   HValue* new_space_dominator_;
 };
 
