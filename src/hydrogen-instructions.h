@@ -1245,7 +1245,7 @@ class HInstruction : public HValue {
   virtual void Verify() V8_OVERRIDE;
 #endif
 
-  virtual bool IsCall() { return false; }
+  virtual bool HasStackCheck() { return false; }
 
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
 
@@ -2243,8 +2243,6 @@ class HCall : public HTemplateInstruction<V> {
     return -argument_count();
   }
 
-  virtual bool IsCall() V8_FINAL V8_OVERRIDE { return true; }
-
  private:
   int argument_count_;
 };
@@ -2300,6 +2298,9 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
         known_function_(known_function) {
     formal_parameter_count_ = known_function.is_null()
         ? 0 : known_function->shared()->formal_parameter_count();
+    has_stack_check_ = !known_function.is_null() &&
+        (known_function->code()->kind() == Code::FUNCTION ||
+         known_function->code()->kind() == Code::OPTIMIZED_FUNCTION);
   }
 
   static HInvokeFunction* New(Zone* zone,
@@ -2316,15 +2317,21 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
   Handle<JSFunction> known_function() { return known_function_; }
   int formal_parameter_count() const { return formal_parameter_count_; }
 
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
 
  private:
   HInvokeFunction(HValue* context, HValue* function, int argument_count)
-      : HBinaryCall(context, function, argument_count) {
+      : HBinaryCall(context, function, argument_count),
+        has_stack_check_(false) {
   }
 
   Handle<JSFunction> known_function_;
   int formal_parameter_count_;
+  bool has_stack_check_;
 };
 
 
@@ -2348,16 +2355,24 @@ class HCallConstantFunction V8_FINAL : public HCall<0> {
     return Representation::None();
   }
 
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallConstantFunction)
 
  private:
   HCallConstantFunction(Handle<JSFunction> function, int argument_count)
       : HCall<0>(argument_count),
         function_(function),
-        formal_parameter_count_(function->shared()->formal_parameter_count()) {}
+        formal_parameter_count_(function->shared()->formal_parameter_count()),
+        has_stack_check_(
+            function->code()->kind() == Code::FUNCTION ||
+            function->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
 
   Handle<JSFunction> function_;
   int formal_parameter_count_;
+  bool has_stack_check_;
 };
 
 
@@ -2465,16 +2480,24 @@ class HCallKnownGlobal V8_FINAL : public HCall<0> {
     return Representation::None();
   }
 
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallKnownGlobal)
 
  private:
   HCallKnownGlobal(Handle<JSFunction> target, int argument_count)
       : HCall<0>(argument_count),
         target_(target),
-        formal_parameter_count_(target->shared()->formal_parameter_count()) { }
+        formal_parameter_count_(target->shared()->formal_parameter_count()),
+        has_stack_check_(
+            target->code()->kind() == Code::FUNCTION ||
+            target->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
 
   Handle<JSFunction> target_;
   int formal_parameter_count_;
+  bool has_stack_check_;
 };
 
 
