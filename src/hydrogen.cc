@@ -9170,15 +9170,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnInstruction(result, expr->id());
   }
 
-  // Cases handled below depend on collected type feedback. They should
-  // soft deoptimize when there is no type feedback.
-  if (combined_type->Is(Type::None())) {
-    Add<HDeoptimize>("Insufficient type feedback for combined type "
-                     "of binary operation",
-                     Deoptimizer::SOFT);
-    combined_type = left_type = right_type = handle(Type::Any(), isolate());
-  }
-
   HControlInstruction* compare = BuildCompareInstruction(
       op, left, right, left_type, right_type, combined_type,
       expr->left()->position(), expr->right()->position(), expr->id());
@@ -9197,6 +9188,15 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     int left_position,
     int right_position,
     BailoutId bailout_id) {
+  // Cases handled below depend on collected type feedback. They should
+  // soft deoptimize when there is no type feedback.
+  if (combined_type->Is(Type::None())) {
+    Add<HDeoptimize>("Insufficient type feedback for combined type "
+                     "of binary operation",
+                     Deoptimizer::SOFT);
+    combined_type = left_type = right_type = handle(Type::Any(), isolate());
+  }
+
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
   Representation combined_rep = Representation::FromType(combined_type);
