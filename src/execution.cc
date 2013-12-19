@@ -623,7 +623,8 @@ void StackGuard::ThreadLocal::Clear() {
   nesting_ = 0;
   postpone_interrupts_nesting_ = 0;
   interrupt_flags_ = 0;
-  interrupt_callback_ = 0;
+  interrupt_callback_ = NULL;
+  interrupt_callback_data_ = NULL;
 }
 
 
@@ -644,7 +645,8 @@ bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   nesting_ = 0;
   postpone_interrupts_nesting_ = 0;
   interrupt_flags_ = 0;
-  interrupt_callback_ = 0;
+  interrupt_callback_ = NULL;
+  interrupt_callback_data_ = NULL;
   return should_set_stack_limits;
 }
 
