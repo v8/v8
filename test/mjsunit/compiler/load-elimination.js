@@ -35,6 +35,9 @@ function B(x, y) {
   return this;
 }
 
+function C() {
+}
+
 function test_load() {
   var a = new B(1, 2);
   return a.x + a.x + a.x + a.x;
@@ -62,6 +65,22 @@ function test_nonaliasing_store1() {
   var h = a.x;
   b.x = 7;
   return f + g + h + a.x;
+}
+
+function test_transitioning_store1() {
+  var a = new B(2, 3);
+  var f = a.x, g = a.y;
+  var b = new B(3, 4);
+  return a.x + a.y;
+}
+
+function test_transitioning_store2() {
+  var b = new C();
+  var a = new B(-1, 5);
+  var f = a.x, g = a.y;
+  b.x = 9;
+  b.y = 11;
+  return a.x + a.y;
 }
 
 function killall() {
@@ -102,5 +121,7 @@ function test(x, f) {
 test(4, test_load);
 test(22, test_store_load);
 test(8, test_nonaliasing_store1);
+test(5, test_transitioning_store1);
+test(4, test_transitioning_store2);
 test(22, test_store_load_kill);
 test(7, test_store_store);
