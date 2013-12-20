@@ -1234,6 +1234,31 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
+void StoreRegistersStateStub::Generate(MacroAssembler* masm) {
+  __ mov(t9, ra);
+  __ pop(ra);
+  if (save_doubles_ == kSaveFPRegs) {
+    __ PushSafepointRegistersAndDoubles();
+  } else {
+    __ PushSafepointRegisters();
+  }
+  __ Jump(t9);
+}
+
+
+void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
+  __ mov(t9, ra);
+  __ pop(ra);
+  __ StoreToSafepointRegisterSlot(t9, t9);
+  if (save_doubles_ == kSaveFPRegs) {
+    __ PopSafepointRegistersAndDoubles();
+  } else {
+    __ PopSafepointRegisters();
+  }
+  __ Jump(t9);
+}
+
+
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // We don't allow a GC during a store buffer overflow so there is no need to
   // store the registers in any particular way, but we do have to store and
@@ -1501,6 +1526,28 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
+  StoreRegistersStateStub::GenerateAheadOfTime(isolate);
+  RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
+}
+
+
+void StoreRegistersStateStub::GenerateAheadOfTime(
+    Isolate* isolate) {
+  StoreRegistersStateStub stub1(kDontSaveFPRegs);
+  stub1.GetCode(isolate);
+  // Hydrogen code stubs need stub2 at snapshot time.
+  StoreRegistersStateStub stub2(kSaveFPRegs);
+  stub2.GetCode(isolate);
+}
+
+
+void RestoreRegistersStateStub::GenerateAheadOfTime(
+    Isolate* isolate) {
+  RestoreRegistersStateStub stub1(kDontSaveFPRegs);
+  stub1.GetCode(isolate);
+  // Hydrogen code stubs need stub2 at snapshot time.
+  RestoreRegistersStateStub stub2(kSaveFPRegs);
+  stub2.GetCode(isolate);
 }
 
 

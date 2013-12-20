@@ -114,7 +114,9 @@ namespace internal {
 #if V8_TARGET_ARCH_MIPS
 #define CODE_STUB_LIST_MIPS(V)  \
   V(RegExpCEntry)               \
-  V(DirectCEntry)
+  V(DirectCEntry)               \
+  V(StoreRegistersState)        \
+  V(RestoreRegistersState)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif
