@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --noalways-opt
+// Flags: --track-allocation-sites --noalways-opt
 // Flags: --stress-runs=8 --send-idle-notification --gc-global
 
 

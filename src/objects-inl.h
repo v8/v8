@@ -1326,7 +1326,8 @@ void AllocationSite::MarkZombie() {
 // elements kind is the initial elements kind.
 AllocationSiteMode AllocationSite::GetMode(
     ElementsKind boilerplate_elements_kind) {
-  if (IsFastSmiElementsKind(boilerplate_elements_kind)) {
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(boilerplate_elements_kind)) {
     return TRACK_ALLOCATION_SITE;
   }
 
@@ -1336,7 +1337,8 @@ AllocationSiteMode AllocationSite::GetMode(
 
 AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
                                            ElementsKind to) {
-  if (IsFastSmiElementsKind(from) &&
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(from) &&
       IsMoreGeneralElementsKindTransition(from, to)) {
     return TRACK_ALLOCATION_SITE;
   }

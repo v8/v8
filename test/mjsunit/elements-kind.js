@@ -26,7 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --nostress-opt
+// Flags: --notrack_allocation_sites
+
+// Limit the number of stress runs to reduce polymorphism it defeats some of the
+// assumptions made about how elements transitions work because transition stubs
+// end up going generic.
+// Flags: --stress-runs=2
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
@@ -118,75 +123,56 @@ if (support_smi_only_arrays) {
 }
 
 // Make sure the element kind transitions from smi when a non-smi is stored.
-function test_wrapper() {
-  var you = new Array();
-  assertKind(elements_kind.fast_smi_only, you);
-  for (var i = 0; i < 1337; i++) {
-    var val = i;
-    if (i == 1336) {
-      assertKind(elements_kind.fast_smi_only, you);
-      val = new Object();
-    }
-    you[i] = val;
+var you = new Array();
+assertKind(elements_kind.fast_smi_only, you);
+for (var i = 0; i < 1337; i++) {
+  var val = i;
+  if (i == 1336) {
+    assertKind(elements_kind.fast_smi_only, you);
+    val = new Object();
   }
-  assertKind(elements_kind.fast, you);
-
-  assertKind(elements_kind.dictionary, new Array(0xDECAF));
-
-  var fast_double_array = new Array(0xDECAF);
-  for (var i = 0; i < 0xDECAF; i++) fast_double_array[i] = i / 2;
-  assertKind(elements_kind.fast_double, fast_double_array);
-
-  assertKind(elements_kind.external_byte,           new Int8Array(9001));
-  assertKind(elements_kind.external_unsigned_byte,  new Uint8Array(007));
-  assertKind(elements_kind.external_short,          new Int16Array(666));
-  assertKind(elements_kind.external_unsigned_short, new Uint16Array(42));
-  assertKind(elements_kind.external_int,            new Int32Array(0xF));
-  assertKind(elements_kind.external_unsigned_int,   new Uint32Array(23));
-  assertKind(elements_kind.external_float,          new Float32Array(7));
-  assertKind(elements_kind.external_double,         new Float64Array(0));
-  assertKind(elements_kind.external_pixel,          new Uint8ClampedArray(512));
-
-  // Crankshaft support for smi-only array elements.
-  function monomorphic(array) {
-    assertKind(elements_kind.fast_smi_only, array);
-    for (var i = 0; i < 3; i++) {
-      array[i] = i + 10;
-    }
-    assertKind(elements_kind.fast_smi_only, array);
-    for (var i = 0; i < 3; i++) {
-      var a = array[i];
-      assertEquals(i + 10, a);
-    }
-  }
-  var smi_only = new Array(1, 2, 3);
-  assertKind(elements_kind.fast_smi_only, smi_only);
-  for (var i = 0; i < 3; i++) monomorphic(smi_only);
-    %OptimizeFunctionOnNextCall(monomorphic);
-  monomorphic(smi_only);
+  you[i] = val;
 }
+assertKind(elements_kind.fast, you);
 
-// The test is called in a wrapper function to eliminate the transition learning
-// feedback of AllocationSites.
-test_wrapper();
-%ClearFunctionTypeFeedback(test_wrapper);
+assertKind(elements_kind.dictionary, new Array(0xDECAF));
+
+var fast_double_array = new Array(0xDECAF);
+for (var i = 0; i < 0xDECAF; i++) fast_double_array[i] = i / 2;
+assertKind(elements_kind.fast_double, fast_double_array);
+
+assertKind(elements_kind.external_byte,           new Int8Array(9001));
+assertKind(elements_kind.external_unsigned_byte,  new Uint8Array(007));
+assertKind(elements_kind.external_short,          new Int16Array(666));
+assertKind(elements_kind.external_unsigned_short, new Uint16Array(42));
+assertKind(elements_kind.external_int,            new Int32Array(0xF));
+assertKind(elements_kind.external_unsigned_int,   new Uint32Array(23));
+assertKind(elements_kind.external_float,          new Float32Array(7));
+assertKind(elements_kind.external_double,         new Float64Array(0));
+assertKind(elements_kind.external_pixel,          new Uint8ClampedArray(512));
+
+// Crankshaft support for smi-only array elements.
+function monomorphic(array) {
+  assertKind(elements_kind.fast_smi_only, array);
+  for (var i = 0; i < 3; i++) {
+    array[i] = i + 10;
+  }
+  assertKind(elements_kind.fast_smi_only, array);
+  for (var i = 0; i < 3; i++) {
+    var a = array[i];
+    assertEquals(i + 10, a);
+  }
+}
+var smi_only = new Array(1, 2, 3);
+assertKind(elements_kind.fast_smi_only, smi_only);
+for (var i = 0; i < 3; i++) monomorphic(smi_only);
+%OptimizeFunctionOnNextCall(monomorphic);
+monomorphic(smi_only);
 
 if (support_smi_only_arrays) {
   %NeverOptimizeFunction(construct_smis);
-
-  // This code exists to eliminate the learning influence of AllocationSites
-  // on the following tests.
-  var __sequence = 0;
-  function make_array_string() {
-    this.__sequence = this.__sequence + 1;
-    return "/* " + this.__sequence + " */  [0, 0, 0];"
-  }
-  function make_array() {
-    return eval(make_array_string());
-  }
-
   function construct_smis() {
-    var a = make_array();
+    var a = [0, 0, 0];
     a[0] = 0;  // Send the COW array map to the steak house.
     assertKind(elements_kind.fast_smi_only, a);
     return a;
