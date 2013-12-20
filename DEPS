@@ -14,7 +14,7 @@ deps = {
 deps_os = {
   "win": {
     "v8/third_party/cygwin":
-      "http://src.chromium.org/svn/trunk/deps/third_party/cygwin@66844",
+      "http://src.chromium.org/svn/trunk/deps/third_party/cygwin@231940",
 
     "v8/third_party/python_26":
       "http://src.chromium.org/svn/trunk/tools/third_party/python_26@89111",
