@@ -21048,6 +21048,10 @@ class RequestInterruptTestBase {
     TestBody();
 
     isolate_->ClearInterrupt();
+
+    // Verify we arrived here because interruptor was called
+    // not due to a bug causing us to exit the loop too early.
+    CHECK(!should_continue());
   }
 
   void WakeUpInterruptor() {
@@ -21146,11 +21150,11 @@ class RequestInterruptTestWithNativeAccessor : public RequestInterruptTestBase {
  public:
   virtual void TestBody() {
     v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
-    v8::Local<v8::Template> proto = t->PrototypeTemplate();
-    proto->SetNativeDataProperty(v8_str("shouldContinue"),
-                                 &ShouldContinueNativeGetter,
-                                 NULL,
-                                 v8::External::New(isolate_, this));
+    t->InstanceTemplate()->SetNativeDataProperty(
+        v8_str("shouldContinue"),
+        &ShouldContinueNativeGetter,
+        NULL,
+        v8::External::New(isolate_, this));
     env_->Global()->Set(v8_str("Klass"), t->GetFunction());
 
     CompileRun("var obj = new Klass; while (obj.shouldContinue) { }");
