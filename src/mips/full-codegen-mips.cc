@@ -179,20 +179,21 @@ void FullCodeGenerator::Generate() {
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
     if (locals_count > 0) {
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
       // Emit a loop to initialize stack cells for locals when optimizing for
       // size. Otherwise, unroll the loop for maximum performance.
       __ LoadRoot(t5, Heap::kUndefinedValueRootIndex);
-      if (FLAG_optimize_for_size && locals_count > 4) {
+      if ((FLAG_optimize_for_size && locals_count > 4) ||
+          !is_int16(locals_count)) {
         Label loop;
-        __ li(a2, Operand(locals_count));
+        __ Subu(a2, sp, Operand(locals_count * kPointerSize));
         __ bind(&loop);
-        __ Subu(a2, a2, 1);
-        __ push(t5);
-        __ Branch(&loop, gt, a2, Operand(zero_reg));
+        __ Subu(sp, sp, Operand(kPointerSize));
+        __ Branch(&loop, gt, sp, Operand(a2), USE_DELAY_SLOT);
+        __ sw(t5, MemOperand(sp, 0));  // Push in the delay slot.
       } else {
+        __ Subu(sp, sp, Operand(locals_count * kPointerSize));
         for (int i = 0; i < locals_count; i++) {
-          __ push(t5);
+          __ sw(t5, MemOperand(sp, i * kPointerSize));
         }
       }
     }
