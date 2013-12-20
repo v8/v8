@@ -550,7 +550,9 @@ TEST(CollectCpuProfile) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
 
   int32_t profiling_interval_ms = 200;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(profiling_interval_ms) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
+  };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 200);
   function->Call(env->Global(), ARRAY_SIZE(args), args);
@@ -622,7 +624,9 @@ TEST(SampleWhenFrameIsNotSetup) {
   // Simulators are much slower.
   repeat_count = 1;
 #endif
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), repeat_count)
+  };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
@@ -742,7 +746,7 @@ TEST(NativeAccessorUninitializedIC) {
       env->Global()->Get(v8::String::NewFromUtf8(isolate, "start")));
 
   int32_t repeat_count = 1;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 180);
 
@@ -791,13 +795,15 @@ TEST(NativeAccessorMonomorphicIC) {
     // profiling.
     accessors.set_warming_up(true);
     int32_t warm_up_iterations = 3;
-    v8::Handle<v8::Value> args[] = { v8::Integer::New(warm_up_iterations) };
+    v8::Handle<v8::Value> args[] = {
+      v8::Integer::New(isolate, warm_up_iterations)
+    };
     function->Call(env->Global(), ARRAY_SIZE(args), args);
     accessors.set_warming_up(false);
   }
 
   int32_t repeat_count = 100;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 200);
 
@@ -851,7 +857,7 @@ TEST(NativeMethodUninitializedIC) {
       env->Global()->Get(v8::String::NewFromUtf8(isolate, "start")));
 
   int32_t repeat_count = 1;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
@@ -900,13 +906,15 @@ TEST(NativeMethodMonomorphicIC) {
     // profiling.
     callbacks.set_warming_up(true);
     int32_t warm_up_iterations = 3;
-    v8::Handle<v8::Value> args[] = { v8::Integer::New(warm_up_iterations) };
+    v8::Handle<v8::Value> args[] = {
+      v8::Integer::New(isolate, warm_up_iterations)
+    };
     function->Call(env->Global(), ARRAY_SIZE(args), args);
     callbacks.set_warming_up(false);
   }
 
   int32_t repeat_count = 100;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
@@ -945,7 +953,9 @@ TEST(BoundFunctionCall) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
 
   int32_t duration_ms = 100;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), duration_ms)
+  };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
@@ -1004,7 +1014,9 @@ TEST(FunctionCallSample) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
 
   int32_t duration_ms = 100;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), duration_ms)
+  };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
@@ -1084,7 +1096,9 @@ TEST(FunctionApplySample) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
 
   int32_t duration_ms = 100;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), duration_ms)
+  };
 
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
@@ -1191,7 +1205,9 @@ TEST(JsNativeJsSample) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
 
   int32_t duration_ms = 20;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), duration_ms)
+  };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
@@ -1275,7 +1291,9 @@ TEST(JsNativeJsRuntimeJsSample) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
 
   int32_t duration_ms = 20;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), duration_ms)
+  };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
@@ -1368,7 +1386,9 @@ TEST(JsNative1JsNative2JsSample) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
 
   int32_t duration_ms = 20;
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), duration_ms)
+  };
   const v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 

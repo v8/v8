@@ -885,7 +885,7 @@ static void TemplateSet(i::Isolate* isolate,
     Utils::OpenHandle(templ)->set_property_list(*list);
   }
   NeanderArray array(list);
-  array.add(Utils::OpenHandle(*v8::Integer::New(length)));
+  array.add(isolate->factory()->NewNumberFromInt(length));
   for (int i = 0; i < length; i++) {
     i::Handle<i::Object> value = data[i].IsEmpty() ?
         i::Handle<i::Object>(isolate->factory()->undefined_value()) :
@@ -902,10 +902,11 @@ void Template::Set(v8::Handle<String> name,
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   const int kSize = 3;
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Handle<v8::Data> data[kSize] = {
       name,
       value,
-      v8::Integer::New(attribute)};
+      v8::Integer::New(v8_isolate, attribute)};
   TemplateSet(isolate, this, kSize, data);
 }
 
@@ -922,12 +923,13 @@ void Template::SetAccessorProperty(
   ASSERT(!getter.IsEmpty() || !setter.IsEmpty());
   i::HandleScope scope(isolate);
   const int kSize = 5;
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Handle<v8::Data> data[kSize] = {
       name,
       getter,
       setter,
-      v8::Integer::New(attribute),
-      v8::Integer::New(access_control)};
+      v8::Integer::New(v8_isolate, attribute),
+      v8::Integer::New(v8_isolate, access_control)};
   TemplateSet(isolate, this, kSize, data);
 }
 
@@ -1007,14 +1009,6 @@ Local<FunctionTemplate> FunctionTemplate::New(
       i_isolate, callback, data, signature, length, false);
 }
 
-
-Local<FunctionTemplate> FunctionTemplate::New(
-    FunctionCallback callback,
-    v8::Handle<Value> data,
-    v8::Handle<Signature> signature,
-    int length) {
-  return New(Isolate::GetCurrent(), callback, data, signature, length);
-}
 
 Local<Signature> Signature::New(Isolate* isolate,
                                 Handle<FunctionTemplate> receiver, int argc,
@@ -4124,10 +4118,11 @@ ScriptOrigin Function::GetScriptOrigin() const {
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
     i::Handle<i::Object> scriptName = GetScriptNameOrSourceURL(script);
+    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(func->GetIsolate());
     v8::ScriptOrigin origin(
       Utils::ToLocal(scriptName),
-      v8::Integer::New(script->line_offset()->value()),
-      v8::Integer::New(script->column_offset()->value()));
+      v8::Integer::New(isolate, script->line_offset()->value()),
+      v8::Integer::New(isolate, script->column_offset()->value()));
     return origin;
   }
   return v8::ScriptOrigin(Handle<Value>());
@@ -5344,16 +5339,6 @@ void* External::Value() const {
 }
 
 
-Local<String> v8::String::Empty() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!EnsureInitializedForIsolate(isolate, "v8::String::Empty()")) {
-    return v8::Local<String>();
-  }
-  LOG_API(isolate, "String::Empty()");
-  return Utils::ToLocal(isolate->factory()->empty_string());
-}
-
-
 // anonymous namespace for string creation helper functions
 namespace {
 
@@ -5416,7 +5401,7 @@ inline Local<String> NewString(Isolate* v8_isolate,
   EnsureInitializedForIsolate(isolate, location);
   LOG_API(isolate, env);
   if (length == 0 && type != String::kUndetectableString) {
-    return String::Empty();
+    return String::Empty(v8_isolate);
   }
   ENTER_V8(isolate);
   if (length == -1) length = StringLength(data);
@@ -5644,11 +5629,6 @@ Local<v8::Object> v8::Object::New(Isolate* isolate) {
   i::Handle<i::JSObject> obj =
       i_isolate->factory()->NewJSObject(i_isolate->object_function());
   return Utils::ToLocal(obj);
-}
-
-
-Local<v8::Object> v8::Object::New() {
-  return New(Isolate::GetCurrent());
 }
 
 
@@ -6137,13 +6117,6 @@ Local<Private> v8::Private::New(
 }
 
 
-Local<Number> v8::Number::New(double value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Number::New()");
-  return Number::New(reinterpret_cast<Isolate*>(isolate), value);
-}
-
-
 Local<Number> v8::Number::New(Isolate* isolate, double value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ASSERT(internal_isolate->IsInitialized());
@@ -6154,30 +6127,6 @@ Local<Number> v8::Number::New(Isolate* isolate, double value) {
   ENTER_V8(internal_isolate);
   i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
   return Utils::NumberToLocal(result);
-}
-
-
-Local<Integer> v8::Integer::New(int32_t value) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
-  return v8::Integer::New(reinterpret_cast<Isolate*>(isolate), value);
-}
-
-
-Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Integer::NewFromUnsigned()");
-  return Integer::NewFromUnsigned(reinterpret_cast<Isolate*>(isolate), value);
-}
-
-
-Local<Integer> v8::Integer::New(int32_t value, Isolate* isolate) {
-  return Integer::New(isolate, value);
-}
-
-
-Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
-  return Integer::NewFromUnsigned(isolate, value);
 }
 
 
@@ -6199,7 +6148,7 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
   ASSERT(internal_isolate->IsInitialized());
   bool fits_into_int32_t = (value & (1 << 31)) == 0;
   if (fits_into_int32_t) {
-    return Integer::New(static_cast<int32_t>(value), isolate);
+    return Integer::New(isolate, static_cast<int32_t>(value));
   }
   ENTER_V8(internal_isolate);
   i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
