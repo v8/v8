@@ -25,31 +25,56 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_DEFAULT_PLATFORM_H_
-#define V8_DEFAULT_PLATFORM_H_
+#include "task-queue.h"
 
-#include "v8.h"
+// TODO(jochen): We should have our own version of checks.h.
+#include "../checks.h"
 
 namespace v8 {
 namespace internal {
 
-class DefaultPlatform : public Platform {
- public:
-  DefaultPlatform();
-  virtual ~DefaultPlatform();
+TaskQueue::TaskQueue() : process_queue_semaphore_(0), terminated_(false) {}
 
-  // v8::Platform implementation.
-  virtual void CallOnBackgroundThread(
-      Task *task, ExpectedRuntime expected_runtime) V8_OVERRIDE;
-  virtual void CallOnForegroundThread(v8::Isolate *isolate,
-                                      Task *task) V8_OVERRIDE;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
-};
+TaskQueue::~TaskQueue() {
+  LockGuard<Mutex> guard(&lock_);
+  ASSERT(terminated_);
+  ASSERT(task_queue_.empty());
+}
 
+
+void TaskQueue::Append(Task* task) {
+  LockGuard<Mutex> guard(&lock_);
+  ASSERT(!terminated_);
+  task_queue_.push(task);
+  process_queue_semaphore_.Signal();
+}
+
+
+Task* TaskQueue::GetNext() {
+  for (;;) {
+    {
+      LockGuard<Mutex> guard(&lock_);
+      if (!task_queue_.empty()) {
+        Task* result = task_queue_.front();
+        task_queue_.pop();
+        return result;
+      }
+      if (terminated_) {
+        process_queue_semaphore_.Signal();
+        return NULL;
+      }
+    }
+    process_queue_semaphore_.Wait();
+  }
+}
+
+
+void TaskQueue::Terminate() {
+  LockGuard<Mutex> guard(&lock_);
+  ASSERT(!terminated_);
+  terminated_ = true;
+  process_queue_semaphore_.Signal();
+}
 
 } }  // namespace v8::internal
-
-
-#endif  // V8_DEFAULT_PLATFORM_H_

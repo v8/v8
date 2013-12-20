@@ -27,30 +27,38 @@
 
 #include "v8.h"
 
-#include "default-platform.h"
+#include "cctest.h"
+#include "libplatform/task-queue.h"
+#include "libplatform/worker-thread.h"
+#include "test-libplatform.h"
 
-namespace v8 {
-namespace internal {
+using namespace v8::internal;
 
 
-DefaultPlatform::DefaultPlatform() {}
+TEST(WorkerThread) {
+  TaskQueue queue;
+  TaskCounter task_counter;
 
+  TestTask* task1 = new TestTask(&task_counter, true);
+  TestTask* task2 = new TestTask(&task_counter, true);
+  TestTask* task3 = new TestTask(&task_counter, true);
+  TestTask* task4 = new TestTask(&task_counter, true);
 
-DefaultPlatform::~DefaultPlatform() {}
+  WorkerThread* thread1 = new WorkerThread(&queue);
+  WorkerThread* thread2 = new WorkerThread(&queue);
 
-void DefaultPlatform::CallOnBackgroundThread(Task *task,
-                                             ExpectedRuntime expected_runtime) {
-  // TODO(jochen): implement.
-  task->Run();
-  delete task;
+  CHECK_EQ(4, task_counter.GetCount());
+
+  queue.Append(task1);
+  queue.Append(task2);
+  queue.Append(task3);
+  queue.Append(task4);
+
+  // TaskQueue ASSERTs that it is empty in its destructor.
+  queue.Terminate();
+
+  delete thread1;
+  delete thread2;
+
+  CHECK_EQ(0, task_counter.GetCount());
 }
-
-
-void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
-  // TODO(jochen): implement.
-  task->Run();
-  delete task;
-}
-
-
-} }  // namespace v8::internal

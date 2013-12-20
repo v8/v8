@@ -1082,6 +1082,10 @@ class Isolate {
   bool IsDeferredHandle(Object** location);
 #endif  // DEBUG
 
+  int max_available_threads() const {
+    return max_available_threads_;
+  }
+
   void set_max_available_threads(int value) {
     max_available_threads_ = value;
   }
