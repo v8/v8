@@ -59,8 +59,11 @@ class DefaultPlatform : public Platform {
  private:
   static const int kMaxThreadPoolSize = 4;
 
+  void EnsureInitialized();
+
   Mutex lock_;
   bool initialized_;
+  int thread_pool_size_;
   std::vector<WorkerThread*> thread_pool_;
   TaskQueue queue_;
 

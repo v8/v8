@@ -40,7 +40,7 @@ namespace internal {
 
 
 DefaultPlatform::DefaultPlatform()
-    : initialized_(false) {}
+    : initialized_(false), thread_pool_size_(0) {}
 
 
 DefaultPlatform::~DefaultPlatform() {
@@ -58,24 +58,24 @@ DefaultPlatform::~DefaultPlatform() {
 void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   LockGuard<Mutex> guard(&lock_);
   ASSERT(thread_pool_size >= 0);
-  if (initialized_) return;
-  initialized_ = true;
   if (thread_pool_size < 1)
     thread_pool_size = CPU::NumberOfProcessorsOnline();
-  thread_pool_size = Max(Min(thread_pool_size, kMaxThreadPoolSize), 1);
+  thread_pool_size_ = Max(Min(thread_pool_size, kMaxThreadPoolSize), 1);
+}
 
-  for (int i = 0; i < thread_pool_size; ++i)
+
+void DefaultPlatform::EnsureInitialized() {
+  LockGuard<Mutex> guard(&lock_);
+  if (initialized_) return;
+  initialized_ = true;
+
+  for (int i = 0; i < thread_pool_size_; ++i)
     thread_pool_.push_back(new WorkerThread(&queue_));
 }
 
 void DefaultPlatform::CallOnBackgroundThread(Task *task,
                                              ExpectedRuntime expected_runtime) {
-#ifdef DEBUG
-  {
-    LockGuard<Mutex> guard(&lock_);
-    ASSERT(initialized_);
-  }
-#endif
+  EnsureInitialized();
   queue_.Append(task);
 }
 
