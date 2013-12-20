@@ -9191,26 +9191,24 @@ AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
   // checking the object immediately after the current object (if there is one)
   // to see if it's an AllocationMemento.
   ASSERT(object->GetHeap()->InNewSpace(object));
-  if (FLAG_track_allocation_sites) {
-    Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
-        object->Size();
-    Address top;
-    if (in_GC) {
-      top = object->GetHeap()->new_space()->FromSpacePageHigh();
-    } else {
-      top = object->GetHeap()->NewSpaceTop();
-    }
-    if ((ptr_end + AllocationMemento::kSize) <= top) {
-      // There is room in newspace for allocation info. Do we have some?
-      Map** possible_allocation_memento_map =
-          reinterpret_cast<Map**>(ptr_end);
-      if (*possible_allocation_memento_map ==
-          object->GetHeap()->allocation_memento_map()) {
-        AllocationMemento* memento = AllocationMemento::cast(
-            reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-        if (memento->IsValid()) {
-          return memento;
-        }
+  Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
+      object->Size();
+  Address top;
+  if (in_GC) {
+    top = object->GetHeap()->new_space()->FromSpacePageHigh();
+  } else {
+    top = object->GetHeap()->NewSpaceTop();
+  }
+  if ((ptr_end + AllocationMemento::kSize) <= top) {
+    // There is room in newspace for allocation info. Do we have some?
+    Map** possible_allocation_memento_map =
+        reinterpret_cast<Map**>(ptr_end);
+    if (*possible_allocation_memento_map ==
+        object->GetHeap()->allocation_memento_map()) {
+      AllocationMemento* memento = AllocationMemento::cast(
+          reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
+      if (memento->IsValid()) {
+        return memento;
       }
     }
   }
@@ -12895,7 +12893,7 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
-  if (!FLAG_track_allocation_sites || !IsJSArray()) {
+  if (!IsJSArray()) {
     return this;
   }
 
