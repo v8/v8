@@ -48,7 +48,7 @@ static void AddCounter(v8::Isolate* isolate,
                        const char* name) {
   if (counter->Enabled()) {
     object->Set(v8::String::NewFromUtf8(isolate, name),
-                v8::Number::New(isolate, *counter->GetInternalPointer()));
+                v8::Number::New(*counter->GetInternalPointer()));
   }
 }
 
@@ -57,7 +57,7 @@ static void AddNumber(v8::Isolate* isolate,
                       intptr_t value,
                       const char* name) {
   object->Set(v8::String::NewFromUtf8(isolate, name),
-              v8::Number::New(isolate, static_cast<double>(value)));
+              v8::Number::New(static_cast<double>(value)));
 }
 
 
@@ -66,7 +66,7 @@ static void AddNumber64(v8::Isolate* isolate,
                         int64_t value,
                         const char* name) {
   object->Set(v8::String::NewFromUtf8(isolate, name),
-              v8::Number::New(isolate, static_cast<double>(value)));
+              v8::Number::New(static_cast<double>(value)));
 }
 
 
@@ -82,7 +82,7 @@ void StatisticsExtension::GetCounters(
   }
 
   Counters* counters = isolate->counters();
-  v8::Local<v8::Object> result = v8::Object::New(args.GetIsolate());
+  v8::Local<v8::Object> result = v8::Object::New();
 
 #define ADD_COUNTER(name, caption)                                            \
   AddCounter(args.GetIsolate(), result, counters->name(), #name);

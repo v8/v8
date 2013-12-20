@@ -1790,7 +1790,7 @@ TEST(LeakNativeContextViaMap) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
     ctx1p.Reset();
@@ -1836,7 +1836,7 @@ TEST(LeakNativeContextViaFunction) {
         "%OptimizeFunctionOnNextCall(f);"
         "f(o);");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -1880,7 +1880,7 @@ TEST(LeakNativeContextViaMapKeyed) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -1928,7 +1928,7 @@ TEST(LeakNativeContextViaMapProto) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -2768,7 +2768,7 @@ TEST(Regress2211) {
 
   for (int i = 0; i < 2; i++) {
     // Store identity hash first and common hidden property second.
-    v8::Handle<v8::Object> obj = v8::Object::New(CcTest::isolate());
+    v8::Handle<v8::Object> obj = v8::Object::New();
     Handle<JSObject> internal_obj = v8::Utils::OpenHandle(*obj);
     CHECK(internal_obj->HasFastProperties());
 
@@ -3337,7 +3337,7 @@ TEST(Regress169928) {
       v8_str("fastliteralcase(mote, 2.5);");
 
   v8::Local<v8::String> array_name = v8_str("mote");
-  CcTest::global()->Set(array_name, v8::Int32::New(CcTest::isolate(), 0));
+  CcTest::global()->Set(array_name, v8::Int32::New(0));
 
   // First make sure we flip spaces
   CcTest::heap()->CollectGarbage(NEW_SPACE);

@@ -39,11 +39,9 @@ const char* ProfilerExtension::kSource =
 v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Handle<v8::String> name) {
   if (name->Equals(v8::String::NewFromUtf8(isolate, "startProfiling"))) {
-    return v8::FunctionTemplate::New(isolate,
-                                     ProfilerExtension::StartProfiling);
+    return v8::FunctionTemplate::New(ProfilerExtension::StartProfiling);
   } else if (name->Equals(v8::String::NewFromUtf8(isolate, "stopProfiling"))) {
-    return v8::FunctionTemplate::New(isolate,
-                                     ProfilerExtension::StopProfiling);
+    return v8::FunctionTemplate::New(ProfilerExtension::StopProfiling);
   } else {
     CHECK(false);
     return v8::Handle<v8::FunctionTemplate>();

@@ -370,7 +370,7 @@ TEST(OptimizedCodeSharing) {
   for (int i = 0; i < 10; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
-                       v8::Integer::New(CcTest::isolate(), i));
+                       v8::Integer::New(i));
     CompileRun("function MakeClosure() {"
                "  return function() { return x; };"
                "}"

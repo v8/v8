@@ -147,17 +147,17 @@ static void VerifyRead(v8::Handle<v8::DeclaredAccessorDescriptor> descriptor,
 
 
 static v8::Handle<v8::Value> Convert(int32_t value, v8::Isolate* isolate) {
-  return v8::Integer::New(isolate, value);
+  return v8::Integer::New(value, isolate);
 }
 
 
-static v8::Handle<v8::Value> Convert(float value, v8::Isolate* isolate) {
-  return v8::Number::New(isolate, value);
+static v8::Handle<v8::Value> Convert(float value, v8::Isolate*) {
+  return v8::Number::New(value);
 }
 
 
-static v8::Handle<v8::Value> Convert(double value, v8::Isolate* isolate) {
-  return v8::Number::New(isolate, value);
+static v8::Handle<v8::Value> Convert(double value, v8::Isolate*) {
+  return v8::Number::New(value);
 }
 
 
@@ -277,12 +277,10 @@ TEST(PointerDereferenceRead) {
   AlignedArray* array = helper.array_.get();
   array->As<uintptr_t**>()[first_index] =
       &array->As<uintptr_t*>()[pointed_to_index];
-  VerifyRead(descriptor, internal_field, array,
-             v8::Integer::New(helper.isolate_, 0));
+  VerifyRead(descriptor, internal_field, array, v8::Integer::New(0));
   second_index += pointed_to_index*sizeof(uintptr_t)/sizeof(uint16_t);
   array->As<uint16_t*>()[second_index] = expected;
-  VerifyRead(descriptor, internal_field, array,
-             v8::Integer::New(helper.isolate_, expected));
+  VerifyRead(descriptor, internal_field, array, v8::Integer::New(expected));
 }
 
 
