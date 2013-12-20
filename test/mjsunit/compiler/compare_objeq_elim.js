@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "hydrogen-sce.h"
-#include "v8.h"
+// Flags: --allow-natives-syntax --check-elimination
 
-namespace v8 {
-namespace internal {
-
-void HStackCheckEliminationPhase::Run() {
-  // For each loop block walk the dominator tree from the backwards branch to
-  // the loop header. If a call instruction is encountered the backwards branch
-  // is dominated by a call and the stack check in the backwards branch can be
-  // removed.
-  for (int i = 0; i < graph()->blocks()->length(); i++) {
-    HBasicBlock* block = graph()->blocks()->at(i);
-    if (block->IsLoopHeader()) {
-      HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
-      HBasicBlock* dominator = back_edge;
-      while (true) {
-        for (HInstructionIterator it(dominator); !it.Done(); it.Advance()) {
-          if (it.Current()->HasStackCheck()) {
-            block->loop_information()->stack_check()->Eliminate();
-            break;
-          }
-        }
-
-        // Done when the loop header is processed.
-        if (dominator == block) break;
-
-        // Move up the dominator tree.
-        dominator = dominator->dominator();
-      }
-    }
-  }
+function A(x, y) {
+  this.x = x;
+  this.y = y;
 }
 
-} }  // namespace v8::internal
+function B(x, y) {
+  this.x = x;
+  this.y = y;
+}
+
+function F1(a, b) {
+  if (a == b) return a.x;
+  else return b.x;
+}
+
+function F2(a, b) {
+  if (a == b) return a.x;
+  else return b.x;
+}
+
+function F3(a, b) {
+  var f = a.y;
+  if (a == b) return a.x;
+  else return b.x;
+}
+
+function F4(a, b) {
+  var f = b.y;
+  if (a == b) return a.x;
+  else return b.x;
+}
+
+%NeverOptimizeFunction(test);
+
+function test(f, a, b) {
+  f(a, a);
+  f(a, b);
+  f(b, a);
+  f(b, c);
+  f(b, b);
+  f(c, c);
+
+  %OptimizeFunctionOnNextCall(f)
+
+  assertEquals(a.x, f(a, a));
+  assertEquals(b.x, f(b, b));
+}
+
+var a = new A(3, 5);
+var b = new B(2, 6);
+var c = new A(1, 7);
+
+test(F1, a, c);
+test(F2, a, b);
+test(F3, a, b);
+test(F4, a, b);

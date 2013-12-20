@@ -25,31 +25,65 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_DEFAULT_PLATFORM_H_
-#define V8_DEFAULT_PLATFORM_H_
+#include "default-platform.h"
 
-#include "v8.h"
+#include <queue>
+
+// TODO(jochen): We should have our own version of checks.h.
+#include "../checks.h"
+// TODO(jochen): Why is cpu.h not in platform/?
+#include "../cpu.h"
+#include "worker-thread.h"
 
 namespace v8 {
 namespace internal {
 
-class DefaultPlatform : public Platform {
- public:
-  DefaultPlatform();
-  virtual ~DefaultPlatform();
 
-  // v8::Platform implementation.
-  virtual void CallOnBackgroundThread(
-      Task *task, ExpectedRuntime expected_runtime) V8_OVERRIDE;
-  virtual void CallOnForegroundThread(v8::Isolate *isolate,
-                                      Task *task) V8_OVERRIDE;
+DefaultPlatform::DefaultPlatform()
+    : initialized_(false), thread_pool_size_(0) {}
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
-};
 
+DefaultPlatform::~DefaultPlatform() {
+  LockGuard<Mutex> guard(&lock_);
+  queue_.Terminate();
+  if (initialized_) {
+    for (std::vector<WorkerThread*>::iterator i = thread_pool_.begin();
+         i != thread_pool_.end(); ++i) {
+      delete *i;
+    }
+  }
+}
+
+
+void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
+  LockGuard<Mutex> guard(&lock_);
+  ASSERT(thread_pool_size >= 0);
+  if (thread_pool_size < 1)
+    thread_pool_size = CPU::NumberOfProcessorsOnline();
+  thread_pool_size_ = Max(Min(thread_pool_size, kMaxThreadPoolSize), 1);
+}
+
+
+void DefaultPlatform::EnsureInitialized() {
+  LockGuard<Mutex> guard(&lock_);
+  if (initialized_) return;
+  initialized_ = true;
+
+  for (int i = 0; i < thread_pool_size_; ++i)
+    thread_pool_.push_back(new WorkerThread(&queue_));
+}
+
+void DefaultPlatform::CallOnBackgroundThread(Task *task,
+                                             ExpectedRuntime expected_runtime) {
+  EnsureInitialized();
+  queue_.Append(task);
+}
+
+
+void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
+  // TODO(jochen): implement.
+  task->Run();
+  delete task;
+}
 
 } }  // namespace v8::internal
-
-
-#endif  // V8_DEFAULT_PLATFORM_H_

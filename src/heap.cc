@@ -49,6 +49,7 @@
 #include "snapshot.h"
 #include "store-buffer.h"
 #include "utils/random-number-generator.h"
+#include "v8conversions.h"
 #include "v8threads.h"
 #include "v8utils.h"
 #include "vm-state-inl.h"
@@ -3689,6 +3690,7 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
   }
 }
 
+
 Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
     ElementsKind elementsKind) {
   switch (elementsKind) {
@@ -3723,16 +3725,11 @@ ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
 }
 
 
-
-
 MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
   // We need to distinguish the minus zero value and this cannot be
   // done after conversion to int. Doing this by comparing bit
   // patterns is faster than using fpclassify() et al.
-  static const DoubleRepresentation minus_zero(-0.0);
-
-  DoubleRepresentation rep(value);
-  if (rep.bits == minus_zero.bits) {
+  if (IsMinusZero(value)) {
     return AllocateHeapNumber(-0.0, pretenure);
   }
 

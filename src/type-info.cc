@@ -42,20 +42,6 @@ namespace v8 {
 namespace internal {
 
 
-TypeInfo TypeInfo::FromValue(Handle<Object> value) {
-  if (value->IsSmi()) {
-    return TypeInfo::Smi();
-  } else if (value->IsHeapNumber()) {
-    return TypeInfo::IsInt32Double(HeapNumber::cast(*value)->value())
-        ? TypeInfo::Integer32()
-        : TypeInfo::Double();
-  } else if (value->IsString()) {
-    return TypeInfo::String();
-  }
-  return TypeInfo::Unknown();
-}
-
-
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
                                        Handle<Context> native_context,
                                        Isolate* isolate,
@@ -583,16 +569,6 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
   ASSERT(maybe_result->ToObject(&result));
   ASSERT(*dictionary_ == result);
 #endif
-}
-
-
-Representation Representation::FromType(TypeInfo info) {
-  if (info.IsUninitialized()) return Representation::None();
-  if (info.IsSmi()) return Representation::Smi();
-  if (info.IsInteger32()) return Representation::Integer32();
-  if (info.IsDouble()) return Representation::Double();
-  if (info.IsNumber()) return Representation::Double();
-  return Representation::Tagged();
 }
 
 

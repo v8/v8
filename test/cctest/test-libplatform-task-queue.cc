@@ -25,66 +25,71 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
-#define V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
+#include "v8.h"
 
-#include "heap-snapshot-generator.h"
+#include "cctest.h"
+#include "libplatform/task-queue.h"
+#include "test-libplatform.h"
 
-namespace v8 {
-namespace internal {
+using namespace v8::internal;
 
 
-HeapEntry* HeapGraphEdge::from() const {
-  return &snapshot()->entries()[from_index_];
+TEST(TaskQueueBasic) {
+  TaskCounter task_counter;
+
+  TaskQueue queue;
+
+  TestTask* task = new TestTask(&task_counter);
+  queue.Append(task);
+  CHECK_EQ(1, task_counter.GetCount());
+  CHECK_EQ(task, queue.GetNext());
+  delete task;
+  CHECK_EQ(0, task_counter.GetCount());
+
+  queue.Terminate();
+  CHECK_EQ(NULL, queue.GetNext());
 }
 
 
-HeapSnapshot* HeapGraphEdge::snapshot() const {
-  return to_entry_->snapshot();
+class ReadQueueTask : public TestTask {
+ public:
+  ReadQueueTask(TaskCounter* task_counter, TaskQueue* queue)
+      : TestTask(task_counter, true), queue_(queue) {}
+  virtual ~ReadQueueTask() {}
+
+  virtual void Run() V8_OVERRIDE {
+    TestTask::Run();
+    CHECK_EQ(NULL, queue_->GetNext());
+  }
+
+ private:
+  TaskQueue* queue_;
+
+  DISALLOW_COPY_AND_ASSIGN(ReadQueueTask);
+};
+
+
+TEST(TaskQueueTerminateMultipleReaders) {
+  TaskQueue queue;
+  TaskCounter task_counter;
+  ReadQueueTask* read1 = new ReadQueueTask(&task_counter, &queue);
+  ReadQueueTask* read2 = new ReadQueueTask(&task_counter, &queue);
+
+  TestWorkerThread thread1(read1);
+  TestWorkerThread thread2(read2);
+
+  thread1.Start();
+  thread2.Start();
+
+  CHECK_EQ(2, task_counter.GetCount());
+
+  thread1.Signal();
+  thread2.Signal();
+
+  queue.Terminate();
+
+  thread1.Join();
+  thread2.Join();
+
+  CHECK_EQ(0, task_counter.GetCount());
 }
-
-
-int HeapEntry::index() const {
-  return static_cast<int>(this - &snapshot_->entries().first());
-}
-
-
-int HeapEntry::set_children_index(int index) {
-  children_index_ = index;
-  int next_index = index + children_count_;
-  children_count_ = 0;
-  return next_index;
-}
-
-
-HeapGraphEdge** HeapEntry::children_arr() {
-  ASSERT(children_index_ >= 0);
-  SLOW_ASSERT(children_index_ < snapshot_->children().length() ||
-      (children_index_ == snapshot_->children().length() &&
-       children_count_ == 0));
-  return &snapshot_->children().first() + children_index_;
-}
-
-
-SnapshotObjectId HeapObjectsMap::GetNthGcSubrootId(int delta) {
-  return kGcRootsFirstSubrootId + delta * kObjectIdStep;
-}
-
-
-HeapObject* V8HeapExplorer::GetNthGcSubrootObject(int delta) {
-  return reinterpret_cast<HeapObject*>(
-      reinterpret_cast<char*>(kFirstGcSubrootObject) +
-      delta * HeapObjectsMap::kObjectIdStep);
-}
-
-
-int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
-  return static_cast<int>(
-      (reinterpret_cast<char*>(subroot) -
-       reinterpret_cast<char*>(kFirstGcSubrootObject)) /
-      HeapObjectsMap::kObjectIdStep);
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_HEAP_SNAPSHOT_GENERATOR_INL_H_

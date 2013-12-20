@@ -29,10 +29,12 @@
 #define V8_IC_H_
 
 #include "macro-assembler.h"
-#include "type-info.h"
 
 namespace v8 {
 namespace internal {
+
+
+const int kMaxKeyedPolymorphism = 4;
 
 
 // IC_UTIL_LIST defines all utility functions called from generated
@@ -293,6 +295,12 @@ class IC_Utility {
  private:
   Address address_;
   IC::UtilityId id_;
+};
+
+
+enum StringStubFeedback {
+  DEFAULT_STRING_STUB = 0,
+  STRING_INDEX_OUT_OF_BOUNDS = 1
 };
 
 

@@ -25,66 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
-#define V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
+#include "worker-thread.h"
 
-#include "heap-snapshot-generator.h"
+// TODO(jochen): We should have our own version of checks.h.
+#include "../checks.h"
+#include "../../include/v8-platform.h"
+#include "task-queue.h"
 
 namespace v8 {
 namespace internal {
 
-
-HeapEntry* HeapGraphEdge::from() const {
-  return &snapshot()->entries()[from_index_];
+WorkerThread::WorkerThread(TaskQueue* queue)
+    : Thread("V8 WorkerThread"), queue_(queue) {
+  Start();
 }
 
 
-HeapSnapshot* HeapGraphEdge::snapshot() const {
-  return to_entry_->snapshot();
+WorkerThread::~WorkerThread() {
+  Join();
 }
 
 
-int HeapEntry::index() const {
-  return static_cast<int>(this - &snapshot_->entries().first());
-}
-
-
-int HeapEntry::set_children_index(int index) {
-  children_index_ = index;
-  int next_index = index + children_count_;
-  children_count_ = 0;
-  return next_index;
-}
-
-
-HeapGraphEdge** HeapEntry::children_arr() {
-  ASSERT(children_index_ >= 0);
-  SLOW_ASSERT(children_index_ < snapshot_->children().length() ||
-      (children_index_ == snapshot_->children().length() &&
-       children_count_ == 0));
-  return &snapshot_->children().first() + children_index_;
-}
-
-
-SnapshotObjectId HeapObjectsMap::GetNthGcSubrootId(int delta) {
-  return kGcRootsFirstSubrootId + delta * kObjectIdStep;
-}
-
-
-HeapObject* V8HeapExplorer::GetNthGcSubrootObject(int delta) {
-  return reinterpret_cast<HeapObject*>(
-      reinterpret_cast<char*>(kFirstGcSubrootObject) +
-      delta * HeapObjectsMap::kObjectIdStep);
-}
-
-
-int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
-  return static_cast<int>(
-      (reinterpret_cast<char*>(subroot) -
-       reinterpret_cast<char*>(kFirstGcSubrootObject)) /
-      HeapObjectsMap::kObjectIdStep);
+void WorkerThread::Run() {
+  while (Task* task = queue_->GetNext()) {
+    task->Run();
+    delete task;
+  }
 }
 
 } }  // namespace v8::internal
-
-#endif  // V8_HEAP_SNAPSHOT_GENERATOR_INL_H_

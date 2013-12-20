@@ -25,66 +25,56 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
-#define V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
+#include "task-queue.h"
 
-#include "heap-snapshot-generator.h"
+// TODO(jochen): We should have our own version of checks.h.
+#include "../checks.h"
 
 namespace v8 {
 namespace internal {
 
+TaskQueue::TaskQueue() : process_queue_semaphore_(0), terminated_(false) {}
 
-HeapEntry* HeapGraphEdge::from() const {
-  return &snapshot()->entries()[from_index_];
+
+TaskQueue::~TaskQueue() {
+  LockGuard<Mutex> guard(&lock_);
+  ASSERT(terminated_);
+  ASSERT(task_queue_.empty());
 }
 
 
-HeapSnapshot* HeapGraphEdge::snapshot() const {
-  return to_entry_->snapshot();
+void TaskQueue::Append(Task* task) {
+  LockGuard<Mutex> guard(&lock_);
+  ASSERT(!terminated_);
+  task_queue_.push(task);
+  process_queue_semaphore_.Signal();
 }
 
 
-int HeapEntry::index() const {
-  return static_cast<int>(this - &snapshot_->entries().first());
+Task* TaskQueue::GetNext() {
+  for (;;) {
+    {
+      LockGuard<Mutex> guard(&lock_);
+      if (!task_queue_.empty()) {
+        Task* result = task_queue_.front();
+        task_queue_.pop();
+        return result;
+      }
+      if (terminated_) {
+        process_queue_semaphore_.Signal();
+        return NULL;
+      }
+    }
+    process_queue_semaphore_.Wait();
+  }
 }
 
 
-int HeapEntry::set_children_index(int index) {
-  children_index_ = index;
-  int next_index = index + children_count_;
-  children_count_ = 0;
-  return next_index;
-}
-
-
-HeapGraphEdge** HeapEntry::children_arr() {
-  ASSERT(children_index_ >= 0);
-  SLOW_ASSERT(children_index_ < snapshot_->children().length() ||
-      (children_index_ == snapshot_->children().length() &&
-       children_count_ == 0));
-  return &snapshot_->children().first() + children_index_;
-}
-
-
-SnapshotObjectId HeapObjectsMap::GetNthGcSubrootId(int delta) {
-  return kGcRootsFirstSubrootId + delta * kObjectIdStep;
-}
-
-
-HeapObject* V8HeapExplorer::GetNthGcSubrootObject(int delta) {
-  return reinterpret_cast<HeapObject*>(
-      reinterpret_cast<char*>(kFirstGcSubrootObject) +
-      delta * HeapObjectsMap::kObjectIdStep);
-}
-
-
-int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
-  return static_cast<int>(
-      (reinterpret_cast<char*>(subroot) -
-       reinterpret_cast<char*>(kFirstGcSubrootObject)) /
-      HeapObjectsMap::kObjectIdStep);
+void TaskQueue::Terminate() {
+  LockGuard<Mutex> guard(&lock_);
+  ASSERT(!terminated_);
+  terminated_ = true;
+  process_queue_semaphore_.Signal();
 }
 
 } }  // namespace v8::internal
-
-#endif  // V8_HEAP_SNAPSHOT_GENERATOR_INL_H_

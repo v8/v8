@@ -32,13 +32,13 @@
 #include "elements.h"
 #include "bootstrapper.h"
 #include "debug.h"
-#ifdef V8_USE_DEFAULT_PLATFORM
-#include "default-platform.h"
-#endif
 #include "deoptimizer.h"
 #include "frames.h"
 #include "heap-profiler.h"
 #include "hydrogen.h"
+#ifdef V8_USE_DEFAULT_PLATFORM
+#include "libplatform/default-platform.h"
+#endif
 #include "lithium-allocator.h"
 #include "objects.h"
 #include "once.h"
@@ -78,6 +78,11 @@ bool V8::Initialize(Deserializer* des) {
   Isolate* isolate = Isolate::Current();
   if (isolate->IsDead()) return false;
   if (isolate->IsInitialized()) return true;
+
+#ifdef V8_USE_DEFAULT_PLATFORM
+  DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
+  platform->SetThreadPoolSize(isolate->max_available_threads());
+#endif
 
   return isolate->Init(des);
 }

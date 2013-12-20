@@ -604,9 +604,9 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   __ movq(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(1);
+    __ PrepareCallCFunction(2);
     __ CallCFunction(
-        ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+        ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   }
   __ Popad();
   __ ret(0);
@@ -637,10 +637,10 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ subq(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(1);
+    __ PrepareCallCFunction(2);
     __ CallCFunction(
         ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
-        1);
+        2);
   }
   __ Popad();
 
