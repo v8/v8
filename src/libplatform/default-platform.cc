@@ -45,8 +45,8 @@ DefaultPlatform::DefaultPlatform()
 
 DefaultPlatform::~DefaultPlatform() {
   LockGuard<Mutex> guard(&lock_);
+  queue_.Terminate();
   if (initialized_) {
-    queue_.Terminate();
     for (std::vector<WorkerThread*>::iterator i = thread_pool_.begin();
          i != thread_pool_.end(); ++i) {
       delete *i;
