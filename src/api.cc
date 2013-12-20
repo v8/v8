@@ -2487,13 +2487,7 @@ bool Value::IsInt32() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return true;
   if (obj->IsNumber()) {
-    double value = obj->Number();
-    static const i::DoubleRepresentation minus_zero(-0.0);
-    i::DoubleRepresentation rep(value);
-    if (rep.bits == minus_zero.bits) {
-      return false;
-    }
-    return i::FastI2D(i::FastD2I(value)) == value;
+    return i::IsInt32Double(obj->Number());
   }
   return false;
 }
@@ -2504,12 +2498,10 @@ bool Value::IsUint32() const {
   if (obj->IsSmi()) return i::Smi::cast(*obj)->value() >= 0;
   if (obj->IsNumber()) {
     double value = obj->Number();
-    static const i::DoubleRepresentation minus_zero(-0.0);
-    i::DoubleRepresentation rep(value);
-    if (rep.bits == minus_zero.bits) {
-      return false;
-    }
-    return i::FastUI2D(i::FastD2UI(value)) == value;
+    return !i::IsMinusZero(value) &&
+           value >= 0 &&
+           value <= i::kMaxUInt32 &&
+           value == i::FastUI2D(i::FastD2UI(value));
   }
   return false;
 }

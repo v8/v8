@@ -1377,7 +1377,7 @@ HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
     HConstant* c = HConstant::cast(value);
     if (c->HasNumberValue()) {
       double double_res = c->DoubleValue();
-      if (TypeInfo::IsInt32Double(double_res)) {
+      if (IsInt32Double(double_res)) {
         return HConstant::New(zone, context,
                               static_cast<int32_t>(double_res),
                               required_representation);
@@ -3794,7 +3794,7 @@ HInstruction* HInstr::New(                                                     \
     HConstant* c_right = HConstant::cast(right);                               \
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
       double double_res = c_left->DoubleValue() op c_right->DoubleValue();     \
-      if (TypeInfo::IsInt32Double(double_res)) {                               \
+      if (IsInt32Double(double_res)) {                                         \
         return H_CONSTANT_INT(double_res);                                     \
       }                                                                        \
       return H_CONSTANT_DOUBLE(double_res);                                    \
@@ -3990,7 +3990,7 @@ HInstruction* HDiv::New(
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
       if (c_right->DoubleValue() != 0) {
         double double_res = c_left->DoubleValue() / c_right->DoubleValue();
-        if (TypeInfo::IsInt32Double(double_res)) {
+        if (IsInt32Double(double_res)) {
           return H_CONSTANT_INT(double_res);
         }
         return H_CONSTANT_DOUBLE(double_res);

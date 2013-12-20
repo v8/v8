@@ -35,6 +35,7 @@
 #include "ic-inl.h"
 #include "runtime.h"
 #include "stub-cache.h"
+#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -2674,7 +2675,7 @@ BinaryOpIC::State::Kind BinaryOpIC::State::UpdateKind(Handle<Object> object,
     new_kind = SMI;
   } else if (object->IsHeapNumber()) {
     double value = Handle<HeapNumber>::cast(object)->value();
-    new_kind = TypeInfo::IsInt32Double(value) ? INT32 : NUMBER;
+    new_kind = IsInt32Double(value) ? INT32 : NUMBER;
   } else if (object->IsString() && op() == Token::ADD) {
     new_kind = STRING;
   }

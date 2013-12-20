@@ -35,6 +35,7 @@
 #include "gdb-jit.h"
 #include "ic-inl.h"
 #include "stub-cache.h"
+#include "type-info.h"
 #include "vm-state-inl.h"
 
 namespace v8 {

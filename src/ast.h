@@ -39,7 +39,6 @@
 #include "small-pointer-list.h"
 #include "smart-pointers.h"
 #include "token.h"
-#include "type-info.h"  // TODO(rossberg): this should eventually be removed
 #include "types.h"
 #include "utils.h"
 #include "variables.h"
