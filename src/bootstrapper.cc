@@ -545,7 +545,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     map->AppendDescriptor(&d, witness);
   }
   {  // Add name.
-    CallbacksDescriptor d(*factory()->name_string(), *name, rw_attribs);
+    CallbacksDescriptor d(*factory()->name_string(), *name, ro_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add arguments.
