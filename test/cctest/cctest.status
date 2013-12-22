@@ -74,6 +74,7 @@
 
   # BUG(2999).
   'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [PASS, FLAKY],
 
   # BUG(3005).
   'test-alloc/CodeRange': [PASS, FAIL],
