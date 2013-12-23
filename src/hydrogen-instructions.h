@@ -6028,6 +6028,10 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kInobject, SharedFunctionInfo::kFirstContextSlot);
   }
 
+  static HObjectAccess ForFirstOsrAstIdSlot() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kFirstOsrAstIdSlot);
+  }
+
   static HObjectAccess ForOptimizedCodeMap() {
     return HObjectAccess(kInobject,
                          SharedFunctionInfo::kOptimizedCodeMapOffset);

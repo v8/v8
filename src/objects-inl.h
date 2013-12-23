@@ -2364,9 +2364,7 @@ void Map::LookupTransition(JSObject* holder,
 
 Object** DescriptorArray::GetKeySlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToKeyIndex(descriptor_number)));
+  return RawFieldOfElementAt(ToKeyIndex(descriptor_number));
 }
 
 
@@ -2421,9 +2419,7 @@ void DescriptorArray::InitializeRepresentations(Representation representation) {
 
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToValueIndex(descriptor_number)));
+  return RawFieldOfElementAt(ToValueIndex(descriptor_number));
 }
 
 
@@ -3224,7 +3220,7 @@ void JSFunctionResultCache::MakeZeroSize() {
 
 void JSFunctionResultCache::Clear() {
   int cache_size = size();
-  Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
+  Object** entries_start = RawFieldOfElementAt(kEntriesIndex);
   MemsetPointer(entries_start,
                 GetHeap()->the_hole_value(),
                 cache_size - kEntriesIndex);
@@ -3830,8 +3826,7 @@ Object* DependentCode::object_at(int i) {
 
 
 Object** DependentCode::slot_at(int i) {
-  return HeapObject::RawField(
-      this, FixedArray::OffsetOfElementAt(kCodesStartIndex + i));
+  return RawFieldOfElementAt(kCodesStartIndex + i);
 }
 
 

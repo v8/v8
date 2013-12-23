@@ -115,9 +115,7 @@ Object** TransitionArray::GetPrototypeTransitionsSlot() {
 Object** TransitionArray::GetKeySlot(int transition_number) {
   ASSERT(!IsSimpleTransition());
   ASSERT(transition_number < number_of_transitions());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToKeyIndex(transition_number)));
+  return RawFieldOfElementAt(ToKeyIndex(transition_number));
 }
 
 

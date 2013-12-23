@@ -9526,42 +9526,48 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared,
     Handle<Context> native_context,
     Handle<Code> code,
-    Handle<FixedArray> literals) {
+    Handle<FixedArray> literals,
+    BailoutId osr_ast_id) {
   CALL_HEAP_FUNCTION_VOID(
       shared->GetIsolate(),
-      shared->AddToOptimizedCodeMap(*native_context, *code, *literals));
+      shared->AddToOptimizedCodeMap(
+          *native_context, *code, *literals, osr_ast_id));
 }
 
 
 MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
                                                        Code* code,
-                                                       FixedArray* literals) {
+                                                       FixedArray* literals,
+                                                       BailoutId osr_ast_id) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   ASSERT(native_context->IsNativeContext());
-  STATIC_ASSERT(kEntryLength == 3);
+  STATIC_ASSERT(kEntryLength == 4);
   Heap* heap = GetHeap();
   FixedArray* new_code_map;
   Object* value = optimized_code_map();
+  Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
     // Create 3 entries per context {context, code, literals}.
     MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
     if (!maybe->To(&new_code_map)) return maybe;
-    new_code_map->set(kEntriesStart + 0, native_context);
-    new_code_map->set(kEntriesStart + 1, code);
-    new_code_map->set(kEntriesStart + 2, literals);
+    new_code_map->set(kEntriesStart + kContextOffset, native_context);
+    new_code_map->set(kEntriesStart + kCachedCodeOffset, code);
+    new_code_map->set(kEntriesStart + kLiteralsOffset, literals);
+    new_code_map->set(kEntriesStart + kOsrAstIdOffset, osr_ast_id_smi);
   } else {
     // Copy old map and append one new entry.
     FixedArray* old_code_map = FixedArray::cast(value);
-    ASSERT_EQ(-1, SearchOptimizedCodeMap(native_context));
+    ASSERT_EQ(-1, SearchOptimizedCodeMap(native_context, osr_ast_id));
     int old_length = old_code_map->length();
     int new_length = old_length + kEntryLength;
     MaybeObject* maybe = old_code_map->CopySize(new_length);
     if (!maybe->To(&new_code_map)) return maybe;
-    new_code_map->set(old_length + 0, native_context);
-    new_code_map->set(old_length + 1, code);
-    new_code_map->set(old_length + 2, literals);
+    new_code_map->set(old_length + kContextOffset, native_context);
+    new_code_map->set(old_length + kCachedCodeOffset, code);
+    new_code_map->set(old_length + kLiteralsOffset, literals);
+    new_code_map->set(old_length + kOsrAstIdOffset, osr_ast_id_smi);
     // Zap the old map for the sake of the heap verifier.
     if (Heap::ShouldZapGarbage()) {
       Object** data = old_code_map->data_start();
@@ -9570,11 +9576,12 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
   }
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
-    ASSERT(new_code_map->get(i)->IsNativeContext());
-    ASSERT(new_code_map->get(i + 1)->IsCode());
-    ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
+    ASSERT(new_code_map->get(i + kContextOffset)->IsNativeContext());
+    ASSERT(new_code_map->get(i + kCachedCodeOffset)->IsCode());
+    ASSERT(Code::cast(new_code_map->get(i + kCachedCodeOffset))->kind() ==
            Code::OPTIMIZED_FUNCTION);
-    ASSERT(new_code_map->get(i + 2)->IsFixedArray());
+    ASSERT(new_code_map->get(i + kLiteralsOffset)->IsFixedArray());
+    ASSERT(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
   set_optimized_code_map(new_code_map);
@@ -9592,7 +9599,6 @@ FixedArray* SharedFunctionInfo::GetLiteralsFromOptimizedCodeMap(int index) {
   }
   return NULL;
 }
-
 
 
 Code* SharedFunctionInfo::GetCodeFromOptimizedCodeMap(int index) {
@@ -9639,9 +9645,14 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
     }
   }
   while (i < (code_map->length() - kEntryLength)) {
-    code_map->set(i, code_map->get(i + kEntryLength));
-    code_map->set(i + 1, code_map->get(i + 1 + kEntryLength));
-    code_map->set(i + 2, code_map->get(i + 2 + kEntryLength));
+    code_map->set(i + kContextOffset,
+                  code_map->get(i + kContextOffset + kEntryLength));
+    code_map->set(i + kCachedCodeOffset,
+                  code_map->get(i + kCachedCodeOffset + kEntryLength));
+    code_map->set(i + kLiteralsOffset,
+                  code_map->get(i + kLiteralsOffset + kEntryLength));
+    code_map->set(i + kOsrAstIdOffset,
+                  code_map->get(i + kOsrAstIdOffset + kEntryLength));
     i += kEntryLength;
   }
   if (removed_entry) {
@@ -10203,16 +10214,19 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
-int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context) {
+int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
+                                               BailoutId osr_ast_id) {
   ASSERT(native_context->IsNativeContext());
   if (!FLAG_cache_optimized_code) return -1;
   Object* value = optimized_code_map();
   if (!value->IsSmi()) {
     FixedArray* optimized_code_map = FixedArray::cast(value);
     int length = optimized_code_map->length();
+    Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
     for (int i = kEntriesStart; i < length; i += kEntryLength) {
-      if (optimized_code_map->get(i) == native_context) {
-        return i + 1;
+      if (optimized_code_map->get(i + kContextOffset) == native_context &&
+          optimized_code_map->get(i + kOsrAstIdOffset) == osr_ast_id_smi) {
+        return i + kCachedCodeOffset;
       }
     }
     if (FLAG_trace_opt) {

@@ -924,7 +924,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   result->set_context(*context);
 
-  int index = function_info->SearchOptimizedCodeMap(context->native_context());
+  int index = function_info->SearchOptimizedCodeMap(context->native_context(),
+                                                    BailoutId::None());
   if (!function_info->bound() && index < 0) {
     int number_of_literals = function_info->num_literals();
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);

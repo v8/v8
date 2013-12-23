@@ -1065,55 +1065,40 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 
 
 void CodeFlusher::ProcessOptimizedCodeMaps() {
-  static const int kEntriesStart = SharedFunctionInfo::kEntriesStart;
-  static const int kEntryLength = SharedFunctionInfo::kEntryLength;
-  static const int kContextOffset = 0;
-  static const int kCodeOffset = 1;
-  static const int kLiteralsOffset = 2;
-  STATIC_ASSERT(kEntryLength == 3);
+  STATIC_ASSERT(SharedFunctionInfo::kEntryLength == 4);
 
   SharedFunctionInfo* holder = optimized_code_map_holder_head_;
   SharedFunctionInfo* next_holder;
+
   while (holder != NULL) {
     next_holder = GetNextCodeMap(holder);
     ClearNextCodeMap(holder);
 
     FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-    int new_length = kEntriesStart;
+    int new_length = SharedFunctionInfo::kEntriesStart;
     int old_length = code_map->length();
-    for (int i = kEntriesStart; i < old_length; i += kEntryLength) {
-      Code* code = Code::cast(code_map->get(i + kCodeOffset));
-      MarkBit code_mark = Marking::MarkBitFrom(code);
-      if (!code_mark.Get()) {
-        continue;
+    for (int i = SharedFunctionInfo::kEntriesStart;
+         i < old_length;
+         i += SharedFunctionInfo::kEntryLength) {
+      Code* code =
+          Code::cast(code_map->get(i + SharedFunctionInfo::kCachedCodeOffset));
+      if (!Marking::MarkBitFrom(code).Get()) continue;
+
+      // Move every slot in the entry.
+      for (int j = 0; j < SharedFunctionInfo::kEntryLength; j++) {
+        int dst_index = new_length++;
+        Object** slot = code_map->RawFieldOfElementAt(dst_index);
+        Object* object = code_map->get(i + j);
+        code_map->set(dst_index, object);
+        if (j == SharedFunctionInfo::kOsrAstIdOffset) {
+          ASSERT(object->IsSmi());
+        } else {
+          ASSERT(Marking::IsBlack(
+              Marking::MarkBitFrom(HeapObject::cast(*slot))));
+          isolate_->heap()->mark_compact_collector()->
+              RecordSlot(slot, slot, *slot);
+        }
       }
-
-      // Update and record the context slot in the optimized code map.
-      Object** context_slot = HeapObject::RawField(code_map,
-          FixedArray::OffsetOfElementAt(new_length));
-      code_map->set(new_length++, code_map->get(i + kContextOffset));
-      ASSERT(Marking::IsBlack(
-          Marking::MarkBitFrom(HeapObject::cast(*context_slot))));
-      isolate_->heap()->mark_compact_collector()->
-          RecordSlot(context_slot, context_slot, *context_slot);
-
-      // Update and record the code slot in the optimized code map.
-      Object** code_slot = HeapObject::RawField(code_map,
-          FixedArray::OffsetOfElementAt(new_length));
-      code_map->set(new_length++, code_map->get(i + kCodeOffset));
-      ASSERT(Marking::IsBlack(
-          Marking::MarkBitFrom(HeapObject::cast(*code_slot))));
-      isolate_->heap()->mark_compact_collector()->
-          RecordSlot(code_slot, code_slot, *code_slot);
-
-      // Update and record the literals slot in the optimized code map.
-      Object** literals_slot = HeapObject::RawField(code_map,
-          FixedArray::OffsetOfElementAt(new_length));
-      code_map->set(new_length++, code_map->get(i + kLiteralsOffset));
-      ASSERT(Marking::IsBlack(
-          Marking::MarkBitFrom(HeapObject::cast(*literals_slot))));
-      isolate_->heap()->mark_compact_collector()->
-          RecordSlot(literals_slot, literals_slot, *literals_slot);
     }
 
     // Trim the optimized code map if entries have been removed.
@@ -2608,9 +2593,7 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
             cached_map,
             SKIP_WRITE_BARRIER);
       }
-      Object** slot =
-          HeapObject::RawField(prototype_transitions,
-                               FixedArray::OffsetOfElementAt(proto_index));
+      Object** slot = prototype_transitions->RawFieldOfElementAt(proto_index);
       RecordSlot(slot, slot, prototype);
       new_number_of_transitions++;
     }
@@ -2715,12 +2698,10 @@ void MarkCompactCollector::ProcessWeakCollections() {
     for (int i = 0; i < table->Capacity(); i++) {
       if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
         Object** key_slot =
-            HeapObject::RawField(table, FixedArray::OffsetOfElementAt(
-                ObjectHashTable::EntryToIndex(i)));
+            table->RawFieldOfElementAt(ObjectHashTable::EntryToIndex(i));
         RecordSlot(anchor, key_slot, *key_slot);
         Object** value_slot =
-            HeapObject::RawField(table, FixedArray::OffsetOfElementAt(
-                ObjectHashTable::EntryToValueIndex(i)));
+            table->RawFieldOfElementAt(ObjectHashTable::EntryToValueIndex(i));
         MarkCompactMarkingVisitor::MarkObjectByPointer(
             this, anchor, value_slot);
       }
