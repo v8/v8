@@ -1,3 +1,15 @@
+2013-12-23: Version 3.24.7
+
+        Fix small spec violation in String.prototype.split (issue 3026).
+
+        Correctly resolve forcibly context allocated parameters in debug-
+        evaluate (Chromium issue 325676).
+
+        Introduce Function::GetBoundFunction. 
+
+        Performance and stability improvements on all platforms.
+
+
 2013-12-20: Version 3.24.6
 
         Performance and stability improvements on all platforms.
