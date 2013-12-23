@@ -289,8 +289,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
-static void CallRuntimePassFunction(MacroAssembler* masm,
-                                    Runtime::FunctionId function_id) {
+static void CallRuntimePassFunction(
+    MacroAssembler* masm, Runtime::FunctionId function_id) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(r1);
@@ -313,7 +313,13 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+static void GenerateTailCallToReturnedCode(MacroAssembler* masm) {
+  __ add(r0, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(r0);
+}
+
+
+void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   // Checking whether the queued function is ready for install is optional,
   // since we come across interrupts and stack checks elsewhere.  However,
   // not checking may delay installing ready functions, and always checking
@@ -324,18 +330,10 @@ void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
   __ cmp(sp, Operand(ip));
   __ b(hs, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
-  // Tail call to returned code.
-  __ add(r0, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r0);
+  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
+  GenerateTailCallToReturnedCode(masm);
 
   __ bind(&ok);
-  GenerateTailCallToSharedCode(masm);
-}
-
-
-void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -774,19 +772,38 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
-  // Do a tail-call of the compiled function.
-  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r2);
+void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 
-void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
-  // Do a tail-call of the compiled function.
-  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r2);
+static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push a copy of the function onto the stack.
+  __ push(r1);
+  // Push call kind information and function as parameter to the runtime call.
+  __ Push(r5, r1);
+  // Whether to compile in a background thread.
+  __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
+
+  __ CallRuntime(Runtime::kCompileOptimized, 2);
+  // Restore call kind information.
+  __ pop(r5);
+  // Restore receiver.
+  __ pop(r1);
+}
+
+
+void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
+  CallCompileOptimized(masm, false);
+  GenerateTailCallToReturnedCode(masm);
+}
+
+
+void Builtins::Generate_CompileOptimizedConcurrent(MacroAssembler* masm) {
+  CallCompileOptimized(masm, true);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 

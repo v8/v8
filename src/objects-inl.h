@@ -4950,7 +4950,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 
@@ -5073,20 +5073,21 @@ bool JSFunction::IsOptimizable() {
 }
 
 
-bool JSFunction::IsMarkedForLazyRecompilation() {
-  return code() == GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile);
+bool JSFunction::IsMarkedForOptimization() {
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kCompileOptimized);
 }
 
 
-bool JSFunction::IsMarkedForConcurrentRecompilation() {
+bool JSFunction::IsMarkedForConcurrentOptimization() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kConcurrentRecompile);
+      Builtins::kCompileOptimizedConcurrent);
 }
 
 
-bool JSFunction::IsInRecompileQueue() {
+bool JSFunction::IsInOptimizationQueue() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kInRecompileQueue);
+      Builtins::kInOptimizationQueue);
 }
 
 
@@ -5196,7 +5197,8 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
+  return code() !=
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 

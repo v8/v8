@@ -940,7 +940,10 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (index > 0) {
     // Caching of optimized code enabled and optimized code found.
-    function_info->InstallFromOptimizedCodeMap(*result, index);
+    FixedArray* literals =
+        function_info->GetLiteralsFromOptimizedCodeMap(index);
+    if (literals != NULL) result->set_literals(literals);
+    result->ReplaceCode(function_info->GetCodeFromOptimizedCodeMap(index));
     return result;
   }
 
@@ -951,7 +954,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       function_info->allows_lazy_compilation() &&
       !function_info->optimization_disabled() &&
       !isolate()->DebuggerHasBreakPoints()) {
-    result->MarkForLazyRecompilation();
+    result->MarkForOptimization();
   }
   return result;
 }

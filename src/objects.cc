@@ -9475,19 +9475,19 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 }
 
 
-void JSFunction::MarkForLazyRecompilation() {
+void JSFunction::MarkForOptimization() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
   ASSERT(!shared()->is_generator());
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile));
+      GetIsolate()->builtins()->builtin(Builtins::kCompileOptimized));
   // No write barrier required, since the builtin is part of the root set.
 }
 
 
-void JSFunction::MarkForConcurrentRecompilation() {
+void JSFunction::MarkForConcurrentOptimization() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
@@ -9499,16 +9499,16 @@ void JSFunction::MarkForConcurrentRecompilation() {
     PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kConcurrentRecompile));
+      GetIsolate()->builtins()->builtin(Builtins::kCompileOptimizedConcurrent));
   // No write barrier required, since the builtin is part of the root set.
 }
 
 
-void JSFunction::MarkInRecompileQueue() {
+void JSFunction::MarkInOptimizationQueue() {
   // We can only arrive here via the concurrent-recompilation builtin.  If
   // break points were set, the code would point to the lazy-compile builtin.
   ASSERT(!GetIsolate()->DebuggerHasBreakPoints());
-  ASSERT(IsMarkedForConcurrentRecompilation() && !IsOptimized());
+  ASSERT(IsMarkedForConcurrentOptimization() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
@@ -9517,30 +9517,8 @@ void JSFunction::MarkInRecompileQueue() {
     PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kInRecompileQueue));
+      GetIsolate()->builtins()->builtin(Builtins::kInOptimizationQueue));
   // No write barrier required, since the builtin is part of the root set.
-}
-
-
-static bool CompileLazyHelper(CompilationInfo* info,
-                              ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
-  ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
-  ASSERT(!info->isolate()->has_pending_exception());
-  bool result = Compiler::CompileLazy(info);
-  ASSERT(result != info->isolate()->has_pending_exception());
-  if (!result && flag == CLEAR_EXCEPTION) {
-    info->isolate()->clear_pending_exception();
-  }
-  return result;
-}
-
-
-bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
-                                     ClearExceptionFlag flag) {
-  ASSERT(shared->allows_lazy_compilation_without_context());
-  CompilationInfoWithZone info(shared);
-  return CompileLazyHelper(&info, flag);
 }
 
 
@@ -9604,19 +9582,25 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
 }
 
 
-void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
-                                                     int index) {
+FixedArray* SharedFunctionInfo::GetLiteralsFromOptimizedCodeMap(int index) {
   ASSERT(index > kEntriesStart);
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   if (!bound()) {
     FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
-    ASSERT(cached_literals != NULL);
-    function->set_literals(cached_literals);
+    ASSERT_NE(NULL, cached_literals);
+    return cached_literals;
   }
+  return NULL;
+}
+
+
+
+Code* SharedFunctionInfo::GetCodeFromOptimizedCodeMap(int index) {
+  ASSERT(index > kEntriesStart);
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
   Code* code = Code::cast(code_map->get(index));
-  ASSERT(code != NULL);
-  ASSERT(function->context()->native_context() == code_map->get(index - 1));
-  function->ReplaceCode(code);
+  ASSERT_NE(NULL, code);
+  return code;
 }
 
 
@@ -9679,50 +9663,6 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   if (code_map->length() == kEntriesStart) {
     ClearOptimizedCodeMap();
   }
-}
-
-
-bool JSFunction::CompileLazy(Handle<JSFunction> function,
-                             ClearExceptionFlag flag) {
-  bool result = true;
-  if (function->shared()->is_compiled()) {
-    function->ReplaceCode(function->shared()->code());
-  } else {
-    ASSERT(function->shared()->allows_lazy_compilation());
-    CompilationInfoWithZone info(function);
-    result = CompileLazyHelper(&info, flag);
-    ASSERT(!result || function->is_compiled());
-  }
-  return result;
-}
-
-
-Handle<Code> JSFunction::CompileOsr(Handle<JSFunction> function,
-                                    BailoutId osr_ast_id,
-                                    ClearExceptionFlag flag) {
-  CompilationInfoWithZone info(function);
-  info.SetOptimizing(osr_ast_id);
-  if (CompileLazyHelper(&info, flag)) {
-    // TODO(titzer): don't install the OSR code.
-    // ASSERT(function->code() != *info.code());
-    return info.code();
-  } else {
-    return Handle<Code>::null();
-  }
-}
-
-
-bool JSFunction::CompileOptimized(Handle<JSFunction> function,
-                                  ClearExceptionFlag flag) {
-  CompilationInfoWithZone info(function);
-  info.SetOptimizing(BailoutId::None());
-  return CompileLazyHelper(&info, flag);
-}
-
-
-bool JSFunction::EnsureCompiled(Handle<JSFunction> function,
-                                ClearExceptionFlag flag) {
-  return function->is_compiled() || CompileLazy(function, flag);
 }
 
 
@@ -10695,6 +10635,18 @@ BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
     if (back_edges.pc_offset(i) == pc_offset) return back_edges.ast_id(i);
   }
   return BailoutId::None();
+}
+
+
+uint32_t Code::TranslateAstIdToPcOffset(BailoutId ast_id) {
+  DisallowHeapAllocation no_gc;
+  ASSERT(kind() == FUNCTION);
+  BackEdgeTable back_edges(this, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    if (back_edges.ast_id(i) == ast_id) return back_edges.pc_offset(i);
+  }
+  UNREACHABLE();  // We expect to find the back edge.
+  return 0;
 }
 
 

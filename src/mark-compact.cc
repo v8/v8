@@ -986,7 +986,8 @@ void MarkCompactCollector::Finish() {
 // objects have been marked.
 
 void CodeFlusher::ProcessJSFunctionCandidates() {
-  Code* lazy_compile = isolate_->builtins()->builtin(Builtins::kLazyCompile);
+  Code* lazy_compile =
+      isolate_->builtins()->builtin(Builtins::kCompileUnoptimized);
   Object* undefined = isolate_->heap()->undefined_value();
 
   JSFunction* candidate = jsfunction_candidates_head_;
@@ -1031,7 +1032,8 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
 
 
 void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
-  Code* lazy_compile = isolate_->builtins()->builtin(Builtins::kLazyCompile);
+  Code* lazy_compile =
+      isolate_->builtins()->builtin(Builtins::kCompileUnoptimized);
 
   SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
   SharedFunctionInfo* next_candidate;

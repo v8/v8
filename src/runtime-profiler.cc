@@ -124,11 +124,11 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
       // recompilation race.  This goes away as soon as OSR becomes one-shot.
       return;
     }
-    ASSERT(!function->IsInRecompileQueue());
-    function->MarkForConcurrentRecompilation();
+    ASSERT(!function->IsInOptimizationQueue());
+    function->MarkForConcurrentOptimization();
   } else {
     // The next call to the function will trigger optimization.
-    function->MarkForLazyRecompilation();
+    function->MarkForOptimization();
   }
 }
 
@@ -186,7 +186,7 @@ void RuntimeProfiler::OptimizeNow() {
     Code* shared_code = shared->code();
 
     if (shared_code->kind() != Code::FUNCTION) continue;
-    if (function->IsInRecompileQueue()) continue;
+    if (function->IsInOptimizationQueue()) continue;
 
     if (FLAG_always_osr &&
         shared_code->allow_osr_at_loop_nesting_level() == 0) {
@@ -198,8 +198,8 @@ void RuntimeProfiler::OptimizeNow() {
       }
       // Fall through and do a normal optimized compile as well.
     } else if (!frame->is_optimized() &&
-        (function->IsMarkedForLazyRecompilation() ||
-         function->IsMarkedForConcurrentRecompilation() ||
+        (function->IsMarkedForOptimization() ||
+         function->IsMarkedForConcurrentOptimization() ||
          function->IsOptimized())) {
       // Attempt OSR if we are still running unoptimized code even though the
       // the function has long been marked or even already been optimized.

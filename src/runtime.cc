@@ -2957,7 +2957,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   Handle<SharedFunctionInfo> target_shared(target->shared());
   Handle<SharedFunctionInfo> source_shared(source->shared());
 
-  if (!JSFunction::EnsureCompiled(source, KEEP_EXCEPTION)) {
+  if (!Compiler::EnsureCompiled(source, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -8267,7 +8267,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
 
   // The function should be compiled for the optimization hints to be
   // available.
-  JSFunction::EnsureCompiled(function, CLEAR_EXCEPTION);
+  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   if (!function->has_initial_map() &&
@@ -8299,42 +8299,53 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FinalizeInstanceSize) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyCompile) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileUnoptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   Handle<JSFunction> function = args.at<JSFunction>(0);
 #ifdef DEBUG
   if (FLAG_trace_lazy && !function->shared()->is_compiled()) {
-    PrintF("[lazy: ");
+    PrintF("[unoptimized: ");
     function->PrintName();
     PrintF("]\n");
   }
 #endif
 
   // Compile the target function.
-  ASSERT(!function->is_compiled());
-  if (!JSFunction::CompileLazy(function, KEEP_EXCEPTION)) {
-    return Failure::Exception();
-  }
+  ASSERT(function->shared()->allows_lazy_compilation());
+
+  Handle<Code> code = Compiler::GetUnoptimizedCode(function);
+  RETURN_IF_EMPTY_HANDLE(isolate, code);
+  function->ReplaceCode(*code);
 
   // All done. Return the compiled code.
   ASSERT(function->is_compiled());
-  return function->code();
+  ASSERT(function->code()->kind() == Code::FUNCTION ||
+         (FLAG_always_opt &&
+          function->code()->kind() == Code::OPTIMIZED_FUNCTION));
+  return *code;
 }
 
 
-bool AllowOptimization(Isolate* isolate, Handle<JSFunction> function) {
-  // If the function is not compiled ignore the lazy
-  // recompilation. This can happen if the debugger is activated and
-  // the function is returned to the not compiled state.
-  if (!function->shared()->is_compiled()) return false;
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileOptimized) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
 
-  // If the function is not optimizable or debugger is active continue using the
-  // code from the full compiler.
-  if (!isolate->use_crankshaft() ||
-      function->shared()->optimization_disabled() ||
-      isolate->DebuggerHasBreakPoints()) {
+  Handle<Code> unoptimized(function->shared()->code());
+  if (!function->shared()->is_compiled()) {
+    // If the function is not compiled, do not optimize.
+    // This can happen if the debugger is activated and
+    // the function is returned to the not compiled state.
+    // TODO(yangguo): reconsider this.
+    function->ReplaceCode(function->shared()->code());
+  } else if (!isolate->use_crankshaft() ||
+             function->shared()->optimization_disabled() ||
+             isolate->DebuggerHasBreakPoints()) {
+    // If the function is not optimizable or debugger is active continue
+    // using the code from the full compiler.
     if (FLAG_trace_opt) {
       PrintF("[failed to optimize ");
       function->PrintName();
@@ -8342,50 +8353,18 @@ bool AllowOptimization(Isolate* isolate, Handle<JSFunction> function) {
           function->shared()->optimization_disabled() ? "F" : "T",
           isolate->DebuggerHasBreakPoints() ? "T" : "F");
     }
-    return false;
+    function->ReplaceCode(*unoptimized);
+  } else {
+    Compiler::ConcurrencyMode mode = concurrent ? Compiler::CONCURRENT
+                                                : Compiler::NOT_CONCURRENT;
+    Handle<Code> code = Compiler::GetOptimizedCode(function, unoptimized, mode);
+    function->ReplaceCode(code.is_null() ? *unoptimized : *code);
   }
-  return true;
-}
 
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-
-  if (!AllowOptimization(isolate, function)) {
-    function->ReplaceCode(function->shared()->code());
-    return function->code();
-  }
-  function->shared()->code()->set_profiler_ticks(0);
-  if (JSFunction::CompileOptimized(function, CLEAR_EXCEPTION)) {
-    return function->code();
-  }
-  if (FLAG_trace_opt) {
-    PrintF("[failed to optimize ");
-    function->PrintName();
-    PrintF(": optimized compilation failed]\n");
-  }
-  function->ReplaceCode(function->shared()->code());
+  ASSERT(function->code()->kind() == Code::FUNCTION ||
+         function->code()->kind() == Code::OPTIMIZED_FUNCTION ||
+         function->IsInOptimizationQueue());
   return function->code();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
-  HandleScope handle_scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (!AllowOptimization(isolate, function)) {
-    function->ReplaceCode(function->shared()->code());
-    return isolate->heap()->undefined_value();
-  }
-  Handle<Code> shared_code(function->shared()->code());
-  shared_code->set_profiler_ticks(0);
-  ASSERT(isolate->concurrent_recompilation_enabled());
-  if (!Compiler::RecompileConcurrent(function, shared_code)) {
-    function->ReplaceCode(*shared_code);
-  }
-  return isolate->heap()->undefined_value();
 }
 
 
@@ -8529,7 +8508,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   if (!function->IsOptimizable()) return isolate->heap()->undefined_value();
-  function->MarkForLazyRecompilation();
+  function->MarkForOptimization();
 
   Code* unoptimized = function->shared()->code();
   if (args.length() == 2 &&
@@ -8545,7 +8524,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
       }
     } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
-      function->MarkForConcurrentRecompilation();
+      function->MarkForConcurrentOptimization();
     }
   }
 
@@ -8579,7 +8558,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (isolate->concurrent_recompilation_enabled() &&
       sync_with_compiler_thread) {
-    while (function->IsInRecompileQueue()) {
+    while (function->IsInOptimizationQueue()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
     }
@@ -8615,9 +8594,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationCount) {
 
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function,
-                                            Handle<Code> unoptimized) {
+                                            Handle<Code> current_code) {
   // Keep track of whether we've succeeded in optimizing.
-  if (!isolate->use_crankshaft() || !unoptimized->optimizable()) return false;
+  if (!isolate->use_crankshaft() || !current_code->optimizable()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been
@@ -8636,79 +8615,79 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  Handle<Code> unoptimized(function->shared()->code(), isolate);
+  Handle<Code> caller_code(function->shared()->code());
+
+  // We're not prepared to handle a function with arguments object.
+  ASSERT(!function->shared()->uses_arguments());
 
   // Passing the PC in the javascript frame from the caller directly is
   // not GC safe, so we walk the stack to get it.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  if (!unoptimized->contains(frame->pc())) {
+  if (!caller_code->contains(frame->pc())) {
     // Code on the stack may not be the code object referenced by the shared
     // function info.  It may have been replaced to include deoptimization data.
-    unoptimized = Handle<Code>(frame->LookupCode());
+    caller_code = Handle<Code>(frame->LookupCode());
   }
 
-  uint32_t pc_offset = static_cast<uint32_t>(frame->pc() -
-                                             unoptimized->instruction_start());
+  uint32_t pc_offset = static_cast<uint32_t>(
+      frame->pc() - caller_code->instruction_start());
 
 #ifdef DEBUG
   ASSERT_EQ(frame->function(), *function);
-  ASSERT_EQ(frame->LookupCode(), *unoptimized);
-  ASSERT(unoptimized->contains(frame->pc()));
+  ASSERT_EQ(frame->LookupCode(), *caller_code);
+  ASSERT(caller_code->contains(frame->pc()));
 #endif  // DEBUG
 
-  // We're not prepared to handle a function with arguments object.
-  ASSERT(!function->shared()->uses_arguments());
 
+  BailoutId ast_id = caller_code->TranslatePcOffsetToAstId(pc_offset);
+  ASSERT(!ast_id.IsNone());
+
+  Compiler::ConcurrencyMode mode = isolate->concurrent_osr_enabled()
+      ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
   Handle<Code> result = Handle<Code>::null();
-  BailoutId ast_id = BailoutId::None();
 
-  if (isolate->concurrent_osr_enabled()) {
-    if (isolate->optimizing_compiler_thread()->
-            IsQueuedForOSR(function, pc_offset)) {
-      // Still waiting for the optimizing compiler thread to finish.  Carry on.
+  OptimizedCompileJob* job = NULL;
+  if (mode == Compiler::CONCURRENT) {
+    // Gate the OSR entry with a stack check.
+    BackEdgeTable::AddStackCheck(caller_code, pc_offset);
+    // Poll already queued compilation jobs.
+    OptimizingCompilerThread* thread = isolate->optimizing_compiler_thread();
+    if (thread->IsQueuedForOSR(function, ast_id)) {
       if (FLAG_trace_osr) {
-        PrintF("[COSR - polling recompile tasks for ");
+        PrintF("[OSR - Still waiting for queued: ");
         function->PrintName();
-        PrintF("]\n");
+        PrintF(" at AST id %d]\n", ast_id.ToInt());
       }
       return NULL;
     }
 
-    RecompileJob* job = isolate->optimizing_compiler_thread()->
-        FindReadyOSRCandidate(function, pc_offset);
+    job = thread->FindReadyOSRCandidate(function, ast_id);
+  }
 
-    if (job == NULL) {
-      if (IsSuitableForOnStackReplacement(isolate, function, unoptimized) &&
-          Compiler::RecompileConcurrent(function, unoptimized, pc_offset)) {
-        if (function->IsMarkedForLazyRecompilation() ||
-            function->IsMarkedForConcurrentRecompilation()) {
-          // Prevent regular recompilation if we queue this for OSR.
-          // TODO(yangguo): remove this as soon as OSR becomes one-shot.
-          function->ReplaceCode(function->shared()->code());
-        }
-        return NULL;
-      }
-      // Fall through to the end in case of failure.
-    } else {
-      // TODO(titzer): don't install the OSR code into the function.
-      ast_id = job->info()->osr_ast_id();
-      result = Compiler::InstallOptimizedCode(job);
-    }
-  } else if (IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
-    ast_id = unoptimized->TranslatePcOffsetToAstId(pc_offset);
-    ASSERT(!ast_id.IsNone());
+  if (job != NULL) {
     if (FLAG_trace_osr) {
-      PrintF("[OSR - replacing at AST id %d in ", ast_id.ToInt());
+      PrintF("[OSR - Found ready: ");
       function->PrintName();
-      PrintF("]\n");
+      PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    // Attempt OSR compilation.
-    result = JSFunction::CompileOsr(function, ast_id, CLEAR_EXCEPTION);
+    result = Compiler::GetConcurrentlyOptimizedCode(job);
+  } else if (result.is_null() &&
+             IsSuitableForOnStackReplacement(isolate, function, caller_code)) {
+    if (FLAG_trace_osr) {
+      PrintF("[OSR - Compiling: ");
+      function->PrintName();
+      PrintF(" at AST id %d]\n", ast_id.ToInt());
+    }
+    result = Compiler::GetOptimizedCode(function, caller_code, mode, ast_id);
+    if (result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {
+      // Optimization is queued.  Return to check later.
+      return NULL;
+    }
   }
 
   // Revert the patched back edge table, regardless of whether OSR succeeds.
-  BackEdgeTable::Revert(isolate, *unoptimized);
+  BackEdgeTable::Revert(isolate, *caller_code);
 
   // Check whether we ended up with usable optimized code.
   if (!result.is_null() && result->kind() == Code::OPTIMIZED_FUNCTION) {
@@ -8718,26 +8697,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     if (data->OsrPcOffset()->value() >= 0) {
       ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
       if (FLAG_trace_osr) {
-        PrintF("[OSR - entry at AST id %d, offset %d in optimized code]\n",
+        PrintF("[OSR - Entry at AST id %d, offset %d in optimized code]\n",
                ast_id.ToInt(), data->OsrPcOffset()->value());
       }
       // TODO(titzer): this is a massive hack to make the deopt counts
       // match. Fix heuristics for reenabling optimizations!
       function->shared()->increment_deopt_count();
+
+      // TODO(titzer): Do not install code into the function.
+      function->ReplaceCode(*result);
       return *result;
     }
   }
 
+  // Failed.
   if (FLAG_trace_osr) {
-    PrintF("[OSR - optimization failed for ");
+    PrintF("[OSR - Failed: ");
     function->PrintName();
-    PrintF("]\n");
+    PrintF(" at AST id %d]\n", ast_id.ToInt());
   }
 
-  if (function->IsMarkedForLazyRecompilation() ||
-      function->IsMarkedForConcurrentRecompilation()) {
-    function->ReplaceCode(function->shared()->code());
-  }
+  function->ReplaceCode(function->shared()->code());
   return NULL;
 }
 
@@ -9439,7 +9419,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_TryInstallRecompiledCode) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TryInstallOptimizedCode) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -9698,13 +9678,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   // Compile source string in the native context.
   ParseRestriction restriction = function_literal_only
       ? ONLY_SINGLE_FUNCTION_LITERAL : NO_PARSE_RESTRICTION;
-  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
-      source, context, true, CLASSIC_MODE, restriction, RelocInfo::kNoPosition);
-  RETURN_IF_EMPTY_HANDLE(isolate, shared);
-  Handle<JSFunction> fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
-                                                            context,
-                                                            NOT_TENURED);
+  Handle<JSFunction> fun = Compiler::GetFunctionFromEval(
+      source, context, CLASSIC_MODE, restriction, RelocInfo::kNoPosition);
+  RETURN_IF_EMPTY_HANDLE(isolate, fun);
   return *fun;
 }
 
@@ -9730,18 +9706,11 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
 
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
-  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
-      source,
-      context,
-      context->IsNativeContext(),
-      language_mode,
-      NO_PARSE_RESTRICTION,
-      scope_position);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, shared,
+  static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
+  Handle<JSFunction> compiled = Compiler::GetFunctionFromEval(
+      source, context, language_mode, restriction, scope_position);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, compiled,
                                MakePair(Failure::Exception(), NULL));
-  Handle<JSFunction> compiled =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, NOT_TENURED);
   return MakePair(*compiled, *receiver);
 }
 
@@ -12573,7 +12542,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScriptBreakPoint) {
   if (!isolate->debug()->SetBreakPointForScript(script, break_point_object_arg,
                                                 &source_position,
                                                 alignment)) {
-    return  isolate->heap()->undefined_value();
+    return isolate->heap()->undefined_value();
   }
 
   return Smi::FromInt(source_position);
@@ -12733,18 +12702,14 @@ static MaybeObject* DebugEvaluate(Isolate* isolate,
     context = isolate->factory()->NewWithContext(closure, context, extension);
   }
 
-  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
-      source,
-      context,
-      context->IsNativeContext(),
-      CLASSIC_MODE,
-      NO_PARSE_RESTRICTION,
-      RelocInfo::kNoPosition);
-  RETURN_IF_EMPTY_HANDLE(isolate, shared);
-
   Handle<JSFunction> eval_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, NOT_TENURED);
+      Compiler::GetFunctionFromEval(source,
+                                    context,
+                                    CLASSIC_MODE,
+                                    NO_PARSE_RESTRICTION,
+                                    RelocInfo::kNoPosition);
+  RETURN_IF_EMPTY_HANDLE(isolate, eval_fun);
+
   bool pending_exception;
   Handle<Object> result = Execution::Call(
       isolate, eval_fun, receiver, 0, NULL, &pending_exception);
@@ -13160,7 +13125,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleFunction) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  if (!JSFunction::EnsureCompiled(func, KEEP_EXCEPTION)) {
+  if (!Compiler::EnsureCompiled(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->code()->PrintLn();
@@ -13175,7 +13140,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleConstructor) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  if (!JSFunction::EnsureCompiled(func, KEEP_EXCEPTION)) {
+  if (!Compiler::EnsureCompiled(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->shared()->construct_stub()->PrintLn();

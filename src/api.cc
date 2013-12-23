@@ -1720,16 +1720,16 @@ Local<Script> Script::New(v8::Handle<String> source,
       pre_data_impl = NULL;
     }
     i::Handle<i::SharedFunctionInfo> result =
-      i::Compiler::Compile(str,
-                           name_obj,
-                           line_offset,
-                           column_offset,
-                           is_shared_cross_origin,
-                           isolate->global_context(),
-                           NULL,
-                           pre_data_impl,
-                           Utils::OpenHandle(*script_data, true),
-                           i::NOT_NATIVES_CODE);
+      i::Compiler::CompileScript(str,
+                                 name_obj,
+                                 line_offset,
+                                 column_offset,
+                                 is_shared_cross_origin,
+                                 isolate->global_context(),
+                                 NULL,
+                                 pre_data_impl,
+                                 Utils::OpenHandle(*script_data, true),
+                                 i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
     raw_result = *result;

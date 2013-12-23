@@ -418,7 +418,12 @@ class Parser : public ParserBase {
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
   // nodes) if parsing failed.
-  static bool Parse(CompilationInfo* info) { return Parser(info).Parse(); }
+  static bool Parse(CompilationInfo* info,
+                    bool allow_lazy = false) {
+    Parser parser(info);
+    parser.set_allow_lazy(allow_lazy);
+    return parser.Parse();
+  }
   bool Parse();
 
  private:

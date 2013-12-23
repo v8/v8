@@ -783,14 +783,13 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
 
   // Compile the script.
   Handle<SharedFunctionInfo> function_info;
-  function_info = Compiler::Compile(source_code,
-                                    script_name,
-                                    0, 0,
-                                    false,
-                                    context,
-                                    NULL, NULL,
-                                    Handle<String>::null(),
-                                    NATIVES_CODE);
+  function_info = Compiler::CompileScript(source_code,
+                                          script_name, 0, 0,
+                                          false,
+                                          context,
+                                          NULL, NULL,
+                                          Handle<String>::null(),
+                                          NATIVES_CODE);
 
   // Silently ignore stack overflows during compilation.
   if (function_info.is_null()) {
@@ -1868,41 +1867,6 @@ void Debug::ClearStepNext() {
 }
 
 
-// Helper function to compile full code for debugging. This code will
-// have debug break slots and deoptimization information. Deoptimization
-// information is required in case that an optimized version of this
-// function is still activated on the stack. It will also make sure that
-// the full code is compiled with the same flags as the previous version,
-// that is flags which can change the code generated. The current method
-// of mapping from already compiled full code without debug break slots
-// to full code with debug break slots depends on the generated code is
-// otherwise exactly the same.
-static bool CompileFullCodeForDebugging(Handle<JSFunction> function,
-                                        Handle<Code> current_code) {
-  ASSERT(!current_code->has_debug_break_slots());
-
-  CompilationInfoWithZone info(function);
-  info.MarkCompilingForDebugging(current_code);
-  ASSERT(!info.shared_info()->is_compiled());
-  ASSERT(!info.isolate()->has_pending_exception());
-
-  // Use compile lazy which will end up compiling the full code in the
-  // configuration configured above.
-  bool result = Compiler::CompileLazy(&info);
-  ASSERT(result != info.isolate()->has_pending_exception());
-  info.isolate()->clear_pending_exception();
-#if DEBUG
-  if (result) {
-    Handle<Code> new_code(function->shared()->code());
-    ASSERT(new_code->has_debug_break_slots());
-    ASSERT(current_code->is_compiled_optimizable() ==
-           new_code->is_compiled_optimizable());
-  }
-#endif
-  return result;
-}
-
-
 static void CollectActiveFunctionsFromThread(
     Isolate* isolate,
     ThreadLocalTop* top,
@@ -2059,8 +2023,7 @@ void Debug::PrepareForBreakPoints() {
 
     Deoptimizer::DeoptimizeAll(isolate_);
 
-    Handle<Code> lazy_compile =
-        Handle<Code>(isolate_->builtins()->builtin(Builtins::kLazyCompile));
+    Handle<Code> lazy_compile = isolate_->builtins()->CompileUnoptimized();
 
     // There will be at least one break point when we are done.
     has_break_points_ = true;
@@ -2112,9 +2075,9 @@ void Debug::PrepareForBreakPoints() {
             function->set_code(*lazy_compile);
             function->shared()->set_code(*lazy_compile);
           } else if (kind == Code::BUILTIN &&
-              (function->IsInRecompileQueue() ||
-               function->IsMarkedForLazyRecompilation() ||
-               function->IsMarkedForConcurrentRecompilation())) {
+              (function->IsInOptimizationQueue() ||
+               function->IsMarkedForOptimization() ||
+               function->IsMarkedForConcurrentOptimization())) {
             // Abort in-flight compilation.
             Code* shared_code = function->shared()->code();
             if (shared_code->kind() == Code::FUNCTION &&
@@ -2159,19 +2122,12 @@ void Debug::PrepareForBreakPoints() {
       if (!shared->code()->has_debug_break_slots()) {
         // Try to compile the full code with debug break slots. If it
         // fails just keep the current code.
-        Handle<Code> current_code(function->shared()->code());
-        shared->set_code(*lazy_compile);
         bool prev_force_debugger_active =
             isolate_->debugger()->force_debugger_active();
         isolate_->debugger()->set_force_debugger_active(true);
-        ASSERT(current_code->kind() == Code::FUNCTION);
-        CompileFullCodeForDebugging(function, current_code);
+        function->ReplaceCode(*Compiler::GetCodeForDebugging(function));
         isolate_->debugger()->set_force_debugger_active(
             prev_force_debugger_active);
-        if (!shared->is_compiled()) {
-          shared->set_code(*current_code);
-          continue;
-        }
       }
 
       // Keep function code in sync with shared function info.
@@ -2284,11 +2240,10 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       // will compile all inner functions that cannot be compiled without a
       // context, because Compiler::BuildFunctionInfo checks whether the
       // debugger is active.
-      if (target_function.is_null()) {
-        SharedFunctionInfo::CompileLazy(target, KEEP_EXCEPTION);
-      } else {
-        JSFunction::CompileLazy(target_function, KEEP_EXCEPTION);
-      }
+      Handle<Code> result = target_function.is_null()
+          ? Compiler::GetUnoptimizedCode(target)
+          : Compiler::GetUnoptimizedCode(target_function);
+      if (result.is_null()) return isolate_->heap()->undefined_value();
     }
   }  // End while loop.
 
@@ -2312,7 +2267,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
 
   // Ensure function is compiled. Return false if this failed.
   if (!function.is_null() &&
-      !JSFunction::EnsureCompiled(function, CLEAR_EXCEPTION)) {
+      !Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
     return false;
   }
 
@@ -2595,6 +2550,21 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 
   // Get the scripts from the cache.
   return script_cache_->GetScripts();
+}
+
+
+void Debug::RecordEvalCaller(Handle<Script> script) {
+  script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+  // For eval scripts add information on the function from which eval was
+  // called.
+  StackTraceFrameIterator it(script->GetIsolate());
+  if (!it.done()) {
+    script->set_eval_from_shared(it.frame()->function()->shared());
+    Code* code = it.frame()->LookupCode();
+    int offset = static_cast<int>(
+        it.frame()->pc() - code->instruction_start());
+    script->set_eval_from_instructions_offset(Smi::FromInt(offset));
+  }
 }
 
 

@@ -928,10 +928,10 @@ class BackEdgeTable {
 
   // Change a back edge patched for on-stack replacement to perform a
   // stack check first.
-  static void AddStackCheck(CompilationInfo* info);
+  static void AddStackCheck(Handle<Code> code, uint32_t pc_offset);
 
-  // Remove the stack check, if available, and replace by on-stack replacement.
-  static void RemoveStackCheck(CompilationInfo* info);
+  // Revert the patch by AddStackCheck.
+  static void RemoveStackCheck(Handle<Code> code, uint32_t pc_offset);
 
   // Return the current patch state of the back edge.
   static BackEdgeState GetBackEdgeState(Isolate* isolate,
