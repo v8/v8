@@ -8541,7 +8541,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
         unoptimized->set_allow_osr_at_loop_nesting_level(i);
         isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
       }
-    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent"))) {
+    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent")) &&
+               isolate->concurrent_recompilation_enabled()) {
       function->MarkForConcurrentRecompilation();
     }
   }
