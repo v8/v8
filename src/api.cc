@@ -7137,15 +7137,6 @@ const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
 }
 
 
-v8::Handle<v8::Value> HeapGraphNode::GetHeapValue() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  i::Handle<i::HeapObject> object = ToInternal(this)->GetHeapObject();
-  return !object.is_null() ?
-      ToApiHandle<Value>(object) :
-      ToApiHandle<Value>(isolate->factory()->undefined_value());
-}
-
-
 static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
   return const_cast<i::HeapSnapshot*>(
       reinterpret_cast<const i::HeapSnapshot*>(snapshot));

@@ -264,12 +264,6 @@ class V8_EXPORT HeapGraphNode {
 
   /** Retrieves a child by index. */
   const HeapGraphEdge* GetChild(int index) const;
-
-  /**
-   * Finds and returns a value from the heap corresponding to this node,
-   * if the value is still reachable.
-   */
-  Handle<Value> GetHeapValue() const;
 };
 
 
