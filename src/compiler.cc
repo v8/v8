@@ -726,6 +726,7 @@ Handle<Code> Compiler::GetCodeForDebugging(Handle<JSFunction> function) {
 void Compiler::CompileForLiveEdit(Handle<Script> script) {
   // TODO(635): support extensions.
   CompilationInfoWithZone info(script);
+  PostponeInterruptsScope postpone(info.isolate());
   VMState<COMPILER> state(info.isolate());
 
   info.MarkAsGlobal();
@@ -754,6 +755,7 @@ static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
 
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
+  PostponeInterruptsScope postpone(isolate);
   ASSERT(!isolate->native_context().is_null());
   Handle<Script> script = info->script();
 
