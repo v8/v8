@@ -4435,6 +4435,11 @@ TEST(OutOfMemoryNested) {
 }
 
 
+void OOMCallback(const char* location, const char* message) {
+  exit(0);
+}
+
+
 TEST(HugeConsStringOutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   if (i::Snapshot::IsEnabled()) return;
@@ -4446,19 +4451,17 @@ TEST(HugeConsStringOutOfMemory) {
   v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // Execute a script that causes out of memory.
-  v8::V8::IgnoreOutOfMemoryException();
+  v8::V8::SetFatalErrorHandler(OOMCallback);
 
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
   // Build huge string. This should fail with out of memory exception.
-  Local<Value> result = CompileRun(
+  CompileRun(
     "var str = Array.prototype.join.call({length: 513}, \"A\").toUpperCase();"
     "for (var i = 0; i < 22; i++) { str = str + str; }");
 
-  // Check for out of memory state.
-  CHECK(result.IsEmpty());
-  CHECK(context->HasOutOfMemoryException());
+  CHECK(false);  // Should not return.
 }
 
 
@@ -6970,11 +6973,6 @@ static const char* js_code_causing_huge_string_flattening =
     "  str = str + str;"
     "}"
     "str.match(/X/);";
-
-
-void OOMCallback(const char* location, const char* message) {
-  exit(0);
-}
 
 
 TEST(RegexpOutOfMemory) {
