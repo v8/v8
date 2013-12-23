@@ -11373,6 +11373,12 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
   // First fill all parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    Handle<String> name(scope_info->ParameterName(i));
+    VariableMode mode;
+    InitializationFlag init_flag;
+    // Do not materialize the parameter if it is shadowed by a context local.
+    if (scope_info->ContextSlotIndex(*name, &mode, &init_flag) != -1) continue;
+
     Handle<Object> value(i < frame_inspector->GetParametersCount()
                              ? frame_inspector->GetParameter(i)
                              : isolate->heap()->undefined_value(),
@@ -11381,29 +11387,21 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        Runtime::SetObjectProperty(isolate,
-                                   target,
-                                   Handle<String>(scope_info->ParameterName(i)),
-                                   value,
-                                   NONE,
-                                   kNonStrictMode),
+        Runtime::SetObjectProperty(
+            isolate, target, name, value, NONE, kNonStrictMode),
         Handle<JSObject>());
   }
 
   // Second fill all stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    Handle<String> name(scope_info->StackLocalName(i));
     Handle<Object> value(frame_inspector->GetExpression(i), isolate);
     if (value->IsTheHole()) continue;
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         Runtime::SetObjectProperty(
-            isolate,
-            target,
-            Handle<String>(scope_info->StackLocalName(i)),
-            value,
-            NONE,
-            kNonStrictMode),
+            isolate, target, name, value, NONE, kNonStrictMode),
         Handle<JSObject>());
   }
 
