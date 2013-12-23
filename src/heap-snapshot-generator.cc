@@ -99,11 +99,6 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
 }
 
 
-Handle<HeapObject> HeapEntry::GetHeapObject() {
-  return snapshot_->profiler()->FindHeapObjectById(id());
-}
-
-
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_CHECK(sizeof(unsigned) == sizeof(id()));

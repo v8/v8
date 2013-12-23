@@ -25,35 +25,4 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
-
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
-
-function f1(a, i) {
-  return a[i] + 0.5;
-}
-
-var arr = [0.0,,2.5];
-assertEquals(0.5, f1(arr, 0));
-assertEquals(0.5, f1(arr, 0));
-
-// Optimized code of f1 depends on initial object and array maps.
-%OptimizeFunctionOnNextCall(f1, "concurrent");
-// Kick off recompilation;
-assertEquals(0.5, f1(arr, 0));
-// Invalidate current initial object map after compile graph has been created.
-Object.prototype[1] = 1.5;
-assertEquals(2, f1(arr, 1));
-// Not yet optimized since concurrent recompilation is blocked.
-assertUnoptimized(f1, "no sync");
-// Let concurrent recompilation proceed.
-%UnblockConcurrentRecompilation();
-// Sync with background thread to conclude optimization, which bails out
-// due to map dependency.
-assertUnoptimized(f1, "sync");
-//Clear type info for stress runs.
-%ClearFunctionTypeFeedback(f1);
+assertEquals([], "abc".split(undefined, 0));

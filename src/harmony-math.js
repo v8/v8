@@ -110,6 +110,51 @@ function MathAtanh(x) {
 }
 
 
+//ES6 draft 09-27-13, section 20.2.2.21.
+function MathLog10(x) {
+  return MathLog(x) * 0.434294481903251828;  // log10(x) = log(x)/log(10).
+}
+
+
+//ES6 draft 09-27-13, section 20.2.2.22.
+function MathLog2(x) {
+  return MathLog(x) * 1.442695040888963407;  // log2(x) = log(x)/log(2).
+}
+
+
+//ES6 draft 09-27-13, section 20.2.2.17.
+function MathHypot(x, y) {  // Function length is 2.
+  // We may want to introduce fast paths for two arguments and when
+  // normalization to avoid overflow is not necessary.  For now, we
+  // simply assume the general case.
+  var length = %_ArgumentsLength();
+  var args = new InternalArray(length);
+  var max = 0;
+  for (var i = 0; i < length; i++) {
+    var n = %_Arguments(i);
+    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
+    if (n === INFINITY || n === -INFINITY) return INFINITY;
+    n = MathAbs(n);
+    if (n > max) max = n;
+    args[i] = n;
+  }
+
+  // Kahan summation to avoid rounding errors.
+  // Normalize the numbers to the largest one to avoid overflow.
+  if (max === 0) max = 1;
+  var sum = 0;
+  var compensation = 0;
+  for (var i = 0; i < length; i++) {
+    var n = args[i] / max;
+    var summand = n * n - compensation;
+    var preliminary = sum + summand;
+    compensation = (preliminary - sum) - summand;
+    sum = preliminary;
+  }
+  return MathSqrt(sum) * max;
+}
+
+
 function ExtendMath() {
   %CheckIsBootstrapping();
 
@@ -122,7 +167,10 @@ function ExtendMath() {
     "tanh", MathTanh,
     "asinh", MathAsinh,
     "acosh", MathAcosh,
-    "atanh", MathAtanh
+    "atanh", MathAtanh,
+    "log10", MathLog10,
+    "log2", MathLog2,
+    "hypot", MathHypot
   ));
 }
 

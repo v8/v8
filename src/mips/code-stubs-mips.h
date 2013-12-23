@@ -157,6 +157,33 @@ class SubStringStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 };
 
+class StoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit StoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return StoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
+
+class RestoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit RestoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return RestoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
 
 class StringCompareStub: public PlatformCodeStub {
  public:

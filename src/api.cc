@@ -1720,16 +1720,16 @@ Local<Script> Script::New(v8::Handle<String> source,
       pre_data_impl = NULL;
     }
     i::Handle<i::SharedFunctionInfo> result =
-      i::Compiler::Compile(str,
-                           name_obj,
-                           line_offset,
-                           column_offset,
-                           is_shared_cross_origin,
-                           isolate->global_context(),
-                           NULL,
-                           pre_data_impl,
-                           Utils::OpenHandle(*script_data, true),
-                           i::NOT_NATIVES_CODE);
+      i::Compiler::CompileScript(str,
+                                 name_obj,
+                                 line_offset,
+                                 column_offset,
+                                 is_shared_cross_origin,
+                                 isolate->global_context(),
+                                 NULL,
+                                 pre_data_impl,
+                                 Utils::OpenHandle(*script_data, true),
+                                 i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
     raw_result = *result;
@@ -4160,6 +4160,20 @@ int Function::ScriptId() const {
   if (!func->shared()->script()->IsScript()) return v8::Script::kNoScriptId;
   i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
   return script->id()->value();
+}
+
+
+Local<v8::Value> Function::GetBoundFunction() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (!func->shared()->bound()) {
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(func->GetIsolate()));
+  }
+  i::Handle<i::FixedArray> bound_args = i::Handle<i::FixedArray>(
+      i::FixedArray::cast(func->function_bindings()));
+  i::Handle<i::Object> original(
+      bound_args->get(i::JSFunction::kBoundFunctionIndex),
+      func->GetIsolate());
+  return Utils::ToLocal(i::Handle<i::JSFunction>::cast(original));
 }
 
 
@@ -7120,15 +7134,6 @@ int HeapGraphNode::GetChildrenCount() const {
 const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
   return reinterpret_cast<const HeapGraphEdge*>(
       ToInternal(this)->children()[index]);
-}
-
-
-v8::Handle<v8::Value> HeapGraphNode::GetHeapValue() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  i::Handle<i::HeapObject> object = ToInternal(this)->GetHeapObject();
-  return !object.is_null() ?
-      ToApiHandle<Value>(object) :
-      ToApiHandle<Value>(isolate->factory()->undefined_value());
 }
 
 

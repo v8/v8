@@ -25,35 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --expose-debug-as debug
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
+// If a function parameter is forced to be context allocated,
+// debug evaluate need to resolve it to a context slot instead of
+// parameter slot on the stack.
+
+var Debug = debug.Debug;
+
+var expected;
+var exception = null;
+
+function listener(event, exec_state, event_data, data) {
+  if (event != Debug.DebugEvent.Break) return;
+  try {
+    assertEquals(expected, exec_state.frame(0).evaluate('arg').value());
+    exec_state.frame(0).evaluate('arg = "evaluated";');
+  } catch (e) {
+    exception = e;
+  }
 }
 
-function f1(a, i) {
-  return a[i] + 0.5;
+Debug.setListener(listener);
+
+function f(arg) {
+  expected = arg;
+  debugger;
+  assertEquals("evaluated", arg);
+
+  arg = "value";
+  expected = arg;
+  debugger;
+  assertEquals("evaluated", arg);
+
+  // Forces arg to be context allocated even though a parameter.
+  function g() { arg; }
 }
 
-var arr = [0.0,,2.5];
-assertEquals(0.5, f1(arr, 0));
-assertEquals(0.5, f1(arr, 0));
+f();
+f(1);
+f(1, 2);
 
-// Optimized code of f1 depends on initial object and array maps.
-%OptimizeFunctionOnNextCall(f1, "concurrent");
-// Kick off recompilation;
-assertEquals(0.5, f1(arr, 0));
-// Invalidate current initial object map after compile graph has been created.
-Object.prototype[1] = 1.5;
-assertEquals(2, f1(arr, 1));
-// Not yet optimized since concurrent recompilation is blocked.
-assertUnoptimized(f1, "no sync");
-// Let concurrent recompilation proceed.
-%UnblockConcurrentRecompilation();
-// Sync with background thread to conclude optimization, which bails out
-// due to map dependency.
-assertUnoptimized(f1, "sync");
-//Clear type info for stress runs.
-%ClearFunctionTypeFeedback(f1);
+assertNull(exception);

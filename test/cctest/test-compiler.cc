@@ -104,16 +104,15 @@ static Handle<JSFunction> Compile(const char* source) {
   Handle<String> source_code(
       isolate->factory()->NewStringFromUtf8(CStrVector(source)));
   Handle<SharedFunctionInfo> shared_function =
-      Compiler::Compile(source_code,
-                        Handle<String>(),
-                        0,
-                        0,
-                        false,
-                        Handle<Context>(isolate->native_context()),
-                        NULL,
-                        NULL,
-                        Handle<String>::null(),
-                        NOT_NATIVES_CODE);
+      Compiler::CompileScript(source_code,
+                              Handle<String>(),
+                              0,
+                              0,
+                              false,
+                              Handle<Context>(isolate->native_context()),
+                              NULL, NULL,
+                              Handle<String>::null(),
+                              NOT_NATIVES_CODE);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());
 }

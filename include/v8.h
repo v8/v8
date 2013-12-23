@@ -2539,6 +2539,12 @@ class V8_EXPORT Function : public Object {
    */
   int ScriptId() const;
 
+  /**
+   * Returns the original function if this function is bound, else returns
+   * v8::Undefined.
+   */
+  Local<Value> GetBoundFunction() const;
+
   ScriptOrigin GetScriptOrigin() const;
   V8_INLINE static Function* Cast(Value* obj);
   static const int kLineOffsetNotFound;

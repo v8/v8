@@ -2364,9 +2364,7 @@ void Map::LookupTransition(JSObject* holder,
 
 Object** DescriptorArray::GetKeySlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToKeyIndex(descriptor_number)));
+  return RawFieldOfElementAt(ToKeyIndex(descriptor_number));
 }
 
 
@@ -2421,9 +2419,7 @@ void DescriptorArray::InitializeRepresentations(Representation representation) {
 
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToValueIndex(descriptor_number)));
+  return RawFieldOfElementAt(ToValueIndex(descriptor_number));
 }
 
 
@@ -3224,7 +3220,7 @@ void JSFunctionResultCache::MakeZeroSize() {
 
 void JSFunctionResultCache::Clear() {
   int cache_size = size();
-  Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
+  Object** entries_start = RawFieldOfElementAt(kEntriesIndex);
   MemsetPointer(entries_start,
                 GetHeap()->the_hole_value(),
                 cache_size - kEntriesIndex);
@@ -3830,8 +3826,7 @@ Object* DependentCode::object_at(int i) {
 
 
 Object** DependentCode::slot_at(int i) {
-  return HeapObject::RawField(
-      this, FixedArray::OffsetOfElementAt(kCodesStartIndex + i));
+  return RawFieldOfElementAt(kCodesStartIndex + i);
 }
 
 
@@ -4950,7 +4945,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 
@@ -5073,20 +5068,21 @@ bool JSFunction::IsOptimizable() {
 }
 
 
-bool JSFunction::IsMarkedForLazyRecompilation() {
-  return code() == GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile);
+bool JSFunction::IsMarkedForOptimization() {
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kCompileOptimized);
 }
 
 
-bool JSFunction::IsMarkedForConcurrentRecompilation() {
+bool JSFunction::IsMarkedForConcurrentOptimization() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kConcurrentRecompile);
+      Builtins::kCompileOptimizedConcurrent);
 }
 
 
-bool JSFunction::IsInRecompileQueue() {
+bool JSFunction::IsInOptimizationQueue() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kInRecompileQueue);
+      Builtins::kInOptimizationQueue);
 }
 
 
@@ -5196,7 +5192,8 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
+  return code() !=
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 

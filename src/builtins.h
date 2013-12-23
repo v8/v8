@@ -88,7 +88,7 @@ enum BuiltinExtraArguments {
 #define BUILTIN_LIST_A(V)                                               \
   V(ArgumentsAdaptorTrampoline,     BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
-  V(InRecompileQueue,               BUILTIN, UNINITIALIZED,             \
+  V(InOptimizationQueue,            BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
   V(JSConstructStubCountdown,       BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
@@ -100,11 +100,11 @@ enum BuiltinExtraArguments {
                                     kNoExtraICState)                    \
   V(JSConstructEntryTrampoline,     BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
-  V(LazyCompile,                    BUILTIN, UNINITIALIZED,             \
+  V(CompileUnoptimized,             BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
-  V(LazyRecompile,                  BUILTIN, UNINITIALIZED,             \
+  V(CompileOptimized,               BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
-  V(ConcurrentRecompile,            BUILTIN, UNINITIALIZED,             \
+  V(CompileOptimizedConcurrent,     BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
   V(NotifyDeoptimized,              BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
@@ -385,15 +385,15 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
-  static void Generate_InRecompileQueue(MacroAssembler* masm);
-  static void Generate_ConcurrentRecompile(MacroAssembler* masm);
+  static void Generate_CompileUnoptimized(MacroAssembler* masm);
+  static void Generate_InOptimizationQueue(MacroAssembler* masm);
+  static void Generate_CompileOptimized(MacroAssembler* masm);
+  static void Generate_CompileOptimizedConcurrent(MacroAssembler* masm);
   static void Generate_JSConstructStubCountdown(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
-  static void Generate_LazyCompile(MacroAssembler* masm);
-  static void Generate_LazyRecompile(MacroAssembler* masm);
   static void Generate_NotifyDeoptimized(MacroAssembler* masm);
   static void Generate_NotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyLazyDeoptimized(MacroAssembler* masm);

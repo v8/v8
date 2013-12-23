@@ -245,7 +245,7 @@ Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
                            Handle<Object> key);
 
-Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
+Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
 
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,

@@ -4435,6 +4435,11 @@ TEST(OutOfMemoryNested) {
 }
 
 
+void OOMCallback(const char* location, const char* message) {
+  exit(0);
+}
+
+
 TEST(HugeConsStringOutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   if (i::Snapshot::IsEnabled()) return;
@@ -4446,19 +4451,17 @@ TEST(HugeConsStringOutOfMemory) {
   v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // Execute a script that causes out of memory.
-  v8::V8::IgnoreOutOfMemoryException();
+  v8::V8::SetFatalErrorHandler(OOMCallback);
 
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
   // Build huge string. This should fail with out of memory exception.
-  Local<Value> result = CompileRun(
+  CompileRun(
     "var str = Array.prototype.join.call({length: 513}, \"A\").toUpperCase();"
     "for (var i = 0; i < 22; i++) { str = str + str; }");
 
-  // Check for out of memory state.
-  CHECK(result.IsEmpty());
-  CHECK(context->HasOutOfMemoryException());
+  CHECK(false);  // Should not return.
 }
 
 
@@ -6970,11 +6973,6 @@ static const char* js_code_causing_huge_string_flattening =
     "  str = str + str;"
     "}"
     "str.match(/X/);";
-
-
-void OOMCallback(const char* location, const char* message) {
-  exit(0);
-}
 
 
 TEST(RegexpOutOfMemory) {
@@ -17952,6 +17950,33 @@ THREADED_TEST(FunctionGetScriptId) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "bar")));
   CHECK_EQ(script->GetId(), foo->ScriptId());
   CHECK_EQ(script->GetId(), bar->ScriptId());
+}
+
+
+THREADED_TEST(FunctionGetBoundFunction) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::NewFromUtf8(
+      env->GetIsolate(), "test"));
+  v8::Handle<v8::String> script = v8::String::NewFromUtf8(
+      env->GetIsolate(),
+      "var a = new Object();\n"
+      "a.x = 1;\n"
+      "function f () { return this.x };\n"
+      "var g = f.bind(a);\n"
+      "var b = g();");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
+  v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "g")));
+  CHECK(g->GetBoundFunction()->IsFunction());
+  Local<v8::Function> original_function = Local<v8::Function>::Cast(
+      g->GetBoundFunction());
+  CHECK_EQ(f->GetName(), original_function->GetName());
+  CHECK_EQ(f->GetScriptLineNumber(), original_function->GetScriptLineNumber());
+  CHECK_EQ(f->GetScriptColumnNumber(),
+           original_function->GetScriptColumnNumber());
 }
 
 

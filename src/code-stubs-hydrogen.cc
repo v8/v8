@@ -1194,9 +1194,14 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
     Label install_optimized;
     HValue* first_context_slot = Add<HLoadNamedField>(optimized_map,
         HObjectAccess::ForFirstContextSlot());
+    HValue* first_osr_ast_slot = Add<HLoadNamedField>(optimized_map,
+        HObjectAccess::ForFirstOsrAstIdSlot());
+    HValue* osr_ast_id_none = Add<HConstant>(BailoutId::None().ToInt());
     IfBuilder already_in(this);
     already_in.If<HCompareObjectEqAndBranch>(native_context,
                                              first_context_slot);
+    already_in.AndIf<HCompareObjectEqAndBranch>(first_osr_ast_slot,
+                                                osr_ast_id_none);
     already_in.Then();
     {
       HValue* code_object = Add<HLoadNamedField>(optimized_map,
@@ -1213,7 +1218,7 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
                                shared_function_entry_length);
       HValue* array_length = Add<HLoadNamedField>(optimized_map,
           HObjectAccess::ForFixedArrayLength());
-      HValue* key = loop_builder.BeginBody(array_length,
+      HValue* slot_iterator = loop_builder.BeginBody(array_length,
                                            graph()->GetConstant0(),
                                            Token::GT);
       {
@@ -1222,8 +1227,8 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
         HValue* second_entry_index =
             Add<HConstant>(SharedFunctionInfo::kSecondEntryIndex);
         IfBuilder restore_check(this);
-        restore_check.If<HCompareNumericAndBranch>(key, second_entry_index,
-                                                   Token::EQ);
+        restore_check.If<HCompareNumericAndBranch>(
+            slot_iterator, second_entry_index, Token::EQ);
         restore_check.Then();
         {
           // Store the unoptimized code
@@ -1232,20 +1237,29 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
         }
         restore_check.Else();
         {
-          HValue* keyed_minus = AddUncasted<HSub>(
-              key, shared_function_entry_length);
-          HInstruction* keyed_lookup = Add<HLoadKeyed>(optimized_map,
-              keyed_minus, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+          STATIC_ASSERT(SharedFunctionInfo::kContextOffset == 0);
+          STATIC_ASSERT(SharedFunctionInfo::kEntryLength -
+                            SharedFunctionInfo::kOsrAstIdOffset == 1);
+          HValue* native_context_slot = AddUncasted<HSub>(
+              slot_iterator, shared_function_entry_length);
+          HValue* osr_ast_id_slot = AddUncasted<HSub>(
+              slot_iterator, graph()->GetConstant1());
+          HInstruction* native_context_entry = Add<HLoadKeyed>(optimized_map,
+              native_context_slot, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+          HInstruction* osr_ast_id_entry = Add<HLoadKeyed>(optimized_map,
+              osr_ast_id_slot, static_cast<HValue*>(NULL), FAST_ELEMENTS);
           IfBuilder done_check(this);
           done_check.If<HCompareObjectEqAndBranch>(native_context,
-                                                   keyed_lookup);
+                                                   native_context_entry);
+          done_check.AndIf<HCompareObjectEqAndBranch>(osr_ast_id_entry,
+                                                      osr_ast_id_none);
           done_check.Then();
           {
             // Hit: fetch the optimized code.
-            HValue* keyed_plus = AddUncasted<HAdd>(
-                keyed_minus, graph()->GetConstant1());
+            HValue* code_slot = AddUncasted<HAdd>(
+                native_context_slot, graph()->GetConstant1());
             HValue* code_object = Add<HLoadKeyed>(optimized_map,
-                keyed_plus, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+                code_slot, static_cast<HValue*>(NULL), FAST_ELEMENTS);
             BuildInstallOptimizedCode(js_function, native_context, code_object);
 
             // Fall out of the loop

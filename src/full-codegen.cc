@@ -312,6 +312,10 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
+
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_compile_full_code);
+
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
@@ -1644,8 +1648,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
 }
 
 
-void BackEdgeTable::Patch(Isolate* isolate,
-                          Code* unoptimized) {
+void BackEdgeTable::Patch(Isolate* isolate, Code* unoptimized) {
   DisallowHeapAllocation no_gc;
   Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
 
@@ -1668,8 +1671,7 @@ void BackEdgeTable::Patch(Isolate* isolate,
 }
 
 
-void BackEdgeTable::Revert(Isolate* isolate,
-                           Code* unoptimized) {
+void BackEdgeTable::Revert(Isolate* isolate, Code* unoptimized) {
   DisallowHeapAllocation no_gc;
   Code* patch = isolate->builtins()->builtin(Builtins::kInterruptCheck);
 
@@ -1694,29 +1696,23 @@ void BackEdgeTable::Revert(Isolate* isolate,
 }
 
 
-void BackEdgeTable::AddStackCheck(CompilationInfo* info) {
+void BackEdgeTable::AddStackCheck(Handle<Code> code, uint32_t pc_offset) {
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = info->isolate();
-  Code* code = *info->osr_patched_code();
-  Address pc = code->instruction_start() + info->osr_pc_offset();
-  ASSERT_EQ(info->osr_ast_id().ToInt(),
-            code->TranslatePcOffsetToAstId(info->osr_pc_offset()).ToInt());
-  ASSERT_NE(INTERRUPT, GetBackEdgeState(isolate, code, pc));
+  Isolate* isolate = code->GetIsolate();
+  Address pc = code->instruction_start() + pc_offset;
   Code* patch = isolate->builtins()->builtin(Builtins::kOsrAfterStackCheck);
-  PatchAt(code, pc, OSR_AFTER_STACK_CHECK, patch);
+  PatchAt(*code, pc, OSR_AFTER_STACK_CHECK, patch);
 }
 
 
-void BackEdgeTable::RemoveStackCheck(CompilationInfo* info) {
+void BackEdgeTable::RemoveStackCheck(Handle<Code> code, uint32_t pc_offset) {
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = info->isolate();
-  Code* code = *info->osr_patched_code();
-  Address pc = code->instruction_start() + info->osr_pc_offset();
-  ASSERT_EQ(info->osr_ast_id().ToInt(),
-            code->TranslatePcOffsetToAstId(info->osr_pc_offset()).ToInt());
-  if (GetBackEdgeState(isolate, code, pc) == OSR_AFTER_STACK_CHECK) {
+  Isolate* isolate = code->GetIsolate();
+  Address pc = code->instruction_start() + pc_offset;
+
+  if (OSR_AFTER_STACK_CHECK == GetBackEdgeState(isolate, *code, pc)) {
     Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
-    PatchAt(code, pc, ON_STACK_REPLACEMENT, patch);
+    PatchAt(*code, pc, ON_STACK_REPLACEMENT, patch);
   }
 }
 

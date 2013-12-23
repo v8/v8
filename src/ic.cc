@@ -2054,7 +2054,7 @@ RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
   if (raw_function->is_compiled()) return raw_function;
 
   Handle<JSFunction> function(raw_function);
-  JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
+  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
   return *function;
 }
 
@@ -2075,7 +2075,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
   if (raw_function->is_compiled()) return raw_function;
 
   Handle<JSFunction> function(raw_function, isolate);
-  JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
+  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
   return *function;
 }
 
@@ -2155,7 +2155,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_MissFromStubFailure) {
   if (raw_function->is_compiled()) return raw_function;
 
   Handle<JSFunction> function(raw_function, isolate);
-  JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
+  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
   return *function;
 }
 

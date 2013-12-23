@@ -331,8 +331,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
   for (int idx = Context::FIRST_WEAK_SLOT;
        idx < Context::NATIVE_CONTEXT_SLOTS;
        ++idx) {
-    Object** slot =
-        HeapObject::RawField(object, FixedArray::OffsetOfElementAt(idx));
+    Object** slot = Context::cast(object)->RawFieldOfElementAt(idx);
     collector->RecordSlot(slot, slot, *slot);
   }
 }

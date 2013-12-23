@@ -424,6 +424,9 @@ class Debug {
   void AddScriptToScriptCache(Handle<Script> script);
   Handle<FixedArray> GetLoadedScripts();
 
+  // Record function from which eval was called.
+  static void RecordEvalCaller(Handle<Script> script);
+
   // Garbage collection notifications.
   void AfterGarbageCollection();
 

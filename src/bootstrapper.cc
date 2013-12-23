@@ -1499,7 +1499,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
   if (cache == NULL || !cache->Lookup(name, &function_info)) {
     ASSERT(source->IsOneByteRepresentation());
     Handle<String> script_name = factory->NewStringFromUtf8(name);
-    function_info = Compiler::Compile(
+    function_info = Compiler::CompileScript(
         source,
         script_name,
         0,
@@ -2354,7 +2354,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<JSFunction> function
         = Handle<JSFunction>(JSFunction::cast(function_object));
     builtins->set_javascript_builtin(id, *function);
-    if (!JSFunction::CompileLazy(function, CLEAR_EXCEPTION)) {
+    if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
       return false;
     }
     builtins->set_javascript_builtin_code(id, function->shared()->code());
