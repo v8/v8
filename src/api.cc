@@ -4163,6 +4163,20 @@ int Function::ScriptId() const {
 }
 
 
+Local<v8::Value> Function::GetBoundFunction() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (!func->shared()->bound()) {
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(func->GetIsolate()));
+  }
+  i::Handle<i::FixedArray> bound_args = i::Handle<i::FixedArray>(
+      i::FixedArray::cast(func->function_bindings()));
+  i::Handle<i::Object> original(
+      bound_args->get(i::JSFunction::kBoundFunctionIndex),
+      func->GetIsolate());
+  return Utils::ToLocal(i::Handle<i::JSFunction>::cast(original));
+}
+
+
 int String::Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   return str->length();

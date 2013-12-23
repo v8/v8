@@ -17955,6 +17955,33 @@ THREADED_TEST(FunctionGetScriptId) {
 }
 
 
+THREADED_TEST(FunctionGetBoundFunction) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::NewFromUtf8(
+      env->GetIsolate(), "test"));
+  v8::Handle<v8::String> script = v8::String::NewFromUtf8(
+      env->GetIsolate(),
+      "var a = new Object();\n"
+      "a.x = 1;\n"
+      "function f () { return this.x };\n"
+      "var g = f.bind(a);\n"
+      "var b = g();");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
+  v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "g")));
+  CHECK(g->GetBoundFunction()->IsFunction());
+  Local<v8::Function> original_function = Local<v8::Function>::Cast(
+      g->GetBoundFunction());
+  CHECK_EQ(f->GetName(), original_function->GetName());
+  CHECK_EQ(f->GetScriptLineNumber(), original_function->GetScriptLineNumber());
+  CHECK_EQ(f->GetScriptColumnNumber(),
+           original_function->GetScriptColumnNumber());
+}
+
+
 static void GetterWhichReturns42(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
