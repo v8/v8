@@ -110,6 +110,18 @@ function MathAtanh(x) {
 }
 
 
+//ES6 draft 09-27-13, section 20.2.2.21.
+function MathLog10(x) {
+  return MathLog(x) * 0.434294481903251828;  // log10(x) = log(x)/log(10).
+}
+
+
+//ES6 draft 09-27-13, section 20.2.2.22.
+function MathLog2(x) {
+  return MathLog(x) * 1.442695040888963407;  // log2(x) = log(x)/log(2).
+}
+
+
 function ExtendMath() {
   %CheckIsBootstrapping();
 
@@ -122,7 +134,9 @@ function ExtendMath() {
     "tanh", MathTanh,
     "asinh", MathAsinh,
     "acosh", MathAcosh,
-    "atanh", MathAtanh
+    "atanh", MathAtanh,
+    "log10", MathLog10,
+    "log2", MathLog2
   ));
 }
 
