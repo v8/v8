@@ -616,24 +616,22 @@ function StringSplit(separator, limit) {
   var subject = TO_STRING_INLINE(this);
   limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
 
-  // ECMA-262 says that if separator is undefined, the result should
-  // be an array of size 1 containing the entire string.
-  if (IS_UNDEFINED(separator)) {
-    return [subject];
-  }
-
   var length = subject.length;
   if (!IS_REGEXP(separator)) {
-    separator = TO_STRING_INLINE(separator);
+    var separator_string = TO_STRING_INLINE(separator);
 
     if (limit === 0) return [];
 
-    var separator_length = separator.length;
+    // ECMA-262 says that if separator is undefined, the result should
+    // be an array of size 1 containing the entire string.
+    if (IS_UNDEFINED(separator)) return [subject];
+
+    var separator_length = separator_string.length;
 
     // If the separator string is empty then return the elements in the subject.
     if (separator_length === 0) return %StringToArray(subject, limit);
 
-    var result = %StringSplit(subject, separator, limit);
+    var result = %StringSplit(subject, separator_string, limit);
 
     return result;
   }
