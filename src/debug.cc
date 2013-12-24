@@ -2125,7 +2125,8 @@ void Debug::PrepareForBreakPoints() {
         bool prev_force_debugger_active =
             isolate_->debugger()->force_debugger_active();
         isolate_->debugger()->set_force_debugger_active(true);
-        function->ReplaceCode(*Compiler::GetCodeForDebugging(function));
+        Handle<Code> code = Compiler::GetCodeForDebugging(function);
+        function->ReplaceCode(*code);
         isolate_->debugger()->set_force_debugger_active(
             prev_force_debugger_active);
       }
