@@ -839,7 +839,7 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
   if (!initialized) {
     CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
     PredictableCodeSizeScope scope(patcher.masm(), *length);
-    patcher.masm()->stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+    patcher.masm()->PushFixedFrame(r1);
     patcher.masm()->nop(ip.code());
     patcher.masm()->add(fp, sp,
                         Operand(StandardFrameConstants::kFixedFrameSizeFromFp));

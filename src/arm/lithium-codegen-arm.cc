@@ -143,6 +143,7 @@ bool LCodeGen::GeneratePrologue() {
 
     // r1: Callee's JS function.
     // cp: Callee's context.
+    // pp: Callee's constant pool pointer (if FLAG_enable_ool_constant_pool)
     // fp: Caller's frame pointer.
     // lr: Caller's pc.
 
@@ -163,6 +164,7 @@ bool LCodeGen::GeneratePrologue() {
     __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
+    __ LoadConstantPoolPointerRegister();
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -278,7 +280,7 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(!frame_is_built_);
         ASSERT(info()->IsStub());
         frame_is_built_ = true;
-        __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+        __ PushFixedFrame();
         __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
         __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
@@ -289,7 +291,7 @@ bool LCodeGen::GenerateDeferredCode() {
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
         __ pop(ip);
-        __ ldm(ia_w, sp, cp.bit() | fp.bit() | lr.bit());
+        __ PopFixedFrame();
         frame_is_built_ = false;
       }
       __ jmp(code->exit());
@@ -340,7 +342,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         __ b(&needs_frame);
       } else {
         __ bind(&needs_frame);
-        __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+        __ PushFixedFrame();
         // This variant of deopt can only be used with stubs. Since we don't
         // have a function pointer to install in the stack frame that we're
         // building, install a special marker there instead.
@@ -2918,9 +2920,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
-    __ mov(sp, fp);
-    no_frame_start = masm_->pc_offset();
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    no_frame_start = masm_->LeaveFrame(StackFrame::JAVA_SCRIPT);
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());

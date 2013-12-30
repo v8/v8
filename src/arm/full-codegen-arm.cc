@@ -119,6 +119,7 @@ class JumpPatchSite BASE_EMBEDDED {
 // The live registers are:
 //   o r1: the JS function object being called (i.e., ourselves)
 //   o cp: our context
+//   o pp: our caller's constant pool pointer (if FLAG_enable_ool_constant_pool)
 //   o fp: our caller's frame pointer
 //   o sp: stack pointer
 //   o lr: return address
@@ -162,6 +163,7 @@ void FullCodeGenerator::Generate() {
   info->set_prologue_offset(masm_->pc_offset());
   __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
+  __ LoadConstantPoolPointerRegister();
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
@@ -409,23 +411,19 @@ void FullCodeGenerator::EmitReturnSequence() {
 #ifdef DEBUG
     // Add a label for checking the size of the code used for returning.
     Label check_exit_codesize;
-    masm_->bind(&check_exit_codesize);
+    __ bind(&check_exit_codesize);
 #endif
     // Make sure that the constant pool is not emitted inside of the return
     // sequence.
     { Assembler::BlockConstPoolScope block_const_pool(masm_);
-      // Here we use masm_-> instead of the __ macro to avoid the code coverage
-      // tool from instrumenting as we rely on the code size here.
       int32_t sp_delta = (info_->scope()->num_parameters() + 1) * kPointerSize;
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
       // TODO(svenpanne) The code below is sometimes 4 words, sometimes 5!
       PredictableCodeSizeScope predictable(masm_, -1);
       __ RecordJSReturn();
-      masm_->mov(sp, fp);
-      int no_frame_start = masm_->pc_offset();
-      masm_->ldm(ia_w, sp, fp.bit() | lr.bit());
-      masm_->add(sp, sp, Operand(sp_delta));
-      masm_->Jump(lr);
+      int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT);
+      __ add(sp, sp, Operand(sp_delta));
+      __ Jump(lr);
       info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
 
@@ -2164,11 +2162,12 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ bind(&resume_frame);
   // lr = return address.
   // fp = caller's frame pointer.
+  // pp = caller's constant pool (if FLAG_enable_ool_constant_pool),
   // cp = callee's context,
   // r4 = callee's JS function.
-  __ Push(lr, fp, cp, r4);
+  __ PushFixedFrame(r4);
   // Adjust FP to point to saved FP.
-  __ add(fp, sp, Operand(2 * kPointerSize));
+  __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
   // Load the operand stack size.
   __ ldr(r3, FieldMemOperand(r1, JSGeneratorObject::kOperandStackOffset));

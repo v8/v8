@@ -1744,13 +1744,18 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r4: argv
   Isolate* isolate = masm->isolate();
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  __ mov(r8, Operand(Smi::FromInt(marker)));
+  if (FLAG_enable_ool_constant_pool) {
+    __ mov(r8, Operand(Smi::FromInt(marker)));
+  }
+  __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
   __ mov(r5,
          Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate)));
   __ ldr(r5, MemOperand(r5));
   __ mov(ip, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  __ Push(ip, r8, r6, r5);
+  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() |
+                   (FLAG_enable_ool_constant_pool ? r8.bit() : 0) |
+                   ip.bit());
 
   // Set up frame pointer for the frame to be pushed.
   __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));

@@ -477,14 +477,17 @@ void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
   ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
-  int first_ptr_offset = constant_pool->OffsetOfElementAt(
-      constant_pool->first_ptr_index());
-  int last_ptr_offset = constant_pool->OffsetOfElementAt(
-      constant_pool->first_ptr_index() + constant_pool->count_of_ptr_entries());
-  StaticVisitor::VisitPointers(
-      heap,
-      HeapObject::RawField(object, first_ptr_offset),
-      HeapObject::RawField(object, last_ptr_offset));
+  if (constant_pool->count_of_ptr_entries() > 0) {
+    int first_ptr_offset = constant_pool->OffsetOfElementAt(
+        constant_pool->first_ptr_index());
+    int last_ptr_offset = constant_pool->OffsetOfElementAt(
+        constant_pool->first_ptr_index() +
+        constant_pool->count_of_ptr_entries());
+    StaticVisitor::VisitPointers(
+        heap,
+        HeapObject::RawField(object, first_ptr_offset),
+        HeapObject::RawField(object, last_ptr_offset));
+  }
 }
 
 
@@ -883,6 +886,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kHandlerTableOffset);
   IteratePointer(v, kDeoptimizationDataOffset);
   IteratePointer(v, kTypeFeedbackInfoOffset);
+  IteratePointer(v, kConstantPoolOffset);
 
   RelocIterator it(this, mode_mask);
   Isolate* isolate = this->GetIsolate();
@@ -916,6 +920,10 @@ void Code::CodeIterateBody(Heap* heap) {
   StaticVisitor::VisitPointer(
       heap,
       reinterpret_cast<Object**>(this->address() + kTypeFeedbackInfoOffset));
+  StaticVisitor::VisitPointer(
+      heap,
+      reinterpret_cast<Object**>(this->address() + kConstantPoolOffset));
+
 
   RelocIterator it(this, mode_mask);
   for (; !it.done(); it.next()) {

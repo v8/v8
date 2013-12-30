@@ -2645,6 +2645,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_oddball_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj =
+        AllocatePartialMap(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_constant_pool_array_map(Map::cast(obj));
+
   // Allocate the empty array.
   { MaybeObject* maybe_obj = AllocateEmptyFixedArray();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2670,6 +2676,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
+  // Allocate the constant pool array.
+  { MaybeObject* maybe_obj = AllocateEmptyConstantPoolArray();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_constant_pool_array(ConstantPoolArray::cast(obj));
+
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
@@ -2687,6 +2699,12 @@ bool Heap::CreateInitialMaps() {
   oddball_map()->init_back_pointer(undefined_value());
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
 
+  constant_pool_array_map()->set_code_cache(empty_fixed_array());
+  constant_pool_array_map()->set_dependent_code(
+      DependentCode::cast(empty_fixed_array()));
+  constant_pool_array_map()->init_back_pointer(undefined_value());
+  constant_pool_array_map()->set_instance_descriptors(empty_descriptor_array());
+
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
   meta_map()->set_constructor(null_value());
@@ -2696,6 +2714,9 @@ bool Heap::CreateInitialMaps() {
 
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
+
+  constant_pool_array_map()->set_prototype(null_value());
+  constant_pool_array_map()->set_constructor(null_value());
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
@@ -2751,12 +2772,6 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_fixed_double_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_constant_pool_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
@@ -4011,6 +4026,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);
   }
+  code->set_constant_pool(empty_constant_pool_array());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (code->kind() == Code::FUNCTION) {
@@ -5250,13 +5266,28 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
   constant_pool->SetEntryCounts(number_of_int64_entries,
                                 number_of_ptr_entries,
                                 number_of_int32_entries);
-  MemsetPointer(
-      HeapObject::RawField(
-          constant_pool,
-          constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
-      undefined_value(),
-      number_of_ptr_entries);
+  if (number_of_ptr_entries > 0) {
+    MemsetPointer(
+        HeapObject::RawField(
+            constant_pool,
+            constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
+        undefined_value(),
+        number_of_ptr_entries);
+  }
   return constant_pool;
+}
+
+
+MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
+  int size = ConstantPoolArray::SizeFor(0, 0, 0);
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  HeapObject::cast(result)->set_map_no_write_barrier(constant_pool_array_map());
+  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0);
+  return result;
 }
 
 

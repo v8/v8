@@ -860,7 +860,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ ldm(ia_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
 
   // Perform prologue operations usually performed by the young code stub.
-  __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  __ PushFixedFrame(r1);
   __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
   // Jump to point after the code-age stub.
@@ -1361,7 +1361,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r0);
   __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ stm(db_w, sp, r0.bit() | r1.bit() | r4.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, r0.bit() | r1.bit() | r4.bit() |
+                   (FLAG_enable_ool_constant_pool ? pp.bit() : 0) |
+                   fp.bit() | lr.bit());
   __ add(fp, sp,
          Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }
