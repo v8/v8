@@ -3494,7 +3494,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ b(&result_in_receiver);
 
   __ bind(&global_object);
-  __ ldr(result, GlobalObjectOperand());
+
+  __ ldr(result, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ ldr(result, ContextOperand(result, Context::GLOBAL_OBJECT_INDEX));
   __ ldr(result,
          FieldMemOperand(result, JSGlobalObject::kGlobalReceiverOffset));
   if (result.is(receiver)) {

@@ -1,3 +1,16 @@
+2013-12-30: Version 3.24.8
+
+        ARM: fix loading of global object in LWrapReceiver (Chromium issue
+        318420).
+
+        Fix a race between concurrent recompilation and OSR (Chromium issue
+        330046).
+
+        Turn off concurrent sweeping (issue 3071).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-12-23: Version 3.24.7
 
         Fix small spec violation in String.prototype.split (issue 3026).
