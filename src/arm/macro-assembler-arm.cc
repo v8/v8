@@ -59,8 +59,8 @@ void MacroAssembler::Jump(Register target, Condition cond) {
 
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
-  mov(ip, Operand(target, rmode));
-  bx(ip, cond);
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  mov(pc, Operand(target, rmode), LeaveCC, cond);
 }
 
 
