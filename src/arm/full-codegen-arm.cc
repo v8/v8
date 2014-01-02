@@ -2448,12 +2448,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // Const initializers need a write barrier.
     ASSERT(!var->IsParameter());  // No const parameters.
     if (var->IsStackLocal()) {
-      Label skip;
       __ ldr(r1, StackOperand(var));
       __ CompareRoot(r1, Heap::kTheHoleValueRootIndex);
-      __ b(ne, &skip);
-      __ str(result_register(), StackOperand(var));
-      __ bind(&skip);
+      __ str(result_register(), StackOperand(var), eq);
     } else {
       ASSERT(var->IsContextSlot() || var->IsLookupSlot());
       // Like var declarations, const declarations are hoisted to function
@@ -3190,14 +3187,11 @@ void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 
   // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &check_frame_marker);
-  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset), eq);
 
   // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
   __ cmp(r1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
@@ -3248,7 +3242,7 @@ void FullCodeGenerator::EmitArguments(CallRuntime* expr) {
 
 void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
   ASSERT(expr->arguments()->length() == 0);
-  Label exit;
+
   // Get the number of formal parameters.
   __ mov(r0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
 
@@ -3256,13 +3250,11 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &exit);
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame.
-  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset), eq);
 
-  __ bind(&exit);
   context()->Plug(r0);
 }
 
@@ -3387,8 +3379,7 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
   __ JumpIfSmi(r0, &done);
   // If the object is not a value type, return the object.
   __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE);
-  __ b(ne, &done);
-  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
+  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset), eq);
 
   __ bind(&done);
   context()->Plug(r0);

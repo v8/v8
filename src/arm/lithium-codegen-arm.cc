@@ -1409,12 +1409,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for (kMinInt / -1).
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-    Label left_not_min_int;
     __ cmp(left, Operand(kMinInt));
-    __ b(ne, &left_not_min_int);
-    __ cmp(right, Operand(-1));
+    __ cmp(right, Operand(-1), eq);
     DeoptimizeIf(eq, instr->environment());
-    __ bind(&left_not_min_int);
   }
 
   if (CpuFeatures::IsSupported(SUDIV)) {
@@ -1513,12 +1510,9 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
 
     // Check for (kMinInt / -1).
     if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-      Label left_not_min_int;
       __ cmp(left, Operand(kMinInt));
-      __ b(ne, &left_not_min_int);
-      __ cmp(right, Operand(-1));
+      __ cmp(right, Operand(-1), eq);
       DeoptimizeIf(eq, instr->environment());
-      __ bind(&left_not_min_int);
     }
 
     // Check for (0 / -x) that will produce negative zero.
@@ -1887,8 +1881,7 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   // If the object is not a value type, return the object.
   __ CompareObjectType(input, map, map, JS_VALUE_TYPE);
   __ Move(result, input, ne);
-  __ b(ne, &done);
-  __ ldr(result, FieldMemOperand(input, JSValue::kValueOffset));
+  __ ldr(result, FieldMemOperand(input, JSValue::kValueOffset), eq);
 
   __ bind(&done);
 }
@@ -5580,14 +5573,11 @@ void LCodeGen::EmitIsConstructCall(Register temp1, Register temp2) {
   __ ldr(temp1, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 
   // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
   __ ldr(temp2, MemOperand(temp1, StandardFrameConstants::kContextOffset));
   __ cmp(temp2, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &check_frame_marker);
-  __ ldr(temp1, MemOperand(temp1, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(temp1, MemOperand(temp1, StandardFrameConstants::kCallerFPOffset), eq);
 
   // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
   __ ldr(temp1, MemOperand(temp1, StandardFrameConstants::kMarkerOffset));
   __ cmp(temp1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
 }
