@@ -5683,12 +5683,9 @@ static void CreateArrayDispatch(MacroAssembler* masm,
     int last_index = GetSequenceIndexFromFastElementsKind(
         TERMINAL_FAST_ELEMENTS_KIND);
     for (int i = 0; i <= last_index; ++i) {
-      Label next;
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-      __ Branch(&next, ne, a3, Operand(kind));
       T stub(kind);
-      __ TailCallStub(&stub);
-      __ bind(&next);
+      __ TailCallStub(&stub, eq, a3, Operand(kind));
     }
 
     // If we reached this point there is a problem.
@@ -5764,12 +5761,9 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     int last_index = GetSequenceIndexFromFastElementsKind(
         TERMINAL_FAST_ELEMENTS_KIND);
     for (int i = 0; i <= last_index; ++i) {
-      Label next;
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-      __ Branch(&next, ne, a3, Operand(kind));
       ArraySingleArgumentConstructorStub stub(kind);
-      __ TailCallStub(&stub);
-      __ bind(&next);
+      __ TailCallStub(&stub, eq, a3, Operand(kind));
     }
 
     // If we reached this point there is a problem.
@@ -5911,34 +5905,25 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
 void InternalArrayConstructorStub::GenerateCase(
     MacroAssembler* masm, ElementsKind kind) {
-  Label not_zero_case, not_one_case;
-  Label normal_sequence;
 
-  __ Branch(&not_zero_case, ne, a0, Operand(zero_reg));
   InternalArrayNoArgumentConstructorStub stub0(kind);
-  __ TailCallStub(&stub0);
+  __ TailCallStub(&stub0, lo, a0, Operand(1));
 
-  __ bind(&not_zero_case);
-  __ Branch(&not_one_case, gt, a0, Operand(1));
+  InternalArrayNArgumentsConstructorStub stubN(kind);
+  __ TailCallStub(&stubN, hi, a0, Operand(1));
 
   if (IsFastPackedElementsKind(kind)) {
     // We might need to create a holey array
     // look at the first argument.
     __ lw(at, MemOperand(sp, 0));
-    __ Branch(&normal_sequence, eq, at, Operand(zero_reg));
 
     InternalArraySingleArgumentConstructorStub
         stub1_holey(GetHoleyElementsKind(kind));
-    __ TailCallStub(&stub1_holey);
+    __ TailCallStub(&stub1_holey, ne, at, Operand(zero_reg));
   }
 
-  __ bind(&normal_sequence);
   InternalArraySingleArgumentConstructorStub stub1(kind);
   __ TailCallStub(&stub1);
-
-  __ bind(&not_one_case);
-  InternalArrayNArgumentsConstructorStub stubN(kind);
-  __ TailCallStub(&stubN);
 }
 
 

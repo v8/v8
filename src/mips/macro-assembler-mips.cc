@@ -3905,8 +3905,12 @@ void MacroAssembler::CallStub(CodeStub* stub,
 }
 
 
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
+void MacroAssembler::TailCallStub(CodeStub* stub,
+                                  Condition cond,
+                                  Register r1,
+                                  const Operand& r2,
+                                  BranchDelaySlot bd) {
+  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
 

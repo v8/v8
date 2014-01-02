@@ -1194,16 +1194,18 @@ class MacroAssembler: public Assembler {
     li(s2, Operand(ref));
   }
 
+#define COND_ARGS Condition cond = al, Register rs = zero_reg, \
+const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
+
   // Call a code stub.
   void CallStub(CodeStub* stub,
                 TypeFeedbackId ast_id = TypeFeedbackId::None(),
-                Condition cond = cc_always,
-                Register r1 = zero_reg,
-                const Operand& r2 = Operand(zero_reg),
-                BranchDelaySlot bd = PROTECT);
+                COND_ARGS);
 
   // Tail call a code stub (jump).
-  void TailCallStub(CodeStub* stub);
+  void TailCallStub(CodeStub* stub, COND_ARGS);
+
+#undef COND_ARGS
 
   void CallJSExitStub(CodeStub* stub);
 
