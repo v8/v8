@@ -112,6 +112,7 @@ class TypeFeedbackOracle: public ZoneObject {
                   Handle<Type>* right,
                   Handle<Type>* result,
                   Maybe<int>* fixed_right_arg,
+                  Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
   void CompareType(TypeFeedbackId id,

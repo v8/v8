@@ -1104,9 +1104,10 @@ class MaybeObject BASE_EMBEDDED {
     "DoPushArgument not implemented for double type")                         \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                              \
     "EmitLoadRegister: Unsupported double immediate")                         \
-  V(kEval, "Eval")                                                            \
+  V(kEval, "eval")                                                            \
   V(kExpected0AsASmiSentinel, "Expected 0 as a Smi sentinel")                 \
-  V(kExpectedAlignmentMarker, "Expected alignment marker")                    \
+  V(kExpectedAlignmentMarker, "expected alignment marker")                    \
+  V(kExpectedAllocationSite, "expected allocation site")                      \
   V(kExpectedAllocationSiteInCell,                                            \
     "Expected AllocationSite in property cell")                               \
   V(kExpectedPropertyCellInRegisterA2,                                        \
@@ -5246,6 +5247,9 @@ class Code: public HeapObject {
   // Find an object in a stub with a specified map
   Object* FindNthObject(int n, Map* match_map);
   void ReplaceNthObject(int n, Map* match_map, Object* replace_with);
+
+  // Find the first allocation site in an IC stub.
+  AllocationSite* FindFirstAllocationSite();
 
   // Find the first map in an IC stub.
   Map* FindFirstMap();
