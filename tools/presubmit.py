@@ -144,8 +144,8 @@ class FileContentsCache(object):
       try:
         sums_file = open(self.sums_file_name, 'r')
         self.sums = pickle.load(sums_file)
-      except IOError:
-        # File might not exist, this is OK.
+      except:
+        # Cannot parse pickle for any reason. Not much we can do about it.
         pass
     finally:
       if sums_file:
@@ -155,6 +155,14 @@ class FileContentsCache(object):
     try:
       sums_file = open(self.sums_file_name, 'w')
       pickle.dump(self.sums, sums_file)
+    except:
+      # Failed to write pickle. Try to clean-up behind us.
+      if sums_file:
+        sums_file.close()
+      try:
+        os.unlink(self.sums_file_name)
+      except:
+        pass
     finally:
       sums_file.close()
 
