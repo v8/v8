@@ -1078,7 +1078,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
 
   static void InstallDescriptors(Isolate* isolate);
 
-  virtual Code::Kind GetCodeKind() const V8_FINAL V8_OVERRIDE {
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
     return Code::BINARY_OP_IC;
   }
 
