@@ -155,7 +155,7 @@
             'test-macro-assembler-mips.cc'
           ],
         }],
-        [ 'OS=="linux"', {
+        [ 'OS=="linux" or OS=="qnx"', {
           'sources': [
             'test-platform-linux.cc',
           ],

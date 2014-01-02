@@ -811,6 +811,43 @@
             ],
           },
         ],
+        ['OS=="qnx"', {
+            'link_settings': {
+              'target_conditions': [
+                ['_toolset=="host" and host_os=="linux"', {
+                  'libraries': [
+                    '-lrt'
+                  ],
+                }],
+                ['_toolset=="target"', {
+                  'libraries': [
+                    '-lbacktrace', '-lsocket'
+                  ],
+                }],
+              ],
+            },
+            'sources': [
+              '../../src/platform-posix.cc',
+            ],
+            'target_conditions': [
+              ['_toolset=="host" and host_os=="linux"', {
+                'sources': [
+                  '../../src/platform-linux.cc'
+                ],
+              }],
+              ['_toolset=="host" and host_os=="mac"', {
+                'sources': [
+                  '../../src/platform-macos.cc'
+                ],
+              }],
+              ['_toolset=="target"', {
+                'sources': [
+                  '../../src/platform-qnx.cc'
+                ],
+              }],
+            ],
+          },
+        ],
         ['OS=="freebsd"', {
             'link_settings': {
               'libraries': [

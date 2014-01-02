@@ -88,6 +88,7 @@
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
+//  V8_OS_QNX           - QNX Neutrino
 //  V8_OS_SOLARIS       - Sun Solaris and OpenSolaris
 //  V8_OS_WIN           - Microsoft Windows
 
@@ -127,6 +128,9 @@
 # define V8_OS_BSD 1
 # define V8_OS_OPENBSD 1
 # define V8_OS_POSIX 1
+#elif defined(__QNXNTO__)
+# define V8_OS_POSIX 1
+# define V8_OS_QNX 1
 #elif defined(_WIN32)
 # define V8_OS_WIN 1
 #endif
