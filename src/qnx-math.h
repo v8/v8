@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,35 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#ifndef V8_QNX_MATH_H_
+#define V8_QNX_MATH_H_
 
-#if V8_TARGET_ARCH_IA32
+#include <cmath>
 
-#include "assembler.h"
-#include "assembler-ia32.h"
-#include "assembler-ia32-inl.h"
-#include "frames.h"
+#undef fpclassify
+#undef isfinite
+#undef isinf
+#undef isnan
+#undef isnormal
+#undef signbit
 
-namespace v8 {
-namespace internal {
+using std::lrint;
 
-
-Register JavaScriptFrame::fp_register() { return ebp; }
-Register JavaScriptFrame::context_register() { return esi; }
-Register JavaScriptFrame::constant_pool_pointer_register() {
-  UNREACHABLE();
-  return no_reg;
-}
-
-
-Register StubFailureTrampolineFrame::fp_register() { return ebp; }
-Register StubFailureTrampolineFrame::context_register() { return esi; }
-Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
-  UNREACHABLE();
-  return no_reg;
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_QNX_MATH_H_

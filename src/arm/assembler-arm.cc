@@ -3079,6 +3079,11 @@ bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
 }
 
 
+bool Assembler::ImmediateFitsAddrMode2Instruction(int32_t imm32) {
+  return is_uint12(abs(imm32));
+}
+
+
 // Debugging.
 void Assembler::RecordJSReturn() {
   positions_recorder()->WriteRecordedPositions();

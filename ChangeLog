@@ -1,3 +1,8 @@
+2014-01-02: Version 3.24.9
+
+        Performance and stability improvements on all platforms.
+
+
 2013-12-30: Version 3.24.8
 
         ARM: fix loading of global object in LWrapReceiver (Chromium issue

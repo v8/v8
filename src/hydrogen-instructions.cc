@@ -3492,7 +3492,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   dominator_allocate->ClearNextMapWord(original_object_size);
 #endif
 
-  dominator_allocate->clear_next_map_word_ = clear_next_map_word_;
+  dominator_allocate->UpdateClearNextMapWord(MustClearNextMapWord());
 
   // After that replace the dominated allocate instruction.
   HInstruction* inner_offset = HConstant::CreateAndInsertBefore(
@@ -3635,7 +3635,7 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
 
 
 void HAllocate::ClearNextMapWord(int offset) {
-  if (clear_next_map_word_) {
+  if (MustClearNextMapWord()) {
     Zone* zone = block()->zone();
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =

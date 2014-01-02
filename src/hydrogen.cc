@@ -1779,6 +1779,8 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
     // pass CONS_STRING_TYPE or CONS_ASCII_STRING_TYPE here, so we just use
     // CONS_STRING_TYPE here. Below we decide whether the cons string is
     // one-byte or two-byte and set the appropriate map.
+    ASSERT(HAllocate::CompatibleInstanceTypes(CONS_STRING_TYPE,
+                                              CONS_ASCII_STRING_TYPE));
     HAllocate* string = Add<HAllocate>(Add<HConstant>(ConsString::kSize),
                                        HType::String(), pretenure_flag,
                                        CONS_STRING_TYPE);

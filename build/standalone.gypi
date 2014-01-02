@@ -45,7 +45,7 @@
         'variables': {
           'conditions': [
             ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac"', {
+               OS=="netbsd" or OS=="mac" or OS=="qnx"', {
               # This handles the Unix platforms we generally deal with.
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
@@ -99,7 +99,7 @@
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
         (v8_target_arch=="x64" and host_arch!="x64") or \
-        (OS=="android")', {
+        (OS=="android" or OS=="qnx")', {
         'want_separate_host_toolset': 1,
       }, {
         'want_separate_host_toolset': 0,
@@ -186,6 +186,32 @@
     }],
     # 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"
     #  or OS=="netbsd"'
+    ['OS=="qnx"', {
+      'target_defaults': {
+        'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
+                    '-fno-exceptions' ],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti' ],
+        'conditions': [
+          [ 'visibility=="hidden"', {
+            'cflags': [ '-fvisibility=hidden' ],
+          }],
+          [ 'component=="shared_library"', {
+            'cflags': [ '-fPIC' ],
+          }],
+        ],
+        'target_conditions': [
+          [ '_toolset=="host" and host_os=="linux"', {
+            'cflags': [ '-pthread' ],
+            'ldflags': [ '-pthread' ],
+            'libraries': [ '-lrt' ],
+          }],
+          [ '_toolset=="target"', {
+            'cflags': [ '-Wno-psabi' ],
+            'libraries': [ '-lbacktrace', '-lsocket', '-lm' ],
+          }],
+        ],
+      },
+    }],  # OS=="qnx"
     ['OS=="win"', {
       'target_defaults': {
         'defines': [

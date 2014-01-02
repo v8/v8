@@ -5236,6 +5236,10 @@ class Code: public HeapObject {
   inline bool marked_for_deoptimization();
   inline void set_marked_for_deoptimization(bool flag);
 
+  // [constant_pool]: The constant pool for this function.
+  inline ConstantPoolArray* constant_pool();
+  inline void set_constant_pool(Object* constant_pool);
+
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
 
@@ -5430,8 +5434,9 @@ class Code: public HeapObject {
       kKindSpecificFlags1Offset + kIntSize;
   // Note: We might be able to squeeze this into the flags above.
   static const int kPrologueOffset = kKindSpecificFlags2Offset + kIntSize;
+  static const int kConstantPoolOffset = kPrologueOffset + kPointerSize;
 
-  static const int kHeaderPaddingStart = kPrologueOffset + kIntSize;
+  static const int kHeaderPaddingStart = kConstantPoolOffset + kIntSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.

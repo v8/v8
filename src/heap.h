@@ -77,6 +77,7 @@ namespace internal {
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
+  V(ConstantPoolArray, empty_constant_pool_array, EmptyConstantPoolArray)      \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   /* The roots above this line should be boring from a GC point of view.    */ \
@@ -2122,6 +2123,9 @@ class Heap {
 
   // Allocate empty fixed double array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();
+
+  // Allocate empty constant pool array.
+  MUST_USE_RESULT MaybeObject* AllocateEmptyConstantPoolArray();
 
   // Allocate a tenured simple cell.
   MUST_USE_RESULT MaybeObject* AllocateCell(Object* value);

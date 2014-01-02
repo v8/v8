@@ -4175,6 +4175,18 @@ bool Code::is_debug_stub() {
 }
 
 
+ConstantPoolArray* Code::constant_pool() {
+  return ConstantPoolArray::cast(READ_FIELD(this, kConstantPoolOffset));
+}
+
+
+void Code::set_constant_pool(Object* value) {
+  ASSERT(value->IsConstantPoolArray());
+  WRITE_FIELD(this, kConstantPoolOffset, value);
+  WRITE_BARRIER(GetHeap(), this, kConstantPoolOffset, value);
+}
+
+
 Code::Flags Code::ComputeFlags(Kind kind,
                                InlineCacheState ic_state,
                                ExtraICState extra_ic_state,

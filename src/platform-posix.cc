@@ -130,6 +130,13 @@ uint64_t OS::TotalPhysicalMemory() {
     return 0;
   }
   return static_cast<uint64_t>(memory_info.dwTotalPhys);
+#elif V8_OS_QNX
+  struct stat stat_buf;
+  if (stat("/proc", &stat_buf) != 0) {
+    UNREACHABLE();
+    return 0;
+  }
+  return static_cast<uint64_t>(stat_buf.st_size);
 #else
   intptr_t pages = sysconf(_SC_PHYS_PAGES);
   intptr_t page_size = sysconf(_SC_PAGESIZE);
@@ -247,7 +254,7 @@ void* OS::GetRandomMmapAddr() {
 
 
 size_t OS::AllocateAlignment() {
-  return getpagesize();
+  return static_cast<size_t>(sysconf(_SC_PAGESIZE));
 }
 
 

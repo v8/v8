@@ -959,6 +959,30 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   ASSERT(!is_bottommost || !has_alignment_padding_ ||
          (fp_value & kPointerSize) != 0);
 
+  if (FLAG_enable_ool_constant_pool) {
+    // For the bottommost output frame the constant pool pointer can be gotten
+    // from the input frame. For subsequent output frames, it can be gotten from
+    // the function's code.
+    Register constant_pool_reg =
+        JavaScriptFrame::constant_pool_pointer_register();
+    output_offset -= kPointerSize;
+    input_offset -= kPointerSize;
+    if (is_bottommost) {
+      value = input_->GetFrameSlot(input_offset);
+    } else {
+      value = reinterpret_cast<intptr_t>(
+                  function->shared()->code()->constant_pool());
+    }
+    output_frame->SetFrameSlot(output_offset, value);
+    output_frame->SetConstantPool(value);
+    if (is_topmost) output_frame->SetRegister(constant_pool_reg.code(), value);
+    if (trace_scope_) {
+      PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+             V8PRIxPTR "; constant_pool\n",
+             top_address + output_offset, output_offset, value);
+    }
+  }
+
   // For the bottommost output frame the context can be gotten from the input
   // frame. For all subsequent output frames it can be gotten from the function
   // so long as we don't inline functions that need local contexts.
@@ -1094,6 +1118,19 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
            fp_value, output_offset, value);
   }
 
+  if (FLAG_enable_ool_constant_pool) {
+    // A marker value is used in place of the constant pool.
+    output_offset -= kPointerSize;
+    intptr_t constant_pool = reinterpret_cast<intptr_t>(
+        Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+    output_frame->SetFrameSlot(output_offset, constant_pool);
+    if (trace_scope_) {
+      PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+             V8PRIxPTR " ; constant_pool (adaptor sentinel)\n",
+             top_address + output_offset, output_offset, constant_pool);
+    }
+  }
+
   // A marker value is used in place of the context.
   output_offset -= kPointerSize;
   intptr_t context = reinterpret_cast<intptr_t>(
@@ -1211,6 +1248,18 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
            fp_value, output_offset, value);
   }
 
+  if (FLAG_enable_ool_constant_pool) {
+    // The constant pool pointer can be gotten from the previous frame.
+    output_offset -= kPointerSize;
+    value = output_[frame_index - 1]->GetConstantPool();
+    output_frame->SetFrameSlot(output_offset, value);
+    if (trace_scope_) {
+      PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+             V8PRIxPTR " ; constant pool\n",
+             top_address + output_offset, output_offset, value);
+    }
+  }
+
   // The context can be gotten from the previous frame.
   output_offset -= kPointerSize;
   value = output_[frame_index - 1]->GetContext();
@@ -1306,10 +1355,10 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   }
 
   // We need 1 stack entry for the return address and enough entries for the
-  // StackFrame::INTERNAL (FP, context, frame type and code object - see
-  // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
-  // entry for the implicit return value, see
-  // StoreStubCompiler::CompileStoreViaSetter.
+  // StackFrame::INTERNAL (FP, context, frame type, code object and constant
+  // pool (if FLAG_enable_ool_constant_pool)- see MacroAssembler::EnterFrame).
+  // For a setter stub frame we need one additional entry for the implicit
+  // return value, see StoreStubCompiler::CompileStoreViaSetter.
   unsigned fixed_frame_entries =
       (StandardFrameConstants::kFixedFrameSize / kPointerSize) + 1 +
       (is_setter_stub_frame ? 1 : 0);
@@ -1355,6 +1404,18 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
            "    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; caller's fp\n",
            fp_value, output_offset, value);
+  }
+
+  if (FLAG_enable_ool_constant_pool) {
+    // The constant pool pointer can be gotten from the previous frame.
+    output_offset -= kPointerSize;
+    value = output_[frame_index - 1]->GetConstantPool();
+    output_frame->SetFrameSlot(output_offset, value);
+    if (trace_scope_) {
+      PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+             V8PRIxPTR " ; constant pool\n",
+             top_address + output_offset, output_offset, value);
+    }
   }
 
   // The context can be gotten from the previous frame.
@@ -1427,6 +1488,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   //    +-------------------------+          +-------------------------+
   // |  |    saved frame (FP)     |          |    saved frame (FP)     |
   // |  +=========================+<-fpreg   +=========================+<-fpreg
+  // |  |constant pool (if ool_cp)|          |constant pool (if ool_cp)|
+  // |  +-------------------------+          +-------------------------|
   // |  |   JSFunction context    |          |   JSFunction context    |
   // v  +-------------------------+          +-------------------------|
   //    |   COMPILED_STUB marker  |          |   STUB_FAILURE marker   |
@@ -1513,6 +1576,22 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR " ; caller's fp\n",
            top_address + output_frame_offset, output_frame_offset, value);
+  }
+
+  if (FLAG_enable_ool_constant_pool) {
+    // The constant pool pointer can be gotten from the input frame.
+    Register constant_pool_pointer_register =
+        StubFailureTrampolineFrame::constant_pool_pointer_register();
+    input_frame_offset -= kPointerSize;
+    value = input_->GetFrameSlot(input_frame_offset);
+    output_frame->SetRegister(constant_pool_pointer_register.code(), value);
+    output_frame_offset -= kPointerSize;
+    output_frame->SetFrameSlot(output_frame_offset, value);
+    if (trace_scope_) {
+      PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+             V8PRIxPTR " ; constant_pool_pointer\n",
+             top_address + output_frame_offset, output_frame_offset, value);
+    }
   }
 
   // The context can be gotten from the input frame.
@@ -2455,8 +2534,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 
 unsigned Deoptimizer::ComputeInputFrameSize() const {
   unsigned fixed_size = ComputeFixedSize(function_);
-  // The fp-to-sp delta already takes the context and the function
-  // into account so we have to avoid double counting them.
+  // The fp-to-sp delta already takes the context, constant pool pointer and the
+  // function into account so we have to avoid double counting them.
   unsigned result = fixed_size + fp_to_sp_delta_ -
       StandardFrameConstants::kFixedFrameSizeFromFp;
 #ifdef DEBUG
@@ -2581,7 +2660,8 @@ FrameDescription::FrameDescription(uint32_t frame_size,
       top_(kZapUint32),
       pc_(kZapUint32),
       fp_(kZapUint32),
-      context_(kZapUint32) {
+      context_(kZapUint32),
+      constant_pool_(kZapUint32) {
   // Zap all the registers.
   for (int r = 0; r < Register::kNumRegisters; r++) {
     SetRegister(r, kZapUint32);

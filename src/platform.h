@@ -59,6 +59,10 @@ int signbit(double x);
 # endif
 #endif
 
+#if V8_OS_QNX
+#include "qnx-math.h"
+#endif
+
 // Microsoft Visual C++ specific stuff.
 #if V8_CC_MSVC
 

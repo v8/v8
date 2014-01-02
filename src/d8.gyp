@@ -66,7 +66,8 @@
               ],
             }],
             ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
-               or OS=="openbsd" or OS=="solaris" or OS=="android")', {
+               or OS=="openbsd" or OS=="solaris" or OS=="android" \
+               or OS=="qnx")', {
               'sources': [ 'd8-posix.cc', ]
             }],
             [ 'OS=="win"', {

@@ -143,6 +143,7 @@ bool LCodeGen::GeneratePrologue() {
 
     // r1: Callee's JS function.
     // cp: Callee's context.
+    // pp: Callee's constant pool pointer (if FLAG_enable_ool_constant_pool)
     // fp: Caller's frame pointer.
     // lr: Caller's pc.
 
@@ -163,6 +164,7 @@ bool LCodeGen::GeneratePrologue() {
     __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
+    __ LoadConstantPoolPointerRegister();
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -278,7 +280,7 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(!frame_is_built_);
         ASSERT(info()->IsStub());
         frame_is_built_ = true;
-        __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+        __ PushFixedFrame();
         __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
         __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
@@ -289,7 +291,7 @@ bool LCodeGen::GenerateDeferredCode() {
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
         __ pop(ip);
-        __ ldm(ia_w, sp, cp.bit() | fp.bit() | lr.bit());
+        __ PopFixedFrame();
         frame_is_built_ = false;
       }
       __ jmp(code->exit());
@@ -340,7 +342,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         __ b(&needs_frame);
       } else {
         __ bind(&needs_frame);
-        __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+        __ PushFixedFrame();
         // This variant of deopt can only be used with stubs. Since we don't
         // have a function pointer to install in the stack frame that we're
         // building, install a special marker there instead.
@@ -1407,12 +1409,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for (kMinInt / -1).
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-    Label left_not_min_int;
     __ cmp(left, Operand(kMinInt));
-    __ b(ne, &left_not_min_int);
-    __ cmp(right, Operand(-1));
+    __ cmp(right, Operand(-1), eq);
     DeoptimizeIf(eq, instr->environment());
-    __ bind(&left_not_min_int);
   }
 
   if (CpuFeatures::IsSupported(SUDIV)) {
@@ -1511,12 +1510,9 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
 
     // Check for (kMinInt / -1).
     if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-      Label left_not_min_int;
       __ cmp(left, Operand(kMinInt));
-      __ b(ne, &left_not_min_int);
-      __ cmp(right, Operand(-1));
+      __ cmp(right, Operand(-1), eq);
       DeoptimizeIf(eq, instr->environment());
-      __ bind(&left_not_min_int);
     }
 
     // Check for (0 / -x) that will produce negative zero.
@@ -1885,8 +1881,7 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   // If the object is not a value type, return the object.
   __ CompareObjectType(input, map, map, JS_VALUE_TYPE);
   __ Move(result, input, ne);
-  __ b(ne, &done);
-  __ ldr(result, FieldMemOperand(input, JSValue::kValueOffset));
+  __ ldr(result, FieldMemOperand(input, JSValue::kValueOffset), eq);
 
   __ bind(&done);
 }
@@ -2918,9 +2913,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
-    __ mov(sp, fp);
-    no_frame_start = masm_->pc_offset();
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    no_frame_start = masm_->LeaveFrame(StackFrame::JAVA_SCRIPT);
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
@@ -5580,14 +5573,11 @@ void LCodeGen::EmitIsConstructCall(Register temp1, Register temp2) {
   __ ldr(temp1, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 
   // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
   __ ldr(temp2, MemOperand(temp1, StandardFrameConstants::kContextOffset));
   __ cmp(temp2, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &check_frame_marker);
-  __ ldr(temp1, MemOperand(temp1, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(temp1, MemOperand(temp1, StandardFrameConstants::kCallerFPOffset), eq);
 
   // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
   __ ldr(temp1, MemOperand(temp1, StandardFrameConstants::kMarkerOffset));
   __ cmp(temp1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
 }

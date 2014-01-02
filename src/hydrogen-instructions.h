@@ -5438,6 +5438,12 @@ class HLoadGlobalGeneric V8_FINAL : public HTemplateInstruction<2> {
 
 class HAllocate V8_FINAL : public HTemplateInstruction<2> {
  public:
+  static bool CompatibleInstanceTypes(InstanceType type1,
+                                      InstanceType type2) {
+    return ComputeFlags(TENURED, type1) == ComputeFlags(TENURED, type2) &&
+        ComputeFlags(NOT_TENURED, type1) == ComputeFlags(NOT_TENURED, type2);
+  }
+
   static HAllocate* New(Zone* zone,
                         HValue* context,
                         HValue* size,
@@ -5496,6 +5502,10 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
   }
 
+  bool MustClearNextMapWord() const {
+    return (flags_ & CLEAR_NEXT_MAP_WORD) != 0;
+  }
+
   void MakeDoubleAligned() {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
@@ -5513,7 +5523,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
     ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
     ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
-    PREFILL_WITH_FILLER = 1 << 4
+    PREFILL_WITH_FILLER = 1 << 4,
+    CLEAR_NEXT_MAP_WORD = 1 << 5
   };
 
   HAllocate(HValue* context,
@@ -5524,32 +5535,15 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             Handle<AllocationSite> allocation_site =
                 Handle<AllocationSite>::null())
       : HTemplateInstruction<2>(type),
+        flags_(ComputeFlags(pretenure_flag, instance_type)),
         dominating_allocate_(NULL),
-        filler_free_space_size_(NULL),
-        clear_next_map_word_(false) {
+        filler_free_space_size_(NULL) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
     SetGVNFlag(kDependsOnNewSpacePromotion);
-    flags_ = pretenure_flag == TENURED
-        ? (Heap::TargetSpaceId(instance_type) == OLD_POINTER_SPACE
-            ? ALLOCATE_IN_OLD_POINTER_SPACE : ALLOCATE_IN_OLD_DATA_SPACE)
-        : ALLOCATE_IN_NEW_SPACE;
-    if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
-      flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
-    }
-    // We have to fill the allocated object with one word fillers if we do
-    // not use allocation folding since some allocations may depend on each
-    // other, i.e., have a pointer to each other. A GC in between these
-    // allocations may leave such objects behind in a not completely initialized
-    // state.
-    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
-      flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
-    }
-    clear_next_map_word_ = pretenure_flag == NOT_TENURED &&
-        AllocationSite::CanTrack(instance_type);
 
     if (FLAG_trace_pretenuring) {
       PrintF("HAllocate with AllocationSite %p %s\n",
@@ -5558,6 +5552,36 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
                  : static_cast<void*>(*allocation_site),
              pretenure_flag == TENURED ? "tenured" : "not tenured");
     }
+  }
+
+  static Flags ComputeFlags(PretenureFlag pretenure_flag,
+                            InstanceType instance_type) {
+    Flags flags = pretenure_flag == TENURED
+        ? (Heap::TargetSpaceId(instance_type) == OLD_POINTER_SPACE
+            ? ALLOCATE_IN_OLD_POINTER_SPACE : ALLOCATE_IN_OLD_DATA_SPACE)
+        : ALLOCATE_IN_NEW_SPACE;
+    if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
+      flags = static_cast<Flags>(flags | ALLOCATE_DOUBLE_ALIGNED);
+    }
+    // We have to fill the allocated object with one word fillers if we do
+    // not use allocation folding since some allocations may depend on each
+    // other, i.e., have a pointer to each other. A GC in between these
+    // allocations may leave such objects behind in a not completely initialized
+    // state.
+    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
+      flags = static_cast<Flags>(flags | PREFILL_WITH_FILLER);
+    }
+    if (pretenure_flag == NOT_TENURED &&
+        AllocationSite::CanTrack(instance_type)) {
+      flags = static_cast<Flags>(flags | CLEAR_NEXT_MAP_WORD);
+    }
+    return flags;
+  }
+
+  void UpdateClearNextMapWord(bool clear_next_map_word) {
+    flags_ = static_cast<Flags>(clear_next_map_word
+                                ? flags_ | CLEAR_NEXT_MAP_WORD
+                                : flags_ & ~CLEAR_NEXT_MAP_WORD);
   }
 
   void UpdateSize(HValue* size) {
@@ -5583,7 +5607,6 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
   Handle<Map> known_initial_map_;
   HAllocate* dominating_allocate_;
   HStoreNamedField* filler_free_space_size_;
-  bool clear_next_map_word_;
 };
 
 

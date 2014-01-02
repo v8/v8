@@ -35,7 +35,10 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+
+#if !V8_OS_QNX
 #include <sys/syscall.h>
+#endif
 
 #if V8_OS_MACOSX
 #include <mach/mach.h>
@@ -45,6 +48,7 @@
     && !V8_OS_OPENBSD
 #include <ucontext.h>
 #endif
+
 #include <unistd.h>
 
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
@@ -266,7 +270,11 @@ class SignalHandler : public AllStatic {
     struct sigaction sa;
     sa.sa_sigaction = &HandleProfilerSignal;
     sigemptyset(&sa.sa_mask);
+#if V8_OS_QNX
+    sa.sa_flags = SA_SIGINFO;
+#else
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
+#endif
     signal_handler_installed_ =
         (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
   }
@@ -415,7 +423,17 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
-#endif  // V8_OS_SOLARIS
+#elif V8_OS_QNX
+#if V8_HOST_ARCH_IA32
+  state.pc = reinterpret_cast<Address>(mcontext.cpu.eip);
+  state.sp = reinterpret_cast<Address>(mcontext.cpu.esp);
+  state.fp = reinterpret_cast<Address>(mcontext.cpu.ebp);
+#elif V8_HOST_ARCH_ARM
+  state.pc = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_PC]);
+  state.sp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_SP]);
+  state.fp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_FP]);
+#endif  // V8_HOST_ARCH_*
+#endif  // V8_OS_QNX
 #endif  // USE_SIMULATOR
   sampler->SampleStack(state);
 #endif  // V8_OS_NACL
