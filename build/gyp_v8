@@ -145,7 +145,7 @@ if __name__ == '__main__':
   args.append('--no-circular-check')
 
   # Set the GYP DEPTH variable to the root of the V8 project.
-  args.append('--depth=' + v8_root)
+  args.append('--depth=' + os.path.relpath(v8_root))
 
   # If V8_GYP_SYNTAX_CHECK is set to 1, it will invoke gyp with --check
   # to enfore syntax checking.
