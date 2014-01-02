@@ -1349,9 +1349,7 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   if (FLAG_allocation_site_pretenuring) {
-    return type == JS_ARRAY_TYPE ||
-        type == JS_OBJECT_TYPE ||
-        type < FIRST_NONSTRING_TYPE;
+    return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
   }
   return type == JS_ARRAY_TYPE;
 }

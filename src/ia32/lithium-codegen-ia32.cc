@@ -4912,7 +4912,7 @@ void LCodeGen::DoStringAdd(LStringAdd* instr) {
     ASSERT(ToRegister(instr->left()).is(edx));
     ASSERT(ToRegister(instr->right()).is(eax));
     NewStringAddStub stub(instr->hydrogen()->flags(),
-                          instr->hydrogen()->pretenure_flag());
+                          isolate()->heap()->GetPretenureMode());
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else {
     EmitPushTaggedOperand(instr->left());

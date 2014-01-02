@@ -10477,12 +10477,6 @@ Object* Code::FindNthObject(int n, Map* match_map) {
 }
 
 
-AllocationSite* Code::FindFirstAllocationSite() {
-  Object* result = FindNthObject(1, GetHeap()->allocation_site_map());
-  return (result != NULL) ? AllocationSite::cast(result) : NULL;
-}
-
-
 Map* Code::FindFirstMap() {
   Object* result = FindNthObject(1, GetHeap()->meta_map());
   return (result != NULL) ? Map::cast(result) : NULL;

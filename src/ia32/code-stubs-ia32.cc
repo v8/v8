@@ -342,17 +342,6 @@ void BinaryOpICStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { ecx, edx, eax };
-  descriptor->register_param_count_ = 3;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite);
-}
-
-
 void NewStringAddStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -2663,10 +2652,8 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   if (Serializer::enabled()) {
     PlatformFeatureScope sse2(SSE2);
     BinaryOpICStub::GenerateAheadOfTime(isolate);
-    BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
   } else {
     BinaryOpICStub::GenerateAheadOfTime(isolate);
-    BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
   }
 }
 
@@ -4395,35 +4382,6 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // tagged as a small integer.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
-}
-
-
-void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- edx    : left
-  //  -- eax    : right
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Isolate* isolate = masm->isolate();
-
-  // Load ecx with the allocation site.  We stick an undefined dummy value here
-  // and replace it with the real allocation site later when we instantiate this
-  // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
-  __ mov(ecx, handle(isolate->heap()->undefined_value()));
-
-  // Make sure that we actually patched the allocation site.
-  if (FLAG_debug_code) {
-    __ test(ecx, Immediate(kSmiTagMask));
-    __ Assert(not_equal, kExpectedAllocationSite);
-    __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
-           isolate->factory()->allocation_site_map());
-    __ Assert(equal, kExpectedAllocationSite);
-  }
-
-  // Tail call into the stub that handles binary operations with allocation
-  // sites.
-  BinaryOpWithAllocationSiteStub stub(state_);
-  __ TailCallStub(&stub);
 }
 
 

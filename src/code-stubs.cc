@@ -247,28 +247,6 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
 }
 
 
-// static
-void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
-  // Generate special versions of the stub.
-  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
-}
-
-
-void BinaryOpICWithAllocationSiteStub::PrintState(StringStream* stream) {
-  state_.Print(stream);
-}
-
-
-// static
-void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
-    Isolate* isolate, const BinaryOpIC::State& state) {
-  if (state.CouldCreateAllocationMementos()) {
-    BinaryOpICWithAllocationSiteStub stub(state);
-    stub.GetCode(isolate);
-  }
-}
-
-
 void NewStringAddStub::PrintBaseName(StringStream* stream) {
   stream->Add("NewStringAddStub");
   if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {

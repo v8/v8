@@ -3815,9 +3815,7 @@ HInstruction* HStringAdd::New(Zone* zone,
                               HValue* context,
                               HValue* left,
                               HValue* right,
-                              PretenureFlag pretenure_flag,
-                              StringAddFlags flags,
-                              Handle<AllocationSite> allocation_site) {
+                              StringAddFlags flags) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
@@ -3827,23 +3825,7 @@ HInstruction* HStringAdd::New(Zone* zone,
       return HConstant::New(zone, context, concat);
     }
   }
-  return new(zone) HStringAdd(
-      context, left, right, pretenure_flag, flags, allocation_site);
-}
-
-
-void HStringAdd::PrintDataTo(StringStream* stream) {
-  if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
-    stream->Add("_CheckBoth");
-  } else if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_LEFT) {
-    stream->Add("_CheckLeft");
-  } else if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_RIGHT) {
-    stream->Add("_CheckRight");
-  }
-  stream->Add(" (");
-  if (pretenure_flag() == NOT_TENURED) stream->Add("N");
-  else if (pretenure_flag() == TENURED) stream->Add("D");
-  stream->Add(")");
+  return new(zone) HStringAdd(context, left, right, flags);
 }
 
 
