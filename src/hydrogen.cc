@@ -1693,22 +1693,131 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
 }
 
 
-HValue* HGraphBuilder::BuildSeqStringSizeFor(HValue* length,
-                                             String::Encoding encoding) {
-  STATIC_ASSERT((SeqString::kHeaderSize & kObjectAlignmentMask) == 0);
-  HValue* size = length;
-  if (encoding == String::TWO_BYTE_ENCODING) {
-    size = AddUncasted<HShl>(length, graph()->GetConstant1());
+HAllocate* HGraphBuilder::BuildAllocate(
+    HValue* object_size,
+    HType type,
+    InstanceType instance_type,
+    HAllocationMode allocation_mode) {
+  // Compute the effective allocation size.
+  HValue* size = object_size;
+  if (allocation_mode.CreateAllocationMementos()) {
+    size = AddUncasted<HAdd>(size, Add<HConstant>(AllocationMemento::kSize));
     size->ClearFlag(HValue::kCanOverflow);
-    size->SetFlag(HValue::kUint32);
   }
-  size = AddUncasted<HAdd>(size, Add<HConstant>(static_cast<int32_t>(
-              SeqString::kHeaderSize + kObjectAlignmentMask)));
-  size->ClearFlag(HValue::kCanOverflow);
-  size = AddUncasted<HBitwise>(
-      Token::BIT_AND, size, Add<HConstant>(static_cast<int32_t>(
-              ~kObjectAlignmentMask)));
-  return size;
+
+  // Perform the actual allocation.
+  HAllocate* object = Add<HAllocate>(
+      size, type, allocation_mode.GetPretenureMode(),
+      instance_type, allocation_mode.feedback_site());
+
+  // Setup the allocation memento.
+  if (allocation_mode.CreateAllocationMementos()) {
+    BuildCreateAllocationMemento(
+        object, object_size, allocation_mode.current_site());
+  }
+
+  return object;
+}
+
+
+HValue* HGraphBuilder::BuildAddStringLengths(HValue* left_length,
+                                             HValue* right_length) {
+  // Compute the combined string length. If the result is larger than the max
+  // supported string length, we bailout to the runtime. This is done implicitly
+  // when converting the result back to a smi in case the max string length
+  // equals the max smi value. Otherwise, for platforms with 32-bit smis, we do
+  HValue* length = AddUncasted<HAdd>(left_length, right_length);
+  STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
+  if (String::kMaxLength != Smi::kMaxValue) {
+    IfBuilder if_nooverflow(this);
+    if_nooverflow.If<HCompareNumericAndBranch>(
+        length, Add<HConstant>(String::kMaxLength), Token::LTE);
+    if_nooverflow.Then();
+    if_nooverflow.ElseDeopt("String length exceeds limit");
+  }
+  return length;
+}
+
+
+HValue* HGraphBuilder::BuildCreateConsString(
+    HValue* length,
+    HValue* left,
+    HValue* right,
+    HAllocationMode allocation_mode) {
+  // Determine the string instance types.
+  HInstruction* left_instance_type = AddLoadStringInstanceType(left);
+  HInstruction* right_instance_type = AddLoadStringInstanceType(right);
+
+  // Allocate the cons string object. HAllocate does not care whether we
+  // pass CONS_STRING_TYPE or CONS_ASCII_STRING_TYPE here, so we just use
+  // CONS_STRING_TYPE here. Below we decide whether the cons string is
+  // one-byte or two-byte and set the appropriate map.
+  ASSERT(HAllocate::CompatibleInstanceTypes(CONS_STRING_TYPE,
+                                            CONS_ASCII_STRING_TYPE));
+  HAllocate* result = BuildAllocate(Add<HConstant>(ConsString::kSize),
+                                    HType::String(), CONS_STRING_TYPE,
+                                    allocation_mode);
+
+  // Compute intersection and difference of instance types.
+  HValue* anded_instance_types = AddUncasted<HBitwise>(
+      Token::BIT_AND, left_instance_type, right_instance_type);
+  HValue* xored_instance_types = AddUncasted<HBitwise>(
+      Token::BIT_XOR, left_instance_type, right_instance_type);
+
+  // We create a one-byte cons string if
+  // 1. both strings are one-byte, or
+  // 2. at least one of the strings is two-byte, but happens to contain only
+  //    one-byte characters.
+  // To do this, we check
+  // 1. if both strings are one-byte, or if the one-byte data hint is set in
+  //    both strings, or
+  // 2. if one of the strings has the one-byte data hint set and the other
+  //    string is one-byte.
+  IfBuilder if_onebyte(this);
+  STATIC_ASSERT(kOneByteStringTag != 0);
+  STATIC_ASSERT(kOneByteDataHintMask != 0);
+  if_onebyte.If<HCompareNumericAndBranch>(
+      AddUncasted<HBitwise>(
+          Token::BIT_AND, anded_instance_types,
+          Add<HConstant>(static_cast<int32_t>(
+                  kStringEncodingMask | kOneByteDataHintMask))),
+      graph()->GetConstant0(), Token::NE);
+  if_onebyte.Or();
+  STATIC_ASSERT(kOneByteStringTag != 0 &&
+                kOneByteDataHintTag != 0 &&
+                kOneByteDataHintTag != kOneByteStringTag);
+  if_onebyte.If<HCompareNumericAndBranch>(
+      AddUncasted<HBitwise>(
+          Token::BIT_AND, xored_instance_types,
+          Add<HConstant>(static_cast<int32_t>(
+                  kOneByteStringTag | kOneByteDataHintTag))),
+      Add<HConstant>(static_cast<int32_t>(
+              kOneByteStringTag | kOneByteDataHintTag)), Token::EQ);
+  if_onebyte.Then();
+  {
+    // We can safely skip the write barrier for storing the map here.
+    Handle<Map> map = isolate()->factory()->cons_ascii_string_map();
+    AddStoreMapConstantNoWriteBarrier(result, map);
+  }
+  if_onebyte.Else();
+  {
+    // We can safely skip the write barrier for storing the map here.
+    Handle<Map> map = isolate()->factory()->cons_string_map();
+    AddStoreMapConstantNoWriteBarrier(result, map);
+  }
+  if_onebyte.End();
+
+  // Initialize the cons string fields.
+  Add<HStoreNamedField>(result, HObjectAccess::ForStringHashField(),
+                        Add<HConstant>(String::kEmptyHashField));
+  Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length);
+  Add<HStoreNamedField>(result, HObjectAccess::ForConsStringFirst(), left);
+  Add<HStoreNamedField>(result, HObjectAccess::ForConsStringSecond(), right);
+
+  // Count the native string addition.
+  AddIncrementCounter(isolate()->counters()->string_add_native());
+
+  return result;
 }
 
 
@@ -1734,40 +1843,33 @@ void HGraphBuilder::BuildCopySeqStringChars(HValue* src,
 }
 
 
-HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
-                                               HValue* right,
-                                               PretenureFlag pretenure_flag) {
+HValue* HGraphBuilder::BuildUncheckedStringAdd(
+    HValue* left,
+    HValue* right,
+    HAllocationMode allocation_mode) {
   // Determine the string lengths.
-  HValue* left_length = Add<HLoadNamedField>(
-      left, HObjectAccess::ForStringLength());
-  HValue* right_length = Add<HLoadNamedField>(
-      right, HObjectAccess::ForStringLength());
+  HValue* left_length = AddLoadStringLength(left);
+  HValue* right_length = AddLoadStringLength(right);
 
-  // Compute the combined string length. If the result is larger than the max
-  // supported string length, we bailout to the runtime. This is done implicitly
-  // when converting the result back to a smi in case the max string length
-  // equals the max smi valie. Otherwise, for platforms with 32-bit smis, we do
-  HValue* length = AddUncasted<HAdd>(left_length, right_length);
-  STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
-  if (String::kMaxLength != Smi::kMaxValue) {
-    IfBuilder if_nooverflow(this);
-    if_nooverflow.If<HCompareNumericAndBranch>(
-        length, Add<HConstant>(String::kMaxLength), Token::LTE);
-    if_nooverflow.Then();
-    if_nooverflow.ElseDeopt("String length exceeds limit");
+  // Compute the combined string length.
+  HValue* length = BuildAddStringLengths(left_length, right_length);
+
+  // Do some manual constant folding here.
+  if (left_length->IsConstant()) {
+    HConstant* c_left_length = HConstant::cast(left_length);
+    ASSERT_NE(0, c_left_length->Integer32Value());
+    if (c_left_length->Integer32Value() + 1 >= ConsString::kMinLength) {
+      // The right string contains at least one character.
+      return BuildCreateConsString(length, left, right, allocation_mode);
+    }
+  } else if (right_length->IsConstant()) {
+    HConstant* c_right_length = HConstant::cast(right_length);
+    ASSERT_NE(0, c_right_length->Integer32Value());
+    if (c_right_length->Integer32Value() + 1 >= ConsString::kMinLength) {
+      // The left string contains at least one character.
+      return BuildCreateConsString(length, left, right, allocation_mode);
+    }
   }
-
-  // Determine the string instance types.
-  HLoadNamedField* left_instance_type = Add<HLoadNamedField>(
-      Add<HLoadNamedField>(left, HObjectAccess::ForMap()),
-      HObjectAccess::ForMapInstanceType());
-  HLoadNamedField* right_instance_type = Add<HLoadNamedField>(
-      Add<HLoadNamedField>(right, HObjectAccess::ForMap()),
-      HObjectAccess::ForMapInstanceType());
-
-  // Compute difference of instance types.
-  HValue* xored_instance_types = AddUncasted<HBitwise>(
-      Token::BIT_XOR, left_instance_type, right_instance_type);
 
   // Check if we should create a cons string.
   IfBuilder if_createcons(this);
@@ -1775,82 +1877,20 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
       length, Add<HConstant>(ConsString::kMinLength), Token::GTE);
   if_createcons.Then();
   {
-    // Allocate the cons string object. HAllocate does not care whether we
-    // pass CONS_STRING_TYPE or CONS_ASCII_STRING_TYPE here, so we just use
-    // CONS_STRING_TYPE here. Below we decide whether the cons string is
-    // one-byte or two-byte and set the appropriate map.
-    ASSERT(HAllocate::CompatibleInstanceTypes(CONS_STRING_TYPE,
-                                              CONS_ASCII_STRING_TYPE));
-    HAllocate* string = Add<HAllocate>(Add<HConstant>(ConsString::kSize),
-                                       HType::String(), pretenure_flag,
-                                       CONS_STRING_TYPE);
-
-    // Compute the intersection of instance types.
-    HValue* anded_instance_types = AddUncasted<HBitwise>(
-        Token::BIT_AND, left_instance_type, right_instance_type);
-
-    // We create a one-byte cons string if
-    // 1. both strings are one-byte, or
-    // 2. at least one of the strings is two-byte, but happens to contain only
-    //    one-byte characters.
-    // To do this, we check
-    // 1. if both strings are one-byte, or if the one-byte data hint is set in
-    //    both strings, or
-    // 2. if one of the strings has the one-byte data hint set and the other
-    //    string is one-byte.
-    IfBuilder if_onebyte(this);
-    STATIC_ASSERT(kOneByteStringTag != 0);
-    STATIC_ASSERT(kOneByteDataHintMask != 0);
-    if_onebyte.If<HCompareNumericAndBranch>(
-        AddUncasted<HBitwise>(
-            Token::BIT_AND, anded_instance_types,
-            Add<HConstant>(static_cast<int32_t>(
-                    kStringEncodingMask | kOneByteDataHintMask))),
-        graph()->GetConstant0(), Token::NE);
-    if_onebyte.Or();
-    STATIC_ASSERT(kOneByteStringTag != 0 &&
-                  kOneByteDataHintTag != 0 &&
-                  kOneByteDataHintTag != kOneByteStringTag);
-    if_onebyte.If<HCompareNumericAndBranch>(
-        AddUncasted<HBitwise>(
-            Token::BIT_AND, xored_instance_types,
-            Add<HConstant>(static_cast<int32_t>(
-                    kOneByteStringTag | kOneByteDataHintTag))),
-        Add<HConstant>(static_cast<int32_t>(
-                kOneByteStringTag | kOneByteDataHintTag)), Token::EQ);
-    if_onebyte.Then();
-    {
-      // We can safely skip the write barrier for storing the map here.
-      Handle<Map> map = isolate()->factory()->cons_ascii_string_map();
-      AddStoreMapConstantNoWriteBarrier(string, map);
-    }
-    if_onebyte.Else();
-    {
-      // We can safely skip the write barrier for storing the map here.
-      Handle<Map> map = isolate()->factory()->cons_string_map();
-      AddStoreMapConstantNoWriteBarrier(string, map);
-    }
-    if_onebyte.End();
-
-    // Initialize the cons string fields.
-    Add<HStoreNamedField>(string, HObjectAccess::ForStringHashField(),
-                          Add<HConstant>(String::kEmptyHashField));
-    Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(), length);
-    Add<HStoreNamedField>(string, HObjectAccess::ForConsStringFirst(), left);
-    Add<HStoreNamedField>(string, HObjectAccess::ForConsStringSecond(),
-                          right);
-
-    // Count the native string addition.
-    AddIncrementCounter(isolate()->counters()->string_add_native());
-
-    // Cons string is result.
-    Push(string);
+    // Create a cons string.
+    Push(BuildCreateConsString(length, left, right, allocation_mode));
   }
   if_createcons.Else();
   {
-    // Compute union of instance types.
+    // Determine the string instance types.
+    HValue* left_instance_type = AddLoadStringInstanceType(left);
+    HValue* right_instance_type = AddLoadStringInstanceType(right);
+
+    // Compute union and difference of instance types.
     HValue* ored_instance_types = AddUncasted<HBitwise>(
         Token::BIT_OR, left_instance_type, right_instance_type);
+    HValue* xored_instance_types = AddUncasted<HBitwise>(
+        Token::BIT_XOR, left_instance_type, right_instance_type);
 
     // Check if both strings have the same encoding and both are
     // sequential.
@@ -1869,7 +1909,12 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
         graph()->GetConstant0(), Token::EQ);
     if_sameencodingandsequential.Then();
     {
-      // Check if the result is a one-byte string.
+      HConstant* string_map =
+          Add<HConstant>(isolate()->factory()->string_map());
+      HConstant* ascii_string_map =
+          Add<HConstant>(isolate()->factory()->ascii_string_map());
+
+      // Determine map and size depending on whether result is one-byte string.
       IfBuilder if_onebyte(this);
       STATIC_ASSERT(kOneByteStringTag != 0);
       if_onebyte.If<HCompareNumericAndBranch>(
@@ -1879,90 +1924,84 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
           graph()->GetConstant0(), Token::NE);
       if_onebyte.Then();
       {
-        // Calculate the number of bytes needed for the characters in the
-        // string while observing object alignment.
-        HValue* size = BuildSeqStringSizeFor(
-            length, String::ONE_BYTE_ENCODING);
-
-        // Allocate the ASCII string object.
-        Handle<Map> map = isolate()->factory()->ascii_string_map();
-        HAllocate* string = Add<HAllocate>(size, HType::String(),
-                                           pretenure_flag, ASCII_STRING_TYPE);
-        string->set_known_initial_map(map);
-
-        // We can safely skip the write barrier for storing map here.
-        AddStoreMapConstantNoWriteBarrier(string, map);
-
-        // Length must be stored into the string before we copy characters to
-        // make debug verification code happy.
-        Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
-                              length);
-
-        // Copy bytes from the left string.
-        BuildCopySeqStringChars(
-            left, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
-            string, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
-            left_length);
-
-        // Copy bytes from the right string.
-        BuildCopySeqStringChars(
-            right, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
-            string, left_length, String::ONE_BYTE_ENCODING,
-            right_length);
-
-        // Count the native string addition.
-        AddIncrementCounter(isolate()->counters()->string_add_native());
-
-        // Return the string.
-        Push(string);
+        // Allocate sequential one-byte string object.
+        Push(length);
+        Push(ascii_string_map);
       }
       if_onebyte.Else();
       {
-        // Calculate the number of bytes needed for the characters in the
-        // string while observing object alignment.
-        HValue* size = BuildSeqStringSizeFor(
-            length, String::TWO_BYTE_ENCODING);
-
-        // Allocate the two-byte string object.
-        Handle<Map> map = isolate()->factory()->string_map();
-        HAllocate* string = Add<HAllocate>(size, HType::String(),
-                                           pretenure_flag, STRING_TYPE);
-        string->set_known_initial_map(map);
-
-        // We can safely skip the write barrier for storing map here.
-        AddStoreMapConstantNoWriteBarrier(string, map);
-
-        // Length must be stored into the string before we copy characters to
-        // make debug verification code happy.
-        Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
-                              length);
-
-        // Copy bytes from the left string.
-        BuildCopySeqStringChars(
-            left, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
-            string, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
-            left_length);
-
-        // Copy bytes from the right string.
-        BuildCopySeqStringChars(
-            right, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
-            string, left_length, String::TWO_BYTE_ENCODING,
-            right_length);
-
-        // Return the string.
-        Push(string);
+        // Allocate sequential two-byte string object.
+        HValue* size = AddUncasted<HShl>(length, graph()->GetConstant1());
+        size->ClearFlag(HValue::kCanOverflow);
+        size->SetFlag(HValue::kUint32);
+        Push(size);
+        Push(string_map);
       }
       if_onebyte.End();
+      HValue* map = Pop();
 
-      // Initialize the (common) string fields.
-      HValue* string = Pop();
-      Add<HStoreNamedField>(string, HObjectAccess::ForStringHashField(),
+      // Calculate the number of bytes needed for the characters in the
+      // string while observing object alignment.
+      STATIC_ASSERT((SeqString::kHeaderSize & kObjectAlignmentMask) == 0);
+      HValue* size = Pop();
+      size = AddUncasted<HAdd>(size, Add<HConstant>(static_cast<int32_t>(
+                  SeqString::kHeaderSize + kObjectAlignmentMask)));
+      size->ClearFlag(HValue::kCanOverflow);
+      size = AddUncasted<HBitwise>(
+          Token::BIT_AND, size, Add<HConstant>(static_cast<int32_t>(
+                  ~kObjectAlignmentMask)));
+
+      // Allocate the string object. HAllocate does not care whether we pass
+      // STRING_TYPE or ASCII_STRING_TYPE here, so we just use STRING_TYPE here.
+      HAllocate* result = BuildAllocate(
+          size, HType::String(), STRING_TYPE, allocation_mode);
+
+      // We can safely skip the write barrier for storing map here.
+      AddStoreMapNoWriteBarrier(result, map);
+
+      // Initialize the string fields.
+      Add<HStoreNamedField>(result, HObjectAccess::ForStringHashField(),
                             Add<HConstant>(String::kEmptyHashField));
+      Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length);
+
+      // Copy characters to the result string.
+      IfBuilder if_twobyte(this);
+      if_twobyte.If<HCompareObjectEqAndBranch>(map, string_map);
+      if_twobyte.Then();
+      {
+        // Copy characters from the left string.
+        BuildCopySeqStringChars(
+            left, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
+            result, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
+            left_length);
+
+        // Copy characters from the right string.
+        BuildCopySeqStringChars(
+            right, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
+            result, left_length, String::TWO_BYTE_ENCODING,
+            right_length);
+      }
+      if_twobyte.Else();
+      {
+        // Copy characters from the left string.
+        BuildCopySeqStringChars(
+            left, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
+            result, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
+            left_length);
+
+        // Copy characters from the right string.
+        BuildCopySeqStringChars(
+            right, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
+            result, left_length, String::ONE_BYTE_ENCODING,
+            right_length);
+      }
+      if_twobyte.End();
 
       // Count the native string addition.
       AddIncrementCounter(isolate()->counters()->string_add_native());
 
-      Push(string);
+      // Return the sequential string.
+      Push(result);
     }
     if_sameencodingandsequential.Else();
     {
@@ -1981,20 +2020,21 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
 }
 
 
-HValue* HGraphBuilder::BuildStringAdd(HValue* left,
-                                      HValue* right,
-                                      PretenureFlag pretenure_flag) {
-  // Determine the string lengths.
-  HValue* left_length = Add<HLoadNamedField>(
-      left, HObjectAccess::ForStringLength());
-  HValue* right_length = Add<HLoadNamedField>(
-      right, HObjectAccess::ForStringLength());
+HValue* HGraphBuilder::BuildStringAdd(
+    HValue* left,
+    HValue* right,
+    HAllocationMode allocation_mode) {
+  NoObservableSideEffectsScope no_effects(this);
+
+  // Determine string lengths.
+  HValue* left_length = AddLoadStringLength(left);
+  HValue* right_length = AddLoadStringLength(right);
 
   // Check if left string is empty.
-  IfBuilder if_leftisempty(this);
-  if_leftisempty.If<HCompareNumericAndBranch>(
+  IfBuilder if_leftempty(this);
+  if_leftempty.If<HCompareNumericAndBranch>(
       left_length, graph()->GetConstant0(), Token::EQ);
-  if_leftisempty.Then();
+  if_leftempty.Then();
   {
     // Count the native string addition.
     AddIncrementCounter(isolate()->counters()->string_add_native());
@@ -2002,13 +2042,13 @@ HValue* HGraphBuilder::BuildStringAdd(HValue* left,
     // Just return the right string.
     Push(right);
   }
-  if_leftisempty.Else();
+  if_leftempty.Else();
   {
     // Check if right string is empty.
-    IfBuilder if_rightisempty(this);
-    if_rightisempty.If<HCompareNumericAndBranch>(
+    IfBuilder if_rightempty(this);
+    if_rightempty.If<HCompareNumericAndBranch>(
         right_length, graph()->GetConstant0(), Token::EQ);
-    if_rightisempty.Then();
+    if_rightempty.Then();
     {
       // Count the native string addition.
       AddIncrementCounter(isolate()->counters()->string_add_native());
@@ -2016,14 +2056,14 @@ HValue* HGraphBuilder::BuildStringAdd(HValue* left,
       // Just return the left string.
       Push(left);
     }
-    if_rightisempty.Else();
+    if_rightempty.Else();
     {
-      // Concatenate the two non-empty strings.
-      Push(BuildUncheckedStringAdd(left, right, pretenure_flag));
+      // Add the two non-empty strings.
+      Push(BuildUncheckedStringAdd(left, right, allocation_mode));
     }
-    if_rightisempty.End();
+    if_rightempty.End();
   }
-  if_leftisempty.End();
+  if_leftempty.End();
 
   return Pop();
 }
@@ -6100,15 +6140,27 @@ HInstruction* HGraphBuilder::AddLoadNamedField(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadStringLength(HValue* object,
-                                                   HValue* checked_string) {
-  if (FLAG_fold_constants && object->IsConstant()) {
-    HConstant* constant = HConstant::cast(object);
-    if (constant->HasStringValue()) {
-      return New<HConstant>(constant->StringValue()->length());
+HInstruction* HGraphBuilder::AddLoadStringInstanceType(HValue* string) {
+  if (string->IsConstant()) {
+    HConstant* c_string = HConstant::cast(string);
+    if (c_string->HasStringValue()) {
+      return Add<HConstant>(c_string->StringValue()->map()->instance_type());
     }
   }
-  return BuildLoadNamedField(checked_string, HObjectAccess::ForStringLength());
+  return AddLoadNamedField(
+      AddLoadNamedField(string, HObjectAccess::ForMap()),
+      HObjectAccess::ForMapInstanceType());
+}
+
+
+HInstruction* HGraphBuilder::AddLoadStringLength(HValue* string) {
+  if (string->IsConstant()) {
+    HConstant* c_string = HConstant::cast(string);
+    if (c_string->HasStringValue()) {
+      return Add<HConstant>(c_string->StringValue()->length());
+    }
+  }
+  return AddLoadNamedField(string, HObjectAccess::ForStringLength());
 }
 
 
@@ -8556,13 +8608,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
       return New<HConstant>(s->Get(i));
     }
   }
-  BuildCheckHeapObject(string);
-  HValue* checkstring =
-      Add<HCheckInstanceType>(string, HCheckInstanceType::IS_STRING);
-  HInstruction* length = BuildLoadStringLength(string, checkstring);
-  AddInstruction(length);
-  HInstruction* checked_index = Add<HBoundsCheck>(index, length);
-  return New<HStringCharCodeAt>(string, checked_index);
+  string = BuildCheckString(string);
+  index = Add<HBoundsCheck>(index, AddLoadStringLength(string));
+  return New<HStringCharCodeAt>(string, index);
 }
 
 
@@ -8693,10 +8741,18 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   Handle<Type> right_type = expr->right()->bounds().lower;
   Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
+  Handle<AllocationSite> allocation_site = expr->allocation_site();
+
+  HAllocationMode allocation_mode =
+      FLAG_allocation_site_pretenuring
+      ? (allocation_site.is_null()
+         ? HAllocationMode(NOT_TENURED)
+         : HAllocationMode(allocation_site))
+      : HAllocationMode(isolate()->heap()->GetPretenureMode());
 
   HValue* result = HGraphBuilder::BuildBinaryOperation(
-      expr->op(), left, right, left_type, right_type,
-      result_type, fixed_right_arg);
+      expr->op(), left, right, left_type, right_type, result_type,
+      fixed_right_arg, allocation_mode);
   // Add a simulate after instructions with observable side effects, and
   // after phis, which are the result of BuildBinaryOperation when we
   // inlined some complex subgraph.
@@ -8716,7 +8772,8 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Handle<Type> left_type,
     Handle<Type> right_type,
     Handle<Type> result_type,
-    Maybe<int> fixed_right_arg) {
+    Maybe<int> fixed_right_arg,
+    HAllocationMode allocation_mode) {
 
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
@@ -8782,7 +8839,48 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       return AddUncasted<HInvokeFunction>(function, 2);
     }
 
-    return AddUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
+    // Inline the string addition into the stub when creating allocation
+    // mementos to gather allocation site feedback.
+    if (graph()->info()->IsStub() &&
+        allocation_mode.CreateAllocationMementos()) {
+      return BuildStringAdd(left, right, allocation_mode);
+    }
+
+    // Register the dependent code with the allocation site.
+    if (!allocation_mode.feedback_site().is_null()) {
+      ASSERT(!graph()->info()->IsStub());
+      allocation_mode.feedback_site()->AddDependentCompilationInfo(
+          AllocationSite::TENURING, top_info());
+    }
+
+    // Inline string addition if we know that we'll create a cons string.
+    if (left->IsConstant()) {
+      HConstant* c_left = HConstant::cast(left);
+      if (c_left->HasStringValue()) {
+        int c_left_length = c_left->StringValue()->length();
+        if (c_left_length == 0) {
+          return right;
+        } else if (c_left_length + 1 >= ConsString::kMinLength) {
+          return BuildStringAdd(left, right, allocation_mode);
+        }
+      }
+    }
+    if (right->IsConstant()) {
+      HConstant* c_right = HConstant::cast(right);
+      if (c_right->HasStringValue()) {
+        int c_right_length = c_right->StringValue()->length();
+        if (c_right_length == 0) {
+          return left;
+        } else if (c_right_length + 1 >= ConsString::kMinLength) {
+          return BuildStringAdd(left, right, allocation_mode);
+        }
+      }
+    }
+
+    // Fallback to using the string add stub.
+    return AddUncasted<HStringAdd>(
+        left, right, allocation_mode.GetPretenureMode(),
+        STRING_ADD_CHECK_NONE, allocation_mode.feedback_site());
   }
 
   if (graph()->info()->IsStub()) {
@@ -10011,8 +10109,7 @@ void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
   HValue* right = Pop();
   HValue* left = Pop();
-  HInstruction* result =
-      NewUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_BOTH);
+  HInstruction* result = NewUncasted<HStringAdd>(left, right);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

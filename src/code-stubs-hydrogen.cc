@@ -911,6 +911,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
          (state.HasSideEffects() || !result_type->Is(Type::None())));
 
   HValue* result = NULL;
+  HAllocationMode allocation_mode(NOT_TENURED);
   if (state.op() == Token::ADD &&
       (left_type->Maybe(Type::String()) || right_type->Maybe(Type::String())) &&
       !left_type->Is(Type::String()) && !right_type->Is(Type::String())) {
@@ -924,14 +925,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, state.fixed_right_arg()));
+                    result_type, state.fixed_right_arg(),
+                    allocation_mode));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg()));
+                    state.fixed_right_arg(), allocation_mode));
       }
       if_leftisstring.End();
       result = Pop();
@@ -943,14 +945,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, state.fixed_right_arg()));
+                    result_type, state.fixed_right_arg(),
+                    allocation_mode));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg()));
+                    state.fixed_right_arg(), allocation_mode));
       }
       if_rightisstring.End();
       result = Pop();
@@ -959,7 +962,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
     result = BuildBinaryOperation(
             state.op(), left, right,
             left_type, right_type, result_type,
-            state.fixed_right_arg());
+            state.fixed_right_arg(), allocation_mode);
   }
 
   // If we encounter a generic argument, the number conversion is
@@ -1007,6 +1010,31 @@ Handle<Code> BinaryOpICStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
+HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
+  BinaryOpIC::State state = casted_stub()->state();
+
+  HValue* allocation_site = GetParameter(
+      BinaryOpWithAllocationSiteStub::kAllocationSite);
+  HValue* left = GetParameter(BinaryOpWithAllocationSiteStub::kLeft);
+  HValue* right = GetParameter(BinaryOpWithAllocationSiteStub::kRight);
+
+  Handle<Type> left_type = state.GetLeftType(isolate());
+  Handle<Type> right_type = state.GetRightType(isolate());
+  Handle<Type> result_type = state.GetResultType(isolate());
+  HAllocationMode allocation_mode(allocation_site);
+
+  return BuildBinaryOperation(state.op(), left, right,
+                              left_type, right_type, result_type,
+                              state.fixed_right_arg(), allocation_mode);
+}
+
+
+Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
   NewStringAddStub* stub = casted_stub();
   StringAddFlags flags = stub->flags();
@@ -1023,7 +1051,7 @@ HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
     right = BuildCheckString(right);
   }
 
-  return BuildStringAdd(left, right, pretenure_flag);
+  return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));
 }
 
 

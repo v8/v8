@@ -1936,6 +1936,10 @@ class BinaryOperation V8_FINAL : public Expression {
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
+  Handle<AllocationSite> allocation_site() const { return allocation_site_; }
+  void set_allocation_site(Handle<AllocationSite> allocation_site) {
+    allocation_site_ = allocation_site;
+  }
 
   BailoutId RightId() const { return right_id_; }
 
@@ -1964,6 +1968,7 @@ class BinaryOperation V8_FINAL : public Expression {
   Token::Value op_;
   Expression* left_;
   Expression* right_;
+  Handle<AllocationSite> allocation_site_;
 
   // TODO(rossberg): the fixed arg should probably be represented as a Constant
   // type for the RHS.

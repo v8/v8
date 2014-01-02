@@ -42,6 +42,8 @@ namespace internal {
   V(CallFunction)                        \
   V(CallConstruct)                       \
   V(BinaryOpIC)                          \
+  V(BinaryOpICWithAllocationSite)        \
+  V(BinaryOpWithAllocationSite)          \
   V(StringAdd)                           \
   V(NewStringAdd)                        \
   V(SubString)                           \
@@ -1062,7 +1064,7 @@ class KeyedArrayCallStub: public HICStub {
 };
 
 
-class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
+class BinaryOpICStub : public HydrogenCodeStub {
  public:
   BinaryOpICStub(Token::Value op, OverwriteMode mode)
       : HydrogenCodeStub(UNINITIALIZED), state_(op, mode) {}
@@ -1075,6 +1077,64 @@ class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
       Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 
   static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const V8_FINAL V8_OVERRIDE {
+    return Code::BINARY_OP_IC;
+  }
+
+  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
+    return state_.GetICState();
+  }
+
+  virtual ExtraICState GetExtraICState() V8_FINAL V8_OVERRIDE {
+    return state_.GetExtraICState();
+  }
+
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_FINAL V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  }
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
+
+  const BinaryOpIC::State& state() const { return state_; }
+
+  virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
+
+  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpIC; }
+  virtual int NotMissMinorKey() V8_FINAL V8_OVERRIDE {
+    return GetExtraICState();
+  }
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kLeft = 0;
+  static const int kRight = 1;
+
+ private:
+  static void GenerateAheadOfTime(Isolate* isolate,
+                                  const BinaryOpIC::State& state);
+
+  BinaryOpIC::State state_;
+
+  DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
+};
+
+
+// TODO(bmeurer): Merge this into the BinaryOpICStub once we have proper tail
+// call support for stubs in Hydrogen.
+class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
+ public:
+  explicit BinaryOpICWithAllocationSiteStub(const BinaryOpIC::State& state)
+      : state_(state) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
+                                       Handle<AllocationSite> allocation_site) {
+    Handle<Code> code = CodeStub::GetCodeCopyFromTemplate(isolate);
+    // Replace the placeholder oddball with the actual allocation site.
+    code->ReplaceNthObject(1, isolate->heap()->oddball_map(), *allocation_site);
+    return code;
+  }
 
   virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
     return Code::BINARY_OP_IC;
@@ -1092,26 +1152,47 @@ class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
     ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
   }
 
-  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
-
-  const BinaryOpIC::State& state() const { return state_; }
+  virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
 
   virtual void PrintState(StringStream* stream) V8_OVERRIDE;
 
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kLeft = 0;
-  static const int kRight = 1;
+  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpICWithAllocationSite; }
+  virtual int MinorKey() V8_OVERRIDE { return GetExtraICState(); }
 
  private:
   static void GenerateAheadOfTime(Isolate* isolate,
                                   const BinaryOpIC::State& state);
 
-  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpIC; }
-  virtual int NotMissMinorKey() V8_OVERRIDE { return GetExtraICState(); }
-
   BinaryOpIC::State state_;
 
-  DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
+  DISALLOW_COPY_AND_ASSIGN(BinaryOpICWithAllocationSiteStub);
+};
+
+
+class BinaryOpWithAllocationSiteStub V8_FINAL : public BinaryOpICStub {
+ public:
+  explicit BinaryOpWithAllocationSiteStub(const BinaryOpIC::State& state)
+      : BinaryOpICStub(state) {}
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const V8_FINAL V8_OVERRIDE {
+    return Code::STUB;
+  }
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
+
+  virtual Major MajorKey() V8_OVERRIDE {
+    return BinaryOpWithAllocationSite;
+  }
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kAllocationSite = 0;
+  static const int kLeft = 1;
+  static const int kRight = 2;
 };
 
 
@@ -1128,6 +1209,10 @@ class NewStringAddStub V8_FINAL : public HydrogenCodeStub {
 
   PretenureFlag pretenure_flag() const {
     return PretenureFlagBits::decode(bit_field_);
+  }
+
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
   }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;

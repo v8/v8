@@ -2398,6 +2398,11 @@ void BinaryOpIC::State::GenerateAheadOfTime(
   GENERATE(Token::ADD, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT);
   GENERATE(Token::ADD, SMI, SMI, INT32, OVERWRITE_LEFT);
   GENERATE(Token::ADD, SMI, SMI, SMI, OVERWRITE_RIGHT);
+  GENERATE(Token::ADD, STRING, SMI, STRING, NO_OVERWRITE);
+  GENERATE(Token::ADD, SMI, STRING, STRING, NO_OVERWRITE);
+  GENERATE(Token::ADD, STRING, NUMBER, STRING, NO_OVERWRITE);
+  GENERATE(Token::ADD, NUMBER, STRING, STRING, NO_OVERWRITE);
+  GENERATE(Token::ADD, STRING, STRING, STRING, NO_OVERWRITE);
   GENERATE(Token::BIT_AND, INT32, INT32, INT32, NO_OVERWRITE);
   GENERATE(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_LEFT);
   GENERATE(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_RIGHT);
@@ -2597,6 +2602,7 @@ void BinaryOpIC::State::Print(StringStream* stream) const {
   stream->Add("(%s", Token::Name(op_));
   if (mode_ == OVERWRITE_LEFT) stream->Add("_ReuseLeft");
   else if (mode_ == OVERWRITE_RIGHT) stream->Add("_ReuseRight");
+  if (CouldCreateAllocationMementos()) stream->Add("_CreateAllocationMementos");
   stream->Add(":%s*", KindToString(left_kind_));
   if (fixed_right_arg_.has_value) {
     stream->Add("%d", fixed_right_arg_.value);
@@ -2634,6 +2640,18 @@ void BinaryOpIC::State::Update(Handle<Object> left,
     if (result_kind_ < input_kind && input_kind <= NUMBER) {
       result_kind_ = input_kind;
     }
+  }
+
+  // We don't want to distinguish INT32 and NUMBER for string add (because
+  // NumberToString can't make use of this anyway).
+  if (left_kind_ == STRING && right_kind_ == INT32) {
+    ASSERT_EQ(STRING, result_kind_);
+    ASSERT_EQ(Token::ADD, op_);
+    right_kind_ = NUMBER;
+  } else if (right_kind_ == STRING && left_kind_ == INT32) {
+    ASSERT_EQ(STRING, result_kind_);
+    ASSERT_EQ(Token::ADD, op_);
+    left_kind_ = NUMBER;
   }
 
   // Reset overwrite mode unless we can actually make use of it, or may be able
@@ -2721,7 +2739,9 @@ Handle<Type> BinaryOpIC::State::KindToType(Kind kind, Isolate* isolate) {
 }
 
 
-MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
+MaybeObject* BinaryOpIC::Transition(Handle<AllocationSite> allocation_site,
+                                    Handle<Object> left,
+                                    Handle<Object> right) {
   State state(target()->extended_extra_ic_state());
 
   // Compute the actual result using the builtin for the binary operation.
@@ -2737,9 +2757,29 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   State old_state = state;
   state.Update(left, right, result);
 
-  // Install the new stub.
-  BinaryOpICStub stub(state);
-  set_target(*stub.GetCode(isolate()));
+  // Check if we have a string operation here.
+  Handle<Code> target;
+  if (!allocation_site.is_null() || state.ShouldCreateAllocationMementos()) {
+    // Setup the allocation site on-demand.
+    if (allocation_site.is_null()) {
+      allocation_site = isolate()->factory()->NewAllocationSite();
+    }
+
+    // Install the stub with an allocation site.
+    BinaryOpICWithAllocationSiteStub stub(state);
+    target = stub.GetCodeCopyFromTemplate(isolate(), allocation_site);
+
+    // Sanity check the trampoline stub.
+    ASSERT_EQ(*allocation_site, target->FindFirstAllocationSite());
+  } else {
+    // Install the generic stub.
+    BinaryOpICStub stub(state);
+    target = stub.GetCode(isolate());
+
+    // Sanity check the generic stub.
+    ASSERT_EQ(NULL, target->FindFirstAllocationSite());
+  }
+  set_target(*target);
 
   if (FLAG_trace_ic) {
     char buffer[150];
@@ -2750,9 +2790,12 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
     old_state.Print(&stream);
     stream.Add(" => ");
     state.Print(&stream);
-    stream.Add(" @ %p <- ", static_cast<void*>(*target()));
+    stream.Add(" @ %p <- ", static_cast<void*>(*target));
     stream.OutputToStdOut();
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
+    if (!allocation_site.is_null()) {
+      PrintF(" using allocation site %p", static_cast<void*>(*allocation_site));
+    }
     PrintF("]\n");
   }
 
@@ -2769,10 +2812,25 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
 
 RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss) {
   HandleScope scope(isolate);
+  ASSERT_EQ(2, args.length());
   Handle<Object> left = args.at<Object>(BinaryOpICStub::kLeft);
   Handle<Object> right = args.at<Object>(BinaryOpICStub::kRight);
   BinaryOpIC ic(isolate);
-  return ic.Transition(left, right);
+  return ic.Transition(Handle<AllocationSite>::null(), left, right);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_MissWithAllocationSite) {
+  HandleScope scope(isolate);
+  ASSERT_EQ(3, args.length());
+  Handle<AllocationSite> allocation_site = args.at<AllocationSite>(
+      BinaryOpWithAllocationSiteStub::kAllocationSite);
+  Handle<Object> left = args.at<Object>(
+      BinaryOpWithAllocationSiteStub::kLeft);
+  Handle<Object> right = args.at<Object>(
+      BinaryOpWithAllocationSiteStub::kRight);
+  BinaryOpIC ic(isolate);
+  return ic.Transition(allocation_site, left, right);
 }
 
 
