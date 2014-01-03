@@ -201,7 +201,7 @@ THREADED_TEST(AccessorIC) {
                            v8::FunctionTemplate::New(isolate, XSetter));
   x_holder = obj->NewInstance();
   context->Global()->Set(v8_str("holder"), x_holder);
-  x_receiver = v8::Object::New();
+  x_receiver = v8::Object::New(isolate);
   context->Global()->Set(v8_str("obj"), x_receiver);
   v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(CompileRun(
     "obj.__proto__ = holder;"
@@ -222,8 +222,8 @@ THREADED_TEST(AccessorIC) {
     "result"));
   CHECK_EQ(40, array->Length());
   for (int i = 0; i < 40; i++) {
-    v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i), entry);
+    v8::Handle<Value> entry = array->Get(v8::Integer::New(isolate, i));
+    CHECK_EQ(v8::Integer::New(isolate, i), entry);
   }
 }
 
@@ -524,7 +524,7 @@ static void AllocateHandles(Local<String> name,
   for (int i = 0; i < i::kHandleBlockSize + 1; i++) {
     v8::Local<v8::Value>::New(info.GetIsolate(), name);
   }
-  info.GetReturnValue().Set(v8::Integer::New(100));
+  info.GetReturnValue().Set(v8::Integer::New(info.GetIsolate(), 100));
 }
 
 

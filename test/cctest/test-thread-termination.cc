@@ -208,9 +208,9 @@ void TerminateOrReturnObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::V8::TerminateExecution(args.GetIsolate());
     return;
   }
-  v8::Local<v8::Object> result = v8::Object::New();
+  v8::Local<v8::Object> result = v8::Object::New(args.GetIsolate());
   result->Set(v8::String::NewFromUtf8(args.GetIsolate(), "x"),
-              v8::Integer::New(42));
+              v8::Integer::New(args.GetIsolate(), 42));
   args.GetReturnValue().Set(result);
 }
 
