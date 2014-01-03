@@ -472,7 +472,7 @@ TEST(HeapSnapshotInternalReferences) {
   v8::Handle<v8::Object> global_proxy = env->Global();
   v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(2, global->InternalFieldCount());
-  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  v8::Local<v8::Object> obj = v8::Object::New();
   global->SetInternalField(0, v8_num(17));
   global->SetInternalField(1, obj);
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
@@ -1354,7 +1354,7 @@ class GraphWithImplicitRefs {
     instance_ = this;
     isolate_ = (*env)->GetIsolate();
     for (int i = 0; i < kObjectsCount; i++) {
-      objects_[i].Reset(isolate_, v8::Object::New(isolate_));
+      objects_[i].Reset(isolate_, v8::Object::New());
     }
     (*env)->Global()->Set(v8_str("root_object"),
                           v8::Local<v8::Value>::New(isolate_, objects_[0]));
@@ -1821,8 +1821,7 @@ TEST(WeakGlobalHandle) {
   CHECK(!HasWeakGlobalHandle());
 
   v8::Persistent<v8::Object>* handle =
-      new v8::Persistent<v8::Object>(env->GetIsolate(),
-                                     v8::Object::New(env->GetIsolate()));
+      new v8::Persistent<v8::Object>(env->GetIsolate(), v8::Object::New());
   handle->SetWeak(handle, PersistentHandleCallback);
 
   CHECK(HasWeakGlobalHandle());
@@ -1996,9 +1995,8 @@ TEST(ManyLocalsInSharedContext) {
 
 TEST(AllocationSitesAreVisible) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   CompileRun(
       "fun = function () { var a = [3, 2, 1]; return a; }\n"
       "fun();");
@@ -2041,12 +2039,9 @@ TEST(AllocationSitesAreVisible) {
   v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(array_val);
   // Verify the array is "a" in the code above.
   CHECK_EQ(3, array->Length());
-  CHECK_EQ(v8::Integer::New(isolate, 3),
-           array->Get(v8::Integer::New(isolate, 0)));
-  CHECK_EQ(v8::Integer::New(isolate, 2),
-           array->Get(v8::Integer::New(isolate, 1)));
-  CHECK_EQ(v8::Integer::New(isolate, 1),
-           array->Get(v8::Integer::New(isolate, 2)));
+  CHECK_EQ(v8::Integer::New(3), array->Get(v8::Integer::New(0)));
+  CHECK_EQ(v8::Integer::New(2), array->Get(v8::Integer::New(1)));
+  CHECK_EQ(v8::Integer::New(1), array->Get(v8::Integer::New(2)));
 }
 
 

@@ -202,7 +202,7 @@ class ExecArgs {
     exec_args_[0] = c_arg;
     int i = 1;
     for (unsigned j = 0; j < command_args->Length(); i++, j++) {
-      Handle<Value> arg(command_args->Get(Integer::New(isolate, j)));
+      Handle<Value> arg(command_args->Get(Integer::New(j)));
       String::Utf8Value utf8_arg(arg);
       if (*utf8_arg == NULL) {
         exec_args_[i] = NULL;  // Consistent state for destructor.
@@ -314,7 +314,7 @@ static Handle<Value> GetStdout(Isolate* isolate,
                                struct timeval& start_time,
                                int read_timeout,
                                int total_timeout) {
-  Handle<String> accumulator = String::Empty(isolate);
+  Handle<String> accumulator = String::Empty();
 
   int fullness = 0;
   static const int kStdoutReadBufferSize = 4096;

@@ -334,8 +334,8 @@ TEST(EternalHandles) {
   for (int i = 0; i < kArrayLength; i++) {
     indices[i] = -1;
     HandleScope scope(isolate);
-    v8::Local<v8::Object> object = v8::Object::New(v8_isolate);
-    object->Set(i, v8::Integer::New(v8_isolate, i));
+    v8::Local<v8::Object> object = v8::Object::New();
+    object->Set(i, v8::Integer::New(i, v8_isolate));
     // Create with internal api
     eternal_handles->Create(
         isolate, *v8::Utils::OpenHandle(*object), &indices[i]);
@@ -370,7 +370,7 @@ TEST(EternalHandles) {
   // Create an eternal via the constructor
   {
     HandleScope scope(isolate);
-    v8::Local<v8::Object> object = v8::Object::New(v8_isolate);
+    v8::Local<v8::Object> object = v8::Object::New();
     v8::Eternal<v8::Object> eternal(v8_isolate, object);
     CHECK(!eternal.IsEmpty());
     CHECK(object == eternal.Get(v8_isolate));
