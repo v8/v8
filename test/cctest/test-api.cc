@@ -10121,7 +10121,8 @@ THREADED_TEST(Regress269562) {
 
   v8::Local<v8::Symbol> sym = v8::Symbol::New(context->GetIsolate(), "s1");
   o1->Set(sym, v8_num(3));
-  o1->SetHiddenValue(v8_str("h1"), v8::Integer::New(2013));
+  o1->SetHiddenValue(v8_str("h1"),
+                     v8::Integer::New(context->GetIsolate(), 2013));
 
   // Call the runtime version of GetLocalPropertyNames() on
   // the natively created object through JavaScript.
