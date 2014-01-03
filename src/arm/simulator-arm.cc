@@ -2733,7 +2733,11 @@ void Simulator::DecodeType3(Instruction* instr) {
                int32_t rs_val = get_register(rs);
                int32_t ret_val = 0;
                ASSERT(rs_val != 0);
-               ret_val = rm_val/rs_val;
+               if ((rm_val == kMinInt) && (rs_val == -1)) {
+                 ret_val = kMinInt;
+               } else {
+                 ret_val = rm_val / rs_val;
+               }
                set_register(rn, ret_val);
                return;
              }

@@ -995,6 +995,35 @@ class HIfContinuation V8_FINAL {
 };
 
 
+class HAllocationMode V8_FINAL BASE_EMBEDDED {
+ public:
+  explicit HAllocationMode(Handle<AllocationSite> feedback_site)
+      : current_site_(NULL), feedback_site_(feedback_site),
+        pretenure_flag_(NOT_TENURED) {}
+  explicit HAllocationMode(HValue* current_site)
+      : current_site_(current_site), pretenure_flag_(NOT_TENURED) {}
+  explicit HAllocationMode(PretenureFlag pretenure_flag)
+      : current_site_(NULL), pretenure_flag_(pretenure_flag) {}
+
+  HValue* current_site() const { return current_site_; }
+  Handle<AllocationSite> feedback_site() const { return feedback_site_; }
+
+  bool CreateAllocationMementos() const V8_WARN_UNUSED_RESULT {
+    return current_site() != NULL;
+  }
+
+  PretenureFlag GetPretenureMode() const V8_WARN_UNUSED_RESULT {
+    if (!feedback_site().is_null()) return feedback_site()->GetPretenureMode();
+    return pretenure_flag_;
+  }
+
+ private:
+  HValue* current_site_;
+  Handle<AllocationSite> feedback_site_;
+  PretenureFlag pretenure_flag_;
+};
+
+
 class HGraphBuilder {
  public:
   explicit HGraphBuilder(CompilationInfo* info)
@@ -1291,9 +1320,18 @@ class HGraphBuilder {
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
                                               HValue* key);
 
-  // Computes the size for a sequential string of the given length and encoding.
-  HValue* BuildSeqStringSizeFor(HValue* length,
-                                String::Encoding encoding);
+  // Allocates a new object according with the given allocation properties.
+  HAllocate* BuildAllocate(HValue* object_size,
+                           HType type,
+                           InstanceType instance_type,
+                           HAllocationMode allocation_mode);
+  // Computes the sum of two string lengths, taking care of overflow handling.
+  HValue* BuildAddStringLengths(HValue* left_length, HValue* right_length);
+  // Creates a cons string using the two input strings.
+  HValue* BuildCreateConsString(HValue* length,
+                                HValue* left,
+                                HValue* right,
+                                HAllocationMode allocation_mode);
   // Copies characters from one sequential string to another.
   void BuildCopySeqStringChars(HValue* src,
                                HValue* src_offset,
@@ -1305,11 +1343,11 @@ class HGraphBuilder {
   // Both operands are non-empty strings.
   HValue* BuildUncheckedStringAdd(HValue* left,
                                   HValue* right,
-                                  PretenureFlag pretenure_flag);
-  // Both operands are strings.
+                                  HAllocationMode allocation_mode);
+  // Add two strings using allocation mode, validating type feedback.
   HValue* BuildStringAdd(HValue* left,
                          HValue* right,
-                         PretenureFlag pretenure_flag);
+                         HAllocationMode allocation_mode);
 
   HInstruction* BuildUncheckedMonomorphicElementAccess(
       HValue* checked_object,
@@ -1332,7 +1370,14 @@ class HGraphBuilder {
 
   HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
   HInstruction* AddLoadNamedField(HValue* object, HObjectAccess access);
-  HInstruction* BuildLoadStringLength(HValue* object, HValue* checked_value);
+  HInstruction* AddLoadStringInstanceType(HValue* string);
+  HInstruction* AddLoadStringLength(HValue* string);
+  HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
+    HStoreNamedField* store_map = Add<HStoreNamedField>(
+        object, HObjectAccess::ForMap(), map);
+    store_map->SkipWriteBarrier();
+    return store_map;
+  }
   HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map> map);
   HStoreNamedField* AddStoreMapConstantNoWriteBarrier(HValue* object,
                                                       Handle<Map> map) {
@@ -1353,7 +1398,8 @@ class HGraphBuilder {
                                Handle<Type> left_type,
                                Handle<Type> right_type,
                                Handle<Type> result_type,
-                               Maybe<int> fixed_right_arg);
+                               Maybe<int> fixed_right_arg,
+                               HAllocationMode allocation_mode);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 

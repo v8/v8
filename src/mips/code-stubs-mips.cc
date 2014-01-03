@@ -328,6 +328,29 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 }
 
 
+void BinaryOpICStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a1, a0 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
+}
+
+
+void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a2, a1, a0 };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite);
+}
+
+
 void NewStringAddStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -1286,18 +1309,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 }
 
 
-void BinaryOpICStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1, a0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
-}
-
-
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register base = a1;
   const Register exponent = a2;
@@ -1528,6 +1539,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   BinaryOpICStub::GenerateAheadOfTime(isolate);
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
+  BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -4306,6 +4318,35 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
+void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a1    : left
+  //  -- a0    : right
+  //  -- ra    : return address
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  // Load a2 with the allocation site. We stick an undefined dummy value here
+  // and replace it with the real allocation site later when we instantiate this
+  // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
+  __ li(a2, handle(isolate->heap()->undefined_value()));
+
+  // Make sure that we actually patched the allocation site.
+  if (FLAG_debug_code) {
+    __ And(at, a2, Operand(kSmiTagMask));
+    __ Assert(ne, kExpectedAllocationSite, at, Operand(zero_reg));
+    __ lw(t0, FieldMemOperand(a2, HeapObject::kMapOffset));
+    __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+    __ Assert(eq, kExpectedAllocationSite, t0, Operand(at));
+  }
+
+  // Tail call into the stub that handles binary operations with allocation
+  // sites.
+  BinaryOpWithAllocationSiteStub stub(state_);
+  __ TailCallStub(&stub);
+}
+
+
 void StringAddStub::Generate(MacroAssembler* masm) {
   Label call_runtime, call_builtin;
   Builtins::JavaScript builtin_id = Builtins::ADD;
@@ -5683,12 +5724,9 @@ static void CreateArrayDispatch(MacroAssembler* masm,
     int last_index = GetSequenceIndexFromFastElementsKind(
         TERMINAL_FAST_ELEMENTS_KIND);
     for (int i = 0; i <= last_index; ++i) {
-      Label next;
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-      __ Branch(&next, ne, a3, Operand(kind));
       T stub(kind);
-      __ TailCallStub(&stub);
-      __ bind(&next);
+      __ TailCallStub(&stub, eq, a3, Operand(kind));
     }
 
     // If we reached this point there is a problem.
@@ -5764,12 +5802,9 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     int last_index = GetSequenceIndexFromFastElementsKind(
         TERMINAL_FAST_ELEMENTS_KIND);
     for (int i = 0; i <= last_index; ++i) {
-      Label next;
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-      __ Branch(&next, ne, a3, Operand(kind));
       ArraySingleArgumentConstructorStub stub(kind);
-      __ TailCallStub(&stub);
-      __ bind(&next);
+      __ TailCallStub(&stub, eq, a3, Operand(kind));
     }
 
     // If we reached this point there is a problem.
@@ -5911,34 +5946,25 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
 void InternalArrayConstructorStub::GenerateCase(
     MacroAssembler* masm, ElementsKind kind) {
-  Label not_zero_case, not_one_case;
-  Label normal_sequence;
 
-  __ Branch(&not_zero_case, ne, a0, Operand(zero_reg));
   InternalArrayNoArgumentConstructorStub stub0(kind);
-  __ TailCallStub(&stub0);
+  __ TailCallStub(&stub0, lo, a0, Operand(1));
 
-  __ bind(&not_zero_case);
-  __ Branch(&not_one_case, gt, a0, Operand(1));
+  InternalArrayNArgumentsConstructorStub stubN(kind);
+  __ TailCallStub(&stubN, hi, a0, Operand(1));
 
   if (IsFastPackedElementsKind(kind)) {
     // We might need to create a holey array
     // look at the first argument.
     __ lw(at, MemOperand(sp, 0));
-    __ Branch(&normal_sequence, eq, at, Operand(zero_reg));
 
     InternalArraySingleArgumentConstructorStub
         stub1_holey(GetHoleyElementsKind(kind));
-    __ TailCallStub(&stub1_holey);
+    __ TailCallStub(&stub1_holey, ne, at, Operand(zero_reg));
   }
 
-  __ bind(&normal_sequence);
   InternalArraySingleArgumentConstructorStub stub1(kind);
   __ TailCallStub(&stub1);
-
-  __ bind(&not_one_case);
-  InternalArrayNArgumentsConstructorStub stubN(kind);
-  __ TailCallStub(&stubN);
 }
 
 

@@ -6992,45 +6992,55 @@ class HStringAdd V8_FINAL : public HBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right,
-                           StringAddFlags flags = STRING_ADD_CHECK_NONE);
+                           PretenureFlag pretenure_flag = NOT_TENURED,
+                           StringAddFlags flags = STRING_ADD_CHECK_BOTH,
+                           Handle<AllocationSite> allocation_site =
+                               Handle<AllocationSite>::null());
 
   StringAddFlags flags() const { return flags_; }
+  PretenureFlag pretenure_flag() const { return pretenure_flag_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
   DECLARE_CONCRETE_INSTRUCTION(StringAdd)
 
  protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    return flags_ == HStringAdd::cast(other)->flags_ &&
+        pretenure_flag_ == HStringAdd::cast(other)->pretenure_flag_;
+  }
 
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
-      : HBinaryOperation(context, left, right, HType::String()), flags_(flags) {
+  HStringAdd(HValue* context,
+             HValue* left,
+             HValue* right,
+             PretenureFlag pretenure_flag,
+             StringAddFlags flags,
+             Handle<AllocationSite> allocation_site)
+      : HBinaryOperation(context, left, right, HType::String()),
+        flags_(flags), pretenure_flag_(pretenure_flag) {
     set_representation(Representation::Tagged());
-    if (MightHaveSideEffects()) {
-      SetAllSideEffects();
-    } else {
-      SetFlag(kUseGVN);
-      SetGVNFlag(kDependsOnMaps);
-      SetGVNFlag(kChangesNewSpacePromotion);
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kChangesNewSpacePromotion);
+    if (FLAG_trace_pretenuring) {
+      PrintF("HStringAdd with AllocationSite %p %s\n",
+             allocation_site.is_null()
+                 ? static_cast<void*>(NULL)
+                 : static_cast<void*>(*allocation_site),
+             pretenure_flag == TENURED ? "tenured" : "not tenured");
     }
   }
 
-  bool MightHaveSideEffects() const {
-    return flags_ != STRING_ADD_CHECK_NONE &&
-      (left()->ToStringCanBeObserved() || right()->ToStringCanBeObserved());
-  }
-
   // No side-effects except possible allocation:
-  // NOTE: this instruction does not call ToString() on its inputs, when flags_
-  // is set to STRING_ADD_CHECK_NONE.
-  virtual bool IsDeletable() const V8_OVERRIDE {
-    return !MightHaveSideEffects();
-  }
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
   const StringAddFlags flags_;
+  const PretenureFlag pretenure_flag_;
 };
 
 

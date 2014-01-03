@@ -1408,7 +1408,11 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow) &&
+      (!CpuFeatures::IsSupported(SUDIV) ||
+       !instr->hydrogen()->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
+    // We don't need to check for overflow when truncating with sdiv
+    // support because, on ARM, sdiv kMinInt, -1 -> kMinInt.
     __ cmp(left, Operand(kMinInt));
     __ cmp(right, Operand(-1), eq);
     DeoptimizeIf(eq, instr->environment());
