@@ -522,7 +522,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   int res = f();
-  args.GetReturnValue().Set(v8::Integer::New(res));
+  args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
 
 

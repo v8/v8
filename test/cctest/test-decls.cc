@@ -96,6 +96,8 @@ class DeclarationContext {
   static void HandleQuery(Local<String> key,
                           const v8::PropertyCallbackInfo<v8::Integer>& info);
 
+  v8::Isolate* isolate() const { return CcTest::isolate(); }
+
  private:
   bool is_initialized_;
   Persistent<Context> context_;
@@ -244,7 +246,7 @@ TEST(Unknown) {
                   1,  // access
                   2,  // declaration + initialization
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 
   { DeclarationContext context;
@@ -278,7 +280,7 @@ TEST(Unknown) {
 class PresentPropertyContext: public DeclarationContext {
  protected:
   virtual v8::Handle<Integer> Query(Local<String> key) {
-    return Integer::New(v8::None);
+    return Integer::New(isolate(), v8::None);
   }
 };
 
@@ -300,7 +302,7 @@ TEST(Present) {
                   1,  // access
                   1,  // initialization
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 
   { PresentPropertyContext context;
@@ -324,7 +326,7 @@ TEST(Present) {
                   1,  // access
                   1,  // initialization
                   1,  // (re-)declaration
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 }
 
@@ -356,7 +358,7 @@ TEST(Absent) {
                   1,  // access
                   2,  // declaration + initialization
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(isolate, 0));
   }
 
   { AbsentPropertyContext context;
@@ -416,7 +418,7 @@ class AppearingPropertyContext: public DeclarationContext {
         // Return that the property is present so we only get the
         // setter called when initializing with a value.
         state_ = UNKNOWN;
-        return Integer::New(v8::None);
+        return Integer::New(isolate(), v8::None);
       default:
         CHECK(state_ == UNKNOWN);
         break;
@@ -447,7 +449,7 @@ TEST(Appearing) {
                   1,  // access
                   2,  // declaration + initialization
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 
   { AppearingPropertyContext context;
@@ -502,7 +504,7 @@ class ReappearingPropertyContext: public DeclarationContext {
         // Ignore the second declaration by returning
         // that the property is already there.
         state_ = INITIALIZE;
-        return Integer::New(v8::None);
+        return Integer::New(isolate(), v8::None);
       case INITIALIZE:
         // Force an initialization by returning that
         // the property is absent. This will make sure
@@ -539,10 +541,12 @@ TEST(Reappearing) {
 
 
 class ExistsInPrototypeContext: public DeclarationContext {
+ public:
+  ExistsInPrototypeContext() { InitializeIfNeeded(); }
  protected:
   virtual v8::Handle<Integer> Query(Local<String> key) {
     // Let it seem that the property exists in the prototype object.
-    return Integer::New(v8::None);
+    return Integer::New(isolate(), v8::None);
   }
 
   // Use the prototype as the holder for the interceptors.
@@ -563,7 +567,7 @@ TEST(ExistsInPrototype) {
                   0,
                   0,
                   0,
-                  EXPECT_RESULT, Number::New(87));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 87));
   }
 
   { ExistsInPrototypeContext context;
@@ -579,7 +583,7 @@ TEST(ExistsInPrototype) {
                   0,
                   0,
                   0,
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 
   { ExistsInPrototypeContext context;
@@ -595,7 +599,7 @@ TEST(ExistsInPrototype) {
                   0,
                   0,
                   0,
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 }
 
@@ -641,7 +645,7 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
  protected:
   virtual v8::Handle<Integer> Query(Local<String> key) {
     // Let it seem that the property exists in the hidden prototype object.
-    return Integer::New(v8::None);
+    return Integer::New(isolate(), v8::None);
   }
 
   // Install the hidden prototype after the global object has been created.
@@ -680,7 +684,7 @@ TEST(ExistsInHiddenPrototype) {
                   1,  // access
                   1,  // initialization
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 
   { ExistsInHiddenPrototypeContext context;
@@ -706,7 +710,7 @@ TEST(ExistsInHiddenPrototype) {
                   0,
                   0,
                   1,  // (re-)declaration
-                  EXPECT_RESULT, Number::New(0));
+                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 }
 
@@ -759,40 +763,41 @@ class SimpleContext {
 
 
 TEST(CrossScriptReferences) {
-  HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
 
   { SimpleContext context;
     context.Check("var x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
+                  EXPECT_RESULT, Number::New(isolate, 2));
     context.Check("const x = 3; x",
-                  EXPECT_RESULT, Number::New(3));
+                  EXPECT_RESULT, Number::New(isolate, 3));
     context.Check("const x = 4; x",
-                  EXPECT_RESULT, Number::New(4));
+                  EXPECT_RESULT, Number::New(isolate, 4));
     context.Check("x = 5; x",
-                  EXPECT_RESULT, Number::New(5));
+                  EXPECT_RESULT, Number::New(isolate, 5));
     context.Check("var x = 6; x",
-                  EXPECT_RESULT, Number::New(6));
+                  EXPECT_RESULT, Number::New(isolate, 6));
     context.Check("this.x",
-                  EXPECT_RESULT, Number::New(6));
+                  EXPECT_RESULT, Number::New(isolate, 6));
     context.Check("function x() { return 7 }; x()",
-                  EXPECT_RESULT, Number::New(7));
+                  EXPECT_RESULT, Number::New(isolate, 7));
   }
 
   { SimpleContext context;
     context.Check("const x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 2; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("const x = 3; x",
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("x = 4; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 5; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("this.x",
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("function x() { return 7 }; x",
                   EXPECT_EXCEPTION);
   }
@@ -804,7 +809,8 @@ TEST(CrossScriptReferencesHarmony) {
   i::FLAG_harmony_scoping = true;
   i::FLAG_harmony_modules = true;
 
-  HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
 
   const char* decs[] = {
     "var x = 1; x", "x", "this.x",
@@ -817,12 +823,14 @@ TEST(CrossScriptReferencesHarmony) {
 
   for (int i = 0; decs[i] != NULL; i += 3) {
     SimpleContext context;
-    context.Check(decs[i], EXPECT_RESULT, Number::New(1));
-    context.Check(decs[i+1], EXPECT_RESULT, Number::New(1));
+    context.Check(decs[i], EXPECT_RESULT, Number::New(isolate, 1));
+    context.Check(decs[i+1], EXPECT_RESULT, Number::New(isolate, 1));
     // TODO(rossberg): The current ES6 draft spec does not reflect lexical
     // bindings on the global object. However, this will probably change, in
     // which case we reactivate the following test.
-    if (i/3 < 2) context.Check(decs[i+2], EXPECT_RESULT, Number::New(1));
+    if (i/3 < 2) {
+      context.Check(decs[i+2], EXPECT_RESULT, Number::New(isolate, 1));
+    }
   }
 }
 
@@ -854,12 +862,14 @@ TEST(CrossScriptConflicts) {
   for (int i = 0; firsts[i] != NULL; ++i) {
     for (int j = 0; seconds[j] != NULL; ++j) {
       SimpleContext context;
-      context.Check(firsts[i], EXPECT_RESULT, Number::New(1));
+      context.Check(firsts[i], EXPECT_RESULT,
+                    Number::New(CcTest::isolate(), 1));
       // TODO(rossberg): All tests should actually be errors in Harmony,
       // but we currently do not detect the cases where the first declaration
       // is not lexical.
       context.Check(seconds[j],
-                    i < 2 ? EXPECT_RESULT : EXPECT_ERROR, Number::New(2));
+                    i < 2 ? EXPECT_RESULT : EXPECT_ERROR,
+                    Number::New(CcTest::isolate(), 2));
     }
   }
 }

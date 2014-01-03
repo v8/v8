@@ -289,7 +289,7 @@ class LocalContext {
 };
 
 static inline v8::Local<v8::Value> v8_num(double x) {
-  return v8::Number::New(x);
+  return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 
 
@@ -317,8 +317,8 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::ScriptOrigin origin(v8::String::NewFromUtf8(isolate, origin_url),
-                          v8::Integer::New(line_number),
-                          v8::Integer::New(column_number));
+                          v8::Integer::New(isolate, line_number),
+                          v8::Integer::New(isolate, column_number));
   return v8::Script::Compile(v8::String::NewFromUtf8(isolate, source), &origin)
       ->Run();
 }

@@ -1668,7 +1668,6 @@ class V8_EXPORT String : public Primitive {
   /**
    * A zero length string.
    */
-  static v8::Local<v8::String> Empty();
   V8_INLINE static v8::Local<v8::String> Empty(Isolate* isolate);
 
   /**
@@ -1963,8 +1962,6 @@ class V8_EXPORT Number : public Primitive {
  public:
   double Value() const;
   static Local<Number> New(Isolate* isolate, double value);
-  // Will be deprecated soon.
-  static Local<Number> New(double value);
   V8_INLINE static Number* Cast(v8::Value* obj);
  private:
   Number();
@@ -1979,11 +1976,6 @@ class V8_EXPORT Integer : public Number {
  public:
   static Local<Integer> New(Isolate* isolate, int32_t value);
   static Local<Integer> NewFromUnsigned(Isolate* isolate, uint32_t value);
-  // Will be deprecated soon.
-  static Local<Integer> New(int32_t value, Isolate*);
-  static Local<Integer> NewFromUnsigned(uint32_t value, Isolate*);
-  static Local<Integer> New(int32_t value);
-  static Local<Integer> NewFromUnsigned(uint32_t value);
   int64_t Value() const;
   V8_INLINE static Integer* Cast(v8::Value* obj);
  private:
@@ -2337,8 +2329,7 @@ class V8_EXPORT Object : public Value {
   Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
 
   static Local<Object> New(Isolate* isolate);
-  // Will be deprecated soon.
-  static Local<Object> New();
+
   V8_INLINE static Object* Cast(Value* obj);
 
  private:
@@ -3349,12 +3340,6 @@ class V8_EXPORT FunctionTemplate : public Template {
   /** Creates a function template.*/
   static Local<FunctionTemplate> New(
       Isolate* isolate,
-      FunctionCallback callback = 0,
-      Handle<Value> data = Handle<Value>(),
-      Handle<Signature> signature = Handle<Signature>(),
-      int length = 0);
-  // Will be deprecated soon.
-  static Local<FunctionTemplate> New(
       FunctionCallback callback = 0,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
@@ -5798,7 +5783,7 @@ void ReturnValue<T>::Set(int32_t i) {
     *value_ = I::IntToSmi(i);
     return;
   }
-  Set(Integer::New(i, GetIsolate()));
+  Set(Integer::New(GetIsolate(), i));
 }
 
 template<typename T>
@@ -5810,7 +5795,7 @@ void ReturnValue<T>::Set(uint32_t i) {
     Set(static_cast<int32_t>(i));
     return;
   }
-  Set(Integer::NewFromUnsigned(i, GetIsolate()));
+  Set(Integer::NewFromUnsigned(GetIsolate(), i));
 }
 
 template<typename T>
