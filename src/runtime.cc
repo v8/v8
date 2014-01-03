@@ -5801,32 +5801,55 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
 
   // Get the property names.
   jsproto = obj;
-  int proto_with_hidden_properties = 0;
   int next_copy_index = 0;
+  int hidden_strings = 0;
   for (int i = 0; i < length; i++) {
     jsproto->GetLocalPropertyNames(*names, next_copy_index, filter);
+    if (i > 0) {
+      // Names from hidden prototypes may already have been added
+      // for inherited function template instances. Count the duplicates
+      // and stub them out; the final copy pass at the end ignores holes.
+      for (int j = next_copy_index;
+           j < next_copy_index + local_property_count[i];
+           j++) {
+        Object* name_from_hidden_proto = names->get(j);
+        for (int k = 0; k < next_copy_index; k++) {
+          if (names->get(k) != isolate->heap()->hidden_string()) {
+            Object* name = names->get(k);
+            if (name_from_hidden_proto == name) {
+              names->set(j, isolate->heap()->hidden_string());
+              hidden_strings++;
+              break;
+            }
+          }
+        }
+      }
+    }
     next_copy_index += local_property_count[i];
     if (jsproto->HasHiddenProperties()) {
-      proto_with_hidden_properties++;
+      hidden_strings++;
     }
     if (i < length - 1) {
       jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
     }
   }
 
-  // Filter out name of hidden properties object.
-  if (proto_with_hidden_properties > 0) {
+  // Filter out name of hidden properties object and
+  // hidden prototype duplicates.
+  if (hidden_strings > 0) {
     Handle<FixedArray> old_names = names;
     names = isolate->factory()->NewFixedArray(
-        names->length() - proto_with_hidden_properties);
+        names->length() - hidden_strings);
     int dest_pos = 0;
     for (int i = 0; i < total_property_count; i++) {
       Object* name = old_names->get(i);
       if (name == isolate->heap()->hidden_string()) {
+        hidden_strings--;
         continue;
       }
       names->set(dest_pos++, name);
     }
+    ASSERT_EQ(0, hidden_strings);
   }
 
   return *isolate->factory()->NewJSArrayWithElements(names);

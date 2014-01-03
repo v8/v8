@@ -10063,6 +10063,60 @@ THREADED_TEST(Regress91517) {
 }
 
 
+// Getting property names of an object with a hidden and inherited
+// prototype should not duplicate the accessor properties inherited.
+THREADED_TEST(Regress269562) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  v8::HandleScope handle_scope(context->GetIsolate());
+
+  Local<v8::FunctionTemplate> t1 =
+      v8::FunctionTemplate::New(context->GetIsolate());
+  t1->SetHiddenPrototype(true);
+
+  Local<v8::ObjectTemplate> i1 = t1->InstanceTemplate();
+  i1->SetAccessor(v8_str("foo"),
+                  SimpleAccessorGetter, SimpleAccessorSetter);
+  i1->SetAccessor(v8_str("bar"),
+                  SimpleAccessorGetter, SimpleAccessorSetter);
+  i1->SetAccessor(v8_str("baz"),
+                  SimpleAccessorGetter, SimpleAccessorSetter);
+  i1->Set(v8_str("n1"), v8_num(1));
+  i1->Set(v8_str("n2"), v8_num(2));
+
+  Local<v8::Object> o1 = t1->GetFunction()->NewInstance();
+  Local<v8::FunctionTemplate> t2 =
+      v8::FunctionTemplate::New(context->GetIsolate());
+  t2->SetHiddenPrototype(true);
+
+  // Inherit from t1 and mark prototype as hidden.
+  t2->Inherit(t1);
+  t2->InstanceTemplate()->Set(v8_str("mine"), v8_num(4));
+
+  Local<v8::Object> o2 = t2->GetFunction()->NewInstance();
+  CHECK(o2->SetPrototype(o1));
+
+  v8::Local<v8::Symbol> sym = v8::Symbol::New(context->GetIsolate(), "s1");
+  o1->Set(sym, v8_num(3));
+  o1->SetHiddenValue(v8_str("h1"), v8::Integer::New(2013));
+
+  // Call the runtime version of GetLocalPropertyNames() on
+  // the natively created object through JavaScript.
+  context->Global()->Set(v8_str("obj"), o2);
+  context->Global()->Set(v8_str("sym"), sym);
+  CompileRun("var names = %GetLocalPropertyNames(obj, true);");
+
+  ExpectInt32("names.length", 7);
+  ExpectTrue("names.indexOf(\"foo\") >= 0");
+  ExpectTrue("names.indexOf(\"bar\") >= 0");
+  ExpectTrue("names.indexOf(\"baz\") >= 0");
+  ExpectTrue("names.indexOf(\"n1\") >= 0");
+  ExpectTrue("names.indexOf(\"n2\") >= 0");
+  ExpectTrue("names.indexOf(sym) >= 0");
+  ExpectTrue("names.indexOf(\"mine\") >= 0");
+}
+
+
 THREADED_TEST(FunctionReadOnlyPrototype) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
