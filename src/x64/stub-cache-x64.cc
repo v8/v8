@@ -2378,10 +2378,21 @@ void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
 }
 
 
-void CallStubCompiler::PatchGlobalProxy(Handle<Object> object) {
+void CallStubCompiler::PatchGlobalProxy(Handle<Object> object,
+                                        Handle<JSFunction> function) {
   if (object->IsGlobalObject()) {
     StackArgumentsAccessor args(rsp, arguments());
-    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
+    __ MoveHeapObject(rdx, handle(function->context()->global_proxy()));
+    __ movq(args.GetReceiverOperand(), rdx);
+  }
+}
+
+
+void CallStubCompiler::PatchGlobalProxy(Handle<Object> object,
+                                        Register function) {
+  if (object->IsGlobalObject()) {
+    FetchGlobalProxy(masm(), rdx, function);
+    StackArgumentsAccessor args(rsp, arguments().immediate());
     __ movq(args.GetReceiverOperand(), rdx);
   }
 }
@@ -2475,7 +2486,7 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
   GenerateFunctionCheck(function, rbx, miss);
 
   if (!function.is(rdi)) __ movq(rdi, function);
-  PatchGlobalProxy(object);
+  PatchGlobalProxy(object, function);
 
   // Invoke the function.
   __ InvokeFunction(rdi, arguments(), JUMP_FUNCTION,
@@ -2586,6 +2597,15 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
 #undef __
 #define __ ACCESS_MASM(masm)
+
+
+void CallStubCompiler::FetchGlobalProxy(MacroAssembler* masm,
+                                        Register target,
+                                        Register function) {
+  __ movq(target, FieldOperand(function, JSFunction::kContextOffset));
+  __ movq(target, ContextOperand(target, Context::GLOBAL_OBJECT_INDEX));
+  __ movq(target, FieldOperand(target, GlobalObject::kGlobalReceiverOffset));
+}
 
 
 void StoreStubCompiler::GenerateStoreViaSetter(
