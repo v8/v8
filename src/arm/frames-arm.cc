@@ -56,6 +56,13 @@ Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
 }
 
 
+Object*& ExitFrame::constant_pool_slot() const {
+  ASSERT(FLAG_enable_ool_constant_pool);
+  const int offset = ExitFrameConstants::kConstantPoolOffset;
+  return Memory::Object_at(fp() + offset);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_ARM

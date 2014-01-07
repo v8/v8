@@ -9460,7 +9460,7 @@ void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
   if (count_of_ptr_entries() > 0) {
     int first_ptr_offset = OffsetOfElementAt(first_ptr_index());
     int last_ptr_offset =
-        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries());
+        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries() - 1);
     v->VisitPointers(
         HeapObject::RawField(this, first_ptr_offset),
         HeapObject::RawField(this, last_ptr_offset));

@@ -143,6 +143,7 @@ class StackHandler BASE_EMBEDDED {
   inline Kind kind() const;
   inline unsigned index() const;
 
+  inline Object** constant_pool_address() const;
   inline Object** context_address() const;
   inline Object** code_address() const;
   inline void SetFp(Address slot, Address fp);
@@ -168,8 +169,8 @@ class StandardFrameConstants : public AllStatic {
  public:
   // Fixed part of the frame consists of return address, caller fp,
   // constant pool (if FLAG_enable_ool_constant_pool), context, and function.
-  // StandardFrame::IterateExpressions assumes that kContextOffset is the last
-  // object pointer.
+  // StandardFrame::IterateExpressions assumes that kLastObjectOffset is the
+  // last object pointer.
   static const int kCPSlotSize =
       FLAG_enable_ool_constant_pool ? kPointerSize : 0;
   static const int kFixedFrameSizeFromFp =  2 * kPointerSize + kCPSlotSize;
@@ -183,6 +184,9 @@ class StandardFrameConstants : public AllStatic {
   static const int kCallerFPOffset       =  0 * kPointerSize;
   static const int kCallerPCOffset       = +1 * kFPOnStackSize;
   static const int kCallerSPOffset       = kCallerPCOffset + 1 * kPCOnStackSize;
+
+  static const int kLastObjectOffset     = FLAG_enable_ool_constant_pool ?
+                                           kConstantPoolOffset : kContextOffset;
 };
 
 
@@ -423,6 +427,7 @@ class ExitFrame: public StackFrame {
   virtual Code* unchecked_code() const;
 
   Object*& code_slot() const;
+  Object*& constant_pool_slot() const;
 
   // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
