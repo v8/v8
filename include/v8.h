@@ -738,7 +738,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
 template<class T>
 class UniquePersistent : public PersistentBase<T> {
   struct RValue {
-    V8_INLINE explicit RValue(UniquePersistent* object) : object(object) {}
+    V8_INLINE explicit RValue(UniquePersistent* obj) : object(obj) {}
     UniquePersistent* object;
   };
 
