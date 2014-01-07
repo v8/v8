@@ -8704,12 +8704,23 @@ TEST(DetachGlobal) {
 }
 
 
+void GetThisX(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(
+      info.GetIsolate()->GetCurrentContext()->Global()->Get(v8_str("x")));
+}
+
+
 TEST(DetachedAccesses) {
   LocalContext env1;
   v8::HandleScope scope(env1->GetIsolate());
 
   // Create second environment.
-  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
+  Local<ObjectTemplate> inner_global_template =
+      FunctionTemplate::New(env1->GetIsolate())->InstanceTemplate();
+  inner_global_template ->SetAccessorProperty(
+      v8_str("this_x"), FunctionTemplate::New(env1->GetIsolate(), GetThisX));
+  v8::Local<Context> env2 =
+      Context::New(env1->GetIsolate(), NULL, inner_global_template);
 
   Local<Value> foo = v8_str("foo");
 
@@ -8717,15 +8728,21 @@ TEST(DetachedAccesses) {
   env1->SetSecurityToken(foo);
   env2->SetSecurityToken(foo);
 
+  env1->Global()->Set(v8_str("x"), v8_str("env1_x"));
+
   {
     v8::Context::Scope scope(env2);
+    env2->Global()->Set(v8_str("x"), v8_str("env2_x"));
     CompileRun(
-        "var x = 'x';"
-        "function get_x() { return this.x; }"
-        "function get_x_w() { return get_x(); }"
-        "");
+        "function bound_x() { return x; }"
+        "function get_x()   { return this.x; }"
+        "function get_x_w() { return (function() {return this.x;})(); }");
+    env1->Global()->Set(v8_str("bound_x"), CompileRun("bound_x"));
     env1->Global()->Set(v8_str("get_x"), CompileRun("get_x"));
     env1->Global()->Set(v8_str("get_x_w"), CompileRun("get_x_w"));
+    env1->Global()->Set(
+        v8_str("this_x"),
+        CompileRun("Object.getOwnPropertyDescriptor(this, 'this_x').get"));
   }
 
   Local<Object> env2_global = env2->Global();
@@ -8733,10 +8750,14 @@ TEST(DetachedAccesses) {
   env2->DetachGlobal();
 
   Local<Value> result;
+  result = CompileRun("bound_x()");
+  CHECK_EQ(v8_str("env2_x"), result);
   result = CompileRun("get_x()");
   CHECK(result->IsUndefined());
   result = CompileRun("get_x_w()");
   CHECK(result->IsUndefined());
+  result = CompileRun("this_x()");
+  CHECK_EQ(v8_str("env2_x"), result);
 
   // Reattach env2's proxy
   env2 = Context::New(env1->GetIsolate(),
@@ -8746,13 +8767,62 @@ TEST(DetachedAccesses) {
   env2->SetSecurityToken(foo);
   {
     v8::Context::Scope scope(env2);
-    CompileRun("var x = 'x2';");
+    env2->Global()->Set(v8_str("x"), v8_str("env3_x"));
+    env2->Global()->Set(v8_str("env1"), env1->Global());
+    result = CompileRun(
+        "results = [];"
+        "for (var i = 0; i < 4; i++ ) {"
+        "  results.push(env1.bound_x());"
+        "  results.push(env1.get_x());"
+        "  results.push(env1.get_x_w());"
+        "  results.push(env1.this_x());"
+        "}"
+        "results");
+    Local<v8::Array> results = Local<v8::Array>::Cast(result);
+    CHECK_EQ(16, results->Length());
+    for (int i = 0; i < 16; i += 4) {
+      CHECK_EQ(v8_str("env2_x"), results->Get(i + 0));
+      CHECK_EQ(v8_str("env1_x"), results->Get(i + 1));
+      CHECK_EQ(v8_str("env3_x"), results->Get(i + 2));
+      CHECK_EQ(v8_str("env2_x"), results->Get(i + 3));
+    }
   }
 
-  result = CompileRun("get_x()");
-  CHECK(result->IsUndefined());
-  result = CompileRun("get_x_w()");
-  CHECK_EQ(v8_str("x2"), result);
+  result = CompileRun(
+      "results = [];"
+      "for (var i = 0; i < 4; i++ ) {"
+      "  results.push(bound_x());"
+      "  results.push(get_x());"
+      "  results.push(get_x_w());"
+      "  results.push(this_x());"
+      "}"
+      "results");
+  Local<v8::Array> results = Local<v8::Array>::Cast(result);
+  CHECK_EQ(16, results->Length());
+  for (int i = 0; i < 16; i += 4) {
+    CHECK_EQ(v8_str("env2_x"), results->Get(i + 0));
+    CHECK_EQ(v8_str("env3_x"), results->Get(i + 1));
+    CHECK_EQ(v8_str("env3_x"), results->Get(i + 2));
+    CHECK_EQ(v8_str("env2_x"), results->Get(i + 3));
+  }
+
+  result = CompileRun(
+      "results = [];"
+      "for (var i = 0; i < 4; i++ ) {"
+      "  results.push(this.bound_x());"
+      "  results.push(this.get_x());"
+      "  results.push(this.get_x_w());"
+      "  results.push(this.this_x());"
+      "}"
+      "results");
+  results = Local<v8::Array>::Cast(result);
+  CHECK_EQ(16, results->Length());
+  for (int i = 0; i < 16; i += 4) {
+    CHECK_EQ(v8_str("env2_x"), results->Get(i + 0));
+    CHECK_EQ(v8_str("env1_x"), results->Get(i + 1));
+    CHECK_EQ(v8_str("env3_x"), results->Get(i + 2));
+    CHECK_EQ(v8_str("env2_x"), results->Get(i + 3));
+  }
 }
 
 
@@ -20110,11 +20180,10 @@ THREADED_TEST(ForeignFunctionReceiver) {
   CHECK(i->Equals(CompileRun("'abcbd'.replace(/b/g,func)[1]")));
   CHECK(i->Equals(CompileRun("'abcbd'.replace(/b/g,func)[3]")));
 
-  // TODO(1547): Make the following also return "i".
   // Calling with environment record as base.
-  TestReceiver(o, context->Global(), "func()");
+  TestReceiver(i, foreign_context->Global(), "func()");
   // Calling with no base.
-  TestReceiver(o, context->Global(), "(1,func)()");
+  TestReceiver(i, foreign_context->Global(), "(1,func)()");
 }
 
 

@@ -9252,7 +9252,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(
         object->IsGlobalObject()
-            ? GlobalObject::cast(*object)->global_receiver()
+            ? Object::cast(isolate->heap()->the_hole_value())
             : object->IsJSProxy() ? static_cast<Object*>(*object)
                 : ComputeReceiverForNonGlobal(isolate, JSObject::cast(*object)),
         isolate);

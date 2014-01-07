@@ -2350,28 +2350,45 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow, non_function;
   StackArgumentsAccessor args(rsp, argc_);
 
+  // Check that the function really is a JavaScript function.
+  __ JumpIfSmi(rdi, &non_function);
+
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
   // function stub.
-  if (ReceiverMightBeImplicit()) {
-    Label call;
-    // Get the receiver from the stack.
-    __ movq(rax, args.GetReceiverOperand());
-    // Call as function is indicated with the hole.
-    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
-    __ j(not_equal, &call, Label::kNear);
+  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
+    Label try_call, call, patch_current_context;
+    if (ReceiverMightBeImplicit()) {
+      // Get the receiver from the stack.
+      __ movq(rax, args.GetReceiverOperand());
+      // Call as function is indicated with the hole.
+      __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &try_call, Label::kNear);
+    }
     // Patch the receiver on the stack with the global receiver object.
-    __ movq(rcx, GlobalObjectOperand());
-    __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &patch_current_context);
+    CallStubCompiler::FetchGlobalProxy(masm, rcx, rdi);
     __ movq(args.GetReceiverOperand(), rcx);
-    __ bind(&call);
-  }
+    __ jmp(&call, Label::kNear);
 
-  // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(rdi, &non_function);
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &slow);
+    __ bind(&patch_current_context);
+    __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
+    __ movq(args.GetReceiverOperand(), kScratchRegister);
+    __ jmp(&slow);
+
+    __ bind(&try_call);
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &slow);
+
+    __ bind(&call);
+  } else {
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &slow);
+  }
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -2414,7 +2431,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);
   __ Set(rax, argc_ + 1);
   __ Set(rbx, 0);
-  __ SetCallKind(rcx, CALL_AS_METHOD);
+  __ SetCallKind(rcx, CALL_AS_FUNCTION);
   __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor =

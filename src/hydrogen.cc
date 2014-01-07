@@ -7618,6 +7618,27 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
 }
 
 
+void HOptimizedGraphBuilder::InstallGlobalReceiverInExpressionStack(
+    int receiver_index,
+    Handle<JSFunction> function) {
+  // TODO(dcarney): Fix deserializer to be able to hookup the global receiver
+  // and object during deserialization and embed the global receiver here
+  // directly.
+  // Install global receiver on stack.
+  HValue* function_constant = Add<HConstant>(function);
+  HValue* context = Add<HLoadNamedField>(
+      function_constant,
+      HObjectAccess::ForJSObjectOffset(JSFunction::kContextOffset));
+  HValue* global_object = Add<HLoadNamedField>(
+      context,
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HValue* global_receiver = Add<HLoadNamedField>(
+      global_object,
+      HObjectAccess::ForJSObjectOffset(GlobalObject::kGlobalReceiverOffset));
+  environment()->SetExpressionStackAt(receiver_index, global_receiver);
+}
+
+
 void HOptimizedGraphBuilder::VisitCall(Call* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -7738,13 +7759,11 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         HValue* function = Pop();
         Add<HCheckValue>(function, expr->target());
 
-        // Replace the global object with the global receiver.
-        HGlobalReceiver* global_receiver = Add<HGlobalReceiver>(global_object);
-        // Index of the receiver from the top of the expression stack.
+        // Install global receiver on stack.
         const int receiver_index = argument_count - 1;
         ASSERT(environment()->ExpressionStackAt(receiver_index)->
                IsGlobalObject());
-        environment()->SetExpressionStackAt(receiver_index, global_receiver);
+        InstallGlobalReceiverInExpressionStack(receiver_index, expr->target());
 
         if (TryInlineBuiltinFunctionCall(expr, false)) {  // Nothing to drop.
           if (FLAG_trace_inlining) {
@@ -7761,9 +7780,12 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         }
 
         if (CallStubCompiler::HasCustomCallGenerator(expr->target())) {
+          // We're about to install a contextual IC, which expects the global
+          // object as receiver rather than the global proxy.
+          environment()->SetExpressionStackAt(receiver_index, global_object);
           // When the target has a custom call IC generator, use the IC,
           // because it is likely to generate better code.
-          call = PreProcessCall(New<HCallNamed>(var->name(), argument_count));
+          call = PreProcessCall(New<HCallGlobal>(var->name(), argument_count));
         } else {
           call = PreProcessCall(New<HCallKnownGlobal>(
               expr->target(), argument_count));
@@ -7788,6 +7810,12 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
       Add<HCheckValue>(function, expr->target());
 
+      // Install global receiver on stack.
+      const int receiver_index = argument_count - 1;
+      ASSERT(environment()->ExpressionStackAt(receiver_index)->
+             IsGlobalReceiver());
+      InstallGlobalReceiverInExpressionStack(receiver_index, expr->target());
+
       if (TryInlineBuiltinFunctionCall(expr, true)) {  // Drop the function.
         if (FLAG_trace_inlining) {
           PrintF("Inlining builtin ");
@@ -7808,12 +7836,11 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     } else {
       CHECK_ALIVE(VisitForValue(expr->expression()));
       HValue* function = Top();
-      HGlobalObject* global_object = Add<HGlobalObject>();
-      HGlobalReceiver* receiver = Add<HGlobalReceiver>(global_object);
+      HValue* receiver = graph()->GetConstantHole();
       Push(Add<HPushArgument>(receiver));
       CHECK_ALIVE(VisitArgumentList(expr->arguments()));
-
-      call = New<HCallFunction>(function, argument_count);
+      call = New<HCallFunction>(
+          function, argument_count, NORMAL_CONTEXTUAL_CALL);
       Drop(argument_count + 1);
     }
   }

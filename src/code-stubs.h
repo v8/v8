@@ -1550,8 +1550,8 @@ class CallFunctionStub: public PlatformCodeStub {
   virtual void PrintName(StringStream* stream);
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
-  class FlagBits: public BitField<CallFunctionFlags, 0, 2> {};
-  class ArgcBits: public BitField<unsigned, 2, 32 - 2> {};
+  class FlagBits: public BitField<CallFunctionFlags, 0, 3> {};
+  class ArgcBits: public BitField<unsigned, 3, 32 - 3> {};
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() {
@@ -1561,6 +1561,10 @@ class CallFunctionStub: public PlatformCodeStub {
 
   bool ReceiverMightBeImplicit() {
     return (flags_ & RECEIVER_MIGHT_BE_IMPLICIT) != 0;
+  }
+
+  bool ReceiverIsImplicit() {
+    return (flags_ & RECEIVER_IS_IMPLICIT) != 0;
   }
 
   bool RecordCallTarget() {

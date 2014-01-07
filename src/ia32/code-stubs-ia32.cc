@@ -2517,29 +2517,46 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   Label slow, non_function;
 
+  // Check that the function really is a JavaScript function.
+  __ JumpIfSmi(edi, &non_function);
+
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
   // function stub.
-  if (ReceiverMightBeImplicit()) {
-    Label receiver_ok;
-    // Get the receiver from the stack.
-    // +1 ~ return address
-    __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
-    // Call as function is indicated with the hole.
-    __ cmp(eax, isolate->factory()->the_hole_value());
-    __ j(not_equal, &receiver_ok, Label::kNear);
+  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
+    Label try_call, call, patch_current_context;
+    if (ReceiverMightBeImplicit()) {
+      // Get the receiver from the stack.
+      // +1 ~ return address
+      __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
+      // Call as function is indicated with the hole.
+      __ cmp(eax, isolate->factory()->the_hole_value());
+      __ j(not_equal, &try_call, Label::kNear);
+    }
     // Patch the receiver on the stack with the global receiver object.
-    __ mov(ecx, GlobalObjectOperand());
-    __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+    __ j(not_equal, &patch_current_context);
+    CallStubCompiler::FetchGlobalProxy(masm, ecx, edi);
     __ mov(Operand(esp, (argc_ + 1) * kPointerSize), ecx);
-    __ bind(&receiver_ok);
-  }
+    __ jmp(&call, Label::kNear);
 
-  // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(edi, &non_function);
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &slow);
+    __ bind(&patch_current_context);
+    __ mov(edx, isolate->factory()->undefined_value());
+    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edx);
+    __ jmp(&slow);
+
+    __ bind(&try_call);
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+    __ j(not_equal, &slow);
+
+    __ bind(&call);
+  } else {
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+    __ j(not_equal, &slow);
+  }
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
