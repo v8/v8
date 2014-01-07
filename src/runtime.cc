@@ -6525,7 +6525,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
-    bool has_changed_character;
+    bool has_changed_character = false;
     bool is_ascii = FastAsciiConvert<Converter>(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
@@ -9252,7 +9252,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(
         object->IsGlobalObject()
-            ? GlobalObject::cast(*object)->global_receiver()
+            ? Object::cast(isolate->heap()->the_hole_value())
             : object->IsJSProxy() ? static_cast<Object*>(*object)
                 : ComputeReceiverForNonGlobal(isolate, JSObject::cast(*object)),
         isolate);

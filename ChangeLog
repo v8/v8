@@ -1,3 +1,13 @@
+2014-01-07: Version 3.24.11
+
+        Remove generated makefiles on linux when running gyp_v8
+        (Chromium issue 331475)
+
+        Fix building d8 with readline support due to API changes
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-03: Version 3.24.10
 
         Reland r18383: More API cleanup (Chromium issue 324225).

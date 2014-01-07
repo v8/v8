@@ -491,7 +491,7 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
 
     // Patch the receiver on the stack.
     __ bind(&global);
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+    CallStubCompiler::FetchGlobalProxy(masm, r2, r1);
     __ str(r2, MemOperand(sp, argc * kPointerSize));
     __ bind(&invoke);
   }
