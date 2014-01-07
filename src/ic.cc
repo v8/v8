@@ -148,6 +148,9 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
   state_ = target_->ic_state();
+  extra_ic_state_ = target_->needs_extended_extra_ic_state(target_->kind())
+      ? target_->extended_extra_ic_state()
+      : target_->extra_ic_state();
 }
 
 
@@ -255,9 +258,8 @@ bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
             argc >= 1 && args[1]->IsNumber()) {
           double index = DoubleToInteger(args.number_at(1));
           if (index < 0 || index >= string->length()) {
-            extra_ic_state_ =
-                StringStubState::update(extra_ic_state(),
-                                        STRING_INDEX_OUT_OF_BOUNDS);
+            set_extra_ic_state(StringStubState::update(extra_ic_state(),
+                STRING_INDEX_OUT_OF_BOUNDS));
             return true;
           }
         }
@@ -398,19 +400,6 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
 }
 
 
-RelocInfo::Mode IC::ComputeMode() {
-  Address addr = address();
-  Code* code = Code::cast(isolate()->FindCodeObject(addr));
-  for (RelocIterator it(code, RelocInfo::kCodeTargetMask);
-       !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->pc() == addr) return info->rmode();
-  }
-  UNREACHABLE();
-  return RelocInfo::NONE32;
-}
-
-
 Failure* IC::TypeError(const char* type,
                        Handle<Object> object,
                        Handle<Object> key) {
@@ -500,12 +489,9 @@ void IC::Clear(Isolate* isolate, Address address) {
 
 void CallICBase::Clear(Address address, Code* target) {
   if (IsCleared(target)) return;
-  bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
-  Code* code =
-      target->GetIsolate()->stub_cache()->FindCallInitialize(
-          target->arguments_count(),
-          contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
-          target->kind());
+  ContextualMode mode = IC::GetContextualMode(target->extra_ic_state());
+  Code* code = target->GetIsolate()->stub_cache()->FindCallInitialize(
+      target->arguments_count(), mode, target->kind());
   SetTargetAtAddress(address, code);
 }
 
@@ -521,15 +507,17 @@ void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target) {
 
 void LoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
-  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate));
+  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
+      Code::LOAD_IC, target->extra_ic_state());
+  SetTargetAtAddress(address, code);
 }
 
 
 void StoreIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
-  SetTargetAtAddress(address,
-      *pre_monomorphic_stub(
-          isolate, StoreIC::GetStrictMode(target->extra_ic_state())));
+  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
+      Code::STORE_IC, target->extra_ic_state());
+  SetTargetAtAddress(address, code);
 }
 
 
@@ -1113,6 +1101,26 @@ void IC::PatchCache(Handle<Type> type,
 }
 
 
+Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
+  Handle<Code> ic = isolate->stub_cache()->ComputeLoad(
+      UNINITIALIZED, IC::ComputeExtraICState(mode));
+  return ic;
+}
+
+
+Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
+                                          ContextualMode mode) {
+  return isolate->stub_cache()->ComputeLoad(
+      PREMONOMORPHIC, IC::ComputeExtraICState(mode));
+}
+
+
+Handle<Code> LoadIC::megamorphic_stub() {
+  return isolate()->stub_cache()->ComputeLoad(
+      MEGAMORPHIC, extra_ic_state());
+}
+
+
 Handle<Code> LoadIC::SimpleFieldLoad(int offset,
                                      bool inobject,
                                      Representation representation) {
@@ -1587,6 +1595,35 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
       receiver, name, value, NONE, strict_mode(), store_mode);
   RETURN_IF_EMPTY_HANDLE(isolate(), result);
   return *result;
+}
+
+
+Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
+                                      StrictModeFlag strict_mode,
+                                      ContextualMode mode) {
+  ExtraICState extra_state = ComputeExtraICState(strict_mode, mode);
+  Handle<Code> ic = isolate->stub_cache()->ComputeStore(
+      UNINITIALIZED, extra_state);
+  return ic;
+}
+
+
+Handle<Code> StoreIC::megamorphic_stub() {
+  return isolate()->stub_cache()->ComputeStore(MEGAMORPHIC, extra_ic_state());
+}
+
+
+Handle<Code> StoreIC::generic_stub() const {
+  return isolate()->stub_cache()->ComputeStore(GENERIC, extra_ic_state());
+}
+
+
+Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
+                                           StrictModeFlag strict_mode,
+                                           ContextualMode contextual_mode) {
+  ExtraICState state = StoreIC::ComputeExtraICState(strict_mode,
+                                                    contextual_mode);
+  return isolate->stub_cache()->ComputeStore(PREMONOMORPHIC, state);
 }
 
 

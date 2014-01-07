@@ -125,15 +125,8 @@ enum BuiltinExtraArguments {
                                     kNoExtraICState)                    \
   V(KeyedStoreIC_Miss,              BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
-  V(LoadIC_Initialize,              LOAD_IC, UNINITIALIZED,             \
-                                    kNoExtraICState)                    \
-  V(LoadIC_PreMonomorphic,          LOAD_IC, PREMONOMORPHIC,            \
-                                    kNoExtraICState)                    \
-  V(LoadIC_Megamorphic,             LOAD_IC, MEGAMORPHIC,               \
-                                    kNoExtraICState)                    \
   V(LoadIC_Getter_ForDeopt,         LOAD_IC, MONOMORPHIC,               \
                                     kNoExtraICState)                    \
-                                                                        \
   V(KeyedLoadIC_Initialize,         KEYED_LOAD_IC, UNINITIALIZED,       \
                                     kNoExtraICState)                    \
   V(KeyedLoadIC_PreMonomorphic,     KEYED_LOAD_IC, PREMONOMORPHIC,      \
@@ -147,22 +140,6 @@ enum BuiltinExtraArguments {
   V(KeyedLoadIC_NonStrictArguments, KEYED_LOAD_IC, MONOMORPHIC,         \
                                     kNoExtraICState)                    \
                                                                         \
-  V(StoreIC_Initialize,             STORE_IC, UNINITIALIZED,            \
-                                    kNoExtraICState)                    \
-  V(StoreIC_PreMonomorphic,         STORE_IC, PREMONOMORPHIC,           \
-                                    kNoExtraICState)                    \
-  V(StoreIC_Megamorphic,            STORE_IC, MEGAMORPHIC,              \
-                                    kNoExtraICState)                    \
-  V(StoreIC_Generic,                STORE_IC, GENERIC,                  \
-                                    kNoExtraICState)                    \
-  V(StoreIC_Generic_Strict,         STORE_IC, GENERIC,                  \
-                                    StoreIC::kStrictModeState)          \
-  V(StoreIC_Initialize_Strict,      STORE_IC, UNINITIALIZED,            \
-                                    StoreIC::kStrictModeState)          \
-  V(StoreIC_PreMonomorphic_Strict,  STORE_IC, PREMONOMORPHIC,           \
-                                    StoreIC::kStrictModeState)          \
-  V(StoreIC_Megamorphic_Strict,     STORE_IC, MEGAMORPHIC,              \
-                                    StoreIC::kStrictModeState)          \
   V(StoreIC_Setter_ForDeopt,        STORE_IC, MONOMORPHIC,              \
                                     StoreIC::kStrictModeState)          \
                                                                         \

@@ -138,7 +138,7 @@ class StubCache {
 
   // ---
 
-  Handle<Code> ComputeCallInitialize(int argc, RelocInfo::Mode mode);
+  Handle<Code> ComputeCallInitialize(int argc, ContextualMode mode);
 
   Handle<Code> ComputeKeyedCallInitialize(int argc);
 
@@ -162,6 +162,12 @@ class StubCache {
 
   // ---
 
+  Handle<Code> ComputeLoad(InlineCacheState ic_state, ExtraICState extra_state);
+  Handle<Code> ComputeStore(InlineCacheState ic_state,
+                            ExtraICState extra_state);
+
+  // ---
+
   Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
                                  CompareNilICStub& stub);
 
@@ -179,7 +185,8 @@ class StubCache {
                                     ExtraICState extra_ic_state);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  Code* FindCallInitialize(int argc, RelocInfo::Mode mode, Code::Kind kind);
+  Code* FindCallInitialize(int argc, ContextualMode mode, Code::Kind kind);
+  Code* FindPreMonomorphicIC(Code::Kind kind, ExtraICState extra_ic_state);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind);
@@ -263,7 +270,7 @@ class StubCache {
   explicit StubCache(Isolate* isolate);
 
   Handle<Code> ComputeCallInitialize(int argc,
-                                     RelocInfo::Mode mode,
+                                     ContextualMode mode,
                                      Code::Kind kind);
 
   // The stub cache has a primary and secondary level.  The two levels have
@@ -377,6 +384,15 @@ class StubCompiler BASE_EMBEDDED {
   Handle<Code> CompileCallMegamorphic(Code::Flags flags);
   Handle<Code> CompileCallArguments(Code::Flags flags);
   Handle<Code> CompileCallMiss(Code::Flags flags);
+
+  Handle<Code> CompileLoadInitialize(Code::Flags flags);
+  Handle<Code> CompileLoadPreMonomorphic(Code::Flags flags);
+  Handle<Code> CompileLoadMegamorphic(Code::Flags flags);
+
+  Handle<Code> CompileStoreInitialize(Code::Flags flags);
+  Handle<Code> CompileStorePreMonomorphic(Code::Flags flags);
+  Handle<Code> CompileStoreGeneric(Code::Flags flags);
+  Handle<Code> CompileStoreMegamorphic(Code::Flags flags);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Handle<Code> CompileCallDebugBreak(Code::Flags flags);
@@ -503,6 +519,9 @@ class StubCompiler BASE_EMBEDDED {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
+  ContextualMode contextual_mode() {
+    return IC::GetContextualMode(extra_state());
+  }
 
   static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
 

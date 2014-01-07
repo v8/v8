@@ -119,6 +119,13 @@ struct TickSample;
   V(CALL_MISS_TAG,                  "CallMiss")                         \
   V(CALL_NORMAL_TAG,                "CallNormal")                       \
   V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic")               \
+  V(LOAD_INITIALIZE_TAG,            "LoadInitialize")                   \
+  V(LOAD_PREMONOMORPHIC_TAG,        "LoadPreMonomorphic")               \
+  V(LOAD_MEGAMORPHIC_TAG,           "LoadMegamorphic")                  \
+  V(STORE_INITIALIZE_TAG,           "StoreInitialize")                  \
+  V(STORE_PREMONOMORPHIC_TAG,       "StorePreMonomorphic")              \
+  V(STORE_GENERIC_TAG,              "StoreGeneric")                     \
+  V(STORE_MEGAMORPHIC_TAG,          "StoreMegamorphic")                 \
   V(KEYED_CALL_DEBUG_BREAK_TAG,     "KeyedCallDebugBreak")              \
   V(KEYED_CALL_DEBUG_PREPARE_STEP_IN_TAG,                               \
     "KeyedCallDebugPrepareStepIn")                                      \

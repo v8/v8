@@ -2839,8 +2839,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
 static Code* FindFirstIC(Code* code, Code::Kind kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Code* target = Code::GetCodeFromTargetAddress(info->target_address());
@@ -2852,7 +2851,7 @@ static Code* FindFirstIC(Code* code, Code::Kind kind) {
 }
 
 
-TEST(IncrementalMarkingPreservesMonomorhpicIC) {
+TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2877,7 +2876,7 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
 }
 
 
-TEST(IncrementalMarkingClearsMonomorhpicIC) {
+TEST(IncrementalMarkingClearsMonomorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2911,7 +2910,7 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
 }
 
 
-TEST(IncrementalMarkingClearsPolymorhpicIC) {
+TEST(IncrementalMarkingClearsPolymorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3060,7 +3059,7 @@ TEST(Regression144230) {
     HandleScope inner_scope(isolate);
     AlwaysAllocateScope always_allocate;
     SimulateFullSpace(heap->code_space());
-    isolate->stub_cache()->ComputeCallInitialize(9, RelocInfo::CODE_TARGET);
+    isolate->stub_cache()->ComputeCallInitialize(9, NOT_CONTEXTUAL);
   }
 
   // Second compile a CallIC and execute it once so that it gets patched to

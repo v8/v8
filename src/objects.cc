@@ -10617,8 +10617,7 @@ void Code::ClearInlineCaches(Code::Kind kind) {
 void Code::ClearInlineCaches(Code::Kind* kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
@@ -10838,6 +10837,17 @@ bool Code::CanDeoptAt(Address pc) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i)->value();
     if (address == pc) return true;
+  }
+  return false;
+}
+
+
+bool Code::IsContextual() {
+  ASSERT(is_inline_cache_stub());
+  Kind kind = this->kind();
+  if (kind == STORE_IC || kind == LOAD_IC || kind == CALL_IC) {
+    ExtraICState extra_state = extra_ic_state();
+    return IC::GetContextualMode(extra_state) == CONTEXTUAL;
   }
   return false;
 }

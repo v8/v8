@@ -1040,13 +1040,13 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(&env,
                           "function f2(){x=1;}", "f2",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           CcTest::i_isolate()->builtins()->builtin(
                               Builtins::kStoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           CcTest::i_isolate()->builtins()->builtin(
                               Builtins::kLoadIC_DebugBreak));
 
@@ -1091,19 +1091,19 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(&env,
                           "function f4_0(){x();}", "f4_0",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           *debug_break_0);
 
   CheckDebugBreakFunction(&env,
                           "function f4_1(){x(1);}", "f4_1",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           *debug_break_1);
 
   CheckDebugBreakFunction(&env,
                           "function f4_4(){x(1,2,3,4);}", "f4_4",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           *debug_break_4);
 }
 

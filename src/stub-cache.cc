@@ -147,10 +147,10 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
   }
 
   if (kind == Code::LOAD_IC) {
-    LoadStubCompiler ic_compiler(isolate(), flag);
+    LoadStubCompiler ic_compiler(isolate(), extra_ic_state, flag);
     ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else if (kind == Code::KEYED_LOAD_IC) {
-    KeyedLoadStubCompiler ic_compiler(isolate(), flag);
+    KeyedLoadStubCompiler ic_compiler(isolate(), extra_ic_state, flag);
     ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else if (kind == Code::STORE_IC) {
     StoreStubCompiler ic_compiler(isolate(), extra_ic_state);
@@ -419,12 +419,11 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
 
 
 Code* StubCache::FindCallInitialize(int argc,
-                                    RelocInfo::Mode mode,
+                                    ContextualMode mode,
                                     Code::Kind kind) {
   ExtraICState extra_state =
       CallICBase::StringStubState::encode(DEFAULT_STRING_STUB) |
-      CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT
-                                         ? CONTEXTUAL : NOT_CONTEXTUAL);
+      CallICBase::Contextual::encode(mode);
   Code::Flags flags =
       Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
   UnseededNumberDictionary* dictionary =
@@ -438,13 +437,24 @@ Code* StubCache::FindCallInitialize(int argc,
 }
 
 
+Code* StubCache::FindPreMonomorphicIC(Code::Kind kind, ExtraICState state) {
+  Code::Flags flags = Code::ComputeFlags(kind, PREMONOMORPHIC, state);
+  UnseededNumberDictionary* dictionary =
+      isolate()->heap()->non_monomorphic_cache();
+  int entry = dictionary->FindEntry(isolate(), flags);
+  ASSERT(entry != -1);
+  Object* code = dictionary->ValueAt(entry);
+  // This might be called during the marking phase of the collector
+  // hence the unchecked cast.
+  return reinterpret_cast<Code*>(code);
+}
+
+
 Handle<Code> StubCache::ComputeCallInitialize(int argc,
-                                              RelocInfo::Mode mode,
+                                              ContextualMode mode,
                                               Code::Kind kind) {
   ExtraICState extra_state =
-      CallICBase::StringStubState::encode(DEFAULT_STRING_STUB) |
-      CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT
-                                         ? CONTEXTUAL : NOT_CONTEXTUAL);
+      CallICBase::ComputeExtraICState(mode, DEFAULT_STRING_STUB);
   Code::Flags flags =
       Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
@@ -459,14 +469,13 @@ Handle<Code> StubCache::ComputeCallInitialize(int argc,
 }
 
 
-Handle<Code> StubCache::ComputeCallInitialize(int argc, RelocInfo::Mode mode) {
+Handle<Code> StubCache::ComputeCallInitialize(int argc, ContextualMode mode) {
   return ComputeCallInitialize(argc, mode, Code::CALL_IC);
 }
 
 
 Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc) {
-  return ComputeCallInitialize(argc, RelocInfo::CODE_TARGET,
-                               Code::KEYED_CALL_IC);
+  return ComputeCallInitialize(argc, NOT_CONTEXTUAL, Code::KEYED_CALL_IC);
 }
 
 
@@ -535,6 +544,57 @@ Handle<Code> StubCache::ComputeCallMegamorphic(
 
   StubCompiler compiler(isolate_);
   Handle<Code> code = compiler.CompileCallMegamorphic(flags);
+  FillCache(isolate_, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeLoad(InlineCacheState ic_state,
+                                    ExtraICState extra_state) {
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, ic_state, extra_state);
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
+  int entry = cache->FindEntry(isolate_, flags);
+  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
+
+  StubCompiler compiler(isolate_);
+  Handle<Code> code;
+  if (ic_state == UNINITIALIZED) {
+    code = compiler.CompileLoadInitialize(flags);
+  } else if (ic_state == PREMONOMORPHIC) {
+    code = compiler.CompileLoadPreMonomorphic(flags);
+  } else if (ic_state == MEGAMORPHIC) {
+    code = compiler.CompileLoadMegamorphic(flags);
+  } else {
+    UNREACHABLE();
+  }
+  FillCache(isolate_, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeStore(InlineCacheState ic_state,
+                                     ExtraICState extra_state) {
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC, ic_state, extra_state);
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
+  int entry = cache->FindEntry(isolate_, flags);
+  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
+
+  StubCompiler compiler(isolate_);
+  Handle<Code> code;
+  if (ic_state == UNINITIALIZED) {
+    code = compiler.CompileStoreInitialize(flags);
+  } else if (ic_state == PREMONOMORPHIC) {
+    code = compiler.CompileStorePreMonomorphic(flags);
+  } else if (ic_state == GENERIC) {
+    code = compiler.CompileStoreGeneric(flags);
+  } else if (ic_state == MEGAMORPHIC) {
+    code = compiler.CompileStoreMegamorphic(flags);
+  } else {
+    UNREACHABLE();
+  }
+
   FillCache(isolate_, code);
   return code;
 }
@@ -618,13 +678,12 @@ Handle<Code> StubCache::ComputePolymorphicIC(
   Code::StubType type = number_of_valid_types == 1 ? handler->type()
                                                    : Code::NORMAL;
   if (kind == Code::LOAD_IC) {
-    LoadStubCompiler ic_compiler(isolate_);
+    LoadStubCompiler ic_compiler(isolate_, extra_ic_state);
     return ic_compiler.CompilePolymorphicIC(
         types, handlers, name, type, PROPERTY);
   } else {
     ASSERT(kind == Code::STORE_IC);
-    StrictModeFlag strict_mode = StoreIC::GetStrictMode(extra_ic_state);
-    StoreStubCompiler ic_compiler(isolate_, strict_mode);
+    StoreStubCompiler ic_compiler(isolate_, extra_ic_state);
     return ic_compiler.CompilePolymorphicIC(
         types, handlers, name, type, PROPERTY);
   }
@@ -834,7 +893,9 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   HandleScope scope(isolate);
   IC ic(IC::NO_EXTRA_FRAME, isolate);
   ASSERT(ic.IsLoadStub());
-  if (!ic.SlowIsUndeclaredGlobal()) return isolate->heap()->undefined_value();
+  if (!ic.IsContextual()) {
+    return isolate->heap()->undefined_value();
+  }
 
   // Throw a reference error.
   Handle<Name> name_handle(name);
@@ -1023,6 +1084,81 @@ Handle<Code> StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
                           *code, code->arguments_count()));
   GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code));
+  return code;
+}
+
+
+Handle<Code> StubCompiler::CompileLoadInitialize(Code::Flags flags) {
+  LoadIC::GenerateInitialize(masm());
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG, *code, 0));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *code));
+  return code;
+}
+
+
+Handle<Code> StubCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
+  LoadIC::GeneratePreMonomorphic(masm());
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadPreMonomorphic");
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::LOAD_PREMONOMORPHIC_TAG, *code, 0));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *code));
+  return code;
+}
+
+
+Handle<Code> StubCompiler::CompileLoadMegamorphic(Code::Flags flags) {
+  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
+  ContextualMode mode = IC::GetContextualMode(extra_state);
+  LoadIC::GenerateMegamorphic(masm(), mode);
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *code));
+  return code;
+}
+
+
+Handle<Code> StubCompiler::CompileStoreInitialize(Code::Flags flags) {
+  StoreIC::GenerateInitialize(masm());
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreInitialize");
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::STORE_INITIALIZE_TAG, *code, 0));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
+  return code;
+}
+
+
+Handle<Code> StubCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
+  StoreIC::GeneratePreMonomorphic(masm());
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileStorePreMonomorphic");
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::STORE_PREMONOMORPHIC_TAG, *code, 0));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
+  return code;
+}
+
+
+Handle<Code> StubCompiler::CompileStoreGeneric(Code::Flags flags) {
+  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
+  StrictModeFlag strict_mode = StoreIC::GetStrictMode(extra_state);
+  StoreIC::GenerateRuntimeSetProperty(masm(), strict_mode);
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
+  return code;
+}
+
+
+Handle<Code> StubCompiler::CompileStoreMegamorphic(Code::Flags flags) {
+  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
+  StoreIC::GenerateMegamorphic(masm(), extra_state);
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
   return code;
 }
 

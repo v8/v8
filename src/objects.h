@@ -5137,6 +5137,7 @@ class Code: public HeapObject {
            kind == BINARY_OP_IC;
   }
 
+  bool IsContextual();  // Only valid for IC stubs.
   inline StubType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 

@@ -1053,8 +1053,8 @@ class KeyedArrayCallStub: public HICStub {
   }
 
   class ContextualBits: public BitField<bool, 0, 1> {};
-  STATIC_ASSERT(CallICBase::Contextual::kShift == ContextualBits::kShift);
-  STATIC_ASSERT(CallICBase::Contextual::kSize == ContextualBits::kSize);
+  STATIC_ASSERT(IC::Contextual::kShift == ContextualBits::kShift);
+  STATIC_ASSERT(IC::Contextual::kSize == ContextualBits::kSize);
   class HoleyBits: public BitField<bool, 1, 1> {};
   STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 2);
   class ArgcBits: public BitField<int, 2, Code::kArgumentsBits> {};

@@ -237,7 +237,7 @@ static int DecodeIt(Isolate* isolate,
         Code* code = Code::GetCodeFromTargetAddress(relocinfo.target_address());
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
-          if (rmode == RelocInfo::CODE_TARGET_CONTEXT) {
+          if (code->IsContextual()) {
             out.AddFormatted(" contextual,");
           }
           InlineCacheState ic_state = code->ic_state();

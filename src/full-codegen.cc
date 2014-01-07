@@ -440,9 +440,20 @@ void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
 }
 
 
-
 void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
   PrepareForBailoutForId(node->id(), state);
+}
+
+
+void FullCodeGenerator::CallLoadIC(ContextualMode mode, TypeFeedbackId id) {
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
+  CallIC(ic, mode, id);
+}
+
+
+void FullCodeGenerator::CallStoreIC(ContextualMode mode, TypeFeedbackId id) {
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode(), mode);
+  CallIC(ic, mode, id);
 }
 
 
