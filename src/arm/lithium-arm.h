@@ -2697,18 +2697,17 @@ class LPlatformChunk V8_FINAL : public LChunk {
 };
 
 
-class LChunkBuilder V8_FINAL BASE_EMBEDDED {
+class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
  public:
   LChunkBuilder(CompilationInfo* info, HGraph* graph, LAllocator* allocator)
-      : chunk_(NULL),
+      : LChunkBuilderBase(graph->zone()),
+        chunk_(NULL),
         info_(info),
         graph_(graph),
-        zone_(graph->zone()),
         status_(UNUSED),
         current_instruction_(NULL),
         current_block_(NULL),
         next_block_(NULL),
-        argument_count_(0),
         allocator_(allocator),
         position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
@@ -2750,7 +2749,6 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   LPlatformChunk* chunk() const { return chunk_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
-  Zone* zone() const { return zone_; }
 
   bool is_unused() const { return status_ == UNUSED; }
   bool is_building() const { return status_ == BUILDING; }
@@ -2800,7 +2798,7 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
 
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.
-  MUST_USE_RESULT LOperand* UseAny(HValue* value);
+  virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) V8_OVERRIDE;
 
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
@@ -2838,10 +2836,6 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
       HInstruction* hinstr,
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
 
-  LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
-                                  int* argument_index_accumulator,
-                                  ZoneList<HValue*>* objects_to_materialize);
-
   void VisitInstruction(HInstruction* current);
 
   void DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block);
@@ -2854,12 +2848,10 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   LPlatformChunk* chunk_;
   CompilationInfo* info_;
   HGraph* const graph_;
-  Zone* zone_;
   Status status_;
   HInstruction* current_instruction_;
   HBasicBlock* current_block_;
   HBasicBlock* next_block_;
-  int argument_count_;
   LAllocator* allocator_;
   int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
