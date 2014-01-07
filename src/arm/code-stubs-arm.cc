@@ -3182,47 +3182,31 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // r2 : cache cell for call target
   Label slow, non_function;
 
-  // Check that the function is really a JavaScript function.
-  // r1: pushed function (to be verified)
-  __ JumpIfSmi(r1, &non_function);
-
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
   // function stub.
-  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
-    Label try_call, call, patch_current_context;
-    if (ReceiverMightBeImplicit()) {
-      // Get the receiver from the stack.
-      // function, receiver [, arguments]
-      __ ldr(r4, MemOperand(sp, argc_ * kPointerSize));
-      // Call as function is indicated with the hole.
-      __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
-      __ b(ne, &try_call);
-    }
+  if (ReceiverMightBeImplicit()) {
+    Label call;
+    // Get the receiver from the stack.
+    // function, receiver [, arguments]
+    __ ldr(r4, MemOperand(sp, argc_ * kPointerSize));
+    // Call as function is indicated with the hole.
+    __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
+    __ b(ne, &call);
     // Patch the receiver on the stack with the global receiver object.
-    // Goto slow case if we do not have a function.
-    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
-    __ b(ne, &patch_current_context);
-    CallStubCompiler::FetchGlobalProxy(masm, r3, r1);
+    __ ldr(r3,
+           MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ ldr(r3, FieldMemOperand(r3, GlobalObject::kGlobalReceiverOffset));
     __ str(r3, MemOperand(sp, argc_ * kPointerSize));
-    __ jmp(&call);
-
-    __ bind(&patch_current_context);
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ str(ip, MemOperand(sp, argc_ * kPointerSize));
-    __ jmp(&slow);
-
-    __ bind(&try_call);
-    // Get the map of the function object.
-    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
-    __ b(ne, &slow);
-
     __ bind(&call);
-  } else {
-    // Get the map of the function object.
-    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
-    __ b(ne, &slow);
   }
+
+  // Check that the function is really a JavaScript function.
+  // r1: pushed function (to be verified)
+  __ JumpIfSmi(r1, &non_function);
+  // Get the map of the function object.
+  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
+  __ b(ne, &slow);
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -3267,7 +3251,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE32));
   __ mov(r2, Operand::Zero());
   __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
-  __ SetCallKind(r5, CALL_AS_FUNCTION);
+  __ SetCallKind(r5, CALL_AS_METHOD);
   {
     Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();

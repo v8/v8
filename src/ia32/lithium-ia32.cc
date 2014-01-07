@@ -1166,7 +1166,7 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 
 LInstruction* LChunkBuilder::DoWrapReceiver(HWrapReceiver* instr) {
   LOperand* receiver = UseRegister(instr->receiver());
-  LOperand* function = UseRegister(instr->function());
+  LOperand* function = UseRegisterAtStart(instr->function());
   LOperand* temp = TempRegister();
   LWrapReceiver* result =
       new(zone()) LWrapReceiver(receiver, function, temp);

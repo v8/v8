@@ -32,7 +32,6 @@
 #include "codegen.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
-#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -847,7 +846,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Use the global receiver object from the called function as the
     // receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, rbx, rdi);
+    const int kGlobalIndex =
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
+    __ movq(rbx, FieldOperand(rsi, kGlobalIndex));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
+    __ movq(rbx, FieldOperand(rbx, kGlobalIndex));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ movq(args.GetArgumentOperand(1), rbx);
@@ -1027,7 +1031,13 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, rbx, rdi);
+    const int kGlobalOffset =
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
+    __ movq(rbx, FieldOperand(rsi, kGlobalOffset));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
+    __ movq(rbx, FieldOperand(rbx, kGlobalOffset));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+
     // Push the receiver.
     __ bind(&push_receiver);
     __ push(rbx);

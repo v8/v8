@@ -1669,8 +1669,6 @@ bool Genesis::InstallNatives() {
   builtins->set_native_context(*native_context());
   builtins->set_global_context(*native_context());
   builtins->set_global_receiver(*builtins);
-  builtins->set_global_receiver(native_context()->global_proxy());
-
 
   // Set up the 'global' properties of the builtins object. The
   // 'global' property that refers to the global object is the only
@@ -1684,11 +1682,6 @@ bool Genesis::InstallNatives() {
   CHECK_NOT_EMPTY_HANDLE(isolate(),
                          JSObject::SetLocalPropertyIgnoreAttributes(
                              builtins, global_string, global_obj, attributes));
-  Handle<String> builtins_string =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
-  CHECK_NOT_EMPTY_HANDLE(isolate(),
-                         JSObject::SetLocalPropertyIgnoreAttributes(
-                             builtins, builtins_string, builtins, attributes));
 
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(native_context()->global_object())->
@@ -2588,8 +2581,6 @@ Genesis::Genesis(Isolate* isolate,
 
     HookUpGlobalProxy(inner_global, global_proxy);
     HookUpInnerGlobal(inner_global);
-    native_context()->builtins()->set_global_receiver(
-        native_context()->global_proxy());
 
     if (!ConfigureGlobalObjects(global_template)) return;
   } else {

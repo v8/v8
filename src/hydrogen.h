@@ -2502,9 +2502,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                 HValue* receiver,
                                 Handle<Map> receiver_map);
 
-  void InstallGlobalReceiverInExpressionStack(int index,
-                                              Handle<JSFunction> function);
-
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;
 

@@ -34,7 +34,6 @@
 #include "deoptimizer.h"
 #include "full-codegen.h"
 #include "runtime.h"
-#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -1092,8 +1091,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Use the global receiver object from the called function as the
     // receiver.
     __ bind(&use_global_receiver);
-  __ ldr(r2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+    const int kGlobalIndex =
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
+    __ ldr(r2, FieldMemOperand(cp, kGlobalIndex));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kNativeContextOffset));
+    __ ldr(r2, FieldMemOperand(r2, kGlobalIndex));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ add(r3, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -1284,7 +1287,11 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
-    __ ldr(r0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+    const int kGlobalOffset =
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
+    __ ldr(r0, FieldMemOperand(cp, kGlobalOffset));
+    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
+    __ ldr(r0, FieldMemOperand(r0, kGlobalOffset));
     __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
 
     // Push the receiver.

@@ -2414,8 +2414,7 @@ class HCallNamed V8_FINAL : public HUnaryCall {
 
 enum CallMode {
   NORMAL_CALL,
-  TAIL_CALL,
-  NORMAL_CONTEXTUAL_CALL
+  TAIL_CALL
 };
 
 
@@ -2426,7 +2425,7 @@ class HCallFunction V8_FINAL : public HBinaryCall {
       HCallFunction, HValue*, int, CallMode);
 
   bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
-  bool IsContextualCall() const { return call_mode_ == NORMAL_CONTEXTUAL_CALL; }
+
   HValue* context() { return first(); }
   HValue* function() { return second(); }
 

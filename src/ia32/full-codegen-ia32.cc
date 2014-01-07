@@ -2769,11 +2769,11 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(callee);
     }
-    // Push the hole as receiver.
-    // It will be correctly replaced in the call stub.
-    __ push(Immediate(isolate()->factory()->the_hole_value()));
+    // Load global receiver object.
+    __ mov(ebx, GlobalObjectOperand());
+    __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
     // Emit function call.
-    EmitCallWithStub(expr, RECEIVER_IS_IMPLICIT);
+    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
   }
 
 #ifdef DEBUG

@@ -3675,7 +3675,10 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // TODO(kmillikin): We have a hydrogen value for the global object.  See
   // if it's better to use it than to explicitly fetch it from the context
   // here.
-  CallStubCompiler::FetchGlobalProxy(masm(), receiver, function);
+  __ mov(receiver, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ mov(receiver, ContextOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
+  __ mov(receiver,
+         FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
 }
 
@@ -4242,10 +4245,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
-  CallFunctionFlags flags =
-      instr->hydrogen()->IsContextualCall() ?
-          RECEIVER_IS_IMPLICIT : NO_CALL_FUNCTION_FLAGS;
-  CallFunctionStub stub(arity, flags);
+  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
   if (instr->hydrogen()->IsTailCall()) {
     if (NeedsEagerFrame()) __ leave();
     __ jmp(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
