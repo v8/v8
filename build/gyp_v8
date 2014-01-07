@@ -159,6 +159,9 @@ if __name__ == '__main__':
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
   if platform.system() == 'Linux':
+    # Work around for crbug.com/331475.
+    for f in glob.glob(os.path.join(v8_root, 'out', 'Makefile.*')):
+      os.unlink(f)
     # --generator-output defines where the Makefile goes.
     gyp_args.append('--generator-output=out')
     # -Goutput_dir defines where the build output goes, relative to the
