@@ -1804,6 +1804,8 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
 
     if ((receiver_map->instance_type() & kNotStringTag) == 0) {
       cached_stub = isolate()->builtins()->KeyedLoadIC_String();
+    } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
+      cached_stub = isolate()->builtins()->KeyedLoadIC_Slow();
     } else {
       bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
       ElementsKind elements_kind = receiver_map->elements_kind();
@@ -1848,6 +1850,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           transitioned_map->elements_kind(),
           is_js_array,
           store_mode()).GetCode(isolate());
+    } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
+      cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
       if (receiver_map->has_fast_elements() ||
           receiver_map->has_external_array_elements()) {
