@@ -1133,7 +1133,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Error reading file");
     return;
   }
-  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data, length);
+  Handle<v8::ArrayBuffer> buffer =
+      ArrayBuffer::New(isolate, data->data, length);
   data->handle.Reset(isolate, buffer);
   data->handle.SetWeak(data, ReadBufferWeakCallback);
   data->handle.MarkIndependent();
