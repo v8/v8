@@ -6164,18 +6164,6 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 }
 
 
-#ifdef DEBUG
-v8::AssertNoGCScope::AssertNoGCScope(v8::Isolate* isolate) {
-  disallow_heap_allocation_ = new i::DisallowHeapAllocation();
-}
-
-
-v8::AssertNoGCScope::~AssertNoGCScope() {
-  delete static_cast<i::DisallowHeapAllocation*>(disallow_heap_allocation_);
-}
-#endif
-
-
 void V8::IgnoreOutOfMemoryException() {
   EnterIsolateIfNeeded()->set_ignore_out_of_memory(true);
 }
