@@ -1,3 +1,16 @@
+2014-01-08: Version 3.24.12
+
+        Correctly handle instances without elements in polymorphic keyed
+        load/store (Chromium issue 331416).
+
+        Fix selection of popular pages in store buffer (Chromium issue 331444).
+
+        Prepare removal of ObjectTemplate::New without Isolate parameter
+        (Chromium issue 324225).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-07: Version 3.24.11
 
         Remove generated makefiles on linux when running gyp_v8
