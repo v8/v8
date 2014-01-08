@@ -79,6 +79,21 @@ function InstallGetterSetter(object, name, getter, setter) {
 }
 
 
+// Helper function for installing constant properties on objects.
+function InstallConstants(object, constants) {
+  if (constants.length >= 4) {
+    %OptimizeObjectForAddingMultipleProperties(object, constants.length >> 1);
+  }
+  var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
+  for (var i = 0; i < constants.length; i += 2) {
+    var name = constants[i];
+    var k = constants[i + 1];
+    %SetProperty(object, name, k, attributes);
+  }
+  %ToFastProperties(object);
+}
+
+
 // Prevents changes to the prototype of a built-in function.
 // The "prototype" property of the function object is made non-configurable,
 // and the prototype object is made non-extensible. The latter prevents
@@ -1624,9 +1639,26 @@ function NumberIsFinite(number) {
 }
 
 
+// Harmony isInteger
+function NumberIsInteger(number) {
+  return NumberIsFinite(number) && TO_INTEGER(number) == number;
+}
+
+
 // Harmony isNaN.
 function NumberIsNaN(number) {
   return IS_NUMBER(number) && NUMBER_IS_NAN(number);
+}
+
+
+// Harmony isSafeInteger
+function NumberIsSafeInteger(number) {
+  if (NumberIsFinite(number)) {
+    var integral = TO_INTEGER(number);
+    if (integral == number)
+      return MathAbs(integral) <= $Number.MAX_SAFE_INTEGER;
+  }
+  return false;
 }
 
 
@@ -1642,32 +1674,24 @@ function SetUpNumber() {
   // Set up the constructor property on the Number prototype object.
   %SetProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
-  %OptimizeObjectForAddingMultipleProperties($Number, 5);
-  // ECMA-262 section 15.7.3.1.
-  %SetProperty($Number,
-               "MAX_VALUE",
-               1.7976931348623157e+308,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
+  InstallConstants($Number, $Array(
+      // ECMA-262 section 15.7.3.1.
+      "MAX_VALUE", 1.7976931348623157e+308,
+      // ECMA-262 section 15.7.3.2.
+      "MIN_VALUE", 5e-324,
+      // ECMA-262 section 15.7.3.3.
+      "NaN", NAN,
+      // ECMA-262 section 15.7.3.4.
+      "NEGATIVE_INFINITY", -INFINITY,
+      // ECMA-262 section 15.7.3.5.
+      "POSITIVE_INFINITY", INFINITY,
 
-  // ECMA-262 section 15.7.3.2.
-  %SetProperty($Number, "MIN_VALUE", 5e-324,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
+      // --- Harmony constants (no spec refs until settled.)
 
-  // ECMA-262 section 15.7.3.3.
-  %SetProperty($Number, "NaN", NAN, DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-  // ECMA-262 section 15.7.3.4.
-  %SetProperty($Number,
-               "NEGATIVE_INFINITY",
-               -INFINITY,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-  // ECMA-262 section 15.7.3.5.
-  %SetProperty($Number,
-               "POSITIVE_INFINITY",
-               INFINITY,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %ToFastProperties($Number);
+      "MAX_SAFE_INTEGER", %_MathPow(2, 53) - 1,
+      "MIN_SAFE_INTEGER", -%_MathPow(2, 53) + 1,
+      "EPSILON", %_MathPow(2, -52)
+  ));
 
   // Set up non-enumerable functions on the Number prototype object.
   InstallFunctions($Number.prototype, DONT_ENUM, $Array(
@@ -1678,9 +1702,15 @@ function SetUpNumber() {
     "toExponential", NumberToExponential,
     "toPrecision", NumberToPrecision
   ));
+
+  // Harmony Number constructor additions
   InstallFunctions($Number, DONT_ENUM, $Array(
     "isFinite", NumberIsFinite,
-    "isNaN", NumberIsNaN
+    "isInteger", NumberIsInteger,
+    "isNaN", NumberIsNaN,
+    "isSafeInteger", NumberIsSafeInteger,
+    "parseInt", GlobalParseInt,
+    "parseFloat", GlobalParseFloat
   ));
 }
 
