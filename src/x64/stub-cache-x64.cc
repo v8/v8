@@ -475,7 +475,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Prepare arguments.
   STATIC_ASSERT(kFastApiCallArguments == 7);
-  __ lea(rax, Operand(rsp, 1 * kPointerSize));
+  __ lea(rax, args.GetArgumentOperand(offset - FCA::kHolderIndex));
 
   GenerateFastApiCallBody(masm, optimization, argc, false);
 }
@@ -495,8 +495,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 Register* values) {
   ASSERT(optimization.is_simple_api_call());
 
-  // Copy return value.
-  __ pop(scratch1);
+  __ PopReturnAddressTo(scratch1);
 
   // receiver
   __ push(receiver);
@@ -563,9 +562,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(!scratch1.is(rax));
   // store receiver address for GenerateFastApiCallBody
   __ movq(rax, rsp);
-
-  // return address
-  __ push(scratch1);
+  __ PushReturnAddressFrom(scratch1);
 
   GenerateFastApiCallBody(masm, optimization, argc, true);
 }
