@@ -794,6 +794,15 @@ Deserializer::Deserializer(SnapshotByteSource* source)
 }
 
 
+void Deserializer::FlushICacheForNewCodeObjects() {
+  PageIterator it(isolate_->heap()->code_space());
+  while (it.has_next()) {
+    Page* p = it.next();
+    CPU::FlushICache(p->area_start(), p->area_end() - p->area_start());
+  }
+}
+
+
 void Deserializer::Deserialize(Isolate* isolate) {
   isolate_ = isolate;
   ASSERT(isolate_ != NULL);
@@ -829,6 +838,8 @@ void Deserializer::Deserialize(Isolate* isolate) {
       ExternalAsciiString::cast(source)->update_data_cache();
     }
   }
+
+  FlushICacheForNewCodeObjects();
 
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
