@@ -423,7 +423,8 @@ TEST(HeapSnapshotSlicedString) {
 TEST(HeapSnapshotConsString) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Local<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(1);
   LocalContext env(NULL, global_template);
   v8::Handle<v8::Object> global_proxy = env->Global();
@@ -466,7 +467,8 @@ TEST(HeapSnapshotConsString) {
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Local<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(2);
   LocalContext env(NULL, global_template);
   v8::Handle<v8::Object> global_proxy = env->Global();

@@ -98,7 +98,7 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 // functions.
 v8::Handle<v8::Context> CreateShellContext(v8::Isolate* isolate) {
   // Create a template for the global object.
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
   // Bind the global 'print' function to the C++ Print callback.
   global->Set(v8::String::NewFromUtf8(isolate, "print"),
               v8::FunctionTemplate::New(isolate, Print));

@@ -1639,7 +1639,7 @@ void LCodeGen::DoDateField(LDateField* instr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
     __ movq(arg_reg_1, object);
-    __ movq(arg_reg_2, index, RelocInfo::NONE64);
+    __ Move(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ bind(&done);
   }
@@ -2560,7 +2560,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   __ movq(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
   Handle<Cell> cache_cell = factory()->NewCell(factory()->the_hole_value());
-  __ movq(kScratchRegister, cache_cell, RelocInfo::CELL);
+  __ Move(kScratchRegister, cache_cell, RelocInfo::CELL);
   __ cmpq(map, Operand(kScratchRegister, 0));
   __ j(not_equal, &cache_miss, Label::kNear);
   // Patched to load either true or false.
@@ -2708,10 +2708,9 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Move(rcx, instr->name());
-  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
-                                               RelocInfo::CODE_TARGET_CONTEXT;
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  CallCode(ic, mode, instr);
+  ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2727,14 +2726,14 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
     // We have a temp because CompareRoot might clobber kScratchRegister.
     Register cell = ToRegister(instr->temp());
     ASSERT(!value.is(cell));
-    __ movq(cell, cell_handle, RelocInfo::CELL);
+    __ Move(cell, cell_handle, RelocInfo::CELL);
     __ CompareRoot(Operand(cell, 0), Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
     // Store the value.
     __ movq(Operand(cell, 0), value);
   } else {
     // Store the value.
-    __ movq(kScratchRegister, cell_handle, RelocInfo::CELL);
+    __ Move(kScratchRegister, cell_handle, RelocInfo::CELL);
     __ movq(Operand(kScratchRegister, 0), value);
   }
   // Cells are always rescanned, so no write barrier here.
@@ -2747,10 +2746,10 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
 
   __ Move(rcx, instr->name());
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             CONTEXTUAL);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2857,7 +2856,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Move(rcx, instr->name());
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3801,11 +3800,10 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
   __ Move(rcx, instr->name());
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -3832,11 +3830,10 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
   ASSERT(ToRegister(instr->result()).is(rax));
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
   __ Move(rcx, instr->name());
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -4075,9 +4072,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
 
   __ Move(rcx, instr->hydrogen()->name());
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4351,7 +4348,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ j(not_equal, &not_applicable);
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     Register new_map_reg = ToRegister(instr->new_map_temp());
-    __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
+    __ Move(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movq(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
     // Write barrier.
     ASSERT_NE(instr->temp(), NULL);

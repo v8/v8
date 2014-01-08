@@ -1314,11 +1314,8 @@ void AllocationSite::Initialize() {
 
 void AllocationSite::MarkZombie() {
   ASSERT(!IsZombie());
+  Initialize();
   set_pretenure_decision(Smi::FromInt(kZombie));
-  // Clear all non-smi fields
-  set_transition_info(Smi::FromInt(0));
-  set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
-                     SKIP_WRITE_BARRIER);
 }
 
 
@@ -1326,8 +1323,7 @@ void AllocationSite::MarkZombie() {
 // elements kind is the initial elements kind.
 AllocationSiteMode AllocationSite::GetMode(
     ElementsKind boilerplate_elements_kind) {
-  if (FLAG_track_allocation_sites &&
-      IsFastSmiElementsKind(boilerplate_elements_kind)) {
+  if (IsFastSmiElementsKind(boilerplate_elements_kind)) {
     return TRACK_ALLOCATION_SITE;
   }
 
@@ -1337,8 +1333,7 @@ AllocationSiteMode AllocationSite::GetMode(
 
 AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
                                            ElementsKind to) {
-  if (FLAG_track_allocation_sites &&
-      IsFastSmiElementsKind(from) &&
+  if (IsFastSmiElementsKind(from) &&
       IsMoreGeneralElementsKindTransition(from, to)) {
     return TRACK_ALLOCATION_SITE;
   }

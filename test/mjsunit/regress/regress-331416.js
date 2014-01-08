@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,63 +24,29 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 // Flags: --allow-natives-syntax
 
-// Test adding undefined from hole in double-holey to string.
-var a = [1.5, , 1.8];
-
-function f(a, i, l) {
-  var v = a[i];
-  return l + v;
+function load(a, i) {
+  return a[i];
 }
+load([1, 2, 3], "length");
+load(3);
+load([1, 2, 3], 3);
+load(0, 0);
+%OptimizeFunctionOnNextCall(load);
+assertEquals(2, load([1, 2, 3], 1));
+assertEquals(undefined, load(0, 0));
 
-assertEquals("test1.5", f(a, 0, "test"));
-assertEquals("test1.5", f(a, 0, "test"));
-%OptimizeFunctionOnNextCall(f);
-assertEquals("testundefined", f(a, 1, "test"));
-
-// Test double-hole going through a phi to a string-add.
-function f2(b, a1, a2) {
-  var v;
-  if (b) {
-    v = a1[0];
-  } else {
-    v = a2[0];
-  }
-  x = v * 2;
-  return "test" + v + x;
+function store(a, i, x) {
+  a[i] = x;
 }
-
-f2(true, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
-f2(true, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
-f2(false, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
-f2(false, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
-%OptimizeFunctionOnNextCall(f2);
-assertEquals("testundefinedNaN", f2(false, [,1.8,,1.9], [,1.9,,1.9]));
-
-// Test converting smi-hole to double-hole.
-function t_smi(a) {
-  a[0] = 1.5;
-}
-
-t_smi([1,,3]);
-t_smi([1,,3]);
-t_smi([1,,3]);
-%OptimizeFunctionOnNextCall(t_smi);
-var ta = [1,,3];
-t_smi(ta);
-ta.__proto__ = [6,6,6];
-assertEquals([1.5,6,3], ta);
-
-// Test converting double-hole to tagged-hole.
-function t(b) {
-  b[1] = {};
-}
-
-t([1.4, 1.6,,1.8, NaN]);
-t([1.4, 1.6,,1.8, NaN]);
-%OptimizeFunctionOnNextCall(t);
-var a = [1.6, 1.8,,1.9, NaN];
-t(a);
-a.__proto__ = [6,6,6,6,6];
-assertEquals([1.6, {}, 6, 1.9, NaN], a);
+store([1, 2, 3], "length", 3);
+store(3);
+store([1, 2, 3], 3, 3);
+store(0, 0, 1);
+%OptimizeFunctionOnNextCall(store);
+var a = [1, 2, 3];
+store(a, 1, 1);
+assertEquals(1, a[1]);
+store(0, 0, 1);

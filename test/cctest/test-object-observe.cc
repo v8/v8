@@ -517,7 +517,7 @@ static Handle<Object> CreateAccessCheckedObject(
     NamedSecurityCallback namedCallback,
     IndexedSecurityCallback indexedCallback,
     Handle<Value> data = Handle<Value>()) {
-  Handle<ObjectTemplate> tmpl = ObjectTemplate::New();
+  Handle<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
   tmpl->SetAccessCheckCallbacks(namedCallback, indexedCallback, data);
   Handle<Object> instance = tmpl->NewInstance();
   Handle<Object> global = instance->CreationContext()->Global();

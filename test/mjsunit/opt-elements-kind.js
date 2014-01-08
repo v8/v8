@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --notrack_allocation_sites
 
 // Limit the number of stress runs to reduce polymorphism it defeats some of the
 // assumptions made about how elements transitions work because transition stubs
@@ -114,8 +113,20 @@ function assertKind(expected, obj, name_opt) {
 }
 
 %NeverOptimizeFunction(construct_smis);
+
+// This code exists to eliminate the learning influence of AllocationSites
+// on the following tests.
+var __sequence = 0;
+function make_array_string() {
+  this.__sequence = this.__sequence + 1;
+  return "/* " + this.__sequence + " */  [0, 0, 0];"
+}
+function make_array() {
+  return eval(make_array_string());
+}
+
 function construct_smis() {
-  var a = [0, 0, 0];
+  var a = make_array();
   a[0] = 0;  // Send the COW array map to the steak house.
   assertKind(elements_kind.fast_smi_only, a);
   return a;

@@ -89,6 +89,20 @@ class IC {
     EXTRA_CALL_FRAME = 1
   };
 
+  // ExtraICState shared by all ICs.
+  class Contextual: public BitField<ContextualMode, 0, 1> {};
+  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
+  static ExtraICState ComputeExtraICState(ContextualMode mode) {
+    return Contextual::encode(mode);
+  }
+
+  static ContextualMode GetContextualMode(ExtraICState state) {
+    return Contextual::decode(state);
+  }
+
+  static const ExtraICState kContextualState =
+      static_cast<int>(CONTEXTUAL) << Contextual::kShift;
+
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(FrameDepth depth, Isolate* isolate);
@@ -106,24 +120,15 @@ class IC {
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address);
 
-  // Computes the reloc info for this IC. This is a fairly expensive
-  // operation as it has to search through the heap to find the code
-  // object that contains this IC site.
-  RelocInfo::Mode ComputeMode();
-
   // Returns if this IC is for contextual (no explicit receiver)
   // access to properties.
   bool IsUndeclaredGlobal(Handle<Object> receiver) {
     if (receiver->IsGlobalObject()) {
-      return SlowIsUndeclaredGlobal();
+      return IsContextual();
     } else {
-      ASSERT(!SlowIsUndeclaredGlobal());
+      ASSERT(!IsContextual());
       return false;
     }
-  }
-
-  bool SlowIsUndeclaredGlobal() {
-    return ComputeMode() == RelocInfo::CODE_TARGET_CONTEXT;
   }
 
 #ifdef DEBUG
@@ -168,6 +173,12 @@ class IC {
   static Handle<Map> TypeToMap(Type* type, Isolate* isolate);
   static Type* MapToType(Handle<Map> type);
   static Handle<Type> CurrentTypeOf(Handle<Object> object, Isolate* isolate);
+
+  ContextualMode contextual_mode() const {
+    return Contextual::decode(extra_ic_state());
+  }
+
+  bool IsContextual() const { return contextual_mode() == CONTEXTUAL; }
 
  protected:
   // Get the call-site target; used for determining the state.
@@ -257,7 +268,10 @@ class IC {
                                               Handle<String> name);
   void TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name);
 
-  virtual ExtraICState extra_ic_state() { return kNoExtraICState; }
+  ExtraICState extra_ic_state() const { return extra_ic_state_; }
+  void set_extra_ic_state(ExtraICState state) {
+    extra_ic_state_ = state;
+  }
 
  private:
   Code* raw_target() const { return GetTargetAtAddress(address()); }
@@ -277,6 +291,8 @@ class IC {
   Handle<Code> target_;
   State state_;
   bool target_set_;
+
+  ExtraICState extra_ic_state_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
@@ -307,7 +323,6 @@ enum StringStubFeedback {
 class CallICBase: public IC {
  public:
   // ExtraICState bits
-  class Contextual: public BitField<ContextualMode, 0, 1> {};
   class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
   static ExtraICState ComputeExtraICState(ContextualMode mode,
                                           StringStubFeedback feedback) {
@@ -368,8 +383,7 @@ class CallICBase: public IC {
 class CallIC: public CallICBase {
  public:
   explicit CallIC(Isolate* isolate)
-      : CallICBase(Code::CALL_IC, isolate),
-        extra_ic_state_(target()->extra_ic_state()) {
+      : CallICBase(Code::CALL_IC, isolate) {
     ASSERT(target()->is_call_stub());
   }
 
@@ -395,12 +409,6 @@ class CallIC: public CallICBase {
     GenerateMiss(masm, argc, kNoExtraICState);
   }
   bool TryUpdateExtraICState(LookupResult* lookup, Handle<Object> object);
-
- protected:
-  virtual ExtraICState extra_ic_state() { return extra_ic_state_; }
-
- private:
-  ExtraICState extra_ic_state_;
 };
 
 
@@ -432,7 +440,8 @@ class KeyedCallIC: public CallICBase {
 
 class LoadIC: public IC {
  public:
-  explicit LoadIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
+  explicit LoadIC(FrameDepth depth, Isolate* isolate)
+      : IC(depth, isolate) {
     ASSERT(IsLoadStub());
   }
 
@@ -442,9 +451,11 @@ class LoadIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateMegamorphic(MacroAssembler* masm, ContextualMode mode);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
+
+  static Handle<Code> initialize_stub(Isolate* isolate, ContextualMode mode);
 
   MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
                                     Handle<String> name);
@@ -456,9 +467,7 @@ class LoadIC: public IC {
     return isolate()->builtins()->LoadIC_Slow();
   }
 
-  virtual Handle<Code> megamorphic_stub() {
-    return isolate()->builtins()->LoadIC_Megamorphic();
-  }
+  virtual Handle<Code> megamorphic_stub();
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -474,16 +483,11 @@ class LoadIC: public IC {
 
  private:
   // Stub accessors.
-  static Handle<Code> initialize_stub(Isolate* isolate) {
-    return isolate->builtins()->LoadIC_Initialize();
-  }
-
-  static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
-    return isolate->builtins()->LoadIC_PreMonomorphic();
-  }
+  static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
+                                           ContextualMode mode);
 
   virtual Handle<Code> pre_monomorphic_stub() {
-    return pre_monomorphic_stub(isolate());
+    return pre_monomorphic_stub(isolate(), contextual_mode());
   }
 
   Handle<Code> SimpleFieldLoad(int offset,
@@ -545,9 +549,6 @@ class KeyedLoadIC: public LoadIC {
 
  private:
   // Stub accessors.
-  static Handle<Code> initialize_stub(Isolate* isolate) {
-    return isolate->builtins()->KeyedLoadIC_Initialize();
-  }
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
     return isolate->builtins()->KeyedLoadIC_PreMonomorphic();
   }
@@ -573,9 +574,14 @@ class KeyedLoadIC: public LoadIC {
 class StoreIC: public IC {
  public:
   // ExtraICState bits
-  class StrictModeState: public BitField<StrictModeFlag, 0, 1> {};
+  class StrictModeState: public BitField<StrictModeFlag, 1, 1> {};
   static ExtraICState ComputeExtraICState(StrictModeFlag flag) {
     return StrictModeState::encode(flag);
+  }
+
+  static ExtraICState ComputeExtraICState(StrictModeFlag flag,
+                                          ContextualMode mode) {
+    return StrictModeState::encode(flag) | Contextual::encode(mode);
   }
 
   static StrictModeFlag GetStrictMode(ExtraICState state) {
@@ -588,12 +594,13 @@ class StoreIC: public IC {
       1 << StrictModeState::kShift;
 
   StoreIC(FrameDepth depth, Isolate* isolate)
-      : IC(depth, isolate),
-        strict_mode_(GetStrictMode(target()->extra_ic_state())) {
+      : IC(depth, isolate) {
     ASSERT(IsStoreStub());
   }
 
-  StrictModeFlag strict_mode() const { return strict_mode_; }
+  StrictModeFlag strict_mode() const {
+    return StrictModeState::decode(extra_ic_state());
+  }
 
   // Code generators for stub routines. Only called once at startup.
   static void GenerateSlow(MacroAssembler* masm);
@@ -608,6 +615,10 @@ class StoreIC: public IC {
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);
 
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      StrictModeFlag strict_mode,
+                                      ContextualMode mode);
+
   MUST_USE_RESULT MaybeObject* Store(
       Handle<Object> object,
       Handle<String> name,
@@ -617,38 +628,22 @@ class StoreIC: public IC {
 
  protected:
   virtual Code::Kind kind() const { return Code::STORE_IC; }
-  virtual Handle<Code> megamorphic_stub() {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_Megamorphic_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_Megamorphic();
-    }
-  }
+  virtual Handle<Code> megamorphic_stub();
+
   // Stub accessors.
-  virtual Handle<Code> generic_stub() const {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_Generic_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_Generic();
-    }
-  }
+  virtual Handle<Code> generic_stub() const;
 
   virtual Handle<Code> slow_stub() const {
     return isolate()->builtins()->StoreIC_Slow();
   }
 
   virtual Handle<Code> pre_monomorphic_stub() {
-    return pre_monomorphic_stub(isolate(), strict_mode());
+    return pre_monomorphic_stub(isolate(), strict_mode(), contextual_mode());
   }
 
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
-      return isolate->builtins()->StoreIC_PreMonomorphic_Strict();
-    } else {
-      return isolate->builtins()->StoreIC_PreMonomorphic();
-    }
-  }
+                                           StrictModeFlag strict_mode,
+                                           ContextualMode contextual_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -662,30 +657,18 @@ class StoreIC: public IC {
                                       Handle<Object> value,
                                       InlineCacheHolderFlag cache_holder);
 
-  virtual ExtraICState extra_ic_state() {
-    return ComputeExtraICState(strict_mode());
-  }
-
  private:
   void set_target(Code* code) {
     // Strict mode must be preserved across IC patching.
     ASSERT(GetStrictMode(code->extra_ic_state()) ==
            GetStrictMode(target()->extra_ic_state()));
+    // As must the contextual mode
+    ASSERT(GetContextualMode(code->extra_ic_state()) ==
+           GetContextualMode(target()->extra_ic_state()));
     IC::set_target(code);
   }
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
-      return isolate->builtins()->StoreIC_Initialize_Strict();
-    } else {
-      return isolate->builtins()->StoreIC_Initialize();
-    }
-  }
-
   static void Clear(Isolate* isolate, Address address, Code* target);
-
-  StrictModeFlag strict_mode_;
 
   friend class IC;
 };
@@ -708,10 +691,10 @@ class KeyedStoreIC: public StoreIC {
   // ExtraICState bits (building on IC)
   // ExtraICState bits
   class ExtraICStateKeyedAccessStoreMode:
-      public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
+      public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
 
   static ExtraICState ComputeExtraICState(StrictModeFlag flag,
-                                                KeyedAccessStoreMode mode) {
+                                          KeyedAccessStoreMode mode) {
     return StrictModeState::encode(flag) |
         ExtraICStateKeyedAccessStoreMode::encode(mode);
   }
@@ -747,10 +730,6 @@ class KeyedStoreIC: public StoreIC {
 
   virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
 
-  virtual ExtraICState extra_ic_state() {
-    return ComputeExtraICState(strict_mode(), STANDARD_STORE);
-  }
-
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate(), strict_mode());
   }
@@ -784,15 +763,6 @@ class KeyedStoreIC: public StoreIC {
   }
 
   // Stub accessors.
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
-      return isolate->builtins()->KeyedStoreIC_Initialize_Strict();
-    } else {
-      return isolate->builtins()->KeyedStoreIC_Initialize();
-    }
-  }
-
   virtual Handle<Code> generic_stub() const {
     if (strict_mode() == kStrictMode) {
       return isolate()->builtins()->KeyedStoreIC_Generic_Strict();

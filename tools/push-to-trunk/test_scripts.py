@@ -38,6 +38,7 @@ import auto_roll
 from auto_roll import AutoRollOptions
 from auto_roll import CheckLastPush
 from auto_roll import FetchLatestRevision
+from auto_roll import SETTINGS_LOCATION
 
 
 TEST_CONFIG = {
@@ -53,6 +54,7 @@ TEST_CONFIG = {
   COMMITMSG_FILE: "/tmp/test-v8-push-to-trunk-tempfile-commitmsg",
   CHROMIUM: "/tmp/test-v8-push-to-trunk-tempfile-chromium",
   DEPS_FILE: "/tmp/test-v8-push-to-trunk-tempfile-chromium/DEPS",
+  SETTINGS_LOCATION: None,
 }
 
 
@@ -746,8 +748,11 @@ Performance and stability improvements on all platforms."""
 
   def testAutoRoll(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
     self.ExpectReadURL([
+      ["https://v8-status.appspot.com/current?format=json",
+       "{\"message\": \"Tree is throttled\"}"],
       ["https://v8-status.appspot.com/lkgr", Exception("Network problem")],
       ["https://v8-status.appspot.com/lkgr", "100"],
     ])
@@ -760,13 +765,46 @@ Performance and stability improvements on all platforms."""
       ["svn log -1 --oneline ChangeLog", "r65 | Prepare push to trunk..."],
     ])
 
-    auto_roll.RunAutoRoll(TEST_CONFIG,
-                          AutoRollOptions(MakeOptions(m=False, f=True)),
-                          self)
+    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
 
     self.assertEquals("100", self.MakeStep().Restore("lkgr"))
     self.assertEquals("101", self.MakeStep().Restore("latest"))
 
+  def testAutoRollStoppedBySettings(self):
+    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TEST_CONFIG[SETTINGS_LOCATION] = self.MakeEmptyTempFile()
+    TextToFile("{\"enable_auto_roll\": false}", TEST_CONFIG[SETTINGS_LOCATION])
+
+    self.ExpectReadURL([])
+
+    self.ExpectGit([
+      ["status -s -uno", ""],
+      ["status -s -b -uno", "## some_branch\n"],
+      ["svn fetch", ""],
+    ])
+
+    def RunAutoRoll():
+      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
+    self.assertRaises(Exception, RunAutoRoll)
+
+  def testAutoRollStoppedByTreeStatus(self):
+    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
+
+    self.ExpectReadURL([
+      ["https://v8-status.appspot.com/current?format=json",
+       "{\"message\": \"Tree is throttled (no push)\"}"],
+    ])
+
+    self.ExpectGit([
+      ["status -s -uno", ""],
+      ["status -s -b -uno", "## some_branch\n"],
+      ["svn fetch", ""],
+    ])
+
+    def RunAutoRoll():
+      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
+    self.assertRaises(Exception, RunAutoRoll)
 
 class SystemTest(unittest.TestCase):
   def testReload(self):

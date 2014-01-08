@@ -1053,8 +1053,8 @@ class KeyedArrayCallStub: public HICStub {
   }
 
   class ContextualBits: public BitField<bool, 0, 1> {};
-  STATIC_ASSERT(CallICBase::Contextual::kShift == ContextualBits::kShift);
-  STATIC_ASSERT(CallICBase::Contextual::kSize == ContextualBits::kSize);
+  STATIC_ASSERT(IC::Contextual::kShift == ContextualBits::kShift);
+  STATIC_ASSERT(IC::Contextual::kSize == ContextualBits::kSize);
   class HoleyBits: public BitField<bool, 1, 1> {};
   STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 2);
   class ArgcBits: public BitField<int, 2, Code::kArgumentsBits> {};
@@ -1998,8 +1998,7 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
     // It only makes sense to override local allocation site behavior
     // if there is a difference between the global allocation site policy
     // for an ElementsKind and the desired usage of the stub.
-    ASSERT(!(FLAG_track_allocation_sites &&
-             override_mode == DISABLE_ALLOCATION_SITES) ||
+    ASSERT(override_mode != DISABLE_ALLOCATION_SITES ||
            AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
         AllocationSiteOverrideModeBits::encode(override_mode) |

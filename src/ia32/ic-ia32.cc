@@ -1319,7 +1319,7 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 }
 
 
-void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
+void LoadIC::GenerateMegamorphic(MacroAssembler* masm, ContextualMode mode) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- edx    : receiver
@@ -1327,8 +1327,9 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Probe the stub cache.
+  ExtraICState extra_ic_state = IC::ComputeExtraICState(mode);
   Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, kNoExtraICState,
+      Code::HANDLER, MONOMORPHIC, extra_ic_state,
       Code::NORMAL, Code::LOAD_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, edx, ecx, ebx, eax);

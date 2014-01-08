@@ -721,7 +721,6 @@ enum InstanceType {
   EXTERNAL_DOUBLE_ARRAY_TYPE,
   EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
   FIXED_DOUBLE_ARRAY_TYPE,
-  CONSTANT_POOL_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
@@ -752,6 +751,7 @@ enum InstanceType {
   BREAK_POINT_INFO_TYPE,
 
   FIXED_ARRAY_TYPE,
+  CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 
   JS_MESSAGE_OBJECT_TYPE,
@@ -5137,6 +5137,7 @@ class Code: public HeapObject {
            kind == BINARY_OP_IC;
   }
 
+  bool IsContextual();  // Only valid for IC stubs.
   inline StubType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 

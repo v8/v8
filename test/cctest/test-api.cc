@@ -1103,11 +1103,13 @@ static void SimpleCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 template<typename Callback>
 static void TestSimpleCallback(Callback callback) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
-  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
-  object_template->Set(env->GetIsolate(), "callback",
-                       v8::FunctionTemplate::New(env->GetIsolate(), callback));
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->Set(isolate, "callback",
+                       v8::FunctionTemplate::New(isolate, callback));
   v8::Local<v8::Object> object = object_template->NewInstance();
   (*env)->Global()->Set(v8_str("callback_object"), object);
   v8::Handle<v8::Script> script;
@@ -1208,11 +1210,13 @@ void FastReturnValueCallback<Object>(
 template<typename T>
 Handle<Value> TestFastReturnValues() {
   LocalContext env;
-  v8::EscapableHandleScope scope(env->GetIsolate());
-  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::EscapableHandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
   v8::FunctionCallback callback = &FastReturnValueCallback<T>;
-  object_template->Set(env->GetIsolate(), "callback",
-                       v8::FunctionTemplate::New(env->GetIsolate(), callback));
+  object_template->Set(isolate, "callback",
+                       v8::FunctionTemplate::New(isolate, callback));
   v8::Local<v8::Object> object = object_template->NewInstance();
   (*env)->Global()->Set(v8_str("callback_object"), object);
   return scope.Escape(CompileRun("callback_object.callback()"));
@@ -1799,7 +1803,7 @@ THREADED_TEST(GlobalPrototype) {
 THREADED_TEST(ObjectTemplate) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ1 = ObjectTemplate::New();
+  Local<ObjectTemplate> templ1 = ObjectTemplate::New(isolate);
   templ1->Set(isolate, "x", v8_num(10));
   templ1->Set(isolate, "y", v8_num(13));
   LocalContext env;
@@ -2474,7 +2478,7 @@ static void CallFunctionRecursivelyCall(
 THREADED_TEST(DeepCrossLanguageRecursion) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
   global->Set(v8_str("callScriptRecursively"),
               v8::FunctionTemplate::New(isolate, CallScriptRecursivelyCall));
   global->Set(v8_str("callFunctionRecursively"),
@@ -2509,8 +2513,9 @@ static void ThrowingPropertyHandlerSet(
 
 
 THREADED_TEST(CallbackExceptionRegression) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNamedPropertyHandler(ThrowingPropertyHandlerGet,
                                ThrowingPropertyHandlerSet);
   LocalContext env;
@@ -2553,8 +2558,9 @@ THREADED_TEST(InternalFields) {
 
 
 THREADED_TEST(GlobalObjectInternalFields) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(1);
   LocalContext env(NULL, global_template);
   v8::Handle<v8::Object> global_proxy = env->Global();
@@ -4247,7 +4253,7 @@ void HandleF(const v8::FunctionCallbackInfo<v8::Value>& args) {
 THREADED_TEST(Vector) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> global = ObjectTemplate::New();
+  Local<ObjectTemplate> global = ObjectTemplate::New(isolate);
   global->Set(v8_str("f"), v8::FunctionTemplate::New(isolate, HandleF));
   LocalContext context(0, global);
 
@@ -4427,12 +4433,13 @@ TEST(OutOfMemoryNested) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(5 * K * K);
-  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::SetResourceConstraints(isolate, &constraints);
 
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("ProvokeOutOfMemory"),
-             v8::FunctionTemplate::New(CcTest::isolate(), ProvokeOutOfMemory));
+             v8::FunctionTemplate::New(isolate, ProvokeOutOfMemory));
   LocalContext context(0, templ);
   v8::V8::IgnoreOutOfMemoryException();
   Local<Value> result = CompileRun(
@@ -4713,10 +4720,11 @@ void CCatcher(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 THREADED_TEST(APICatch) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("ThrowFromC"),
-             v8::FunctionTemplate::New(CcTest::isolate(), ThrowFromC));
+             v8::FunctionTemplate::New(isolate, ThrowFromC));
   LocalContext context(0, templ);
   CompileRun(
     "var thrown = false;"
@@ -4731,10 +4739,11 @@ THREADED_TEST(APICatch) {
 
 
 THREADED_TEST(APIThrowTryCatch) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("ThrowFromC"),
-             v8::FunctionTemplate::New(CcTest::isolate(), ThrowFromC));
+             v8::FunctionTemplate::New(isolate, ThrowFromC));
   LocalContext context(0, templ);
   v8::TryCatch try_catch;
   CompileRun("ThrowFromC();");
@@ -4750,10 +4759,11 @@ THREADED_TEST(APIThrowTryCatch) {
 // JS stack.  This test therefore fails on the simulator.  The test is
 // not threaded to allow the threading tests to run on the simulator.
 TEST(TryCatchInTryFinally) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("CCatcher"),
-             v8::FunctionTemplate::New(CcTest::isolate(), CCatcher));
+             v8::FunctionTemplate::New(isolate, CCatcher));
   LocalContext context(0, templ);
   Local<Value> result = CompileRun("try {"
                                    "  try {"
@@ -4787,7 +4797,7 @@ TEST(APIThrowMessageOverwrittenToString) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::V8::AddMessageListener(check_reference_error_message);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("fail"), v8::FunctionTemplate::New(isolate, Fail));
   LocalContext context(NULL, templ);
   CompileRun("asdf;");
@@ -4909,11 +4919,12 @@ static void receive_message(v8::Handle<v8::Message> message,
 
 TEST(APIThrowMessage) {
   message_received = false;
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
   v8::V8::AddMessageListener(receive_message);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("ThrowFromC"),
-             v8::FunctionTemplate::New(CcTest::isolate(), ThrowFromC));
+             v8::FunctionTemplate::New(isolate, ThrowFromC));
   LocalContext context(0, templ);
   CompileRun("ThrowFromC();");
   CHECK(message_received);
@@ -4923,11 +4934,12 @@ TEST(APIThrowMessage) {
 
 TEST(APIThrowMessageAndVerboseTryCatch) {
   message_received = false;
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
   v8::V8::AddMessageListener(receive_message);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("ThrowFromC"),
-             v8::FunctionTemplate::New(CcTest::isolate(), ThrowFromC));
+             v8::FunctionTemplate::New(isolate, ThrowFromC));
   LocalContext context(0, templ);
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
@@ -4955,10 +4967,11 @@ TEST(APIStackOverflowAndVerboseTryCatch) {
 
 
 THREADED_TEST(ExternalScriptException) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("ThrowFromC"),
-             v8::FunctionTemplate::New(CcTest::isolate(), ThrowFromC));
+             v8::FunctionTemplate::New(isolate, ThrowFromC));
   LocalContext context(0, templ);
 
   v8::TryCatch try_catch;
@@ -5062,7 +5075,7 @@ THREADED_TEST(EvalInTryFinally) {
 TEST(ExceptionOrder) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("check"), v8::FunctionTemplate::New(isolate, JSCheck));
   templ->Set(v8_str("CThrowCountDown"),
              v8::FunctionTemplate::New(isolate, CThrowCountDown));
@@ -5127,7 +5140,7 @@ void ThrowValue(const v8::FunctionCallbackInfo<v8::Value>& args) {
 THREADED_TEST(ThrowValues) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("Throw"), v8::FunctionTemplate::New(isolate, ThrowValue));
   LocalContext context(0, templ);
   v8::Handle<v8::Array> result = v8::Handle<v8::Array>::Cast(CompileRun(
@@ -5269,7 +5282,7 @@ TEST(TryCatchMixedNesting) {
   v8::HandleScope scope(isolate);
   v8::V8::Initialize();
   v8::TryCatch try_catch;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("TryCatchMixedNestingHelper"),
              v8::FunctionTemplate::New(isolate, TryCatchMixedNestingHelper));
   LocalContext context(0, templ);
@@ -5341,8 +5354,9 @@ static void GetXValue(Local<String> name,
 
 THREADED_TEST(SimplePropertyRead) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut"));
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   Local<Script> script = Script::Compile(v8_str("obj.x"));
@@ -5355,8 +5369,9 @@ THREADED_TEST(SimplePropertyRead) {
 
 THREADED_TEST(DefinePropertyOnAPIAccessor) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut"));
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
 
@@ -5402,8 +5417,9 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
 
 
 THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut"));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
@@ -5454,8 +5470,9 @@ static v8::Handle<v8::Object> GetGlobalProperty(LocalContext* context,
 
 
 THREADED_TEST(DefineAPIAccessorOnObject) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   LocalContext context;
 
   context->Global()->Set(v8_str("obj1"), templ->NewInstance());
@@ -5528,8 +5545,9 @@ THREADED_TEST(DefineAPIAccessorOnObject) {
 
 
 THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   LocalContext context;
 
   context->Global()->Set(v8_str("obj1"), templ->NewInstance());
@@ -5584,8 +5602,9 @@ static void Get239Value(Local<String> name,
 
 
 THREADED_TEST(ElementAPIAccessor) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   LocalContext context;
 
   context->Global()->Set(v8_str("obj1"), templ->NewInstance());
@@ -5622,8 +5641,9 @@ static void SetXValue(Local<String> name,
 
 
 THREADED_TEST(SimplePropertyWrite) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"), GetXValue, SetXValue, v8_str("donut"));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
@@ -5638,8 +5658,9 @@ THREADED_TEST(SimplePropertyWrite) {
 
 
 THREADED_TEST(SetterOnly) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"), NULL, SetXValue, v8_str("donut"));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
@@ -5654,8 +5675,9 @@ THREADED_TEST(SetterOnly) {
 
 
 THREADED_TEST(NoAccessors) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"),
                      static_cast<v8::AccessorGetterCallback>(NULL),
                      NULL,
@@ -5678,8 +5700,9 @@ static void XPropertyGetter(Local<String> property,
 
 
 THREADED_TEST(NamedInterceptorPropertyRead) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(XPropertyGetter);
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
@@ -5692,8 +5715,9 @@ THREADED_TEST(NamedInterceptorPropertyRead) {
 
 
 THREADED_TEST(NamedInterceptorDictionaryIC) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(XPropertyGetter);
   LocalContext context;
   // Create an object with a named interceptor.
@@ -5727,7 +5751,7 @@ THREADED_TEST(NamedInterceptorDictionaryICMultipleContext) {
   v8::Local<Context> context1 = Context::New(isolate);
 
   context1->Enter();
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(XPropertyGetter);
   // Create an object with a named interceptor.
   v8::Local<v8::Object> object = templ->NewInstance();
@@ -5814,8 +5838,9 @@ static void IndexedPropertySetter(
 
 
 THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IndexedPropertyGetter,
                                    IndexedPropertySetter);
   LocalContext context;
@@ -5879,8 +5904,9 @@ void UnboxedDoubleIndexedPropertyEnumerator(
 // Make sure that the the interceptor code in the runtime properly handles
 // merging property name lists for double-array-backed arrays.
 THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(UnboxedDoubleIndexedPropertyGetter,
                                    UnboxedDoubleIndexedPropertySetter,
                                    0,
@@ -5935,8 +5961,9 @@ static void NonStrictIndexedPropertyGetter(
 // Make sure that the the interceptor code in the runtime properly handles
 // merging property name lists for non-string arguments arrays.
 THREADED_TEST(IndexedInterceptorNonStrictArgsWithIndexedAccessor) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(NonStrictIndexedPropertyGetter,
                                    0,
                                    0,
@@ -5961,8 +5988,9 @@ static void IdentityIndexedPropertyGetter(
 
 
 THREADED_TEST(IndexedInterceptorWithGetOwnPropertyDescriptor) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -5982,8 +6010,9 @@ THREADED_TEST(IndexedInterceptorWithGetOwnPropertyDescriptor) {
 
 
 THREADED_TEST(IndexedInterceptorWithNoSetter) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6005,8 +6034,9 @@ THREADED_TEST(IndexedInterceptorWithNoSetter) {
 
 
 THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6030,8 +6060,9 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
 
 THREADED_TEST(IndexedInterceptorWithAccessorCheckSwitchedOn) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6059,8 +6090,9 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheckSwitchedOn) {
 
 
 THREADED_TEST(IndexedInterceptorWithDifferentIndices) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6082,8 +6114,9 @@ THREADED_TEST(IndexedInterceptorWithDifferentIndices) {
 
 
 THREADED_TEST(IndexedInterceptorWithNegativeIndices) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6121,8 +6154,9 @@ THREADED_TEST(IndexedInterceptorWithNegativeIndices) {
 
 
 THREADED_TEST(IndexedInterceptorWithNotSmiLookup) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6150,8 +6184,9 @@ THREADED_TEST(IndexedInterceptorWithNotSmiLookup) {
 
 
 THREADED_TEST(IndexedInterceptorGoingMegamorphic) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6180,8 +6215,9 @@ THREADED_TEST(IndexedInterceptorGoingMegamorphic) {
 
 
 THREADED_TEST(IndexedInterceptorReceiverTurningSmi) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6210,8 +6246,9 @@ THREADED_TEST(IndexedInterceptorReceiverTurningSmi) {
 
 
 THREADED_TEST(IndexedInterceptorOnProto) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
 
   LocalContext context;
@@ -6236,7 +6273,7 @@ THREADED_TEST(IndexedInterceptorOnProto) {
 THREADED_TEST(MultiContexts) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("dummy"), v8::FunctionTemplate::New(isolate,
                                                         DummyCallHandler));
 
@@ -6531,7 +6568,7 @@ TEST(PersistentHandles) {
   Local<Script> scr = Script::Compile(v8_str(""));
   v8::Persistent<Script> p_scr(isolate, scr);
   p_scr.Reset();
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   v8::Persistent<ObjectTemplate> p_templ(isolate, templ);
   p_templ.Reset();
 }
@@ -6546,7 +6583,7 @@ static void HandleLogDelegator(
 THREADED_TEST(GlobalObjectTemplate) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  Local<ObjectTemplate> global_template = ObjectTemplate::New();
+  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(v8_str("JSNI_Log"),
                        v8::FunctionTemplate::New(isolate, HandleLogDelegator));
   v8::Local<Context> context = Context::New(isolate, 0, global_template);
@@ -7084,8 +7121,9 @@ void WhammyPropertyGetter(Local<String> name,
 
 
 THREADED_TEST(WeakReference) {
-  v8::HandleScope handle_scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New(isolate);
   Whammy* whammy = new Whammy(CcTest::isolate());
   templ->SetNamedPropertyHandler(WhammyPropertyGetter,
                                  0, 0, 0, 0,
@@ -7272,7 +7310,7 @@ static void ArgumentsTestCallback(
 THREADED_TEST(Arguments) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
   global->Set(v8_str("f"),
               v8::FunctionTemplate::New(isolate, ArgumentsTestCallback));
   LocalContext context(NULL, global);
@@ -7312,8 +7350,9 @@ static void IDeleter(uint32_t index,
 
 
 THREADED_TEST(Deleter) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNamedPropertyHandler(NoBlockGetterX, NULL, NULL, PDeleter, NULL);
   obj->SetIndexedPropertyHandler(NoBlockGetterI, NULL, NULL, IDeleter, NULL);
   LocalContext context;
@@ -7377,7 +7416,7 @@ static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
 THREADED_TEST(Enumerators) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNamedPropertyHandler(GetK, NULL, NULL, NULL, NamedEnum);
   obj->SetIndexedPropertyHandler(IndexedGetK, NULL, NULL, NULL, IndexedEnum);
   LocalContext context;
@@ -7491,8 +7530,9 @@ static void PGetter2(Local<String> name,
 
 
 THREADED_TEST(GetterHolders) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetAccessor(v8_str("p1"), PGetter);
   obj->SetAccessor(v8_str("p2"), PGetter);
   obj->SetAccessor(v8_str("p3"), PGetter);
@@ -7504,8 +7544,9 @@ THREADED_TEST(GetterHolders) {
 
 
 THREADED_TEST(PreInterceptorHolders) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNamedPropertyHandler(PGetter2);
   p_getter_count2 = 0;
   RunHolderTest(obj);
@@ -7516,7 +7557,7 @@ THREADED_TEST(PreInterceptorHolders) {
 THREADED_TEST(ObjectInstantiation) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("t"), PGetter2);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -8119,8 +8160,9 @@ static void YSetter(Local<String> name,
 
 
 THREADED_TEST(DeleteAccessor) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetAccessor(v8_str("y"), YGetter, YSetter);
   LocalContext context;
   v8::Handle<v8::Object> holder = obj->NewInstance();
@@ -8311,13 +8353,14 @@ TEST(TryCatchFinallyUsingTryCatchHandler) {
 
 // SecurityHandler can't be run twice
 TEST(SecurityHandler) {
-  v8::HandleScope scope0(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope0(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(NamedSecurityTestCallback,
                                            IndexedSecurityTestCallback);
   // Create an environment
-  v8::Handle<Context> context0 =
-    Context::New(CcTest::isolate(), NULL, global_template);
+  v8::Handle<Context> context0 = Context::New(isolate, NULL, global_template);
   context0->Enter();
 
   v8::Handle<v8::Object> global0 = context0->Global();
@@ -8330,10 +8373,10 @@ TEST(SecurityHandler) {
   CHECK_EQ(999, z0->Int32Value());
 
   // Create another environment, should fail security checks.
-  v8::HandleScope scope1(CcTest::isolate());
+  v8::HandleScope scope1(isolate);
 
   v8::Handle<Context> context1 =
-    Context::New(CcTest::isolate(), NULL, global_template);
+    Context::New(isolate, NULL, global_template);
   context1->Enter();
 
   v8::Handle<v8::Object> global1 = context1->Global();
@@ -8351,7 +8394,7 @@ TEST(SecurityHandler) {
 
   // Create another environment, should pass security checks.
   { g_security_callback_result = true;  // allow security handler to pass.
-    v8::HandleScope scope2(CcTest::isolate());
+    v8::HandleScope scope2(isolate);
     LocalContext context2;
     v8::Handle<v8::Object> global2 = context2->Global();
     global2->Set(v8_str("othercontext"), global0);
@@ -8899,7 +8942,8 @@ static void UnreachableFunction(
 TEST(AccessControl) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
 
   global_template->SetAccessCheckCallbacks(NamedAccessBlocker,
                                            IndexedAccessBlocker);
@@ -9178,7 +9222,8 @@ TEST(AccessControl) {
 TEST(AccessControlES5) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
 
   global_template->SetAccessCheckCallbacks(NamedAccessBlocker,
                                            IndexedAccessBlocker);
@@ -9265,7 +9310,8 @@ static bool GetOwnPropertyNamesIndexedBlocker(Local<v8::Object> global,
 THREADED_TEST(AccessControlGetOwnPropertyNames) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
 
   obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
   obj_template->SetAccessCheckCallbacks(GetOwnPropertyNamesNamedBlocker,
@@ -9323,8 +9369,10 @@ static void NamedPropertyEnumerator(
 
 
 THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
-  v8::HandleScope handle_scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
 
   obj_template->Set(v8_str("7"), v8::Integer::New(CcTest::isolate(), 7));
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
@@ -9445,7 +9493,8 @@ TEST(AccessControlIC) {
 
   // Create an object that requires access-check functions to be
   // called for cross-domain access.
-  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
   object_template->SetAccessCheckCallbacks(NamedAccessCounter,
                                            IndexedAccessCounter);
   Local<v8::Object> object = object_template->NewInstance();
@@ -9593,7 +9642,8 @@ THREADED_TEST(AccessControlFlatten) {
 
   // Create an object that requires access-check functions to be
   // called for cross-domain access.
-  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
   object_template->SetAccessCheckCallbacks(NamedAccessFlatten,
                                            IndexedAccessFlatten);
   Local<v8::Object> object = object_template->NewInstance();
@@ -9662,7 +9712,8 @@ THREADED_TEST(AccessControlInterceptorIC) {
   // Create an object that requires access-check functions to be
   // called for cross-domain access.  The object also has interceptors
   // interceptor.
-  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
   object_template->SetAccessCheckCallbacks(NamedAccessCounter,
                                            IndexedAccessCounter);
   object_template->SetNamedPropertyHandler(AccessControlNamedGetter,
@@ -9898,7 +9949,7 @@ THREADED_TEST(ShadowObject) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
 
-  Local<ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  Local<ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
   LocalContext context(NULL, global_template);
 
   Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate);
@@ -10359,7 +10410,7 @@ THREADED_TEST(ConstructorForObject) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New(isolate);
     instance_template->SetCallAsFunctionHandler(ConstructorCallback);
     Local<Object> instance = instance_template->NewInstance();
     context->Global()->Set(v8_str("obj"), instance);
@@ -10435,7 +10486,7 @@ THREADED_TEST(ConstructorForObject) {
   }
 
   // Check exception handling when there is no constructor set for the Object.
-  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New(isolate);
     Local<Object> instance = instance_template->NewInstance();
     context->Global()->Set(v8_str("obj2"), instance);
     v8::TryCatch try_catch;
@@ -10457,7 +10508,7 @@ THREADED_TEST(ConstructorForObject) {
   }
 
   // Check the case when constructor throws exception.
-  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New(isolate);
     instance_template->SetCallAsFunctionHandler(ThrowValue);
     Local<Object> instance = instance_template->NewInstance();
     context->Global()->Set(v8_str("obj3"), instance);
@@ -10501,7 +10552,7 @@ THREADED_TEST(ConstructorForObject) {
     CHECK(!try_catch.HasCaught());
     CHECK(value->IsObject());
 
-    Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    Local<ObjectTemplate> instance_template = ObjectTemplate::New(isolate);
     instance_template->SetCallAsFunctionHandler(FakeConstructorCallback);
     Local<Object> instance2 = instance_template->NewInstance();
     context->Global()->Set(v8_str("obj5"), instance2);
@@ -10933,7 +10984,7 @@ THREADED_TEST(CallableObject) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
 
-  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New(isolate);
     instance_template->SetCallAsFunctionHandler(call_as_function);
     Local<Object> instance = instance_template->NewInstance();
     v8::TryCatch try_catch;
@@ -10942,7 +10993,7 @@ THREADED_TEST(CallableObject) {
     CHECK(!try_catch.HasCaught());
   }
 
-  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New(isolate);
     Local<Object> instance = instance_template->NewInstance();
     v8::TryCatch try_catch;
 
@@ -11090,8 +11141,9 @@ typedef void (*NamedPropertyGetter)(
 static void CheckInterceptorLoadIC(NamedPropertyGetter getter,
                                    const char* source,
                                    int expected) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(getter, 0, 0, 0, 0, v8_str("data"));
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11303,8 +11355,9 @@ static void SetOnThis(Local<String> name,
 
 
 THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
   templ->SetAccessor(v8_str("y"), Return239Callback);
   LocalContext context;
@@ -11332,10 +11385,11 @@ THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
 
 
 THREADED_TEST(InterceptorLoadICWithCallbackOnProto) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
-  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
   templ_p->SetAccessor(v8_str("y"), Return239Callback);
 
   LocalContext context;
@@ -11365,8 +11419,9 @@ THREADED_TEST(InterceptorLoadICWithCallbackOnProto) {
 
 
 THREADED_TEST(InterceptorLoadICForCallbackWithOverride) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
   templ->SetAccessor(v8_str("y"), Return239Callback);
 
@@ -11393,10 +11448,11 @@ THREADED_TEST(InterceptorLoadICForCallbackWithOverride) {
 // Test the case when we stored callback into
 // a stub, but interceptor produced value on its own.
 THREADED_TEST(InterceptorLoadICCallbackNotNeeded) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
-  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
   templ_p->SetAccessor(v8_str("y"), Return239Callback);
 
   LocalContext context;
@@ -11421,10 +11477,11 @@ THREADED_TEST(InterceptorLoadICCallbackNotNeeded) {
 // Test the case when we stored callback into
 // a stub, but it got invalidated later on.
 THREADED_TEST(InterceptorLoadICInvalidatedCallback) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
-  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
   templ_p->SetAccessor(v8_str("y"), Return239Callback, SetOnThis);
 
   LocalContext context;
@@ -11453,10 +11510,11 @@ THREADED_TEST(InterceptorLoadICInvalidatedCallback) {
 // a stub, but it got invalidated later on due to override on
 // global object which is between interceptor and callbacks' holders.
 THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
-  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
   templ_p->SetAccessor(v8_str("y"), Return239Callback, SetOnThis);
 
   LocalContext context;
@@ -11508,8 +11566,9 @@ static void InterceptorStoreICSetter(
 
 // This test should hit the store IC for the interceptor case.
 THREADED_TEST(InterceptorStoreIC) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorLoadICGetter,
                                  InterceptorStoreICSetter,
                                  0, 0, 0, v8_str("data"));
@@ -11523,8 +11582,9 @@ THREADED_TEST(InterceptorStoreIC) {
 
 
 THREADED_TEST(InterceptorStoreICWithNoSetter) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11554,8 +11614,9 @@ static void InterceptorCallICGetter(
 
 // This test should hit the call IC for the interceptor case.
 THREADED_TEST(InterceptorCallIC) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorCallICGetter);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11573,8 +11634,9 @@ THREADED_TEST(InterceptorCallIC) {
 // This test checks that if interceptor doesn't provide
 // a value, we can fetch regular value.
 THREADED_TEST(InterceptorCallICSeesOthers) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11602,8 +11664,9 @@ static void InterceptorCallICGetter4(
 // even if we cached shadowed variant, interceptor's function
 // is invoked
 THREADED_TEST(InterceptorCallICCacheableNotNeeded) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorCallICGetter4);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11622,8 +11685,9 @@ THREADED_TEST(InterceptorCallICCacheableNotNeeded) {
 // Test the case when we stored cacheable lookup into
 // a stub, but it got invalidated later on
 THREADED_TEST(InterceptorCallICInvalidatedCacheable) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11649,8 +11713,9 @@ THREADED_TEST(InterceptorCallICInvalidatedCacheable) {
 // This test checks that if interceptor doesn't provide a function,
 // cached constant function is used
 THREADED_TEST(InterceptorCallICConstantFunctionUsed) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11680,8 +11745,9 @@ static void InterceptorCallICGetter5(
 // even if we cached constant function, interceptor's function
 // is invoked
 THREADED_TEST(InterceptorCallICConstantFunctionNotNeeded) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorCallICGetter5);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11713,8 +11779,9 @@ static void InterceptorCallICGetter6(
 // to test the optimized compiler.
 THREADED_TEST(InterceptorCallICConstantFunctionNotNeededWrapped) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorCallICGetter6);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11743,8 +11810,9 @@ THREADED_TEST(InterceptorCallICConstantFunctionNotNeededWrapped) {
 // Test the case when we stored constant function into
 // a stub, but it got invalidated later on
 THREADED_TEST(InterceptorCallICInvalidatedConstantFunction) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11773,8 +11841,9 @@ THREADED_TEST(InterceptorCallICInvalidatedConstantFunction) {
 // a stub, but it got invalidated later on due to override on
 // global object which is between interceptor and constant function' holders.
 THREADED_TEST(InterceptorCallICInvalidatedConstantFunctionViaGlobal) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -11798,8 +11867,9 @@ THREADED_TEST(InterceptorCallICInvalidatedConstantFunctionViaGlobal) {
 
 // Test the case when actual function to call sits on global object.
 THREADED_TEST(InterceptorCallICCachedFromGlobal) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(NoBlockGetterX);
 
   LocalContext context;
@@ -11888,7 +11958,8 @@ THREADED_TEST(CallICFastApi_DirectCall_GCMoveStub) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> nativeobject_templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> nativeobject_templ =
+      v8::ObjectTemplate::New(isolate);
   nativeobject_templ->Set(isolate, "callback",
                           v8::FunctionTemplate::New(isolate,
                                                     DirectApiCallback));
@@ -11916,7 +11987,7 @@ THREADED_TEST(CallICFastApi_DirectCall_Throw) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> nativeobject_templ =
-      v8::ObjectTemplate::New();
+      v8::ObjectTemplate::New(isolate);
   nativeobject_templ->Set(isolate, "callback",
                           v8::FunctionTemplate::New(isolate,
                                                     ThrowingDirectApiCallback));
@@ -11954,8 +12025,9 @@ static void DirectGetterCallback(
 template<typename Accessor>
 static void LoadICFastApi_DirectCall_GCMoveStub(Accessor accessor) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  v8::Handle<v8::ObjectTemplate> obj = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = v8::ObjectTemplate::New(isolate);
   obj->SetAccessor(v8_str("p1"), accessor);
   context->Global()->Set(v8_str("o1"), obj->NewInstance());
   p_getter_count = 0;
@@ -11984,8 +12056,9 @@ void ThrowingDirectGetterCallback(
 
 THREADED_TEST(LoadICFastApi_DirectCall_Throw) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  v8::Handle<v8::ObjectTemplate> obj = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = v8::ObjectTemplate::New(isolate);
   obj->SetAccessor(v8_str("p1"), ThrowingDirectGetterCallback);
   context->Global()->Set(v8_str("o1"), obj->NewInstance());
   v8::Handle<Value> result = CompileRun(
@@ -12408,8 +12481,9 @@ static void InterceptorKeyedCallICGetter(
 // Test the case when we stored cacheable lookup into
 // a stub, but the function name changed (to another cacheable function).
 THREADED_TEST(InterceptorKeyedCallICKeyChange1) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -12432,8 +12506,9 @@ THREADED_TEST(InterceptorKeyedCallICKeyChange1) {
 // a stub, but the function name changed (and the new function is present
 // both before and after the interceptor in the prototype chain).
 THREADED_TEST(InterceptorKeyedCallICKeyChange2) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorKeyedCallICGetter);
   LocalContext context;
   context->Global()->Set(v8_str("proto1"), templ->NewInstance());
@@ -12459,8 +12534,9 @@ THREADED_TEST(InterceptorKeyedCallICKeyChange2) {
 // Same as InterceptorKeyedCallICKeyChange1 only the cacheable function sit
 // on the global object.
 THREADED_TEST(InterceptorKeyedCallICKeyChangeOnGlobal) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
@@ -12484,8 +12560,9 @@ THREADED_TEST(InterceptorKeyedCallICKeyChangeOnGlobal) {
 
 // Test the case when actual function to call sits on global object.
 THREADED_TEST(InterceptorKeyedCallICFromGlobal) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ_o->NewInstance());
@@ -12509,8 +12586,9 @@ THREADED_TEST(InterceptorKeyedCallICFromGlobal) {
 
 // Test the map transition before the interceptor.
 THREADED_TEST(InterceptorKeyedCallICMapChangeBefore) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("proto"), templ_o->NewInstance());
@@ -12531,8 +12609,9 @@ THREADED_TEST(InterceptorKeyedCallICMapChangeBefore) {
 
 // Test the map transition after the interceptor.
 THREADED_TEST(InterceptorKeyedCallICMapChangeAfter) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ_o->NewInstance());
@@ -12567,8 +12646,9 @@ static void InterceptorICRefErrorGetter(
 // Once in a while, the interceptor will reply that a property was not
 // found in which case we should get a reference error.
 THREADED_TEST(InterceptorICReferenceErrors) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorICRefErrorGetter);
   LocalContext context(0, templ, v8::Handle<Value>());
   call_ic_function2 = v8_compile("function h(x) { return x; }; h")->Run();
@@ -12614,8 +12694,9 @@ static void InterceptorICExceptionGetter(
 // exception once in a while.
 THREADED_TEST(InterceptorICGetterExceptions) {
   interceptor_ic_exception_get_count = 0;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(InterceptorICExceptionGetter);
   LocalContext context(0, templ, v8::Handle<Value>());
   call_ic_function3 = v8_compile("function h(x) { return x; }; h")->Run();
@@ -12658,8 +12739,9 @@ static void InterceptorICExceptionSetter(
 // once in a while.
 THREADED_TEST(InterceptorICSetterExceptions) {
   interceptor_ic_exception_set_count = 0;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(0, InterceptorICExceptionSetter);
   LocalContext context(0, templ, v8::Handle<Value>());
   v8::Handle<Value> value = CompileRun(
@@ -12676,8 +12758,9 @@ THREADED_TEST(InterceptorICSetterExceptions) {
 
 // Test that we ignore null interceptors.
 THREADED_TEST(NullNamedInterceptor) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(
       static_cast<v8::NamedPropertyGetterCallback>(0));
   LocalContext context;
@@ -12692,8 +12775,9 @@ THREADED_TEST(NullNamedInterceptor) {
 
 // Test that we ignore null interceptors.
 THREADED_TEST(NullIndexedInterceptor) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(
       static_cast<v8::IndexedPropertyGetterCallback>(0));
   LocalContext context;
@@ -13797,7 +13881,7 @@ void SetFunctionEntryHookTest::RunLoopInNewEnv(v8::Isolate* isolate) {
   v8::Local<Context> env = Context::New(isolate);
   env->Enter();
 
-  Local<ObjectTemplate> t = ObjectTemplate::New();
+  Local<ObjectTemplate> t = ObjectTemplate::New(isolate);
   t->Set(v8_str("asdf"), v8::FunctionTemplate::New(isolate, RuntimeCallback));
   env->Global()->Set(v8_str("obj"), t->NewInstance());
 
@@ -14167,7 +14251,7 @@ THREADED_TEST(Regress54) {
   static v8::Persistent<v8::ObjectTemplate> templ;
   if (templ.IsEmpty()) {
     v8::EscapableHandleScope inner(isolate);
-    v8::Local<v8::ObjectTemplate> local = v8::ObjectTemplate::New();
+    v8::Local<v8::ObjectTemplate> local = v8::ObjectTemplate::New(isolate);
     local->SetInternalFieldCount(1);
     templ.Reset(isolate, inner.Escape(local));
   }
@@ -14288,7 +14372,7 @@ THREADED_TEST(CallbackFunctionName) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> t = ObjectTemplate::New();
+  Local<ObjectTemplate> t = ObjectTemplate::New(isolate);
   t->Set(v8_str("asdf"),
          v8::FunctionTemplate::New(isolate, FunctionNameCallback));
   context->Global()->Set(v8_str("obj"), t->NewInstance());
@@ -14431,7 +14515,7 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessCheckCallbacks(NamedSetAccessBlocker,
                                  IndexedSetAccessBlocker);
   templ->Set(v8_str("x"), v8::True(isolate));
@@ -14461,8 +14545,9 @@ static bool IndexedGetAccessBlocker(Local<v8::Object> obj,
 
 THREADED_TEST(AccessChecksReenabledCorrectly) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessCheckCallbacks(NamedGetAccessBlocker,
                                  IndexedGetAccessBlocker);
   templ->Set(v8_str("a"), v8_str("a"));
@@ -14477,7 +14562,7 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
       for (char k = '0'; k <= '9'; k++) {
         buf[2] = k;
         buf[3] = 0;
-        templ->Set(v8_str(buf), v8::Number::New(context->GetIsolate(), k));
+        templ->Set(v8_str(buf), v8::Number::New(isolate, k));
       }
     }
   }
@@ -14501,7 +14586,8 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
 THREADED_TEST(AccessControlRepeatedContextCreation) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(NamedSetAccessBlocker,
                                            IndexedSetAccessBlocker);
   i::Handle<i::ObjectTemplateInfo> internal_template =
@@ -14522,7 +14608,8 @@ THREADED_TEST(TurnOnAccessCheck) {
 
   // Create an environment with access check to the global object disabled by
   // default.
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(NamedGetAccessBlocker,
                                            IndexedGetAccessBlocker,
                                            v8::Handle<v8::Value>(),
@@ -14606,7 +14693,8 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
   // Create an environment with access check to the global object disabled by
   // default. When the registered access checker will block access to properties
   // a and h.
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+     v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(NamedGetAccessBlockAandH,
                                            IndexedGetAccessBlocker,
                                            v8::Handle<v8::Value>(),
@@ -15166,7 +15254,7 @@ TEST(ReadOnlyPropertyInGlobalProto) {
   i::FLAG_es5_readonly = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   LocalContext context(0, templ);
   v8::Handle<v8::Object> global = context->Global();
   v8::Handle<v8::Object> global_proto =
@@ -15220,7 +15308,7 @@ TEST(ForceSet) {
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   v8::Handle<v8::String> access_property =
       v8::String::NewFromUtf8(isolate, "a");
   templ->SetAccessor(access_property, ForceSetGetter, ForceSetSetter);
@@ -15265,7 +15353,7 @@ TEST(ForceSetWithInterceptor) {
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(ForceSetGetter, ForceSetInterceptSetter);
   LocalContext context(NULL, templ);
   v8::Handle<v8::Object> global = context->Global();
@@ -15311,7 +15399,7 @@ TEST(ForceSetWithInterceptor) {
 THREADED_TEST(ForceDelete) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   LocalContext context(NULL, templ);
   v8::Handle<v8::Object> global = context->Global();
 
@@ -15348,7 +15436,7 @@ THREADED_TEST(ForceDeleteWithInterceptor) {
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(0, 0, 0, ForceDeleteDeleter);
   LocalContext context(NULL, templ);
   v8::Handle<v8::Object> global = context->Global();
@@ -15977,7 +16065,8 @@ static void NotHandledIndexedPropertySetter(
 THREADED_TEST(PixelArrayWithInterceptor) {
   LocalContext context;
   i::Factory* factory = CcTest::i_isolate()->factory();
-  v8::HandleScope scope(context->GetIsolate());
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
   i::Handle<i::ExternalPixelArray> pixels =
@@ -15988,7 +16077,8 @@ THREADED_TEST(PixelArrayWithInterceptor) {
   for (int i = 0; i < kElementCount; i++) {
     pixels->set(i, i % 256);
   }
-  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> templ =
+      v8::ObjectTemplate::New(context->GetIsolate());
   templ->SetIndexedPropertyHandler(NotHandledIndexedPropertyGetter,
                                    NotHandledIndexedPropertySetter);
   v8::Handle<v8::Object> obj = templ->NewInstance();
@@ -16963,7 +17053,7 @@ TEST(CaptureStackTrace) {
   v8::HandleScope scope(isolate);
   v8::Handle<v8::String> origin =
       v8::String::NewFromUtf8(isolate, "capture-stack-trace-test");
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("AnalyzeStackInNativeCode"),
              v8::FunctionTemplate::New(isolate, AnalyzeStackInNativeCode));
   LocalContext context(0, templ);
@@ -17214,7 +17304,7 @@ void AnalyzeStackOfEvalWithSourceURL(
 TEST(SourceURLInStackTrace) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("AnalyzeStackOfEvalWithSourceURL"),
              v8::FunctionTemplate::New(isolate,
                                        AnalyzeStackOfEvalWithSourceURL));
@@ -17258,7 +17348,7 @@ void AnalyzeScriptIdInStack(
 TEST(ScriptIdInStackTrace) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("AnalyzeScriptIdInStack"),
              v8::FunctionTemplate::New(isolate, AnalyzeScriptIdInStack));
   LocalContext context(0, templ);
@@ -17297,8 +17387,9 @@ void AnalyzeStackOfInlineScriptWithSourceURL(
 
 
 TEST(InlineScriptWithSourceURLInStackTrace) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("AnalyzeStackOfInlineScriptWithSourceURL"),
              v8::FunctionTemplate::New(
                  CcTest::isolate(), AnalyzeStackOfInlineScriptWithSourceURL));
@@ -17342,8 +17433,9 @@ void AnalyzeStackOfDynamicScriptWithSourceURL(
 
 
 TEST(DynamicWithSourceURLInStackTrace) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(v8_str("AnalyzeStackOfDynamicScriptWithSourceURL"),
              v8::FunctionTemplate::New(
                  CcTest::isolate(), AnalyzeStackOfDynamicScriptWithSourceURL));
@@ -18208,8 +18300,9 @@ void FooSetInterceptor(Local<String> name,
 
 
 TEST(SetterOnConstructorPrototype) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"),
                      GetterWhichReturns42,
                      SetterWhichSetsYOnThisTo23);
@@ -18260,8 +18353,9 @@ static void NamedPropertySetterWhichSetsYOnThisTo23(
 
 
 THREADED_TEST(InterceptorOnConstructorPrototype) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetNamedPropertyHandler(NamedPropertyGetterWhichReturns42,
                                  NamedPropertySetterWhichSetsYOnThisTo23);
   LocalContext context;
@@ -18300,11 +18394,12 @@ TEST(Regress618) {
                        "C1.prototype = P;";
 
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
   v8::Local<v8::Script> script;
 
   // Use a simple object as prototype.
-  v8::Local<v8::Object> prototype = v8::Object::New(context->GetIsolate());
+  v8::Local<v8::Object> prototype = v8::Object::New(isolate);
   prototype->Set(v8_str("y"), v8_num(42));
   context->Global()->Set(v8_str("P"), prototype);
 
@@ -18321,7 +18416,7 @@ TEST(Regress618) {
   }
 
   // Use an API object with accessors as prototype.
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("x"),
                      GetterWhichReturns42,
                      SetterWhichSetsYOnThisTo23);
@@ -18758,11 +18853,13 @@ TEST(GCInFailedAccessCheckCallback) {
   v8::V8::Initialize();
   v8::V8::SetFailedAccessCheckCallbackFunction(&FailedAccessCheckCallbackGC);
 
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
 
   // Create an ObjectTemplate for global objects and install access
   // check callbacks that will block access.
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(NamedGetAccessBlocker,
                                            IndexedGetAccessBlocker,
                                            v8::Handle<v8::Value>(),
@@ -19522,10 +19619,11 @@ static void Enumerator(const v8::PropertyCallbackInfo<v8::Array>& info) {
 
 TEST(NamedEnumeratorAndForIn) {
   LocalContext context;
-  v8::HandleScope handle_scope(context->GetIsolate());
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(context.local());
 
-  v8::Handle<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
   tmpl->SetNamedPropertyHandler(Getter, NULL, NULL, NULL, Enumerator);
   context->Global()->Set(v8_str("o"), tmpl->NewInstance());
   v8::Handle<v8::Array> result = v8::Handle<v8::Array>::Cast(CompileRun(
@@ -19706,7 +19804,8 @@ void HasOwnPropertyAccessorGetter(
 
 TEST(HasOwnProperty) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   { // Check normal properties and defined getters.
     Handle<Value> value = CompileRun(
         "function Foo() {"
@@ -19729,7 +19828,7 @@ TEST(HasOwnProperty) {
     CHECK(object->HasOwnProperty(v8_str("bla")));
   }
   { // Check named getter interceptors.
-    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
     templ->SetNamedPropertyHandler(HasOwnPropertyNamedPropertyGetter);
     Handle<Object> instance = templ->NewInstance();
     CHECK(!instance->HasOwnProperty(v8_str("42")));
@@ -19737,7 +19836,7 @@ TEST(HasOwnProperty) {
     CHECK(!instance->HasOwnProperty(v8_str("bar")));
   }
   { // Check indexed getter interceptors.
-    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
     templ->SetIndexedPropertyHandler(HasOwnPropertyIndexedPropertyGetter);
     Handle<Object> instance = templ->NewInstance();
     CHECK(instance->HasOwnProperty(v8_str("42")));
@@ -19745,28 +19844,28 @@ TEST(HasOwnProperty) {
     CHECK(!instance->HasOwnProperty(v8_str("foo")));
   }
   { // Check named query interceptors.
-    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
     templ->SetNamedPropertyHandler(0, 0, HasOwnPropertyNamedPropertyQuery);
     Handle<Object> instance = templ->NewInstance();
     CHECK(instance->HasOwnProperty(v8_str("foo")));
     CHECK(!instance->HasOwnProperty(v8_str("bar")));
   }
   { // Check indexed query interceptors.
-    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
     templ->SetIndexedPropertyHandler(0, 0, HasOwnPropertyIndexedPropertyQuery);
     Handle<Object> instance = templ->NewInstance();
     CHECK(instance->HasOwnProperty(v8_str("42")));
     CHECK(!instance->HasOwnProperty(v8_str("41")));
   }
   { // Check callbacks.
-    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
     templ->SetAccessor(v8_str("foo"), HasOwnPropertyAccessorGetter);
     Handle<Object> instance = templ->NewInstance();
     CHECK(instance->HasOwnProperty(v8_str("foo")));
     CHECK(!instance->HasOwnProperty(v8_str("bar")));
   }
   { // Check that query wins on disagreement.
-    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
     templ->SetNamedPropertyHandler(HasOwnPropertyNamedPropertyGetter,
                                    0,
                                    HasOwnPropertyNamedPropertyQuery2);
@@ -19778,8 +19877,9 @@ TEST(HasOwnProperty) {
 
 
 TEST(IndexedInterceptorWithStringProto) {
-  v8::HandleScope scope(CcTest::isolate());
-  Handle<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetIndexedPropertyHandler(NULL,
                                    NULL,
                                    HasOwnPropertyIndexedPropertyQuery);
@@ -19906,8 +20006,9 @@ THREADED_TEST(CallAPIFunctionOnNonObject) {
 
 // Regression test for issue 1470.
 THREADED_TEST(ReadOnlyIndexedProperties) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -19975,7 +20076,7 @@ THREADED_TEST(Regress93759) {
   HandleScope scope(isolate);
 
   // Template for object with security check.
-  Local<ObjectTemplate> no_proto_template = v8::ObjectTemplate::New();
+  Local<ObjectTemplate> no_proto_template = v8::ObjectTemplate::New(isolate);
   // We don't do indexing, so any callback can be used for that.
   no_proto_template->SetAccessCheckCallbacks(
       BlockProtoNamedSecurityTestCallback,
@@ -20030,7 +20131,7 @@ THREADED_TEST(Regress93759) {
 
   // Template for object for second context. Values to test are put on it as
   // properties.
-  Local<ObjectTemplate> global_template = ObjectTemplate::New();
+  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(v8_str("simple"), simple_object);
   global_template->Set(v8_str("protected"), protected_object);
   global_template->Set(v8_str("global"), global_object);
@@ -20656,7 +20757,7 @@ static void Helper137002(bool do_store,
                          bool remove_accessor,
                          bool interceptor) {
   LocalContext context;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  Local<ObjectTemplate> templ = ObjectTemplate::New(context->GetIsolate());
   if (interceptor) {
     templ->SetNamedPropertyHandler(FooGetInterceptor, FooSetInterceptor);
   } else {
@@ -20711,8 +20812,9 @@ THREADED_TEST(Regress137002a) {
 THREADED_TEST(Regress137002b) {
   i::FLAG_allow_natives_syntax = true;
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("foo"),
                      GetterWhichReturns42,
                      SetterWhichSetsYOnThisTo23);
@@ -20779,8 +20881,9 @@ THREADED_TEST(Regress137002b) {
 THREADED_TEST(Regress142088) {
   i::FLAG_allow_natives_syntax = true;
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("foo"),
                      GetterWhichReturns42,
                      SetterWhichSetsYOnThisTo23);
@@ -20819,8 +20922,9 @@ THREADED_TEST(Regress149912) {
 
 THREADED_TEST(Regress157124) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   Local<Object> obj = templ->NewInstance();
   obj->GetIdentityHash();
   obj->DeleteHiddenValue(v8_str("Bug"));
@@ -20975,11 +21079,13 @@ void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 TEST(JSONStringifyAccessCheck) {
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
 
   // Create an ObjectTemplate for global objects and install access
   // check callbacks that will block access.
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(NamedAccessAlwaysBlocked,
                                            IndexAccessAlwaysBlocked);
 
@@ -20993,7 +21099,7 @@ TEST(JSONStringifyAccessCheck) {
     if (i == 1) {
       // Install a toJSON function on the second run.
       v8::Handle<v8::FunctionTemplate> toJSON =
-          v8::FunctionTemplate::New(CcTest::isolate(), UnreachableCallback);
+          v8::FunctionTemplate::New(isolate, UnreachableCallback);
 
       global0->Set(v8_str("toJSON"), toJSON->GetFunction());
     }
@@ -21008,7 +21114,7 @@ TEST(JSONStringifyAccessCheck) {
     ExpectString("JSON.stringify([other, 'b', 'c'])",
                  "[{},\"b\",\"c\"]");
 
-    v8::Handle<v8::Array> array = v8::Array::New(CcTest::isolate(), 2);
+    v8::Handle<v8::Array> array = v8::Array::New(isolate, 2);
     array->Set(0, v8_str("a"));
     array->Set(1, v8_str("b"));
     context1->Global()->Set(v8_str("array"), array);
@@ -21073,11 +21179,13 @@ TEST(AccessCheckThrows) {
   i::FLAG_allow_natives_syntax = true;
   v8::V8::Initialize();
   v8::V8::SetFailedAccessCheckCallbackFunction(&FailedAccessCheckThrows);
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
 
   // Create an ObjectTemplate for global objects and install access
   // check callbacks that will block access.
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(NamedAccessAlwaysBlocked,
                                            IndexAccessAlwaysBlocked);
 
@@ -21092,11 +21200,11 @@ TEST(AccessCheckThrows) {
   context1->Global()->Set(v8_str("other"), global0);
 
   v8::Handle<v8::FunctionTemplate> catcher_fun =
-      v8::FunctionTemplate::New(CcTest::isolate(), CatcherCallback);
+      v8::FunctionTemplate::New(isolate, CatcherCallback);
   context1->Global()->Set(v8_str("catcher"), catcher_fun->GetFunction());
 
   v8::Handle<v8::FunctionTemplate> has_own_property_fun =
-      v8::FunctionTemplate::New(CcTest::isolate(), HasOwnPropertyCallback);
+      v8::FunctionTemplate::New(isolate, HasOwnPropertyCallback);
   context1->Global()->Set(v8_str("has_own_property"),
                           has_own_property_fun->GetFunction());
 

@@ -9191,26 +9191,24 @@ AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
   // checking the object immediately after the current object (if there is one)
   // to see if it's an AllocationMemento.
   ASSERT(object->GetHeap()->InNewSpace(object));
-  if (FLAG_track_allocation_sites) {
-    Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
-        object->Size();
-    Address top;
-    if (in_GC) {
-      top = object->GetHeap()->new_space()->FromSpacePageHigh();
-    } else {
-      top = object->GetHeap()->NewSpaceTop();
-    }
-    if ((ptr_end + AllocationMemento::kSize) <= top) {
-      // There is room in newspace for allocation info. Do we have some?
-      Map** possible_allocation_memento_map =
-          reinterpret_cast<Map**>(ptr_end);
-      if (*possible_allocation_memento_map ==
-          object->GetHeap()->allocation_memento_map()) {
-        AllocationMemento* memento = AllocationMemento::cast(
-            reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-        if (memento->IsValid()) {
-          return memento;
-        }
+  Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
+      object->Size();
+  Address top;
+  if (in_GC) {
+    top = object->GetHeap()->new_space()->FromSpacePageHigh();
+  } else {
+    top = object->GetHeap()->NewSpaceTop();
+  }
+  if ((ptr_end + AllocationMemento::kSize) <= top) {
+    // There is room in newspace for allocation info. Do we have some?
+    Map** possible_allocation_memento_map =
+        reinterpret_cast<Map**>(ptr_end);
+    if (*possible_allocation_memento_map ==
+        object->GetHeap()->allocation_memento_map()) {
+      AllocationMemento* memento = AllocationMemento::cast(
+          reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
+      if (memento->IsValid()) {
+        return memento;
       }
     }
   }
@@ -9460,7 +9458,7 @@ void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
   if (count_of_ptr_entries() > 0) {
     int first_ptr_offset = OffsetOfElementAt(first_ptr_index());
     int last_ptr_offset =
-        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries());
+        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries() - 1);
     v->VisitPointers(
         HeapObject::RawField(this, first_ptr_offset),
         HeapObject::RawField(this, last_ptr_offset));
@@ -10617,8 +10615,7 @@ void Code::ClearInlineCaches(Code::Kind kind) {
 void Code::ClearInlineCaches(Code::Kind* kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
@@ -10838,6 +10835,17 @@ bool Code::CanDeoptAt(Address pc) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i)->value();
     if (address == pc) return true;
+  }
+  return false;
+}
+
+
+bool Code::IsContextual() {
+  ASSERT(is_inline_cache_stub());
+  Kind kind = this->kind();
+  if (kind == STORE_IC || kind == LOAD_IC || kind == CALL_IC) {
+    ExtraICState extra_state = extra_ic_state();
+    return IC::GetContextualMode(extra_state) == CONTEXTUAL;
   }
   return false;
 }
@@ -12861,7 +12869,7 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
-  if (!FLAG_track_allocation_sites || !IsJSArray()) {
+  if (!IsJSArray()) {
     return this;
   }
 

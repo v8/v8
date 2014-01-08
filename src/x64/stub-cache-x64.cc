@@ -475,7 +475,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Prepare arguments.
   STATIC_ASSERT(kFastApiCallArguments == 7);
-  __ lea(rax, Operand(rsp, 1 * kPointerSize));
+  __ lea(rax, args.GetArgumentOperand(offset - FCA::kHolderIndex));
 
   GenerateFastApiCallBody(masm, optimization, argc, false);
 }
@@ -495,8 +495,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 Register* values) {
   ASSERT(optimization.is_simple_api_call());
 
-  // Copy return value.
-  __ pop(scratch1);
+  __ PopReturnAddressTo(scratch1);
 
   // receiver
   __ push(receiver);
@@ -563,9 +562,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(!scratch1.is(rax));
   // store receiver address for GenerateFastApiCallBody
   __ movq(rax, rsp);
-
-  // return address
-  __ push(scratch1);
+  __ PushReturnAddressFrom(scratch1);
 
   GenerateFastApiCallBody(masm, optimization, argc, true);
 }
@@ -1307,7 +1304,7 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
     __ movq(scratch2(),
             Operand(dictionary, index, times_pointer_size,
                     kValueOffset - kHeapObjectTag));
-    __ movq(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
+    __ Move(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
     __ cmpq(scratch2(), scratch3());
     __ j(not_equal, &miss);
   }
@@ -2687,7 +2684,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     } else {
       Label next_map;
       __ j(not_equal, &next_map, Label::kNear);
-      __ movq(transition_map(),
+      __ Move(transition_map(),
               transitioned_maps->at(i),
               RelocInfo::EMBEDDED_OBJECT);
       __ jmp(handler_stubs->at(i), RelocInfo::CODE_TARGET);

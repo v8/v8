@@ -766,8 +766,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "embedded object";
     case RelocInfo::CONSTRUCT_CALL:
       return "code target (js construct call)";
-    case RelocInfo::CODE_TARGET_CONTEXT:
-      return "code target (context)";
     case RelocInfo::DEBUG_BREAK:
 #ifndef ENABLE_DEBUGGER_SUPPORT
       UNREACHABLE();
@@ -862,7 +860,6 @@ void RelocInfo::Verify() {
       break;
 #endif
     case CONSTRUCT_CALL:
-    case CODE_TARGET_CONTEXT:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object

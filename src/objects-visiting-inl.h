@@ -482,7 +482,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
         constant_pool->first_ptr_index());
     int last_ptr_offset = constant_pool->OffsetOfElementAt(
         constant_pool->first_ptr_index() +
-        constant_pool->count_of_ptr_entries());
+        constant_pool->count_of_ptr_entries() - 1);
     StaticVisitor::VisitPointers(
         heap,
         HeapObject::RawField(object, first_ptr_offset),

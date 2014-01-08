@@ -5947,6 +5947,10 @@ class HObjectAccess V8_FINAL {
     return name_;
   }
 
+  inline bool immutable() const {
+    return ImmutableField::decode(value_);
+  }
+
   inline HObjectAccess WithRepresentation(Representation representation) {
     return HObjectAccess(portion(), offset(), representation, name());
   }
@@ -6181,22 +6185,26 @@ class HObjectAccess V8_FINAL {
 
   HObjectAccess(Portion portion, int offset,
                 Representation representation = Representation::Tagged(),
-                Handle<String> name = Handle<String>::null())
+                Handle<String> name = Handle<String>::null(),
+                bool immutable = false)
     : value_(PortionField::encode(portion) |
              RepresentationField::encode(representation.kind()) |
+             ImmutableField::encode(immutable ? 1 : 0) |
              OffsetField::encode(offset)),
       name_(name) {
     // assert that the fields decode correctly
     ASSERT(this->offset() == offset);
     ASSERT(this->portion() == portion);
+    ASSERT(this->immutable() == immutable);
     ASSERT(RepresentationField::decode(value_) == representation.kind());
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
   class RepresentationField : public BitField<Representation::Kind, 3, 4> {};
-  class OffsetField : public BitField<int, 7, 25> {};
+  class ImmutableField : public BitField<bool, 7, 1> {};
+  class OffsetField : public BitField<int, 8, 24> {};
 
-  uint32_t value_;  // encodes portion, representation, and offset
+  uint32_t value_;  // encodes portion, representation, immutable, and offset
   Handle<String> name_;
 
   friend class HLoadNamedField;
