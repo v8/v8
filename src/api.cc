@@ -943,12 +943,13 @@ static void InitializeFunctionTemplate(
 
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
+  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  ENTER_V8(i_isolate);
   i::Handle<i::Object> result(Utils::OpenHandle(this)->prototype_template(),
-                              isolate);
+                              i_isolate);
   if (result->IsUndefined()) {
-    result = Utils::OpenHandle(*ObjectTemplate::New());
+    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
+    result = Utils::OpenHandle(*ObjectTemplate::New(isolate));
     Utils::OpenHandle(this)->set_prototype_template(*result);
   }
   return ToApiHandle<ObjectTemplate>(result);
@@ -5148,7 +5149,8 @@ static i::Handle<i::Context> CreateEnvironment(
       global_constructor = EnsureConstructor(isolate, *global_template);
 
       // Create a fresh template for the global proxy object.
-      proxy_template = ObjectTemplate::New();
+      proxy_template = ObjectTemplate::New(
+          reinterpret_cast<v8::Isolate*>(isolate));
       proxy_constructor = EnsureConstructor(isolate, *proxy_template);
 
       // Set the global template to be the prototype template of

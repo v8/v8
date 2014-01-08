@@ -4355,33 +4355,34 @@ static void IndexedGetter(uint32_t index,
 TEST(InterceptorPropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
   // Create object with named interceptor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
   named->SetNamedPropertyHandler(NamedGetter, NULL, NULL, NULL, NamedEnum);
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "intercepted_named"),
+      v8::String::NewFromUtf8(isolate, "intercepted_named"),
       named->NewInstance());
 
   // Create object with indexed interceptor.
-  v8::Handle<v8::ObjectTemplate> indexed = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> indexed = v8::ObjectTemplate::New(isolate);
   indexed->SetIndexedPropertyHandler(IndexedGetter,
                                      NULL,
                                      NULL,
                                      NULL,
                                      IndexedEnum);
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "intercepted_indexed"),
+      v8::String::NewFromUtf8(isolate, "intercepted_indexed"),
       indexed->NewInstance());
 
   // Create object with both named and indexed interceptor.
-  v8::Handle<v8::ObjectTemplate> both = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> both = v8::ObjectTemplate::New(isolate);
   both->SetNamedPropertyHandler(NamedGetter, NULL, NULL, NULL, NamedEnum);
   both->SetIndexedPropertyHandler(IndexedGetter, NULL, NULL, NULL, IndexedEnum);
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "intercepted_both"),
+      v8::String::NewFromUtf8(isolate, "intercepted_both"),
       both->NewInstance());
 
   // Get mirrors for the three objects with interceptor.
@@ -4597,17 +4598,18 @@ static void ProtperyXNativeGetter(
 TEST(NativeGetterPropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
-  v8::Handle<v8::String> name = v8::String::NewFromUtf8(env->GetIsolate(), "x");
+  v8::Handle<v8::String> name = v8::String::NewFromUtf8(isolate, "x");
   // Create object with named accessor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
   named->SetAccessor(name, &ProtperyXNativeGetter, NULL,
       v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
 
   // Create object with named property getter.
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      named->NewInstance());
   CHECK_EQ(10, CompileRun("instance.x")->Int32Value());
 
@@ -4636,17 +4638,18 @@ static void ProtperyXNativeGetterThrowingError(
 TEST(NativeGetterThrowingErrorPropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
-  v8::Handle<v8::String> name = v8::String::NewFromUtf8(env->GetIsolate(), "x");
+  v8::Handle<v8::String> name = v8::String::NewFromUtf8(isolate, "x");
   // Create object with named accessor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
   named->SetAccessor(name, &ProtperyXNativeGetterThrowingError, NULL,
       v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
 
   // Create object with named property getter.
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      named->NewInstance());
 
   // Get mirror for the object with property getter.
@@ -5216,15 +5219,17 @@ void V8Thread::Run() {
       "\n"
       "foo();\n";
 
-  v8::Isolate::Scope isolate_scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Debug::SetMessageHandler2(&ThreadedMessageHandler);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(env->GetIsolate());
   global_template->Set(
       v8::String::NewFromUtf8(env->GetIsolate(), "ThreadedAtBarrier1"),
-      v8::FunctionTemplate::New(CcTest::isolate(), ThreadedAtBarrier1));
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
+      v8::FunctionTemplate::New(isolate, ThreadedAtBarrier1));
+  v8::Handle<v8::Context> context = v8::Context::New(isolate,
                                                      NULL,
                                                      global_template);
   v8::Context::Scope context_scope(context);
@@ -5580,68 +5585,70 @@ static void CheckClosure(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(CallFunctionInDebugger) {
   // Create and enter a context with the functions CheckFrameCount,
   // CheckSourceLine and CheckDataParameter installed.
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckFrameCount"),
-      v8::FunctionTemplate::New(CcTest::isolate(), CheckFrameCount));
+      v8::String::NewFromUtf8(isolate, "CheckFrameCount"),
+      v8::FunctionTemplate::New(isolate, CheckFrameCount));
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckSourceLine"),
-      v8::FunctionTemplate::New(CcTest::isolate(), CheckSourceLine));
+      v8::String::NewFromUtf8(isolate, "CheckSourceLine"),
+      v8::FunctionTemplate::New(isolate, CheckSourceLine));
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckDataParameter"),
-      v8::FunctionTemplate::New(CcTest::isolate(), CheckDataParameter));
+      v8::String::NewFromUtf8(isolate, "CheckDataParameter"),
+      v8::FunctionTemplate::New(isolate, CheckDataParameter));
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckClosure"),
-      v8::FunctionTemplate::New(CcTest::isolate(), CheckClosure));
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
+      v8::String::NewFromUtf8(isolate, "CheckClosure"),
+      v8::FunctionTemplate::New(isolate, CheckClosure));
+  v8::Handle<v8::Context> context = v8::Context::New(isolate,
                                                      NULL,
                                                      global_template);
   v8::Context::Scope context_scope(context);
 
   // Compile a function for checking the number of JavaScript frames.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), frame_count_source))->Run();
+      v8::String::NewFromUtf8(isolate, frame_count_source))->Run();
   frame_count = v8::Local<v8::Function>::Cast(context->Global()->Get(
-      v8::String::NewFromUtf8(CcTest::isolate(), "frame_count")));
+      v8::String::NewFromUtf8(isolate, "frame_count")));
 
   // Compile a function for returning the source line for the top frame.
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               frame_source_line_source))->Run();
   frame_source_line = v8::Local<v8::Function>::Cast(context->Global()->Get(
-      v8::String::NewFromUtf8(CcTest::isolate(), "frame_source_line")));
+      v8::String::NewFromUtf8(isolate, "frame_source_line")));
 
   // Compile a function returning the data parameter.
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               debugger_call_with_data_source))
       ->Run();
   debugger_call_with_data = v8::Local<v8::Function>::Cast(
       context->Global()->Get(v8::String::NewFromUtf8(
-          CcTest::isolate(), "debugger_call_with_data")));
+          isolate, "debugger_call_with_data")));
 
   // Compile a function capturing closure.
   debugger_call_with_closure =
       v8::Local<v8::Function>::Cast(v8::Script::Compile(
-          v8::String::NewFromUtf8(CcTest::isolate(),
+          v8::String::NewFromUtf8(isolate,
                                   debugger_call_with_closure_source))->Run());
 
   // Calling a function through the debugger returns 0 frames if there are
   // no JavaScript frames.
-  CHECK_EQ(v8::Integer::New(CcTest::isolate(), 0),
+  CHECK_EQ(v8::Integer::New(isolate, 0),
            v8::Debug::Call(frame_count));
 
   // Test that the number of frames can be retrieved.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckFrameCount(1)"))->Run();
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+      v8::String::NewFromUtf8(isolate, "CheckFrameCount(1)"))->Run();
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "function f() {"
                                               "  CheckFrameCount(2);"
                                               "}; f()"))->Run();
 
   // Test that the source line can be retrieved.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckSourceLine(0)"))->Run();
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+      v8::String::NewFromUtf8(isolate, "CheckSourceLine(0)"))->Run();
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "function f() {\n"
                                               "  CheckSourceLine(1)\n"
                                               "  CheckSourceLine(2)\n"
@@ -5649,20 +5656,20 @@ TEST(CallFunctionInDebugger) {
                                               "}; f()"))->Run();
 
   // Test that a parameter can be passed to a function called in the debugger.
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "CheckDataParameter()"))->Run();
 
   // Test that a function with closure can be run in the debugger.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckClosure()"))->Run();
+      v8::String::NewFromUtf8(isolate, "CheckClosure()"))->Run();
 
   // Test that the source line is correct when there is a line offset.
-  v8::ScriptOrigin origin(v8::String::NewFromUtf8(CcTest::isolate(), "test"),
-                          v8::Integer::New(CcTest::isolate(), 7));
+  v8::ScriptOrigin origin(v8::String::NewFromUtf8(isolate, "test"),
+                          v8::Integer::New(isolate, 7));
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckSourceLine(7)"), &origin)
+      v8::String::NewFromUtf8(isolate, "CheckSourceLine(7)"), &origin)
       ->Run();
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "function f() {\n"
                                               "  CheckSourceLine(8)\n"
                                               "  CheckSourceLine(9)\n"
@@ -7167,7 +7174,8 @@ TEST(CallingContextIsNotDebugContext) {
   v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // Create and enter a debugee context.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
   // Save handles to the debugger and debugee contexts to be used in
@@ -7176,10 +7184,10 @@ TEST(CallingContextIsNotDebugContext) {
   debugger_context = v8::Utils::ToLocal(debug->debug_context());
 
   // Create object with 'a' property accessor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
-  named->SetAccessor(v8::String::NewFromUtf8(env->GetIsolate(), "a"),
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
+  named->SetAccessor(v8::String::NewFromUtf8(isolate, "a"),
                      NamedGetterWithCallingContextCheck);
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "obj"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "obj"),
                      named->NewInstance());
 
   // Register the debug event listener

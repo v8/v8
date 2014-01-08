@@ -105,7 +105,7 @@ v8::Handle<v8::ObjectTemplate> CreateGlobalTemplate(
     v8::Isolate* isolate,
     v8::FunctionCallback terminate,
     v8::FunctionCallback doloop) {
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
   global->Set(v8::String::NewFromUtf8(isolate, "terminate"),
               v8::FunctionTemplate::New(isolate, terminate));
   global->Set(v8::String::NewFromUtf8(isolate, "fail"),
@@ -244,7 +244,7 @@ void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(TerminateLoadICException) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
   global->Set(
       v8::String::NewFromUtf8(isolate, "terminate_or_return_object"),
       v8::FunctionTemplate::New(isolate, TerminateOrReturnObject));

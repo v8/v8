@@ -858,7 +858,7 @@ class BZip2Decompressor : public v8::StartupDataDecompressor {
 
 
 Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
-  Handle<ObjectTemplate> global_template = ObjectTemplate::New();
+  Handle<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(String::NewFromUtf8(isolate, "print"),
                        FunctionTemplate::New(isolate, Print));
   global_template->Set(String::NewFromUtf8(isolate, "write"),
@@ -877,7 +877,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                        FunctionTemplate::New(isolate, Version));
 
   // Bind the Realm object.
-  Handle<ObjectTemplate> realm_template = ObjectTemplate::New();
+  Handle<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
   realm_template->Set(String::NewFromUtf8(isolate, "current"),
                       FunctionTemplate::New(isolate, RealmCurrent));
   realm_template->Set(String::NewFromUtf8(isolate, "owner"),
@@ -897,7 +897,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(String::NewFromUtf8(isolate, "Realm"), realm_template);
 
 #ifndef V8_SHARED
-  Handle<ObjectTemplate> performance_template = ObjectTemplate::New();
+  Handle<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
   performance_template->Set(String::NewFromUtf8(isolate, "now"),
                             FunctionTemplate::New(isolate, PerformanceNow));
   global_template->Set(String::NewFromUtf8(isolate, "performance"),
@@ -905,7 +905,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 #endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
-  Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
+  Handle<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_templ);
   global_template->Set(String::NewFromUtf8(isolate, "os"), os_templ);
 #endif  // V8_SHARED
