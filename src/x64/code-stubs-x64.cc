@@ -2738,7 +2738,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
-  __ movq(rax, failure, RelocInfo::NONE64);
+  __ Move(rax, failure, RelocInfo::NONE64);
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_termination_exception,
@@ -2759,7 +2759,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                                       isolate);
   Label already_have_failure;
   JumpIfOOM(masm, rax, kScratchRegister, &already_have_failure);
-  __ movq(rax, Failure::OutOfMemoryException(0x1), RelocInfo::NONE64);
+  __ Move(rax, Failure::OutOfMemoryException(0x1), RelocInfo::NONE64);
   __ bind(&already_have_failure);
   __ Store(pending_exception, rax);
   // Fall through to the next label.
@@ -2789,7 +2789,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // Scratch register is neither callee-save, nor an argument register on any
     // platform. It's free to use at this point.
     // Cannot use smi-register for loading yet.
-    __ movq(kScratchRegister, Smi::FromInt(marker), RelocInfo::NONE64);
+    __ Move(kScratchRegister, Smi::FromInt(marker), RelocInfo::NONE64);
     __ push(kScratchRegister);  // context slot
     __ push(kScratchRegister);  // function slot
     // Save callee-saved registers (X64/Win64 calling conventions).
@@ -2857,7 +2857,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
   __ Store(pending_exception, rax);
-  __ movq(rax, Failure::Exception(), RelocInfo::NONE64);
+  __ Move(rax, Failure::Exception(), RelocInfo::NONE64);
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.  There's only one
@@ -5186,7 +5186,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   masm->PushCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
 
   // Call the entry hook function.
-  __ movq(rax, FUNCTION_ADDR(masm->isolate()->function_entry_hook()),
+  __ Move(rax, FUNCTION_ADDR(masm->isolate()->function_entry_hook()),
           RelocInfo::NONE64);
 
   AllowExternalCallThatCantCauseGC scope(masm);

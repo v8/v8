@@ -722,11 +722,11 @@ class Assembler : public AssemblerBase {
   void movl(const Operand& dst, Label* src);
 
   // Loads a pointer into a register with a relocation mode.
-  void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
+  void movp(Register dst, void* ptr, RelocInfo::Mode rmode);
+
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value);
   void movq(Register dst, uint64_t value);
-  void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
   void movsxbq(Register dst, const Operand& src);
   void movsxwq(Register dst, const Operand& src);
