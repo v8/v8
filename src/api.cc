@@ -714,8 +714,7 @@ void Context::Enter() {
 
 
 void Context::Exit() {
-  // TODO(dcarney): fix this once chrome is fixed.
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::Handle<i::Context> context = i::Handle<i::Context>::null();
   ENTER_V8(isolate);
   if (!ApiCheck(isolate->handle_scope_implementer()->LeaveContext(context),
@@ -809,8 +808,7 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 // objects.  To remind you about this there is no HandleScope in the
 // NeanderObject constructor.  When you add one to the site calling the
 // constructor you should check that you ensured the VM was not dead first.
-NeanderObject::NeanderObject(int size) {
-  i::Isolate* isolate = i::Isolate::Current();
+NeanderObject::NeanderObject(v8::internal::Isolate* isolate, int size) {
   EnsureInitializedForIsolate(isolate, "v8::Nowhere");
   ENTER_V8(isolate);
   value_ = isolate->factory()->NewNeanderObject();
@@ -824,7 +822,7 @@ int NeanderObject::size() {
 }
 
 
-NeanderArray::NeanderArray() : obj_(2) {
+NeanderArray::NeanderArray(v8::internal::Isolate* isolate) : obj_(isolate, 2) {
   obj_.set(0, i::Smi::FromInt(0));
 }
 
@@ -881,7 +879,7 @@ static void TemplateSet(i::Isolate* isolate,
                         v8::Handle<v8::Data>* data) {
   i::Handle<i::Object> list(Utils::OpenHandle(templ)->property_list(), isolate);
   if (list->IsUndefined()) {
-    list = NeanderArray().value();
+    list = NeanderArray(isolate).value();
     Utils::OpenHandle(templ)->set_property_list(*list);
   }
   NeanderArray array(list);
@@ -1382,9 +1380,10 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
 static inline void AddPropertyToTemplate(
     i::Handle<i::TemplateInfo> info,
     i::Handle<i::AccessorInfo> obj) {
-  i::Handle<i::Object> list(info->property_accessors(), info->GetIsolate());
+  i::Isolate* isolate = info->GetIsolate();
+  i::Handle<i::Object> list(info->property_accessors(), isolate);
   if (list->IsUndefined()) {
-    list = NeanderArray().value();
+    list = NeanderArray(isolate).value();
     info->set_property_accessors(*list);
   }
   NeanderArray array(list);
@@ -6176,7 +6175,7 @@ bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   NeanderArray listeners(isolate->factory()->message_listeners());
-  NeanderObject obj(2);
+  NeanderObject obj(isolate, 2);
   obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
   obj.set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
                             : *Utils::OpenHandle(*data));

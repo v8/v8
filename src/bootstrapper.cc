@@ -673,7 +673,7 @@ void Genesis::CreateRoots() {
 
   // Allocate the message listeners object.
   {
-    v8::NeanderArray listeners;
+    v8::NeanderArray listeners(isolate());
     native_context()->set_message_listeners(*listeners.value());
   }
 }

@@ -56,7 +56,7 @@ class Consts {
 // env-independent JSObjects used by the api.
 class NeanderObject {
  public:
-  explicit NeanderObject(int size);
+  explicit NeanderObject(v8::internal::Isolate* isolate, int size);
   explicit inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
   explicit inline NeanderObject(v8::internal::Object* obj);
   inline v8::internal::Object* get(int index);
@@ -72,7 +72,7 @@ class NeanderObject {
 // array abstraction built on neander-objects.
 class NeanderArray {
  public:
-  NeanderArray();
+  explicit NeanderArray(v8::internal::Isolate* isolate);
   explicit inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
   inline v8::internal::Handle<v8::internal::JSObject> value() {
     return obj_.value();
