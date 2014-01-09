@@ -5924,6 +5924,24 @@ bool JSReceiver::IsSimpleEnum() {
 }
 
 
+static bool FilterKey(Object* key, PropertyAttributes filter) {
+  if ((filter & SYMBOLIC) && key->IsSymbol()) {
+    return true;
+  }
+
+  if ((filter & PRIVATE_SYMBOL) &&
+      key->IsSymbol() && Symbol::cast(key)->is_private()) {
+    return true;
+  }
+
+  if ((filter & STRING) && !key->IsSymbol()) {
+    return true;
+  }
+
+  return false;
+}
+
+
 int Map::NumberOfDescribedProperties(DescriptorFlag which,
                                      PropertyAttributes filter) {
   int result = 0;
@@ -5933,7 +5951,7 @@ int Map::NumberOfDescribedProperties(DescriptorFlag which,
       : NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-        ((filter & SYMBOLIC) == 0 || !descs->GetKey(i)->IsSymbol())) {
+        !FilterKey(descs->GetKey(i), filter)) {
       result++;
     }
   }
@@ -13540,7 +13558,7 @@ void JSObject::GetLocalPropertyNames(
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < real_size; i++) {
       if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-          ((filter & SYMBOLIC) == 0 || !descs->GetKey(i)->IsSymbol())) {
+          !FilterKey(descs->GetKey(i), filter)) {
         storage->set(index++, descs->GetKey(i));
       }
     }
@@ -15642,7 +15660,7 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k) &&
-        ((filter & SYMBOLIC) == 0 || !k->IsSymbol())) {
+        !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();

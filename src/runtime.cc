@@ -5736,6 +5736,7 @@ static int LocalPrototypeChainLength(JSObject* obj) {
 
 // Return the names of the local named properties.
 // args[0]: object
+// args[1]: PropertyAttributes as int
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -5743,8 +5744,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
     return isolate->heap()->undefined_value();
   }
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(include_symbols, 1);
-  PropertyAttributes filter = include_symbols ? NONE : SYMBOLIC;
+  CONVERT_SMI_ARG_CHECKED(filter_value, 1);
+  PropertyAttributes filter = static_cast<PropertyAttributes>(filter_value);
 
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.

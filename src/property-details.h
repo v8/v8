@@ -42,9 +42,12 @@ enum PropertyAttributes {
   SEALED            = DONT_DELETE,
   FROZEN            = SEALED | READ_ONLY,
 
-  SYMBOLIC          = 8,  // Used to filter symbol names
-  DONT_SHOW         = DONT_ENUM | SYMBOLIC,
-  ABSENT            = 16  // Used in runtime to indicate a property is absent.
+  STRING            = 8,  // Used to filter symbols and string names
+  SYMBOLIC          = 16,
+  PRIVATE_SYMBOL    = 32,
+
+  DONT_SHOW         = DONT_ENUM | SYMBOLIC | PRIVATE_SYMBOL,
+  ABSENT            = 64  // Used in runtime to indicate a property is absent.
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
   // a non-existent property.
