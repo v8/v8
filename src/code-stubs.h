@@ -1171,6 +1171,9 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
 
 class BinaryOpWithAllocationSiteStub V8_FINAL : public BinaryOpICStub {
  public:
+  BinaryOpWithAllocationSiteStub(Token::Value op, OverwriteMode mode)
+      : BinaryOpICStub(op, mode) {}
+
   explicit BinaryOpWithAllocationSiteStub(const BinaryOpIC::State& state)
       : BinaryOpICStub(state) {}
 

@@ -771,6 +771,13 @@ void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
 
 
 // static
+void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
+  BinaryOpWithAllocationSiteStub stub(Token::ADD, NO_OVERWRITE);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
 void NewStringAddStub::InstallDescriptors(Isolate* isolate) {
   NewStringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
   InstallDescriptor(isolate, &stub);
