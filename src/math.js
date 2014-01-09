@@ -285,44 +285,20 @@ function SetUpMath() {
   %FunctionSetInstanceClassName(MathConstructor, 'Math');
 
   // Set up math constants.
-  // ECMA-262, section 15.8.1.1.
-  %OptimizeObjectForAddingMultipleProperties($Math, 8);
-  %SetProperty($Math,
-               "E",
-               2.7182818284590452354,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  // ECMA-262, section 15.8.1.2.
-  %SetProperty($Math,
-               "LN10",
-               2.302585092994046,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  // ECMA-262, section 15.8.1.3.
-  %SetProperty($Math,
-               "LN2",
-               0.6931471805599453,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  // ECMA-262, section 15.8.1.4.
-  %SetProperty($Math,
-               "LOG2E",
-               1.4426950408889634,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "LOG10E",
-               0.4342944819032518,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "PI",
-               3.1415926535897932,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "SQRT1_2",
-               0.7071067811865476,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %SetProperty($Math,
-               "SQRT2",
-               1.4142135623730951,
-               DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %ToFastProperties($Math);
+  InstallConstants($Math, $Array(
+    // ECMA-262, section 15.8.1.1.
+    "E", 2.7182818284590452354,
+    // ECMA-262, section 15.8.1.2.
+    "LN10", 2.302585092994046,
+    // ECMA-262, section 15.8.1.3.
+    "LN2", 0.6931471805599453,
+    // ECMA-262, section 15.8.1.4.
+    "LOG2E", 1.4426950408889634,
+    "LOG10E", 0.4342944819032518,
+    "PI", 3.1415926535897932,
+    "SQRT1_2", 0.7071067811865476,
+    "SQRT2", 1.4142135623730951
+  ));
 
   // Set up non-enumerable functions of the Math object and
   // set their names.

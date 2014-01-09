@@ -823,7 +823,7 @@ class V8_EXPORT HandleScope {
   /**
    * Counts the number of allocated handles.
    */
-  static int NumberOfHandles();
+  static int NumberOfHandles(Isolate* isolate);
 
  private:
   /**
@@ -4377,24 +4377,6 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
   virtual ~PersistentHandleVisitor() {}
   virtual void VisitPersistentHandle(Persistent<Value>* value,
                                      uint16_t class_id) {}
-};
-
-
-/**
- * Asserts that no action is performed that could cause a handle's value
- * to be modified. Useful when otherwise unsafe handle operations need to
- * be performed.
- */
-class V8_EXPORT AssertNoGCScope {
-#ifndef DEBUG
-  // TODO(yangguo): remove isolate argument.
-  V8_INLINE AssertNoGCScope(Isolate* isolate) {}
-#else
-  AssertNoGCScope(Isolate* isolate);
-  ~AssertNoGCScope();
- private:
-  void* disallow_heap_allocation_;
-#endif
 };
 
 

@@ -2296,6 +2296,8 @@ class FunctionLiteral V8_FINAL : public Expression {
   bool AllowsLazyCompilation();
   bool AllowsLazyCompilationWithoutContext();
 
+  void InitializeSharedInfo(Handle<Code> code);
+
   Handle<String> debug_name() const {
     if (name_->length() > 0) return name_;
     return inferred_name();
@@ -2305,6 +2307,9 @@ class FunctionLiteral V8_FINAL : public Expression {
   void set_inferred_name(Handle<String> inferred_name) {
     inferred_name_ = inferred_name;
   }
+
+  // shared_info may be null if it's not cached in full code.
+  Handle<SharedFunctionInfo> shared_info() { return shared_info_; }
 
   bool pretenure() { return Pretenure::decode(bitfield_); }
   void set_pretenure() { bitfield_ |= Pretenure::encode(true); }
@@ -2381,6 +2386,7 @@ class FunctionLiteral V8_FINAL : public Expression {
 
  private:
   Handle<String> name_;
+  Handle<SharedFunctionInfo> shared_info_;
   Scope* scope_;
   ZoneList<Statement*>* body_;
   Handle<String> inferred_name_;
