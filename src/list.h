@@ -204,9 +204,7 @@ size_t GetMemoryUsedByList(const List<T, P>& list) {
 
 
 class Map;
-template<class> class TypeImpl;
-struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> Type;
+class Type;
 class Code;
 template<typename T> class Handle;
 typedef List<Map*> MapList;

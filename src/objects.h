@@ -881,10 +881,7 @@ class FixedArrayBase;
 class GlobalObject;
 class ObjectVisitor;
 class StringStream;
-// We cannot just say "class Type;" if it is created from a template... =8-?
-template<class> class TypeImpl;
-struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> Type;
+class Type;
 
 
 // A template-ized version of the IsXXX functions.

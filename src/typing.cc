@@ -71,6 +71,12 @@ void AstTyper::Run(CompilationInfo* info) {
 #undef RECURSE
 
 
+Effect AstTyper::ObservedOnStack(Object* value) {
+  Type* lower = Type::OfCurrently(Handle<Object>(value, isolate()));
+  return Effect(Bounds(lower, Type::Any(), isolate()));
+}
+
+
 #ifdef OBJECT_PRINT
   static void PrintObserved(Variable* var, Object* value, Handle<Type> type) {
     PrintF("  observed %s ", var->IsParameter() ? "param" : "local");
@@ -81,12 +87,6 @@ void AstTyper::Run(CompilationInfo* info) {
     type->TypePrint();
   }
 #endif  // OBJECT_PRINT
-
-
-Effect AstTyper::ObservedOnStack(Object* value) {
-  Handle<Type> lower = Type::OfCurrently(handle(value, isolate()), isolate());
-  return Effect(Bounds(lower, Type::Any(isolate())));
-}
 
 
 void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
@@ -405,13 +405,13 @@ void AstTyper::VisitVariableProxy(VariableProxy* expr) {
 
 
 void AstTyper::VisitLiteral(Literal* expr) {
-  Handle<Type> type = Type::Constant(expr->value(), isolate_);
-  NarrowType(expr, Bounds(type));
+  Type* type = Type::Constant(expr->value(), isolate_);
+  NarrowType(expr, Bounds(type, isolate_));
 }
 
 
 void AstTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
-  NarrowType(expr, Bounds(Type::RegExp(isolate_)));
+  NarrowType(expr, Bounds(Type::RegExp(), isolate_));
 }
 
 
@@ -432,7 +432,7 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
     RECURSE(Visit(prop->value()));
   }
 
-  NarrowType(expr, Bounds(Type::Object(isolate_)));
+  NarrowType(expr, Bounds(Type::Object(), isolate_));
 }
 
 
@@ -443,7 +443,7 @@ void AstTyper::VisitArrayLiteral(ArrayLiteral* expr) {
     RECURSE(Visit(value));
   }
 
-  NarrowType(expr, Bounds(Type::Array(isolate_)));
+  NarrowType(expr, Bounds(Type::Array(), isolate_));
 }
 
 
@@ -495,7 +495,7 @@ void AstTyper::VisitThrow(Throw* expr) {
   RECURSE(Visit(expr->exception()));
   // TODO(rossberg): is it worth having a non-termination effect?
 
-  NarrowType(expr, Bounds(Type::None(isolate_)));
+  NarrowType(expr, Bounds(Type::None(), isolate_));
 }
 
 
@@ -593,13 +593,13 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::NOT:
     case Token::DELETE:
-      NarrowType(expr, Bounds(Type::Boolean(isolate_)));
+      NarrowType(expr, Bounds(Type::Boolean(), isolate_));
       break;
     case Token::VOID:
-      NarrowType(expr, Bounds(Type::Undefined(isolate_)));
+      NarrowType(expr, Bounds(Type::Undefined(), isolate_));
       break;
     case Token::TYPEOF:
-      NarrowType(expr, Bounds(Type::InternalizedString(isolate_)));
+      NarrowType(expr, Bounds(Type::InternalizedString(), isolate_));
       break;
     default:
       UNREACHABLE();
@@ -617,7 +617,7 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
 
   RECURSE(Visit(expr->expression()));
 
-  NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Number(isolate_)));
+  NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
 
   VariableProxy* proxy = expr->expression()->AsVariableProxy();
   if (proxy != NULL && proxy->var()->IsStackAllocated()) {
@@ -668,13 +668,14 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::BIT_AND: {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      Handle<Type> upper = Type::Union(
-          expr->left()->bounds().upper, expr->right()->bounds().upper,
+      Handle<Type> upper(
+          Type::Union(
+              expr->left()->bounds().upper, expr->right()->bounds().upper),
           isolate_);
       if (!upper->Is(Type::Signed32()))
-        upper = Type::Signed32(isolate_);
-      Handle<Type> lower =
-          Type::Intersect(Type::Smi(isolate_), upper, isolate_);
+        upper = handle(Type::Signed32(), isolate_);
+      Handle<Type> lower(Type::Intersect(
+          handle(Type::Smi(), isolate_), upper), isolate_);
       NarrowType(expr, Bounds(lower, upper));
       break;
     }
@@ -683,7 +684,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SAR:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Signed32(isolate_)));
+      NarrowType(expr, Bounds(Type::Smi(), Type::Signed32(), isolate_));
       break;
     case Token::SHR:
       RECURSE(Visit(expr->left()));
@@ -691,26 +692,26 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       // TODO(rossberg): The upper bound would be Unsigned32, but since there
       // is no 'positive Smi' type for the lower bound, we use the smallest
       // union of Smi and Unsigned32 as upper bound instead.
-      NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Number(isolate_)));
+      NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
       break;
     case Token::ADD: {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
       Bounds l = expr->left()->bounds();
       Bounds r = expr->right()->bounds();
-      Handle<Type> lower =
+      Type* lower =
           l.lower->Is(Type::None()) || r.lower->Is(Type::None()) ?
-              Type::None(isolate_) :
+              Type::None() :
           l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
-              Type::String(isolate_) :
+              Type::String() :
           l.lower->Is(Type::Number()) && r.lower->Is(Type::Number()) ?
-              Type::Smi(isolate_) : Type::None(isolate_);
-      Handle<Type> upper =
+              Type::Smi() : Type::None();
+      Type* upper =
           l.upper->Is(Type::String()) || r.upper->Is(Type::String()) ?
-              Type::String(isolate_) :
+              Type::String() :
           l.upper->Is(Type::Number()) && r.upper->Is(Type::Number()) ?
-              Type::Number(isolate_) : Type::NumberOrString(isolate_);
-      NarrowType(expr, Bounds(lower, upper));
+              Type::Number() : Type::NumberOrString();
+      NarrowType(expr, Bounds(lower, upper, isolate_));
       break;
     }
     case Token::SUB:
@@ -719,7 +720,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::MOD:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Number(isolate_)));
+      NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
       break;
     default:
       UNREACHABLE();
@@ -739,7 +740,7 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
   RECURSE(Visit(expr->left()));
   RECURSE(Visit(expr->right()));
 
-  NarrowType(expr, Bounds(Type::Boolean(isolate_)));
+  NarrowType(expr, Bounds(Type::Boolean(), isolate_));
 }
 
 

@@ -2068,7 +2068,7 @@ class CompareOperation V8_FINAL : public Expression {
         op_(op),
         left_(left),
         right_(right),
-        combined_type_(Type::None(isolate)) {
+        combined_type_(Type::None(), isolate) {
     ASSERT(Token::IsCompareOp(op));
   }
 

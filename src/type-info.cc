@@ -252,7 +252,7 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   Handle<Object> info = GetInfo(id);
   if (!info->IsCode()) {
     // For some comparisons we don't have ICs, e.g. LiteralCompareTypeof.
-    *left_type = *right_type = *combined_type = Type::None(isolate_);
+    *left_type = *right_type = *combined_type = handle(Type::None(), isolate_);
     return;
   }
   Handle<Code> code = Handle<Code>::cast(info);
@@ -291,7 +291,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
     // operations covered by the BinaryOpIC we should always have them.
     ASSERT(op < BinaryOpIC::State::FIRST_TOKEN ||
            op > BinaryOpIC::State::LAST_TOKEN);
-    *left = *right = *result = Type::None(isolate_);
+    *left = *right = *result = handle(Type::None(), isolate_);
     *fixed_right_arg = Maybe<int>();
     *allocation_site = Handle<AllocationSite>::null();
     return;
@@ -317,7 +317,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
 
 Handle<Type> TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
-  if (!object->IsCode()) return Type::None(isolate_);
+  if (!object->IsCode()) return handle(Type::None(), isolate_);
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpIC::State state(code->extended_extra_ic_state());

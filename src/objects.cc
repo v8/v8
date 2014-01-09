@@ -10543,12 +10543,13 @@ void Code::FindAllTypes(TypeHandleList* types) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  Isolate* isolate = GetIsolate();
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
     if (object->IsMap()) {
       Handle<Map> map(Map::cast(object));
-      types->Add(IC::MapToType(map));
+      types->Add(handle(IC::MapToType(map), isolate));
     }
   }
 }
@@ -16604,8 +16605,9 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
   Handle<Type> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
   // embedded into code.
-  Handle<Type> new_type = value->IsConsString() || value->IsTheHole()
-      ? Type::Any(isolate) : Type::Constant(value, isolate);
+  Handle<Type> new_type(value->IsConsString() || value->IsTheHole()
+                        ? Type::Any()
+                        : Type::Constant(value, isolate), isolate);
 
   if (new_type->Is(old_type)) {
     return old_type;
@@ -16618,7 +16620,7 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
     return new_type;
   }
 
-  return Type::Any(isolate);
+  return handle(Type::Any(), isolate);
 }
 
 
