@@ -2657,6 +2657,18 @@ void HGraphBuilder::BuildCreateAllocationMemento(
 }
 
 
+HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
+  // Get the global context, then the native context
+  HInstruction* context =
+      Add<HLoadNamedField>(closure, HObjectAccess::ForFunctionContextPointer());
+  HInstruction* global_object = Add<HLoadNamedField>(context,
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HObjectAccess access = HObjectAccess::ForJSObjectOffset(
+      GlobalObject::kNativeContextOffset);
+  return Add<HLoadNamedField>(global_object, access);
+}
+
+
 HInstruction* HGraphBuilder::BuildGetNativeContext() {
   // Get the global context, then the native context
   HInstruction* global_object = Add<HGlobalObject>();
@@ -2716,7 +2728,12 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
     return builder()->AddLoadNamedField(constructor_function_, access);
   }
 
-  HInstruction* native_context = builder()->BuildGetNativeContext();
+  // TODO(mvstanton): we should always have a constructor function if we
+  // are creating a stub.
+  HInstruction* native_context = constructor_function_ != NULL
+      ? builder()->BuildGetNativeContext(constructor_function_)
+      : builder()->BuildGetNativeContext();
+
   HInstruction* index = builder()->Add<HConstant>(
       static_cast<int32_t>(Context::JS_ARRAY_MAPS_INDEX));
 

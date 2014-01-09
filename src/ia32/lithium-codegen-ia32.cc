@@ -4302,10 +4302,9 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
           ? DISABLE_ALLOCATION_SITES
           : DONT_OVERRIDE;
-  ContextCheckMode context_mode = CONTEXT_CHECK_NOT_REQUIRED;
 
   if (instr->arity() == 0) {
-    ArrayNoArgumentConstructorStub stub(kind, context_mode, override_mode);
+    ArrayNoArgumentConstructorStub stub(kind, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else if (instr->arity() == 1) {
     Label done;
@@ -4318,18 +4317,17 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       __ j(zero, &packed_case, Label::kNear);
 
       ElementsKind holey_kind = GetHoleyElementsKind(kind);
-      ArraySingleArgumentConstructorStub stub(holey_kind, context_mode,
-                                              override_mode);
+      ArraySingleArgumentConstructorStub stub(holey_kind, override_mode);
       CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
       __ jmp(&done, Label::kNear);
       __ bind(&packed_case);
     }
 
-    ArraySingleArgumentConstructorStub stub(kind, context_mode, override_mode);
+    ArraySingleArgumentConstructorStub stub(kind, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
     __ bind(&done);
   } else {
-    ArrayNArgumentsConstructorStub stub(kind, context_mode, override_mode);
+    ArrayNArgumentsConstructorStub stub(kind, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   }
 }

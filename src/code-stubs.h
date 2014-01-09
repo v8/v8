@@ -1987,16 +1987,9 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 };
 
 
-enum ContextCheckMode {
-  CONTEXT_CHECK_REQUIRED,
-  CONTEXT_CHECK_NOT_REQUIRED,
-  LAST_CONTEXT_CHECK_MODE = CONTEXT_CHECK_NOT_REQUIRED
-};
-
-
 class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:
-  ArrayConstructorStubBase(ElementsKind kind, ContextCheckMode context_mode,
+  ArrayConstructorStubBase(ElementsKind kind,
                            AllocationSiteOverrideMode override_mode) {
     // It only makes sense to override local allocation site behavior
     // if there is a difference between the global allocation site policy
@@ -2004,8 +1997,7 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
     ASSERT(override_mode != DISABLE_ALLOCATION_SITES ||
            AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
-        AllocationSiteOverrideModeBits::encode(override_mode) |
-        ContextCheckModeBits::encode(context_mode);
+        AllocationSiteOverrideModeBits::encode(override_mode);
   }
 
   ElementsKind elements_kind() const {
@@ -2014,10 +2006,6 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
 
   AllocationSiteOverrideMode override_mode() const {
     return AllocationSiteOverrideModeBits::decode(bit_field_);
-  }
-
-  ContextCheckMode context_mode() const {
-    return ContextCheckModeBits::decode(bit_field_);
   }
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
@@ -2035,12 +2023,10 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
 
   // Ensure data fits within available bits.
   STATIC_ASSERT(LAST_ALLOCATION_SITE_OVERRIDE_MODE == 1);
-  STATIC_ASSERT(LAST_CONTEXT_CHECK_MODE == 1);
 
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
   class AllocationSiteOverrideModeBits: public
       BitField<AllocationSiteOverrideMode, 8, 1> {};  // NOLINT
-  class ContextCheckModeBits: public BitField<ContextCheckMode, 9, 1> {};
   uint32_t bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(ArrayConstructorStubBase);
@@ -2051,9 +2037,8 @@ class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNoArgumentConstructorStub(
       ElementsKind kind,
-      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
       AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
+      : ArrayConstructorStubBase(kind, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
@@ -2077,9 +2062,8 @@ class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArraySingleArgumentConstructorStub(
       ElementsKind kind,
-      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
       AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
+      : ArrayConstructorStubBase(kind, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
@@ -2103,9 +2087,8 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNArgumentsConstructorStub(
       ElementsKind kind,
-      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
       AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
+      : ArrayConstructorStubBase(kind, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);

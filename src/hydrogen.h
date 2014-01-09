@@ -1774,6 +1774,7 @@ class HGraphBuilder {
   HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                         Handle<JSObject> holder);
 
+  HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetArrayFunction();
 
