@@ -883,7 +883,7 @@ class ObjectVisitor;
 class StringStream;
 // We cannot just say "class Type;" if it is created from a template... =8-?
 template<class> class TypeImpl;
-class HeapTypeConfig;
+struct HeapTypeConfig;
 typedef TypeImpl<HeapTypeConfig> Type;
 
 

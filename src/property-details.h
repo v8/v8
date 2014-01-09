@@ -59,7 +59,7 @@ namespace internal {
 
 class Smi;
 template<class> class TypeImpl;
-class HeapTypeConfig;
+struct HeapTypeConfig;
 typedef TypeImpl<HeapTypeConfig> Type;
 class TypeInfo;
 
