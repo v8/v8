@@ -858,54 +858,54 @@ class BZip2Decompressor : public v8::StartupDataDecompressor {
 
 
 Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
-  Handle<ObjectTemplate> global_template = ObjectTemplate::New();
+  Handle<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(String::NewFromUtf8(isolate, "print"),
-                       FunctionTemplate::New(Print));
+                       FunctionTemplate::New(isolate, Print));
   global_template->Set(String::NewFromUtf8(isolate, "write"),
-                       FunctionTemplate::New(Write));
+                       FunctionTemplate::New(isolate, Write));
   global_template->Set(String::NewFromUtf8(isolate, "read"),
-                       FunctionTemplate::New(Read));
+                       FunctionTemplate::New(isolate, Read));
   global_template->Set(String::NewFromUtf8(isolate, "readbuffer"),
-                       FunctionTemplate::New(ReadBuffer));
+                       FunctionTemplate::New(isolate, ReadBuffer));
   global_template->Set(String::NewFromUtf8(isolate, "readline"),
-                       FunctionTemplate::New(ReadLine));
+                       FunctionTemplate::New(isolate, ReadLine));
   global_template->Set(String::NewFromUtf8(isolate, "load"),
-                       FunctionTemplate::New(Load));
+                       FunctionTemplate::New(isolate, Load));
   global_template->Set(String::NewFromUtf8(isolate, "quit"),
-                       FunctionTemplate::New(Quit));
+                       FunctionTemplate::New(isolate, Quit));
   global_template->Set(String::NewFromUtf8(isolate, "version"),
-                       FunctionTemplate::New(Version));
+                       FunctionTemplate::New(isolate, Version));
 
   // Bind the Realm object.
-  Handle<ObjectTemplate> realm_template = ObjectTemplate::New();
+  Handle<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
   realm_template->Set(String::NewFromUtf8(isolate, "current"),
-                      FunctionTemplate::New(RealmCurrent));
+                      FunctionTemplate::New(isolate, RealmCurrent));
   realm_template->Set(String::NewFromUtf8(isolate, "owner"),
-                      FunctionTemplate::New(RealmOwner));
+                      FunctionTemplate::New(isolate, RealmOwner));
   realm_template->Set(String::NewFromUtf8(isolate, "global"),
-                      FunctionTemplate::New(RealmGlobal));
+                      FunctionTemplate::New(isolate, RealmGlobal));
   realm_template->Set(String::NewFromUtf8(isolate, "create"),
-                      FunctionTemplate::New(RealmCreate));
+                      FunctionTemplate::New(isolate, RealmCreate));
   realm_template->Set(String::NewFromUtf8(isolate, "dispose"),
-                      FunctionTemplate::New(RealmDispose));
+                      FunctionTemplate::New(isolate, RealmDispose));
   realm_template->Set(String::NewFromUtf8(isolate, "switch"),
-                      FunctionTemplate::New(RealmSwitch));
+                      FunctionTemplate::New(isolate, RealmSwitch));
   realm_template->Set(String::NewFromUtf8(isolate, "eval"),
-                      FunctionTemplate::New(RealmEval));
+                      FunctionTemplate::New(isolate, RealmEval));
   realm_template->SetAccessor(String::NewFromUtf8(isolate, "shared"),
                               RealmSharedGet, RealmSharedSet);
   global_template->Set(String::NewFromUtf8(isolate, "Realm"), realm_template);
 
 #ifndef V8_SHARED
-  Handle<ObjectTemplate> performance_template = ObjectTemplate::New();
+  Handle<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
   performance_template->Set(String::NewFromUtf8(isolate, "now"),
-                            FunctionTemplate::New(PerformanceNow));
+                            FunctionTemplate::New(isolate, PerformanceNow));
   global_template->Set(String::NewFromUtf8(isolate, "performance"),
                        performance_template);
 #endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
-  Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
+  Handle<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_templ);
   global_template->Set(String::NewFromUtf8(isolate, "os"), os_templ);
 #endif  // V8_SHARED
@@ -1133,7 +1133,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Error reading file");
     return;
   }
-  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data, length);
+  Handle<v8::ArrayBuffer> buffer =
+      ArrayBuffer::New(isolate, data->data, length);
   data->handle.Reset(isolate, buffer);
   data->handle.SetWeak(data, ReadBufferWeakCallback);
   data->handle.MarkIndependent();

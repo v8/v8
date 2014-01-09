@@ -163,7 +163,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
     completions = Local<Array>::New(isolate, current_completions);
   }
   if (current_index < completions->Length()) {
-    Handle<Integer> index = Integer::New(current_index);
+    Handle<Integer> index = Integer::New(isolate, current_index);
     Handle<Value> str_obj = completions->Get(index);
     current_index++;
     String::Utf8Value str(str_obj);

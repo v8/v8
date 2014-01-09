@@ -475,7 +475,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Prepare arguments.
   STATIC_ASSERT(kFastApiCallArguments == 7);
-  __ lea(rax, Operand(rsp, 1 * kPointerSize));
+  __ lea(rax, args.GetArgumentOperand(offset - FCA::kHolderIndex));
 
   GenerateFastApiCallBody(masm, optimization, argc, false);
 }
@@ -495,8 +495,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 Register* values) {
   ASSERT(optimization.is_simple_api_call());
 
-  // Copy return value.
-  __ pop(scratch1);
+  __ PopReturnAddressTo(scratch1);
 
   // receiver
   __ push(receiver);
@@ -563,9 +562,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(!scratch1.is(rax));
   // store receiver address for GenerateFastApiCallBody
   __ movq(rax, rsp);
-
-  // return address
-  __ push(scratch1);
+  __ PushReturnAddressFrom(scratch1);
 
   GenerateFastApiCallBody(masm, optimization, argc, true);
 }
@@ -1307,7 +1304,7 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
     __ movq(scratch2(),
             Operand(dictionary, index, times_pointer_size,
                     kValueOffset - kHeapObjectTag));
-    __ movq(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
+    __ Move(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
     __ cmpq(scratch2(), scratch3());
     __ j(not_equal, &miss);
   }
@@ -2378,10 +2375,21 @@ void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
 }
 
 
-void CallStubCompiler::PatchGlobalProxy(Handle<Object> object) {
+void CallStubCompiler::PatchGlobalProxy(Handle<Object> object,
+                                        Handle<JSFunction> function) {
   if (object->IsGlobalObject()) {
     StackArgumentsAccessor args(rsp, arguments());
-    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
+    __ MoveHeapObject(rdx, handle(function->context()->global_proxy()));
+    __ movq(args.GetReceiverOperand(), rdx);
+  }
+}
+
+
+void CallStubCompiler::PatchGlobalProxy(Handle<Object> object,
+                                        Register function) {
+  if (object->IsGlobalObject()) {
+    FetchGlobalProxy(masm(), rdx, function);
+    StackArgumentsAccessor args(rsp, arguments().immediate());
     __ movq(args.GetReceiverOperand(), rdx);
   }
 }
@@ -2475,7 +2483,7 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
   GenerateFunctionCheck(function, rbx, miss);
 
   if (!function.is(rdi)) __ movq(rdi, function);
-  PatchGlobalProxy(object);
+  PatchGlobalProxy(object, function);
 
   // Invoke the function.
   __ InvokeFunction(rdi, arguments(), JUMP_FUNCTION,
@@ -2588,6 +2596,15 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 #define __ ACCESS_MASM(masm)
 
 
+void CallStubCompiler::FetchGlobalProxy(MacroAssembler* masm,
+                                        Register target,
+                                        Register function) {
+  __ movq(target, FieldOperand(function, JSFunction::kContextOffset));
+  __ movq(target, ContextOperand(target, Context::GLOBAL_OBJECT_INDEX));
+  __ movq(target, FieldOperand(target, GlobalObject::kGlobalReceiverOffset));
+}
+
+
 void StoreStubCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm,
     Handle<JSFunction> setter) {
@@ -2667,7 +2684,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     } else {
       Label next_map;
       __ j(not_equal, &next_map, Label::kNear);
-      __ movq(transition_map(),
+      __ Move(transition_map(),
               transitioned_maps->at(i),
               RelocInfo::EMBEDDED_OBJECT);
       __ jmp(handler_stubs->at(i), RelocInfo::CODE_TARGET);

@@ -341,17 +341,6 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
   global_proxy->set_native_context(*factory->null_value());
   SetObjectPrototype(global_proxy, factory->null_value());
-  env->set_global_proxy(env->global_object());
-  env->global_object()->set_global_receiver(env->global_object());
-}
-
-
-void Bootstrapper::ReattachGlobal(Handle<Context> env,
-                                  Handle<JSGlobalProxy> global_proxy) {
-  env->global_object()->set_global_receiver(*global_proxy);
-  env->set_global_proxy(*global_proxy);
-  SetObjectPrototype(global_proxy, Handle<JSObject>(env->global_object()));
-  global_proxy->set_native_context(*env);
 }
 
 
@@ -556,7 +545,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     map->AppendDescriptor(&d, witness);
   }
   {  // Add name.
-    CallbacksDescriptor d(*factory()->name_string(), *name, rw_attribs);
+    CallbacksDescriptor d(*factory()->name_string(), *name, ro_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add arguments.
@@ -684,7 +673,7 @@ void Genesis::CreateRoots() {
 
   // Allocate the message listeners object.
   {
-    v8::NeanderArray listeners;
+    v8::NeanderArray listeners(isolate());
     native_context()->set_message_listeners(*listeners.value());
   }
 }
@@ -1313,7 +1302,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   native_context()->set_out_of_memory(heap->false_value());
 
   // Initialize the embedder data slot.
-  Handle<FixedArray> embedder_data = factory->NewFixedArray(2);
+  Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
   native_context()->set_embedder_data(*embedder_data);
 }
 
@@ -1510,7 +1499,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
   if (cache == NULL || !cache->Lookup(name, &function_info)) {
     ASSERT(source->IsOneByteRepresentation());
     Handle<String> script_name = factory->NewStringFromUtf8(name);
-    function_info = Compiler::Compile(
+    function_info = Compiler::CompileScript(
         source,
         script_name,
         0,
@@ -1680,6 +1669,8 @@ bool Genesis::InstallNatives() {
   builtins->set_native_context(*native_context());
   builtins->set_global_context(*native_context());
   builtins->set_global_receiver(*builtins);
+  builtins->set_global_receiver(native_context()->global_proxy());
+
 
   // Set up the 'global' properties of the builtins object. The
   // 'global' property that refers to the global object is the only
@@ -1693,6 +1684,11 @@ bool Genesis::InstallNatives() {
   CHECK_NOT_EMPTY_HANDLE(isolate(),
                          JSObject::SetLocalPropertyIgnoreAttributes(
                              builtins, global_string, global_obj, attributes));
+  Handle<String> builtins_string =
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
+  CHECK_NOT_EMPTY_HANDLE(isolate(),
+                         JSObject::SetLocalPropertyIgnoreAttributes(
+                             builtins, builtins_string, builtins, attributes));
 
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(native_context()->global_object())->
@@ -2365,7 +2361,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<JSFunction> function
         = Handle<JSFunction>(JSFunction::cast(function_object));
     builtins->set_javascript_builtin(id, *function);
-    if (!JSFunction::CompileLazy(function, CLEAR_EXCEPTION)) {
+    if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
       return false;
     }
     builtins->set_javascript_builtin_code(id, function->shared()->code());
@@ -2592,6 +2588,8 @@ Genesis::Genesis(Isolate* isolate,
 
     HookUpGlobalProxy(inner_global, global_proxy);
     HookUpInnerGlobal(inner_global);
+    native_context()->builtins()->set_global_receiver(
+        native_context()->global_proxy());
 
     if (!ConfigureGlobalObjects(global_template)) return;
   } else {

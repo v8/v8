@@ -483,7 +483,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code sequences for calls
   void EmitCallWithStub(Call* expr, CallFunctionFlags flags);
-  void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
+  void EmitCallWithIC(Call* expr, Handle<Object> name, ContextualMode mode);
   void EmitKeyedCallWithIC(Call* expr, Expression* key);
 
   // Platform-specific code for inline runtime calls.
@@ -565,8 +565,13 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void CallIC(Handle<Code> code,
-              RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+              ContextualMode mode = NOT_CONTEXTUAL,
               TypeFeedbackId id = TypeFeedbackId::None());
+
+  void CallLoadIC(ContextualMode mode,
+                  TypeFeedbackId id = TypeFeedbackId::None());
+  void CallStoreIC(ContextualMode mode,
+                   TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -597,6 +602,9 @@ class FullCodeGenerator: public AstVisitor {
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
   bool is_classic_mode() { return language_mode() == CLASSIC_MODE; }
+  StrictModeFlag strict_mode() {
+    return is_classic_mode() ? kNonStrictMode : kStrictMode;
+  }
   LanguageMode language_mode() { return function()->language_mode(); }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return scope_; }
@@ -928,10 +936,10 @@ class BackEdgeTable {
 
   // Change a back edge patched for on-stack replacement to perform a
   // stack check first.
-  static void AddStackCheck(CompilationInfo* info);
+  static void AddStackCheck(Handle<Code> code, uint32_t pc_offset);
 
-  // Remove the stack check, if available, and replace by on-stack replacement.
-  static void RemoveStackCheck(CompilationInfo* info);
+  // Revert the patch by AddStackCheck.
+  static void RemoveStackCheck(Handle<Code> code, uint32_t pc_offset);
 
   // Return the current patch state of the back edge.
   static BackEdgeState GetBackEdgeState(Isolate* isolate,

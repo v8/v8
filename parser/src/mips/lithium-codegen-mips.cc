@@ -1045,13 +1045,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::TranscendentalCache: {
-      __ lw(a0, MemOperand(sp, 0));
-      TranscendentalCacheStub stub(instr->transcendental_type(),
-                                   TranscendentalCacheStub::TAGGED);
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -1945,7 +1938,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ PrepareCallCFunction(0, 2, scratch0());
       __ SetCallCDoubleArguments(left, right);
       __ CallCFunction(
-          ExternalReference::double_fp_operation(Token::MOD, isolate()),
+          ExternalReference::mod_two_doubles_operation(isolate()),
           0, 2);
       // Move the result in the double result register.
       __ GetCFunctionDoubleResult(result);
@@ -2822,10 +2815,9 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   __ li(a2, Operand(instr->name()));
-  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET
-                                             : RelocInfo::CODE_TARGET_CONTEXT;
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  CallCode(ic, mode, instr);
+  ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2860,10 +2852,10 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(a0));
 
   __ li(a2, Operand(instr->name()));
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             CONTEXTUAL);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2960,7 +2952,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
   // Name is always in a2.
   __ li(a2, Operand(instr->name()));
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3378,9 +3370,8 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ Branch(&result_in_receiver);
 
   __ bind(&global_object);
-  __ lw(result, GlobalObjectOperand());
-  __ lw(result,
-         FieldMemOperand(result, JSGlobalObject::kGlobalReceiverOffset));
+  CallStubCompiler::FetchGlobalProxy(masm(), receiver, function);
+
   if (result.is(receiver)) {
     __ bind(&result_in_receiver);
   } else {
@@ -3864,13 +3855,11 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  ASSERT(ToDoubleRegister(instr->result()).is(f4));
-  // Set the context register to a GC-safe fake value. Clobbering it is
-  // OK because this instruction is marked as a call.
-  __ mov(cp, zero_reg);
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::UNTAGGED);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  __ PrepareCallCFunction(0, 1, scratch0());
+  __ SetCallCDoubleArguments(ToDoubleRegister(instr->value()));
+  __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
+                   0, 1);
+  __ GetCFunctionDoubleResult(ToDoubleRegister(instr->result()));
 }
 
 
@@ -3912,11 +3901,10 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
   __ li(a2, Operand(instr->name()));
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -3926,7 +3914,10 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
+  CallFunctionFlags flags =
+      instr->hydrogen()->IsContextualCall() ?
+          RECEIVER_IS_IMPLICIT : NO_CALL_FUNCTION_FLAGS;
+  CallFunctionStub stub(arity, flags);
   if (instr->hydrogen()->IsTailCall()) {
     if (NeedsEagerFrame()) __ mov(sp, fp);
     __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
@@ -3941,11 +3932,10 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
   __ li(a2, Operand(instr->name()));
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -4142,9 +4132,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
   // Name is always in a2.
   __ li(a2, Operand(instr->name()));
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

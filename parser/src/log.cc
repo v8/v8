@@ -1432,8 +1432,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, name));
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  if (code == isolate_->builtins()->builtin(
-      Builtins::kLazyCompile))
+  if (code == isolate_->builtins()->builtin(Builtins::kCompileUnoptimized))
     return;
 
   Log::MessageBuilder msg(log_);
@@ -1967,8 +1966,8 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (*code_objects[i] == isolate_->builtins()->builtin(
-        Builtins::kLazyCompile))
+    if (code_objects[i].is_identical_to(
+            isolate_->builtins()->CompileUnoptimized()))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
   }

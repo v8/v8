@@ -25,31 +25,40 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_DEFAULT_PLATFORM_H_
-#define V8_DEFAULT_PLATFORM_H_
-
 #include "v8.h"
 
-namespace v8 {
-namespace internal {
+#include "cctest.h"
+#include "libplatform/task-queue.h"
+#include "libplatform/worker-thread.h"
+#include "test-libplatform.h"
 
-class DefaultPlatform : public Platform {
- public:
-  DefaultPlatform();
-  virtual ~DefaultPlatform();
-
-  // v8::Platform implementation.
-  virtual void CallOnBackgroundThread(
-      Task *task, ExpectedRuntime expected_runtime) V8_OVERRIDE;
-  virtual void CallOnForegroundThread(v8::Isolate *isolate,
-                                      Task *task) V8_OVERRIDE;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
-};
+using namespace v8::internal;
 
 
-} }  // namespace v8::internal
+TEST(WorkerThread) {
+  TaskQueue queue;
+  TaskCounter task_counter;
 
+  TestTask* task1 = new TestTask(&task_counter, true);
+  TestTask* task2 = new TestTask(&task_counter, true);
+  TestTask* task3 = new TestTask(&task_counter, true);
+  TestTask* task4 = new TestTask(&task_counter, true);
 
-#endif  // V8_DEFAULT_PLATFORM_H_
+  WorkerThread* thread1 = new WorkerThread(&queue);
+  WorkerThread* thread2 = new WorkerThread(&queue);
+
+  CHECK_EQ(4, task_counter.GetCount());
+
+  queue.Append(task1);
+  queue.Append(task2);
+  queue.Append(task3);
+  queue.Append(task4);
+
+  // TaskQueue ASSERTs that it is empty in its destructor.
+  queue.Terminate();
+
+  delete thread1;
+  delete thread2;
+
+  CHECK_EQ(0, task_counter.GetCount());
+}

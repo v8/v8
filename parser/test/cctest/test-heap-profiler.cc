@@ -423,7 +423,8 @@ TEST(HeapSnapshotSlicedString) {
 TEST(HeapSnapshotConsString) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Local<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(1);
   LocalContext env(NULL, global_template);
   v8::Handle<v8::Object> global_proxy = env->Global();
@@ -466,13 +467,14 @@ TEST(HeapSnapshotConsString) {
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Local<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(2);
   LocalContext env(NULL, global_template);
   v8::Handle<v8::Object> global_proxy = env->Global();
   v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(2, global->InternalFieldCount());
-  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
   global->SetInternalField(0, v8_num(17));
   global->SetInternalField(1, obj);
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
@@ -1041,6 +1043,49 @@ TEST(HeapSnapshotObjectsStats) {
 }
 
 
+TEST(HeapObjectIds) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  const int kLength = 10;
+  v8::Handle<v8::Object> objects[kLength];
+  v8::SnapshotObjectId ids[kLength];
+
+  heap_profiler->StartTrackingHeapObjects(false);
+
+  for (int i = 0; i < kLength; i++) {
+    objects[i] = v8::Object::New(isolate);
+  }
+  GetHeapStatsUpdate(heap_profiler);
+
+  for (int i = 0; i < kLength; i++) {
+    v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
+    CHECK_NE(v8::HeapProfiler::kUnknownObjectId, static_cast<int>(id));
+    ids[i] = id;
+  }
+
+  heap_profiler->StopTrackingHeapObjects();
+  CcTest::heap()->CollectAllAvailableGarbage();
+
+  for (int i = 0; i < kLength; i++) {
+    v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
+    CHECK_EQ(static_cast<int>(ids[i]), static_cast<int>(id));
+    v8::Handle<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
+    CHECK_EQ(objects[i], obj);
+  }
+
+  heap_profiler->ClearObjectIds();
+  for (int i = 0; i < kLength; i++) {
+    v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
+    CHECK_EQ(v8::HeapProfiler::kUnknownObjectId, static_cast<int>(id));
+    v8::Handle<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
+    CHECK(obj.IsEmpty());
+  }
+}
+
+
 static void CheckChildrenIds(const v8::HeapSnapshot* snapshot,
                              const v8::HeapGraphNode* node,
                              int level, int max_level) {
@@ -1311,7 +1356,7 @@ class GraphWithImplicitRefs {
     instance_ = this;
     isolate_ = (*env)->GetIsolate();
     for (int i = 0; i < kObjectsCount; i++) {
-      objects_[i].Reset(isolate_, v8::Object::New());
+      objects_[i].Reset(isolate_, v8::Object::New(isolate_));
     }
     (*env)->Global()->Set(v8_str("root_object"),
                           v8::Local<v8::Value>::New(isolate_, objects_[0]));
@@ -1519,7 +1564,7 @@ TEST(NodesIteration) {
 }
 
 
-TEST(GetHeapValue) {
+TEST(GetHeapValueForNode) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -1529,25 +1574,26 @@ TEST(GetHeapValue) {
       heap_profiler->TakeHeapSnapshot(v8_str("value"));
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK(global->GetHeapValue()->IsObject());
+  CHECK(heap_profiler->FindObjectById(global->GetId())->IsObject());
   v8::Local<v8::Object> js_global =
       env->Global()->GetPrototype().As<v8::Object>();
-  CHECK(js_global == global->GetHeapValue());
+  CHECK(js_global == heap_profiler->FindObjectById(global->GetId()));
   const v8::HeapGraphNode* obj = GetProperty(
       global, v8::HeapGraphEdge::kProperty, "a");
-  CHECK(obj->GetHeapValue()->IsObject());
+  CHECK(heap_profiler->FindObjectById(obj->GetId())->IsObject());
   v8::Local<v8::Object> js_obj = js_global->Get(v8_str("a")).As<v8::Object>();
-  CHECK(js_obj == obj->GetHeapValue());
+  CHECK(js_obj == heap_profiler->FindObjectById(obj->GetId()));
   const v8::HeapGraphNode* s_prop =
       GetProperty(obj, v8::HeapGraphEdge::kProperty, "s_prop");
   v8::Local<v8::String> js_s_prop =
       js_obj->Get(v8_str("s_prop")).As<v8::String>();
-  CHECK(js_s_prop == s_prop->GetHeapValue());
+  CHECK(js_s_prop == heap_profiler->FindObjectById(s_prop->GetId()));
   const v8::HeapGraphNode* n_prop =
       GetProperty(obj, v8::HeapGraphEdge::kProperty, "n_prop");
   v8::Local<v8::Number> js_n_prop =
       js_obj->Get(v8_str("n_prop")).As<v8::Number>();
-  CHECK(js_n_prop->NumberValue() == n_prop->GetHeapValue()->NumberValue());
+  CHECK(js_n_prop->NumberValue() ==
+        heap_profiler->FindObjectById(n_prop->GetId())->NumberValue());
 }
 
 
@@ -1572,10 +1618,10 @@ TEST(GetHeapValueForDeletedObject) {
     // Perform the check inside a nested local scope to avoid creating a
     // reference to the object we are deleting.
     v8::HandleScope scope(env->GetIsolate());
-    CHECK(prop->GetHeapValue()->IsObject());
+    CHECK(heap_profiler->FindObjectById(prop->GetId())->IsObject());
   }
   CompileRun("delete a.p;");
-  CHECK(prop->GetHeapValue()->IsUndefined());
+  CHECK(heap_profiler->FindObjectById(prop->GetId()).IsEmpty());
 }
 
 
@@ -1777,7 +1823,8 @@ TEST(WeakGlobalHandle) {
   CHECK(!HasWeakGlobalHandle());
 
   v8::Persistent<v8::Object>* handle =
-      new v8::Persistent<v8::Object>(env->GetIsolate(), v8::Object::New());
+      new v8::Persistent<v8::Object>(env->GetIsolate(),
+                                     v8::Object::New(env->GetIsolate()));
   handle->SetWeak(handle, PersistentHandleCallback);
 
   CHECK(HasWeakGlobalHandle());
@@ -1951,8 +1998,9 @@ TEST(ManyLocalsInSharedContext) {
 
 TEST(AllocationSitesAreVisible) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   CompileRun(
       "fun = function () { var a = [3, 2, 1]; return a; }\n"
       "fun();");
@@ -1989,14 +2037,18 @@ TEST(AllocationSitesAreVisible) {
   CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
   CHECK_EQ(v8::internal::FixedArray::SizeFor(3), elements->GetSelfSize());
 
-  CHECK(transition_info->GetHeapValue()->IsArray());
-  v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(
-      transition_info->GetHeapValue());
+  v8::Handle<v8::Value> array_val =
+      heap_profiler->FindObjectById(transition_info->GetId());
+  CHECK(array_val->IsArray());
+  v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(array_val);
   // Verify the array is "a" in the code above.
   CHECK_EQ(3, array->Length());
-  CHECK_EQ(v8::Integer::New(3), array->Get(v8::Integer::New(0)));
-  CHECK_EQ(v8::Integer::New(2), array->Get(v8::Integer::New(1)));
-  CHECK_EQ(v8::Integer::New(1), array->Get(v8::Integer::New(2)));
+  CHECK_EQ(v8::Integer::New(isolate, 3),
+           array->Get(v8::Integer::New(isolate, 0)));
+  CHECK_EQ(v8::Integer::New(isolate, 2),
+           array->Get(v8::Integer::New(isolate, 1)));
+  CHECK_EQ(v8::Integer::New(isolate, 1),
+           array->Get(v8::Integer::New(isolate, 2)));
 }
 
 
@@ -2044,6 +2096,7 @@ HeapProfilerExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
                                                  v8::Handle<v8::String> name) {
   if (name->Equals(v8::String::NewFromUtf8(isolate, "findUntrackedObjects"))) {
     return v8::FunctionTemplate::New(
+        isolate,
         HeapProfilerExtension::FindUntrackedObjects);
   } else {
     CHECK(false);

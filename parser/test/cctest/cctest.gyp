@@ -47,6 +47,7 @@
         'gay-fixed.cc',
         'gay-precision.cc',
         'gay-shortest.cc',
+        'profiler-extension.cc',
         'test-accessors.cc',
         'test-alloc.cc',
         'test-api.cc',
@@ -80,6 +81,8 @@
         'test-hashmap.cc',
         'test-heap.cc',
         'test-heap-profiler.cc',
+        'test-libplatform-task-queue.cc',
+        'test-libplatform-worker-thread.cc',
         'test-list.cc',
         'test-liveedit.cc',
         'test-lockers.cc',
@@ -152,7 +155,7 @@
             'test-macro-assembler-mips.cc'
           ],
         }],
-        [ 'OS=="linux"', {
+        [ 'OS=="linux" or OS=="qnx"', {
           'sources': [
             'test-platform-linux.cc',
           ],

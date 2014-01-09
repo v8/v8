@@ -426,6 +426,12 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  // Push a fixed frame, consisting of lr, fp, constant pool (if
+  // FLAG_enable_ool_constant_pool), context and JS function / marker id if
+  // marker_reg is a valid register.
+  void PushFixedFrame(Register marker_reg = no_reg);
+  void PopFixedFrame(Register marker_reg = no_reg);
+
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
@@ -533,6 +539,9 @@ class MacroAssembler: public Assembler {
 
   // Generates function and stub prologue code.
   void Prologue(PrologueFrameMode frame_mode);
+
+  // Loads the constant pool pointer (pp) register.
+  void LoadConstantPoolPointerRegister();
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
@@ -1399,7 +1408,8 @@ class MacroAssembler: public Assembler {
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
-  void LeaveFrame(StackFrame::Type type);
+  // Returns the pc offset at which the frame ends.
+  int LeaveFrame(StackFrame::Type type);
 
   // Expects object in r0 and returns map with validated enum cache
   // in r0.  Assumes that any other register can be used as a scratch.

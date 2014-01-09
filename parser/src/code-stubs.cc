@@ -197,6 +197,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 #define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
+    case UninitializedMajorKey: return "<UninitializedMajorKey>Stub";
     default:
       if (!allow_unknown_keys) {
         UNREACHABLE();
@@ -243,6 +244,28 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
                                          const BinaryOpIC::State& state) {
   BinaryOpICStub stub(state);
   stub.GetCode(isolate);
+}
+
+
+// static
+void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
+  // Generate special versions of the stub.
+  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
+}
+
+
+void BinaryOpICWithAllocationSiteStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
+}
+
+
+// static
+void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
+    Isolate* isolate, const BinaryOpIC::State& state) {
+  if (state.CouldCreateAllocationMementos()) {
+    BinaryOpICWithAllocationSiteStub stub(state);
+    stub.GetCode(isolate);
+  }
 }
 
 
@@ -581,6 +604,28 @@ void CallFunctionStub::PrintName(StringStream* stream) {
 void CallConstructStub::PrintName(StringStream* stream) {
   stream->Add("CallConstructStub");
   if (RecordCallTarget()) stream->Add("_Recording");
+}
+
+
+void ArrayConstructorStub::PrintName(StringStream* stream) {
+  stream->Add("ArrayConstructorStub");
+  switch (argument_count_) {
+    case ANY: stream->Add("_Any"); break;
+    case NONE: stream->Add("_None"); break;
+    case ONE: stream->Add("_One"); break;
+    case MORE_THAN_ONE: stream->Add("_More_Than_One"); break;
+  }
+}
+
+
+void ArrayConstructorStubBase::BasePrintName(const char* name,
+                                             StringStream* stream) {
+  stream->Add(name);
+  stream->Add("_");
+  stream->Add(ElementsKindToString(elements_kind()));
+  if (override_mode() == DISABLE_ALLOCATION_SITES) {
+    stream->Add("_DISABLE_ALLOCATION_SITES");
+  }
 }
 
 

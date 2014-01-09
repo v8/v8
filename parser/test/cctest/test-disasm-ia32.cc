@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include "v8.h"
+#include "stub-cache.h"
 
 #include "debug.h"
 #include "disasm.h"
@@ -254,7 +255,7 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(isolate->builtins()->builtin(Builtins::kLoadIC_Initialize));
+  Handle<Code> ic(LoadIC::initialize_stub(isolate, NOT_CONTEXTUAL));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);

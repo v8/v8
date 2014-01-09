@@ -143,6 +143,7 @@ class StackHandler BASE_EMBEDDED {
   inline Kind kind() const;
   inline unsigned index() const;
 
+  inline Object** constant_pool_address() const;
   inline Object** context_address() const;
   inline Object** code_address() const;
   inline void SetFp(Address slot, Address fp);
@@ -167,18 +168,25 @@ class StackHandler BASE_EMBEDDED {
 class StandardFrameConstants : public AllStatic {
  public:
   // Fixed part of the frame consists of return address, caller fp,
-  // context and function.
-  // StandardFrame::IterateExpressions assumes that kContextOffset is the last
-  // object pointer.
-  static const int kFixedFrameSizeFromFp =  2 * kPointerSize;
+  // constant pool (if FLAG_enable_ool_constant_pool), context, and function.
+  // StandardFrame::IterateExpressions assumes that kLastObjectOffset is the
+  // last object pointer.
+  static const int kCPSlotSize =
+      FLAG_enable_ool_constant_pool ? kPointerSize : 0;
+  static const int kFixedFrameSizeFromFp =  2 * kPointerSize + kCPSlotSize;
   static const int kFixedFrameSize       =  kPCOnStackSize + kFPOnStackSize +
                                             kFixedFrameSizeFromFp;
-  static const int kExpressionsOffset    = -3 * kPointerSize;
-  static const int kMarkerOffset         = -2 * kPointerSize;
-  static const int kContextOffset        = -1 * kPointerSize;
+  static const int kExpressionsOffset    = -3 * kPointerSize - kCPSlotSize;
+  static const int kMarkerOffset         = -2 * kPointerSize - kCPSlotSize;
+  static const int kContextOffset        = -1 * kPointerSize - kCPSlotSize;
+  static const int kConstantPoolOffset   = FLAG_enable_ool_constant_pool ?
+                                           -1 * kPointerSize : 0;
   static const int kCallerFPOffset       =  0 * kPointerSize;
   static const int kCallerPCOffset       = +1 * kFPOnStackSize;
   static const int kCallerSPOffset       = kCallerPCOffset + 1 * kPCOnStackSize;
+
+  static const int kLastObjectOffset     = FLAG_enable_ool_constant_pool ?
+                                           kConstantPoolOffset : kContextOffset;
 };
 
 
@@ -419,6 +427,7 @@ class ExitFrame: public StackFrame {
   virtual Code* unchecked_code() const;
 
   Object*& code_slot() const;
+  Object*& constant_pool_slot() const;
 
   // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
@@ -602,6 +611,7 @@ class JavaScriptFrame: public StandardFrame {
   // Architecture-specific register description.
   static Register fp_register();
   static Register context_register();
+  static Register constant_pool_pointer_register();
 
   static JavaScriptFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_java_script());
@@ -758,6 +768,7 @@ class StubFailureTrampolineFrame: public StandardFrame {
   // Architecture-specific register description.
   static Register fp_register();
   static Register context_register();
+  static Register constant_pool_pointer_register();
 
  protected:
   inline explicit StubFailureTrampolineFrame(

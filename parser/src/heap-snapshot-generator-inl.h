@@ -59,7 +59,10 @@ int HeapEntry::set_children_index(int index) {
 
 HeapGraphEdge** HeapEntry::children_arr() {
   ASSERT(children_index_ >= 0);
-  return &snapshot_->children()[children_index_];
+  SLOW_ASSERT(children_index_ < snapshot_->children().length() ||
+      (children_index_ == snapshot_->children().length() &&
+       children_count_ == 0));
+  return &snapshot_->children().first() + children_index_;
 }
 
 

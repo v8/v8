@@ -968,12 +968,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::TranscendentalCache: {
-      TranscendentalCacheStub stub(instr->transcendental_type(),
-                                   TranscendentalCacheStub::TAGGED);
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -1645,7 +1639,7 @@ void LCodeGen::DoDateField(LDateField* instr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
     __ movq(arg_reg_1, object);
-    __ movq(arg_reg_2, index, RelocInfo::NONE64);
+    __ Move(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ bind(&done);
   }
@@ -1904,7 +1898,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ movaps(xmm_scratch, left);
       ASSERT(right.is(xmm1));
       __ CallCFunction(
-          ExternalReference::double_fp_operation(Token::MOD, isolate()), 2);
+          ExternalReference::mod_two_doubles_operation(isolate()), 2);
       __ movaps(result, xmm_scratch);
       break;
     }
@@ -2566,7 +2560,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   __ movq(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
   Handle<Cell> cache_cell = factory()->NewCell(factory()->the_hole_value());
-  __ movq(kScratchRegister, cache_cell, RelocInfo::CELL);
+  __ Move(kScratchRegister, cache_cell, RelocInfo::CELL);
   __ cmpq(map, Operand(kScratchRegister, 0));
   __ j(not_equal, &cache_miss, Label::kNear);
   // Patched to load either true or false.
@@ -2714,10 +2708,9 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Move(rcx, instr->name());
-  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
-                                               RelocInfo::CODE_TARGET_CONTEXT;
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  CallCode(ic, mode, instr);
+  ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2733,14 +2726,14 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
     // We have a temp because CompareRoot might clobber kScratchRegister.
     Register cell = ToRegister(instr->temp());
     ASSERT(!value.is(cell));
-    __ movq(cell, cell_handle, RelocInfo::CELL);
+    __ Move(cell, cell_handle, RelocInfo::CELL);
     __ CompareRoot(Operand(cell, 0), Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
     // Store the value.
     __ movq(Operand(cell, 0), value);
   } else {
     // Store the value.
-    __ movq(kScratchRegister, cell_handle, RelocInfo::CELL);
+    __ Move(kScratchRegister, cell_handle, RelocInfo::CELL);
     __ movq(Operand(kScratchRegister, 0), value);
   }
   // Cells are always rescanned, so no write barrier here.
@@ -2753,10 +2746,10 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
 
   __ Move(rcx, instr->name());
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             CONTEXTUAL);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2863,7 +2856,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Move(rcx, instr->name());
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3063,6 +3056,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
+  HLoadKeyed* hinstr = instr->hydrogen();
   Register result = ToRegister(instr->result());
   LOperand* key = instr->key();
   if (!key->IsConstantOperand()) {
@@ -3072,24 +3066,37 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that
     // case must be handled here, too.
-    if (instr->hydrogen()->IsDehoisted()) {
+    if (hinstr->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
       // and the dehoisted address computation happens in 64 bits
       __ movsxlq(key_reg, key_reg);
     }
   }
 
-  // Load the result.
-  __ movq(result,
+  bool requires_hole_check = hinstr->RequiresHoleCheck();
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Representation representation = hinstr->representation();
+
+  if (representation.IsInteger32() &&
+      hinstr->elements_kind() == FAST_SMI_ELEMENTS) {
+    ASSERT(!requires_hole_check);
+    // Read int value directly from upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
+
+  __ Load(result,
           BuildFastArrayOperand(instr->elements(),
                                 key,
                                 FAST_ELEMENTS,
-                                FixedArray::kHeaderSize - kHeapObjectTag,
-                                instr->additional_index()));
+                                offset,
+                                instr->additional_index()),
+          representation);
 
   // Check for the hole value.
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
+  if (requires_hole_check) {
+    if (IsFastSmiElementsKind(hinstr->elements_kind())) {
       Condition smi = __ CheckSmi(result);
       DeoptimizeIf(NegateCondition(smi), instr->environment());
     } else {
@@ -3242,10 +3249,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // TODO(kmillikin): We have a hydrogen value for the global object.  See
   // if it's better to use it than to explicitly fetch it from the context
   // here.
-  __ movq(receiver, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ movq(receiver, ContextOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
-  __ movq(receiver,
-          FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
+  CallStubCompiler::FetchGlobalProxy(masm(), receiver, function);
   __ bind(&receiver_ok);
 }
 
@@ -3732,7 +3736,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ xorps(xmm_scratch, xmm_scratch);
   __ ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
-  __ j(equal, &zero, Label::kNear);
+  __ j(not_carry, &zero, Label::kNear);
   ExternalReference nan =
       ExternalReference::address_of_canonical_non_hole_nan();
   Operand nan_operand = masm()->ExternalOperand(nan);
@@ -3796,11 +3800,10 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
   __ Move(rcx, instr->name());
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -3810,7 +3813,10 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
+  CallFunctionFlags flags =
+      instr->hydrogen()->IsContextualCall() ?
+          RECEIVER_IS_IMPLICIT : NO_CALL_FUNCTION_FLAGS;
+  CallFunctionStub stub(arity, flags);
   if (instr->hydrogen()->IsTailCall()) {
     if (NeedsEagerFrame()) __ leave();
     __ jmp(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
@@ -3824,11 +3830,10 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
   ASSERT(ToRegister(instr->result()).is(rax));
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
   __ Move(rcx, instr->name());
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -3930,13 +3935,14 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
+  HStoreNamedField* hinstr = instr->hydrogen();
   Representation representation = instr->representation();
 
-  HObjectAccess access = instr->hydrogen()->access();
+  HObjectAccess access = hinstr->access();
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    ASSERT(!hinstr->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(value.is(rax));
@@ -3956,7 +3962,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-      if (!IsSmiConstant(operand_value)) {
+      if (!IsInteger32Constant(operand_value) &&
+          !IsSmiConstant(operand_value)) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     }
@@ -3967,7 +3974,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     } else {
-      if (!instr->hydrogen()->value()->type().IsHeapObject()) {
+      if (!hinstr->value()->type().IsHeapObject()) {
         Register value = ToRegister(instr->value());
         Condition cc = masm()->CheckSmi(value);
         DeoptimizeIf(cc, instr->environment());
@@ -3976,14 +3983,14 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
-    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    ASSERT(!hinstr->NeedsWriteBarrier());
     XMMRegister value = ToDoubleRegister(instr->value());
     __ movsd(FieldOperand(object, offset), value);
     return;
   }
 
   if (!transition.is_null()) {
-    if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
+    if (!hinstr->NeedsWriteBarrierForMap()) {
       __ Move(FieldOperand(object, HeapObject::kMapOffset), transition);
     } else {
       Register temp = ToRegister(instr->temp());
@@ -4001,9 +4008,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
-  SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
-          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
+  SmiCheck check_needed = hinstr->value()->IsHeapObject()
+                          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   Register write_register = object;
   if (!access.IsInobject()) {
@@ -4011,26 +4017,41 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ movq(write_register, FieldOperand(object, JSObject::kPropertiesOffset));
   }
 
-  if (instr->value()->IsConstantOperand()) {
-    LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-    if (operand_value->IsRegister()) {
-      Register value = ToRegister(operand_value);
-      __ Store(FieldOperand(write_register, offset), value, representation);
-    } else if (representation.IsInteger32()) {
-      int32_t value = ToInteger32(operand_value);
-      ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-      __ movl(FieldOperand(write_register, offset), Immediate(value));
-    } else {
-      Handle<Object> handle_value = ToHandle(operand_value);
-      ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-      __ Move(FieldOperand(write_register, offset), handle_value);
-    }
-  } else {
-    Register value = ToRegister(instr->value());
-    __ Store(FieldOperand(write_register, offset), value, representation);
+  if (representation.IsSmi() &&
+      hinstr->value()->representation().IsInteger32()) {
+    ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    // Store int value directly to upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+    representation = Representation::Integer32();
   }
 
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
+  Operand operand = FieldOperand(write_register, offset);
+
+  if (instr->value()->IsRegister()) {
+    Register value = ToRegister(instr->value());
+    __ Store(operand, value, representation);
+  } else {
+    LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
+    if (IsInteger32Constant(operand_value)) {
+      ASSERT(!hinstr->NeedsWriteBarrier());
+      int32_t value = ToInteger32(operand_value);
+      if (representation.IsSmi()) {
+        __ Move(operand, Smi::FromInt(value));
+
+      } else {
+        __ movl(operand, Immediate(value));
+      }
+
+    } else {
+      Handle<Object> handle_value = ToHandle(operand_value);
+      ASSERT(!hinstr->NeedsWriteBarrier());
+      __ Move(operand, handle_value);
+    }
+  }
+
+  if (hinstr->NeedsWriteBarrier()) {
     Register value = ToRegister(instr->value());
     Register temp = access.IsInobject() ? ToRegister(instr->temp()) : object;
     // Update the write barrier for the object for in-object properties.
@@ -4051,9 +4072,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
 
   __ Move(rcx, instr->hydrogen()->name());
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4217,7 +4238,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
-  Register elements = ToRegister(instr->elements());
+  HStoreKeyed* hinstr = instr->hydrogen();
   LOperand* key = instr->key();
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
@@ -4226,38 +4247,56 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // input gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->IsDehoisted()) {
+    if (hinstr->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
       // and the dehoisted address computation happens in 64 bits
       __ movsxlq(key_reg, key_reg);
     }
   }
 
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Representation representation = hinstr->value()->representation();
+
+  if (representation.IsInteger32()) {
+    ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    ASSERT(hinstr->elements_kind() == FAST_SMI_ELEMENTS);
+    // Store int value directly to upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
+
   Operand operand =
       BuildFastArrayOperand(instr->elements(),
                             key,
                             FAST_ELEMENTS,
-                            FixedArray::kHeaderSize - kHeapObjectTag,
+                            offset,
                             instr->additional_index());
+
   if (instr->value()->IsRegister()) {
-    __ movq(operand, ToRegister(instr->value()));
+    __ Store(operand, ToRegister(instr->value()), representation);
   } else {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (IsInteger32Constant(operand_value)) {
-      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
-      __ Move(operand, smi_value);
+      int32_t value = ToInteger32(operand_value);
+      if (representation.IsSmi()) {
+        __ Move(operand, Smi::FromInt(value));
+
+      } else {
+        __ movl(operand, Immediate(value));
+      }
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       __ Move(operand, handle_value);
     }
   }
 
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
+  if (hinstr->NeedsWriteBarrier()) {
+    Register elements = ToRegister(instr->elements());
     ASSERT(instr->value()->IsRegister());
     Register value = ToRegister(instr->value());
-    ASSERT(!instr->key()->IsConstantOperand());
-    SmiCheck check_needed =
-        instr->hydrogen()->value()->IsHeapObject()
+    ASSERT(!key->IsConstantOperand());
+    SmiCheck check_needed = hinstr->value()->IsHeapObject()
             ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
     Register key_reg(ToRegister(key));
@@ -4309,7 +4348,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ j(not_equal, &not_applicable);
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     Register new_map_reg = ToRegister(instr->new_map_temp());
-    __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
+    __ Move(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movq(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
     // Write barrier.
     ASSERT_NE(instr->temp(), NULL);

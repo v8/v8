@@ -42,3 +42,17 @@ f(1);
 %OptimizeFunctionOnNextCall(f);
 f(1);
 assertOptimized(f);
+
+
+function g() {  // 0th parameter (receiver) is tagged.
+  var s = '';   // First local has string type.
+  var n = 0;
+  var i = 1;
+  n = i + this;
+}
+
+g.call(1);
+g.call(1);
+%OptimizeFunctionOnNextCall(g);
+g.call(1);
+assertOptimized(g);

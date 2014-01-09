@@ -138,8 +138,6 @@ class HeapEntry BASE_EMBEDDED {
   void Print(
       const char* prefix, const char* edge_name, int max_depth, int indent);
 
-  Handle<HeapObject> GetHeapObject();
-
  private:
   INLINE(HeapGraphEdge** children_arr());
   const char* TypeAsString();

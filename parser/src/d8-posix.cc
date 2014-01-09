@@ -202,7 +202,7 @@ class ExecArgs {
     exec_args_[0] = c_arg;
     int i = 1;
     for (unsigned j = 0; j < command_args->Length(); i++, j++) {
-      Handle<Value> arg(command_args->Get(Integer::New(j)));
+      Handle<Value> arg(command_args->Get(Integer::New(isolate, j)));
       String::Utf8Value utf8_arg(arg);
       if (*utf8_arg == NULL) {
         exec_args_[i] = NULL;  // Consistent state for destructor.
@@ -314,7 +314,7 @@ static Handle<Value> GetStdout(Isolate* isolate,
                                struct timeval& start_time,
                                int read_timeout,
                                int total_timeout) {
-  Handle<String> accumulator = String::Empty();
+  Handle<String> accumulator = String::Empty(isolate);
 
   int fullness = 0;
   static const int kStdoutReadBufferSize = 4096;
@@ -723,19 +723,19 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::AddOSMethods(Isolate* isolate, Handle<ObjectTemplate> os_templ) {
   os_templ->Set(String::NewFromUtf8(isolate, "system"),
-                FunctionTemplate::New(System));
+                FunctionTemplate::New(isolate, System));
   os_templ->Set(String::NewFromUtf8(isolate, "chdir"),
-                FunctionTemplate::New(ChangeDirectory));
+                FunctionTemplate::New(isolate, ChangeDirectory));
   os_templ->Set(String::NewFromUtf8(isolate, "setenv"),
-                FunctionTemplate::New(SetEnvironment));
+                FunctionTemplate::New(isolate, SetEnvironment));
   os_templ->Set(String::NewFromUtf8(isolate, "unsetenv"),
-                FunctionTemplate::New(UnsetEnvironment));
+                FunctionTemplate::New(isolate, UnsetEnvironment));
   os_templ->Set(String::NewFromUtf8(isolate, "umask"),
-                FunctionTemplate::New(SetUMask));
+                FunctionTemplate::New(isolate, SetUMask));
   os_templ->Set(String::NewFromUtf8(isolate, "mkdirp"),
-                FunctionTemplate::New(MakeDirectory));
+                FunctionTemplate::New(isolate, MakeDirectory));
   os_templ->Set(String::NewFromUtf8(isolate, "rmdir"),
-                FunctionTemplate::New(RemoveDirectory));
+                FunctionTemplate::New(isolate, RemoveDirectory));
 }
 
 }  // namespace v8

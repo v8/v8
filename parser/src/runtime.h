@@ -86,10 +86,9 @@ namespace internal {
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
   F(NewStrictArgumentsFast, 3, 1) \
-  F(LazyCompile, 1, 1) \
-  F(LazyRecompile, 1, 1) \
-  F(ConcurrentRecompile, 1, 1) \
-  F(TryInstallRecompiledCode, 1, 1) \
+  F(CompileUnoptimized, 1, 1) \
+  F(CompileOptimized, 2, 1) \
+  F(TryInstallOptimizedCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyStubFailure, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
@@ -275,6 +274,7 @@ namespace internal {
   \
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
+  F(IsAttachedGlobal, 1, 1) \
   F(ResolvePossiblyDirectEval, 5, 2) \
   \
   F(SetProperty, -1 /* 4 or 5 */, 1) \

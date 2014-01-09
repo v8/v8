@@ -2347,7 +2347,7 @@ TEST(OperandOffset) {
   __ lea(r13, Operand(rbp, -3 * kPointerSize));
   __ lea(rbx, Operand(rbp, -5 * kPointerSize));
   __ movl(rcx, Immediate(2));
-  __ movq(r8, reinterpret_cast<Address>(&data[128]), RelocInfo::NONE64);
+  __ Move(r8, reinterpret_cast<Address>(&data[128]), RelocInfo::NONE64);
   __ movl(rax, Immediate(1));
 
   Operand sp0 = Operand(rsp, 0);

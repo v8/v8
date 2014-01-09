@@ -248,8 +248,6 @@ namespace internal {
   SC(math_pow, V8.MathPow)                                            \
   SC(math_round, V8.MathRound)                                        \
   SC(math_sqrt, V8.MathSqrt)                                          \
-  SC(transcendental_cache_hit, V8.TranscendentalCacheHit)             \
-  SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)           \
   SC(stack_interrupts, V8.StackInterrupts)                            \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                 \
   SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)             \

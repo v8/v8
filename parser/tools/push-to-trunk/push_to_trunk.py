@@ -52,6 +52,16 @@ CONFIG = {
 }
 
 
+class PushToTrunkOptions(CommonOptions):
+  def __init__(self, options):
+    super(PushToTrunkOptions, self).__init__(options, options.m)
+    self.requires_editor = not options.f
+    self.wait_for_lgtm = not options.f
+    self.tbr_commit = not options.m
+    self.l = options.l
+    self.r = options.r
+    self.c = options.c
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
@@ -214,7 +224,7 @@ class CommitLocal(Step):
 
     # Include optional TBR only in the git command. The persisted commit
     # message is used for finding the commit again later.
-    review = "\n\nTBR=%s" % self._options.r if not self.IsManual() else ""
+    review = "\n\nTBR=%s" % self._options.r if self._options.tbr_commit else ""
     if self.Git("commit -a -m \"%s%s\"" % (prep_commit_msg, review)) is None:
       self.Die("'git commit -a' failed.")
 
@@ -257,31 +267,19 @@ class SquashCommits(Step):
     args = "diff svn/trunk %s" % self._state["prepare_commit_hash"]
     TextToFile(self.Git(args), self.Config(PATCH_FILE))
 
-    # Convert the ChangeLog entry to commit message format:
-    # - remove date
-    # - remove indentation
-    # - merge paragraphs into single long lines, keeping empty lines between
-    #   them.
+    # Convert the ChangeLog entry to commit message format.
     self.RestoreIfUnset("date")
-    changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
+    text = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
 
-    # TODO(machenbach): This could create a problem if the changelog contained
-    # any quotation marks.
-    text = Command("echo \"%s\" \
-        | sed -e \"s/^%s: //\" \
-        | sed -e 's/^ *//' \
-        | awk '{ \
-            if (need_space == 1) {\
-              printf(\" \");\
-            };\
-            printf(\"%%s\", $0);\
-            if ($0 ~ /^$/) {\
-              printf(\"\\n\\n\");\
-              need_space = 0;\
-            } else {\
-              need_space = 1;\
-            }\
-          }'" % (changelog_entry, self._state["date"]))
+    # Remove date and trailing white space.
+    text = re.sub(r"^%s: " % self._state["date"], "", text.rstrip())
+
+    # Remove indentation and merge paragraphs into single long lines, keeping
+    # empty lines between them.
+    def SplitMapJoin(split_text, fun, join_text):
+      return lambda text: join_text.join(map(fun, text.split(split_text)))
+    strip = lambda line: line.strip()
+    text = SplitMapJoin("\n\n", SplitMapJoin("\n", strip, " "), "\n\n")(text)
 
     if not text:
       self.Die("Commit message editing failed.")
@@ -453,7 +451,7 @@ class UploadCL(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    if self._options and self._options.r:
+    if self._options.r:
       print "Using account %s for review." % self._options.r
       rev = self._options.r
     else:
@@ -463,7 +461,7 @@ class UploadCL(Step):
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
-    force_flag = " -f" if not self.IsManual() else ""
+    force_flag = " -f" if self._options.force_upload else ""
     if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
@@ -581,7 +579,7 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
-  RunPushToTrunk(CONFIG, options)
+  RunPushToTrunk(CONFIG, PushToTrunkOptions(options))
 
 if __name__ == "__main__":
   sys.exit(Main())

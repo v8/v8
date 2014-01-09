@@ -113,8 +113,6 @@ class Representation {
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
 
-  // TODO(rossberg): this should die eventually.
-  static Representation FromType(TypeInfo info);
   static Representation FromType(Handle<Type> type);
 
   bool Equals(const Representation& other) const {

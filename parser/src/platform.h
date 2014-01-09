@@ -59,6 +59,10 @@ int signbit(double x);
 # endif
 #endif
 
+#if V8_OS_QNX
+#include "qnx-math.h"
+#endif
+
 // Microsoft Visual C++ specific stuff.
 #if V8_CC_MSVC
 
@@ -96,7 +100,6 @@ namespace internal {
 double modulo(double x, double y);
 
 // Custom implementation of math functions.
-double fast_log(double input);
 double fast_exp(double input);
 double fast_sqrt(double input);
 // The custom exp implementation needs 16KB of lookup data; initialize it

@@ -422,12 +422,18 @@ class LCodeGen: public LCodeGenBase {
       codegen_->expected_safepoint_kind_ = kind;
 
       switch (codegen_->expected_safepoint_kind_) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PushSafepointRegisters();
+        case Safepoint::kWithRegisters: {
+          StoreRegistersStateStub stub1(kDontSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub1);
           break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PushSafepointRegistersAndDoubles();
+        }
+        case Safepoint::kWithRegistersAndDoubles: {
+          StoreRegistersStateStub stub2(kSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub2);
           break;
+        }
         default:
           UNREACHABLE();
       }
@@ -437,12 +443,18 @@ class LCodeGen: public LCodeGenBase {
       Safepoint::Kind kind = codegen_->expected_safepoint_kind_;
       ASSERT((kind & Safepoint::kWithRegisters) != 0);
       switch (kind) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PopSafepointRegisters();
+        case Safepoint::kWithRegisters: {
+          RestoreRegistersStateStub stub1(kDontSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub1);
           break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PopSafepointRegistersAndDoubles();
+        }
+        case Safepoint::kWithRegistersAndDoubles: {
+          RestoreRegistersStateStub stub2(kSaveFPRegs);
+          codegen_->masm_->push(ra);
+          codegen_->masm_->CallStub(&stub2);
           break;
+        }
         default:
           UNREACHABLE();
       }

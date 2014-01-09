@@ -200,16 +200,16 @@ int RunMain(int argc, char* argv[]) {
   }
 
   // Create a template for the global object.
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
 
   // Bind the global 'print' function to the C++ Print callback.
   global->Set(v8::String::NewFromUtf8(isolate, "print"),
-              v8::FunctionTemplate::New(Print));
+              v8::FunctionTemplate::New(isolate, Print));
 
   if (cycle_type == CycleInJs) {
     // Bind the global 'read_line' function to the C++ Print callback.
     global->Set(v8::String::NewFromUtf8(isolate, "read_line"),
-                v8::FunctionTemplate::New(ReadLine));
+                v8::FunctionTemplate::New(isolate, ReadLine));
   }
 
   // Create a new execution environment containing the built-in

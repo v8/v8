@@ -293,8 +293,10 @@ enum CallFunctionFlags {
   // Receiver might implicitly be the global objects. If it is, the
   // hole is passed to the call function stub.
   RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0,
+  // Receiver is implicit and the hole has been passed to the stub.
+  RECEIVER_IS_IMPLICIT = 1 << 1,
   // The call target is cached in the instruction stream.
-  RECORD_CALL_TARGET = 1 << 1
+  RECORD_CALL_TARGET = 1 << 2
 };
 
 
@@ -322,6 +324,9 @@ union DoubleRepresentation {
   double  value;
   int64_t bits;
   DoubleRepresentation(double x) { value = x; }
+  bool operator==(const DoubleRepresentation& other) const {
+    return bits == other.bits;
+  }
 };
 
 

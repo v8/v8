@@ -30,7 +30,6 @@
 
 #include "code-stubs.h"
 #include "runtime.h"
-#include "type-info.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
 // The contract  to the shared code is that the the CodeGenerator is a subclass
@@ -89,7 +88,6 @@ namespace internal {
 // generated code both in runtime and compiled code.
 typedef double (*UnaryMathFunction)(double x);
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type);
 UnaryMathFunction CreateExpFunction();
 UnaryMathFunction CreateSqrtFunction();
 

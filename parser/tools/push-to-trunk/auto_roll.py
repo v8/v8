@@ -26,16 +26,27 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import json
 import optparse
+import os
 import re
 import sys
 
 from common_includes import *
 
+SETTINGS_LOCATION = "SETTINGS_LOCATION"
+
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-auto-roll-tempfile",
   DOT_GIT_LOCATION: ".git",
+  SETTINGS_LOCATION: "~/.auto-roll",
 }
+
+
+class AutoRollOptions(CommonOptions):
+  def __init__(self, options):
+    super(AutoRollOptions, self).__init__(options)
+    self.requires_editor = False
 
 
 class Preparation(Step):
@@ -44,6 +55,29 @@ class Preparation(Step):
   def RunStep(self):
     self.InitialEnvironmentChecks()
     self.CommonPrepare()
+
+
+class CheckAutoRollSettings(Step):
+  MESSAGE = "Checking settings file."
+
+  def RunStep(self):
+    settings_file = os.path.realpath(self.Config(SETTINGS_LOCATION))
+    if os.path.exists(settings_file):
+      settings_dict = json.loads(FileToText(settings_file))
+      if settings_dict.get("enable_auto_roll") is False:
+        self.Die("Push to trunk disabled by auto-roll settings file: %s"
+                 % settings_file)
+
+
+class CheckTreeStatus(Step):
+  MESSAGE = "Checking v8 tree status message."
+
+  def RunStep(self):
+    status_url = "https://v8-status.appspot.com/current?format=json"
+    status_json = self.ReadURL(status_url, wait_plan=[5, 20, 300, 300])
+    message = json.loads(status_json)["message"]
+    if re.search(r"nopush|no push", message, flags=re.I):
+      self.Die("Push to trunk disabled by tree state: %s" % message)
 
 
 class FetchLatestRevision(Step):
@@ -55,6 +89,24 @@ class FetchLatestRevision(Step):
     if not match:
       self.Die("Could not extract current svn revision from log.")
     self.Persist("latest", match.group(1))
+
+
+class CheckLastPush(Step):
+  MESSAGE = "Checking last V8 push to trunk."
+
+  def RunStep(self):
+    self.RestoreIfUnset("latest")
+    log = self.Git("svn log -1 --oneline ChangeLog").strip()
+    match = re.match(r"^r(\d+) \| Prepare push to trunk", log)
+    if match:
+      latest = int(self._state["latest"])
+      last_push = int(match.group(1))
+      # TODO(machebach): This metric counts all revisions. It could be
+      # improved by counting only the revisions on bleeding_edge.
+      if latest - last_push < 10:
+        # This makes sure the script doesn't push twice in a row when the cron
+        # job retries several times.
+        self.Die("Last push too recently: %d" % last_push)
 
 
 class FetchLKGR(Step):
@@ -77,6 +129,10 @@ class PushToTrunk(Step):
     if latest == lkgr:
       print "ToT (r%d) is clean. Pushing to trunk." % latest
       # TODO(machenbach): Call push to trunk script.
+      # TODO(machenbach): Update the script before calling it.
+      # self._side_effect_handler.Command(
+      #     "tools/push-to-trunk/push-to-trunk.py",
+      #     "-f -c %s -r %s" % (self._options.c, self._options.r))
     else:
       print("ToT (r%d) is ahead of the LKGR (r%d). Skipping push to trunk."
             % (latest, lkgr))
@@ -87,7 +143,10 @@ def RunAutoRoll(config,
                 side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
   step_classes = [
     Preparation,
+    CheckAutoRollSettings,
+    CheckTreeStatus,
     FetchLatestRevision,
+    CheckLastPush,
     FetchLKGR,
     PushToTrunk,
   ]
@@ -96,9 +155,11 @@ def RunAutoRoll(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
-  result.add_option("-f", "--force", dest="f",
-                    help="Don't prompt the user.",
-                    default=True, action="store_true")
+  result.add_option("-c", "--chromium", dest="c",
+                    help=("Specify the path to your Chromium src/ "
+                          "directory to automate the V8 roll."))
+  result.add_option("-r", "--reviewer", dest="r",
+                    help=("Specify the account name to be used for reviews."))
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
                     default=0, type="int")
@@ -108,7 +169,11 @@ def BuildOptions():
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
-  RunAutoRoll(CONFIG, options)
+  if not options.c or not options.r:
+    print "You need to specify the chromium src location and a reviewer."
+    parser.print_help()
+    return 1
+  RunAutoRoll(CONFIG, AutoRollOptions(options))
 
 if __name__ == "__main__":
   sys.exit(Main())

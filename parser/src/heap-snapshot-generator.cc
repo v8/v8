@@ -99,11 +99,6 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
 }
 
 
-Handle<HeapObject> HeapEntry::GetHeapObject() {
-  return snapshot_->profiler()->FindHeapObjectById(id());
-}
-
-
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_CHECK(sizeof(unsigned) == sizeof(id()));
@@ -1381,6 +1376,9 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);
+  SetInternalReference(code, entry,
+                       "constant_pool", code->constant_pool(),
+                       Code::kConstantPoolOffset);
 }
 
 

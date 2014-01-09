@@ -484,12 +484,21 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
-  if (FLAG_allocation_site_pretenuring && object->IsJSObject()) {
-    AllocationMemento* memento = AllocationMemento::FindForJSObject(
-        JSObject::cast(object), true);
+  if (FLAG_allocation_site_pretenuring &&
+      AllocationSite::CanTrack(object->map()->instance_type())) {
+    AllocationMemento* memento = AllocationMemento::FindForHeapObject(
+        object, true);
     if (memento != NULL) {
       ASSERT(memento->IsValid());
-      memento->GetAllocationSite()->IncrementMementoFoundCount();
+      bool add_to_scratchpad =
+          memento->GetAllocationSite()->IncrementMementoFoundCount();
+      Heap* heap = object->GetIsolate()->heap();
+      if (add_to_scratchpad && heap->allocation_sites_scratchpad_length <
+              kAllocationSiteScratchpadSize) {
+        heap->allocation_sites_scratchpad[
+            heap->allocation_sites_scratchpad_length++] =
+                memento->GetAllocationSite();
+      }
     }
   }
 }
@@ -744,56 +753,6 @@ Object* Heap::ToBoolean(bool condition) {
 void Heap::CompletelyClearInstanceofCache() {
   set_instanceof_cache_map(the_hole_value());
   set_instanceof_cache_function(the_hole_value());
-}
-
-
-MaybeObject* TranscendentalCache::Get(Type type, double input) {
-  SubCache* cache = caches_[type];
-  if (cache == NULL) {
-    caches_[type] = cache = new SubCache(isolate_, type);
-  }
-  return cache->Get(input);
-}
-
-
-Address TranscendentalCache::cache_array_address() {
-  return reinterpret_cast<Address>(caches_);
-}
-
-
-double TranscendentalCache::SubCache::Calculate(double input) {
-  switch (type_) {
-    case LOG:
-      return fast_log(input);
-    default:
-      UNREACHABLE();
-      return 0.0;  // Never happens.
-  }
-}
-
-
-MaybeObject* TranscendentalCache::SubCache::Get(double input) {
-  Converter c;
-  c.dbl = input;
-  int hash = Hash(c);
-  Element e = elements_[hash];
-  if (e.in[0] == c.integers[0] &&
-      e.in[1] == c.integers[1]) {
-    ASSERT(e.output != NULL);
-    isolate_->counters()->transcendental_cache_hit()->Increment();
-    return e.output;
-  }
-  double answer = Calculate(input);
-  isolate_->counters()->transcendental_cache_miss()->Increment();
-  Object* heap_number;
-  { MaybeObject* maybe_heap_number =
-        isolate_->heap()->AllocateHeapNumber(answer);
-    if (!maybe_heap_number->ToObject(&heap_number)) return maybe_heap_number;
-  }
-  elements_[hash].in[0] = c.integers[0];
-  elements_[hash].in[1] = c.integers[1];
-  elements_[hash].output = heap_number;
-  return heap_number;
 }
 
 

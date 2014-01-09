@@ -33,6 +33,24 @@
 namespace v8 {
 namespace internal {
 
+
+static inline bool IsMinusZero(double value) {
+  static const DoubleRepresentation minus_zero(-0.0);
+  return DoubleRepresentation(value) == minus_zero;
+}
+
+
+// Integer32 is an integer that can be represented as a signed 32-bit
+// integer. It has to be in the range [-2^31, 2^31 - 1].
+// We also have to check for negative 0 as it is not an Integer32.
+static inline bool IsInt32Double(double value) {
+  return !IsMinusZero(value) &&
+         value >= kMinInt &&
+         value <= kMaxInt &&
+         value == FastI2D(FastD2I(value));
+}
+
+
 // Convert from Number object to C integer.
 inline int32_t NumberToInt32(Object* number) {
   if (number->IsSmi()) return Smi::cast(number)->value();

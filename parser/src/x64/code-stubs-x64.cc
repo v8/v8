@@ -180,18 +180,6 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpICStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { rdx, rax };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
-}
-
-
 static void InitializeArrayConstructorDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor,
@@ -336,6 +324,29 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
+}
+
+
+void BinaryOpICStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx, rax };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
+}
+
+
+void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rcx, rdx, rax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite);
 }
 
 
@@ -594,220 +605,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ pop(save_reg);
     __ pop(scratch1);
     __ ret(0);
-}
-
-
-void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // TAGGED case:
-  //   Input:
-  //     rsp[8] : argument (should be number).
-  //     rsp[0] : return address.
-  //   Output:
-  //     rax: tagged double result.
-  // UNTAGGED case:
-  //   Input::
-  //     rsp[0] : return address.
-  //     xmm1   : untagged double input argument
-  //   Output:
-  //     xmm1   : untagged double result.
-
-  Label runtime_call;
-  Label runtime_call_clear_stack;
-  Label skip_cache;
-  const bool tagged = (argument_type_ == TAGGED);
-  if (tagged) {
-    Label input_not_smi, loaded;
-
-    // Test that rax is a number.
-    StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-    __ movq(rax, args.GetArgumentOperand(0));
-    __ JumpIfNotSmi(rax, &input_not_smi, Label::kNear);
-    // Input is a smi. Untag and load it onto the FPU stack.
-    // Then load the bits of the double into rbx.
-    __ SmiToInteger32(rax, rax);
-    __ subq(rsp, Immediate(kDoubleSize));
-    __ Cvtlsi2sd(xmm1, rax);
-    __ movsd(Operand(rsp, 0), xmm1);
-    __ movq(rbx, xmm1);
-    __ movq(rdx, xmm1);
-    __ fld_d(Operand(rsp, 0));
-    __ addq(rsp, Immediate(kDoubleSize));
-    __ jmp(&loaded, Label::kNear);
-
-    __ bind(&input_not_smi);
-    // Check if input is a HeapNumber.
-    __ LoadRoot(rbx, Heap::kHeapNumberMapRootIndex);
-    __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ j(not_equal, &runtime_call);
-    // Input is a HeapNumber. Push it on the FPU stack and load its
-    // bits into rbx.
-    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-    __ MoveDouble(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(rdx, rbx);
-
-    __ bind(&loaded);
-  } else {  // UNTAGGED.
-    __ movq(rbx, xmm1);
-    __ movq(rdx, xmm1);
-  }
-
-  // ST[0] == double value, if TAGGED.
-  // rbx = bits of double value.
-  // rdx = also bits of double value.
-  // Compute hash (h is 32 bits, bits are 64 and the shifts are arithmetic):
-  //   h = h0 = bits ^ (bits >> 32);
-  //   h ^= h >> 16;
-  //   h ^= h >> 8;
-  //   h = h & (cacheSize - 1);
-  // or h = (h0 ^ (h0 >> 8) ^ (h0 >> 16) ^ (h0 >> 24)) & (cacheSize - 1)
-  __ sar(rdx, Immediate(32));
-  __ xorl(rdx, rbx);
-  __ movl(rcx, rdx);
-  __ movl(rax, rdx);
-  __ movl(rdi, rdx);
-  __ sarl(rdx, Immediate(8));
-  __ sarl(rcx, Immediate(16));
-  __ sarl(rax, Immediate(24));
-  __ xorl(rcx, rdx);
-  __ xorl(rax, rdi);
-  __ xorl(rcx, rax);
-  ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
-  __ andl(rcx, Immediate(TranscendentalCache::SubCache::kCacheSize - 1));
-
-  // ST[0] == double value.
-  // rbx = bits of double value.
-  // rcx = TranscendentalCache::hash(double value).
-  ExternalReference cache_array =
-      ExternalReference::transcendental_cache_array_address(masm->isolate());
-  __ Move(rax, cache_array);
-  int cache_array_index =
-      type_ * sizeof(masm->isolate()->transcendental_cache()->caches_[0]);
-  __ movq(rax, Operand(rax, cache_array_index));
-  // rax points to the cache for the type type_.
-  // If NULL, the cache hasn't been initialized yet, so go through runtime.
-  __ testq(rax, rax);
-  __ j(zero, &runtime_call_clear_stack);  // Only clears stack if TAGGED.
-#ifdef DEBUG
-  // Check that the layout of cache elements match expectations.
-  {  // NOLINT - doesn't like a single brace on a line.
-    TranscendentalCache::SubCache::Element test_elem[2];
-    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
-    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
-    char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));
-    char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
-    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
-    // Two uint_32's and a pointer per element.
-    CHECK_EQ(2 * kIntSize + 1 * kPointerSize,
-             static_cast<int>(elem2_start - elem_start));
-    CHECK_EQ(0, static_cast<int>(elem_in0 - elem_start));
-    CHECK_EQ(kIntSize, static_cast<int>(elem_in1 - elem_start));
-    CHECK_EQ(2 * kIntSize, static_cast<int>(elem_out - elem_start));
-  }
-#endif
-  // Find the address of the rcx'th entry in the cache, i.e., &rax[rcx*16].
-  __ addl(rcx, rcx);
-  __ lea(rcx, Operand(rax, rcx, times_8, 0));
-  // Check if cache matches: Double value is stored in uint32_t[2] array.
-  Label cache_miss;
-  __ cmpq(rbx, Operand(rcx, 0));
-  __ j(not_equal, &cache_miss, Label::kNear);
-  // Cache hit!
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->transcendental_cache_hit(), 1);
-  __ movq(rax, Operand(rcx, 2 * kIntSize));
-  if (tagged) {
-    __ fstp(0);  // Clear FPU stack.
-    __ ret(kPointerSize);
-  } else {  // UNTAGGED.
-    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ Ret();
-  }
-
-  __ bind(&cache_miss);
-  __ IncrementCounter(counters->transcendental_cache_miss(), 1);
-  // Update cache with new value.
-  if (tagged) {
-  __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
-  } else {  // UNTAGGED.
-    __ AllocateHeapNumber(rax, rdi, &skip_cache);
-    __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
-    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  }
-  GenerateOperation(masm, type_);
-  __ movq(Operand(rcx, 0), rbx);
-  __ movq(Operand(rcx, 2 * kIntSize), rax);
-  __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  if (tagged) {
-    __ ret(kPointerSize);
-  } else {  // UNTAGGED.
-    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ Ret();
-
-    // Skip cache and return answer directly, only in untagged case.
-    __ bind(&skip_cache);
-    __ subq(rsp, Immediate(kDoubleSize));
-    __ movsd(Operand(rsp, 0), xmm1);
-    __ fld_d(Operand(rsp, 0));
-    GenerateOperation(masm, type_);
-    __ fstp_d(Operand(rsp, 0));
-    __ movsd(xmm1, Operand(rsp, 0));
-    __ addq(rsp, Immediate(kDoubleSize));
-    // We return the value in xmm1 without adding it to the cache, but
-    // we cause a scavenging GC so that future allocations will succeed.
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      // Allocate an unused object bigger than a HeapNumber.
-      __ Push(Smi::FromInt(2 * kDoubleSize));
-      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    }
-    __ Ret();
-  }
-
-  // Call runtime, doing whatever allocation and cleanup is necessary.
-  if (tagged) {
-    __ bind(&runtime_call_clear_stack);
-    __ fstp(0);
-    __ bind(&runtime_call);
-    __ TailCallExternalReference(
-        ExternalReference(RuntimeFunction(), masm->isolate()), 1, 1);
-  } else {  // UNTAGGED.
-    __ bind(&runtime_call_clear_stack);
-    __ bind(&runtime_call);
-    __ AllocateHeapNumber(rax, rdi, &skip_cache);
-    __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(rax);
-      __ CallRuntime(RuntimeFunction(), 1);
-    }
-    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ Ret();
-  }
-}
-
-
-Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
-  switch (type_) {
-    // Add more cases when necessary.
-    case TranscendentalCache::LOG: return Runtime::kMath_log;
-    default:
-      UNIMPLEMENTED();
-      return Runtime::kAbort;
-  }
-}
-
-
-void TranscendentalCacheStub::GenerateOperation(
-    MacroAssembler* masm, TranscendentalCache::Type type) {
-  // Registers:
-  // rax: Newly allocated HeapNumber, which must be preserved.
-  // rbx: Bits of input double. Must be preserved.
-  // rcx: Pointer to cache entry. Must be preserved.
-  // st(0): Input double
-  ASSERT(type == TranscendentalCache::LOG);
-  __ fldln2();
-  __ fxch();
-  __ fyl2x();
 }
 
 
@@ -2553,28 +2350,45 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow, non_function;
   StackArgumentsAccessor args(rsp, argc_);
 
+  // Check that the function really is a JavaScript function.
+  __ JumpIfSmi(rdi, &non_function);
+
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
   // function stub.
-  if (ReceiverMightBeImplicit()) {
-    Label call;
-    // Get the receiver from the stack.
-    __ movq(rax, args.GetReceiverOperand());
-    // Call as function is indicated with the hole.
-    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
-    __ j(not_equal, &call, Label::kNear);
+  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
+    Label try_call, call, patch_current_context;
+    if (ReceiverMightBeImplicit()) {
+      // Get the receiver from the stack.
+      __ movq(rax, args.GetReceiverOperand());
+      // Call as function is indicated with the hole.
+      __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &try_call, Label::kNear);
+    }
     // Patch the receiver on the stack with the global receiver object.
-    __ movq(rcx, GlobalObjectOperand());
-    __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &patch_current_context);
+    CallStubCompiler::FetchGlobalProxy(masm, rcx, rdi);
     __ movq(args.GetReceiverOperand(), rcx);
-    __ bind(&call);
-  }
+    __ jmp(&call, Label::kNear);
 
-  // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(rdi, &non_function);
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &slow);
+    __ bind(&patch_current_context);
+    __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
+    __ movq(args.GetReceiverOperand(), kScratchRegister);
+    __ jmp(&slow);
+
+    __ bind(&try_call);
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &slow);
+
+    __ bind(&call);
+  } else {
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &slow);
+  }
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -2617,7 +2431,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);
   __ Set(rax, argc_ + 1);
   __ Set(rbx, 0);
-  __ SetCallKind(rcx, CALL_AS_METHOD);
+  __ SetCallKind(rcx, CALL_AS_FUNCTION);
   __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor =
@@ -2697,6 +2511,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
+  BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -2923,7 +2738,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
-  __ movq(rax, failure, RelocInfo::NONE64);
+  __ Move(rax, failure, RelocInfo::NONE64);
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_termination_exception,
@@ -2944,7 +2759,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                                       isolate);
   Label already_have_failure;
   JumpIfOOM(masm, rax, kScratchRegister, &already_have_failure);
-  __ movq(rax, Failure::OutOfMemoryException(0x1), RelocInfo::NONE64);
+  __ Move(rax, Failure::OutOfMemoryException(0x1), RelocInfo::NONE64);
   __ bind(&already_have_failure);
   __ Store(pending_exception, rax);
   // Fall through to the next label.
@@ -2974,7 +2789,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // Scratch register is neither callee-save, nor an argument register on any
     // platform. It's free to use at this point.
     // Cannot use smi-register for loading yet.
-    __ movq(kScratchRegister, Smi::FromInt(marker), RelocInfo::NONE64);
+    __ Move(kScratchRegister, Smi::FromInt(marker), RelocInfo::NONE64);
     __ push(kScratchRegister);  // context slot
     __ push(kScratchRegister);  // function slot
     // Save callee-saved registers (X64/Win64 calling conventions).
@@ -3042,7 +2857,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
   __ Store(pending_exception, rax);
-  __ movq(rax, Failure::Exception(), RelocInfo::NONE64);
+  __ Move(rax, Failure::Exception(), RelocInfo::NONE64);
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.  There's only one
@@ -4443,6 +4258,35 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
+void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx    : left
+  //  -- rax    : right
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  // Load rcx with the allocation site.  We stick an undefined dummy value here
+  // and replace it with the real allocation site later when we instantiate this
+  // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
+  __ Move(rcx, handle(isolate->heap()->undefined_value()));
+
+  // Make sure that we actually patched the allocation site.
+  if (FLAG_debug_code) {
+    __ testb(rcx, Immediate(kSmiTagMask));
+    __ Assert(zero, kExpectedAllocationSite);
+    __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
+           isolate->factory()->allocation_site_map());
+    __ Assert(equal, kExpectedAllocationSite);
+  }
+
+  // Tail call into the stub that handles binary operations with allocation
+  // sites.
+  BinaryOpWithAllocationSiteStub stub(state_);
+  __ TailCallStub(&stub);
+}
+
+
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SMI);
   Label miss;
@@ -5342,7 +5186,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   masm->PushCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
 
   // Call the entry hook function.
-  __ movq(rax, FUNCTION_ADDR(masm->isolate()->function_entry_hook()),
+  __ Move(rax, FUNCTION_ADDR(masm->isolate()->function_entry_hook()),
           RelocInfo::NONE64);
 
   AllowExternalCallThatCantCauseGC scope(masm);
@@ -5477,18 +5321,13 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
 
 template<class T>
 static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
-  ElementsKind initial_kind = GetInitialFastElementsKind();
-  ElementsKind initial_holey_kind = GetHoleyElementsKind(initial_kind);
-
   int to_index = GetSequenceIndexFromFastElementsKind(
       TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
     stub.GetCode(isolate);
-    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
-        (!FLAG_track_allocation_sites &&
-         (kind == initial_kind || kind == initial_holey_kind))) {
+    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate);
     }

@@ -960,7 +960,8 @@ TEST(ExternalShortStringAdd) {
     v8::Local<v8::String> ascii_external_string =
         v8::String::NewExternal(CcTest::isolate(), ascii_resource);
 
-    ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
+    ascii_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
+                                ascii_external_string);
     uc16* non_ascii = zone.NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_ascii[j] = 0x1234;
@@ -970,7 +971,7 @@ TEST(ExternalShortStringAdd) {
     Resource* resource = new(&zone) Resource(Vector<const uc16>(non_ascii, i));
     v8::Local<v8::String> non_ascii_external_string =
       v8::String::NewExternal(CcTest::isolate(), resource);
-    non_ascii_external_strings->Set(v8::Integer::New(i),
+    non_ascii_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
                                     non_ascii_external_string);
   }
 
@@ -978,7 +979,8 @@ TEST(ExternalShortStringAdd) {
   v8::Handle<v8::Object> global = context->Global();
   global->Set(v8_str("external_ascii"), ascii_external_strings);
   global->Set(v8_str("external_non_ascii"), non_ascii_external_strings);
-  global->Set(v8_str("max_length"), v8::Integer::New(kMaxLength));
+  global->Set(v8_str("max_length"),
+              v8::Integer::New(CcTest::isolate(), kMaxLength));
 
   // Add short external ascii and non-ascii strings checking the result.
   static const char* source =

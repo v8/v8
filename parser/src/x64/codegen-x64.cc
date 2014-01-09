@@ -55,47 +55,6 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  size_t actual_size;
-  // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
-                                                 &actual_size,
-                                                 true));
-  if (buffer == NULL) {
-    // Fallback to library function if function cannot be created.
-    switch (type) {
-      case TranscendentalCache::LOG: return &log;
-      default: UNIMPLEMENTED();
-    }
-  }
-
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-  // xmm0: raw double input.
-  // Move double input into registers.
-  __ push(rbx);
-  __ push(rdi);
-  __ movq(rbx, xmm0);
-  __ push(rbx);
-  __ fld_d(Operand(rsp, 0));
-  TranscendentalCacheStub::GenerateOperation(&masm, type);
-  // The return value is expected to be in xmm0.
-  __ fstp_d(Operand(rsp, 0));
-  __ pop(rbx);
-  __ movq(xmm0, rbx);
-  __ pop(rdi);
-  __ pop(rbx);
-  __ Ret();
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
-
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-}
-
-
 UnaryMathFunction CreateExpFunction() {
   if (!FLAG_fast_math) return &exp;
   size_t actual_size;

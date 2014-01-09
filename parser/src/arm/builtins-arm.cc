@@ -34,6 +34,7 @@
 #include "deoptimizer.h"
 #include "full-codegen.h"
 #include "runtime.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -289,8 +290,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
-static void CallRuntimePassFunction(MacroAssembler* masm,
-                                    Runtime::FunctionId function_id) {
+static void CallRuntimePassFunction(
+    MacroAssembler* masm, Runtime::FunctionId function_id) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(r1);
@@ -313,7 +314,13 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+static void GenerateTailCallToReturnedCode(MacroAssembler* masm) {
+  __ add(r0, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(r0);
+}
+
+
+void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   // Checking whether the queued function is ready for install is optional,
   // since we come across interrupts and stack checks elsewhere.  However,
   // not checking may delay installing ready functions, and always checking
@@ -324,18 +331,10 @@ void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
   __ cmp(sp, Operand(ip));
   __ b(hs, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
-  // Tail call to returned code.
-  __ add(r0, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r0);
+  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
+  GenerateTailCallToReturnedCode(masm);
 
   __ bind(&ok);
-  GenerateTailCallToSharedCode(masm);
-}
-
-
-void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -774,19 +773,38 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
-  // Do a tail-call of the compiled function.
-  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r2);
+void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 
-void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
-  // Do a tail-call of the compiled function.
-  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r2);
+static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push a copy of the function onto the stack.
+  __ push(r1);
+  // Push call kind information and function as parameter to the runtime call.
+  __ Push(r5, r1);
+  // Whether to compile in a background thread.
+  __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
+
+  __ CallRuntime(Runtime::kCompileOptimized, 2);
+  // Restore call kind information.
+  __ pop(r5);
+  // Restore receiver.
+  __ pop(r1);
+}
+
+
+void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
+  CallCompileOptimized(masm, false);
+  GenerateTailCallToReturnedCode(masm);
+}
+
+
+void Builtins::Generate_CompileOptimizedConcurrent(MacroAssembler* masm) {
+  CallCompileOptimized(masm, true);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 
@@ -803,7 +821,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   //   r1 - isolate
   FrameScope scope(masm, StackFrame::MANUAL);
   __ stm(db_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
-  __ PrepareCallCFunction(1, 0, r2);
+  __ PrepareCallCFunction(2, 0, r2);
   __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
       ExternalReference::get_make_code_young_function(masm->isolate()), 2);
@@ -836,14 +854,14 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   //   r1 - isolate
   FrameScope scope(masm, StackFrame::MANUAL);
   __ stm(db_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
-  __ PrepareCallCFunction(1, 0, r2);
+  __ PrepareCallCFunction(2, 0, r2);
   __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(ExternalReference::get_mark_code_as_executed_function(
         masm->isolate()), 2);
   __ ldm(ia_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
 
   // Perform prologue operations usually performed by the young code stub.
-  __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  __ PushFixedFrame(r1);
   __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
   // Jump to point after the code-age stub.
@@ -1074,12 +1092,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Use the global receiver object from the called function as the
     // receiver.
     __ bind(&use_global_receiver);
-    const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
-    __ ldr(r2, FieldMemOperand(cp, kGlobalIndex));
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kNativeContextOffset));
-    __ ldr(r2, FieldMemOperand(r2, kGlobalIndex));
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+  __ ldr(r2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ add(r3, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -1270,11 +1284,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
-    const int kGlobalOffset =
-        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
-    __ ldr(r0, FieldMemOperand(cp, kGlobalOffset));
-    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
-    __ ldr(r0, FieldMemOperand(r0, kGlobalOffset));
+    __ ldr(r0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
     __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
 
     // Push the receiver.
@@ -1344,7 +1354,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r0);
   __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ stm(db_w, sp, r0.bit() | r1.bit() | r4.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, r0.bit() | r1.bit() | r4.bit() |
+                   (FLAG_enable_ool_constant_pool ? pp.bit() : 0) |
+                   fp.bit() | lr.bit());
   __ add(fp, sp,
          Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }

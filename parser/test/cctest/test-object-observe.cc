@@ -242,7 +242,6 @@ TEST(GlobalObjectObservation) {
   LocalContext context(isolate.GetIsolate());
   HandleScope scope(isolate.GetIsolate());
   Handle<Object> global_proxy = context->Global();
-  Handle<Object> inner_global = global_proxy->GetPrototype().As<Object>();
   CompileRun(
       "var records = [];"
       "var global = this;"
@@ -255,33 +254,26 @@ TEST(GlobalObjectObservation) {
   context->DetachGlobal();
   CompileRun("global.bar = 'goodbye';");
   CHECK_EQ(1, CompileRun("records.length")->Int32Value());
-
-  // Mutating the global object directly still has an effect...
-  CompileRun("this.bar = 'goodbye';");
-  CHECK_EQ(2, CompileRun("records.length")->Int32Value());
-  CHECK(inner_global->StrictEquals(CompileRun("records[1].object")));
-
-  // Reattached, back to global proxy.
-  context->ReattachGlobal(global_proxy);
-  CompileRun("global.baz = 'again';");
-  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
-  CHECK(global_proxy->StrictEquals(CompileRun("records[2].object")));
+  CompileRun("this.baz = 'goodbye';");
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
 
   // Attached to a different context, should not leak mutations
   // to the old context.
   context->DetachGlobal();
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->DetachGlobal();
-    context2->ReattachGlobal(global_proxy);
     CompileRun(
         "var records2 = [];"
+        "var global = this;"
         "Object.observe(this, function(r) { [].push.apply(records2, r) });"
-        "this.bat = 'context2';");
+        "this.v1 = 'context2';");
+    context2->DetachGlobal();
+    CompileRun(
+        "global.v2 = 'context2';"
+        "this.v3 = 'context2';");
     CHECK_EQ(1, CompileRun("records2.length")->Int32Value());
-    CHECK(global_proxy->StrictEquals(CompileRun("records2[0].object")));
   }
-  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
 
   // Attaching by passing to Context::New
   {
@@ -295,7 +287,7 @@ TEST(GlobalObjectObservation) {
     CHECK_EQ(1, CompileRun("records3.length")->Int32Value());
     CHECK(global_proxy->StrictEquals(CompileRun("records3[0].object")));
   }
-  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
 }
 
 
@@ -340,27 +332,30 @@ static void ExpectRecords(v8::Isolate* isolate,
 
 TEST(APITestBasicMutation) {
   HarmonyIsolate isolate;
-  HandleScope scope(isolate.GetIsolate());
-  LocalContext context(isolate.GetIsolate());
+  v8::Isolate* v8_isolate = isolate.GetIsolate();
+  HandleScope scope(v8_isolate);
+  LocalContext context(v8_isolate);
   Handle<Object> obj = Handle<Object>::Cast(CompileRun(
       "var records = [];"
       "var obj = {};"
       "function observer(r) { [].push.apply(records, r); };"
       "Object.observe(obj, observer);"
       "obj"));
-  obj->Set(String::NewFromUtf8(isolate.GetIsolate(), "foo"), Number::New(7));
-  obj->Set(1, Number::New(2));
+  obj->Set(String::NewFromUtf8(v8_isolate, "foo"),
+           Number::New(v8_isolate, 7));
+  obj->Set(1, Number::New(v8_isolate, 2));
   // ForceSet should work just as well as Set
-  obj->ForceSet(String::NewFromUtf8(isolate.GetIsolate(), "foo"),
-                Number::New(3));
-  obj->ForceSet(Number::New(1), Number::New(4));
+  obj->ForceSet(String::NewFromUtf8(v8_isolate, "foo"),
+                Number::New(v8_isolate, 3));
+  obj->ForceSet(Number::New(v8_isolate, 1), Number::New(v8_isolate, 4));
   // Setting an indexed element via the property setting method
-  obj->Set(Number::New(1), Number::New(5));
+  obj->Set(Number::New(v8_isolate, 1), Number::New(v8_isolate, 5));
   // Setting with a non-String, non-uint32 key
-  obj->Set(Number::New(1.1), Number::New(6), DontDelete);
-  obj->Delete(String::NewFromUtf8(isolate.GetIsolate(), "foo"));
+  obj->Set(Number::New(v8_isolate, 1.1),
+           Number::New(v8_isolate, 6), DontDelete);
+  obj->Delete(String::NewFromUtf8(v8_isolate, "foo"));
   obj->Delete(1);
-  obj->ForceDelete(Number::New(1.1));
+  obj->ForceDelete(Number::New(v8_isolate, 1.1));
 
   // Force delivery
   // TODO(adamk): Should the above set methods trigger delivery themselves?
@@ -371,13 +366,13 @@ TEST(APITestBasicMutation) {
     { obj, "add", "1", Handle<Value>() },
     // Note: use 7 not 1 below, as the latter triggers a nifty VS10 compiler bug
     // where instead of 1.0, a garbage value would be passed into Number::New.
-    { obj, "update", "foo", Number::New(7) },
-    { obj, "update", "1", Number::New(2) },
-    { obj, "update", "1", Number::New(4) },
+    { obj, "update", "foo", Number::New(v8_isolate, 7) },
+    { obj, "update", "1", Number::New(v8_isolate, 2) },
+    { obj, "update", "1", Number::New(v8_isolate, 4) },
     { obj, "add", "1.1", Handle<Value>() },
-    { obj, "delete", "foo", Number::New(3) },
-    { obj, "delete", "1", Number::New(5) },
-    { obj, "delete", "1.1", Number::New(6) }
+    { obj, "delete", "foo", Number::New(v8_isolate, 3) },
+    { obj, "delete", "1", Number::New(v8_isolate, 5) },
+    { obj, "delete", "1.1", Number::New(v8_isolate, 6) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records);
 }
@@ -385,17 +380,18 @@ TEST(APITestBasicMutation) {
 
 TEST(HiddenPrototypeObservation) {
   HarmonyIsolate isolate;
-  HandleScope scope(isolate.GetIsolate());
-  LocalContext context(isolate.GetIsolate());
-  Handle<FunctionTemplate> tmpl = FunctionTemplate::New();
+  v8::Isolate* v8_isolate = isolate.GetIsolate();
+  HandleScope scope(v8_isolate);
+  LocalContext context(v8_isolate);
+  Handle<FunctionTemplate> tmpl = FunctionTemplate::New(v8_isolate);
   tmpl->SetHiddenPrototype(true);
   tmpl->InstanceTemplate()->Set(
-      String::NewFromUtf8(isolate.GetIsolate(), "foo"), Number::New(75));
+      String::NewFromUtf8(v8_isolate, "foo"), Number::New(v8_isolate, 75));
   Handle<Object> proto = tmpl->GetFunction()->NewInstance();
-  Handle<Object> obj = Object::New();
+  Handle<Object> obj = Object::New(v8_isolate);
   obj->SetPrototype(proto);
-  context->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
-  context->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "proto"),
+  context->Global()->Set(String::NewFromUtf8(v8_isolate, "obj"), obj);
+  context->Global()->Set(String::NewFromUtf8(v8_isolate, "proto"),
                          proto);
   CompileRun(
       "var records;"
@@ -404,10 +400,10 @@ TEST(HiddenPrototypeObservation) {
       "obj.foo = 41;"  // triggers a notification
       "proto.foo = 42;");  // does not trigger a notification
   const RecordExpectation expected_records[] = {
-    { obj, "update", "foo", Number::New(75) }
+    { obj, "update", "foo", Number::New(v8_isolate, 75) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records);
-  obj->SetPrototype(Null(isolate.GetIsolate()));
+  obj->SetPrototype(Null(v8_isolate));
   CompileRun("obj.foo = 43");
   const RecordExpectation expected_records2[] = {
     { obj, "add", "foo", Handle<Value>() }
@@ -521,7 +517,7 @@ static Handle<Object> CreateAccessCheckedObject(
     NamedSecurityCallback namedCallback,
     IndexedSecurityCallback indexedCallback,
     Handle<Value> data = Handle<Value>()) {
-  Handle<ObjectTemplate> tmpl = ObjectTemplate::New();
+  Handle<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
   tmpl->SetAccessCheckCallbacks(namedCallback, indexedCallback, data);
   Handle<Object> instance = tmpl->NewInstance();
   Handle<Object> global = instance->CreationContext()->Global();
@@ -569,7 +565,8 @@ TEST(NamedAccessCheck) {
         { instance, "add", "foo", Handle<Value>() },
         { instance, "update", "foo",
           String::NewFromUtf8(isolate.GetIsolate(), "bar") },
-        { instance, "reconfigure", "foo", Number::New(5) },
+        { instance, "reconfigure", "foo",
+          Number::New(isolate.GetIsolate(), 5) },
         { instance, "add", "bar", Handle<Value>() },
         { obj_no_check, "add", "baz", Handle<Value>() },
       };
@@ -593,7 +590,7 @@ TEST(IndexedAccessCheck) {
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
         isolate.GetIsolate(), NamedAccessAlwaysAllowed,
-        IndexedAccessAllowUnlessBlocked, Number::New(7));
+        IndexedAccessAllowUnlessBlocked, Number::New(isolate.GetIsolate(), 7));
     CompileRun("var records = null;"
                "var objNoCheck = {};"
                "var observer = function(r) { records = r };"
@@ -620,7 +617,7 @@ TEST(IndexedAccessCheck) {
         { instance, "add", "7", Handle<Value>() },
         { instance, "update", "7",
           String::NewFromUtf8(isolate.GetIsolate(), "foo") },
-        { instance, "reconfigure", "7", Number::New(5) },
+        { instance, "reconfigure", "7", Number::New(isolate.GetIsolate(), 5) },
         { instance, "add", "8", Handle<Value>() },
         { obj_no_check, "add", "42", Handle<Value>() }
       };
@@ -642,7 +639,7 @@ TEST(SpliceAccessCheck) {
   g_access_block_type = ACCESS_GET;
   Handle<Object> instance = CreateAccessCheckedObject(
       isolate.GetIsolate(), NamedAccessAlwaysAllowed,
-      IndexedAccessAllowUnlessBlocked, Number::New(1));
+      IndexedAccessAllowUnlessBlocked, Number::New(isolate.GetIsolate(), 1));
   CompileRun("var records = null;"
              "obj[1] = 'foo';"
              "obj.length = 2;"

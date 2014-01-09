@@ -644,7 +644,9 @@ static void DebugEventBreakPointHitCount(
     if (!frame_function_name.IsEmpty()) {
       // Get the name of the function.
       const int argc = 2;
-      v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
+      v8::Handle<v8::Value> argv[argc] = {
+        exec_state, v8::Integer::New(CcTest::isolate(), 0)
+      };
       v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                                argc, argv);
       if (result->IsUndefined()) {
@@ -891,7 +893,9 @@ static void DebugEventStepSequence(
     CHECK(break_point_hit_count <
           StrLength(expected_step_sequence));
     const int argc = 2;
-    v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
+    v8::Handle<v8::Value> argv[argc] = {
+      exec_state, v8::Integer::New(CcTest::isolate(), 0)
+    };
     v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                              argc, argv);
     CHECK(result->IsString());
@@ -1036,13 +1040,13 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(&env,
                           "function f2(){x=1;}", "f2",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           CcTest::i_isolate()->builtins()->builtin(
                               Builtins::kStoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           CcTest::i_isolate()->builtins()->builtin(
                               Builtins::kLoadIC_DebugBreak));
 
@@ -1087,19 +1091,19 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(&env,
                           "function f4_0(){x();}", "f4_0",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           *debug_break_0);
 
   CheckDebugBreakFunction(&env,
                           "function f4_1(){x(1);}", "f4_1",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           *debug_break_1);
 
   CheckDebugBreakFunction(&env,
                           "function f4_4(){x(1,2,3,4);}", "f4_4",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           *debug_break_4);
 }
 
@@ -2096,7 +2100,7 @@ TEST(ScriptBreakPointLineOffset) {
   // Create script origin both name and line offset.
   v8::ScriptOrigin origin(
       v8::String::NewFromUtf8(env->GetIsolate(), "test.html"),
-      v8::Integer::New(7));
+      v8::Integer::New(env->GetIsolate(), 7));
 
   // Set two script break points before the script is loaded.
   int sbp1 =
@@ -2179,7 +2183,7 @@ TEST(ScriptBreakPointLine) {
   break_point_hit_count = 0;
   v8::ScriptOrigin origin(
       v8::String::NewFromUtf8(env->GetIsolate(), "test.html"),
-      v8::Integer::New(0));
+      v8::Integer::New(env->GetIsolate(), 0));
   v8::Script::Compile(script, &origin)->Run();
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
@@ -2514,7 +2518,7 @@ TEST(DebugEvaluate) {
   checks = checks_uu;
   v8::Handle<v8::Value> argv_bar_1[2] = {
     v8::Undefined(isolate),
-    v8::Number::New(barbar_break_position)
+    v8::Number::New(isolate, barbar_break_position)
   };
   bar->Call(env->Global(), 2, argv_bar_1);
 
@@ -2523,7 +2527,7 @@ TEST(DebugEvaluate) {
   checks = checks_hu;
   v8::Handle<v8::Value> argv_bar_2[2] = {
     v8::String::NewFromUtf8(env->GetIsolate(), "Hello, world!"),
-    v8::Number::New(barbar_break_position)
+    v8::Number::New(env->GetIsolate(), barbar_break_position)
   };
   bar->Call(env->Global(), 2, argv_bar_2);
 
@@ -2532,7 +2536,7 @@ TEST(DebugEvaluate) {
   checks = checks_hh;
   v8::Handle<v8::Value> argv_bar_3[2] = {
     v8::String::NewFromUtf8(env->GetIsolate(), "Hello, world!"),
-    v8::Number::New(barbar_break_position + 1)
+    v8::Number::New(env->GetIsolate(), barbar_break_position + 1)
   };
   bar->Call(env->Global(), 2, argv_bar_3);
 
@@ -2865,7 +2869,8 @@ TEST(DebugStepKeyedLoadLoop) {
   // Create array [0,1,2,3,4,5,6,7,8,9]
   v8::Local<v8::Array> a = v8::Array::New(env->GetIsolate(), 10);
   for (int i = 0; i < 10; i++) {
-    a->Set(v8::Number::New(i), v8::Number::New(i));
+    a->Set(v8::Number::New(env->GetIsolate(), i),
+           v8::Number::New(env->GetIsolate(), i));
   }
 
   // Call function without any break points to ensure inlining is in place.
@@ -2912,7 +2917,8 @@ TEST(DebugStepKeyedStoreLoop) {
   // Create array [0,1,2,3,4,5,6,7,8,9]
   v8::Local<v8::Array> a = v8::Array::New(env->GetIsolate(), 10);
   for (int i = 0; i < 10; i++) {
-    a->Set(v8::Number::New(i), v8::Number::New(i));
+    a->Set(v8::Number::New(env->GetIsolate(), i),
+           v8::Number::New(env->GetIsolate(), i));
   }
 
   // Call function without any break points to ensure inlining is in place.
@@ -3178,7 +3184,8 @@ TEST(DebugStepIf) {
 
 TEST(DebugStepSwitch) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener2(DebugEventStep);
@@ -3208,21 +3215,21 @@ TEST(DebugStepSwitch) {
   // One case with fall-through.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_1[argc] = { v8::Number::New(1) };
+  v8::Handle<v8::Value> argv_1[argc] = { v8::Number::New(isolate, 1) };
   foo->Call(env->Global(), argc, argv_1);
   CHECK_EQ(6, break_point_hit_count);
 
   // Another case.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_2[argc] = { v8::Number::New(2) };
+  v8::Handle<v8::Value> argv_2[argc] = { v8::Number::New(isolate, 2) };
   foo->Call(env->Global(), argc, argv_2);
   CHECK_EQ(5, break_point_hit_count);
 
   // Last case.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_3[argc] = { v8::Number::New(3) };
+  v8::Handle<v8::Value> argv_3[argc] = { v8::Number::New(isolate, 3) };
   foo->Call(env->Global(), argc, argv_3);
   CHECK_EQ(7, break_point_hit_count);
 
@@ -3234,7 +3241,8 @@ TEST(DebugStepSwitch) {
 
 TEST(DebugStepWhile) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener2(DebugEventStep);
@@ -3255,14 +3263,14 @@ TEST(DebugStepWhile) {
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
+  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(isolate, 10) };
   foo->Call(env->Global(), argc, argv_10);
   CHECK_EQ(22, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
+  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(isolate, 100) };
   foo->Call(env->Global(), argc, argv_100);
   CHECK_EQ(202, break_point_hit_count);
 
@@ -3274,7 +3282,8 @@ TEST(DebugStepWhile) {
 
 TEST(DebugStepDoWhile) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener2(DebugEventStep);
@@ -3295,14 +3304,14 @@ TEST(DebugStepDoWhile) {
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
+  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(isolate, 10) };
   foo->Call(env->Global(), argc, argv_10);
   CHECK_EQ(22, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
+  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(isolate, 100) };
   foo->Call(env->Global(), argc, argv_100);
   CHECK_EQ(202, break_point_hit_count);
 
@@ -3314,7 +3323,8 @@ TEST(DebugStepDoWhile) {
 
 TEST(DebugStepFor) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener2(DebugEventStep);
@@ -3336,14 +3346,14 @@ TEST(DebugStepFor) {
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
+  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(isolate, 10) };
   foo->Call(env->Global(), argc, argv_10);
   CHECK_EQ(23, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
+  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(isolate, 100) };
   foo->Call(env->Global(), argc, argv_100);
   CHECK_EQ(203, break_point_hit_count);
 
@@ -3355,7 +3365,8 @@ TEST(DebugStepFor) {
 
 TEST(DebugStepForContinue) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener2(DebugEventStep);
@@ -3385,7 +3396,7 @@ TEST(DebugStepForContinue) {
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
+  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(isolate, 10) };
   result = foo->Call(env->Global(), argc, argv_10);
   CHECK_EQ(5, result->Int32Value());
   CHECK_EQ(52, break_point_hit_count);
@@ -3393,7 +3404,7 @@ TEST(DebugStepForContinue) {
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
+  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(isolate, 100) };
   result = foo->Call(env->Global(), argc, argv_100);
   CHECK_EQ(50, result->Int32Value());
   CHECK_EQ(457, break_point_hit_count);
@@ -3406,7 +3417,8 @@ TEST(DebugStepForContinue) {
 
 TEST(DebugStepForBreak) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener2(DebugEventStep);
@@ -3437,7 +3449,7 @@ TEST(DebugStepForBreak) {
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
+  v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(isolate, 10) };
   result = foo->Call(env->Global(), argc, argv_10);
   CHECK_EQ(9, result->Int32Value());
   CHECK_EQ(55, break_point_hit_count);
@@ -3445,7 +3457,7 @@ TEST(DebugStepForBreak) {
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
-  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
+  v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(isolate, 100) };
   result = foo->Call(env->Global(), argc, argv_100);
   CHECK_EQ(99, result->Int32Value());
   CHECK_EQ(505, break_point_hit_count);
@@ -3520,7 +3532,7 @@ TEST(DebugStepWith) {
                     "}"
                     "foo()";
   env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "b"),
-                     v8::Object::New());
+                     v8::Object::New(env->GetIsolate()));
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   v8::Handle<v8::Value> result;
   SetBreakPoint(foo, 8);  // "var a = {};"
@@ -3859,7 +3871,7 @@ TEST(PauseInScript) {
 
   v8::ScriptOrigin origin(
       v8::String::NewFromUtf8(env->GetIsolate(), script_name),
-      v8::Integer::New(0));
+      v8::Integer::New(env->GetIsolate(), 0));
   v8::Handle<v8::Script> script = v8::Script::Compile(
       v8::String::NewFromUtf8(env->GetIsolate(), src), &origin);
   v8::Local<v8::Value> r = script->Run();
@@ -4171,7 +4183,8 @@ TEST(DebugBreak) {
   i::FLAG_verify_heap = true;
 #endif
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   // Register a debug event listener which sets the break flag and counts.
   v8::Debug::SetDebugEventListener2(DebugEventBreak);
@@ -4187,10 +4200,10 @@ TEST(DebugBreak) {
   v8::Local<v8::Function> f3 = CompileFunction(&env, src, "f3");
 
   // Call the function to make sure it is compiled.
-  v8::Handle<v8::Value> argv[] = { v8::Number::New(1),
-                                   v8::Number::New(1),
-                                   v8::Number::New(1),
-                                   v8::Number::New(1) };
+  v8::Handle<v8::Value> argv[] = { v8::Number::New(isolate, 1),
+                                   v8::Number::New(isolate, 1),
+                                   v8::Number::New(isolate, 1),
+                                   v8::Number::New(isolate, 1) };
 
   // Call all functions to make sure that they are compiled.
   f0->Call(env->Global(), 0, NULL);
@@ -4294,20 +4307,21 @@ TEST(NoBreakWhenBootstrapping) {
 
 static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Handle<v8::Array> result = v8::Array::New(info.GetIsolate(), 3);
-  result->Set(v8::Integer::New(0),
+  result->Set(v8::Integer::New(info.GetIsolate(), 0),
               v8::String::NewFromUtf8(info.GetIsolate(), "a"));
-  result->Set(v8::Integer::New(1),
+  result->Set(v8::Integer::New(info.GetIsolate(), 1),
               v8::String::NewFromUtf8(info.GetIsolate(), "b"));
-  result->Set(v8::Integer::New(2),
+  result->Set(v8::Integer::New(info.GetIsolate(), 2),
               v8::String::NewFromUtf8(info.GetIsolate(), "c"));
   info.GetReturnValue().Set(result);
 }
 
 
 static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Handle<v8::Array> result = v8::Array::New(info.GetIsolate(), 2);
-  result->Set(v8::Integer::New(0), v8::Number::New(1));
-  result->Set(v8::Integer::New(1), v8::Number::New(10));
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Handle<v8::Array> result = v8::Array::New(isolate, 2);
+  result->Set(v8::Integer::New(isolate, 0), v8::Number::New(isolate, 1));
+  result->Set(v8::Integer::New(isolate, 1), v8::Number::New(isolate, 10));
   info.GetReturnValue().Set(result);
 }
 
@@ -4341,33 +4355,34 @@ static void IndexedGetter(uint32_t index,
 TEST(InterceptorPropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
   // Create object with named interceptor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
   named->SetNamedPropertyHandler(NamedGetter, NULL, NULL, NULL, NamedEnum);
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "intercepted_named"),
+      v8::String::NewFromUtf8(isolate, "intercepted_named"),
       named->NewInstance());
 
   // Create object with indexed interceptor.
-  v8::Handle<v8::ObjectTemplate> indexed = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> indexed = v8::ObjectTemplate::New(isolate);
   indexed->SetIndexedPropertyHandler(IndexedGetter,
                                      NULL,
                                      NULL,
                                      NULL,
                                      IndexedEnum);
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "intercepted_indexed"),
+      v8::String::NewFromUtf8(isolate, "intercepted_indexed"),
       indexed->NewInstance());
 
   // Create object with both named and indexed interceptor.
-  v8::Handle<v8::ObjectTemplate> both = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> both = v8::ObjectTemplate::New(isolate);
   both->SetNamedPropertyHandler(NamedGetter, NULL, NULL, NULL, NamedEnum);
   both->SetIndexedPropertyHandler(IndexedGetter, NULL, NULL, NULL, IndexedEnum);
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "intercepted_both"),
+      v8::String::NewFromUtf8(isolate, "intercepted_both"),
       both->NewInstance());
 
   // Get mirrors for the three objects with interceptor.
@@ -4476,33 +4491,34 @@ TEST(InterceptorPropertyMirror) {
 TEST(HiddenPrototypePropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
-  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
-  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "x"),
-                              v8::Number::New(0));
-  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
+  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "x"),
+                              v8::Number::New(isolate, 0));
+  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
   t1->SetHiddenPrototype(true);
-  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "y"),
-                              v8::Number::New(1));
-  v8::Handle<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
+  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "y"),
+                              v8::Number::New(isolate, 1));
+  v8::Handle<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New(isolate);
   t2->SetHiddenPrototype(true);
-  t2->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "z"),
-                              v8::Number::New(2));
-  v8::Handle<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
-  t3->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "u"),
-                              v8::Number::New(3));
+  t2->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "z"),
+                              v8::Number::New(isolate, 2));
+  v8::Handle<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New(isolate);
+  t3->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "u"),
+                              v8::Number::New(isolate, 3));
 
   // Create object and set them on the global object.
   v8::Handle<v8::Object> o0 = t0->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o0"), o0);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o0"), o0);
   v8::Handle<v8::Object> o1 = t1->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o1"), o1);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o1"), o1);
   v8::Handle<v8::Object> o2 = t2->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o2"), o2);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o2"), o2);
   v8::Handle<v8::Object> o3 = t3->GetFunction()->NewInstance();
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "o3"), o3);
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "o3"), o3);
 
   // Get mirrors for the four objects.
   CompileRun(
@@ -4527,7 +4543,7 @@ TEST(HiddenPrototypePropertyMirror) {
 
   // Set o1 as prototype for o0. o1 has the hidden prototype flag so all
   // properties on o1 should be seen on o0.
-  o0->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), o1);
+  o0->Set(v8::String::NewFromUtf8(isolate, "__proto__"), o1);
   CHECK_EQ(2, CompileRun(
               "o0_mirror.propertyNames().length")->Int32Value());
   CHECK_EQ(0, CompileRun(
@@ -4538,7 +4554,7 @@ TEST(HiddenPrototypePropertyMirror) {
   // Set o2 as prototype for o0 (it will end up after o1 as o1 has the hidden
   // prototype flag. o2 also has the hidden prototype flag so all properties
   // on o2 should be seen on o0 as well as properties on o1.
-  o0->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), o2);
+  o0->Set(v8::String::NewFromUtf8(isolate, "__proto__"), o2);
   CHECK_EQ(3, CompileRun(
               "o0_mirror.propertyNames().length")->Int32Value());
   CHECK_EQ(0, CompileRun(
@@ -4554,7 +4570,7 @@ TEST(HiddenPrototypePropertyMirror) {
   // from o1 and o2 should still be seen on o0.
   // Final prototype chain: o0 -> o1 -> o2 -> o3
   // Hidden prototypes:           ^^    ^^
-  o0->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), o3);
+  o0->Set(v8::String::NewFromUtf8(isolate, "__proto__"), o3);
   CHECK_EQ(3, CompileRun(
               "o0_mirror.propertyNames().length")->Int32Value());
   CHECK_EQ(1, CompileRun(
@@ -4582,17 +4598,18 @@ static void ProtperyXNativeGetter(
 TEST(NativeGetterPropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
-  v8::Handle<v8::String> name = v8::String::NewFromUtf8(env->GetIsolate(), "x");
+  v8::Handle<v8::String> name = v8::String::NewFromUtf8(isolate, "x");
   // Create object with named accessor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
   named->SetAccessor(name, &ProtperyXNativeGetter, NULL,
       v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
 
   // Create object with named property getter.
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      named->NewInstance());
   CHECK_EQ(10, CompileRun("instance.x")->Int32Value());
 
@@ -4621,17 +4638,18 @@ static void ProtperyXNativeGetterThrowingError(
 TEST(NativeGetterThrowingErrorPropertyMirror) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
-  v8::Handle<v8::String> name = v8::String::NewFromUtf8(env->GetIsolate(), "x");
+  v8::Handle<v8::String> name = v8::String::NewFromUtf8(isolate, "x");
   // Create object with named accessor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
   named->SetAccessor(name, &ProtperyXNativeGetterThrowingError, NULL,
       v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
 
   // Create object with named property getter.
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "instance"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "instance"),
                      named->NewInstance());
 
   // Get mirror for the object with property getter.
@@ -4657,19 +4675,20 @@ TEST(NativeGetterThrowingErrorPropertyMirror) {
 TEST(NoHiddenProperties) {
   // Create a V8 environment with debug access.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
   // Create an object in the global scope.
   const char* source = "var obj = {a: 1};";
-  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), source))
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate, source))
       ->Run();
   v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(
-      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "obj")));
+      env->Global()->Get(v8::String::NewFromUtf8(isolate, "obj")));
   // Set a hidden property on the object.
   obj->SetHiddenValue(
-      v8::String::NewFromUtf8(env->GetIsolate(), "v8::test-debug::a"),
-      v8::Int32::New(11));
+      v8::String::NewFromUtf8(isolate, "v8::test-debug::a"),
+      v8::Int32::New(isolate, 11));
 
   // Get mirror for the object with property getter.
   CompileRun("var obj_mirror = debug.MakeMirror(obj);");
@@ -4685,34 +4704,34 @@ TEST(NoHiddenProperties) {
       "obj_mirror.property('a').value().value() == 1")->BooleanValue());
 
   // Object created by t0 will become hidden prototype of object 'obj'.
-  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
-  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "b"),
-                              v8::Number::New(2));
+  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
+  t0->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "b"),
+                              v8::Number::New(isolate, 2));
   t0->SetHiddenPrototype(true);
-  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
-  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "c"),
-                              v8::Number::New(3));
+  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
+  t1->InstanceTemplate()->Set(v8::String::NewFromUtf8(isolate, "c"),
+                              v8::Number::New(isolate, 3));
 
   // Create proto objects, add hidden properties to them and set them on
   // the global object.
   v8::Handle<v8::Object> protoObj = t0->GetFunction()->NewInstance();
   protoObj->SetHiddenValue(
-      v8::String::NewFromUtf8(env->GetIsolate(), "v8::test-debug::b"),
-      v8::Int32::New(12));
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "protoObj"),
+      v8::String::NewFromUtf8(isolate, "v8::test-debug::b"),
+      v8::Int32::New(isolate, 12));
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "protoObj"),
                      protoObj);
   v8::Handle<v8::Object> grandProtoObj = t1->GetFunction()->NewInstance();
   grandProtoObj->SetHiddenValue(
-      v8::String::NewFromUtf8(env->GetIsolate(), "v8::test-debug::c"),
-      v8::Int32::New(13));
+      v8::String::NewFromUtf8(isolate, "v8::test-debug::c"),
+      v8::Int32::New(isolate, 13));
   env->Global()->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "grandProtoObj"),
+      v8::String::NewFromUtf8(isolate, "grandProtoObj"),
       grandProtoObj);
 
   // Setting prototypes: obj->protoObj->grandProtoObj
-  protoObj->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"),
+  protoObj->Set(v8::String::NewFromUtf8(isolate, "__proto__"),
                 grandProtoObj);
-  obj->Set(v8::String::NewFromUtf8(env->GetIsolate(), "__proto__"), protoObj);
+  obj->Set(v8::String::NewFromUtf8(isolate, "__proto__"), protoObj);
 
   // Get mirror for the object with property getter.
   CompileRun("var obj_mirror = debug.MakeMirror(obj);");
@@ -5200,15 +5219,17 @@ void V8Thread::Run() {
       "\n"
       "foo();\n";
 
-  v8::Isolate::Scope isolate_scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Debug::SetMessageHandler2(&ThreadedMessageHandler);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(env->GetIsolate());
   global_template->Set(
       v8::String::NewFromUtf8(env->GetIsolate(), "ThreadedAtBarrier1"),
-      v8::FunctionTemplate::New(ThreadedAtBarrier1));
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
+      v8::FunctionTemplate::New(isolate, ThreadedAtBarrier1));
+  v8::Handle<v8::Context> context = v8::Context::New(isolate,
                                                      NULL,
                                                      global_template);
   v8::Context::Scope context_scope(context);
@@ -5564,67 +5585,70 @@ static void CheckClosure(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(CallFunctionInDebugger) {
   // Create and enter a context with the functions CheckFrameCount,
   // CheckSourceLine and CheckDataParameter installed.
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckFrameCount"),
-      v8::FunctionTemplate::New(CheckFrameCount));
+      v8::String::NewFromUtf8(isolate, "CheckFrameCount"),
+      v8::FunctionTemplate::New(isolate, CheckFrameCount));
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckSourceLine"),
-      v8::FunctionTemplate::New(CheckSourceLine));
+      v8::String::NewFromUtf8(isolate, "CheckSourceLine"),
+      v8::FunctionTemplate::New(isolate, CheckSourceLine));
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckDataParameter"),
-      v8::FunctionTemplate::New(CheckDataParameter));
+      v8::String::NewFromUtf8(isolate, "CheckDataParameter"),
+      v8::FunctionTemplate::New(isolate, CheckDataParameter));
   global_template->Set(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckClosure"),
-      v8::FunctionTemplate::New(CheckClosure));
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate(),
+      v8::String::NewFromUtf8(isolate, "CheckClosure"),
+      v8::FunctionTemplate::New(isolate, CheckClosure));
+  v8::Handle<v8::Context> context = v8::Context::New(isolate,
                                                      NULL,
                                                      global_template);
   v8::Context::Scope context_scope(context);
 
   // Compile a function for checking the number of JavaScript frames.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), frame_count_source))->Run();
+      v8::String::NewFromUtf8(isolate, frame_count_source))->Run();
   frame_count = v8::Local<v8::Function>::Cast(context->Global()->Get(
-      v8::String::NewFromUtf8(CcTest::isolate(), "frame_count")));
+      v8::String::NewFromUtf8(isolate, "frame_count")));
 
   // Compile a function for returning the source line for the top frame.
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               frame_source_line_source))->Run();
   frame_source_line = v8::Local<v8::Function>::Cast(context->Global()->Get(
-      v8::String::NewFromUtf8(CcTest::isolate(), "frame_source_line")));
+      v8::String::NewFromUtf8(isolate, "frame_source_line")));
 
   // Compile a function returning the data parameter.
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               debugger_call_with_data_source))
       ->Run();
   debugger_call_with_data = v8::Local<v8::Function>::Cast(
       context->Global()->Get(v8::String::NewFromUtf8(
-          CcTest::isolate(), "debugger_call_with_data")));
+          isolate, "debugger_call_with_data")));
 
   // Compile a function capturing closure.
   debugger_call_with_closure =
       v8::Local<v8::Function>::Cast(v8::Script::Compile(
-          v8::String::NewFromUtf8(CcTest::isolate(),
+          v8::String::NewFromUtf8(isolate,
                                   debugger_call_with_closure_source))->Run());
 
   // Calling a function through the debugger returns 0 frames if there are
   // no JavaScript frames.
-  CHECK_EQ(v8::Integer::New(0), v8::Debug::Call(frame_count));
+  CHECK_EQ(v8::Integer::New(isolate, 0),
+           v8::Debug::Call(frame_count));
 
   // Test that the number of frames can be retrieved.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckFrameCount(1)"))->Run();
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+      v8::String::NewFromUtf8(isolate, "CheckFrameCount(1)"))->Run();
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "function f() {"
                                               "  CheckFrameCount(2);"
                                               "}; f()"))->Run();
 
   // Test that the source line can be retrieved.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckSourceLine(0)"))->Run();
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+      v8::String::NewFromUtf8(isolate, "CheckSourceLine(0)"))->Run();
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "function f() {\n"
                                               "  CheckSourceLine(1)\n"
                                               "  CheckSourceLine(2)\n"
@@ -5632,20 +5656,20 @@ TEST(CallFunctionInDebugger) {
                                               "}; f()"))->Run();
 
   // Test that a parameter can be passed to a function called in the debugger.
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "CheckDataParameter()"))->Run();
 
   // Test that a function with closure can be run in the debugger.
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckClosure()"))->Run();
+      v8::String::NewFromUtf8(isolate, "CheckClosure()"))->Run();
 
   // Test that the source line is correct when there is a line offset.
-  v8::ScriptOrigin origin(v8::String::NewFromUtf8(CcTest::isolate(), "test"),
-                          v8::Integer::New(7));
+  v8::ScriptOrigin origin(v8::String::NewFromUtf8(isolate, "test"),
+                          v8::Integer::New(isolate, 7));
   v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "CheckSourceLine(7)"), &origin)
+      v8::String::NewFromUtf8(isolate, "CheckSourceLine(7)"), &origin)
       ->Run();
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(),
+  v8::Script::Compile(v8::String::NewFromUtf8(isolate,
                                               "function f() {\n"
                                               "  CheckSourceLine(8)\n"
                                               "  CheckSourceLine(9)\n"
@@ -6442,7 +6466,9 @@ static void DebugEventDebugBreak(
     if (!frame_function_name.IsEmpty()) {
       // Get the name of the function.
       const int argc = 2;
-      v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
+      v8::Handle<v8::Value> argv[argc] = {
+        exec_state, v8::Integer::New(CcTest::isolate(), 0)
+      };
       v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                                argc, argv);
       if (result->IsUndefined()) {
@@ -6858,8 +6884,8 @@ TEST(ProvisionalBreakpointOnLineOutOfRange) {
 
   v8::ScriptOrigin origin(
       v8::String::NewFromUtf8(env->GetIsolate(), resource_name),
-      v8::Integer::New(10),
-      v8::Integer::New(1));
+      v8::Integer::New(env->GetIsolate(), 10),
+      v8::Integer::New(env->GetIsolate(), 1));
   // Compile a script whose first line number is greater than the breakpoints'
   // lines.
   v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), script),
@@ -7148,7 +7174,8 @@ TEST(CallingContextIsNotDebugContext) {
   v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   // Create and enter a debugee context.
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
   // Save handles to the debugger and debugee contexts to be used in
@@ -7157,10 +7184,10 @@ TEST(CallingContextIsNotDebugContext) {
   debugger_context = v8::Utils::ToLocal(debug->debug_context());
 
   // Create object with 'a' property accessor.
-  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
-  named->SetAccessor(v8::String::NewFromUtf8(env->GetIsolate(), "a"),
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
+  named->SetAccessor(v8::String::NewFromUtf8(isolate, "a"),
                      NamedGetterWithCallingContextCheck);
-  env->Global()->Set(v8::String::NewFromUtf8(env->GetIsolate(), "obj"),
+  env->Global()->Set(v8::String::NewFromUtf8(isolate, "obj"),
                      named->NewInstance());
 
   // Register the debug event listener
@@ -7203,8 +7230,8 @@ static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
 TEST(DebugEventContext) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  expected_callback_data = v8::Int32::New(2010);
   expected_context = v8::Context::New(isolate);
+  expected_callback_data = v8::Int32::New(isolate, 2010);
   v8::Debug::SetDebugEventListener2(DebugEventContextChecker,
                                     expected_callback_data);
   v8::Context::Scope context_scope(expected_context);
@@ -7301,7 +7328,9 @@ static void DebugEventBreakDeoptimize(
     if (!frame_function_name.IsEmpty()) {
       // Get the name of the function.
       const int argc = 2;
-      v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
+      v8::Handle<v8::Value> argv[argc] = {
+        exec_state, v8::Integer::New(CcTest::isolate(), 0)
+      };
       v8::Handle<v8::Value> result =
           frame_function_name->Call(exec_state, argc, argv);
       if (!result->IsUndefined()) {
@@ -7365,7 +7394,9 @@ static void DebugEventBreakWithOptimizedStack(
     if (!frame_function_name.IsEmpty()) {
       for (int i = 0; i < 2; i++) {
         const int argc = 2;
-        v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(i) };
+        v8::Handle<v8::Value> argv[argc] = {
+          exec_state, v8::Integer::New(isolate, i)
+        };
         // Get the name of the function in frame i.
         v8::Handle<v8::Value> result =
             frame_function_name->Call(exec_state, argc, argv);
@@ -7427,7 +7458,7 @@ TEST(DebugBreakStackInspection) {
       CompileFunction(&env, frame_local_value_source, "frame_local_value");
 
   v8::Handle<v8::FunctionTemplate> schedule_break_template =
-      v8::FunctionTemplate::New(ScheduleBreak);
+      v8::FunctionTemplate::New(env->GetIsolate(), ScheduleBreak);
   v8::Handle<v8::Function> schedule_break =
       schedule_break_template->GetFunction();
   env->Global()->Set(v8_str("scheduleBreak"), schedule_break);

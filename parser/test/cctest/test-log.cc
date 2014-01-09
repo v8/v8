@@ -329,18 +329,20 @@ static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 TEST(LogCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 
   v8::Local<v8::FunctionTemplate> obj =
-      v8::Local<v8::FunctionTemplate>::New(CcTest::isolate(),
-                                           v8::FunctionTemplate::New());
+      v8::Local<v8::FunctionTemplate>::New(isolate,
+                                           v8::FunctionTemplate::New(isolate));
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
   v8::Local<v8::Signature> signature =
-      v8::Signature::New(CcTest::isolate(), obj);
+      v8::Signature::New(isolate, obj);
   proto->Set(v8_str("method1"),
-             v8::FunctionTemplate::New(ObjMethod1,
+             v8::FunctionTemplate::New(isolate,
+                                       ObjMethod1,
                                        v8::Handle<v8::Value>(),
                                        signature),
              static_cast<v8::PropertyAttribute>(v8::DontDelete));
@@ -379,12 +381,13 @@ static void Prop2Getter(v8::Local<v8::String> property,
 
 
 TEST(LogAccessorCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 
   v8::Local<v8::FunctionTemplate> obj =
-      v8::Local<v8::FunctionTemplate>::New(CcTest::isolate(),
-                                           v8::FunctionTemplate::New());
+      v8::Local<v8::FunctionTemplate>::New(isolate,
+                                           v8::FunctionTemplate::New(isolate));
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
   inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);

@@ -508,6 +508,13 @@ LOperand* LChunkBuilder::UseTempRegister(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseTempRegisterOrConstant(HValue* value) {
+  return value->IsConstant()
+      ? chunk_->DefineConstantOperand(HConstant::cast(value))
+      : UseTempRegister(value);
+}
+
+
 LOperand* LChunkBuilder::Use(HValue* value) {
   return Use(value, new(zone()) LUnallocated(LUnallocated::NONE));
 }
@@ -929,90 +936,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
 }
 
 
-LEnvironment* LChunkBuilder::CreateEnvironment(
-    HEnvironment* hydrogen_env,
-    int* argument_index_accumulator,
-    ZoneList<HValue*>* objects_to_materialize) {
-  if (hydrogen_env == NULL) return NULL;
-
-  LEnvironment* outer = CreateEnvironment(hydrogen_env->outer(),
-                                          argument_index_accumulator,
-                                          objects_to_materialize);
-  BailoutId ast_id = hydrogen_env->ast_id();
-  ASSERT(!ast_id.IsNone() ||
-         hydrogen_env->frame_type() != JS_FUNCTION);
-  int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
-  LEnvironment* result = new(zone()) LEnvironment(
-      hydrogen_env->closure(),
-      hydrogen_env->frame_type(),
-      ast_id,
-      hydrogen_env->parameter_count(),
-      argument_count_,
-      value_count,
-      outer,
-      hydrogen_env->entry(),
-      zone());
-  int argument_index = *argument_index_accumulator;
-  int object_index = objects_to_materialize->length();
-  for (int i = 0; i < hydrogen_env->length(); ++i) {
-    if (hydrogen_env->is_special_index(i)) continue;
-
-    LOperand* op;
-    HValue* value = hydrogen_env->values()->at(i);
-    if (value->IsArgumentsObject() || value->IsCapturedObject()) {
-      objects_to_materialize->Add(value, zone());
-      op = LEnvironment::materialization_marker();
-    } else if (value->IsPushArgument()) {
-      op = new(zone()) LArgument(argument_index++);
-    } else {
-      op = UseAny(value);
-    }
-    result->AddValue(op,
-                     value->representation(),
-                     value->CheckFlag(HInstruction::kUint32));
-  }
-
-  for (int i = object_index; i < objects_to_materialize->length(); ++i) {
-    HValue* object_to_materialize = objects_to_materialize->at(i);
-    int previously_materialized_object = -1;
-    for (int prev = 0; prev < i; ++prev) {
-      if (objects_to_materialize->at(prev) == objects_to_materialize->at(i)) {
-        previously_materialized_object = prev;
-        break;
-      }
-    }
-    int length = object_to_materialize->OperandCount();
-    bool is_arguments = object_to_materialize->IsArgumentsObject();
-    if (previously_materialized_object >= 0) {
-      result->AddDuplicateObject(previously_materialized_object);
-      continue;
-    } else {
-      result->AddNewObject(is_arguments ? length - 1 : length, is_arguments);
-    }
-    for (int i = is_arguments ? 1 : 0; i < length; ++i) {
-      LOperand* op;
-      HValue* value = object_to_materialize->OperandAt(i);
-      if (value->IsArgumentsObject() || value->IsCapturedObject()) {
-        objects_to_materialize->Add(value, zone());
-        op = LEnvironment::materialization_marker();
-      } else {
-        ASSERT(!value->IsPushArgument());
-        op = UseAny(value);
-      }
-      result->AddValue(op,
-                       value->representation(),
-                       value->CheckFlag(HInstruction::kUint32));
-    }
-  }
-
-  if (hydrogen_env->frame_type() == JS_FUNCTION) {
-    *argument_index_accumulator = argument_index;
-  }
-
-  return result;
-}
-
-
 LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
   return new(zone()) LGoto(instr->FirstSuccessor());
 }
@@ -1223,8 +1146,7 @@ LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->value()->representation().IsDouble());
   LOperand* input = UseRegisterAtStart(instr->value());
-  LMathLog* result = new(zone()) LMathLog(input);
-  return DefineSameAsFirst(result);
+  return MarkAsCall(DefineSameAsFirst(new(zone()) LMathLog(input)), instr);
 }
 
 
@@ -2178,17 +2100,20 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     LOperand* key = NULL;
     LOperand* val = NULL;
 
-    if (instr->value()->representation().IsDouble()) {
+    Representation value_representation = instr->value()->representation();
+    if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
       val = UseTempRegister(instr->value());
       key = UseRegisterOrConstantAtStart(instr->key());
     } else {
-      ASSERT(instr->value()->representation().IsSmiOrTagged());
-      object = UseTempRegister(instr->elements());
+      ASSERT(value_representation.IsSmiOrTagged() ||
+             value_representation.IsInteger32());
       if (needs_write_barrier) {
+        object = UseTempRegister(instr->elements());
         val = UseTempRegister(instr->value());
         key = UseTempRegister(instr->key());
       } else {
+        object = UseRegisterAtStart(instr->elements());
         val = UseRegisterOrConstantAtStart(instr->value());
         key = UseRegisterOrConstantAtStart(instr->key());
       }
@@ -2297,7 +2222,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
   } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
-    val = UseTempRegister(instr->value());
+    val = UseRegister(instr->value());
   } else if (FLAG_track_double_fields &&
              instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());

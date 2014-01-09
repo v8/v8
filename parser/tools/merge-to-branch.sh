@@ -179,6 +179,7 @@ revisions associated with the patches."
   done
   if [ -n "$BUG_AGGREGATE" ] ; then
     echo "BUG=$BUG_AGGREGATE" >> $COMMITMSG_FILE
+    echo "LOG=N" >> $COMMITMSG_FILE
   fi
   persist "NEW_COMMIT_MSG"
   persist "REVISION_LIST"

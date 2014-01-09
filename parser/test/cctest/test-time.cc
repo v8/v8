@@ -29,6 +29,10 @@
 
 #include "v8.h"
 
+#if V8_OS_POSIX
+#include <sys/time.h>  // NOLINT
+#endif
+
 #include "cctest.h"
 #if V8_OS_WIN
 #include "win32-headers.h"

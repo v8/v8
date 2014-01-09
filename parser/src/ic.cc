@@ -35,6 +35,7 @@
 #include "ic-inl.h"
 #include "runtime.h"
 #include "stub-cache.h"
+#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -147,6 +148,9 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
   state_ = target_->ic_state();
+  extra_ic_state_ = target_->needs_extended_extra_ic_state(target_->kind())
+      ? target_->extended_extra_ic_state()
+      : target_->extra_ic_state();
 }
 
 
@@ -254,9 +258,8 @@ bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
             argc >= 1 && args[1]->IsNumber()) {
           double index = DoubleToInteger(args.number_at(1));
           if (index < 0 || index >= string->length()) {
-            extra_ic_state_ =
-                StringStubState::update(extra_ic_state(),
-                                        STRING_INDEX_OUT_OF_BOUNDS);
+            set_extra_ic_state(StringStubState::update(extra_ic_state(),
+                STRING_INDEX_OUT_OF_BOUNDS));
             return true;
           }
         }
@@ -397,19 +400,6 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
 }
 
 
-RelocInfo::Mode IC::ComputeMode() {
-  Address addr = address();
-  Code* code = Code::cast(isolate()->FindCodeObject(addr));
-  for (RelocIterator it(code, RelocInfo::kCodeTargetMask);
-       !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->pc() == addr) return info->rmode();
-  }
-  UNREACHABLE();
-  return RelocInfo::NONE32;
-}
-
-
 Failure* IC::TypeError(const char* type,
                        Handle<Object> object,
                        Handle<Object> key) {
@@ -499,12 +489,9 @@ void IC::Clear(Isolate* isolate, Address address) {
 
 void CallICBase::Clear(Address address, Code* target) {
   if (IsCleared(target)) return;
-  bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
-  Code* code =
-      target->GetIsolate()->stub_cache()->FindCallInitialize(
-          target->arguments_count(),
-          contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
-          target->kind());
+  ContextualMode mode = IC::GetContextualMode(target->extra_ic_state());
+  Code* code = target->GetIsolate()->stub_cache()->FindCallInitialize(
+      target->arguments_count(), mode, target->kind());
   SetTargetAtAddress(address, code);
 }
 
@@ -520,15 +507,17 @@ void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target) {
 
 void LoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
-  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate));
+  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
+      Code::LOAD_IC, target->extra_ic_state());
+  SetTargetAtAddress(address, code);
 }
 
 
 void StoreIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
-  SetTargetAtAddress(address,
-      *pre_monomorphic_stub(
-          isolate, StoreIC::GetStrictMode(target->extra_ic_state())));
+  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
+      Code::STORE_IC, target->extra_ic_state());
+  SetTargetAtAddress(address, code);
 }
 
 
@@ -1112,6 +1101,26 @@ void IC::PatchCache(Handle<Type> type,
 }
 
 
+Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
+  Handle<Code> ic = isolate->stub_cache()->ComputeLoad(
+      UNINITIALIZED, IC::ComputeExtraICState(mode));
+  return ic;
+}
+
+
+Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
+                                          ContextualMode mode) {
+  return isolate->stub_cache()->ComputeLoad(
+      PREMONOMORPHIC, IC::ComputeExtraICState(mode));
+}
+
+
+Handle<Code> LoadIC::megamorphic_stub() {
+  return isolate()->stub_cache()->ComputeLoad(
+      MEGAMORPHIC, extra_ic_state());
+}
+
+
 Handle<Code> LoadIC::SimpleFieldLoad(int offset,
                                      bool inobject,
                                      Representation representation) {
@@ -1589,6 +1598,35 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
 }
 
 
+Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
+                                      StrictModeFlag strict_mode,
+                                      ContextualMode mode) {
+  ExtraICState extra_state = ComputeExtraICState(strict_mode, mode);
+  Handle<Code> ic = isolate->stub_cache()->ComputeStore(
+      UNINITIALIZED, extra_state);
+  return ic;
+}
+
+
+Handle<Code> StoreIC::megamorphic_stub() {
+  return isolate()->stub_cache()->ComputeStore(MEGAMORPHIC, extra_ic_state());
+}
+
+
+Handle<Code> StoreIC::generic_stub() const {
+  return isolate()->stub_cache()->ComputeStore(GENERIC, extra_ic_state());
+}
+
+
+Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
+                                           StrictModeFlag strict_mode,
+                                           ContextualMode contextual_mode) {
+  ExtraICState state = StoreIC::ComputeExtraICState(strict_mode,
+                                                    contextual_mode);
+  return isolate->stub_cache()->ComputeStore(PREMONOMORPHIC, state);
+}
+
+
 void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<JSObject> receiver,
                            Handle<String> name,
@@ -2053,7 +2091,7 @@ RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
   if (raw_function->is_compiled()) return raw_function;
 
   Handle<JSFunction> function(raw_function);
-  JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
+  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
   return *function;
 }
 
@@ -2074,7 +2112,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
   if (raw_function->is_compiled()) return raw_function;
 
   Handle<JSFunction> function(raw_function, isolate);
-  JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
+  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
   return *function;
 }
 
@@ -2154,7 +2192,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_MissFromStubFailure) {
   if (raw_function->is_compiled()) return raw_function;
 
   Handle<JSFunction> function(raw_function, isolate);
-  JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
+  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
   return *function;
 }
 
@@ -2596,6 +2634,7 @@ void BinaryOpIC::State::Print(StringStream* stream) const {
   stream->Add("(%s", Token::Name(op_));
   if (mode_ == OVERWRITE_LEFT) stream->Add("_ReuseLeft");
   else if (mode_ == OVERWRITE_RIGHT) stream->Add("_ReuseRight");
+  if (CouldCreateAllocationMementos()) stream->Add("_CreateAllocationMementos");
   stream->Add(":%s*", KindToString(left_kind_));
   if (fixed_right_arg_.has_value) {
     stream->Add("%d", fixed_right_arg_.value);
@@ -2633,6 +2672,18 @@ void BinaryOpIC::State::Update(Handle<Object> left,
     if (result_kind_ < input_kind && input_kind <= NUMBER) {
       result_kind_ = input_kind;
     }
+  }
+
+  // We don't want to distinguish INT32 and NUMBER for string add (because
+  // NumberToString can't make use of this anyway).
+  if (left_kind_ == STRING && right_kind_ == INT32) {
+    ASSERT_EQ(STRING, result_kind_);
+    ASSERT_EQ(Token::ADD, op_);
+    right_kind_ = NUMBER;
+  } else if (right_kind_ == STRING && left_kind_ == INT32) {
+    ASSERT_EQ(STRING, result_kind_);
+    ASSERT_EQ(Token::ADD, op_);
+    left_kind_ = NUMBER;
   }
 
   // Reset overwrite mode unless we can actually make use of it, or may be able
@@ -2674,7 +2725,7 @@ BinaryOpIC::State::Kind BinaryOpIC::State::UpdateKind(Handle<Object> object,
     new_kind = SMI;
   } else if (object->IsHeapNumber()) {
     double value = Handle<HeapNumber>::cast(object)->value();
-    new_kind = TypeInfo::IsInt32Double(value) ? INT32 : NUMBER;
+    new_kind = IsInt32Double(value) ? INT32 : NUMBER;
   } else if (object->IsString() && op() == Token::ADD) {
     new_kind = STRING;
   }
@@ -2720,7 +2771,9 @@ Handle<Type> BinaryOpIC::State::KindToType(Kind kind, Isolate* isolate) {
 }
 
 
-MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
+MaybeObject* BinaryOpIC::Transition(Handle<AllocationSite> allocation_site,
+                                    Handle<Object> left,
+                                    Handle<Object> right) {
   State state(target()->extended_extra_ic_state());
 
   // Compute the actual result using the builtin for the binary operation.
@@ -2736,9 +2789,29 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
   State old_state = state;
   state.Update(left, right, result);
 
-  // Install the new stub.
-  BinaryOpICStub stub(state);
-  set_target(*stub.GetCode(isolate()));
+  // Check if we have a string operation here.
+  Handle<Code> target;
+  if (!allocation_site.is_null() || state.ShouldCreateAllocationMementos()) {
+    // Setup the allocation site on-demand.
+    if (allocation_site.is_null()) {
+      allocation_site = isolate()->factory()->NewAllocationSite();
+    }
+
+    // Install the stub with an allocation site.
+    BinaryOpICWithAllocationSiteStub stub(state);
+    target = stub.GetCodeCopyFromTemplate(isolate(), allocation_site);
+
+    // Sanity check the trampoline stub.
+    ASSERT_EQ(*allocation_site, target->FindFirstAllocationSite());
+  } else {
+    // Install the generic stub.
+    BinaryOpICStub stub(state);
+    target = stub.GetCode(isolate());
+
+    // Sanity check the generic stub.
+    ASSERT_EQ(NULL, target->FindFirstAllocationSite());
+  }
+  set_target(*target);
 
   if (FLAG_trace_ic) {
     char buffer[150];
@@ -2749,9 +2822,12 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
     old_state.Print(&stream);
     stream.Add(" => ");
     state.Print(&stream);
-    stream.Add(" @ %p <- ", static_cast<void*>(*target()));
+    stream.Add(" @ %p <- ", static_cast<void*>(*target));
     stream.OutputToStdOut();
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
+    if (!allocation_site.is_null()) {
+      PrintF(" using allocation site %p", static_cast<void*>(*allocation_site));
+    }
     PrintF("]\n");
   }
 
@@ -2768,10 +2844,25 @@ MaybeObject* BinaryOpIC::Transition(Handle<Object> left, Handle<Object> right) {
 
 RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss) {
   HandleScope scope(isolate);
+  ASSERT_EQ(2, args.length());
   Handle<Object> left = args.at<Object>(BinaryOpICStub::kLeft);
   Handle<Object> right = args.at<Object>(BinaryOpICStub::kRight);
   BinaryOpIC ic(isolate);
-  return ic.Transition(left, right);
+  return ic.Transition(Handle<AllocationSite>::null(), left, right);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_MissWithAllocationSite) {
+  HandleScope scope(isolate);
+  ASSERT_EQ(3, args.length());
+  Handle<AllocationSite> allocation_site = args.at<AllocationSite>(
+      BinaryOpWithAllocationSiteStub::kAllocationSite);
+  Handle<Object> left = args.at<Object>(
+      BinaryOpWithAllocationSiteStub::kLeft);
+  Handle<Object> right = args.at<Object>(
+      BinaryOpWithAllocationSiteStub::kRight);
+  BinaryOpIC ic(isolate);
+  return ic.Transition(allocation_site, left, right);
 }
 
 

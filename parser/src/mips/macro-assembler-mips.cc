@@ -1228,12 +1228,12 @@ void MacroAssembler::BranchF(Label* target,
 void MacroAssembler::Move(FPURegister dst, double imm) {
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
-  DoubleRepresentation value(imm);
+  DoubleRepresentation value_rep(imm);
   // Handle special values first.
   bool force_load = dst.is(kDoubleRegZero);
-  if (value.bits == zero.bits && !force_load) {
+  if (value_rep == zero && !force_load) {
     mov_d(dst, kDoubleRegZero);
-  } else if (value.bits == minus_zero.bits && !force_load) {
+  } else if (value_rep == minus_zero && !force_load) {
     neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo, hi;
@@ -3905,8 +3905,12 @@ void MacroAssembler::CallStub(CodeStub* stub,
 }
 
 
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
+void MacroAssembler::TailCallStub(CodeStub* stub,
+                                  Condition cond,
+                                  Register r1,
+                                  const Operand& r2,
+                                  BranchDelaySlot bd) {
+  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
 
