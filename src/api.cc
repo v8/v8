@@ -662,12 +662,9 @@ HandleScope::~HandleScope() {
 }
 
 
-int HandleScope::NumberOfHandles() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!EnsureInitializedForIsolate(isolate, "HandleScope::NumberOfHandles")) {
-    return 0;
-  }
-  return i::HandleScope::NumberOfHandles(isolate);
+int HandleScope::NumberOfHandles(Isolate* isolate) {
+  return i::HandleScope::NumberOfHandles(
+      reinterpret_cast<i::Isolate*>(isolate));
 }
 
 

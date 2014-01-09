@@ -11022,45 +11022,44 @@ THREADED_TEST(CallableObject) {
 }
 
 
-static int CountHandles() {
-  return v8::HandleScope::NumberOfHandles();
-}
-
-
-static int Recurse(int depth, int iterations) {
-  v8::HandleScope scope(CcTest::isolate());
-  if (depth == 0) return CountHandles();
+static int Recurse(v8::Isolate* isolate, int depth, int iterations) {
+  v8::HandleScope scope(isolate);
+  if (depth == 0) return v8::HandleScope::NumberOfHandles(isolate);
   for (int i = 0; i < iterations; i++) {
-    Local<v8::Number> n(v8::Integer::New(CcTest::isolate(), 42));
+    Local<v8::Number> n(v8::Integer::New(isolate, 42));
   }
-  return Recurse(depth - 1, iterations);
+  return Recurse(isolate, depth - 1, iterations);
 }
 
 
 THREADED_TEST(HandleIteration) {
   static const int kIterations = 500;
   static const int kNesting = 200;
-  CHECK_EQ(0, CountHandles());
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope0(isolate);
+  CHECK_EQ(0, v8::HandleScope::NumberOfHandles(isolate));
   {
-    v8::HandleScope scope1(CcTest::isolate());
-    CHECK_EQ(0, CountHandles());
+    v8::HandleScope scope1(isolate);
+    CHECK_EQ(0, v8::HandleScope::NumberOfHandles(isolate));
     for (int i = 0; i < kIterations; i++) {
       Local<v8::Number> n(v8::Integer::New(CcTest::isolate(), 42));
-      CHECK_EQ(i + 1, CountHandles());
+      CHECK_EQ(i + 1, v8::HandleScope::NumberOfHandles(isolate));
     }
 
-    CHECK_EQ(kIterations, CountHandles());
+    CHECK_EQ(kIterations, v8::HandleScope::NumberOfHandles(isolate));
     {
       v8::HandleScope scope2(CcTest::isolate());
       for (int j = 0; j < kIterations; j++) {
         Local<v8::Number> n(v8::Integer::New(CcTest::isolate(), 42));
-        CHECK_EQ(j + 1 + kIterations, CountHandles());
+        CHECK_EQ(j + 1 + kIterations,
+                 v8::HandleScope::NumberOfHandles(isolate));
       }
     }
-    CHECK_EQ(kIterations, CountHandles());
+    CHECK_EQ(kIterations, v8::HandleScope::NumberOfHandles(isolate));
   }
-  CHECK_EQ(0, CountHandles());
-  CHECK_EQ(kNesting * kIterations, Recurse(kNesting, kIterations));
+  CHECK_EQ(0, v8::HandleScope::NumberOfHandles(isolate));
+  CHECK_EQ(kNesting * kIterations, Recurse(isolate, kNesting, kIterations));
 }
 
 

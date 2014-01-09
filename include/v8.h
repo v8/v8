@@ -823,7 +823,7 @@ class V8_EXPORT HandleScope {
   /**
    * Counts the number of allocated handles.
    */
-  static int NumberOfHandles();
+  static int NumberOfHandles(Isolate* isolate);
 
  private:
   /**
