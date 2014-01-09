@@ -109,8 +109,9 @@ var kMessages = {
   invalid_argument:              ["invalid_argument"],
   data_view_not_array_buffer:    ["First argument to DataView constructor must be an ArrayBuffer"],
   constructor_not_function:      ["Constructor ", "%0", " requires 'new'"],
-  not_a_promise:                 ["%0", "is not a promise"],
-  promise_cyclic:                ["Chaining cycle detected for promise", "%0"],
+  not_a_promise:                 ["%0", " is not a promise"],
+  resolver_not_a_function:       ["Promise resolver ", "%0", " is not a function"],
+  promise_cyclic:                ["Chaining cycle detected for promise ", "%0"],
   array_functions_on_frozen:     ["Cannot modify frozen array elements"],
   array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
   // RangeError

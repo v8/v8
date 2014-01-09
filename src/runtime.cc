@@ -2663,14 +2663,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsCallable) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsCallable());
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsClassicModeFunction) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
