@@ -323,7 +323,7 @@ template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
   HValue* number = GetParameter(NumberToStringStub::kNumber);
-  return BuildNumberToString(number, handle(Type::Number(), isolate()));
+  return BuildNumberToString(number, Type::Number(isolate()));
 }
 
 
@@ -896,7 +896,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
-                    handle(Type::String(), isolate()), right_type,
+                    Type::String(isolate()), right_type,
                     result_type, state.fixed_right_arg(),
                     allocation_mode));
       }
@@ -916,7 +916,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
-                    left_type, handle(Type::String(), isolate()),
+                    left_type, Type::String(isolate()),
                     result_type, state.fixed_right_arg(),
                     allocation_mode));
       }

@@ -997,10 +997,9 @@ bool IC::UpdatePolymorphicIC(Handle<Type> type,
 
 
 Handle<Type> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
-  Type* type = object->IsJSGlobalObject()
-      ? Type::Constant(Handle<JSGlobalObject>::cast(object))
-      : Type::OfCurrently(object);
-  return handle(type, isolate);
+  return object->IsJSGlobalObject()
+      ? Type::Constant(Handle<JSGlobalObject>::cast(object), isolate)
+      : Type::OfCurrently(object, isolate);
 }
 
 
@@ -1015,11 +1014,12 @@ Handle<Map> IC::TypeToMap(Type* type, Isolate* isolate) {
 }
 
 
-Type* IC::MapToType(Handle<Map> map) {
-  if (map->instance_type() == HEAP_NUMBER_TYPE) return Type::Number();
+Handle<Type> IC::MapToType(Handle<Map> map) {
+  Isolate* isolate = map->GetIsolate();
+  if (map->instance_type() == HEAP_NUMBER_TYPE) return Type::Number(isolate);
   // The only oddballs that can be recorded in ICs are booleans.
-  if (map->instance_type() == ODDBALL_TYPE) return Type::Boolean();
-  return Type::Class(map);
+  if (map->instance_type() == ODDBALL_TYPE) return Type::Boolean(isolate);
+  return Type::Class(map, isolate);
 }
 
 
@@ -1044,7 +1044,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 }
 
 
-bool IC::IsTransitionOfMonomorphicTarget(Type* type) {
+bool IC::IsTransitionOfMonomorphicTarget(Handle<Type> type) {
   if (!type->IsClass()) return false;
   Map* receiver_map = *type->AsClass();
   Map* current_map = target()->FindFirstMap();
@@ -1076,7 +1076,7 @@ void IC::PatchCache(Handle<Type> type,
              target()->is_keyed_call_stub() ||
              !target().is_identical_to(code));
       Code* old_handler = target()->FindFirstHandler();
-      if (old_handler == *code && IsTransitionOfMonomorphicTarget(*type)) {
+      if (old_handler == *code && IsTransitionOfMonomorphicTarget(type)) {
         UpdateMonomorphicIC(type, code, name);
         break;
       }
@@ -2620,10 +2620,9 @@ Handle<Type> BinaryOpIC::State::GetResultType(Isolate* isolate) const {
   if (HasSideEffects()) {
     result_kind = NONE;
   } else if (result_kind == GENERIC && op_ == Token::ADD) {
-    return handle(Type::Union(handle(Type::Number(), isolate),
-                              handle(Type::String(), isolate)), isolate);
+    return Type::Union(Type::Number(isolate), Type::String(isolate), isolate);
   } else if (result_kind == NUMBER && op_ == Token::SHR) {
-    return handle(Type::Unsigned32(), isolate);
+    return Type::Unsigned32(isolate);
   }
   ASSERT_NE(GENERIC, result_kind);
   return KindToType(result_kind, isolate);
@@ -2758,16 +2757,16 @@ const char* BinaryOpIC::State::KindToString(Kind kind) {
 
 // static
 Handle<Type> BinaryOpIC::State::KindToType(Kind kind, Isolate* isolate) {
-  Type* type = NULL;
   switch (kind) {
-    case NONE: type = Type::None(); break;
-    case SMI: type = Type::Smi(); break;
-    case INT32: type = Type::Signed32(); break;
-    case NUMBER: type = Type::Number(); break;
-    case STRING: type = Type::String(); break;
-    case GENERIC: type = Type::Any(); break;
+    case NONE: return Type::None(isolate);
+    case SMI: return Type::Smi(isolate);
+    case INT32: return Type::Signed32(isolate);
+    case NUMBER: return Type::Number(isolate);
+    case STRING: return Type::String(isolate);
+    case GENERIC: return Type::Any(isolate);
   }
-  return handle(type, isolate);
+  UNREACHABLE();
+  return Handle<Type>();
 }
 
 
@@ -2902,25 +2901,18 @@ Handle<Type> CompareIC::StateToType(
     CompareIC::State state,
     Handle<Map> map) {
   switch (state) {
-    case CompareIC::UNINITIALIZED:
-      return handle(Type::None(), isolate);
-    case CompareIC::SMI:
-      return handle(Type::Smi(), isolate);
-    case CompareIC::NUMBER:
-      return handle(Type::Number(), isolate);
-    case CompareIC::STRING:
-      return handle(Type::String(), isolate);
+    case CompareIC::UNINITIALIZED: return Type::None(isolate);
+    case CompareIC::SMI: return Type::Smi(isolate);
+    case CompareIC::NUMBER: return Type::Number(isolate);
+    case CompareIC::STRING: return Type::String(isolate);
     case CompareIC::INTERNALIZED_STRING:
-      return handle(Type::InternalizedString(), isolate);
-    case CompareIC::UNIQUE_NAME:
-      return handle(Type::UniqueName(), isolate);
-    case CompareIC::OBJECT:
-      return handle(Type::Receiver(), isolate);
+      return Type::InternalizedString(isolate);
+    case CompareIC::UNIQUE_NAME: return Type::UniqueName(isolate);
+    case CompareIC::OBJECT: return Type::Receiver(isolate);
     case CompareIC::KNOWN_OBJECT:
-      return handle(
-          map.is_null() ? Type::Receiver() : Type::Class(map), isolate);
-    case CompareIC::GENERIC:
-      return handle(Type::Any(), isolate);
+      return map.is_null()
+          ? Type::Receiver(isolate) : Type::Class(map, isolate);
+    case CompareIC::GENERIC: return Type::Any(isolate);
   }
   UNREACHABLE();
   return Handle<Type>();

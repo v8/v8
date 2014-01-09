@@ -58,7 +58,9 @@ namespace v8 {
 namespace internal {
 
 class Smi;
-class Type;
+template<class> class TypeImpl;
+class HeapTypeConfig;
+typedef TypeImpl<HeapTypeConfig> Type;
 class TypeInfo;
 
 // Type of properties.
@@ -105,9 +107,7 @@ class Representation {
   static Representation Integer8() { return Representation(kInteger8); }
   static Representation UInteger8() { return Representation(kUInteger8); }
   static Representation Integer16() { return Representation(kInteger16); }
-  static Representation UInteger16() {
-    return Representation(kUInteger16);
-  }
+  static Representation UInteger16() { return Representation(kUInteger16); }
   static Representation Smi() { return Representation(kSmi); }
   static Representation Integer32() { return Representation(kInteger32); }
   static Representation Double() { return Representation(kDouble); }

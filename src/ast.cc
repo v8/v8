@@ -1141,7 +1141,7 @@ CaseClause::CaseClause(Isolate* isolate,
     : Expression(isolate, pos),
       label_(label),
       statements_(statements),
-      compare_type_(Type::None(), isolate),
+      compare_type_(Type::None(isolate)),
       compare_id_(AstNode::GetNextId(isolate)),
       entry_id_(AstNode::GetNextId(isolate)) {
 }

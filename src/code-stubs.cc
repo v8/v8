@@ -480,21 +480,20 @@ Handle<Type> CompareNilICStub::GetType(
     Isolate* isolate,
     Handle<Map> map) {
   if (state_.Contains(CompareNilICStub::GENERIC)) {
-    return handle(Type::Any(), isolate);
+    return Type::Any(isolate);
   }
 
-  Handle<Type> result(Type::None(), isolate);
+  Handle<Type> result = Type::None(isolate);
   if (state_.Contains(CompareNilICStub::UNDEFINED)) {
-    result = handle(Type::Union(result, handle(Type::Undefined(), isolate)),
-                    isolate);
+    result = Type::Union(result, Type::Undefined(isolate), isolate);
   }
   if (state_.Contains(CompareNilICStub::NULL_TYPE)) {
-    result = handle(Type::Union(result, handle(Type::Null(), isolate)),
-                    isolate);
+    result = Type::Union(result, Type::Null(isolate), isolate);
   }
   if (state_.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
-    Type* type = map.is_null() ? Type::Detectable() : Type::Class(map);
-    result = handle(Type::Union(result, handle(type, isolate)), isolate);
+    Handle<Type> type = map.is_null()
+        ? Type::Detectable(isolate) : Type::Class(map, isolate);
+    result = Type::Union(result, type, isolate);
   }
 
   return result;
@@ -505,9 +504,9 @@ Handle<Type> CompareNilICStub::GetInputType(
     Isolate* isolate,
     Handle<Map> map) {
   Handle<Type> output_type = GetType(isolate, map);
-  Handle<Type> nil_type = handle(nil_value_ == kNullValue
-      ? Type::Null() : Type::Undefined(), isolate);
-  return handle(Type::Union(output_type, nil_type), isolate);
+  Handle<Type> nil_type = nil_value_ == kNullValue
+      ? Type::Null(isolate) : Type::Undefined(isolate);
+  return Type::Union(output_type, nil_type, isolate);
 }
 
 
