@@ -4274,7 +4274,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // Make sure that we actually patched the allocation site.
   if (FLAG_debug_code) {
     __ testb(rcx, Immediate(kSmiTagMask));
-    __ Assert(zero, kExpectedAllocationSite);
+    __ Assert(not_equal, kExpectedAllocationSite);
     __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
            isolate->factory()->allocation_site_map());
     __ Assert(equal, kExpectedAllocationSite);
