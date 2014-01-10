@@ -280,7 +280,9 @@ class TypeImpl : public Config::Base {
   int ExtendIntersection(
       UnionedHandle unioned, TypeHandle type, int current_size);
 
+#ifdef OBJECT_PRINT
   static const char* bitset_name(int bitset);
+#endif
 };
 
 
