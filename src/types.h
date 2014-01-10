@@ -131,44 +131,72 @@ namespace internal {
   V(Detectable,      kAllocated - kUndetectable)
 
 
-class Type : public Object {
+// struct Config {
+//   typedef Base;
+//   typedef Unioned;
+//   typedef Region;
+//   template<class> struct Handle { typedef type; }  // No template typedefs...
+//   static Handle<Type>::type handle(Type* type);    // !is_bitset(type)
+//   static bool is_bitset(Type* type);
+//   static bool is_class(Type* type);
+//   static bool is_constant(Type* type);
+//   static bool is_union(Type* type);
+//   static int as_bitset(Type* type);
+//   static i::Handle<i::Map> as_class(Type* type);
+//   static i::Handle<i::Object> as_constant(Type* type);
+//   static Handle<Unioned>::type as_union(Type* type);
+//   static Type* from_bitset(int bitset);
+//   static Handle<Type>::type from_bitset(int bitset, Region* region);
+//   static Handle<Type>::type from_class(i::Handle<i::Map> map, Region* region)
+//   static Handle<Type>::type from_constant(
+//                               i::Handle<i::Object> value, Region* region);
+//   static Handle<Type>::type from_union(Handle<Unioned>::T unioned);
+//   static Handle<Unioned>::type union_create(int size, Region* region);
+//   static Handle<Type>::type union_get(Handle<Unioned>::T unioned, int i);
+// }
+template<class Config>
+class TypeImpl : public Config::Base {
  public:
-  #define DEFINE_TYPE_CONSTRUCTOR(type, value)           \
-    static Type* type() { return from_bitset(k##type); }
+  typedef typename Config::template Handle<TypeImpl>::type TypeHandle;
+  typedef typename Config::Region Region;
+
+  #define DEFINE_TYPE_CONSTRUCTOR(type, value)                        \
+    static TypeImpl* type() { return Config::from_bitset(k##type); }  \
+    static TypeHandle type(Region* region) {                          \
+      return Config::from_bitset(k##type, region);                    \
+    }
   BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
   #undef DEFINE_TYPE_CONSTRUCTOR
 
-  static Type* Class(Handle<i::Map> map) { return from_handle(map); }
-  static Type* Constant(Handle<i::HeapObject> value) {
-    return Constant(value, value->GetIsolate());
+  static TypeHandle Class(i::Handle<i::Map> map, Region* region) {
+    return Config::from_class(map, region);
   }
-  static Type* Constant(Handle<i::Object> value, Isolate* isolate) {
-    return from_handle(isolate->factory()->NewBox(value));
-  }
-
-  static Type* Union(Handle<Type> type1, Handle<Type> type2);
-  static Type* Intersect(Handle<Type> type1, Handle<Type> type2);
-  static Type* Optional(Handle<Type> type);  // type \/ Undefined
-
-  static Type* Of(Handle<i::Object> value) {
-    return from_bitset(LubBitset(*value));
+  static TypeHandle Constant(i::Handle<i::Object> value, Region* region) {
+    return Config::from_constant(value, region);
   }
 
-  bool Is(Type* that) { return this == that || SlowIs(that); }
-  bool Is(Handle<Type> that) { return this->Is(*that); }
-  bool Maybe(Type* that);
-  bool Maybe(Handle<Type> that) { return this->Maybe(*that); }
+  static TypeHandle Union(TypeHandle type1, TypeHandle type2, Region* reg);
+  static TypeHandle Intersect(TypeHandle type1, TypeHandle type2, Region* reg);
+
+  static TypeHandle Of(i::Handle<i::Object> value, Region* region) {
+    return Config::from_bitset(LubBitset(*value), region);
+  }
+
+  bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }
+  bool Is(TypeHandle that) { return this->Is(*that); }
+  bool Maybe(TypeImpl* that);
+  bool Maybe(TypeHandle that) { return this->Maybe(*that); }
 
   // State-dependent versions of Of and Is that consider subtyping between
   // a constant and its map class.
-  static Type* OfCurrently(Handle<i::Object> value);
-  bool IsCurrently(Type* that);
-  bool IsCurrently(Handle<Type> that)  { return this->IsCurrently(*that); }
+  static TypeHandle OfCurrently(i::Handle<i::Object> value, Region* region);
+  bool IsCurrently(TypeImpl* that);
+  bool IsCurrently(TypeHandle that)  { return this->IsCurrently(*that); }
 
-  bool IsClass() { return is_class(); }
-  bool IsConstant() { return is_constant(); }
-  Handle<i::Map> AsClass() { return as_class(); }
-  Handle<i::Object> AsConstant() { return as_constant(); }
+  bool IsClass() { return Config::is_class(this); }
+  bool IsConstant() { return Config::is_constant(this); }
+  i::Handle<i::Map> AsClass() { return Config::as_class(this); }
+  i::Handle<i::Object> AsConstant() { return Config::as_constant(this); }
 
   int NumClasses();
   int NumConstants();
@@ -177,37 +205,36 @@ class Type : public Object {
   class Iterator {
    public:
     bool Done() const { return index_ < 0; }
-    Handle<T> Current();
+    i::Handle<T> Current();
     void Advance();
 
    private:
-    friend class Type;
+    template<class> friend class TypeImpl;
 
     Iterator() : index_(-1) {}
-    explicit Iterator(Handle<Type> type) : type_(type), index_(-1) {
+    explicit Iterator(TypeHandle type) : type_(type), index_(-1) {
       Advance();
     }
 
-    inline bool matches(Handle<Type> type);
-    inline Handle<Type> get_type();
+    inline bool matches(TypeHandle type);
+    inline TypeHandle get_type();
 
-    Handle<Type> type_;
+    TypeHandle type_;
     int index_;
   };
 
   Iterator<i::Map> Classes() {
-    if (this->is_bitset()) return Iterator<i::Map>();
-    return Iterator<i::Map>(this->handle());
+    if (this->IsBitset()) return Iterator<i::Map>();
+    return Iterator<i::Map>(Config::handle(this));
   }
   Iterator<i::Object> Constants() {
-    if (this->is_bitset()) return Iterator<i::Object>();
-    return Iterator<i::Object>(this->handle());
+    if (this->IsBitset()) return Iterator<i::Object>();
+    return Iterator<i::Object>(Config::handle(this));
   }
 
-  static Type* cast(i::Object* object) {
-    Type* t = static_cast<Type*>(object);
-    ASSERT(t->is_bitset() || t->is_class() ||
-           t->is_constant() || t->is_union());
+  static TypeImpl* cast(i::Object* object) {
+    TypeImpl* t = static_cast<TypeImpl*>(object);
+    ASSERT(t->IsBitset() || t->IsClass() || t->IsConstant() || t->IsUnion());
     return t;
   }
 
@@ -217,11 +244,14 @@ class Type : public Object {
 #endif
 
  private:
+  template<class> friend class Iterator;
+
   // A union is a fixed array containing types. Invariants:
   // - its length is at least 2
   // - at most one field is a bitset, and it must go into index 0
   // - no field is a union
-  typedef FixedArray Unioned;
+  typedef typename Config::Unioned Unioned;
+  typedef typename Config::template Handle<Unioned>::type UnionedHandle;
 
   enum {
     #define DECLARE_TYPE(type, value) k##type = (value),
@@ -230,40 +260,14 @@ class Type : public Object {
     kUnusedEOL = 0
   };
 
-  bool is_none() { return this == None(); }
-  bool is_bitset() { return this->IsSmi(); }
-  bool is_class() { return this->IsMap(); }
-  bool is_constant() { return this->IsBox(); }
-  bool is_union() { return this->IsFixedArray(); }
+  bool IsNone() { return this == None(); }
+  bool IsAny() { return this == Any(); }
+  bool IsBitset() { return Config::is_bitset(this); }
+  bool IsUnion() { return Config::is_union(this); }
+  int AsBitset() { return Config::as_bitset(this); }
+  UnionedHandle AsUnion() { return Config::as_union(this); }
 
-  bool SlowIs(Type* that);
-
-  int as_bitset() { return Smi::cast(this)->value(); }
-  Handle<i::Map> as_class() { return Handle<i::Map>::cast(handle()); }
-  Handle<i::Object> as_constant() {
-    Handle<i::Box> box = Handle<i::Box>::cast(handle());
-    return i::handle(box->value(), box->GetIsolate());
-  }
-  Handle<Unioned> as_union() { return Handle<Unioned>::cast(handle()); }
-
-  Handle<Type> handle() { return handle_via_isolate_of(this); }
-  Handle<Type> handle_via_isolate_of(Type* type) {
-    ASSERT(type->IsHeapObject());
-    return i::handle(this, i::HeapObject::cast(type)->GetIsolate());
-  }
-
-  static Type* from_bitset(int bitset) {
-    return static_cast<Type*>(i::Object::cast(i::Smi::FromInt(bitset)));
-  }
-  static Type* from_handle(Handle<i::HeapObject> handle) {
-    return static_cast<Type*>(i::Object::cast(*handle));
-  }
-
-  static Handle<Type> union_get(Handle<Unioned> unioned, int i) {
-    Type* type = static_cast<Type*>(unioned->get(i));
-    ASSERT(!type->is_union());
-    return type->handle_via_isolate_of(from_handle(unioned));
-  }
+  bool SlowIs(TypeImpl* that);
 
   int LubBitset();  // least upper bound that's a bitset
   int GlbBitset();  // greatest lower bound that's a bitset
@@ -271,66 +275,130 @@ class Type : public Object {
   static int LubBitset(i::Object* value);
   static int LubBitset(i::Map* map);
 
-  bool InUnion(Handle<Unioned> unioned, int current_size);
-  int ExtendUnion(Handle<Unioned> unioned, int current_size);
+  bool InUnion(UnionedHandle unioned, int current_size);
+  int ExtendUnion(UnionedHandle unioned, int current_size);
   int ExtendIntersection(
-      Handle<Unioned> unioned, Handle<Type> type, int current_size);
+      UnionedHandle unioned, TypeHandle type, int current_size);
 
   static const char* bitset_name(int bitset);
 };
 
 
-// A simple struct to represent a pair of lower/upper type bounds.
-struct Bounds {
-  Handle<Type> lower;
-  Handle<Type> upper;
+struct HeapTypeConfig {
+  typedef TypeImpl<HeapTypeConfig> Type;
+  typedef i::Object Base;
+  typedef i::FixedArray Unioned;
+  typedef i::Isolate Region;
+  template<class T> struct Handle { typedef i::Handle<T> type; };
 
-  Bounds() {}
-  Bounds(Handle<Type> l, Handle<Type> u) : lower(l), upper(u) {
-    ASSERT(lower->Is(upper));
+  static i::Handle<Type> handle(Type* type) {
+    return i::handle(type, i::HeapObject::cast(type)->GetIsolate());
   }
-  Bounds(Type* l, Type* u, Isolate* isl) : lower(l, isl), upper(u, isl) {
-    ASSERT(lower->Is(upper));
+
+  static bool is_bitset(Type* type) { return type->IsSmi(); }
+  static bool is_class(Type* type) { return type->IsMap(); }
+  static bool is_constant(Type* type) { return type->IsBox(); }
+  static bool is_union(Type* type) { return type->IsFixedArray(); }
+
+  static int as_bitset(Type* type) {
+    return Smi::cast(type)->value();
   }
-  explicit Bounds(Handle<Type> t) : lower(t), upper(t) {
-    ASSERT(lower->Is(upper));
+  static i::Handle<i::Map> as_class(Type* type) {
+    return i::handle(i::Map::cast(type));
   }
-  Bounds(Type* t, Isolate* isl) : lower(t, isl), upper(t, isl) {
+  static i::Handle<i::Object> as_constant(Type* type) {
+    i::Box* box = i::Box::cast(type);
+    return i::handle(box->value(), box->GetIsolate());
+  }
+  static i::Handle<Unioned> as_union(Type* type) {
+    return i::handle(i::FixedArray::cast(type));
+  }
+
+  static Type* from_bitset(int bitset) {
+    return Type::cast(i::Smi::FromInt(bitset));
+  }
+  static i::Handle<Type> from_bitset(int bitset, Isolate* isolate) {
+    return i::handle(from_bitset(bitset), isolate);
+  }
+  static i::Handle<Type> from_class(i::Handle<i::Map> map, Isolate* isolate) {
+    return i::Handle<Type>::cast(i::Handle<Object>::cast(map));
+  }
+  static i::Handle<Type> from_constant(
+      i::Handle<i::Object> value, Isolate* isolate) {
+    ASSERT(isolate || value->IsHeapObject());
+    if (!isolate) isolate = i::HeapObject::cast(*value)->GetIsolate();
+    i::Handle<Box> box = isolate->factory()->NewBox(value);
+    return i::Handle<Type>::cast(i::Handle<Object>::cast(box));
+  }
+  static i::Handle<Type> from_union(i::Handle<Unioned> unioned) {
+    return i::Handle<Type>::cast(i::Handle<Object>::cast(unioned));
+  }
+
+  static i::Handle<Unioned> union_create(int size, Isolate* isolate) {
+    return isolate->factory()->NewFixedArray(size);
+  }
+  static i::Handle<Type> union_get(i::Handle<Unioned> unioned, int i) {
+    Type* type = static_cast<Type*>(unioned->get(i));
+    ASSERT(!is_union(type));
+    return i::handle(type, unioned->GetIsolate());
+  }
+};
+
+typedef TypeImpl<HeapTypeConfig> Type;
+
+
+// A simple struct to represent a pair of lower/upper type bounds.
+template<class Config>
+struct BoundsImpl {
+  typedef TypeImpl<Config> Type;
+  typedef typename Type::TypeHandle TypeHandle;
+  typedef typename Type::Region Region;
+
+  TypeHandle lower;
+  TypeHandle upper;
+
+  BoundsImpl() {}
+  explicit BoundsImpl(TypeHandle t) : lower(t), upper(t) {}
+  BoundsImpl(TypeHandle l, TypeHandle u) : lower(l), upper(u) {
     ASSERT(lower->Is(upper));
   }
 
   // Unrestricted bounds.
-  static Bounds Unbounded(Isolate* isl) {
-    return Bounds(Type::None(), Type::Any(), isl);
+  static BoundsImpl Unbounded(Region* region) {
+    return BoundsImpl(Type::None(region), Type::Any(region));
   }
 
   // Meet: both b1 and b2 are known to hold.
-  static Bounds Both(Bounds b1, Bounds b2, Isolate* isl) {
-    Handle<Type> lower(Type::Union(b1.lower, b2.lower), isl);
-    Handle<Type> upper(Type::Intersect(b1.upper, b2.upper), isl);
+  static BoundsImpl Both(BoundsImpl b1, BoundsImpl b2, Region* region) {
+    TypeHandle lower = Type::Union(b1.lower, b2.lower, region);
+    TypeHandle upper = Type::Intersect(b1.upper, b2.upper, region);
     // Lower bounds are considered approximate, correct as necessary.
-    lower = handle(Type::Intersect(lower, upper), isl);
-    return Bounds(lower, upper);
+    lower = Type::Intersect(lower, upper, region);
+    return BoundsImpl(lower, upper);
   }
 
   // Join: either b1 or b2 is known to hold.
-  static Bounds Either(Bounds b1, Bounds b2, Isolate* isl) {
-    return Bounds(
-        handle(Type::Intersect(b1.lower, b2.lower), isl),
-        handle(Type::Union(b1.upper, b2.upper), isl));
+  static BoundsImpl Either(BoundsImpl b1, BoundsImpl b2, Region* region) {
+    TypeHandle lower = Type::Intersect(b1.lower, b2.lower, region);
+    TypeHandle upper = Type::Union(b1.upper, b2.upper, region);
+    return BoundsImpl(lower, upper);
   }
 
-  static Bounds NarrowLower(Bounds b, Handle<Type> t, Isolate* isl) {
+  static BoundsImpl NarrowLower(BoundsImpl b, TypeHandle t, Region* region) {
     // Lower bounds are considered approximate, correct as necessary.
-    t = handle(Type::Intersect(t, b.upper), isl);
-    return Bounds(handle(Type::Union(b.lower, t), isl), b.upper);
+    t = Type::Intersect(t, b.upper, region);
+    TypeHandle lower = Type::Union(b.lower, t, region);
+    return BoundsImpl(lower, b.upper);
   }
-  static Bounds NarrowUpper(Bounds b, Handle<Type> t, Isolate* isl) {
-    return Bounds(
-        handle(Type::Intersect(b.lower, t), isl),
-        handle(Type::Intersect(b.upper, t), isl));
+  static BoundsImpl NarrowUpper(BoundsImpl b, TypeHandle t, Region* region) {
+    TypeHandle lower = Type::Intersect(b.lower, t, region);
+    TypeHandle upper = Type::Intersect(b.upper, t, region);
+    return BoundsImpl(lower, upper);
   }
 };
+
+typedef BoundsImpl<HeapTypeConfig> Bounds;
+
 
 } }  // namespace v8::internal
 
