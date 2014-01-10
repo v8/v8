@@ -2803,31 +2803,44 @@ Handle<Map> Map::GeneralizeAllFieldRepresentations(
 }
 
 
-Map* Map::CurrentMapForDeprecated() {
+Handle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
+  Handle<Map> proto_map(map);
+  while (proto_map->prototype()->IsJSObject()) {
+    Handle<JSObject> holder(JSObject::cast(proto_map->prototype()));
+    if (holder->map()->is_deprecated()) {
+      JSObject::TryMigrateInstance(holder);
+    }
+    proto_map = Handle<Map>(holder->map());
+  }
+  return CurrentMapForDeprecatedInternal(map);
+}
+
+
+Handle<Map> Map::CurrentMapForDeprecatedInternal(Handle<Map> map) {
+  if (!map->is_deprecated()) return map;
+
   DisallowHeapAllocation no_allocation;
-  if (!is_deprecated()) return this;
+  DescriptorArray* old_descriptors = map->instance_descriptors();
 
-  DescriptorArray* old_descriptors = instance_descriptors();
-
-  int descriptors = NumberOfOwnDescriptors();
-  Map* root_map = FindRootMap();
+  int descriptors = map->NumberOfOwnDescriptors();
+  Map* root_map = map->FindRootMap();
 
   // Check the state of the root map.
-  if (!EquivalentToForTransition(root_map)) return NULL;
+  if (!map->EquivalentToForTransition(root_map)) return Handle<Map>();
   int verbatim = root_map->NumberOfOwnDescriptors();
 
   Map* updated = root_map->FindUpdatedMap(
       verbatim, descriptors, old_descriptors);
-  if (updated == NULL) return NULL;
+  if (updated == NULL) return Handle<Map>();
 
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
   int valid = updated->NumberOfOwnDescriptors();
   if (!updated_descriptors->IsMoreGeneralThan(
           verbatim, valid, descriptors, old_descriptors)) {
-    return NULL;
+    return Handle<Map>();
   }
 
-  return updated;
+  return handle(updated);
 }
 
 
@@ -3879,10 +3892,10 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 
 
 Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
-  Map* new_map = object->map()->CurrentMapForDeprecated();
-  if (new_map == NULL) return Handle<Object>();
   Handle<Map> original_map(object->map());
-  JSObject::MigrateToMap(object, handle(new_map));
+  Handle<Map> new_map = Map::CurrentMapForDeprecatedInternal(original_map);
+  if (new_map.is_null()) return Handle<Object>();
+  JSObject::MigrateToMap(object, new_map);
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
   }

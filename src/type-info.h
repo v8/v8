@@ -230,18 +230,14 @@ class TypeFeedbackOracle: public ZoneObject {
                      Isolate* isolate,
                      Zone* zone);
 
-  bool LoadIsMonomorphicNormal(TypeFeedbackId id);
   bool LoadIsUninitialized(TypeFeedbackId id);
   bool LoadIsPreMonomorphic(TypeFeedbackId id);
-  bool LoadIsPolymorphic(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
-  bool StoreIsMonomorphicNormal(TypeFeedbackId id);
   bool StoreIsPreMonomorphic(TypeFeedbackId id);
   bool StoreIsKeyedPolymorphic(TypeFeedbackId id);
   bool CallIsMonomorphic(TypeFeedbackId aid);
   bool KeyedArrayCallIsHoley(TypeFeedbackId id);
   bool CallNewIsMonomorphic(TypeFeedbackId id);
-  bool ObjectLiteralStoreIsMonomorphic(TypeFeedbackId id);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
@@ -249,27 +245,13 @@ class TypeFeedbackOracle: public ZoneObject {
   // be possible.
   byte ForInType(TypeFeedbackId id);
 
-  Handle<Map> LoadMonomorphicReceiverType(TypeFeedbackId id);
-  Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
-
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
 
-  void LoadReceiverTypes(TypeFeedbackId id,
-                         Handle<String> name,
-                         SmallMapList* types);
-  void StoreReceiverTypes(TypeFeedbackId id,
-                          Handle<String> name,
-                          SmallMapList* types);
   void CallReceiverTypes(TypeFeedbackId id,
                          Handle<String> name,
                          int arity,
                          CallKind call_kind,
                          SmallMapList* types);
-  void CollectKeyedReceiverTypes(TypeFeedbackId id,
-                                 SmallMapList* types);
-  void CollectPolymorphicStoreReceiverTypes(TypeFeedbackId id,
-                                            SmallMapList* types);
-
   void PropertyReceiverTypes(TypeFeedbackId id,
                              Handle<String> name,
                              SmallMapList* receiver_types,
@@ -286,18 +268,17 @@ class TypeFeedbackOracle: public ZoneObject {
   void CountReceiverTypes(TypeFeedbackId id,
                           SmallMapList* receiver_types);
 
+  void CollectReceiverTypes(TypeFeedbackId id,
+                            SmallMapList* types);
+
   static bool CanRetainOtherContext(Map* map, Context* native_context);
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
-
-  void CollectPolymorphicMaps(Handle<Code> code, SmallMapList* types);
 
   CheckType GetCallCheckType(TypeFeedbackId id);
   Handle<JSFunction> GetCallTarget(TypeFeedbackId id);
   Handle<JSFunction> GetCallNewTarget(TypeFeedbackId id);
   Handle<Cell> GetCallNewAllocationInfoCell(TypeFeedbackId id);
-
-  Handle<Map> GetObjectLiteralStoreMap(TypeFeedbackId id);
 
   bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
   bool LoadIsStub(TypeFeedbackId id, ICStub* stub);

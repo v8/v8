@@ -279,9 +279,8 @@ class SmallMapList V8_FINAL {
   int length() const { return list_.length(); }
 
   void AddMapIfMissing(Handle<Map> map, Zone* zone) {
-    Map* updated = map->CurrentMapForDeprecated();
-    if (updated == NULL) return;
-    map = Handle<Map>(updated);
+    map = Map::CurrentMapForDeprecated(map);
+    if (map.is_null()) return;
     for (int i = 0; i < length(); ++i) {
       if (at(i).is_identical_to(map)) return;
     }
@@ -1691,7 +1690,9 @@ class Property V8_FINAL : public Expression {
   bool IsFunctionPrototype() const { return is_function_prototype_; }
 
   // Type feedback information.
-  virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
+  virtual bool IsMonomorphic() V8_OVERRIDE {
+    return receiver_types_.length() == 1;
+  }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
   }
@@ -1704,7 +1705,6 @@ class Property V8_FINAL : public Expression {
     return is_uninitialized_ || is_pre_monomorphic_;
   }
   void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
-  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
   void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
   void set_is_string_access(bool b) { is_string_access_ = b; }
   void set_is_function_prototype(bool b) { is_function_prototype_ = b; }
@@ -1720,7 +1720,6 @@ class Property V8_FINAL : public Expression {
         obj_(obj),
         key_(key),
         load_id_(GetNextId(isolate)),
-        is_monomorphic_(false),
         is_pre_monomorphic_(false),
         is_uninitialized_(false),
         is_string_access_(false),
@@ -1732,7 +1731,6 @@ class Property V8_FINAL : public Expression {
   const BailoutId load_id_;
 
   SmallMapList receiver_types_;
-  bool is_monomorphic_ : 1;
   bool is_pre_monomorphic_ : 1;
   bool is_uninitialized_ : 1;
   bool is_string_access_ : 1;
@@ -2001,7 +1999,9 @@ class CountOperation V8_FINAL : public Expression {
 
   Expression* expression() const { return expression_; }
 
-  virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
+  virtual bool IsMonomorphic() V8_OVERRIDE {
+    return receiver_types_.length() == 1;
+  }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
   }
@@ -2009,7 +2009,6 @@ class CountOperation V8_FINAL : public Expression {
     return store_mode_;
   }
   Handle<Type> type() const { return type_; }
-  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
   void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
   void set_type(Handle<Type> type) { type_ = type; }
 
@@ -2027,7 +2026,6 @@ class CountOperation V8_FINAL : public Expression {
       : Expression(isolate, pos),
         op_(op),
         is_prefix_(is_prefix),
-        is_monomorphic_(false),
         store_mode_(STANDARD_STORE),
         expression_(expr),
         assignment_id_(GetNextId(isolate)),
@@ -2036,7 +2034,6 @@ class CountOperation V8_FINAL : public Expression {
  private:
   Token::Value op_;
   bool is_prefix_ : 1;
-  bool is_monomorphic_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   Handle<Type> type_;
@@ -2142,7 +2139,9 @@ class Assignment V8_FINAL : public Expression {
 
   // Type feedback information.
   TypeFeedbackId AssignmentFeedbackId() { return reuse(id()); }
-  virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
+  virtual bool IsMonomorphic() V8_OVERRIDE {
+    return receiver_types_.length() == 1;
+  }
   bool IsUninitialized() { return is_uninitialized_; }
   bool IsPreMonomorphic() { return is_pre_monomorphic_; }
   bool HasNoTypeInformation() {
@@ -2155,7 +2154,6 @@ class Assignment V8_FINAL : public Expression {
     return store_mode_;
   }
   void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
-  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
   void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
   void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
 
@@ -2182,7 +2180,6 @@ class Assignment V8_FINAL : public Expression {
   BinaryOperation* binary_operation_;
   const BailoutId assignment_id_;
 
-  bool is_monomorphic_ : 1;
   bool is_uninitialized_ : 1;
   bool is_pre_monomorphic_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,

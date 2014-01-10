@@ -197,6 +197,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 #define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
+    case UninitializedMajorKey: return "<UninitializedMajorKey>Stub";
     default:
       if (!allow_unknown_keys) {
         UNREACHABLE();
