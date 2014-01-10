@@ -2240,7 +2240,7 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
-      "var number_elements = 10000;"
+      "var number_elements = 3000;"
       "var elements = new Array(number_elements);"
       "function DataObject() {"
       "  this.a = [{}];"
@@ -2349,7 +2349,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
       "var elements = new Array(number_elements);"
       "function f() {"
       "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = {a: 1.1, b: 2.2, c: 3.3};"
+      "    elements[i] = {a: 1.1, b: 2.2};"
       "  }"
       "  return elements[i - 1];"
       "};"
