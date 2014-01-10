@@ -10195,7 +10195,8 @@ THREADED_TEST(Regress91517) {
   // Call the runtime version of GetLocalPropertyNames() on the natively
   // created object through JavaScript.
   context->Global()->Set(v8_str("obj"), o4);
-  CompileRun("var names = %GetLocalPropertyNames(obj, true);");
+  // PROPERTY_ATTRIBUTES_NONE = 0
+  CompileRun("var names = %GetLocalPropertyNames(obj, 0);");
 
   ExpectInt32("names.length", 1006);
   ExpectTrue("names.indexOf(\"baz\") >= 0");
@@ -10249,7 +10250,8 @@ THREADED_TEST(Regress269562) {
   // the natively created object through JavaScript.
   context->Global()->Set(v8_str("obj"), o2);
   context->Global()->Set(v8_str("sym"), sym);
-  CompileRun("var names = %GetLocalPropertyNames(obj, true);");
+  // PROPERTY_ATTRIBUTES_NONE = 0
+  CompileRun("var names = %GetLocalPropertyNames(obj, 0);");
 
   ExpectInt32("names.length", 7);
   ExpectTrue("names.indexOf(\"foo\") >= 0");
@@ -21228,7 +21230,8 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%HasElement(other, 1)");
   CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
   CheckCorrectThrow("%GetPropertyNames(other)");
-  CheckCorrectThrow("%GetLocalPropertyNames(other, true)");
+  // PROPERTY_ATTRIBUTES_NONE = 0
+  CheckCorrectThrow("%GetLocalPropertyNames(other, 0)");
   CheckCorrectThrow("%DefineOrRedefineAccessorProperty("
                         "other, 'x', null, null, 1)");
 

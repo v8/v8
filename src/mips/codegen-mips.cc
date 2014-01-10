@@ -525,12 +525,32 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
 }
 #endif
 
-#undef __
-
-
 UnaryMathFunction CreateSqrtFunction() {
-  return &sqrt;
+#if defined(USE_SIMULATOR)
+  return &std::sqrt;
+#else
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return &std::sqrt;
+
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+
+  __ GetFromCDoubleArguments(f12);
+  __ sqrt_d(f0, f12);
+  __ SetForCDoubleResult(f0);
+  __ Ret();
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
+
+  CPU::FlushICache(buffer, actual_size);
+  OS::ProtectCode(buffer, actual_size);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+#endif
 }
+
+#undef __
 
 
 // -------------------------------------------------------------------------

@@ -651,7 +651,7 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 
   TypeHandleList types(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); i++) {
-    types.Add(handle(Type::Class(receiver_maps->at(i)), isolate()));
+    types.Add(Type::Class(receiver_maps->at(i), isolate()));
   }
   CodeHandleList handlers(receiver_maps->length());
   KeyedLoadStubCompiler compiler(isolate_);

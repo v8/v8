@@ -3526,11 +3526,29 @@ void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
 }
 
 
+void MacroAssembler::GetFromCDoubleArguments(const DoubleRegister dst) {
+  if (IsMipsSoftFloatABI) {
+    Move(dst, a0, a1);
+  } else {
+    Move(dst, f12);  // Reg f12 is o32 ABI FP first argument value.
+  }
+}
+
+
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
   if (!IsMipsSoftFloatABI) {
     Move(f12, dreg);
   } else {
     Move(a0, a1, dreg);
+  }
+}
+
+
+void MacroAssembler::SetForCDoubleResult(DoubleRegister dreg) {
+  if (!IsMipsSoftFloatABI) {
+    Move(f0, dreg);
+  } else {
+    Move(v0, v1, dreg);
   }
 }
 

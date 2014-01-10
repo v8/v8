@@ -484,15 +484,16 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
+  Heap* heap = object->GetHeap();
   if (FLAG_allocation_site_pretenuring &&
+      heap->new_space_high_promotion_mode_active_ &&
       AllocationSite::CanTrack(object->map()->instance_type())) {
     AllocationMemento* memento = AllocationMemento::FindForHeapObject(
-        object, true);
+        object, heap, true);
     if (memento != NULL) {
       ASSERT(memento->IsValid());
       bool add_to_scratchpad =
           memento->GetAllocationSite()->IncrementMementoFoundCount();
-      Heap* heap = object->GetIsolate()->heap();
       if (add_to_scratchpad && heap->allocation_sites_scratchpad_length <
               kAllocationSiteScratchpadSize) {
         heap->allocation_sites_scratchpad[

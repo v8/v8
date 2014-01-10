@@ -171,7 +171,7 @@ class IC {
   //   well as smis.
   // - The oddball map is only used for booleans.
   static Handle<Map> TypeToMap(Type* type, Isolate* isolate);
-  static Type* MapToType(Handle<Map> type);
+  static Handle<Type> MapToType(Handle<Map> type);
   static Handle<Type> CurrentTypeOf(Handle<Object> object, Isolate* isolate);
 
   ContextualMode contextual_mode() const {
@@ -243,7 +243,7 @@ class IC {
   virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionOfMonomorphicTarget(Type* type);
+  bool IsTransitionOfMonomorphicTarget(Handle<Type> type);
   void PatchCache(Handle<Type> type,
                   Handle<String> name,
                   Handle<Code> code);

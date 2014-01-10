@@ -626,9 +626,9 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
-                                          Handle<String> message) {
-  HandleScope handle_scope(isolate);
+Local<Object> Shell::DebugMessageDetails(Isolate* isolate,
+                                         Handle<String> message) {
+  EscapableHandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
@@ -638,13 +638,13 @@ Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { message };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  return Handle<Object>::Cast(val);
+  return handle_scope.Escape(Local<Object>(Handle<Object>::Cast(val)));
 }
 
 
-Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
-                                               Handle<String> command) {
-  HandleScope handle_scope(isolate);
+Local<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
+                                              Handle<String> command) {
+  EscapableHandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
@@ -654,7 +654,7 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { command };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  return val;
+  return handle_scope.Escape(Local<Value>(val));
 }
 
 

@@ -1007,6 +1007,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         { byte f0byte = data[1];
           const char* f0mnem = F0Mnem(f0byte);
           if (f0byte == 0x18) {
+            data += 2;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             const char* suffix[] = {"nta", "1", "2", "3"};
