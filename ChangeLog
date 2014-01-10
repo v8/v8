@@ -1,3 +1,10 @@
+2014-01-10: Version 3.24.14
+
+        ES6: Add Object.getOwnPropertySymbols (issue 3049).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-09: Version 3.24.13
 
         Add Isolate parameter to HandleScope::NumberOfHandles (Chromium issue
