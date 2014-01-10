@@ -9203,19 +9203,20 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 
 
 AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
+                                                        Heap* heap,
                                                         bool in_GC) {
   // AllocationMemento objects are only allocated immediately after objects in
   // NewSpace. Detecting whether a memento is present involves carefully
   // checking the object immediately after the current object (if there is one)
   // to see if it's an AllocationMemento.
-  ASSERT(object->GetHeap()->InNewSpace(object));
+  ASSERT(heap->InNewSpace(object));
   Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
       object->Size();
   Address top;
   if (in_GC) {
-    top = object->GetHeap()->new_space()->FromSpacePageHigh();
+    top = heap->new_space()->FromSpacePageHigh();
   } else {
-    top = object->GetHeap()->NewSpaceTop();
+    top = heap->NewSpaceTop();
   }
   if ((ptr_end + AllocationMemento::kSize) <= top) {
     // There is room in newspace for allocation info. Do we have some?
@@ -12793,6 +12794,24 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
 const double AllocationSite::kPretenureRatio = 0.60;
 
 
+void AllocationSite::ResetPretenureDecision() {
+  dependent_code()->DeoptimizeDependentCodeGroup(
+      GetIsolate(),
+      DependentCode::kAllocationSiteTenuringChangedGroup);
+  set_pretenure_decision(Smi::FromInt(kUndecided));
+  set_memento_found_count(Smi::FromInt(0));
+  set_memento_create_count(Smi::FromInt(0));
+}
+
+
+PretenureFlag AllocationSite::GetPretenureMode() {
+  int mode = pretenure_decision()->value();
+  // Zombie objects "decide" to be untenured.
+  return (mode == kTenure && GetHeap()->GetPretenureMode() == TENURED)
+      ? TENURED : NOT_TENURED;
+}
+
+
 bool AllocationSite::IsNestedSite() {
   ASSERT(FLAG_trace_track_allocation_sites);
   Object* current = GetHeap()->allocation_sites_list();
@@ -12891,9 +12910,10 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     return this;
   }
 
-  if (!GetHeap()->InNewSpace(this)) return this;
+  Heap* heap = GetHeap();
+  if (!heap->InNewSpace(this)) return this;
 
-  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this);
+  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this, heap);
   if (memento == NULL || !memento->IsValid()) {
     return this;
   }

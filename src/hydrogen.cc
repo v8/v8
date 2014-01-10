@@ -9499,15 +9499,11 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HValue* object_size_constant = Add<HConstant>(
       boilerplate_object->map()->instance_size());
 
-  // We should pull pre-tenure mode from the allocation site.
-  // For now, just see what it says, and remark on it if it sez
-  // we should pretenure. That means the rudimentary counting in the garbage
-  // collector is having an effect.
   PretenureFlag pretenure_flag = isolate()->heap()->GetPretenureMode();
   if (FLAG_allocation_site_pretenuring) {
-    pretenure_flag = site_context->current()->GetPretenureMode()
-        ? TENURED
-        : NOT_TENURED;
+    pretenure_flag = site_context->current()->GetPretenureMode();
+    site_context->current()->AddDependentCompilationInfo(
+        AllocationSite::TENURING, top_info());
   }
 
   HInstruction* object = Add<HAllocate>(object_size_constant, type,

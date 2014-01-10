@@ -2042,6 +2042,7 @@ class Heap {
   // Pretenuring decisions are made based on feedback collected during new
   // space evacuation. Note that between feedback collection and calling this
   // method object in old space must not move.
+  // Right now we only process pretenuring feedback in high promotion mode.
   void ProcessPretenuringFeedback();
 
   // Checks whether a global GC is necessary
@@ -2168,6 +2169,15 @@ class Heap {
   void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
   void ProcessAllocationSites(WeakObjectRetainer* retainer, bool record_slots);
 
+  // Deopts all code that contains allocation instruction which are tenured or
+  // not tenured. Moreover it clears the pretenuring allocation site statistics.
+  void ResetAllAllocationSitesDependentCode(PretenureFlag flag);
+
+  // Evaluates local pretenuring for the old space and calls
+  // ResetAllTenuredAllocationSitesDependentCode if too many objects died in
+  // the old space.
+  void EvaluateOldSpaceLocalPretenuring(uint64_t size_of_objects_before_gc);
+
   // Called on heap tear-down.
   void TearDownArrayBuffers();
 
@@ -2210,6 +2220,8 @@ class Heap {
   static const int kYoungSurvivalRateHighThreshold = 90;
   static const int kYoungSurvivalRateLowThreshold = 10;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
+
+  static const int kOldSurvivalRateLowThreshold = 20;
 
   int young_survivors_after_last_gc_;
   int high_survival_rate_period_length_;

@@ -8157,11 +8157,9 @@ class AllocationSite: public Struct {
 
   inline void IncrementMementoCreateCount();
 
-  PretenureFlag GetPretenureMode() {
-    int mode = pretenure_decision()->value();
-    // Zombie objects "decide" to be untenured.
-    return (mode == kTenure) ? TENURED : NOT_TENURED;
-  }
+  PretenureFlag GetPretenureMode();
+
+  void ResetPretenureDecision();
 
   // The pretenuring decision is made during gc, and the zombie state allows
   // us to recognize when an allocation site is just being kept alive because
@@ -8277,6 +8275,7 @@ class AllocationMemento: public Struct {
 
   // Returns NULL if no AllocationMemento is available for object.
   static AllocationMemento* FindForHeapObject(HeapObject* object,
+                                              Heap* heap,
                                               bool in_GC = false);
   static inline AllocationMemento* cast(Object* obj);
 

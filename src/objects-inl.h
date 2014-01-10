@@ -1385,20 +1385,22 @@ inline void AllocationSite::IncrementMementoCreateCount() {
 
 inline bool AllocationSite::DigestPretenuringFeedback() {
   bool decision_made = false;
-  if (!PretenuringDecisionMade()) {
-    int create_count = memento_create_count()->value();
-    if (create_count >= kPretenureMinimumCreated) {
-      int found_count = memento_found_count()->value();
-      double ratio = static_cast<double>(found_count) / create_count;
-      if (FLAG_trace_track_allocation_sites) {
-        PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
-               static_cast<void*>(this), create_count, found_count, ratio);
-      }
-      int result = ratio >= kPretenureRatio ? kTenure : kDontTenure;
-      set_pretenure_decision(Smi::FromInt(result));
-      decision_made = true;
-      // TODO(mvstanton): if the decision represents a change, any dependent
-      // code registered for pretenuring changes should be deopted.
+  int create_count = memento_create_count()->value();
+  if (create_count >= kPretenureMinimumCreated) {
+    int found_count = memento_found_count()->value();
+    double ratio = static_cast<double>(found_count) / create_count;
+    if (FLAG_trace_track_allocation_sites) {
+      PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
+             static_cast<void*>(this), create_count, found_count, ratio);
+    }
+    int current_mode = GetPretenureMode();
+    int result = ratio >= kPretenureRatio ? kTenure : kDontTenure;
+    set_pretenure_decision(Smi::FromInt(result));
+    decision_made = true;
+    if (current_mode != GetPretenureMode()) {
+      dependent_code()->DeoptimizeDependentCodeGroup(
+          GetIsolate(),
+          DependentCode::kAllocationSiteTenuringChangedGroup);
     }
   }
 
