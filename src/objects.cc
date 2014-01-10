@@ -7857,14 +7857,6 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapHandleList* maps,
 }
 
 
-void FixedArray::Shrink(int new_length) {
-  ASSERT(new_length <= length());
-  if (new_length < length()) {
-    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), this, length() - new_length);
-  }
-}
-
-
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   MaybeObject* maybe_result =

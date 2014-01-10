@@ -166,7 +166,6 @@ void List<T, P>::Clear() {
 
 template<typename T, class P>
 void List<T, P>::Rewind(int pos) {
-  ASSERT(pos <= length_);
   length_ = pos;
 }
 
