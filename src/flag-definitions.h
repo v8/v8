@@ -220,7 +220,7 @@ DEFINE_bool(pretenuring, true, "allocate objects in old space")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
 DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
-DEFINE_bool(allocation_site_pretenuring, false,
+DEFINE_bool(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_bool(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
