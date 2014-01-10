@@ -66,6 +66,8 @@ def _SkipTreeCheck(input_api, output_api):
   if not input_api.AffectedSourceFiles(
       lambda file: file.LocalPath() == src_version):
     return False
+  if input_api.environ.get('PRESUBMIT_TREE_CHECK') == 'skip':
+    print "Skip tree check requested via environment variable."
   return input_api.environ.get('PRESUBMIT_TREE_CHECK') == 'skip'
 
 
@@ -94,6 +96,7 @@ def CheckChangeOnCommit(input_api, output_api):
   results.extend(input_api.canned_checks.CheckChangeHasDescription(
       input_api, output_api))
   if not _SkipTreeCheck(input_api, output_api):
+    print "Checking if tree is open."
     results.extend(input_api.canned_checks.CheckTreeIsOpen(
         input_api, output_api,
         json_url='http://v8-status.appspot.com/current?format=json'))
