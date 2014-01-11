@@ -7613,10 +7613,11 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   HValue* function = Top();
 
   AddCheckConstantFunction(expr->holder(), function, function_map);
-  Drop(1);
 
   CHECK_ALIVE_OR_RETURN(VisitForValue(args->at(0)), true);
   HValue* receiver = Pop();
+
+  Drop(1);  // Pop the function.
 
   if (function_state()->outer() == NULL) {
     HInstruction* elements = Add<HArgumentsElements>(false);
