@@ -12853,7 +12853,7 @@ void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());
   if (*codes != site->dependent_code()) site->set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(site), info->zone());
+  info->dependencies(group)->Add(Handle<HeapObject>(*site), info->zone());
 }
 
 

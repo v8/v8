@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --nostress-opt
+// Flags: --nostress-opt --nostress-compaction --gc-interval=-1
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
