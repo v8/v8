@@ -175,7 +175,7 @@
   {%- endif %}
 
   {% if debug_print %}
-    fprintf(stderr, "state {{state.node_number}}, start %d, cursor %d\n", start_ - buffer_, cursor_ - buffer_);
+    fprintf(stderr, "state {{state.node_number}}, start %ld, cursor %ld\n", start_ - buffer_, cursor_ - buffer_);
   {% endif -%}
 
   {%- set entry_action = state.entry_action -%}

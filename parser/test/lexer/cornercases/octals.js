@@ -56,3 +56,8 @@ var again_not = 019;
 'bar\00'
 'bar\000' // Not an octal according to Ecma
 'bar\0000' // First 3 recognized as octal
+
+// This is parsed as 2 numbers; 01 and 0.1.
+var tricky_octal_illegal = 01.0;
+// And this is fine, since 09 cannot be an octal.
+var not_octal = 09.0;

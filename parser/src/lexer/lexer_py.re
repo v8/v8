@@ -33,10 +33,20 @@ hex_digit = [0-9a-fA-F];
 single_escape_char = ['"\\bfnrtv];
 maybe_exponent = /([eE][\-+]?[:digit:]+)?/;
 octal_number = /0[0-7]+/;
+
+# Octal numbers are pretty complicated. For example, 01.0 is invalid, since it's
+# parsed as 2 numbers (01 and .0), since 01 is a valid octal number. However,
+# 09.0 is a valid, since 09 cannot be octal. In addition, 0 and 0.1 are valid
+# numbers starting with 0.
+
+non_octal_whole_part = "0" | (
+  /0[:digit:]*[8-9][:digit:]*/ |
+  /[1-9][:digit:]*/ );
+
 number =
   /0[xX][:hex_digit:]+/ | (
   /\.[:digit:]+/ maybe_exponent |
-  /[:digit:]+(\.[:digit:]*)?/ maybe_exponent );
+  non_octal_whole_part /(\.[:digit:]*)?/ maybe_exponent );
 harmony_number = "0"[bBoO][:digit:]+;
 line_terminator_sequence = /[:line_terminator:]|(\r\n|\n\r)/;
 eos = [:eos:];
