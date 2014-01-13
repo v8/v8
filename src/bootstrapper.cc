@@ -2293,9 +2293,9 @@ bool Genesis::InstallExtension(Isolate* isolate,
     current = current->next();
   }
   // Didn't find the extension; fail.
-  if (current == NULL) {
-    v8::Utils::ReportApiFailure(
-        "v8::Context::New()", "Cannot find required extension");
+  if (!Utils::ApiCheck(current != NULL,
+                       "v8::Context::New()",
+                       "Cannot find required extension")) {
     return false;
   }
   return InstallExtension(isolate, current, extension_states);
@@ -2310,9 +2310,9 @@ bool Genesis::InstallExtension(Isolate* isolate,
   if (extension_states->get_state(current) == INSTALLED) return true;
   // The current node has already been visited so there must be a
   // cycle in the dependency graph; fail.
-  if (extension_states->get_state(current) == VISITED) {
-    v8::Utils::ReportApiFailure(
-        "v8::Context::New()", "Circular extension dependency");
+  if (!Utils::ApiCheck(extension_states->get_state(current) != VISITED,
+                       "v8::Context::New()",
+                       "Circular extension dependency")) {
     return false;
   }
   ASSERT(extension_states->get_state(current) == UNVISITED);

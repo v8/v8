@@ -196,7 +196,12 @@ class RegisteredExtension {
 
 class Utils {
  public:
-  static bool ReportApiFailure(const char* location, const char* message);
+  static inline bool ApiCheck(bool condition,
+                              const char* location,
+                              const char* message) {
+    if (!condition) Utils::ReportApiFailure(location, message);
+    return condition;
+  }
 
   static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
   static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);
@@ -303,6 +308,9 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
   static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
     return OpenHandle(*handle);
   }
+
+ private:
+  static void ReportApiFailure(const char* location, const char* message);
 };
 
 
