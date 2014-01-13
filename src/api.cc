@@ -6412,6 +6412,21 @@ void Isolate::ClearInterrupt() {
 }
 
 
+void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
+  CHECK(i::FLAG_expose_gc);
+  if (type == kMinorGarbageCollection) {
+    reinterpret_cast<i::Isolate*>(this)->heap()->CollectGarbage(
+        i::NEW_SPACE, "Isolate::RequestGarbageCollection",
+        kGCCallbackFlagForced);
+  } else {
+    ASSERT_EQ(kFullGarbageCollection, type);
+    reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
+        i::Heap::kNoGCFlags, "Isolate::RequestGarbageCollection",
+        kGCCallbackFlagForced);
+  }
+}
+
+
 Isolate* Isolate::GetCurrent() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   return reinterpret_cast<Isolate*>(isolate);

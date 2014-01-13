@@ -3964,6 +3964,15 @@ class V8_EXPORT Isolate {
   };
 
   /**
+   * Types of garbage collections that can be requested via
+   * RequestGarbageCollectionForTesting.
+   */
+  enum GarbageCollectionType {
+    kFullGarbageCollection,
+    kMinorGarbageCollection
+  };
+
+  /**
    * Creates a new isolate.  Does not change the currently entered
    * isolate.
    *
@@ -4174,6 +4183,17 @@ class V8_EXPORT Isolate {
    * Can be called from another thread without acquiring a |Locker|.
    */
   void ClearInterrupt();
+
+  /**
+   * Request garbage collection in this Isolate. It is only valid to call this
+   * function if --expose_gc was specified.
+   *
+   * This should only be used for testing purposes and not to enforce a garbage
+   * collection schedule. It has strong negative impact on the garbage
+   * collection performance. Use IdleNotification() or LowMemoryNotification()
+   * instead to influence the garbage collection schedule.
+   */
+  void RequestGarbageCollectionForTesting(GarbageCollectionType type);
 
  private:
   Isolate();
