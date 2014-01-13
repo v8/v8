@@ -8305,10 +8305,6 @@ class AllocationMemento: public Struct {
   DECLARE_PRINTER(AllocationMemento)
   DECLARE_VERIFIER(AllocationMemento)
 
-  // Returns NULL if no AllocationMemento is available for object.
-  static AllocationMemento* FindForHeapObject(HeapObject* object,
-                                              Heap* heap,
-                                              bool in_GC = false);
   static inline AllocationMemento* cast(Object* obj);
 
  private:

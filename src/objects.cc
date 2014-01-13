@@ -9201,39 +9201,6 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
-                                                        Heap* heap,
-                                                        bool in_GC) {
-  // AllocationMemento objects are only allocated immediately after objects in
-  // NewSpace. Detecting whether a memento is present involves carefully
-  // checking the object immediately after the current object (if there is one)
-  // to see if it's an AllocationMemento.
-  ASSERT(heap->InNewSpace(object));
-  Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
-      object->Size();
-  Address top;
-  if (in_GC) {
-    top = heap->new_space()->FromSpacePageHigh();
-  } else {
-    top = heap->NewSpaceTop();
-  }
-  if ((ptr_end + AllocationMemento::kSize) <= top) {
-    // There is room in newspace for allocation info. Do we have some?
-    Map** possible_allocation_memento_map =
-        reinterpret_cast<Map**>(ptr_end);
-    if (*possible_allocation_memento_map ==
-        object->GetHeap()->allocation_memento_map()) {
-      AllocationMemento* memento = AllocationMemento::cast(
-          reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-      if (memento->IsValid()) {
-        return memento;
-      }
-    }
-  }
-  return NULL;
-}
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -12904,17 +12871,24 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
-  if (!IsJSArray()) {
-    return this;
-  }
+  if (!IsJSArray()) return this;
 
   Heap* heap = GetHeap();
   if (!heap->InNewSpace(this)) return this;
 
-  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this, heap);
-  if (memento == NULL || !memento->IsValid()) {
-    return this;
-  }
+  // Either object is the last object in the new space, or there is another
+  // object of at least word size (the header map word) following it, so
+  // suffices to compare ptr and top here.
+  Address ptr = address() + JSArray::kSize;
+  Address top = heap->NewSpaceTop();
+  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
+  if (ptr == top) return this;
+
+  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  if (candidate->map() != heap->allocation_memento_map()) return this;
+
+  AllocationMemento* memento = AllocationMemento::cast(candidate);
+  if (!memento->IsValid()) return this;
 
   // Walk through to the Allocation Site
   AllocationSite* site = memento->GetAllocationSite();

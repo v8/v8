@@ -485,22 +485,32 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   Heap* heap = object->GetHeap();
-  if (FLAG_allocation_site_pretenuring &&
-      heap->new_space_high_promotion_mode_active_ &&
-      AllocationSite::CanTrack(object->map()->instance_type())) {
-    AllocationMemento* memento = AllocationMemento::FindForHeapObject(
-        object, heap, true);
-    if (memento != NULL) {
-      ASSERT(memento->IsValid());
-      bool add_to_scratchpad =
-          memento->GetAllocationSite()->IncrementMementoFoundCount();
-      if (add_to_scratchpad && heap->allocation_sites_scratchpad_length <
-              kAllocationSiteScratchpadSize) {
-        heap->allocation_sites_scratchpad[
-            heap->allocation_sites_scratchpad_length++] =
-                memento->GetAllocationSite();
-      }
-    }
+  ASSERT(heap->InNewSpace(object));
+
+  if (!FLAG_allocation_site_pretenuring ||
+      !heap->new_space_high_promotion_mode_active_ ||
+      !AllocationSite::CanTrack(object->map()->instance_type())) return;
+
+  // Either object is the last object in the from space, or there is another
+  // object of at least word size (the header map word) following it, so
+  // suffices to compare ptr and top here.
+  Address ptr = object->address() + object->Size();
+  Address top = heap->new_space()->FromSpacePageHigh();
+  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
+  if (ptr == top) return;
+
+  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  if (candidate->map() != heap->allocation_memento_map()) return;
+
+  AllocationMemento* memento = AllocationMemento::cast(candidate);
+  if (!memento->IsValid()) return;
+
+  if (memento->GetAllocationSite()->IncrementMementoFoundCount() &&
+      heap->allocation_sites_scratchpad_length <
+      kAllocationSiteScratchpadSize) {
+    heap->allocation_sites_scratchpad[
+        heap->allocation_sites_scratchpad_length++] =
+        memento->GetAllocationSite();
   }
 }
 
