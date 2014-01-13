@@ -147,6 +147,40 @@ void LCodeGen::MakeSureStackPagesMapped(int offset) {
 #endif
 
 
+void LCodeGen::SaveCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Save clobbered callee double registers");
+  CpuFeatureScope scope(masm(), SSE2);
+  int count = 0;
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  while (!save_iterator.Done()) {
+    __ movdbl(MemOperand(esp, count * kDoubleSize),
+              XMMRegister::FromAllocationIndex(save_iterator.Current()));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
+void LCodeGen::RestoreCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Restore clobbered callee double registers");
+  CpuFeatureScope scope(masm(), SSE2);
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  int count = 0;
+  while (!save_iterator.Done()) {
+    __ movdbl(XMMRegister::FromAllocationIndex(save_iterator.Current()),
+              MemOperand(esp, count * kDoubleSize));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
@@ -268,17 +302,7 @@ bool LCodeGen::GeneratePrologue() {
     }
 
     if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
-      Comment(";;; Save clobbered callee double registers");
-      CpuFeatureScope scope(masm(), SSE2);
-      int count = 0;
-      BitVector* doubles = chunk()->allocated_double_registers();
-      BitVector::Iterator save_iterator(doubles);
-      while (!save_iterator.Done()) {
-        __ movdbl(MemOperand(esp, count * kDoubleSize),
-                  XMMRegister::FromAllocationIndex(save_iterator.Current()));
-        save_iterator.Advance();
-        count++;
-      }
+      SaveCallerDoubles();
     }
   }
 
@@ -386,6 +410,7 @@ bool LCodeGen::GenerateJumpTable() {
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     }
     if (jump_table_[i].needs_frame) {
+      ASSERT(!info()->saves_caller_doubles());
       __ push(Immediate(ExternalReference::ForDeoptEntry(entry)));
       if (needs_frame.is_bound()) {
         __ jmp(&needs_frame);
@@ -412,6 +437,9 @@ bool LCodeGen::GenerateJumpTable() {
         __ ret(0);  // Call the continuation without clobbering registers.
       }
     } else {
+      if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
+        RestoreCallerDoubles();
+      }
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
   }
@@ -2991,17 +3019,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
   if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
-    ASSERT(NeedsEagerFrame());
-    CpuFeatureScope scope(masm(), SSE2);
-    BitVector* doubles = chunk()->allocated_double_registers();
-    BitVector::Iterator save_iterator(doubles);
-    int count = 0;
-    while (!save_iterator.Done()) {
-      __ movdbl(XMMRegister::FromAllocationIndex(save_iterator.Current()),
-                MemOperand(esp, count * kDoubleSize));
-      save_iterator.Advance();
-      count++;
-    }
+    RestoreCallerDoubles();
   }
   if (dynamic_frame_alignment_) {
     // Fetch the state of the dynamic frame alignment.
