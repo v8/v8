@@ -945,16 +945,6 @@ class V8_EXPORT ScriptData {  // NOLINT
   /**
    * Pre-compiles the specified script (context-independent).
    *
-   * \param input Pointer to UTF-8 script source code.
-   * \param length Length of UTF-8 script source code.
-   */
-  static ScriptData* PreCompile(Isolate* isolate,
-                                const char* input,
-                                int length);
-
-  /**
-   * Pre-compiles the specified script (context-independent).
-   *
    * NOTE: Pre-compilation using this method cannot happen on another thread
    * without using Lockers.
    *

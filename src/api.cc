@@ -1585,16 +1585,6 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 // --- S c r i p t D a t a ---
 
 
-ScriptData* ScriptData::PreCompile(v8::Isolate* isolate,
-                                   const char* input,
-                                   int length) {
-  i::Utf8ToUtf16CharacterStream stream(
-      reinterpret_cast<const unsigned char*>(input), length);
-  return i::PreParserApi::PreParse(
-      reinterpret_cast<i::Isolate*>(isolate), &stream);
-}
-
-
 ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Isolate* isolate = str->GetIsolate();
