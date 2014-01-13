@@ -8244,8 +8244,9 @@ class AllocationSite: public Struct {
     TRANSITIONS
   };
 
-  void AddDependentCompilationInfo(Reason reason, CompilationInfo* info);
-  void AddDependentCode(Reason reason, Handle<Code> code);
+  static void AddDependentCompilationInfo(Handle<AllocationSite> site,
+                                          Reason reason,
+                                          CompilationInfo* info);
 
   DECLARE_PRINTER(AllocationSite)
   DECLARE_VERIFIER(AllocationSite)

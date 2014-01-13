@@ -12844,22 +12844,16 @@ MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
 }
 
 
-void AllocationSite::AddDependentCompilationInfo(Reason reason,
+// static
+void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
+                                                 Reason reason,
                                                  CompilationInfo* info) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> dep(dependent_code());
+  DependentCode::DependencyGroup group = site->ToDependencyGroup(reason);
+  Handle<DependentCode> dep(site->dependent_code());
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
-}
-
-
-void AllocationSite::AddDependentCode(Reason reason, Handle<Code> code) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()), group, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+  if (*codes != site->dependent_code()) site->set_dependent_code(*codes);
+  info->dependencies(group)->Add(Handle<HeapObject>(site), info->zone());
 }
 
 
@@ -16633,14 +16627,6 @@ void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
   if (*codes != dependent_code()) set_dependent_code(*codes);
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
       Handle<HeapObject>(this), info->zone());
-}
-
-
-void PropertyCell::AddDependentCode(Handle<Code> code) {
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()),
-      DependentCode::kPropertyCellChangedGroup, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
 }
 
 

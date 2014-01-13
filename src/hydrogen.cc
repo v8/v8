@@ -7907,10 +7907,11 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
 
   ElementsKind kind = expr->elements_kind();
   Handle<Cell> cell = expr->allocation_info_cell();
-  AllocationSite* site = AllocationSite::cast(cell->value());
+  Handle<AllocationSite> site(AllocationSite::cast(cell->value()));
 
   // Register on the site for deoptimization if the cell value changes.
-  site->AddDependentCompilationInfo(AllocationSite::TRANSITIONS, top_info());
+  AllocationSite::AddDependentCompilationInfo(
+      site, AllocationSite::TRANSITIONS, top_info());
   HInstruction* cell_instruction = Add<HConstant>(cell);
 
   // In the single constant argument case, we may have to adjust elements kind
@@ -8925,8 +8926,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     // Register the dependent code with the allocation site.
     if (!allocation_mode.feedback_site().is_null()) {
       ASSERT(!graph()->info()->IsStub());
-      allocation_mode.feedback_site()->AddDependentCompilationInfo(
-          AllocationSite::TENURING, top_info());
+      Handle<AllocationSite> site(allocation_mode.feedback_site());
+      AllocationSite::AddDependentCompilationInfo(
+          site, AllocationSite::TENURING, top_info());
     }
 
     // Inline string addition if we know that we'll create a cons string.
@@ -9502,8 +9504,9 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   PretenureFlag pretenure_flag = isolate()->heap()->GetPretenureMode();
   if (FLAG_allocation_site_pretenuring) {
     pretenure_flag = site_context->current()->GetPretenureMode();
-    site_context->current()->AddDependentCompilationInfo(
-        AllocationSite::TENURING, top_info());
+    Handle<AllocationSite> site(site_context->current());
+    AllocationSite::AddDependentCompilationInfo(
+        site, AllocationSite::TENURING, top_info());
   }
 
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
