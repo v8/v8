@@ -108,6 +108,7 @@ TEST(ScanKeywords) {
 TEST(ScanHTMLEndComments) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handles(isolate);
 
   // Regression test. See:
   //    http://code.google.com/p/chromium/issues/detail?id=53548

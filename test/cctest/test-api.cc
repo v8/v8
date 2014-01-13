@@ -14785,6 +14785,7 @@ TEST(PreCompile) {
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
       isolate, script, v8::String::kNormalString, i::StrLength(script)));
@@ -14798,6 +14799,7 @@ TEST(PreCompile) {
 TEST(PreCompileWithError) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = "function foo(a) { return 1 * * 2; }";
   v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
       isolate, script, v8::String::kNormalString, i::StrLength(script)));
@@ -14809,6 +14811,7 @@ TEST(PreCompileWithError) {
 TEST(Regress31661) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = " The Definintive Guide";
   v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
       isolate, script, v8::String::kNormalString, i::StrLength(script)));
@@ -14821,6 +14824,7 @@ TEST(Regress31661) {
 TEST(PreCompileSerialization) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
       isolate, script, v8::String::kNormalString, i::StrLength(script)));
