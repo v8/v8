@@ -1037,11 +1037,15 @@ class MacroAssembler: public Assembler {
   void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments);
+  void CallRuntime(Runtime::FunctionId fid,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,

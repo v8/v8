@@ -89,6 +89,7 @@ class CpuFeatures : public AllStatic {
   static unsigned cache_line_size_;
 
   friend class ExternalReference;
+  friend class PlatformFeatureScope;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 

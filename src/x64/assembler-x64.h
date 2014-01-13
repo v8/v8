@@ -504,6 +504,7 @@ class CpuFeatures : public AllStatic {
   static uint64_t found_by_runtime_probing_only_;
 
   friend class ExternalReference;
+  friend class PlatformFeatureScope;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 

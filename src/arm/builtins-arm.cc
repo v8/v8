@@ -829,8 +829,8 @@ void Builtins::Generate_Make##C##CodeYoungAgainOddMarking(   \
 CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
-
-void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
+static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
+                                             SaveFPRegsMode save_doubles) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -839,12 +839,22 @@ void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
     // registers.
     __ stm(db_w, sp, kJSCallerSaved | kCalleeSaved);
     // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyStubFailure, 0);
+    __ CallRuntime(Runtime::kNotifyStubFailure, 0, save_doubles);
     __ ldm(ia_w, sp, kJSCallerSaved | kCalleeSaved);
   }
 
   __ add(sp, sp, Operand(kPointerSize));  // Ignore state
   __ mov(pc, lr);  // Jump to miss handler
+}
+
+
+void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
+  Generate_NotifyStubFailureHelper(masm, kDontSaveFPRegs);
+}
+
+
+void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
+  Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);
 }
 
 
