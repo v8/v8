@@ -1157,8 +1157,10 @@ class Heap {
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  inline bool CollectGarbage(AllocationSpace space,
-                             const char* gc_reason = NULL);
+  inline bool CollectGarbage(
+      AllocationSpace space,
+      const char* gc_reason = NULL,
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   static const int kNoGCFlags = 0;
   static const int kSweepPreciselyMask = 1;
@@ -1173,7 +1175,10 @@ class Heap {
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
   // in a state where we can iterate over the heap visiting all objects.
-  void CollectAllGarbage(int flags, const char* gc_reason = NULL);
+  void CollectAllGarbage(
+      int flags,
+      const char* gc_reason = NULL,
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Last hope GC, should try to squeeze as much as possible.
   void CollectAllAvailableGarbage(const char* gc_reason = NULL);
@@ -1701,7 +1706,7 @@ class Heap {
   inline Isolate* isolate();
 
   void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags);
-  void CallGCEpilogueCallbacks(GCType gc_type);
+  void CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags);
 
   inline bool OldGenerationAllocationLimitReached();
 
@@ -2052,16 +2057,20 @@ class Heap {
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  bool CollectGarbage(AllocationSpace space,
-                      GarbageCollector collector,
-                      const char* gc_reason,
-                      const char* collector_reason);
+  bool CollectGarbage(
+      AllocationSpace space,
+      GarbageCollector collector,
+      const char* gc_reason,
+      const char* collector_reason,
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Performs garbage collection
   // Returns whether there is a chance another major GC could
   // collect more garbage.
-  bool PerformGarbageCollection(GarbageCollector collector,
-                                GCTracer* tracer);
+  bool PerformGarbageCollection(
+      GarbageCollector collector,
+      GCTracer* tracer,
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   inline void UpdateOldSpaceLimits();
 

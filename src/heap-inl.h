@@ -532,10 +532,13 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason) {
+bool Heap::CollectGarbage(AllocationSpace space,
+                          const char* gc_reason,
+                          const v8::GCCallbackFlags callbackFlags) {
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
-  return CollectGarbage(space, collector, gc_reason, collector_reason);
+  return CollectGarbage(
+      space, collector, gc_reason, collector_reason, callbackFlags);
 }
 
 

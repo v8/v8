@@ -2128,7 +2128,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
     group->info = NULL;  // Acquire info object ownership.
   }
   isolate->global_handles()->RemoveObjectGroups();
-  isolate->heap()->CallGCEpilogueCallbacks(major_gc_type);
+  isolate->heap()->CallGCEpilogueCallbacks(major_gc_type, kNoGCCallbackFlags);
   // Record objects that are not in ObjectGroups, but have class ID.
   GlobalHandlesExtractor extractor(this);
   isolate->global_handles()->IterateAllRootsWithClassIds(&extractor);

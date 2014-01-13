@@ -702,12 +702,14 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage(int flags, const char* gc_reason) {
+void Heap::CollectAllGarbage(int flags,
+                             const char* gc_reason,
+                             const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
   mark_compact_collector_.SetFlags(flags);
-  CollectGarbage(OLD_POINTER_SPACE, gc_reason);
+  CollectGarbage(OLD_POINTER_SPACE, gc_reason, gc_callback_flags);
   mark_compact_collector_.SetFlags(kNoGCFlags);
 }
 
@@ -750,7 +752,8 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollector collector,
                           const char* gc_reason,
-                          const char* collector_reason) {
+                          const char* collector_reason,
+                          const v8::GCCallbackFlags gc_callback_flags) {
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate_);
 
@@ -805,7 +808,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
           (collector == SCAVENGER) ? isolate_->counters()->gc_scavenger()
                                    : isolate_->counters()->gc_compactor());
       next_gc_likely_to_collect_more =
-          PerformGarbageCollection(collector, &tracer);
+          PerformGarbageCollection(collector, &tracer, gc_callback_flags);
     }
 
     GarbageCollectionEpilogue();
@@ -1032,8 +1035,10 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
   survival_rate_ = survival_rate;
 }
 
-bool Heap::PerformGarbageCollection(GarbageCollector collector,
-                                    GCTracer* tracer) {
+bool Heap::PerformGarbageCollection(
+    GarbageCollector collector,
+    GCTracer* tracer,
+    const v8::GCCallbackFlags gc_callback_flags) {
   bool next_gc_likely_to_collect_more = false;
 
   if (collector != SCAVENGER) {
@@ -1164,7 +1169,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState<EXTERNAL> state(isolate_);
     HandleScope handle_scope(isolate_);
-    CallGCEpilogueCallbacks(gc_type);
+    CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
   }
 
 #ifdef VERIFY_HEAP
@@ -1194,18 +1199,19 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
 }
 
 
-void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
+void Heap::CallGCEpilogueCallbacks(GCType gc_type,
+                                   GCCallbackFlags gc_callback_flags) {
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
       if (!gc_epilogue_callbacks_[i].pass_isolate_) {
         v8::GCPrologueCallback callback =
             reinterpret_cast<v8::GCPrologueCallback>(
                 gc_epilogue_callbacks_[i].callback);
-        callback(gc_type, kNoGCCallbackFlags);
+        callback(gc_type, gc_callback_flags);
       } else {
         v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
         gc_epilogue_callbacks_[i].callback(
-            isolate, gc_type, kNoGCCallbackFlags);
+            isolate, gc_type, gc_callback_flags);
       }
     }
   }
