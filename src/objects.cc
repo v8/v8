@@ -45,7 +45,6 @@
 #include "isolate-inl.h"
 #include "log.h"
 #include "objects-inl.h"
-#include "objects-visiting.h"
 #include "objects-visiting-inl.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
@@ -12797,14 +12796,14 @@ void AllocationSite::ResetPretenureDecision() {
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(),
       DependentCode::kAllocationSiteTenuringChangedGroup);
-  set_pretenure_decision(Smi::FromInt(kUndecided));
-  set_memento_found_count(Smi::FromInt(0));
-  set_memento_create_count(Smi::FromInt(0));
+  set_pretenure_decision(kUndecided);
+  set_memento_found_count(0);
+  set_memento_create_count(0);
 }
 
 
 PretenureFlag AllocationSite::GetPretenureMode() {
-  int mode = pretenure_decision()->value();
+  PretenureDecision mode = pretenure_decision();
   // Zombie objects "decide" to be untenured.
   return (mode == kTenure && GetHeap()->GetPretenureMode() == TENURED)
       ? TENURED : NOT_TENURED;

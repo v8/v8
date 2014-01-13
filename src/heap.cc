@@ -526,8 +526,8 @@ void Heap::ProcessPretenuringFeedback() {
               list_element->IsAllocationSite()) {
       AllocationSite* site = use_scratchpad ?
         allocation_sites_scratchpad[i] : AllocationSite::cast(list_element);
-      allocation_mementos_found += site->memento_found_count()->value();
-      if (site->memento_found_count()->value() > 0) {
+      allocation_mementos_found += site->memento_found_count();
+      if (site->memento_found_count() > 0) {
         active_allocation_sites++;
       }
       if (site->DigestPretenuringFeedback()) {

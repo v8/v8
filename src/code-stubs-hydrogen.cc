@@ -491,20 +491,16 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
                             AllocationSite::kNestedSiteOffset),
                         graph()->GetConstant0());
 
-  // Pretenuring calculation fields.
+  // Pretenuring calculation field.
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteOffset(
-                            AllocationSite::kMementoFoundCountOffset),
+                            AllocationSite::kPretenureDataOffset),
                         graph()->GetConstant0());
 
+  // Pretenuring memento creation count field.
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteOffset(
-                            AllocationSite::kMementoCreateCountOffset),
-                        graph()->GetConstant0());
-
-  Add<HStoreNamedField>(object,
-                        HObjectAccess::ForAllocationSiteOffset(
-                            AllocationSite::kPretenureDecisionOffset),
+                            AllocationSite::kPretenureCreateCountOffset),
                         graph()->GetConstant0());
 
   // Store an empty fixed array for the code dependency.

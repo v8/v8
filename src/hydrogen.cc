@@ -2642,7 +2642,7 @@ void HGraphBuilder::BuildCreateAllocationMemento(
   if (FLAG_allocation_site_pretenuring) {
     HValue* memento_create_count = Add<HLoadNamedField>(
         allocation_site, HObjectAccess::ForAllocationSiteOffset(
-            AllocationSite::kMementoCreateCountOffset));
+            AllocationSite::kPretenureCreateCountOffset));
     memento_create_count = AddUncasted<HAdd>(
         memento_create_count, graph()->GetConstant1());
     // This smi value is reset to zero after every gc, overflow isn't a problem
@@ -2650,7 +2650,7 @@ void HGraphBuilder::BuildCreateAllocationMemento(
     memento_create_count->ClearFlag(HValue::kCanOverflow);
     HStoreNamedField* store = Add<HStoreNamedField>(
         allocation_site, HObjectAccess::ForAllocationSiteOffset(
-            AllocationSite::kMementoCreateCountOffset), memento_create_count);
+            AllocationSite::kPretenureCreateCountOffset), memento_create_count);
     // No write barrier needed to store a smi.
     store->SkipWriteBarrier();
   }
