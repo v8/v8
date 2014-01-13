@@ -134,6 +134,7 @@ class Nfa(Automaton):
 
   def __to_dfa(self, nfa_state_set, dfa_nodes, end_node):
     nfa_state_set = Automaton.epsilon_closure(nfa_state_set)
+    # nfa_state_set will be a state in the dfa.
     assert nfa_state_set
     name = ".".join(str(x.node_number()) for x in sorted(nfa_state_set))
     if name in dfa_nodes:
@@ -142,10 +143,18 @@ class Nfa(Automaton):
       'transitions': {},
       'terminal': end_node in nfa_state_set,
       'action' : Action.dominant_action(nfa_state_set)}
+    # Gather the set of transition keys for which the dfa state will have
+    # transitions (the disjoint set of all the transition keys from all the
+    # states combined). For example, if a state in the state set has a
+    # transition for key [a-c], and another state for [b-d], the dfa state will
+    # have transitions with keys ([a], [b-c], [d]).
     for key in Nfa.__gather_transition_keys(self.encoding(), nfa_state_set):
-      match_states = set()
+      # Find out which states we can reach with "key", starting from any of the
+      # states in "nfa_state_set". The corresponding dfa state will have a
+      # transition with "key" to a state which corresponds to the set of the
+      # states ("match_states") (more accurately, its epsilon closure).
       f = lambda state: state.transition_state_iter_for_key(key)
-      match_states |= set(chain(*map(f, nfa_state_set)))
+      match_states = set(chain(*map(f, nfa_state_set)))
       transition_state = self.__to_dfa(match_states, dfa_nodes, end_node)
       dfa_nodes[name]['transitions'][key] = transition_state
     return name
