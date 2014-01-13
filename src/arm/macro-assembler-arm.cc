@@ -1081,12 +1081,18 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 }
 
 
-void MacroAssembler::GetCFunctionDoubleResult(const DwVfpRegister dst) {
+void MacroAssembler::MovFromFloatResult(const DwVfpRegister dst) {
   if (use_eabi_hardfloat()) {
     Move(dst, d0);
   } else {
     vmov(dst, r0, r1);
   }
+}
+
+
+// On ARM this is just a synonym to make the purpose clear.
+void MacroAssembler::MovFromFloatParameter(DwVfpRegister dst) {
+  MovFromFloatResult(dst);
 }
 
 
@@ -3540,33 +3546,27 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
-  ASSERT(dreg.is(d0));
+void MacroAssembler::MovToFloatParameter(DwVfpRegister src) {
+  ASSERT(src.is(d0));
   if (!use_eabi_hardfloat()) {
-    vmov(r0, r1, dreg);
+    vmov(r0, r1, src);
   }
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
-                                             DwVfpRegister dreg2) {
-  ASSERT(dreg1.is(d0));
-  ASSERT(dreg2.is(d1));
-  if (!use_eabi_hardfloat()) {
-    vmov(r0, r1, dreg1);
-    vmov(r2, r3, dreg2);
-  }
+// On ARM this is just a synonym to make the purpose clear.
+void MacroAssembler::MovToFloatResult(DwVfpRegister src) {
+  MovToFloatParameter(src);
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg,
-                                             Register reg) {
-  ASSERT(dreg.is(d0));
-  if (use_eabi_hardfloat()) {
-    Move(r0, reg);
-  } else {
-    Move(r2, reg);
-    vmov(r0, r1, dreg);
+void MacroAssembler::MovToFloatParameters(DwVfpRegister src1,
+                                          DwVfpRegister src2) {
+  ASSERT(src1.is(d0));
+  ASSERT(src2.is(d1));
+  if (!use_eabi_hardfloat()) {
+    vmov(r0, r1, src1);
+    vmov(r2, r3, src2);
   }
 }
 

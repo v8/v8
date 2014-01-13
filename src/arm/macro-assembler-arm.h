@@ -1125,9 +1125,9 @@ class MacroAssembler: public Assembler {
   // whether soft or hard floating point ABI is used. These functions
   // abstract parameter passing for the three different ways we call
   // C functions from generated code.
-  void SetCallCDoubleArguments(DwVfpRegister dreg);
-  void SetCallCDoubleArguments(DwVfpRegister dreg1, DwVfpRegister dreg2);
-  void SetCallCDoubleArguments(DwVfpRegister dreg, Register reg);
+  void MovToFloatParameter(DwVfpRegister src);
+  void MovToFloatParameters(DwVfpRegister src1, DwVfpRegister src2);
+  void MovToFloatResult(DwVfpRegister src);
 
   // Calls a C function and cleans up the space for arguments allocated
   // by PrepareCallCFunction. The called function is not allowed to trigger a
@@ -1143,7 +1143,8 @@ class MacroAssembler: public Assembler {
                      int num_reg_arguments,
                      int num_double_arguments);
 
-  void GetCFunctionDoubleResult(const DwVfpRegister dst);
+  void MovFromFloatParameter(DwVfpRegister dst);
+  void MovFromFloatResult(DwVfpRegister dst);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space

@@ -2128,12 +2128,12 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       break;
     case Token::MOD: {
       __ PrepareCallCFunction(0, 2, scratch0());
-      __ SetCallCDoubleArguments(left, right);
+      __ MovToFloatParameters(left, right);
       __ CallCFunction(
           ExternalReference::mod_two_doubles_operation(isolate()),
           0, 2);
       // Move the result in the double result register.
-      __ GetCFunctionDoubleResult(result);
+      __ MovFromFloatResult(result);
       break;
     }
     default:
@@ -3934,10 +3934,10 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
   __ PrepareCallCFunction(0, 1, scratch0());
-  __ SetCallCDoubleArguments(ToDoubleRegister(instr->value()));
+  __ MovToFloatParameter(ToDoubleRegister(instr->value()));
   __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
                    0, 1);
-  __ GetCFunctionDoubleResult(ToDoubleRegister(instr->result()));
+  __ MovFromFloatResult(ToDoubleRegister(instr->result()));
 }
 
 

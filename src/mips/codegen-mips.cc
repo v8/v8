@@ -535,9 +535,9 @@ UnaryMathFunction CreateSqrtFunction() {
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
-  __ GetFromCDoubleArguments(f12);
+  __ MovFromFloatParameter(f12);
   __ sqrt_d(f0, f12);
-  __ SetForCDoubleResult(f0);
+  __ MovToFloatResult(f0);
   __ Ret();
 
   CodeDesc desc;
