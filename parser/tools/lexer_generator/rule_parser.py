@@ -120,21 +120,16 @@ class RuleParser:
       rules['regex'].append((regex, precedence, action))
 
   def p_action(self, p):
-    '''action : ACTION_OPEN maybe_action_part OR maybe_action_part OR maybe_transition ACTION_CLOSE'''
+    '''action : ACTION_OPEN maybe_identifier_action OR maybe_identifier_action OR maybe_transition ACTION_CLOSE'''
     p[0] = (p[2], p[4], p[6])
 
   def p_default_action(self, p):
-    'default_action : ACTION_OPEN action_part ACTION_CLOSE'
+    'default_action : ACTION_OPEN identifier_action ACTION_CLOSE'
     p[0] = (None, p[2], None)
 
-  def p_maybe_action_part(self, p):
-    '''maybe_action_part : action_part
+  def p_maybe_identifier_action(self, p):
+    '''maybe_identifier_action : identifier_action
                          | empty'''
-    p[0] = p[1]
-
-  def p_action_part(self, p):
-    '''action_part : code
-                   | identifier_action'''
     p[0] = p[1]
 
   def p_maybe_transition(self, p):
@@ -146,7 +141,6 @@ class RuleParser:
     '''identifier_action : IDENTIFIER
                          | IDENTIFIER LEFT_PARENTHESIS RIGHT_PARENTHESIS
                          | IDENTIFIER LEFT_PARENTHESIS action_params RIGHT_PARENTHESIS'''
-    assert p[1] != 'code'
     if len(p) == 2 or len(p) == 4:
       p[0] = (p[1], None)
     elif len(p) == 5:
@@ -219,17 +213,6 @@ class RuleParser:
                 | STAR
                 | empty'''
     p[0] = p[1]
-
-  def p_code(self, p):
-    'code : LEFT_BRACKET code_fragments RIGHT_BRACKET'
-    p[0] = ('code', p[2].strip())
-
-  def p_code_fragments(self, p):
-    '''code_fragments : CODE_FRAGMENT code_fragments
-                      | empty'''
-    p[0] = p[1]
-    if len(p) == 3 and p[2]:
-      p[0] = p[1] + p[2]
 
   def p_empty(self, p):
     'empty :'

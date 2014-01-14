@@ -54,7 +54,7 @@ eos = [:eos:];
 # grammar is
 #   regex <action_on_state_entry|action_on_match|transition>
 #
-# actions can be c code enclosed in {} or identifiers to be passed to codegen
+# actions are identifiers to be passed to codegen
 # transition must be 'continue' or the name of a subgraph
 
 <<default>>
@@ -79,25 +79,9 @@ eos = [:eos:];
 "/*"          <set_marker(2)||MultiLineComment>
 "<!--"        <||SingleLineComment>
 
-"<!-"        <|{
-  BACKWARD(2);
-  DO_TOKEN(Token::LT);
-  return;
-}|>
-
-"<!"        <|{
-  BACKWARD(1);
-  DO_TOKEN(Token::LT);
-  return;
-}|>
-
-"-->" <{
-  if (!has_line_terminator_before_next_) {
-    BACKWARD(1);
-    DO_TOKEN(Token::DEC);
-    return;
-  }
-}||SingleLineComment>
+"<!-"  <|backtrack(2, LT)|>
+"<!"   <|backtrack(1, LT)|>
+"-->"  <if_line_terminator_backtrack(1, DEC)||SingleLineComment>
 
 ">>>="        <|token(ASSIGN_SHR)|>
 ">>>"         <|token(SHR)|>
@@ -200,12 +184,7 @@ line_terminator+   <|line_terminator|>
 "yield"       <|token(YIELD)|>
 
 identifier_start <|token(IDENTIFIER)|Identifier>
-/\\u[:hex_digit:]{4}/ <{
-  if (V8_UNLIKELY(!ValidIdentifierStart())) {
-    goto default_action;
-  }
-  next_.has_escapes = true;
-}|token(IDENTIFIER)|Identifier>
+/\\u[:hex_digit:]{4}/ <check_escaped_identifier_start|token(IDENTIFIER)|Identifier>
 
 eos             <|terminate|>
 default_action  <do_token_and_go_forward(ILLEGAL)>
@@ -241,12 +220,7 @@ catch_all                     <||continue>
 
 <<Identifier>>
 identifier_char <|token(IDENTIFIER)|continue>
-/\\u[:hex_digit:]{4}/ <{
-  if (V8_UNLIKELY(!ValidIdentifierPart())) {
-    goto default_action;
-  }
-  next_.has_escapes = true;
-}|token(IDENTIFIER)|continue>
+/\\u[:hex_digit:]{4}/ <check_escaped_identifier_part|token(IDENTIFIER)|continue>
 
 <<SingleLineComment>>
 line_terminator  <|line_terminator|>

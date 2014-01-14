@@ -66,12 +66,10 @@
 {%- endmacro -%}
 
 
-{#- entry actions must not change the value of the cursor -#}
+{#- entry actions must not change the value of the cursor
+    unless they jump -#}
 {% macro dispatch_entry_action(type, value) -%}
-  {%- if type == 'code' %}
-    {#- TODO(dcarney): in debug mode, verify cursor doesn't change -#}
-    {{value}}
-  {% elif type == 'store_token' %}
+  {% if type == 'store_token' %}
     stored_token = Token::{{value}};
   {% elif type == 'set_marker' %}
     marker_ = cursor_ - {{value}};
@@ -82,18 +80,25 @@
      next_.has_escapes = true;
   {% elif type == 'line_terminator_in_multiline_comment' %}
      has_multiline_comment_before_next_ = true;
+  {% elif type == 'check_escaped_identifier_start' %}
+    if (!ValidIdentifierStart()) goto default_action;
+    next_.has_escapes = true;
+  {% elif type == 'check_escaped_identifier_part' %}
+    if (!ValidIdentifierPart()) goto default_action;
+    next_.has_escapes = true;
+  {% elif type == 'if_line_terminator_backtrack' %}
+    if (!has_line_terminator_before_next_) {
+      {{dispatch_match_action('backtrack', value)}}
+    }
   {% else %}
-    uncompilable code for {{type}}
+    uncompilable code for {{type}} {{value}}
   {% endif -%}
 {%- endmacro -%}
 
 
 {#- match actions must all explicitly jump or return -#}
 {% macro dispatch_match_action(type, value) -%}
-  {%- if type == 'code' %}
-    {{value}}
-    CRASH()
-  {% elif type == 'terminate' %}
+  {% if type == 'terminate' %}
     DO_EOS();
     return;
   {% elif type == 'terminate_illegal' %}
@@ -143,8 +148,12 @@
     last_octal_end_ = cursor_;
     DO_TOKEN(Token::NUMBER);
     return;
+  {% elif type == 'backtrack' %}
+    BACKWARD({{value[0]}});
+    DO_TOKEN(Token::{{value[1]}});
+    return;
   {% else %}
-    uncompilable code for {{encoding}}
+    uncompilable code for {{type}} {{value}}
   {% endif -%}
 {%- endmacro -%}
 
@@ -264,7 +273,7 @@
 
   {%- if match_action %}
     {{ dispatch_match_action(match_action[0], match_action[1]) }}
-    CRASH()
+    CRASH();
   {% else %}
     goto default_action;
   {%- endif %}
@@ -346,7 +355,7 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
     fprintf(stderr, "default action\n");
 {% endif -%}
     {{dispatch_match_action(default_action[0], default_action[1])}}
-  CRASH()
+  CRASH();
 
   if (false) {
     // force use of stored_token

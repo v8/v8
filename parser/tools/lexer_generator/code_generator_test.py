@@ -35,10 +35,10 @@ class CodeGeneratorTestCase(unittest.TestCase):
     rules = '''
     eos = [:eos:];
     <<default>>
-    "("           <|{LBRACE}|>
-    ")"           <|{RBRACE}|>
+    "("           <|LBRACE|>
+    ")"           <|RBRACE|>
 
-    "foo"         <|{FOO}|>
+    "foo"         <|FOO|>
     eos           <|terminate|>
-    default_action <{DEFAULT}>'''
+    default_action <DEFAULT>'''
     CodeGenerator(RuleProcessor.parse(rules, 'latin1'))

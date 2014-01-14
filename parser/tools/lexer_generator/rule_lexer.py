@@ -51,20 +51,10 @@ class RuleLexer:
     'ACTION_OPEN',
     'ACTION_CLOSE',
 
-    'LEFT_BRACKET',
-    'RIGHT_BRACKET',
-
-    'CODE_FRAGMENT',
-
     'COMMA',
   )
 
-  states = (
-    ('code','exclusive'),
-  )
-
   t_ignore = " \t\n\r"
-  t_code_ignore = ""
 
   def t_COMMENT(self, t):
     r'\#.*[\n\r]+'
@@ -101,23 +91,6 @@ class RuleLexer:
     r'{'
     self.lexer.push_state('code')
     self.nesting = 1
-    return t
-
-  t_code_CODE_FRAGMENT = r'[^{}]+'
-
-  def t_code_LEFT_BRACKET(self, t):
-    r'{'
-    self.nesting += 1
-    t.type = 'CODE_FRAGMENT'
-    return t
-
-  def t_code_RIGHT_BRACKET(self, t):
-    r'}'
-    self.nesting -= 1
-    if self.nesting:
-      t.type = 'CODE_FRAGMENT'
-    else:
-      self.lexer.pop_state()
     return t
 
   def t_ANY_error(self, t):
