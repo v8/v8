@@ -109,7 +109,7 @@ namespace internal {
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(FlattenString, 1, 1) \
-  F(MigrateInstance, 1, 1) \
+  F(TryMigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
   F(MaxSmi, 0, 1) \
   \
