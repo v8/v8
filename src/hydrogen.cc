@@ -2642,7 +2642,7 @@ void HGraphBuilder::BuildCreateAllocationMemento(
   if (FLAG_allocation_site_pretenuring) {
     HValue* memento_create_count = Add<HLoadNamedField>(
         allocation_site, HObjectAccess::ForAllocationSiteOffset(
-            AllocationSite::kMementoCreateCountOffset));
+            AllocationSite::kPretenureCreateCountOffset));
     memento_create_count = AddUncasted<HAdd>(
         memento_create_count, graph()->GetConstant1());
     // This smi value is reset to zero after every gc, overflow isn't a problem
@@ -2650,7 +2650,7 @@ void HGraphBuilder::BuildCreateAllocationMemento(
     memento_create_count->ClearFlag(HValue::kCanOverflow);
     HStoreNamedField* store = Add<HStoreNamedField>(
         allocation_site, HObjectAccess::ForAllocationSiteOffset(
-            AllocationSite::kMementoCreateCountOffset), memento_create_count);
+            AllocationSite::kPretenureCreateCountOffset), memento_create_count);
     // No write barrier needed to store a smi.
     store->SkipWriteBarrier();
   }
@@ -7613,10 +7613,11 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   HValue* function = Top();
 
   AddCheckConstantFunction(expr->holder(), function, function_map);
-  Drop(1);
 
   CHECK_ALIVE_OR_RETURN(VisitForValue(args->at(0)), true);
   HValue* receiver = Pop();
+
+  Drop(1);  // Pop the function.
 
   if (function_state()->outer() == NULL) {
     HInstruction* elements = Add<HArgumentsElements>(false);
@@ -7906,10 +7907,11 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
 
   ElementsKind kind = expr->elements_kind();
   Handle<Cell> cell = expr->allocation_info_cell();
-  AllocationSite* site = AllocationSite::cast(cell->value());
+  Handle<AllocationSite> site(AllocationSite::cast(cell->value()));
 
   // Register on the site for deoptimization if the cell value changes.
-  site->AddDependentCompilationInfo(AllocationSite::TRANSITIONS, top_info());
+  AllocationSite::AddDependentCompilationInfo(
+      site, AllocationSite::TRANSITIONS, top_info());
   HInstruction* cell_instruction = Add<HConstant>(cell);
 
   // In the single constant argument case, we may have to adjust elements kind
@@ -8924,8 +8926,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     // Register the dependent code with the allocation site.
     if (!allocation_mode.feedback_site().is_null()) {
       ASSERT(!graph()->info()->IsStub());
-      allocation_mode.feedback_site()->AddDependentCompilationInfo(
-          AllocationSite::TENURING, top_info());
+      Handle<AllocationSite> site(allocation_mode.feedback_site());
+      AllocationSite::AddDependentCompilationInfo(
+          site, AllocationSite::TENURING, top_info());
     }
 
     // Inline string addition if we know that we'll create a cons string.
@@ -9501,8 +9504,9 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   PretenureFlag pretenure_flag = isolate()->heap()->GetPretenureMode();
   if (FLAG_allocation_site_pretenuring) {
     pretenure_flag = site_context->current()->GetPretenureMode();
-    site_context->current()->AddDependentCompilationInfo(
-        AllocationSite::TENURING, top_info());
+    Handle<AllocationSite> site(site_context->current());
+    AllocationSite::AddDependentCompilationInfo(
+        site, AllocationSite::TENURING, top_info());
   }
 
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
@@ -10716,10 +10720,21 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
     }
 
     PrintEmptyProperty("xhandlers");
-    const char* flags = current->IsLoopSuccessorDominator()
-        ? "dom-loop-succ"
-        : "";
-    PrintStringProperty("flags", flags);
+
+    {
+      PrintIndent();
+      trace_.Add("flags");
+      if (current->IsLoopSuccessorDominator()) {
+        trace_.Add(" \"dom-loop-succ\"");
+      }
+      if (current->IsUnreachable()) {
+        trace_.Add(" \"dead\"");
+      }
+      if (current->is_osr_entry()) {
+        trace_.Add(" \"osr\"");
+      }
+      trace_.Add("\n");
+    }
 
     if (current->dominator() != NULL) {
       PrintBlockProperty("dominator", current->dominator()->block_id());

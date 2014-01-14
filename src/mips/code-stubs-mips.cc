@@ -1425,13 +1425,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ PrepareCallCFunction(0, 2, scratch2);
-      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ MovToFloatParameters(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()),
           0, 2);
     }
     __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    __ MovFromFloatResult(double_result);
     __ jmp(&done);
 
     __ bind(&int_exponent_convert);
@@ -1509,13 +1509,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ PrepareCallCFunction(0, 2, scratch);
-      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ MovToFloatParameters(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()),
           0, 2);
     }
     __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    __ MovFromFloatResult(double_result);
 
     __ bind(&done);
     __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);

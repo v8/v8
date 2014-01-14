@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,43 +25,53 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
-#include "platform.h"
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
-
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, GCExtension::GC);
-}
-
-
-void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  if (args[0]->BooleanValue()) {
-    isolate->heap()->CollectGarbage(
-        NEW_SPACE, "gc extension", v8::kGCCallbackFlagForced);
-  } else {
-    isolate->heap()->CollectAllGarbage(
-        Heap::kNoGCFlags, "gc extension", v8::kGCCallbackFlagForced);
-  }
-}
-
-
-void GCExtension::Register() {
-  static char buffer[50];
-  Vector<char> temp_vector(buffer, sizeof(buffer));
-  if (FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0) {
-    OS::SNPrintF(temp_vector, "native function %s();", FLAG_expose_gc_as);
-  } else {
-    OS::SNPrintF(temp_vector, "native function gc();");
+(function ApplyArgumentsDeoptInReceiverMapCheck() {
+  function invoker(h, r) {
+    return function XXXXX() {
+      var res = h.apply({ fffffff : r(this) }, arguments);
+      return res;
+    };
   }
 
-  static GCExtension gc_extension(buffer);
-  static v8::DeclareExtension declaration(&gc_extension);
-}
+  var y = invoker(m, selfOf);
 
-} }  // namespace v8::internal
+  function selfOf(c) {
+    var sssss = c.self_;
+    return sssss;
+  }
+
+  function m() {
+    return this.fffffff;
+  }
+
+  y.apply({ self_ : 3 });
+  y.apply({ self_ : 3 });
+  y.apply({ self_ : 3 });
+
+  %OptimizeFunctionOnNextCall(y);
+
+  assertEquals(y.apply({ self_ : 3, uuu : 4 }), 3);
+})();
+
+(function ApplyArgumentsDeoptInReceiverExplicit() {
+  function f() { return this + 21; }
+
+  function deopt() {
+    %DeoptimizeFunction(XXXXX);
+    return 21;
+  }
+
+  function XXXXX() {
+    return f.apply(deopt(), arguments);
+  };
+
+  XXXXX();
+  XXXXX();
+  XXXXX();
+
+  %OptimizeFunctionOnNextCall(XXXXX);
+
+  assertEquals(42, XXXXX());
+})();

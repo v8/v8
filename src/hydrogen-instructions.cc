@@ -4284,11 +4284,9 @@ HObjectAccess HObjectAccess::ForAllocationSiteOffset(int offset) {
       return HObjectAccess(kInobject, offset, Representation::Tagged());
     case AllocationSite::kNestedSiteOffset:
       return HObjectAccess(kInobject, offset, Representation::Tagged());
-    case AllocationSite::kMementoFoundCountOffset:
+    case AllocationSite::kPretenureDataOffset:
       return HObjectAccess(kInobject, offset, Representation::Smi());
-    case AllocationSite::kMementoCreateCountOffset:
-      return HObjectAccess(kInobject, offset, Representation::Smi());
-    case AllocationSite::kPretenureDecisionOffset:
+    case AllocationSite::kPretenureCreateCountOffset:
       return HObjectAccess(kInobject, offset, Representation::Smi());
     case AllocationSite::kDependentCodeOffset:
       return HObjectAccess(kInobject, offset, Representation::Tagged());

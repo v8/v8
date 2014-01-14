@@ -48,6 +48,7 @@
 #include "factory.h"
 #include "incremental-marking.h"
 #include "transitions-inl.h"
+#include "objects-visiting.h"
 
 namespace v8 {
 namespace internal {
@@ -1304,9 +1305,8 @@ void AllocationSite::Initialize() {
   set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::FromInt(0));
-  set_memento_create_count(Smi::FromInt(0));
-  set_memento_found_count(Smi::FromInt(0));
-  set_pretenure_decision(Smi::FromInt(0));
+  set_pretenure_data(Smi::FromInt(0));
+  set_pretenure_create_count(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
                      SKIP_WRITE_BARRIER);
 }
@@ -1315,7 +1315,7 @@ void AllocationSite::Initialize() {
 void AllocationSite::MarkZombie() {
   ASSERT(!IsZombie());
   Initialize();
-  set_pretenure_decision(Smi::FromInt(kZombie));
+  set_pretenure_decision(kZombie);
 }
 
 
@@ -1367,35 +1367,50 @@ inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
 }
 
 
+inline void AllocationSite::set_memento_found_count(int count) {
+  int value = pretenure_data()->value();
+  // Verify that we can count more mementos than we can possibly find in one
+  // new space collection.
+  ASSERT((GetHeap()->MaxSemiSpaceSize() /
+          (StaticVisitorBase::kMinObjectSizeInWords * kPointerSize +
+           AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
+  ASSERT(count < MementoFoundCountBits::kMax);
+  set_pretenure_data(
+      Smi::FromInt(MementoFoundCountBits::update(value, count)),
+      SKIP_WRITE_BARRIER);
+}
+
 inline bool AllocationSite::IncrementMementoFoundCount() {
   if (IsZombie()) return false;
 
-  int value = memento_found_count()->value();
-  set_memento_found_count(Smi::FromInt(value + 1));
+  int value = memento_found_count();
+  set_memento_found_count(value + 1);
   return value == 0;
 }
 
 
 inline void AllocationSite::IncrementMementoCreateCount() {
   ASSERT(FLAG_allocation_site_pretenuring);
-  int value = memento_create_count()->value();
-  set_memento_create_count(Smi::FromInt(value + 1));
+  int value = memento_create_count();
+  set_memento_create_count(value + 1);
 }
 
 
 inline bool AllocationSite::DigestPretenuringFeedback() {
   bool decision_made = false;
-  int create_count = memento_create_count()->value();
+  int create_count = memento_create_count();
   if (create_count >= kPretenureMinimumCreated) {
-    int found_count = memento_found_count()->value();
+    int found_count = memento_found_count();
     double ratio = static_cast<double>(found_count) / create_count;
     if (FLAG_trace_track_allocation_sites) {
       PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
              static_cast<void*>(this), create_count, found_count, ratio);
     }
     int current_mode = GetPretenureMode();
-    int result = ratio >= kPretenureRatio ? kTenure : kDontTenure;
-    set_pretenure_decision(Smi::FromInt(result));
+    PretenureDecision result = ratio >= kPretenureRatio
+        ? kTenure
+        : kDontTenure;
+    set_pretenure_decision(result);
     decision_made = true;
     if (current_mode != GetPretenureMode()) {
       dependent_code()->DeoptimizeDependentCodeGroup(
@@ -1405,8 +1420,8 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
   }
 
   // Clear feedback calculation fields until the next gc.
-  set_memento_found_count(Smi::FromInt(0));
-  set_memento_create_count(Smi::FromInt(0));
+  set_memento_found_count(0);
+  set_memento_create_count(0);
   return decision_made;
 }
 
@@ -4600,10 +4615,9 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
-ACCESSORS_TO_SMI(AllocationSite, memento_found_count, kMementoFoundCountOffset)
-ACCESSORS_TO_SMI(AllocationSite, memento_create_count,
-                 kMementoCreateCountOffset)
-ACCESSORS_TO_SMI(AllocationSite, pretenure_decision, kPretenureDecisionOffset)
+ACCESSORS_TO_SMI(AllocationSite, pretenure_data, kPretenureDataOffset)
+ACCESSORS_TO_SMI(AllocationSite, pretenure_create_count,
+                 kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)

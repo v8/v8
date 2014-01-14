@@ -45,7 +45,6 @@
 #include "isolate-inl.h"
 #include "log.h"
 #include "objects-inl.h"
-#include "objects-visiting.h"
 #include "objects-visiting-inl.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
@@ -9202,39 +9201,6 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
-                                                        Heap* heap,
-                                                        bool in_GC) {
-  // AllocationMemento objects are only allocated immediately after objects in
-  // NewSpace. Detecting whether a memento is present involves carefully
-  // checking the object immediately after the current object (if there is one)
-  // to see if it's an AllocationMemento.
-  ASSERT(heap->InNewSpace(object));
-  Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
-      object->Size();
-  Address top;
-  if (in_GC) {
-    top = heap->new_space()->FromSpacePageHigh();
-  } else {
-    top = heap->NewSpaceTop();
-  }
-  if ((ptr_end + AllocationMemento::kSize) <= top) {
-    // There is room in newspace for allocation info. Do we have some?
-    Map** possible_allocation_memento_map =
-        reinterpret_cast<Map**>(ptr_end);
-    if (*possible_allocation_memento_map ==
-        object->GetHeap()->allocation_memento_map()) {
-      AllocationMemento* memento = AllocationMemento::cast(
-          reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-      if (memento->IsValid()) {
-        return memento;
-      }
-    }
-  }
-  return NULL;
-}
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -12797,14 +12763,14 @@ void AllocationSite::ResetPretenureDecision() {
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(),
       DependentCode::kAllocationSiteTenuringChangedGroup);
-  set_pretenure_decision(Smi::FromInt(kUndecided));
-  set_memento_found_count(Smi::FromInt(0));
-  set_memento_create_count(Smi::FromInt(0));
+  set_pretenure_decision(kUndecided);
+  set_memento_found_count(0);
+  set_memento_create_count(0);
 }
 
 
 PretenureFlag AllocationSite::GetPretenureMode() {
-  int mode = pretenure_decision()->value();
+  PretenureDecision mode = pretenure_decision();
   // Zombie objects "decide" to be untenured.
   return (mode == kTenure && GetHeap()->GetPretenureMode() == TENURED)
       ? TENURED : NOT_TENURED;
@@ -12878,22 +12844,16 @@ MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
 }
 
 
-void AllocationSite::AddDependentCompilationInfo(Reason reason,
+// static
+void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
+                                                 Reason reason,
                                                  CompilationInfo* info) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> dep(dependent_code());
+  DependentCode::DependencyGroup group = site->ToDependencyGroup(reason);
+  Handle<DependentCode> dep(site->dependent_code());
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
-}
-
-
-void AllocationSite::AddDependentCode(Reason reason, Handle<Code> code) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()), group, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+  if (*codes != site->dependent_code()) site->set_dependent_code(*codes);
+  info->dependencies(group)->Add(Handle<HeapObject>(*site), info->zone());
 }
 
 
@@ -12905,17 +12865,24 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
-  if (!IsJSArray()) {
-    return this;
-  }
+  if (!IsJSArray()) return this;
 
   Heap* heap = GetHeap();
   if (!heap->InNewSpace(this)) return this;
 
-  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this, heap);
-  if (memento == NULL || !memento->IsValid()) {
-    return this;
-  }
+  // Either object is the last object in the new space, or there is another
+  // object of at least word size (the header map word) following it, so
+  // suffices to compare ptr and top here.
+  Address ptr = address() + JSArray::kSize;
+  Address top = heap->NewSpaceTop();
+  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
+  if (ptr == top) return this;
+
+  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  if (candidate->map() != heap->allocation_memento_map()) return this;
+
+  AllocationMemento* memento = AllocationMemento::cast(candidate);
+  if (!memento->IsValid()) return this;
 
   // Walk through to the Allocation Site
   AllocationSite* site = memento->GetAllocationSite();
@@ -16660,14 +16627,6 @@ void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
   if (*codes != dependent_code()) set_dependent_code(*codes);
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
       Handle<HeapObject>(this), info->zone());
-}
-
-
-void PropertyCell::AddDependentCode(Handle<Code> code) {
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()),
-      DependentCode::kPropertyCellChangedGroup, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
 }
 
 

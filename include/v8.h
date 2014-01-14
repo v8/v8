@@ -945,16 +945,6 @@ class V8_EXPORT ScriptData {  // NOLINT
   /**
    * Pre-compiles the specified script (context-independent).
    *
-   * \param input Pointer to UTF-8 script source code.
-   * \param length Length of UTF-8 script source code.
-   */
-  static ScriptData* PreCompile(Isolate* isolate,
-                                const char* input,
-                                int length);
-
-  /**
-   * Pre-compiles the specified script (context-independent).
-   *
    * NOTE: Pre-compilation using this method cannot happen on another thread
    * without using Lockers.
    *
@@ -3903,7 +3893,8 @@ enum GCType {
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
   kGCCallbackFlagCompacted = 1 << 0,
-  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1
+  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1,
+  kGCCallbackFlagForced = 1 << 2
 };
 
 typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
@@ -3970,6 +3961,15 @@ class V8_EXPORT Isolate {
     // Prevent copying of Scope objects.
     Scope(const Scope&);
     Scope& operator=(const Scope&);
+  };
+
+  /**
+   * Types of garbage collections that can be requested via
+   * RequestGarbageCollectionForTesting.
+   */
+  enum GarbageCollectionType {
+    kFullGarbageCollection,
+    kMinorGarbageCollection
   };
 
   /**
@@ -4183,6 +4183,17 @@ class V8_EXPORT Isolate {
    * Can be called from another thread without acquiring a |Locker|.
    */
   void ClearInterrupt();
+
+  /**
+   * Request garbage collection in this Isolate. It is only valid to call this
+   * function if --expose_gc was specified.
+   *
+   * This should only be used for testing purposes and not to enforce a garbage
+   * collection schedule. It has strong negative impact on the garbage
+   * collection performance. Use IdleNotification() or LowMemoryNotification()
+   * instead to influence the garbage collection schedule.
+   */
+  void RequestGarbageCollectionForTesting(GarbageCollectionType type);
 
  private:
   Isolate();

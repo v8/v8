@@ -1277,17 +1277,16 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void CallCFunction(Register function,
                      int num_reg_arguments,
                      int num_double_arguments);
-  void GetCFunctionDoubleResult(const DoubleRegister dst);
-  void GetFromCDoubleArguments(const DoubleRegister dst);
+  void MovFromFloatResult(DoubleRegister dst);
+  void MovFromFloatParameter(DoubleRegister dst);
 
   // There are two ways of passing double arguments on MIPS, depending on
   // whether soft or hard floating point ABI is used. These functions
   // abstract parameter passing for the three different ways we call
   // C functions from generated code.
-  void SetCallCDoubleArguments(DoubleRegister dreg);
-  void SetCallCDoubleArguments(DoubleRegister dreg1, DoubleRegister dreg2);
-  void SetCallCDoubleArguments(DoubleRegister dreg, Register reg);
-  void SetForCDoubleResult(DoubleRegister dreg);
+  void MovToFloatParameter(DoubleRegister src);
+  void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
+  void MovToFloatResult(DoubleRegister src);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space
