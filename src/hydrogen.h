@@ -114,6 +114,8 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   bool Dominates(HBasicBlock* other) const;
   int LoopNestingDepth() const;
 
+  void ReplaceControlWithGotoSuccessor(int succ);
+
   void SetInitialEnvironment(HEnvironment* env);
   void ClearEnvironment() {
     ASSERT(IsFinished());
@@ -200,6 +202,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
                        int position);
 
  private:
+  void MarkSuccEdgeUnreachable(int succ);
   void RegisterPredecessor(HBasicBlock* pred);
   void AddDominatedBlock(HBasicBlock* block);
 
