@@ -645,7 +645,6 @@ class HValue : public ZoneObject {
 
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
-  int LoopWeight() const;
 
   // Note: Never call this method for an unlinked value.
   Isolate* isolate() const;

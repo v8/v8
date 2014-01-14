@@ -54,14 +54,6 @@ HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
 
-int HValue::LoopWeight() const {
-  const int w = FLAG_loop_weight;
-  static const int weights[] = { 1, w, w*w, w*w*w, w*w*w*w };
-  return weights[Min(block()->LoopNestingDepth(),
-                     static_cast<int>(ARRAY_SIZE(weights)-1))];
-}
-
-
 Isolate* HValue::isolate() const {
   ASSERT(block() != NULL);
   return block()->isolate();
@@ -106,7 +98,7 @@ Representation HValue::RepresentationFromUses() {
              id(), Mnemonic(), use->id(), use->Mnemonic(), rep.Mnemonic(),
              (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
     }
-    use_count[rep.kind()] += use->LoopWeight();
+    use_count[rep.kind()] += 1;
   }
   if (IsPhi()) HPhi::cast(this)->AddIndirectUsesTo(&use_count[0]);
   int tagged_count = use_count[Representation::kTagged];
@@ -2357,7 +2349,7 @@ void HPhi::InitRealUses(int phi_id) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
       Representation rep = value->observed_input_representation(it.index());
-      non_phi_uses_[rep.kind()] += value->LoopWeight();
+      non_phi_uses_[rep.kind()] += 1;
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());
