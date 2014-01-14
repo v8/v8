@@ -57,6 +57,10 @@
 #include <asm/sigcontext.h>
 #endif
 
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
+
 #undef MAP_TYPE
 
 #include "v8.h"
@@ -348,6 +352,9 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 
   address_ = static_cast<void*>(aligned_base);
   size_ = aligned_size;
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(address_, size_);
+#endif
 }
 
 
@@ -397,6 +404,9 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
   if (result == MAP_FAILED) return NULL;
 
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(result, size);
+#endif
   return result;
 }
 
@@ -433,6 +443,9 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(base, size);
+#endif
   return munmap(base, size) == 0;
 }
 
