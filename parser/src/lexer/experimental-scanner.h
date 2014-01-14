@@ -254,6 +254,11 @@ class ScannerBase {
   virtual void Scan() = 0;
   virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal) = 0;
 
+  void ResetLiterals() {
+    current_literal_->beg_pos = -1;
+    next_literal_->beg_pos = -1;
+  }
+
   Isolate* isolate_;
   UnicodeCache* unicode_cache_;
 
@@ -318,11 +323,16 @@ class ExperimentalScanner : public ScannerBase {
       int start_offset = start_ - buffer_;
       int cursor_offset = cursor_ - buffer_;
       int marker_offset = marker_ - buffer_;
+      int last_octal_end_offset = last_octal_end_ - buffer_;
       buffer_ = new_buffer;
       buffer_end_ = buffer_ + source_handle_->length();
       start_ = buffer_ + start_offset;
       cursor_ = buffer_ + cursor_offset;
       marker_ = buffer_ + marker_offset;
+      if (last_octal_end_ != NULL) {
+        last_octal_end_ = buffer_ + last_octal_end_offset;
+      }
+      ResetLiterals();
     }
   }
 
