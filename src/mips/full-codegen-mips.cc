@@ -2648,8 +2648,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arg_count);
   TypeFeedbackId ast_id = mode == CONTEXTUAL
       ? TypeFeedbackId::None()
       : expr->CallFeedbackId();
@@ -4216,10 +4215,8 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     // Call the JS runtime function.
     __ li(a2, Operand(expr->name()));
-    ContextualMode mode = NOT_CONTEXTUAL;
-    Handle<Code> ic =
-        isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
-    CallIC(ic, mode, expr->CallRuntimeFeedbackId());
+    Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arg_count);
+    CallIC(ic, NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
     // Restore context register.
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
