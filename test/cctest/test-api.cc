@@ -17797,7 +17797,7 @@ static double DoubleToDateTime(double input) {
   if (std::isnan(input) || input < -date_limit || input > date_limit) {
     return i::OS::nan_value();
   }
-  return (input < 0) ? -(floor(-input)) : floor(input);
+  return (input < 0) ? -(std::floor(-input)) : std::floor(input);
 }
 
 

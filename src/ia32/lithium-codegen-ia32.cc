@@ -1615,10 +1615,10 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
     double multiplier_f =
         static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
     int64_t multiplier;
-    if (multiplier_f - floor(multiplier_f) < 0.5) {
-        multiplier = static_cast<int64_t>(floor(multiplier_f));
+    if (multiplier_f - std::floor(multiplier_f) < 0.5) {
+        multiplier = static_cast<int64_t>(std::floor(multiplier_f));
     } else {
-        multiplier = static_cast<int64_t>(floor(multiplier_f)) + 1;
+        multiplier = static_cast<int64_t>(std::floor(multiplier_f)) + 1;
     }
     // The multiplier is a uint32.
     ASSERT(multiplier > 0 &&

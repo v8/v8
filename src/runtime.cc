@@ -7673,7 +7673,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_acos) {
   isolate->counters()->math_acos()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(acos(x));
+  return isolate->heap()->AllocateHeapNumber(std::acos(x));
 }
 
 
@@ -7683,7 +7683,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_asin) {
   isolate->counters()->math_asin()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(asin(x));
+  return isolate->heap()->AllocateHeapNumber(std::asin(x));
 }
 
 
@@ -7693,7 +7693,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan) {
   isolate->counters()->math_atan()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(atan(x));
+  return isolate->heap()->AllocateHeapNumber(std::atan(x));
 }
 
 
@@ -7717,7 +7717,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
     if (y < 0) multiplier *= 3;
     result = multiplier * kPiDividedBy4;
   } else {
-    result = atan2(x, y);
+    result = std::atan2(x, y);
   }
   return isolate->heap()->AllocateHeapNumber(result);
 }
@@ -7740,7 +7740,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_floor) {
   isolate->counters()->math_floor()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(floor(x));
+  return isolate->heap()->NumberFromDouble(std::floor(x));
 }
 
 
@@ -7750,7 +7750,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   isolate->counters()->math_log()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(log(x));
+  return isolate->heap()->AllocateHeapNumber(std::log(x));
 }
 
 
@@ -7835,7 +7835,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
   if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
 
   // Do not call NumberFromDouble() to avoid extra checks.
-  return isolate->heap()->AllocateHeapNumber(floor(value + 0.5));
+  return isolate->heap()->AllocateHeapNumber(std::floor(value + 0.5));
 }
 
 
@@ -9550,7 +9550,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCurrentTime) {
   // the number in a Date object representing a particular instant in
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
-  double millis = floor(OS::TimeCurrentMillis());
+  double millis = std::floor(OS::TimeCurrentMillis());
   return isolate->heap()->NumberFromDouble(millis);
 }
 
