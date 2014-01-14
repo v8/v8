@@ -9170,9 +9170,8 @@ static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
   if (constructor != context_extension_function) return holder;
   // Fall back to using the global object as the implicit receiver if
   // the property turns out to be a local variable allocated in a
-  // context extension object - introduced via eval. Implicit global
-  // receivers are indicated with the hole value.
-  return isolate->heap()->the_hole_value();
+  // context extension object - introduced via eval.
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -9206,11 +9205,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     ASSERT(holder->IsContext());
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    //
-    // Use the hole as the receiver to signal that the receiver is implicit
-    // and that the global receiver should be used (as distinguished from an
-    // explicit receiver that happens to be a global object).
-    Handle<Object> receiver = isolate->factory()->the_hole_value();
+    Handle<Object> receiver = isolate->factory()->undefined_value();
     Object* value = Context::cast(*holder)->get(index);
     // Check for uninitialized bindings.
     switch (binding_flags) {
@@ -9245,7 +9240,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(
         object->IsGlobalObject()
-            ? Object::cast(isolate->heap()->the_hole_value())
+            ? Object::cast(isolate->heap()->undefined_value())
             : object->IsJSProxy() ? static_cast<Object*>(*object)
                 : ComputeReceiverForNonGlobal(isolate, JSObject::cast(*object)),
         isolate);
@@ -9744,7 +9739,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   // the first argument without doing anything).
   if (*callee != isolate->native_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee, isolate->heap()->the_hole_value());
+    return MakePair(*callee, isolate->heap()->undefined_value());
   }
 
   CONVERT_LANGUAGE_MODE_ARG(language_mode, 3);
@@ -11336,11 +11331,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     // by creating correct wrapper object based on the calling frame's
     // native context.
     it.Advance();
-    Handle<Context> calling_frames_native_context(
-        Context::cast(Context::cast(it.frame()->context())->native_context()));
-    ASSERT(!receiver->IsUndefined() && !receiver->IsNull());
-    receiver =
-        isolate->factory()->ToObject(receiver, calling_frames_native_context);
+    if (receiver->IsUndefined()) {
+      Context* context = function->context();
+      receiver = handle(context->global_object()->global_receiver());
+    } else {
+      ASSERT(!receiver->IsNull());
+      Context* context = Context::cast(it.frame()->context());
+      Handle<Context> native_context(Context::cast(context->native_context()));
+      receiver = isolate->factory()->ToObject(receiver, native_context);
+    }
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);
 

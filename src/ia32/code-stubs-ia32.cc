@@ -2520,43 +2520,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Check that the function really is a JavaScript function.
   __ JumpIfSmi(edi, &non_function);
 
-  // The receiver might implicitly be the global object. This is
-  // indicated by passing the hole as the receiver to the call
-  // function stub.
-  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
-    Label try_call, call, patch_current_context;
-    if (ReceiverMightBeImplicit()) {
-      // Get the receiver from the stack.
-      // +1 ~ return address
-      __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
-      // Call as function is indicated with the hole.
-      __ cmp(eax, isolate->factory()->the_hole_value());
-      __ j(not_equal, &try_call, Label::kNear);
-    }
-    // Patch the receiver on the stack with the global receiver object.
-    // Goto slow case if we do not have a function.
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-    __ j(not_equal, &patch_current_context);
-    CallStubCompiler::FetchGlobalProxy(masm, ecx, edi);
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), ecx);
-    __ jmp(&call, Label::kNear);
-
-    __ bind(&patch_current_context);
-    __ mov(edx, isolate->factory()->undefined_value());
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edx);
-    __ jmp(&slow);
-
-    __ bind(&try_call);
-    // Goto slow case if we do not have a function.
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-    __ j(not_equal, &slow);
-
-    __ bind(&call);
-  } else {
-    // Goto slow case if we do not have a function.
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-    __ j(not_equal, &slow);
-  }
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -2565,17 +2531,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
 
-  if (ReceiverMightBeImplicit()) {
-    Label call_as_function;
-    __ cmp(eax, isolate->factory()->the_hole_value());
-    __ j(equal, &call_as_function);
-    __ InvokeFunction(edi,
-                      actual,
-                      JUMP_FUNCTION,
-                      NullCallWrapper(),
-                      CALL_AS_METHOD);
-    __ bind(&call_as_function);
-  }
   __ InvokeFunction(edi,
                     actual,
                     JUMP_FUNCTION,
@@ -2612,7 +2567,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
-  __ SetCallKind(ecx, CALL_AS_METHOD);
+  __ SetCallKind(ecx, CALL_AS_FUNCTION);
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
   __ jmp(adaptor, RelocInfo::CODE_TARGET);

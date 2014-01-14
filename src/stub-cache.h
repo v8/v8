@@ -929,13 +929,9 @@ class CallStubCompiler: public StubCompiler {
                                 PropertyIndex index,
                                 Handle<Name> name);
 
-  // Patch the global proxy over the global object if the global object is the
-  // receiver.
-  static void FetchGlobalProxy(MacroAssembler* masm,
-                               Register target,
-                               Register function);
-  void PatchGlobalProxy(Handle<Object> object, Register function);
-  void PatchGlobalProxy(Handle<Object> object, Handle<JSFunction> function);
+  // Patch the implicit receiver over the global object if the global object is
+  // the receiver.
+  void PatchImplicitReceiver(Handle<Object> object);
 
   // Returns the register containing the holder of |name|.
   Register HandlerFrontendHeader(Handle<Object> object,

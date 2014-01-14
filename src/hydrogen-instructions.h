@@ -1993,11 +1993,10 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
                             FunctionLiteral* function,
                             InliningKind inlining_kind,
                             Variable* arguments_var,
-                            HArgumentsObject* arguments_object,
-                            bool undefined_receiver) {
+                            HArgumentsObject* arguments_object) {
     return new(zone) HEnterInlined(closure, arguments_count, function,
                                    inlining_kind, arguments_var,
-                                   arguments_object, undefined_receiver, zone);
+                                   arguments_object, zone);
   }
 
   void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
@@ -2011,7 +2010,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   void set_arguments_pushed() { arguments_pushed_ = true; }
   FunctionLiteral* function() const { return function_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
-  bool undefined_receiver() const { return undefined_receiver_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
@@ -2029,7 +2027,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
                 InliningKind inlining_kind,
                 Variable* arguments_var,
                 HArgumentsObject* arguments_object,
-                bool undefined_receiver,
                 Zone* zone)
       : closure_(closure),
         arguments_count_(arguments_count),
@@ -2038,7 +2035,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_object_(arguments_object),
-        undefined_receiver_(undefined_receiver),
         return_targets_(2, zone) {
   }
 
@@ -2049,7 +2045,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   InliningKind inlining_kind_;
   Variable* arguments_var_;
   HArgumentsObject* arguments_object_;
-  bool undefined_receiver_;
   ZoneList<HBasicBlock*> return_targets_;
 };
 

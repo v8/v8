@@ -53,9 +53,10 @@ function TestGenerator(g, expected_values_for_next,
   function testNext(thunk) {
     var iter = thunk();
     for (var i = 0; i < expected_values_for_next.length; i++) {
-      assertIteratorResult(expected_values_for_next[i],
-                           i == expected_values_for_next.length - 1,
-                           iter.next());
+      var v1 = expected_values_for_next[i];
+      var v2 = i == expected_values_for_next.length - 1;
+      // var v3 = iter.next();
+      assertIteratorResult(v1, v2, iter.next());
     }
     assertThrows(function() { iter.next(); }, Error);
   }

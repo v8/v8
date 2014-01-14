@@ -1291,7 +1291,7 @@ void CallStubCompiler::GenerateJumpFunctionIgnoreReceiver(
 
 void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
                                             Handle<JSFunction> function) {
-  PatchGlobalProxy(object, function);
+  PatchImplicitReceiver(object);
   GenerateJumpFunctionIgnoreReceiver(function);
 }
 
@@ -1299,7 +1299,7 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
 void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
                                             Register actual_closure,
                                             Handle<JSFunction> function) {
-  PatchGlobalProxy(object, function);
+  PatchImplicitReceiver(object);
   ParameterCount expected(function);
   __ InvokeFunction(actual_closure, expected, arguments(),
                     JUMP_FUNCTION, NullCallWrapper(), call_kind());

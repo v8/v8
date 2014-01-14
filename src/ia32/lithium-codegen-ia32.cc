@@ -175,18 +175,28 @@ bool LCodeGen::GeneratePrologue() {
     }
 #endif
 
-    // Strict mode functions and builtins need to replace the receiver
-    // with undefined when called as functions (without an explicit
-    // receiver object). ecx is zero for method calls and non-zero for
-    // function calls.
-    if (!info_->is_classic_mode() || info_->is_native()) {
+    // Classic mode functions and builtins need to replace the receiver with the
+    // global proxy when called as functions (without an explicit receiver
+    // object).
+    if (info_->this_has_uses() &&
+        info_->is_classic_mode() &&
+        !info_->is_native()) {
       Label ok;
-      __ test(ecx, Operand(ecx));
+      __ test(ecx, ecx);
       __ j(zero, &ok, Label::kNear);
+
       // +1 for return address.
       int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
-      __ mov(Operand(esp, receiver_offset),
-             Immediate(isolate()->factory()->undefined_value()));
+      __ mov(ecx, Operand(esp, receiver_offset));
+
+      __ cmp(ecx, isolate()->factory()->undefined_value());
+      __ j(not_equal, &ok, Label::kNear);
+
+      __ mov(ecx, GlobalObjectOperand());
+      __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
+
+      __ mov(Operand(esp, receiver_offset), ecx);
+
       __ bind(&ok);
     }
 
@@ -3641,7 +3651,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
   // passed unchanged to builtins and strict-mode functions.
-  Label global_object, receiver_ok;
+  Label receiver_ok, global_object;
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
 
   // Do not transform the receiver to object for strict mode
@@ -3671,10 +3681,11 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ jmp(&receiver_ok, Label::kNear);
 
   __ bind(&global_object);
-  // TODO(kmillikin): We have a hydrogen value for the global object.  See
-  // if it's better to use it than to explicitly fetch it from the context
-  // here.
-  CallStubCompiler::FetchGlobalProxy(masm(), receiver, function);
+  __ mov(receiver, FieldOperand(function, JSFunction::kContextOffset));
+  __ mov(receiver,
+         Operand(receiver, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(receiver, FieldOperand(receiver, GlobalObject::kGlobalReceiverOffset));
+
   __ bind(&receiver_ok);
 }
 
@@ -3716,7 +3727,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
       this, pointers, Safepoint::kLazyDeopt);
   ParameterCount actual(eax);
   __ InvokeFunction(function, actual, CALL_FUNCTION,
-                    safepoint_generator, CALL_AS_METHOD);
+                    safepoint_generator, CALL_AS_FUNCTION);
 }
 
 
@@ -3837,7 +3848,7 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
                     instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
-                    CALL_AS_METHOD,
+                    CALL_AS_FUNCTION,
                     EDI_UNINITIALIZED);
 }
 
@@ -4198,13 +4209,13 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     SafepointGenerator generator(
         this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
-    __ InvokeFunction(edi, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
+    __ InvokeFunction(edi, count, CALL_FUNCTION, generator, CALL_AS_FUNCTION);
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(),
                       instr,
-                      CALL_AS_METHOD,
+                      CALL_AS_FUNCTION,
                       EDI_CONTAINS_TARGET);
   }
 }
@@ -4240,10 +4251,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
-  CallFunctionFlags flags =
-      instr->hydrogen()->IsContextualCall() ?
-          RECEIVER_IS_IMPLICIT : NO_CALL_FUNCTION_FLAGS;
-  CallFunctionStub stub(arity, flags);
+  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
   if (instr->hydrogen()->IsTailCall()) {
     if (NeedsEagerFrame()) __ leave();
     __ jmp(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);

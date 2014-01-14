@@ -844,10 +844,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ movq(rdi, args.GetReceiverOperand());
     __ jmp(&patch_receiver, Label::kNear);
 
-    // Use the global receiver object from the called function as the
-    // receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, rbx, rdi);
+    __ movq(rbx,
+            Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ movq(args.GetArgumentOperand(1), rbx);
@@ -917,7 +917,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
              FieldOperand(rdx,
                           SharedFunctionInfo::kFormalParameterCountOffset));
   __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  __ SetCallKind(rcx, CALL_AS_METHOD);
+  __ SetCallKind(rcx, CALL_AS_FUNCTION);
   __ cmpq(rax, rbx);
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -925,7 +925,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   ParameterCount expected(0);
   __ InvokeCode(rdx, expected, expected, JUMP_FUNCTION,
-                NullCallWrapper(), CALL_AS_METHOD);
+                NullCallWrapper(), CALL_AS_FUNCTION);
 }
 
 
@@ -1025,9 +1025,11 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ movq(rbx, rax);
     __ jmp(&push_receiver, Label::kNear);
 
-    // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, rbx, rdi);
+    __ movq(rbx,
+            Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+
     // Push the receiver.
     __ bind(&push_receiver);
     __ push(rbx);
@@ -1060,7 +1062,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ cmpq(rax, Operand(rbp, kLimitOffset));
     __ j(not_equal, &loop);
 
-    // Invoke the function.
+    // Call the function.
     Label call_proxy;
     ParameterCount actual(rax);
     __ SmiToInteger32(rax, rax);
@@ -1068,17 +1070,17 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &call_proxy);
     __ InvokeFunction(rdi, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
+                      NullCallWrapper(), CALL_AS_FUNCTION);
 
     frame_scope.GenerateLeaveFrame();
     __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 
-    // Invoke the function proxy.
+    // Call the function proxy.
     __ bind(&call_proxy);
     __ push(rdi);  // add function proxy as last argument
     __ incq(rax);
     __ Set(rbx, 0);
-    __ SetCallKind(rcx, CALL_AS_METHOD);
+    __ SetCallKind(rcx, CALL_AS_FUNCTION);
     __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
     __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);

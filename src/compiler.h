@@ -102,6 +102,13 @@ class CompilationInfo {
     ASSERT(IsStub());
     parameter_count_ = parameter_count;
   }
+
+  void set_this_has_uses(bool has_no_uses) {
+    this_has_uses_ = has_no_uses;
+  }
+  bool this_has_uses() {
+    return this_has_uses_;
+  }
   void SetLanguageMode(LanguageMode language_mode) {
     ASSERT(this->language_mode() == CLASSIC_MODE ||
            this->language_mode() == language_mode ||
@@ -440,6 +447,8 @@ class CompilationInfo {
 
   // Number of parameters used for compilation of stubs that require arguments.
   int parameter_count_;
+
+  bool this_has_uses_;
 
   Handle<Foreign> object_wrapper_;
 

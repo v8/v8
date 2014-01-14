@@ -640,16 +640,7 @@ class HEnvironment V8_FINAL : public ZoneObject {
                                 int arguments,
                                 FunctionLiteral* function,
                                 HConstant* undefined,
-                                InliningKind inlining_kind,
-                                bool undefined_receiver) const;
-
-  static bool UseUndefinedReceiver(Handle<JSFunction> closure,
-                                   FunctionLiteral* function,
-                                   CallKind call_kind,
-                                   InliningKind inlining_kind) {
-    return (closure->shared()->native() || !function->is_classic_mode()) &&
-        call_kind == CALL_AS_FUNCTION && inlining_kind != CONSTRUCT_CALL_RETURN;
-  }
+                                InliningKind inlining_kind) const;
 
   HEnvironment* DiscardInlined(bool drop_extra) {
     HEnvironment* outer = outer_;
@@ -2203,6 +2194,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
 
+  HValue* ImplicitReceiverFor(HValue* function,
+                              Handle<JSFunction> target);
+
   int InliningAstSize(Handle<JSFunction> target);
   bool TryInline(CallKind call_kind,
                  Handle<JSFunction> target,
@@ -2502,9 +2496,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void AddCheckConstantFunction(Handle<JSObject> holder,
                                 HValue* receiver,
                                 Handle<Map> receiver_map);
-
-  void InstallGlobalReceiverInExpressionStack(int index,
-                                              Handle<JSFunction> function);
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;
