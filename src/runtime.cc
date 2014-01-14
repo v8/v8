@@ -3116,8 +3116,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   ASSERT_EQ(frame->function(), generator_object->function());
   ASSERT(frame->function()->is_compiled());
 
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
 
   Address pc = generator_object->function()->code()->instruction_start();
   int offset = generator_object->continuation();
