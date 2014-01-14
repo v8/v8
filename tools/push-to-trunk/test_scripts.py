@@ -660,7 +660,8 @@ Performance and stability improvements on all platforms."""
         CheckPreparePush],
       ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
        "done\n"],
-      ["cl dcommit -f", "Closing issue\n"],
+      ["cl presubmit", "Presubmit successfull\n"],
+      ["cl dcommit -f --bypass-hooks", "Closing issue\n"],
       ["svn fetch", "fetch result\n"],
       ["checkout svn/bleeding_edge", ""],
       [("log -1 --format=%H --grep=\"Prepare push to trunk.  "
