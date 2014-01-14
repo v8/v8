@@ -138,17 +138,6 @@ void CheckNonEqualsHelper(const char* file,
 }
 
 
-void API_Fatal(const char* location, const char* format, ...) {
-  i::OS::PrintError("\n#\n# Fatal error in %s\n# ", location);
-  va_list arguments;
-  va_start(arguments, format);
-  i::OS::VPrintError(format, arguments);
-  va_end(arguments);
-  i::OS::PrintError("\n#\n\n");
-  i::OS::Abort();
-}
-
-
 namespace v8 { namespace internal {
 
   intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
