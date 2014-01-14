@@ -103,14 +103,20 @@ class CodeGenerator:
       'deferred_transitions' : [],
       'long_char_transitions' : [],
       'disjoint_keys' : disjoint_keys,
-      'has_goto_after_entry' : False,
       'inline' : None,
       'action' : action,
       'entry_action' : entry_action,
       'match_action' : match_action,
       'class_keys' : class_keys,
       'distinct_keys' : distinct_keys,
-      'ranges' : ranges
+      'ranges' : ranges,
+      # record of which entry points will be needed
+      'entry_points' : {
+        'state_entry' : True,
+        'after_entry_code' : False,
+        # 'before_match' : False,
+        # 'before_deferred' : False,
+      }
     }
 
   def __set_inline(self, count, state):
@@ -261,23 +267,34 @@ class CodeGenerator:
 
   def __rewrite_gotos(self):
     goto_map = {}
-    for state in self.__dfa_states:
+    states = self.__dfa_states
+    for state in states:
       if (state['match_action'] and
           state['match_action'][0] == 'do_stored_token'):
         assert not state['match_action'][1] in goto_map
         goto_map[state['match_action'][1]] = state['node_number']
-        state['has_goto_after_entry'] = True
     mapped_actions = set([
       'store_harmony_token_and_goto',
       'store_token_and_goto',
       'goto_start'])
-    for state in self.__dfa_states:
+    for state in states:
       if not state['match_action']:
         continue
       if state['match_action'][0] in mapped_actions:
         value = state['match_action'][1]
         value = tuple(list(value[:-1]) + [goto_map[value[-1]]])
         state['match_action'] = (state['match_action'][0], value)
+        if state['match_action'][0] != 'goto_start':
+          states[value[-1]]['entry_points']['after_entry_code'] = True
+
+  @staticmethod
+  def __mark_entry_points(dfa_states):
+    # inlined states can write no labels
+    for state in dfa_states:
+      entry_points = state['entry_points']
+      if state['inline']:
+        for k in entry_points.keys():
+          entry_points[k] = False
 
   def process(self):
 
@@ -299,6 +316,8 @@ class CodeGenerator:
     # rewrite deferred transitions
     for state in dfa_states:
       self.__rewrite_deferred_transitions(state)
+    # mark all the entry points that will be used
+    self.__mark_entry_points(dfa_states)
 
     default_action = self.__default_action
     assert(default_action and default_action.match_action())

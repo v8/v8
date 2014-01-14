@@ -55,7 +55,7 @@ eos = [:eos:];
 #   regex <action_on_state_entry|action_on_match|transition>
 #
 # actions can be c code enclosed in {} or identifiers to be passed to codegen
-# transition must be in continue or the name of a subgraph
+# transition must be 'continue' or the name of a subgraph
 
 <<default>>
 
@@ -82,17 +82,20 @@ eos = [:eos:];
 "<!-"        <|{
   BACKWARD(2);
   DO_TOKEN(Token::LT);
+  return;
 }|>
 
 "<!"        <|{
   BACKWARD(1);
   DO_TOKEN(Token::LT);
+  return;
 }|>
 
 "-->" <{
   if (!has_line_terminator_before_next_) {
     BACKWARD(1);
     DO_TOKEN(Token::DEC);
+    return;
   }
 }||SingleLineComment>
 

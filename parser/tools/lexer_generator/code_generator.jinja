@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "lexer/experimental-scanner.h"
-
 {%- macro do_key(key) -%}
   {%- for r in key -%}
     {%- if not loop.first %} || {% endif -%}
@@ -68,56 +66,17 @@
 {%- endmacro -%}
 
 
-{% macro dispatch_action(type, value) -%}
+{#- entry actions must not change the value of the cursor -#}
+{% macro dispatch_entry_action(type, value) -%}
   {%- if type == 'code' %}
+    {#- TODO(dcarney): in debug mode, verify cursor doesn't change -#}
     {{value}}
-  {% elif type == 'terminate' %}
-    DO_EOS();
-  {% elif type == 'terminate_illegal' %}
-    start_ = marker_;
-    BACKWARD(1);
-    DO_TOKEN(Token::ILLEGAL);
-  {% elif type == 'skip' %}
-    SKIP();
-  {% elif type == 'skip_and_terminate' %}
-    SKIP();
-    --start_;
-    {{dispatch_action('terminate', None)}}
-  {% elif type == 'line_terminator' %}
-    DO_LINE_TERMINATOR();
-  {% elif type == 'token' %}
-    DO_TOKEN(Token::{{value}})
-  {% elif type == 'goto_start' %}
-    goto code_{{value[0]}};
   {% elif type == 'store_token' %}
     stored_token = Token::{{value}};
-  {% elif type == 'store_token_and_goto' %}
-    stored_token = Token::{{value[0]}};
-    goto code_after_entry_{{value[1]}};
-  {% elif type == 'do_stored_token' %}
-    DO_TOKEN(stored_token)
-  {% elif type == 'do_token_and_go_forward' %}
-    DO_TOKEN_AND_GO_FORWARD(Token::{{value}})
-  {% elif type == 'harmony_token' %}
-    if (harmony_{{value[0]}}_) {
-      DO_TOKEN(Token::{{value[1]}});
-    } else {
-      DO_TOKEN(Token::{{value[2]}});
-    }
-  {% elif type == 'store_harmony_token_and_goto' %}
-    if (harmony_{{value[0]}}_) {
-      stored_token = Token::{{value[1]}};
-    } else {
-      stored_token = Token::{{value[2]}};
-    }
-    goto code_after_entry_{{value[3]}};
   {% elif type == 'set_marker' %}
     marker_ = cursor_ - {{value}};
   {% elif type == 'set_has_escapes' %}
      next_.has_escapes = true;
-  {% elif type == 'octal_number' %}
-     last_octal_end_ = cursor_;
-     DO_TOKEN(Token::NUMBER);
   {% elif type == 'octal_inside_string' %}
      last_octal_end_ = cursor_;
      next_.has_escapes = true;
@@ -125,6 +84,67 @@
      has_multiline_comment_before_next_ = true;
   {% else %}
     uncompilable code for {{type}}
+  {% endif -%}
+{%- endmacro -%}
+
+
+{#- match actions must all explicitly jump or return -#}
+{% macro dispatch_match_action(type, value) -%}
+  {%- if type == 'code' %}
+    {{value}}
+    CRASH()
+  {% elif type == 'terminate' %}
+    DO_EOS();
+    return;
+  {% elif type == 'terminate_illegal' %}
+    start_ = marker_;
+    BACKWARD(1);
+    DO_TOKEN(Token::ILLEGAL);
+    return;
+  {% elif type == 'skip' %}
+    SKIP();
+    goto state_entry_0;
+  {% elif type == 'skip_and_terminate' %}
+    SKIP();
+    --start_;
+    {{dispatch_match_action('terminate', None)}}
+  {% elif type == 'line_terminator' %}
+    DO_LINE_TERMINATOR();
+    goto state_entry_0;
+  {% elif type == 'token' %}
+    DO_TOKEN(Token::{{value}})
+    return;
+  {% elif type == 'goto_start' %}
+    goto state_entry_{{value[0]}};
+  {% elif type == 'store_token_and_goto' %}
+    stored_token = Token::{{value[0]}};
+    goto after_entry_code_{{value[1]}};
+  {% elif type == 'do_stored_token' %}
+    DO_TOKEN(stored_token)
+    return;
+  {% elif type == 'do_token_and_go_forward' %}
+    DO_TOKEN_AND_GO_FORWARD(Token::{{value}})
+    return;
+  {% elif type == 'harmony_token' %}
+    if (harmony_{{value[0]}}_) {
+      DO_TOKEN(Token::{{value[1]}});
+    } else {
+      DO_TOKEN(Token::{{value[2]}});
+    }
+    return;
+  {% elif type == 'store_harmony_token_and_goto' %}
+    if (harmony_{{value[0]}}_) {
+      stored_token = Token::{{value[1]}};
+    } else {
+      stored_token = Token::{{value[2]}};
+    }
+    goto after_entry_code_{{value[3]}};
+  {% elif type == 'octal_number' %}
+    last_octal_end_ = cursor_;
+    DO_TOKEN(Token::NUMBER);
+    return;
+  {% else %}
+    uncompilable code for {{encoding}}
   {% endif -%}
 {%- endmacro -%}
 
@@ -150,42 +170,45 @@
         buffer_end_ - cursor_,
         &bytes_read);
     cursor_ += bytes_read - 1;
-    if (long_char == unibrow::Utf8::kBadChar) goto default_action;
   {%- else -%}
     uncompilable code for {{encoding}}
   {%- endif -%}
 {%- endmacro -%}
 
 
-{%- macro do_dfa_state(node_number, inline) -%}
+{%- macro write_label(label_name, node_number_chain) %}
+  {%- set node_number = node_number_chain|first -%}
+  {%- set state = dfa_states[node_number] -%}
+  {%- set used = state['entry_points'][label_name] -%}
+  {%- set long_label = label_name + '_' + node_number_chain|join('_') -%}
+  {% if used -%}
+    {{long_label}}:
+  {%- else -%}
+    // {{long_label}}:
+  {%- endif %}
+{% endmacro -%}
 
+
+{%- macro do_dfa_state(node_number_chain) -%}
+
+  {%- set node_number = node_number_chain|first -%}
   {%- set state = dfa_states[node_number] -%}
 
-  {%- if not inline -%}
-    {%- if state['inline'] -%}
-      bad generated code for {{node_number}}
-    {%- endif -%}
-    {%- if start_node_number == node_number -%}
-      code_start:
-    {%- else -%}
-      code_{{node_number}}:
-    {%- endif -%}
-  {%- else -%}
-    // inlined state {{node_number}}
-  {%- endif %}
+  {{ write_label('state_entry', node_number_chain) }}
 
   {% if debug_print %}
-    fprintf(stderr, "state {{state.node_number}}, start %ld, cursor %ld\n", start_ - buffer_, cursor_ - buffer_);
+    fprintf(stderr,
+            "state {{state.node_number}}, start %d, cursor %d\n",
+            start_ - buffer_,
+            cursor_ - buffer_);
   {% endif -%}
 
   {%- set entry_action = state.entry_action -%}
   {%- if entry_action %}
-    {{ dispatch_action(entry_action[0], entry_action[1]) }}
+    {{ dispatch_entry_action(entry_action[0], entry_action[1]) }}
   {%- endif %}
 
-  {%- if state['has_goto_after_entry'] -%}
-      code_after_entry_{{node_number}}:
-  {%- endif %}
+  {{ write_label('after_entry_code', node_number_chain) }}
 
   {%- if debug_print %}
     fprintf(stderr, "char at hand is %c (%d)\n", primary_char, primary_char);
@@ -195,9 +218,9 @@
     {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
     FORWARD();
     {%- if inline_transition %}
-      {{ do_dfa_state(transition_state_id, True) }}
+      {{ do_dfa_state([transition_state_id] + node_number_chain) }}
     {% else %}
-      goto code_{{transition_state_id}};
+      goto state_entry_{{transition_state_id}};
     {% endif %}
   {%- endmacro -%}
 
@@ -240,13 +263,15 @@
   {%- set match_action = state.match_action -%}
 
   {%- if match_action %}
-    {{ dispatch_action(match_action[0], match_action[1]) }}
-    goto code_start;
+    {{ dispatch_match_action(match_action[0], match_action[1]) }}
+    CRASH()
   {% else %}
     goto default_action;
   {%- endif %}
 
 {%- endmacro %}
+
+#include "lexer/experimental-scanner.h"
 
 #define PREPARE_TOKEN() {             \
   next_.beg_pos = start_ - buffer_;   \
@@ -257,7 +282,6 @@
 #define DO_TOKEN(T) {                 \
   PREPARE_TOKEN();                    \
   next_.token = T;                    \
-  return;                             \
 }
 
 #define DO_TOKEN_AND_GO_FORWARD(T) {  \
@@ -265,7 +289,6 @@
   FORWARD();                          \
   next_.token = T;                    \
   start_ = cursor_;                   \
-  return;                             \
 }
 
 #define DO_EOS() {                    \
@@ -293,6 +316,12 @@
   start_ = cursor_;                   \
 }
 
+#ifdef DEBUG
+#define CRASH() { ((void(*)())0)(); }
+#else
+#define CRASH() { }
+#endif
+
 namespace v8 {
 namespace internal {
 template<>
@@ -306,27 +335,25 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
 
 {# first node is start node #}
 {% for dfa_state in dfa_states -%}
-  {%- set inline = dfa_state['inline'] -%}
-  {%- if not inline %}
-    {{ do_dfa_state(dfa_state['node_number'], False) }}
+  {%- if not dfa_state['inline'] %}
+    {{ do_dfa_state([dfa_state['node_number']]) }}
   {%- endif -%}
 {%- endfor %}
 
-  // Should never fall off the edge.
-  goto fell_through;
   // Execute the default action.
   default_action:
 {%- if debug_print %}
     fprintf(stderr, "default action\n");
 {% endif -%}
-    {{dispatch_action(default_action[0], default_action[1])}}
-  FORWARD();
-  goto code_start;
+    {{dispatch_match_action(default_action[0], default_action[1])}}
+  CRASH()
 
-  fell_through:
-  ((void(*)())0)(); // crash
-  // force use of stored_token
-  stored_token = Token::ILLEGAL;
+  if (false) {
+    // force use of stored_token
+    stored_token = Token::ILLEGAL;
+    // force use of state_entry_0
+    goto state_entry_0;
+  }
 }
 } }
 
