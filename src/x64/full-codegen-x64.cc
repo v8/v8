@@ -2596,7 +2596,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
 }
 
 
-void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
+void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2608,15 +2608,14 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
-  // Record call targets in unoptimized code.
-  flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
   Handle<Object> uninitialized =
       TypeFeedbackCells::UninitializedSentinel(isolate());
   Handle<Cell> cell = isolate()->factory()->NewCell(uninitialized);
   RecordTypeFeedbackCell(expr->CallFeedbackId(), cell);
   __ Move(rbx, cell);
 
-  CallFunctionStub stub(arg_count, flags);
+  // Record call targets in unoptimized code.
+  CallFunctionStub stub(arg_count, RECORD_CALL_TARGET);
   __ movq(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub, expr->CallFeedbackId());
   RecordJSReturnSite(expr);
@@ -2735,7 +2734,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
     // The receiver is either the global receiver or an object found by
     // LoadContextSlot.
-    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
+    EmitCallWithStub(expr);
   } else if (property != NULL) {
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(property->obj());
@@ -2754,7 +2753,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     __ PushRoot(Heap::kUndefinedValueRootIndex);
     // Emit function call.
-    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
+    EmitCallWithStub(expr);
   }
 
 #ifdef DEBUG
