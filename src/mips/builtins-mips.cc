@@ -1114,8 +1114,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ li(t0, Operand(0, RelocInfo::NONE32));
     __ Branch(&patch_receiver);
 
-    // Use the global receiver object from the called function as the
-    // receiver.
     __ bind(&use_global_receiver);
     __ lw(a2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
     __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalReceiverOffset));
@@ -1205,14 +1203,14 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
          FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ sra(a2, a2, kSmiTagSize);
   __ lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  __ SetCallKind(t1, CALL_AS_METHOD);
+  __ SetCallKind(t1, CALL_AS_FUNCTION);
   // Check formal and actual parameter counts.
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET, ne, a2, Operand(a0));
 
   ParameterCount expected(0);
   __ InvokeCode(a3, expected, expected, JUMP_FUNCTION,
-                NullCallWrapper(), CALL_AS_METHOD);
+                NullCallWrapper(), CALL_AS_FUNCTION);
 }
 
 
@@ -1305,7 +1303,6 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ mov(a0, v0);  // Put object in a0 to match other paths to push_receiver.
     __ Branch(&push_receiver);
 
-    // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
     __ lw(a0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
     __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalReceiverOffset));
@@ -1342,7 +1339,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ lw(a1, MemOperand(fp, kLimitOffset));
     __ Branch(&loop, ne, a0, Operand(a1));
 
-    // Invoke the function.
+    // Call the function.
     Label call_proxy;
     ParameterCount actual(a0);
     __ sra(a0, a0, kSmiTagSize);
@@ -1351,18 +1348,18 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Branch(&call_proxy, ne, a2, Operand(JS_FUNCTION_TYPE));
 
     __ InvokeFunction(a1, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
+                      NullCallWrapper(), CALL_AS_FUNCTION);
 
     frame_scope.GenerateLeaveFrame();
     __ Ret(USE_DELAY_SLOT);
     __ Addu(sp, sp, Operand(3 * kPointerSize));  // In delay slot.
 
-    // Invoke the function proxy.
+    // Call the function proxy.
     __ bind(&call_proxy);
     __ push(a1);  // Add function proxy as last argument.
     __ Addu(a0, a0, Operand(1));
     __ li(a2, Operand(0, RelocInfo::NONE32));
-    __ SetCallKind(t1, CALL_AS_METHOD);
+    __ SetCallKind(t1, CALL_AS_FUNCTION);
     __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
     __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);

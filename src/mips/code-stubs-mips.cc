@@ -3332,43 +3332,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1: pushed function (to be verified)
   __ JumpIfSmi(a1, &non_function);
 
-  // The receiver might implicitly be the global object. This is
-  // indicated by passing the hole as the receiver to the call
-  // function stub.
-  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
-    Label try_call, call, patch_current_context;
-    if (ReceiverMightBeImplicit()) {
-      // Get the receiver from the stack.
-      // function, receiver [, arguments]
-      __ lw(t0, MemOperand(sp, argc_ * kPointerSize));
-      // Call as function is indicated with the hole.
-      __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-      __ Branch(&try_call, ne, t0, Operand(at));
-    }
-    // Patch the receiver on the stack with the global receiver object.
-    // Goto slow case if we do not have a function.
-    __ GetObjectType(a1, a3, a3);
-    __ Branch(&patch_current_context, ne, a3, Operand(JS_FUNCTION_TYPE));
-    CallStubCompiler::FetchGlobalProxy(masm, a3, a1);
-    __ sw(a3, MemOperand(sp, argc_ * kPointerSize));
-    __ Branch(&call);
-
-    __ bind(&patch_current_context);
-    __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
-    __ sw(t0, MemOperand(sp, argc_ * kPointerSize));
-    __ Branch(&slow);
-
-    __ bind(&try_call);
-    // Get the map of the function object.
-    __ GetObjectType(a1, a3, a3);
-    __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
-
-    __ bind(&call);
-  } else {
-    // Get the map of the function object.
-    __ GetObjectType(a1, a3, a3);
-    __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
-  }
+  // Goto slow case if we do not have a function.
+  __ GetObjectType(a1, a3, a3);
+  __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -3378,17 +3344,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1: pushed function
   ParameterCount actual(argc_);
 
-  if (ReceiverMightBeImplicit()) {
-    Label call_as_function;
-    __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-    __ Branch(&call_as_function, eq, t0, Operand(at));
-    __ InvokeFunction(a1,
-                      actual,
-                      JUMP_FUNCTION,
-                      NullCallWrapper(),
-                      CALL_AS_METHOD);
-    __ bind(&call_as_function);
-  }
   __ InvokeFunction(a1,
                     actual,
                     JUMP_FUNCTION,
@@ -3426,7 +3381,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ li(a0, Operand(argc_));  // Set up the number of arguments.
   __ mov(a2, zero_reg);
   __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION);
-  __ SetCallKind(t1, CALL_AS_METHOD);
+  __ SetCallKind(t1, CALL_AS_FUNCTION);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }

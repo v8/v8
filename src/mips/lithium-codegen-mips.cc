@@ -146,17 +146,25 @@ bool LCodeGen::GeneratePrologue() {
     // fp: Caller's frame pointer.
     // lr: Caller's pc.
 
-    // Strict mode functions and builtins need to replace the receiver
-    // with undefined when called as functions (without an explicit
-    // receiver object). r5 is zero for method calls and non-zero for
-    // function calls.
-    if (!info_->is_classic_mode() || info_->is_native()) {
+    // Classic mode functions and builtins need to replace the receiver with the
+    // global proxy when called as functions (without an explicit receiver
+    // object).
+    if (info_->this_has_uses() &&
+        info_->is_classic_mode() &&
+        !info_->is_native()) {
       Label ok;
       __ Branch(&ok, eq, t1, Operand(zero_reg));
 
-      int receiver_offset = scope()->num_parameters() * kPointerSize;
-      __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+      int receiver_offset = info_->scope()->num_parameters() * kPointerSize;
+      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      __ lw(a2, MemOperand(sp, receiver_offset));
+      __ Branch(&ok, ne, a2, Operand(at));
+
+      __ lw(a2, GlobalObjectOperand());
+      __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalReceiverOffset));
+
       __ sw(a2, MemOperand(sp, receiver_offset));
+
       __ bind(&ok);
     }
   }
@@ -3370,7 +3378,12 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ Branch(&result_in_receiver);
 
   __ bind(&global_object);
-  CallStubCompiler::FetchGlobalProxy(masm(), receiver, function);
+  __ lw(receiver, FieldMemOperand(function, JSFunction::kContextOffset));
+  __ lw(receiver,
+        ContextOperand(receiver,
+                       Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ lw(receiver,
+        FieldMemOperand(receiver, GlobalObject::kGlobalReceiverOffset));
 
   if (result.is(receiver)) {
     __ bind(&result_in_receiver);
@@ -3429,7 +3442,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // by InvokeFunction.
   ParameterCount actual(receiver);
   __ InvokeFunction(function, actual, CALL_FUNCTION,
-                    safepoint_generator, CALL_AS_METHOD);
+                    safepoint_generator, CALL_AS_FUNCTION);
 }
 
 
@@ -3550,7 +3563,7 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
                     instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
-                    CALL_AS_METHOD,
+                    CALL_AS_FUNCTION,
                     A1_UNINITIALIZED);
 }
 
@@ -3873,13 +3886,13 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     LPointerMap* pointers = instr->pointer_map();
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
-    __ InvokeFunction(a1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
+    __ InvokeFunction(a1, count, CALL_FUNCTION, generator, CALL_AS_FUNCTION);
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(),
                       instr,
-                      CALL_AS_METHOD,
+                      CALL_AS_FUNCTION,
                       A1_CONTAINS_TARGET);
   }
 }
@@ -3914,10 +3927,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   int arity = instr->arity();
-  CallFunctionFlags flags =
-      instr->hydrogen()->IsContextualCall() ?
-          RECEIVER_IS_IMPLICIT : NO_CALL_FUNCTION_FLAGS;
-  CallFunctionStub stub(arity, flags);
+  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
   if (instr->hydrogen()->IsTailCall()) {
     if (NeedsEagerFrame()) __ mov(sp, fp);
     __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
