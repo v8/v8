@@ -1737,7 +1737,8 @@ class Call V8_FINAL : public Expression {
 
   // Type feedback information.
   TypeFeedbackId CallFeedbackId() const { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, CallKind call_kind);
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle,
+                          ContextualMode contextual_mode);
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
   }

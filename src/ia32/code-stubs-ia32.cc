@@ -2531,11 +2531,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
 
-  __ InvokeFunction(edi,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper(),
-                    CALL_AS_FUNCTION);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // Slow-case: Non-function called.
   __ bind(&slow);
@@ -2554,7 +2550,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ push(ecx);
   __ Set(eax, Immediate(argc_ + 1));
   __ Set(ebx, Immediate(0));
-  __ SetCallKind(ecx, CALL_AS_FUNCTION);
   __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
@@ -2567,7 +2562,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
-  __ SetCallKind(ecx, CALL_AS_FUNCTION);
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
@@ -2615,7 +2609,6 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Set(ebx, Immediate(0));
   Handle<Code> arguments_adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
-  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ jmp(arguments_adaptor, RelocInfo::CODE_TARGET);
 }
 
@@ -5314,8 +5307,7 @@ void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
   __ sub(eax, Immediate(1));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   ParameterCount argument_count(eax);
-  __ InvokeFunction(
-      edi, argument_count, JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeFunction(edi, argument_count, JUMP_FUNCTION, NullCallWrapper());
 }
 
 

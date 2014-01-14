@@ -149,9 +149,6 @@ void FullCodeGenerator::Generate() {
   // object).
   if (info->is_classic_mode() && !info->is_native()) {
     Label ok;
-    __ cmp(r5, Operand::Zero());
-    __ b(eq, &ok);
-
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ ldr(r2, MemOperand(sp, receiver_offset));
     __ CompareRoot(r2, Heap::kUndefinedValueRootIndex);
@@ -3729,8 +3726,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   // InvokeFunction requires the function in r1. Move it in there.
   __ mov(r1, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(r1, count, CALL_FUNCTION,
-                    NullCallWrapper(), CALL_AS_FUNCTION);
+  __ InvokeFunction(r1, count, CALL_FUNCTION, NullCallWrapper());
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ jmp(&done);
 

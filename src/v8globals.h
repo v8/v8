@@ -444,14 +444,6 @@ enum SmiCheckType {
 };
 
 
-// Used to specify whether a receiver is implicitly or explicitly
-// provided to a call.
-enum CallKind {
-  CALL_AS_METHOD,
-  CALL_AS_FUNCTION
-};
-
-
 enum ScopeType {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.

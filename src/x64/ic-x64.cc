@@ -910,8 +910,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(rdi, actual, JUMP_FUNCTION,
-                    NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -1004,15 +1003,8 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
   }
 
   // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_state)
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
   ParameterCount actual(argc);
-  __ InvokeFunction(rdi,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper(),
-                    call_kind);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION, NullCallWrapper());
 }
 
 

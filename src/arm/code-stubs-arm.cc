@@ -3198,11 +3198,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // r1: pushed function
   ParameterCount actual(argc_);
 
-  __ InvokeFunction(r1,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper(),
-                    CALL_AS_FUNCTION);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // Slow-case: Non-function called.
   __ bind(&slow);
@@ -3222,7 +3218,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE32));
   __ mov(r2, Operand::Zero());
   __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
-  __ SetCallKind(r5, CALL_AS_FUNCTION);
   {
     Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -3236,7 +3231,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(r0, Operand(argc_));  // Set up the number of arguments.
   __ mov(r2, Operand::Zero());
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-  __ SetCallKind(r5, CALL_AS_FUNCTION);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -3280,7 +3274,6 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing r0).
   __ mov(r2, Operand::Zero());
-  __ SetCallKind(r5, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -5424,8 +5417,7 @@ void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
   __ sub(r0, r0, Operand(1));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   ParameterCount argument_count(r0);
-  __ InvokeFunction(
-      r1, argument_count, JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeFunction(r1, argument_count, JUMP_FUNCTION, NullCallWrapper());
 }
 
 

@@ -2475,8 +2475,7 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
   PatchImplicitReceiver(object);
 
   // Invoke the function.
-  __ InvokeFunction(rdi, arguments(), JUMP_FUNCTION,
-                    NullCallWrapper(), call_kind());
+  __ InvokeFunction(rdi, arguments(), JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -2607,7 +2606,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,
-                        CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+                        CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -2762,7 +2761,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
       ParameterCount actual(0);
       ParameterCount expected(getter);
       __ InvokeFunction(getter, expected, actual,
-                        CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+                        CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.

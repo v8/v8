@@ -1268,13 +1268,6 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
-CallKind CallStubCompiler::call_kind() {
-  return CallICBase::Contextual::decode(extra_state())
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
-}
-
-
 void CallStubCompiler::HandlerFrontendFooter(Label* miss) {
   __ bind(miss);
   GenerateMissBranch();
@@ -1285,7 +1278,7 @@ void CallStubCompiler::GenerateJumpFunctionIgnoreReceiver(
     Handle<JSFunction> function) {
   ParameterCount expected(function);
   __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
+                    JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -1302,7 +1295,7 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
   PatchImplicitReceiver(object);
   ParameterCount expected(function);
   __ InvokeFunction(actual_closure, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
+                    JUMP_FUNCTION, NullCallWrapper());
 }
 
 

@@ -697,7 +697,7 @@ Handle<JSObject> Call::GetPrototypeForPrimitiveCheck(
 
 
 void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                              CallKind call_kind) {
+                              ContextualMode contextual_mode) {
   is_monomorphic_ = oracle->CallIsMonomorphic(CallFeedbackId());
   Property* property = expression()->AsProperty();
   if (property == NULL) {
@@ -712,7 +712,7 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     receiver_types_.Clear();
     if (check_type_ == RECEIVER_MAP_CHECK) {
       oracle->CallReceiverTypes(CallFeedbackId(),
-          name, arguments()->length(), call_kind, &receiver_types_);
+          name, arguments()->length(), contextual_mode, &receiver_types_);
       is_monomorphic_ = is_monomorphic_ && receiver_types_.length() > 0;
     } else {
       holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());

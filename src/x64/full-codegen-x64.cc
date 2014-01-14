@@ -137,9 +137,6 @@ void FullCodeGenerator::Generate() {
   // object).
   if (info->is_classic_mode() && !info->is_native()) {
     Label ok;
-    __ testq(rcx, rcx);
-    __ j(zero, &ok, Label::kNear);
-
     // +1 for return address.
     StackArgumentsAccessor args(rsp, info->scope()->num_parameters());
     __ movq(rcx, args.GetReceiverOperand());
@@ -3667,8 +3664,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   // InvokeFunction requires the function in rdi. Move it in there.
   __ movq(rdi, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(rdi, count, CALL_FUNCTION,
-                    NullCallWrapper(), CALL_AS_FUNCTION);
+  __ InvokeFunction(rdi, count, CALL_FUNCTION, NullCallWrapper());
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ jmp(&done);
 

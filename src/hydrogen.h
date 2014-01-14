@@ -2198,8 +2198,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                               Handle<JSFunction> target);
 
   int InliningAstSize(Handle<JSFunction> target);
-  bool TryInline(CallKind call_kind,
-                 Handle<JSFunction> target,
+  bool TryInline(Handle<JSFunction> target,
                  int arguments_count,
                  HValue* implicit_return_value,
                  BailoutId ast_id,

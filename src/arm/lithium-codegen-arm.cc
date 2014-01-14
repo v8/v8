@@ -154,9 +154,6 @@ bool LCodeGen::GeneratePrologue() {
         info_->is_classic_mode() &&
         !info_->is_native()) {
       Label ok;
-      __ cmp(r5, Operand::Zero());
-      __ b(eq, &ok);
-
       int receiver_offset = info_->scope()->num_parameters() * kPointerSize;
       __ ldr(r2, MemOperand(sp, receiver_offset));
       __ CompareRoot(r2, Heap::kUndefinedValueRootIndex);
@@ -3568,8 +3565,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // The number of arguments is stored in receiver which is r0, as expected
   // by InvokeFunction.
   ParameterCount actual(receiver);
-  __ InvokeFunction(function, actual, CALL_FUNCTION,
-                    safepoint_generator, CALL_AS_FUNCTION);
+  __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
 }
 
 
@@ -3644,7 +3640,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int formal_parameter_count,
                                  int arity,
                                  LInstruction* instr,
-                                 CallKind call_kind,
                                  R1State r1_state) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
@@ -3668,7 +3663,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     }
 
     // Invoke function.
-    __ SetCallKind(r5, call_kind);
     __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
     __ Call(ip);
 
@@ -3678,8 +3672,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
     ParameterCount expected(formal_parameter_count);
-    __ InvokeFunction(
-        function, expected, count, CALL_FUNCTION, generator, call_kind);
+    __ InvokeFunction(function, expected, count, CALL_FUNCTION, generator);
   }
 }
 
@@ -3690,7 +3683,6 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
                     instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
-                    CALL_AS_FUNCTION,
                     R1_UNINITIALIZED);
 }
 
@@ -3968,13 +3960,12 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     LPointerMap* pointers = instr->pointer_map();
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
-    __ InvokeFunction(r1, count, CALL_FUNCTION, generator, CALL_AS_FUNCTION);
+    __ InvokeFunction(r1, count, CALL_FUNCTION, generator);
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(),
                       instr,
-                      CALL_AS_FUNCTION,
                       R1_CONTAINS_TARGET);
   }
 }
@@ -4037,7 +4028,6 @@ void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
                     instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
-                    CALL_AS_FUNCTION,
                     R1_UNINITIALIZED);
 }
 

@@ -107,7 +107,6 @@ class JumpPatchSite BASE_EMBEDDED {
 // formal parameter count expected by the function.
 //
 // The live registers are:
-//   o ecx: CallKind
 //   o edi: the JS function object being called (i.e. ourselves)
 //   o esi: our context
 //   o ebp: our caller's frame pointer
@@ -138,9 +137,6 @@ void FullCodeGenerator::Generate() {
   // object).
   if (info->is_classic_mode() && !info->is_native()) {
     Label ok;
-    __ test(ecx, ecx);
-    __ j(zero, &ok, Label::kNear);
-
     // +1 for return address.
     int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
     __ mov(ecx, Operand(esp, receiver_offset));
@@ -3693,8 +3689,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   // InvokeFunction requires the function in edi. Move it in there.
   __ mov(edi, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(edi, count, CALL_FUNCTION,
-                    NullCallWrapper(), CALL_AS_FUNCTION);
+  __ InvokeFunction(edi, count, CALL_FUNCTION, NullCallWrapper());
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ jmp(&done);
 
