@@ -178,14 +178,11 @@ KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
 void TypeFeedbackOracle::CallReceiverTypes(TypeFeedbackId id,
                                            Handle<String> name,
                                            int arity,
-                                           ContextualMode contextual_mode,
                                            SmallMapList* types) {
   // Note: Currently we do not take string extra ic data into account
   // here.
-  ExtraICState extra_ic_state =
-      CallIC::Contextual::encode(contextual_mode);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::CALL_IC, extra_ic_state, OWN_MAP, Code::NORMAL, arity);
+      Code::CALL_IC, kNoExtraICState, OWN_MAP, Code::NORMAL, arity);
   CollectReceiverTypes(id, name, flags, types);
 }
 

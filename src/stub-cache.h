@@ -138,7 +138,7 @@ class StubCache {
 
   // ---
 
-  Handle<Code> ComputeCallInitialize(int argc, ContextualMode mode);
+  Handle<Code> ComputeCallInitialize(int argc);
 
   Handle<Code> ComputeKeyedCallInitialize(int argc);
 
@@ -185,7 +185,7 @@ class StubCache {
                                     ExtraICState extra_ic_state);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  Code* FindCallInitialize(int argc, ContextualMode mode, Code::Kind kind);
+  Code* FindCallInitialize(int argc, Code::Kind kind);
   Code* FindPreMonomorphicIC(Code::Kind kind, ExtraICState extra_ic_state);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -269,9 +269,7 @@ class StubCache {
  private:
   explicit StubCache(Isolate* isolate);
 
-  Handle<Code> ComputeCallInitialize(int argc,
-                                     ContextualMode mode,
-                                     Code::Kind kind);
+  Handle<Code> ComputeCallInitialize(int argc, Code::Kind kind);
 
   // The stub cache has a primary and secondary level.  The two levels have
   // different hashing algorithms in order to avoid simultaneous collisions

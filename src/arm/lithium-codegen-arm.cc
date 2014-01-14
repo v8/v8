@@ -3986,8 +3986,7 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
   __ mov(r2, Operand(instr->name()));
   CallCode(ic, RelocInfo::CODE_TARGET, instr, NEVER_INLINE_TARGET_ADDRESS);
 }
@@ -4014,8 +4013,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
   __ mov(r2, Operand(instr->name()));
   CallCode(ic, RelocInfo::CODE_TARGET, instr, NEVER_INLINE_TARGET_ADDRESS);
 }

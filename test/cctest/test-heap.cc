@@ -3090,7 +3090,7 @@ TEST(Regression144230) {
     HandleScope inner_scope(isolate);
     AlwaysAllocateScope always_allocate;
     SimulateFullSpace(heap->code_space());
-    isolate->stub_cache()->ComputeCallInitialize(9, NOT_CONTEXTUAL);
+    isolate->stub_cache()->ComputeCallInitialize(9);
   }
 
   // Second compile a CallIC and execute it once so that it gets patched to

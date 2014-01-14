@@ -3801,8 +3801,7 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
   __ Move(rcx, instr->name());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
@@ -3828,8 +3827,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
   ASSERT(ToRegister(instr->result()).is(rax));
   int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
   __ Move(rcx, instr->name());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }

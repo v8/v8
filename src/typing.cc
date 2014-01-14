@@ -530,11 +530,8 @@ void AstTyper::VisitProperty(Property* expr) {
 
 
 void AstTyper::VisitCall(Call* expr) {
-  Expression* callee = expr->expression();
-  Property* prop = callee->AsProperty();
-  ContextualMode contextual_mode = prop == NULL ? CONTEXTUAL : NOT_CONTEXTUAL;
   // Collect type feedback.
-  expr->RecordTypeFeedback(oracle(), contextual_mode);
+  expr->RecordTypeFeedback(oracle());
 
   RECURSE(Visit(expr->expression()));
   ZoneList<Expression*>* args = expr->arguments();
