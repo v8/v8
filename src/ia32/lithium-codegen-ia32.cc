@@ -4251,17 +4251,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 }
 
 
-void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->result()).is(eax));
-
-  int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
-  __ mov(ecx, instr->name());
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
   CallKnownFunction(instr->hydrogen()->target(),

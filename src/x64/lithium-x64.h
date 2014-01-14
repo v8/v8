@@ -54,7 +54,6 @@ class LCodeGen;
   V(Branch)                                     \
   V(CallConstantFunction)                       \
   V(CallFunction)                               \
-  V(CallGlobal)                                 \
   V(CallKeyed)                                  \
   V(CallKnownGlobal)                            \
   V(CallNamed)                                  \
@@ -1862,24 +1861,6 @@ class LCallFunction V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 
   LOperand* context() { return inputs_[0]; }
   LOperand* function() { return inputs_[1]; }
-  int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
-class LCallGlobal V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCallGlobal(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallGlobal, "call-global")
-  DECLARE_HYDROGEN_ACCESSOR(CallGlobal)
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  Handle<String> name() const {return hydrogen()->name(); }
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
 

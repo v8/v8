@@ -7857,7 +7857,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
           environment()->SetExpressionStackAt(receiver_index, global_object);
           // When the target has a custom call IC generator, use the IC,
           // because it is likely to generate better code.
-          call = PreProcessCall(New<HCallGlobal>(var->name(), argument_count));
+          call = PreProcessCall(New<HCallNamed>(var->name(), argument_count));
         } else {
           call = PreProcessCall(New<HCallKnownGlobal>(
               expr->target(), argument_count));
@@ -7867,7 +7867,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         Push(Add<HPushArgument>(receiver));
         CHECK_ALIVE(VisitArgumentList(expr->arguments()));
 
-        call = New<HCallGlobal>(var->name(), argument_count);
+        call = New<HCallNamed>(var->name(), argument_count);
         Drop(argument_count);
       }
 

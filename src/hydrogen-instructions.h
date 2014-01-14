@@ -79,7 +79,6 @@ class LChunkBuilder;
   V(Branch)                                    \
   V(CallConstantFunction)                      \
   V(CallFunction)                              \
-  V(CallGlobal)                                \
   V(CallKeyed)                                 \
   V(CallKnownGlobal)                           \
   V(CallNamed)                                 \
@@ -2439,26 +2438,6 @@ class HCallFunction V8_FINAL : public HBinaryCall {
       : HBinaryCall(context, function, argument_count), call_mode_(mode) {
   }
   CallMode call_mode_;
-};
-
-
-class HCallGlobal V8_FINAL : public HUnaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallGlobal, Handle<String>, int);
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  HValue* context() { return value(); }
-  Handle<String> name() const { return name_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallGlobal)
-
- private:
-  HCallGlobal(HValue* context, Handle<String> name, int argument_count)
-      : HUnaryCall(context, argument_count), name_(name) {
-  }
-
-  Handle<String> name_;
 };
 
 

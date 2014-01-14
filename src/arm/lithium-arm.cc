@@ -313,12 +313,6 @@ void LCallNamed::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallGlobal::PrintDataTo(StringStream* stream) {
-  SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", name_string.get(), arity());
-}
-
-
 void LCallKnownGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("#%d / ", arity());
 }
@@ -1185,12 +1179,6 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
 LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   return MarkAsCall(DefineFixed(new(zone()) LCallNamed(context), r0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(DefineFixed(new(zone()) LCallGlobal(context), r0), instr);
 }
 
 
