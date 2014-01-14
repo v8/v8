@@ -389,7 +389,7 @@ class MacroAssembler: public Assembler {
       }
     } else {
       Pop(src2, src3, cond);
-      str(src1, MemOperand(sp, 4, PostIndex), cond);
+      ldr(src1, MemOperand(sp, 4, PostIndex), cond);
     }
   }
 
