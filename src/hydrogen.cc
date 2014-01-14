@@ -6855,6 +6855,9 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   if (TryCallPolymorphicAsMonomorphic(expr, receiver, types, name)) return;
 
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
+  HBasicBlock* join = NULL;
+  FunctionSorter order[kMaxCallPolymorphism];
+  int ordered_functions = 0;
 
   Handle<Map> initial_string_map(
       isolate()->native_context()->string_function()->initial_map());
@@ -6868,121 +6871,72 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
 
   bool handle_smi = false;
 
-  // A map from functions to a set of receivers' maps.
-  struct FuncMapEntry {
-    Handle<JSFunction> func;
-    SmallMapList maps;
-  };
-  FuncMapEntry func_map[kMaxCallPolymorphism];
-  FunctionSorter order[kMaxCallPolymorphism];
-  int func_count = 0;
-  int maps_count = 0;
-
   for (int i = 0;
-       i < types->length() && func_count < kMaxCallPolymorphism;
+       i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
     if (expr->ComputeTarget(map, name)) {
       if (map.is_identical_to(number_marker_map)) handle_smi = true;
-
-      // Try to find the target function among known targets.
-      int func_index = 0;
-      for (; func_index < func_count; ++func_index) {
-        if (*func_map[func_index].func == *expr->target()) {
-          break;
-        }
-      }
-      FuncMapEntry* entry = &func_map[func_index];
-      if (func_index == func_count) {
-        // Entry not found, "allocate" it.
-        entry->func = expr->target();
-        entry->maps.Reserve(types->length() - maps_count, zone());
-        order[func_index] =
-            FunctionSorter(func_index,
-                           entry->func->shared()->profiler_ticks(),
-                           InliningAstSize(entry->func),
-                           entry->func->shared()->SourceSize());
-        ++func_count;
-      }
-      entry->maps.Add(map, zone());
-      ++maps_count;
+      order[ordered_functions++] =
+          FunctionSorter(i,
+                         expr->target()->shared()->profiler_ticks(),
+                         InliningAstSize(expr->target()),
+                         expr->target()->shared()->SourceSize());
     }
   }
 
-  std::sort(order, order + func_count);
+  std::sort(order, order + ordered_functions);
 
   HBasicBlock* number_block = NULL;
-  HBasicBlock* join = NULL;
 
-  if (func_count > 0) {
-    // Only needed once.
-    join = graph()->CreateBasicBlock();
-    if (handle_smi) {
-      HBasicBlock* empty_smi_block = graph()->CreateBasicBlock();
-      HBasicBlock* not_smi_block = graph()->CreateBasicBlock();
-      number_block = graph()->CreateBasicBlock();
-      FinishCurrentBlock(
-          New<HIsSmiAndBranch>(receiver, empty_smi_block, not_smi_block));
-      Goto(empty_smi_block, number_block);
-      set_current_block(not_smi_block);
-    } else {
-      BuildCheckHeapObject(receiver);
-    }
-  }
-
-  for (int fn = 0; fn < func_count; ++fn) {
+  for (int fn = 0; fn < ordered_functions; ++fn) {
     int i = order[fn].index();
-    FuncMapEntry* func_map_entry = &func_map[i];
-
-    HBasicBlock* call_block = graph()->CreateBasicBlock();
-    HBasicBlock* if_false = NULL;
-
-    int maps_count = func_map_entry->maps.length();
-    for (int m = 0; m < maps_count; ++m) {
-      Handle<Map> map = func_map_entry->maps.at(m);
-      HBasicBlock* if_true = graph()->CreateBasicBlock();
-      if_false = graph()->CreateBasicBlock();
-      HUnaryControlInstruction* compare;
-
-      if (handle_smi && map.is_identical_to(number_marker_map)) {
-        compare =
-            New<HCompareMap>(receiver, heap_number_map, if_true, if_false);
-        map = initial_number_map;
-        expr->set_number_check(
-            Handle<JSObject>(JSObject::cast(map->prototype())));
-      } else if (map.is_identical_to(string_marker_map)) {
-        compare = New<HIsStringAndBranch>(receiver, if_true, if_false);
-        map = initial_string_map;
-        expr->set_string_check(
-            Handle<JSObject>(JSObject::cast(map->prototype())));
+    Handle<Map> map = types->at(i);
+    if (fn == 0) {
+      // Only needed once.
+      join = graph()->CreateBasicBlock();
+      if (handle_smi) {
+        HBasicBlock* empty_smi_block = graph()->CreateBasicBlock();
+        HBasicBlock* not_smi_block = graph()->CreateBasicBlock();
+        number_block = graph()->CreateBasicBlock();
+        FinishCurrentBlock(New<HIsSmiAndBranch>(
+                receiver, empty_smi_block, not_smi_block));
+        Goto(empty_smi_block, number_block);
+        set_current_block(not_smi_block);
       } else {
-        compare = New<HCompareMap>(receiver, map, if_true, if_false);
-        expr->set_map_check();
+        BuildCheckHeapObject(receiver);
       }
+    }
+    HBasicBlock* if_true = graph()->CreateBasicBlock();
+    HBasicBlock* if_false = graph()->CreateBasicBlock();
+    HUnaryControlInstruction* compare;
 
-      FinishCurrentBlock(compare);
-
-      if (expr->check_type() == NUMBER_CHECK) {
-        Goto(if_true, number_block);
-        if_true = number_block;
-        number_block->SetJoinId(expr->id());
-      }
-      set_current_block(if_true);
-
-      expr->ComputeTarget(map, name);
-      ASSERT(*expr->target() == *func_map_entry->func);
-
-      AddCheckPrototypeMaps(expr->holder(), map);
-
-      Goto(if_true, call_block);
-
-      set_current_block(if_false);
+    if (handle_smi && map.is_identical_to(number_marker_map)) {
+      compare = New<HCompareMap>(receiver, heap_number_map, if_true, if_false);
+      map = initial_number_map;
+      expr->set_number_check(
+          Handle<JSObject>(JSObject::cast(map->prototype())));
+    } else if (map.is_identical_to(string_marker_map)) {
+      compare = New<HIsStringAndBranch>(receiver, if_true, if_false);
+      map = initial_string_map;
+      expr->set_string_check(
+          Handle<JSObject>(JSObject::cast(map->prototype())));
+    } else {
+      compare = New<HCompareMap>(receiver, map, if_true, if_false);
+      expr->set_map_check();
     }
 
-    // Generate call once for all corresponding maps.
-    call_block->SetJoinId(expr->id());
-    set_current_block(call_block);
+    FinishCurrentBlock(compare);
 
+    if (expr->check_type() == NUMBER_CHECK) {
+      Goto(if_true, number_block);
+      if_true = number_block;
+      number_block->SetJoinId(expr->id());
+    }
+    set_current_block(if_true);
+
+    expr->ComputeTarget(map, name);
+    AddCheckPrototypeMaps(expr->holder(), map);
     if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
       Handle<JSFunction> caller = current_info()->closure();
       SmartArrayPointer<char> caller_name =
@@ -7002,15 +6956,15 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
       AddInstruction(call);
       if (!ast_context()->IsEffect()) Push(call);
     }
-    if (current_block() != NULL) Goto(join);
 
+    if (current_block() != NULL) Goto(join);
     set_current_block(if_false);
   }
 
   // Finish up.  Unconditionally deoptimize if we've handled all the maps we
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
-  if (maps_count == types->length() && FLAG_deoptimize_uncommon_cases) {
+  if (ordered_functions == types->length() && FLAG_deoptimize_uncommon_cases) {
     // Because the deopt may be the only path in the polymorphic call, make sure
     // that the environment stack matches the depth on deopt that it otherwise
     // would have had after a successful call.
