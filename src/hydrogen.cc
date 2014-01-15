@@ -313,30 +313,6 @@ int HBasicBlock::LoopNestingDepth() const {
 }
 
 
-void HBasicBlock::ReplaceControlWithGotoSuccessor(int succ) {
-  ASSERT(IsFinished());
-  ASSERT(end()->SuccessorCount() == 2);  // Only this case is supported yet.
-  ASSERT(succ < end()->SuccessorCount());
-
-  int unreachable_succ = 1 - succ;
-
-  // Replace control instruction with if (true) {succ} else {unreachable_succ}.
-  HBranch* new_branch = HBranch::New(
-      zone(),
-      NULL,
-      graph()->GetConstantTrue(),
-      ToBooleanStub::Types(ToBooleanStub::BOOLEAN),
-      end()->SuccessorAt(succ),
-      end()->SuccessorAt(unreachable_succ));
-
-  MarkSuccEdgeUnreachable(unreachable_succ);
-
-  end()->DeleteAndReplaceWith(end()->ActualValue());
-  new_branch->InsertAfter(last());
-  end_ = new_branch;
-}
-
-
 void HBasicBlock::PostProcessLoopHeader(IterationStatement* stmt) {
   ASSERT(IsLoopHeader());
 
@@ -352,15 +328,6 @@ void HBasicBlock::PostProcessLoopHeader(IterationStatement* stmt) {
   for (int i = 1; i < predecessors()->length(); ++i) {
     loop_information()->RegisterBackEdge(predecessors()->at(i));
   }
-}
-
-
-void HBasicBlock::MarkSuccEdgeUnreachable(int succ) {
-  ASSERT(IsFinished());
-  HBasicBlock* succ_block = end()->SuccessorAt(succ);
-
-  ASSERT(succ_block->predecessors()->length() == 1);
-  succ_block->MarkUnreachable();
 }
 
 

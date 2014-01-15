@@ -132,10 +132,8 @@ class HCheckTable : public ZoneObject {
 
     // Branch-sensitive analysis for certain comparisons may add more facts
     // to the state for the successor on the true branch.
-    HBasicBlock* pred_block = succ->predecessors()->at(0);
-    HControlInstruction* end = pred_block->end();
-    if (succ->predecessors()->length() == 1 && end->SuccessorAt(0) == succ &&
-        pred_block->IsReachable()) {
+    HControlInstruction* end = succ->predecessors()->at(0)->end();
+    if (succ->predecessors()->length() == 1 && end->SuccessorAt(0) == succ) {
       if (end->IsCompareMap()) {
         // Learn on the true branch of if(CompareMap(x)).
         HCompareMap* cmp = HCompareMap::cast(end);
@@ -313,27 +311,14 @@ class HCheckTable : public ZoneObject {
   void ReduceCompareMap(HCompareMap* instr) {
     MapSet maps = FindMaps(instr->value()->ActualValue());
     if (maps == NULL) return;
-
-    TRACE(("CompareMap for #%d at B%d ",
-        instr->value()->ActualValue()->id(), instr->block()->block_id()));
-
     if (maps->Contains(instr->map())) {
       if (maps->size() == 1) {
+        // TODO(titzer): replace with goto true branch
         INC_STAT(compares_true_);
-
-        TRACE(("replaced with goto B%d (true target)\n",
-               instr->SuccessorAt(0)->block_id()));
-
-        instr->block()->ReplaceControlWithGotoSuccessor(0);
-      } else {
-        TRACE(("can't be replaced with goto: ambiguous set of maps\n"));
       }
     } else {
+      // TODO(titzer): replace with goto false branch
       INC_STAT(compares_false_);
-      TRACE(("replaced with goto B%d (false target)\n",
-             instr->SuccessorAt(1)->block_id()));
-
-      instr->block()->ReplaceControlWithGotoSuccessor(1);
     }
   }
 

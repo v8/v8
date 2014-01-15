@@ -707,6 +707,7 @@ void HInstruction::PrintMnemonicTo(StringStream* stream) {
 
 void HInstruction::Unlink() {
   ASSERT(IsLinked());
+  ASSERT(!IsControlInstruction());  // Must never move control instructions.
   ASSERT(!IsBlockEntry());  // Doesn't make sense to delete these.
   ASSERT(previous_ != NULL);
   previous_->next_ = next_;
