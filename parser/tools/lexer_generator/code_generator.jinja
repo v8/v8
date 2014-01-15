@@ -205,6 +205,8 @@
 
   {{ write_label('state_entry', node_number_chain) }}
 
+  READ_CURSOR();
+
   {% if debug_print %}
     fprintf(stderr,
             "state {{state.node_number}}, start %d, cursor %d\n",
@@ -295,12 +297,10 @@
 
 #define FORWARD() {                               \
   cursor_++;                                      \
-  READ_CURSOR();                                  \
 }
 
 #define BACKWARD(n) {                             \
   cursor_ -= n;                                   \
-  READ_CURSOR();                                  \
 }
 
 #define READ_CURSOR() {                           \
@@ -324,7 +324,6 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
   Token::Value stored_token;
   const {{char_type}} * marker;
   {{char_type}} primary_char;
-  READ_CURSOR();
 
 {# first node is start node #}
 {% for dfa_state in dfa_states -%}
