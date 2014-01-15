@@ -1021,7 +1021,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     // holder haven't changed and thus we can use cached constant function.
     if (*interceptor_holder != lookup->holder()) {
       stub_compiler_->CheckPrototypes(
-          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), receiver,
+          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), holder,
           handle(lookup->holder()), scratch1, scratch2, scratch3,
           name, depth2, miss);
     } else {
@@ -1038,7 +1038,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           masm, optimization, arguments_.immediate(), false);
     } else {
       Handle<JSFunction> function = optimization.constant_function();
-      stub_compiler_->GenerateJumpFunctionIgnoreReceiver(function);
+      __ Move(r0, receiver);
+      stub_compiler_->GenerateJumpFunction(object, function);
     }
 
     // Deferred code for fast API call case---clean preallocated space.
@@ -1091,12 +1092,14 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            Label* interceptor_succeeded) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(receiver);
       __ Push(holder, name_);
       CompileCallLoadPropertyWithInterceptor(
           masm, receiver, holder, name_, holder_obj,
           IC::kLoadPropertyWithInterceptorOnly);
-      __ pop(name_);  // Restore the name.
-      __ pop(receiver);  // Restore the holder.
+      __ pop(name_);
+      __ pop(holder);
+      __ pop(receiver);
     }
     // If interceptor returns no-result sentinel, call the constant function.
     __ LoadRoot(scratch, Heap::kNoInterceptorResultSentinelRootIndex);

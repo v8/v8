@@ -242,7 +242,6 @@ TEST(GlobalObjectObservation) {
   LocalContext context(isolate.GetIsolate());
   HandleScope scope(isolate.GetIsolate());
   Handle<Object> global_proxy = context->Global();
-  Handle<Object> inner_global = global_proxy->GetPrototype().As<Object>();
   CompileRun(
       "var records = [];"
       "var global = this;"
@@ -255,33 +254,26 @@ TEST(GlobalObjectObservation) {
   context->DetachGlobal();
   CompileRun("global.bar = 'goodbye';");
   CHECK_EQ(1, CompileRun("records.length")->Int32Value());
-
-  // Mutating the global object directly still has an effect...
-  CompileRun("this.bar = 'goodbye';");
-  CHECK_EQ(2, CompileRun("records.length")->Int32Value());
-  CHECK(inner_global->StrictEquals(CompileRun("records[1].object")));
-
-  // Reattached, back to global proxy.
-  context->ReattachGlobal(global_proxy);
-  CompileRun("global.baz = 'again';");
-  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
-  CHECK(global_proxy->StrictEquals(CompileRun("records[2].object")));
+  CompileRun("this.baz = 'goodbye';");
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
 
   // Attached to a different context, should not leak mutations
   // to the old context.
   context->DetachGlobal();
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->DetachGlobal();
-    context2->ReattachGlobal(global_proxy);
     CompileRun(
         "var records2 = [];"
+        "var global = this;"
         "Object.observe(this, function(r) { [].push.apply(records2, r) });"
-        "this.bat = 'context2';");
+        "this.v1 = 'context2';");
+    context2->DetachGlobal();
+    CompileRun(
+        "global.v2 = 'context2';"
+        "this.v3 = 'context2';");
     CHECK_EQ(1, CompileRun("records2.length")->Int32Value());
-    CHECK(global_proxy->StrictEquals(CompileRun("records2[0].object")));
   }
-  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
 
   // Attaching by passing to Context::New
   {
@@ -295,7 +287,7 @@ TEST(GlobalObjectObservation) {
     CHECK_EQ(1, CompileRun("records3.length")->Int32Value());
     CHECK(global_proxy->StrictEquals(CompileRun("records3[0].object")));
   }
-  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
 }
 
 
