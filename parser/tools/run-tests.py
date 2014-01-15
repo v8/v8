@@ -54,7 +54,13 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
 # Use this to run several variants of the tests.
-VARIANT_FLAGS = [[]]
+
+VARIANTS = ["default"]
+
+VARIANT_FLAGS = {
+    "default": []
+}
+
 MODE_FLAGS = {
     "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
