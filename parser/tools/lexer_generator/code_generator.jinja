@@ -205,7 +205,9 @@
 
   {{ write_label('state_entry', node_number_chain) }}
 
-  READ_CURSOR();
+  {% if not state['can_elide_read'] -%}
+    READ_CURSOR();
+  {%- endif -%}
 
   {% if debug_print %}
     fprintf(stderr,

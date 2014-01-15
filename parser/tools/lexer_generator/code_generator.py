@@ -99,6 +99,7 @@ class CodeGenerator:
       'node_number' : None,
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
+      'can_elide_read' : len(transitions) == 0,
       'switch_transitions' : [],
       'deferred_transitions' : [],
       'long_char_transitions' : [],
@@ -286,6 +287,9 @@ class CodeGenerator:
         state['match_action'] = (state['match_action'][0], value)
         if state['match_action'][0] != 'goto_start':
           states[value[-1]]['entry_points']['after_entry_code'] = True
+          state['can_elide_read'] = False
+        else:
+          states[value[-1]]['can_elide_read'] = False
 
   @staticmethod
   def __mark_entry_points(dfa_states):
