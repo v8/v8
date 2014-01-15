@@ -52,11 +52,9 @@ class LCodeGen;
   V(BitI)                                       \
   V(BoundsCheck)                                \
   V(Branch)                                     \
-  V(CallConstantFunction)                       \
+  V(CallJSFunction)                             \
+  V(CallWithDescriptor)                         \
   V(CallFunction)                               \
-  V(CallKeyed)                                  \
-  V(CallKnownGlobal)                            \
-  V(CallNamed)                                  \
   V(CallNew)                                    \
   V(CallNewArray)                               \
   V(CallRuntime)                                \
@@ -299,10 +297,8 @@ class LInstruction : public ZoneObject {
 
 
 // R = number of result operands (0 or 1).
-// I = number of input operands.
-// T = number of temporary operands.
-template<int R, int I, int T>
-class LTemplateInstruction : public LInstruction {
+template<int R>
+class LTemplateResultInstruction : public LInstruction {
  public:
   // Allow 0 or 1 output operands.
   STATIC_ASSERT(R == 0 || R == 1);
@@ -314,10 +310,20 @@ class LTemplateInstruction : public LInstruction {
 
  protected:
   EmbeddedContainer<LOperand*, R> results_;
+};
+
+
+// R = number of result operands (0 or 1).
+// I = number of input operands.
+// T = number of temporary operands.
+template<int R, int I, int T>
+class LTemplateInstruction : public LTemplateResultInstruction<R> {
+ protected:
   EmbeddedContainer<LOperand*, I> inputs_;
   EmbeddedContainer<LOperand*, T> temps_;
 
  private:
+  // Iterator support.
   virtual int InputCount() V8_FINAL V8_OVERRIDE { return I; }
   virtual LOperand* InputAt(int i) V8_FINAL V8_OVERRIDE { return inputs_[i]; }
 
@@ -1813,15 +1819,60 @@ class LGlobalReceiver V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCallConstantFunction V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+class LCallJSFunction V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(CallConstantFunction, "call-constant-function")
-  DECLARE_HYDROGEN_ACCESSOR(CallConstantFunction)
+  explicit LCallJSFunction(LOperand* function) {
+    inputs_[0] = function;
+  }
+
+  LOperand* function() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallJSFunction, "call-js-function")
+  DECLARE_HYDROGEN_ACCESSOR(CallJSFunction)
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<JSFunction> function() { return hydrogen()->function(); }
   int arity() const { return hydrogen()->argument_count() - 1; }
+};
+
+
+class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
+ public:
+  LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
+                      ZoneList<LOperand*>& operands,
+                      Zone* zone)
+    : descriptor_(descriptor),
+      inputs_(descriptor->environment_length() + 1, zone) {
+    ASSERT(descriptor->environment_length() + 1 == operands.length());
+    inputs_.AddAll(operands, zone);
+  }
+
+  LOperand* target() const { return inputs_[0]; }
+
+  const CallInterfaceDescriptor* descriptor() { return descriptor_; }
+
+ private:
+  DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor, "call-with-descriptor")
+  DECLARE_HYDROGEN_ACCESSOR(CallWithDescriptor)
+
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  int arity() const { return hydrogen()->argument_count() - 1; }
+
+  const CallInterfaceDescriptor* descriptor_;
+  ZoneList<LOperand*> inputs_;
+
+  virtual void InternalSetOperandAt(int index,
+                                    LOperand* value) V8_FINAL V8_OVERRIDE {
+    inputs_[index] = value;
+  }
+
+  // Iterator support.
+  virtual int InputCount() V8_FINAL V8_OVERRIDE { return inputs_.length(); }
+  virtual LOperand* InputAt(int i) V8_FINAL V8_OVERRIDE { return inputs_[i]; }
+
+  virtual int TempCount() V8_FINAL V8_OVERRIDE { return 0; }
+  virtual LOperand* TempAt(int i) V8_FINAL V8_OVERRIDE { return NULL; }
 };
 
 
@@ -1844,44 +1895,6 @@ class LInvokeFunction V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LCallKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
- public:
-  LCallKeyed(LOperand* context, LOperand* key) {
-    inputs_[0] = context;
-    inputs_[1] = key;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallKeyed, "call-keyed")
-  DECLARE_HYDROGEN_ACCESSOR(CallKeyed)
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
-
-class LCallNamed V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCallNamed(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallNamed, "call-named")
-  DECLARE_HYDROGEN_ACCESSOR(CallNamed)
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  Handle<String> name() const { return hydrogen()->name(); }
-  int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
 class LCallFunction V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
   LCallFunction(LOperand* context, LOperand* function) {
@@ -1896,17 +1909,6 @@ class LCallFunction V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   DECLARE_HYDROGEN_ACCESSOR(CallFunction)
 
   int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
-class LCallKnownGlobal V8_FINAL : public LTemplateInstruction<1, 0, 0> {
- public:
-  DECLARE_CONCRETE_INSTRUCTION(CallKnownGlobal, "call-known-global")
-  DECLARE_HYDROGEN_ACCESSOR(CallKnownGlobal)
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  int arity() const { return hydrogen()->argument_count() - 1;  }
 };
 
 
@@ -2762,22 +2764,16 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 
   // Methods for setting up define-use relationships.
   // Return the same instruction that they are passed.
-  template<int I, int T>
-      LInstruction* Define(LTemplateInstruction<1, I, T>* instr,
-                           LUnallocated* result);
-  template<int I, int T>
-      LInstruction* DefineAsRegister(LTemplateInstruction<1, I, T>* instr);
-  template<int I, int T>
-      LInstruction* DefineAsSpilled(LTemplateInstruction<1, I, T>* instr,
-                                    int index);
-  template<int I, int T>
-      LInstruction* DefineSameAsFirst(LTemplateInstruction<1, I, T>* instr);
-  template<int I, int T>
-      LInstruction* DefineFixed(LTemplateInstruction<1, I, T>* instr,
-                                Register reg);
-  template<int I, int T>
-      LInstruction* DefineFixedDouble(LTemplateInstruction<1, I, T>* instr,
-                                      DoubleRegister reg);
+  LInstruction* Define(LTemplateResultInstruction<1>* instr,
+                       LUnallocated* result);
+  LInstruction* DefineAsRegister(LTemplateResultInstruction<1>* instr);
+  LInstruction* DefineAsSpilled(LTemplateResultInstruction<1>* instr,
+                                int index);
+  LInstruction* DefineSameAsFirst(LTemplateResultInstruction<1>* instr);
+  LInstruction* DefineFixed(LTemplateResultInstruction<1>* instr,
+                            Register reg);
+  LInstruction* DefineFixedDouble(LTemplateResultInstruction<1>* instr,
+                                  DoubleRegister reg);
   LInstruction* AssignEnvironment(LInstruction* instr);
   LInstruction* AssignPointerMap(LInstruction* instr);
 
