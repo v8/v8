@@ -101,6 +101,9 @@
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
 
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, SLOW],
