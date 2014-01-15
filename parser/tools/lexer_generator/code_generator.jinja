@@ -72,7 +72,7 @@
   {% if type == 'store_token' %}
     stored_token = Token::{{value}};
   {% elif type == 'set_marker' %}
-    marker_ = cursor_ - {{value}};
+    marker = cursor_ - {{value}};
   {% elif type == 'set_has_escapes' %}
     next_.has_escapes = true;
   {% elif type == 'octal_inside_string' %}
@@ -101,7 +101,7 @@
   {% if type == 'terminate' %}
     {{dispatch_match_action('backtrack', ('1', 'EOS'))}}
   {% elif type == 'terminate_illegal' %}
-    start_ = marker_;
+    start_ = marker;
     {{dispatch_match_action('backtrack', ('1', 'ILLEGAL'))}}
   {% elif type == 'skip' %}
     RESET_START();
@@ -322,6 +322,7 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
   // Setup environment.
   next_.has_escapes = false;
   Token::Value stored_token;
+  const {{char_type}} * marker;
   {{char_type}} primary_char;
   READ_CURSOR();
 
@@ -343,6 +344,8 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
   if (false) {
     // force use of stored_token
     stored_token = Token::ILLEGAL;
+    // force use of marker
+    marker = NULL;
     // force use of state_entry_0
     goto state_entry_0;
   }

@@ -292,7 +292,6 @@ class ExperimentalScanner : public ScannerBase {
         buffer_end_(NULL),
         start_(NULL),
         cursor_(NULL),
-        marker_(NULL),
         last_octal_end_(NULL) {
     ASSERT(source->IsFlat());
     UpdateBufferBasedOnHandle();
@@ -322,13 +321,11 @@ class ExperimentalScanner : public ScannerBase {
     if (new_buffer != buffer_) {
       int start_offset = start_ - buffer_;
       int cursor_offset = cursor_ - buffer_;
-      int marker_offset = marker_ - buffer_;
       int last_octal_end_offset = last_octal_end_ - buffer_;
       buffer_ = new_buffer;
       buffer_end_ = buffer_ + source_handle_->length();
       start_ = buffer_ + start_offset;
       cursor_ = buffer_ + cursor_offset;
-      marker_ = buffer_ + marker_offset;
       if (last_octal_end_ != NULL) {
         last_octal_end_ = buffer_ + last_octal_end_offset;
       }
@@ -373,7 +370,6 @@ class ExperimentalScanner : public ScannerBase {
   const Char* buffer_end_;
   const Char* start_;
   const Char* cursor_;
-  const Char* marker_;
 
   // Where we have seen the last octal number or an octal escape inside a
   // string. Used by octal_position().
@@ -385,7 +381,6 @@ template<typename Char>
 void ExperimentalScanner<Char>::SeekForward(int pos) {
   cursor_ = buffer_ + pos;
   start_ = cursor_;
-  marker_ = cursor_;
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
   Scan();  // Fills in next_.
