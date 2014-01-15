@@ -44,7 +44,7 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
-#include <cstdarg>
+#include <stdarg.h>
 
 #include "platform/mutex.h"
 #include "platform/semaphore.h"
@@ -89,7 +89,6 @@ inline int lrint(double flt) {
 #endif
   return intgr;
 }
-
 #endif  // _MSC_VER < 1800
 
 #endif  // V8_CC_MSVC

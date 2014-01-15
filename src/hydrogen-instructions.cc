@@ -54,14 +54,6 @@ HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
 
-int HValue::LoopWeight() const {
-  const int w = FLAG_loop_weight;
-  static const int weights[] = { 1, w, w*w, w*w*w, w*w*w*w };
-  return weights[Min(block()->LoopNestingDepth(),
-                     static_cast<int>(ARRAY_SIZE(weights)-1))];
-}
-
-
 Isolate* HValue::isolate() const {
   ASSERT(block() != NULL);
   return block()->isolate();
@@ -106,7 +98,7 @@ Representation HValue::RepresentationFromUses() {
              id(), Mnemonic(), use->id(), use->Mnemonic(), rep.Mnemonic(),
              (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
     }
-    use_count[rep.kind()] += use->LoopWeight();
+    use_count[rep.kind()] += 1;
   }
   if (IsPhi()) HPhi::cast(this)->AddIndirectUsesTo(&use_count[0]);
   int tagged_count = use_count[Representation::kTagged];
@@ -985,12 +977,6 @@ void HCallConstantFunction::PrintDataTo(StringStream* stream) {
 
 
 void HCallNamed::PrintDataTo(StringStream* stream) {
-  stream->Add("%o ", *name());
-  HUnaryCall::PrintDataTo(stream);
-}
-
-
-void HCallGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
   HUnaryCall::PrintDataTo(stream);
 }
@@ -2357,7 +2343,7 @@ void HPhi::InitRealUses(int phi_id) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
       Representation rep = value->observed_input_representation(it.index());
-      non_phi_uses_[rep.kind()] += value->LoopWeight();
+      non_phi_uses_[rep.kind()] += 1;
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());
@@ -3898,7 +3884,7 @@ HInstruction* HUnaryMathOperation::New(
       case kMathExp:
         return H_CONSTANT_DOUBLE(fast_exp(d));
       case kMathLog:
-        return H_CONSTANT_DOUBLE(log(d));
+        return H_CONSTANT_DOUBLE(std::log(d));
       case kMathSqrt:
         return H_CONSTANT_DOUBLE(fast_sqrt(d));
       case kMathPowHalf:
@@ -3911,9 +3897,9 @@ HInstruction* HUnaryMathOperation::New(
         // Doubles are represented as Significant * 2 ^ Exponent. If the
         // Exponent is not negative, the double value is already an integer.
         if (Double(d).Exponent() >= 0) return H_CONSTANT_DOUBLE(d);
-        return H_CONSTANT_DOUBLE(floor(d + 0.5));
+        return H_CONSTANT_DOUBLE(std::floor(d + 0.5));
       case kMathFloor:
-        return H_CONSTANT_DOUBLE(floor(d));
+        return H_CONSTANT_DOUBLE(std::floor(d));
       default:
         UNREACHABLE();
         break;

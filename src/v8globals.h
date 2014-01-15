@@ -289,14 +289,9 @@ enum CheckType {
 
 
 enum CallFunctionFlags {
-  NO_CALL_FUNCTION_FLAGS = 0,
-  // Receiver might implicitly be the global objects. If it is, the
-  // hole is passed to the call function stub.
-  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0,
-  // Receiver is implicit and the hole has been passed to the stub.
-  RECEIVER_IS_IMPLICIT = 1 << 1,
+  NO_CALL_FUNCTION_FLAGS,
   // The call target is cached in the instruction stream.
-  RECORD_CALL_TARGET = 1 << 2
+  RECORD_CALL_TARGET
 };
 
 
@@ -446,14 +441,6 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
 enum SmiCheckType {
   DONT_DO_SMI_CHECK,
   DO_SMI_CHECK
-};
-
-
-// Used to specify whether a receiver is implicitly or explicitly
-// provided to a call.
-enum CallKind {
-  CALL_AS_METHOD,
-  CALL_AS_FUNCTION
 };
 
 

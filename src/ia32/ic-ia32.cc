@@ -1028,8 +1028,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION,
-                    NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -1112,22 +1111,15 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
 
     // Patch the receiver on the stack.
     __ bind(&global);
-    CallStubCompiler::FetchGlobalProxy(masm, edx, edi);
-    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+    __ mov(Operand(esp, (argc + 1) * kPointerSize),
+           masm->isolate()->factory()->undefined_value());
 
     __ bind(&invoke);
   }
 
   // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_state)
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
   ParameterCount actual(argc);
-  __ InvokeFunction(edi,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper(),
-                    call_kind);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
 }
 
 

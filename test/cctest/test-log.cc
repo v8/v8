@@ -203,7 +203,7 @@ class LoopingNonJsThread : public LoopingThread {
     double i = 10;
     SignalRunning();
     while (IsRunning()) {
-      i = sin(i);
+      i = std::sin(i);
       i::OS::Sleep(1);
     }
   }

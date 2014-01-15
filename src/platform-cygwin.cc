@@ -53,7 +53,7 @@ namespace internal {
 
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
   return tzname[0];  // The location of the timezone string on Cygwin.

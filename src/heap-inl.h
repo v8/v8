@@ -28,6 +28,8 @@
 #ifndef V8_HEAP_INL_H_
 #define V8_HEAP_INL_H_
 
+#include <cmath>
+
 #include "heap.h"
 #include "isolate.h"
 #include "list-inl.h"

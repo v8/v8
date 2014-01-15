@@ -595,7 +595,6 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
 
 void CallFunctionStub::PrintName(StringStream* stream) {
   stream->Add("CallFunctionStub_Args%d", argc_);
-  if (ReceiverMightBeImplicit()) stream->Add("_Implicit");
   if (RecordCallTarget()) stream->Add("_Recording");
 }
 

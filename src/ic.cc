@@ -489,9 +489,8 @@ void IC::Clear(Isolate* isolate, Address address) {
 
 void CallICBase::Clear(Address address, Code* target) {
   if (IsCleared(target)) return;
-  ContextualMode mode = IC::GetContextualMode(target->extra_ic_state());
   Code* code = target->GetIsolate()->stub_cache()->FindCallInitialize(
-      target->arguments_count(), mode, target->kind());
+      target->arguments_count(), target->kind());
   SetTargetAtAddress(address, code);
 }
 

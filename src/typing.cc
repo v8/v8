@@ -531,13 +531,7 @@ void AstTyper::VisitProperty(Property* expr) {
 
 void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
-  Expression* callee = expr->expression();
-  Property* prop = callee->AsProperty();
-  if (prop != NULL) {
-    expr->RecordTypeFeedback(oracle(), CALL_AS_METHOD);
-  } else {
-    expr->RecordTypeFeedback(oracle(), CALL_AS_FUNCTION);
-  }
+  expr->RecordTypeFeedback(oracle());
 
   RECURSE(Visit(expr->expression()));
   ZoneList<Expression*>* args = expr->arguments();

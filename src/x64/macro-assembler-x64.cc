@@ -848,7 +848,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinEntry(rdx, id);
-  InvokeCode(rdx, expected, expected, flag, call_wrapper, CALL_AS_METHOD);
+  InvokeCode(rdx, expected, expected, flag, call_wrapper);
 }
 
 
@@ -3472,26 +3472,11 @@ void MacroAssembler::DebugBreak() {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-void MacroAssembler::SetCallKind(Register dst, CallKind call_kind) {
-  // This macro takes the dst register to make the code more readable
-  // at the call sites. However, the dst register has to be rcx to
-  // follow the calling convention which requires the call type to be
-  // in rcx.
-  ASSERT(dst.is(rcx));
-  if (call_kind == CALL_AS_FUNCTION) {
-    LoadSmiConstant(dst, Smi::FromInt(1));
-  } else {
-    LoadSmiConstant(dst, Smi::FromInt(0));
-  }
-}
-
-
 void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper,
-                                CallKind call_kind) {
+                                const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
@@ -3505,17 +3490,14 @@ void MacroAssembler::InvokeCode(Register code,
                  &definitely_mismatches,
                  flag,
                  Label::kNear,
-                 call_wrapper,
-                 call_kind);
+                 call_wrapper);
   if (!definitely_mismatches) {
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(code));
-      SetCallKind(rcx, call_kind);
       call(code);
       call_wrapper.AfterCall();
     } else {
       ASSERT(flag == JUMP_FUNCTION);
-      SetCallKind(rcx, call_kind);
       jmp(code);
     }
     bind(&done);
@@ -3528,8 +3510,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper,
-                                CallKind call_kind) {
+                                const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
@@ -3544,17 +3525,14 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                  &definitely_mismatches,
                  flag,
                  Label::kNear,
-                 call_wrapper,
-                 call_kind);
+                 call_wrapper);
   if (!definitely_mismatches) {
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(code));
-      SetCallKind(rcx, call_kind);
       Call(code, rmode);
       call_wrapper.AfterCall();
     } else {
       ASSERT(flag == JUMP_FUNCTION);
-      SetCallKind(rcx, call_kind);
       Jump(code, rmode);
     }
     bind(&done);
@@ -3565,8 +3543,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
@@ -3580,7 +3557,7 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(rbx);
-  InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
+  InvokeCode(rdx, expected, actual, flag, call_wrapper);
 }
 
 
@@ -3588,8 +3565,7 @@ void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
@@ -3599,7 +3575,7 @@ void MacroAssembler::InvokeFunction(Register function,
   // the executable code.
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
-  InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
+  InvokeCode(rdx, expected, actual, flag, call_wrapper);
 }
 
 
@@ -3607,10 +3583,9 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   Move(rdi, function);
-  InvokeFunction(rdi, expected, actual, flag, call_wrapper, call_kind);
+  InvokeFunction(rdi, expected, actual, flag, call_wrapper);
 }
 
 
@@ -3622,8 +3597,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     bool* definitely_mismatches,
                                     InvokeFlag flag,
                                     Label::Distance near_jump,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   bool definitely_matches = false;
   *definitely_mismatches = false;
   Label invoke;
@@ -3675,14 +3649,12 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor));
-      SetCallKind(rcx, call_kind);
       Call(adaptor, RelocInfo::CODE_TARGET);
       call_wrapper.AfterCall();
       if (!*definitely_mismatches) {
         jmp(done, near_jump);
       }
     } else {
-      SetCallKind(rcx, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);

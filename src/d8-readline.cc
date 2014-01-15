@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <cstdio>  // NOLINT
+#include <stdio.h>  // NOLINT
 #include <string.h> // NOLINT
 #include <readline/readline.h> // NOLINT
 #include <readline/history.h> // NOLINT

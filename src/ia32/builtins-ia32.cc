@@ -80,14 +80,10 @@ static void CallRuntimePassFunction(
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function.
   __ push(edi);
-  // Push call kind information.
-  __ push(ecx);
   // Function is also the parameter to the runtime call.
   __ push(edi);
 
   __ CallRuntime(function_id, 1);
-  // Restore call kind information.
-  __ pop(ecx);
   // Restore receiver.
   __ pop(edi);
 }
@@ -370,11 +366,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           masm->isolate()->builtins()->HandleApiCallConstruct();
       ParameterCount expected(0);
       __ InvokeCode(code, expected, expected, RelocInfo::CODE_TARGET,
-                    CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+                    CALL_FUNCTION, NullCallWrapper());
     } else {
       ParameterCount actual(eax);
       __ InvokeFunction(edi, actual, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+                        NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -487,7 +483,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     } else {
       ParameterCount actual(eax);
       __ InvokeFunction(edi, actual, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+                        NullCallWrapper());
     }
 
     // Exit the internal frame. Notice that this also removes the empty.
@@ -519,16 +515,12 @@ static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function.
   __ push(edi);
-  // Push call kind information.
-  __ push(ecx);
   // Function is also the parameter to the runtime call.
   __ push(edi);
   // Whether to compile in a background thread.
   __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
 
   __ CallRuntime(Runtime::kCompileOptimized, 2);
-  // Restore call kind information.
-  __ pop(ecx);
   // Restore receiver.
   __ pop(edi);
 }
@@ -781,10 +773,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ mov(edi, Operand(esp, eax, times_4, 1 * kPointerSize));
     __ jmp(&patch_receiver);
 
-    // Use the global receiver object from the called function as the
-    // receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, ebx, edi);
+    __ mov(ebx,
+           Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ mov(Operand(esp, eax, times_4, 0), ebx);
@@ -834,13 +826,11 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ push(edi);  // re-add proxy object as additional argument
     __ push(edx);
     __ inc(eax);
-    __ SetCallKind(ecx, CALL_AS_FUNCTION);
     __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
            RelocInfo::CODE_TARGET);
 
     __ bind(&non_proxy);
-    __ SetCallKind(ecx, CALL_AS_METHOD);
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
            RelocInfo::CODE_TARGET);
@@ -855,14 +845,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
   __ SmiUntag(ebx);
-  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ cmp(eax, ebx);
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline());
 
   ParameterCount expected(0);
-  __ InvokeCode(edx, expected, expected, JUMP_FUNCTION, NullCallWrapper(),
-                CALL_AS_METHOD);
+  __ InvokeCode(edx, expected, expected, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -914,7 +902,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ mov(ebx, Operand(ebp, kReceiverOffset));
 
     // Check that the function is a JS function (otherwise it must be a proxy).
-    Label push_receiver;
+    Label push_receiver, use_global_receiver;
     __ mov(edi, Operand(ebp, kFunctionOffset));
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
     __ j(not_equal, &push_receiver);
@@ -924,7 +912,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Compute the receiver.
     // Do not transform the receiver for strict mode functions.
-    Label call_to_object, use_global_receiver;
+    Label call_to_object;
     __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
     __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
               1 << SharedFunctionInfo::kStrictModeBitWithinByte);
@@ -955,9 +943,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ mov(ebx, eax);
     __ jmp(&push_receiver);
 
-    // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, ebx, edi);
+    __ mov(ebx,
+           Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
     // Push the receiver.
     __ bind(&push_receiver);
@@ -990,7 +979,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ cmp(ecx, Operand(ebp, kLimitOffset));
     __ j(not_equal, &loop);
 
-    // Invoke the function.
+    // Call the function.
     Label call_proxy;
     __ mov(eax, ecx);
     ParameterCount actual(eax);
@@ -998,18 +987,16 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ mov(edi, Operand(ebp, kFunctionOffset));
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
     __ j(not_equal, &call_proxy);
-    __ InvokeFunction(edi, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION, NullCallWrapper());
 
     frame_scope.GenerateLeaveFrame();
     __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 
-    // Invoke the function proxy.
+    // Call the function proxy.
     __ bind(&call_proxy);
     __ push(edi);  // add function proxy as last argument
     __ inc(eax);
     __ Set(ebx, Immediate(0));
-    __ SetCallKind(ecx, CALL_AS_METHOD);
     __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
     __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
@@ -1244,7 +1231,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : actual number of arguments
   //  -- ebx : expected number of arguments
-  //  -- ecx : call kind information
   //  -- edx : code entry to call
   // -----------------------------------
 

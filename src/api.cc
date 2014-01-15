@@ -118,29 +118,7 @@ namespace v8 {
   EXCEPTION_BAILOUT_CHECK_GENERIC(isolate, value, ;)
 
 
-#define API_ENTRY_CHECK(isolate, msg)                                          \
-  do {                                                                         \
-    if (v8::Locker::IsActive()) {                                              \
-      Utils::ApiCheck(isolate->thread_manager()->IsLockedByCurrentThread(),    \
-                      msg,                                                     \
-                      "Entering the V8 API without proper locking in place");  \
-    }                                                                          \
-  } while (false)
-
-
 // --- E x c e p t i o n   B e h a v i o r ---
-
-
-static void DefaultFatalErrorHandler(const char* location,
-                                     const char* message) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate->IsInitialized()) {
-    i::VMState<i::OTHER> state(isolate);
-    API_Fatal(location, message);
-  } else {
-    API_Fatal(location, message);
-  }
-}
 
 
 void i::FatalProcessOutOfMemory(const char* location) {
@@ -220,10 +198,14 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
 
 void Utils::ReportApiFailure(const char* location, const char* message) {
   i::Isolate* isolate = i::Isolate::Current();
-  FatalErrorCallback callback = isolate->exception_behavior() == NULL
-      ? DefaultFatalErrorHandler
-      : isolate->exception_behavior();
-  callback(location, message);
+  FatalErrorCallback callback = isolate->exception_behavior();
+  if (callback == NULL) {
+    i::OS::PrintError("\n#\n# Fatal error in %s\n# %s\n#\n\n",
+                      location, message);
+    i::OS::Abort();
+  } else {
+    callback(location, message);
+  }
   isolate->SignalFatalError();
 }
 
@@ -611,7 +593,13 @@ HandleScope::HandleScope(Isolate* isolate) {
 
 void HandleScope::Initialize(Isolate* isolate) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  API_ENTRY_CHECK(internal_isolate, "HandleScope::HandleScope");
+  // We do not want to check the correct usage of the Locker class all over the
+  // place, so we do it only here: Without a HandleScope, an embedder can do
+  // almost nothing, so it is enough to check in this central place.
+  Utils::ApiCheck(!v8::Locker::IsActive() ||
+                  internal_isolate->thread_manager()->IsLockedByCurrentThread(),
+                  "HandleScope::HandleScope",
+                  "Entering the V8 API without proper locking in place");
   v8::ImplementationUtilities::HandleScopeData* current =
       internal_isolate->handle_scope_data();
   isolate_ = internal_isolate;
@@ -668,22 +656,24 @@ void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
   ENTER_V8(isolate);
-  isolate->handle_scope_implementer()->EnterContext(env);
-  isolate->handle_scope_implementer()->SaveContext(isolate->context());
+  i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
+  impl->EnterContext(env);
+  impl->SaveContext(isolate->context());
   isolate->set_context(*env);
 }
 
 
 void Context::Exit() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::Handle<i::Context> context = i::Handle<i::Context>::null();
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  if (!Utils::ApiCheck(impl->LeaveContext(context),
+  if (!Utils::ApiCheck(impl->LastEnteredContextWas(env),
                        "v8::Context::Exit()",
                        "Cannot exit non-entered context")) {
     return;
   }
+  impl->LeaveContext();
   isolate->set_context(impl->RestoreContext());
 }
 

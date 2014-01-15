@@ -1173,6 +1173,15 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     fun_data = *desc;
   }
 
+  SharedFunctionInfo* shared = function->shared();
+  if (shared->is_classic_mode() && !shared->native()) {
+    Object* recv = args[0];
+    ASSERT(!recv->IsNull());
+    if (recv->IsUndefined()) {
+      args[0] = function->context()->global_object()->global_receiver();
+    }
+  }
+
   Object* raw_holder = TypeCheck(heap, args.length(), &args[0], fun_data);
 
   if (raw_holder->IsNull()) {

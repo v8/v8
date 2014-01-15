@@ -156,17 +156,23 @@ bool LCodeGen::GeneratePrologue() {
     }
 #endif
 
-    // Strict mode functions need to replace the receiver with undefined
-    // when called as functions (without an explicit receiver
-    // object). rcx is zero for method calls and non-zero for function
-    // calls.
-    if (!info_->is_classic_mode() || info_->is_native()) {
+    // Classic mode functions need to replace the receiver with the global proxy
+    // when called as functions (without an explicit receiver object).
+    if (info_->this_has_uses() &&
+        info_->is_classic_mode() &&
+        !info_->is_native()) {
       Label ok;
-      __ testq(rcx, rcx);
-      __ j(zero, &ok, Label::kNear);
       StackArgumentsAccessor args(rsp, scope()->num_parameters());
-      __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-      __ movq(args.GetReceiverOperand(), kScratchRegister);
+      __ movq(rcx, args.GetReceiverOperand());
+
+      __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
+      __ j(not_equal, &ok, Label::kNear);
+
+      __ movq(rcx, GlobalObjectOperand());
+      __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
+
+      __ movq(args.GetReceiverOperand(), rcx);
+
       __ bind(&ok);
     }
   }
@@ -1123,10 +1129,10 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
     double multiplier_f =
         static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
     int64_t multiplier;
-    if (multiplier_f - floor(multiplier_f) < 0.5) {
-        multiplier = static_cast<int64_t>(floor(multiplier_f));
+    if (multiplier_f - std::floor(multiplier_f) < 0.5) {
+        multiplier = static_cast<int64_t>(std::floor(multiplier_f));
     } else {
-        multiplier = static_cast<int64_t>(floor(multiplier_f)) + 1;
+        multiplier = static_cast<int64_t>(std::floor(multiplier_f)) + 1;
     }
     // The multiplier is a uint32.
     ASSERT(multiplier > 0 &&
@@ -3246,10 +3252,11 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ jmp(&receiver_ok, Label::kNear);
 
   __ bind(&global_object);
-  // TODO(kmillikin): We have a hydrogen value for the global object.  See
-  // if it's better to use it than to explicitly fetch it from the context
-  // here.
-  CallStubCompiler::FetchGlobalProxy(masm(), receiver, function);
+  __ movq(receiver, FieldOperand(function, JSFunction::kContextOffset));
+  __ movq(receiver,
+          Operand(receiver, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movq(receiver,
+          FieldOperand(receiver, GlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
 }
 
@@ -3292,8 +3299,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   SafepointGenerator safepoint_generator(
       this, pointers, Safepoint::kLazyDeopt);
   ParameterCount actual(rax);
-  __ InvokeFunction(function, actual, CALL_FUNCTION,
-                    safepoint_generator, CALL_AS_METHOD);
+  __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
 }
 
 
@@ -3361,7 +3367,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int formal_parameter_count,
                                  int arity,
                                  LInstruction* instr,
-                                 CallKind call_kind,
                                  RDIState rdi_state) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
@@ -3385,7 +3390,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     }
 
     // Invoke function.
-    __ SetCallKind(rcx, call_kind);
     if (function.is_identical_to(info()->closure())) {
       __ CallSelf();
     } else {
@@ -3400,8 +3404,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
         this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
     ParameterCount expected(formal_parameter_count);
-    __ InvokeFunction(
-        function, expected, count, CALL_FUNCTION, generator, call_kind);
+    __ InvokeFunction(function, expected, count, CALL_FUNCTION, generator);
   }
 }
 
@@ -3412,7 +3415,6 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
                     instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
-                    CALL_AS_METHOD,
                     RDI_UNINITIALIZED);
 }
 
@@ -3771,13 +3773,12 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     LPointerMap* pointers = instr->pointer_map();
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
-    __ InvokeFunction(rdi, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
+    __ InvokeFunction(rdi, count, CALL_FUNCTION, generator);
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(),
                       instr,
-                      CALL_AS_METHOD,
                       RDI_CONTAINS_TARGET);
   }
 }
@@ -3800,8 +3801,7 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
   __ Move(rcx, instr->name());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
@@ -3813,10 +3813,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  CallFunctionFlags flags =
-      instr->hydrogen()->IsContextualCall() ?
-          RECEIVER_IS_IMPLICIT : NO_CALL_FUNCTION_FLAGS;
-  CallFunctionStub stub(arity, flags);
+  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
   if (instr->hydrogen()->IsTailCall()) {
     if (NeedsEagerFrame()) __ leave();
     __ jmp(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
@@ -3826,24 +3823,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 }
 
 
-void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  ASSERT(ToRegister(instr->context()).is(rsi));
-  ASSERT(ToRegister(instr->result()).is(rax));
-  int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
-  __ Move(rcx, instr->name());
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
   CallKnownFunction(instr->hydrogen()->target(),
                     instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
-                    CALL_AS_FUNCTION,
                     RDI_UNINITIALIZED);
 }
 
@@ -4988,7 +4973,7 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     PushSafepointRegistersScope scope(this);
     __ push(object);
     __ Set(rsi, 0);
-    __ CallRuntimeSaveDoubles(Runtime::kMigrateInstance);
+    __ CallRuntimeSaveDoubles(Runtime::kTryMigrateInstance);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
 

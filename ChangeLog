@@ -1,3 +1,14 @@
+2014-01-15: Version 3.24.16
+
+        Annotate mapped memory regions for LeakSanitizer (Chromium issue
+        328552).
+
+        Turn Runtime_MigrateInstance into Runtime_TryMigrateInstance (Chromium
+        issue 315252).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-14: Version 3.24.15
 
         Introduce an API mirroring the gc extension.

@@ -345,12 +345,6 @@ void LCallNamed::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallGlobal::PrintDataTo(StringStream* stream) {
-  SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", name_string.get(), arity());
-}
-
-
 void LCallKnownGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("#%d / ", arity());
 }
@@ -1267,13 +1261,6 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
 LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LCallNamed* result = new(zone()) LCallNamed(context);
-  return MarkAsCall(DefineFixed(result, eax), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  LCallGlobal* result = new(zone()) LCallGlobal(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2624,8 +2611,7 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                instr->arguments_count(),
                                                instr->function(),
                                                undefined,
-                                               instr->inlining_kind(),
-                                               instr->undefined_receiver());
+                                               instr->inlining_kind());
   // Only replay binding of arguments object if it wasn't removed from graph.
   if (instr->arguments_var() != NULL && instr->arguments_object()->IsLinked()) {
     inner->Bind(instr->arguments_var(), instr->arguments_object());
