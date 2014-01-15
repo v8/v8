@@ -252,6 +252,12 @@ TimeDelta RunBaselineScanner(const char* fname,
     token = scanner.scanner_->Next();
     if (dump_tokens) {
       tokens->push_back(GetTokenWithLocation(scanner.scanner_, token));
+    } else if (HasLiteral(token)) {
+      if (scanner.scanner_->is_literal_ascii()) {
+        scanner.scanner_->literal_ascii_string();
+      } else {
+        scanner.scanner_->literal_utf16_string();
+      }
     }
   } while (token != Token::EOS);
   return timer.Elapsed();
@@ -279,6 +285,12 @@ TimeDelta RunExperimentalScanner(Handle<String> source,
     token = scanner.Next();
     if (dump_tokens) {
       tokens->push_back(GetTokenWithLocation(&scanner, token));
+    } else if (HasLiteral(token)) {
+      if (scanner.is_literal_ascii()) {
+        scanner.literal_ascii_string();
+      } else {
+        scanner.literal_utf16_string();
+      }
     }
   } while (token != Token::EOS);
   return timer.Elapsed();
