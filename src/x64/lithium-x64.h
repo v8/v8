@@ -1816,7 +1816,6 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
 
   LOperand* target() const { return inputs_[0]; }
 
-
  private:
   DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor, "call-with-descriptor")
   DECLARE_HYDROGEN_ACCESSOR(CallWithDescriptor)
@@ -1827,11 +1826,6 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
 
   const CallInterfaceDescriptor* descriptor_;
   ZoneList<LOperand*> inputs_;
-
-  virtual void InternalSetOperandAt(int index,
-                                    LOperand* value) V8_FINAL V8_OVERRIDE {
-    inputs_[index] = value;
-  }
 
   // Iterator support.
   virtual int InputCount() V8_FINAL V8_OVERRIDE { return inputs_.length(); }

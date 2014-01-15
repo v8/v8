@@ -1882,11 +1882,6 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
   const CallInterfaceDescriptor* descriptor_;
   ZoneList<LOperand*> inputs_;
 
-  virtual void InternalSetOperandAt(int index,
-                                    LOperand* value) V8_FINAL V8_OVERRIDE {
-    inputs_[index] = value;
-  }
-
   // Iterator support.
   virtual int InputCount() V8_FINAL V8_OVERRIDE { return inputs_.length(); }
   virtual LOperand* InputAt(int i) V8_FINAL V8_OVERRIDE { return inputs_[i]; }

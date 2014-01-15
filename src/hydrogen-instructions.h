@@ -2372,8 +2372,6 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
     return OperandAt(0);
   }
 
-  virtual bool IsCall() V8_FINAL V8_OVERRIDE { return true; }
-
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
  private:
