@@ -3664,3 +3664,87 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
   CHECK(!(site->dependent_code()->is_code_at(index)));
 }
+
+
+TEST(CellsInOptimizedCodeAreWeak) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  i::FLAG_weak_embedded_objects_in_optimized_code = true;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_crankshaft()) return;
+  HandleScope outer_scope(heap->isolate());
+  Handle<Code> code;
+  {
+    LocalContext context;
+    HandleScope scope(heap->isolate());
+
+    CompileRun("bar = (function() {"
+               "  function bar() {"
+               "    return foo(1);"
+               "  };"
+               "  var foo = function(x) { with (x) { return 1 + x; } };"
+               "  bar(foo);"
+               "  bar(foo);"
+               "  bar(foo);"
+               "  %OptimizeFunctionOnNextCall(bar);"
+               "  bar(foo);"
+               "  return bar;})();");
+
+    Handle<JSFunction> bar =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("bar"))));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
+  }
+
+  // Now make sure that a gc should get rid of the function
+  for (int i = 0; i < 4; i++) {
+    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  }
+
+  ASSERT(code->marked_for_deoptimization());
+}
+
+
+TEST(ObjectsInOptimizedCodeAreWeak) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  i::FLAG_weak_embedded_objects_in_optimized_code = true;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_crankshaft()) return;
+  HandleScope outer_scope(heap->isolate());
+  Handle<Code> code;
+  {
+    LocalContext context;
+    HandleScope scope(heap->isolate());
+
+    CompileRun("function bar() {"
+               "  return foo(1);"
+               "};"
+               "function foo(x) { with (x) { return 1 + x; } };"
+               "bar();"
+               "bar();"
+               "bar();"
+               "%OptimizeFunctionOnNextCall(bar);"
+               "bar();");
+
+    Handle<JSFunction> bar =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("bar"))));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
+  }
+
+  // Now make sure that a gc should get rid of the function
+  for (int i = 0; i < 4; i++) {
+    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  }
+
+  ASSERT(code->marked_for_deoptimization());
+}
