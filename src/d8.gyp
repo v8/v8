@@ -48,7 +48,17 @@
       'sources': [
         'd8.cc',
       ],
+      'target_conditions': [
+        [ '_toolset == "host"', {
+          'product_dir': '<(PRODUCT_DIR)/host',
+        }],
+      ],
       'conditions': [
+        [ 'want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
         [ 'console=="readline"', {
           'libraries': [ '-lreadline', ],
           'sources': [ 'd8-readline.cc' ],
