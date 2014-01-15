@@ -58,7 +58,8 @@ TEST_CONFIG = {
 }
 
 
-def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None):
+def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None,
+                status_password=None):
   """Convenience wrapper."""
   class Options(object):
       pass
@@ -69,6 +70,7 @@ def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None):
   options.m = m
   options.r = r
   options.c = c
+  options.status_password = status_password
   return options
 
 
@@ -304,8 +306,11 @@ class ScriptTest(unittest.TestCase):
   def ReadLine(self):
     return self._rl_mock.Call()
 
-  def ReadURL(self, url):
-    return self._url_mock.Call(url)
+  def ReadURL(self, url, params):
+    if params is not None:
+      return self._url_mock.Call(url, params)
+    else:
+      return self._url_mock.Call(url)
 
   def Sleep(self, seconds):
     pass
@@ -748,6 +753,8 @@ Performance and stability improvements on all platforms."""
     self.assertRaises(Exception, self.MakeStep(CheckLastPush, state=state).Run)
 
   def testAutoRoll(self):
+    status_password = self.MakeEmptyTempFile()
+    TextToFile("PW", status_password)
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
@@ -756,20 +763,28 @@ Performance and stability improvements on all platforms."""
        "{\"message\": \"Tree is throttled\"}"],
       ["https://v8-status.appspot.com/lkgr", Exception("Network problem")],
       ["https://v8-status.appspot.com/lkgr", "100"],
+      ["https://v8-status.appspot.com/status",
+       ("username=v8-auto-roll%40chromium.org&"
+        "message=Tree+is+closed+%28preparing+to+push%29&password=PW"),
+       ""],
+      ["https://v8-status.appspot.com/status",
+       ("username=v8-auto-roll%40chromium.org&"
+        "message=Tree+is+throttled&password=PW"), ""],
     ])
 
     self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch\n"],
       ["svn fetch", ""],
-      ["svn log -1 --oneline", "r101 | Text"],
+      ["svn log -1 --oneline", "r100 | Text"],
       ["svn log -1 --oneline ChangeLog", "r65 | Prepare push to trunk..."],
     ])
 
-    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
+    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(
+        MakeOptions(status_password=status_password)), self)
 
     self.assertEquals("100", self.MakeStep().Restore("lkgr"))
-    self.assertEquals("101", self.MakeStep().Restore("latest"))
+    self.assertEquals("100", self.MakeStep().Restore("latest"))
 
   def testAutoRollStoppedBySettings(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
