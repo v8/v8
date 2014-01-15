@@ -605,9 +605,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
       Handle<Code> code =
           masm->isolate()->builtins()->HandleApiCallConstruct();
-      ParameterCount expected(0);
-      __ InvokeCode(code, expected, expected,
-                    RelocInfo::CODE_TARGET, CALL_FUNCTION);
+      __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(r0);
       __ InvokeFunction(r1, actual, CALL_FUNCTION, NullCallWrapper());
@@ -1150,12 +1148,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     __ push(r1);  // re-add proxy object as additional argument
     __ add(r0, r0, Operand(1));
-    __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
+    __ GetBuiltinFunction(r1, Builtins::CALL_FUNCTION_PROXY);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
 
     __ bind(&non_proxy);
-    __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+    __ GetBuiltinFunction(r1, Builtins::CALL_NON_FUNCTION);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ bind(&function);
@@ -1170,12 +1168,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ ldr(r2,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ SmiUntag(r2);
-  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ cmp(r2, r0);  // Check formal and actual parameter counts.
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET,
           ne);
 
+  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   ParameterCount expected(0);
   __ InvokeCode(r3, expected, expected, JUMP_FUNCTION, NullCallWrapper());
 }
@@ -1326,7 +1324,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ push(r1);  // add function proxy as last argument
     __ add(r0, r0, Operand(1));
     __ mov(r2, Operand::Zero());
-    __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
+    __ GetBuiltinFunction(r1, Builtins::CALL_FUNCTION_PROXY);
     __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
 
@@ -1368,12 +1366,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r0 : actual number of arguments
   //  -- r1 : function (passed through to callee)
   //  -- r2 : expected number of arguments
-  //  -- r3 : code entry to call
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;
 
   Label enough, too_few;
+  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ cmp(r0, r2);
   __ b(lt, &too_few);
   __ cmp(r2, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));

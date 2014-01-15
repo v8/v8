@@ -3676,16 +3676,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 }
 
 
-void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
-  ASSERT(ToRegister(instr->result()).is(r0));
-  CallKnownFunction(instr->hydrogen()->function(),
-                    instr->hydrogen()->formal_parameter_count(),
-                    instr->arity(),
-                    instr,
-                    R1_UNINITIALIZED);
-}
-
-
 void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
   ASSERT(instr->context() != NULL);
   ASSERT(ToRegister(instr->context()).is(cp));
@@ -3970,25 +3960,47 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
 }
 
 
-void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
-  ASSERT(ToRegister(instr->context()).is(cp));
+void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr, NEVER_INLINE_TARGET_ADDRESS);
+  LPointerMap* pointers = instr->pointer_map();
+  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+
+  if (instr->target()->IsConstantOperand()) {
+    LConstantOperand* target = LConstantOperand::cast(instr->target());
+    Handle<Code> code = Handle<Code>::cast(ToHandle(target));
+    generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
+    PlatformCallInterfaceDescriptor* call_descriptor =
+        instr->descriptor()->platform_specific_descriptor();
+    __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None(), al,
+            call_descriptor->storage_mode());
+  } else {
+    ASSERT(instr->target()->IsRegister());
+    Register target = ToRegister(instr->target());
+    generator.BeforeCall(__ CallSize(target));
+    __ add(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ Call(target);
+  }
+  generator.AfterCall();
 }
 
 
-void LCodeGen::DoCallNamed(LCallNamed* instr) {
-  ASSERT(ToRegister(instr->context()).is(cp));
+void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
+  ASSERT(ToRegister(instr->function()).is(r1));
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
-  __ mov(r2, Operand(instr->name()));
-  CallCode(ic, RelocInfo::CODE_TARGET, instr, NEVER_INLINE_TARGET_ADDRESS);
+  if (instr->hydrogen()->pass_argument_count()) {
+    __ mov(r0, Operand(instr->arity()));
+  }
+
+  // Change context.
+  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+
+  // Load the code entry address
+  __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+  __ Call(ip);
+
+  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 }
 
 
@@ -4005,16 +4017,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   } else {
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   }
-}
-
-
-void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
-  ASSERT(ToRegister(instr->result()).is(r0));
-  CallKnownFunction(instr->hydrogen()->target(),
-                    instr->hydrogen()->formal_parameter_count(),
-                    instr->arity(),
-                    instr,
-                    R1_UNINITIALIZED);
 }
 
 

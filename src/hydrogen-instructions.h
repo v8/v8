@@ -77,11 +77,9 @@ class LChunkBuilder;
   V(BoundsCheck)                               \
   V(BoundsCheckBaseIndexInformation)           \
   V(Branch)                                    \
-  V(CallConstantFunction)                      \
+  V(CallWithDescriptor)                        \
+  V(CallJSFunction)                            \
   V(CallFunction)                              \
-  V(CallKeyed)                                 \
-  V(CallKnownGlobal)                           \
-  V(CallNamed)                                 \
   V(CallNew)                                   \
   V(CallNewArray)                              \
   V(CallRuntime)                               \
@@ -2279,6 +2277,139 @@ class HBinaryCall : public HCall<2> {
 };
 
 
+class HCallJSFunction V8_FINAL : public HCall<1> {
+ public:
+  static HCallJSFunction* New(Zone* zone,
+                              HValue* context,
+                              HValue* function,
+                              int argument_count,
+                              bool pass_argument_count);
+
+  HValue* function() { return OperandAt(0); }
+
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  virtual Representation RequiredInputRepresentation(
+      int index) V8_FINAL V8_OVERRIDE {
+    ASSERT(index == 0);
+    return Representation::Tagged();
+  }
+
+  bool pass_argument_count() const { return pass_argument_count_; }
+
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallJSFunction)
+
+ private:
+  // The argument count includes the receiver.
+  HCallJSFunction(HValue* function,
+                  int argument_count,
+                  bool pass_argument_count,
+                  bool has_stack_check)
+      : HCall<1>(argument_count),
+        pass_argument_count_(pass_argument_count),
+        has_stack_check_(has_stack_check) {
+      SetOperandAt(0, function);
+  }
+
+  bool pass_argument_count_;
+  bool has_stack_check_;
+};
+
+
+class HCallWithDescriptor V8_FINAL : public HInstruction {
+ public:
+  static HCallWithDescriptor* New(Zone* zone, HValue* context,
+      HValue* target,
+      int argument_count,
+      const CallInterfaceDescriptor* descriptor,
+      Vector<HValue*>& operands) {
+    ASSERT(operands.length() == descriptor->environment_length());
+    HCallWithDescriptor* res =
+        new(zone) HCallWithDescriptor(target, argument_count,
+                                      descriptor, operands, zone);
+    return res;
+  }
+
+  virtual int OperandCount() V8_FINAL V8_OVERRIDE { return values_.length(); }
+  virtual HValue* OperandAt(int index) const V8_FINAL V8_OVERRIDE {
+    return values_[index];
+  }
+
+  virtual Representation RequiredInputRepresentation(
+      int index) V8_FINAL V8_OVERRIDE {
+    if (index == 0) {
+      return Representation::Tagged();
+    } else {
+      int par_index = index - 1;
+      ASSERT(par_index < descriptor_->environment_length());
+      return descriptor_->GetParameterRepresentation(par_index);
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor)
+
+  virtual HType CalculateInferredType() V8_FINAL V8_OVERRIDE {
+    return HType::Tagged();
+  }
+
+  virtual int argument_count() const {
+    return argument_count_;
+  }
+
+  virtual int argument_delta() const V8_OVERRIDE {
+    return -argument_count_;
+  }
+
+  const CallInterfaceDescriptor* descriptor() const {
+    return descriptor_;
+  }
+
+  HValue* target() {
+    return OperandAt(0);
+  }
+
+  virtual bool IsCall() V8_FINAL V8_OVERRIDE { return true; }
+
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+ private:
+  // The argument count includes the receiver.
+  HCallWithDescriptor(HValue* target,
+                      int argument_count,
+                      const CallInterfaceDescriptor* descriptor,
+                      Vector<HValue*>& operands,
+                      Zone* zone)
+    : descriptor_(descriptor),
+      values_(descriptor->environment_length() + 1, zone) {
+    argument_count_ = argument_count;
+    AddOperand(target, zone);
+    for (int i = 0; i < operands.length(); i++) {
+      AddOperand(operands[i], zone);
+    }
+    this->set_representation(Representation::Tagged());
+    this->SetAllSideEffects();
+  }
+
+  void AddOperand(HValue* v, Zone* zone) {
+    values_.Add(NULL, zone);
+    SetOperandAt(values_.length() - 1, v);
+  }
+
+  void InternalSetOperandAt(int index,
+                            HValue* value) V8_FINAL V8_OVERRIDE {
+    values_[index] = value;
+  }
+
+  const CallInterfaceDescriptor* descriptor_;
+  ZoneList<HValue*> values_;
+  int argument_count_;
+};
+
+
 class HInvokeFunction V8_FINAL : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HInvokeFunction, HValue*, int);
@@ -2328,83 +2459,6 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
 };
 
 
-class HCallConstantFunction V8_FINAL : public HCall<0> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HCallConstantFunction,
-                                 Handle<JSFunction>,
-                                 int);
-
-  Handle<JSFunction> function() const { return function_; }
-  int formal_parameter_count() const { return formal_parameter_count_; }
-
-  bool IsApplyFunction() const {
-    return function_->code() ==
-        function_->GetIsolate()->builtins()->builtin(Builtins::kFunctionApply);
-  }
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
-    return has_stack_check_;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallConstantFunction)
-
- private:
-  HCallConstantFunction(Handle<JSFunction> function, int argument_count)
-      : HCall<0>(argument_count),
-        function_(function),
-        formal_parameter_count_(function->shared()->formal_parameter_count()),
-        has_stack_check_(
-            function->code()->kind() == Code::FUNCTION ||
-            function->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
-
-  Handle<JSFunction> function_;
-  int formal_parameter_count_;
-  bool has_stack_check_;
-};
-
-
-class HCallKeyed V8_FINAL : public HBinaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallKeyed, HValue*, int);
-
-  HValue* context() { return first(); }
-  HValue* key() { return second(); }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallKeyed)
-
- private:
-  HCallKeyed(HValue* context, HValue* key, int argument_count)
-      : HBinaryCall(context, key, argument_count) {
-  }
-};
-
-
-class HCallNamed V8_FINAL : public HUnaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallNamed, Handle<String>, int);
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  HValue* context() { return value(); }
-  Handle<String> name() const { return name_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallNamed)
-
- private:
-  HCallNamed(HValue* context, Handle<String> name, int argument_count)
-      : HUnaryCall(context, argument_count), name_(name) {
-  }
-
-  Handle<String> name_;
-};
-
-
 enum CallMode {
   NORMAL_CALL,
   TAIL_CALL,
@@ -2438,40 +2492,6 @@ class HCallFunction V8_FINAL : public HBinaryCall {
       : HBinaryCall(context, function, argument_count), call_mode_(mode) {
   }
   CallMode call_mode_;
-};
-
-
-class HCallKnownGlobal V8_FINAL : public HCall<0> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HCallKnownGlobal, Handle<JSFunction>, int);
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  Handle<JSFunction> target() const { return target_; }
-  int formal_parameter_count() const { return formal_parameter_count_; }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
-    return has_stack_check_;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallKnownGlobal)
-
- private:
-  HCallKnownGlobal(Handle<JSFunction> target, int argument_count)
-      : HCall<0>(argument_count),
-        target_(target),
-        formal_parameter_count_(target->shared()->formal_parameter_count()),
-        has_stack_check_(
-            target->code()->kind() == Code::FUNCTION ||
-            target->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
-
-  Handle<JSFunction> target_;
-  int formal_parameter_count_;
-  bool has_stack_check_;
 };
 
 

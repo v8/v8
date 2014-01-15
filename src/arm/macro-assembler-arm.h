@@ -601,12 +601,6 @@ class MacroAssembler: public Assembler {
                   InvokeFlag flag,
                   const CallWrapper& call_wrapper);
 
-  void InvokeCode(Handle<Code> code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  RelocInfo::Mode rmode,
-                  InvokeFlag flag);
-
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,

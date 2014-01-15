@@ -319,7 +319,7 @@ struct CodeStubInterfaceDescriptor {
     return has_miss_handler_;
   }
 
-  Register GetParameterRegister(int index) {
+  Register GetParameterRegister(int index) const {
     return register_params_[index];
   }
 
@@ -338,6 +338,41 @@ struct CodeStubInterfaceDescriptor {
  private:
   ExternalReference miss_handler_;
   bool has_miss_handler_;
+};
+
+
+struct PlatformCallInterfaceDescriptor;
+
+
+struct CallInterfaceDescriptor {
+  CallInterfaceDescriptor()
+      : register_param_count_(-1),
+        register_params_(NULL),
+        param_representations_(NULL),
+        platform_specific_descriptor_(NULL) { }
+
+  bool initialized() const { return register_param_count_ >= 0; }
+
+  int environment_length() const {
+    return register_param_count_;
+  }
+
+  Representation GetParameterRepresentation(int index) const {
+    return param_representations_[index];
+  }
+
+  Register GetParameterRegister(int index) const {
+    return register_params_[index];
+  }
+
+  PlatformCallInterfaceDescriptor* platform_specific_descriptor() const {
+    return platform_specific_descriptor_;
+  }
+
+  int register_param_count_;
+  Register* register_params_;
+  Representation* param_representations_;
+  PlatformCallInterfaceDescriptor* platform_specific_descriptor_;
 };
 
 
@@ -2430,6 +2465,12 @@ class ProfileEntryHookStub : public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
   DISALLOW_COPY_AND_ASSIGN(ProfileEntryHookStub);
+};
+
+
+class CallDescriptors {
+ public:
+  static void InitializeForIsolate(Isolate* isolate);
 };
 
 } }  // namespace v8::internal

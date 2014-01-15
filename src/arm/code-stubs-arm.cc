@@ -361,6 +361,65 @@ void NewStringAddStub::InitializeInterfaceDescriptor(
 }
 
 
+void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
+  static PlatformCallInterfaceDescriptor default_descriptor =
+      PlatformCallInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
+
+  static PlatformCallInterfaceDescriptor noInlineDescriptor =
+      PlatformCallInterfaceDescriptor(NEVER_INLINE_TARGET_ADDRESS);
+
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ArgumentAdaptorCall);
+    static Register registers[] = { r1,  // JSFunction
+                                    cp,  // context
+                                    r0,  // actual number of arguments
+                                    r2,  // expected number of arguments
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // JSFunction
+        Representation::Tagged(),     // context
+        Representation::Integer32(),  // actual number of arguments
+        Representation::Integer32(),  // expected number of arguments
+    };
+    descriptor->register_param_count_ = 4;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+    descriptor->platform_specific_descriptor_ = &default_descriptor;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::KeyedCall);
+    static Register registers[] = { cp,  // context
+                                    r2,  // key
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // context
+        Representation::Tagged(),     // key
+    };
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+    descriptor->platform_specific_descriptor_ = &noInlineDescriptor;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::NamedCall);
+    static Register registers[] = { cp,  // context
+                                    r2,  // name
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // context
+        Representation::Tagged(),     // name
+    };
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+    descriptor->platform_specific_descriptor_ = &noInlineDescriptor;
+  }
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 
@@ -3217,7 +3276,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ push(r1);  // put proxy as additional argument
   __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE32));
   __ mov(r2, Operand::Zero());
-  __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
+  __ GetBuiltinFunction(r1, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -3230,7 +3289,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ str(r1, MemOperand(sp, argc_ * kPointerSize));
   __ mov(r0, Operand(argc_));  // Set up the number of arguments.
   __ mov(r2, Operand::Zero());
-  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+  __ GetBuiltinFunction(r1, Builtins::CALL_NON_FUNCTION);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -3266,11 +3325,11 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   __ cmp(r3, Operand(JS_FUNCTION_PROXY_TYPE));
   __ b(ne, &non_function_call);
-  __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(r1, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
   __ jmp(&do_call);
 
   __ bind(&non_function_call);
-  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(r1, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing r0).
   __ mov(r2, Operand::Zero());
