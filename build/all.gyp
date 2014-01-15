@@ -9,7 +9,7 @@
       'type': 'none',
       'dependencies': [
         '../samples/samples.gyp:*',
-        '../src/d8.gyp:d8',
+        '../src/d8.gyp:d8#target',
         '../test/cctest/cctest.gyp:*',
       ],
       'conditions': [
