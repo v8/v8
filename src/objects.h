@@ -5642,6 +5642,9 @@ class DependentCode: public FixedArray {
   void DeoptimizeDependentCodeGroup(Isolate* isolate,
                                     DependentCode::DependencyGroup group);
 
+  bool MarkCodeForDeoptimization(Isolate* isolate,
+                                 DependentCode::DependencyGroup group);
+
   // The following low-level accessors should only be used by this class
   // and the mark compact collector.
   inline int number_of_entries(DependencyGroup group);

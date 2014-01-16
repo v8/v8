@@ -1983,14 +1983,22 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
 
 
 void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
+  ASSERT(AllowCodeDependencyChange::IsAllowed());
+  DisallowHeapAllocation no_allocation_scope;
   Object* cur = allocation_sites_list();
+  bool marked = false;
   while (cur->IsAllocationSite()) {
     AllocationSite* casted = AllocationSite::cast(cur);
     if (casted->GetPretenureMode() == flag) {
       casted->ResetPretenureDecision();
+      bool got_marked = casted->dependent_code()->MarkCodeForDeoptimization(
+          isolate_,
+          DependentCode::kAllocationSiteTenuringChangedGroup);
+      if (got_marked) marked = true;
     }
     cur = casted->weak_next();
   }
+  if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate_);
 }
 
 

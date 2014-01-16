@@ -11755,7 +11755,7 @@ bool DependentCode::Contains(DependencyGroup group, Code* code) {
 }
 
 
-void DependentCode::DeoptimizeDependentCodeGroup(
+bool DependentCode::MarkCodeForDeoptimization(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
   ASSERT(AllowCodeDependencyChange::IsAllowed());
@@ -11764,7 +11764,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   int start = starts.at(group);
   int end = starts.at(group + 1);
   int code_entries = starts.number_of_entries();
-  if (start == end) return;
+  if (start == end) return false;
 
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
@@ -11790,6 +11790,16 @@ void DependentCode::DeoptimizeDependentCodeGroup(
     clear_at(i);
   }
   set_number_of_entries(group, 0);
+  return marked;
+}
+
+
+void DependentCode::DeoptimizeDependentCodeGroup(
+    Isolate* isolate,
+    DependentCode::DependencyGroup group) {
+  ASSERT(AllowCodeDependencyChange::IsAllowed());
+  DisallowHeapAllocation no_allocation_scope;
+  bool marked = MarkCodeForDeoptimization(isolate, group);
 
   if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate);
 }
@@ -12765,9 +12775,6 @@ const double AllocationSite::kPretenureRatio = 0.60;
 
 
 void AllocationSite::ResetPretenureDecision() {
-  dependent_code()->DeoptimizeDependentCodeGroup(
-      GetIsolate(),
-      DependentCode::kAllocationSiteTenuringChangedGroup);
   set_pretenure_decision(kUndecided);
   set_memento_found_count(0);
   set_memento_create_count(0);
