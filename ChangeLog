@@ -1,8 +1,5 @@
 2014-01-16: Version 3.24.17
 
-        Make it possible to compile d8 for the host toolset as well (issue
-        1775).
-
         Make cells pointing to JSObjects weak in optimized code (issue 2073).
 
         Performance and stability improvements on all platforms.
