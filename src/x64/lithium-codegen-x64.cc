@@ -50,9 +50,7 @@ class SafepointGenerator V8_FINAL : public CallWrapper {
         deopt_mode_(mode) { }
   virtual ~SafepointGenerator() {}
 
-  virtual void BeforeCall(int call_size) const V8_OVERRIDE {
-    codegen_->EnsureSpaceForLazyDeopt(Deoptimizer::patch_size() - call_size);
-  }
+  virtual void BeforeCall(int call_size) const V8_OVERRIDE {}
 
   virtual void AfterCall() const V8_OVERRIDE {
     codegen_->RecordSafepoint(pointers_, deopt_mode_);
@@ -602,7 +600,6 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                LInstruction* instr,
                                SafepointMode safepoint_mode,
                                int argc) {
-  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size() - masm()->CallSize(code));
   ASSERT(instr != NULL);
   __ call(code, mode);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode, argc);
@@ -5414,20 +5411,21 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 
 
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
-  if (info()->IsStub()) return;
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  int current_pc = masm()->pc_offset();
-  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    __ Nop(padding_size);
+  if (!info()->IsStub()) {
+    // Ensure that we have enough space after the previous lazy-bailout
+    // instruction for patching the code here.
+    int current_pc = masm()->pc_offset();
+    if (current_pc < last_lazy_deopt_pc_ + space_needed) {
+      int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
+      __ Nop(padding_size);
+    }
   }
+  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
   EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-  last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
   RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -5500,7 +5498,6 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
              RelocInfo::CODE_TARGET,
              instr);
     EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(&done);
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
     safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
@@ -5512,7 +5509,6 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     __ j(below, deferred_stack_check->entry());
     EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(instr->done_label());
     deferred_stack_check->SetExit(instr->done_label());
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
