@@ -502,6 +502,19 @@ void StackGuard::FullDeopt() {
 }
 
 
+bool StackGuard::IsDeoptMarkedCode() {
+  ExecutionAccess access(isolate_);
+  return (thread_local_.interrupt_flags_ & DEOPT_MARKED_CODE) != 0;
+}
+
+
+void StackGuard::DeoptMarkedCode() {
+  ExecutionAccess access(isolate_);
+  thread_local_.interrupt_flags_ |= DEOPT_MARKED_CODE;
+  set_interrupt_limits(access);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 bool StackGuard::IsDebugBreak() {
   ExecutionAccess access(isolate_);
@@ -1012,6 +1025,10 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
   if (stack_guard->IsFullDeopt()) {
     stack_guard->Continue(FULL_DEOPT);
     Deoptimizer::DeoptimizeAll(isolate);
+  }
+  if (stack_guard->IsDeoptMarkedCode()) {
+    stack_guard->Continue(DEOPT_MARKED_CODE);
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
   }
   if (stack_guard->IsInstallCodeRequest()) {
     ASSERT(isolate->concurrent_recompilation_enabled());

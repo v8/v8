@@ -521,6 +521,7 @@ void Heap::ProcessPretenuringFeedback() {
 
     int i = 0;
     Object* list_element = allocation_sites_list();
+    bool trigger_deoptimization = false;
     while (use_scratchpad ?
               i < allocation_sites_scratchpad_length :
               list_element->IsAllocationSite()) {
@@ -530,12 +531,11 @@ void Heap::ProcessPretenuringFeedback() {
       if (site->memento_found_count() > 0) {
         active_allocation_sites++;
       }
-      if (site->DigestPretenuringFeedback()) {
-        if (site->GetPretenureMode() == TENURED) {
-          tenure_decisions++;
-        } else {
-          dont_tenure_decisions++;
-        }
+      if (site->DigestPretenuringFeedback()) trigger_deoptimization = true;
+      if (site->GetPretenureMode() == TENURED) {
+        tenure_decisions++;
+      } else {
+        dont_tenure_decisions++;
       }
       allocation_sites++;
       if (use_scratchpad) {
@@ -544,6 +544,9 @@ void Heap::ProcessPretenuringFeedback() {
         list_element = site->weak_next();
       }
     }
+
+    if (trigger_deoptimization) isolate_->stack_guard()->DeoptMarkedCode();
+
     allocation_sites_scratchpad_length = 0;
 
     // TODO(mvstanton): Pretenure decisions are only made once for an allocation
@@ -1998,7 +2001,7 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
     }
     cur = casted->weak_next();
   }
-  if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate_);
+  if (marked) isolate_->stack_guard()->DeoptMarkedCode();
 }
 
 
