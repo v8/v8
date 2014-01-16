@@ -825,18 +825,22 @@ class V8_EXPORT HandleScope {
    */
   static int NumberOfHandles(Isolate* isolate);
 
- private:
-  /**
-   * Creates a new handle with the given value.
-   */
+  V8_INLINE Isolate* GetIsolate() const {
+    return reinterpret_cast<Isolate*>(isolate_);
+  }
+
+ protected:
+  V8_INLINE HandleScope() {}
+
+  void Initialize(Isolate* isolate);
+
   static internal::Object** CreateHandle(internal::Isolate* isolate,
                                          internal::Object* value);
-  // Uses HeapObject to obtain the current Isolate.
+
+ private:
+  // Uses heap_object to obtain the current Isolate.
   static internal::Object** CreateHandle(internal::HeapObject* heap_object,
                                          internal::Object* value);
-
-  V8_INLINE HandleScope() {}
-  void Initialize(Isolate* isolate);
 
   // Make it hard to create heap-allocated or illegal handle scopes by
   // disallowing certain operations.
@@ -845,27 +849,15 @@ class V8_EXPORT HandleScope {
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
-  // This Data class is accessible internally as HandleScopeData through a
-  // typedef in the ImplementationUtilities class.
-  class V8_EXPORT Data {
-   public:
-    internal::Object** next;
-    internal::Object** limit;
-    int level;
-    V8_INLINE void Initialize() {
-      next = limit = NULL;
-      level = 0;
-    }
-  };
-
   internal::Isolate* isolate_;
   internal::Object** prev_next_;
   internal::Object** prev_limit_;
 
-  friend class ImplementationUtilities;
-  friend class EscapableHandleScope;
-  template<class F> friend class Handle;
+  // Local::New uses CreateHandle with an Isolate* parameter.
   template<class F> friend class Local;
+
+  // Object::GetInternalField and Context::GetEmbedderData use CreateHandle with
+  // a HeapObject* in their shortcuts.
   friend class Object;
   friend class Context;
 };
@@ -4923,15 +4915,19 @@ class V8_EXPORT TryCatch {
 
 
 /**
- * Ignore
+ * A container for extension names.
  */
 class V8_EXPORT ExtensionConfiguration {
  public:
+  ExtensionConfiguration() : name_count_(0), names_(NULL) { }
   ExtensionConfiguration(int name_count, const char* names[])
       : name_count_(name_count), names_(names) { }
+
+  const char** begin() const { return &names_[0]; }
+  const char** end()  const { return &names_[name_count_]; }
+
  private:
-  friend class ImplementationUtilities;
-  int name_count_;
+  const int name_count_;
   const char** names_;
 };
 

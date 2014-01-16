@@ -2268,13 +2268,8 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
     InstallExtension(isolate, "v8/trigger-failure", &extension_states);
   }
 
-  if (extensions == NULL) return true;
-  // Install required extensions
-  int count = v8::ImplementationUtilities::GetNameCount(extensions);
-  const char** names = v8::ImplementationUtilities::GetNames(extensions);
-  for (int i = 0; i < count; i++) {
-    if (!InstallExtension(isolate, names[i], &extension_states))
-      return false;
+  for (const char** it = extensions->begin(); it != extensions->end(); ++it) {
+    if (!InstallExtension(isolate, *it, &extension_states)) return false;
   }
 
   return true;

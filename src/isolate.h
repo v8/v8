@@ -30,7 +30,6 @@
 
 #include "../include/v8-debug.h"
 #include "allocation.h"
-#include "apiutils.h"
 #include "assert-scope.h"
 #include "atomicops.h"
 #include "builtins.h"
@@ -887,9 +886,8 @@ class Isolate {
     return descriptor_lookup_cache_;
   }
 
-  v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
-    return &handle_scope_data_;
-  }
+  HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
+
   HandleScopeImplementer* handle_scope_implementer() {
     ASSERT(handle_scope_implementer_);
     return handle_scope_implementer_;
@@ -1284,7 +1282,7 @@ class Isolate {
   KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
-  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
   Zone runtime_zone_;
