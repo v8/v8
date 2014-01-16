@@ -398,9 +398,7 @@ DEFINE_bool(enable_vldr_imm, false,
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
-#ifdef ADDRESS_SANITIZER
 DEFINE_bool(expose_free_buffer, false, "expose freeBuffer extension")
-#endif
 DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_string(expose_gc_as, NULL,
               "expose gc extension under the specified name")
