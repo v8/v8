@@ -184,6 +184,17 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
                                  kVisitDataObjectGeneric,
                                  instance_size);
 
+    case FIXED_UINT8_ARRAY_TYPE:
+    case FIXED_INT8_ARRAY_TYPE:
+    case FIXED_UINT16_ARRAY_TYPE:
+    case FIXED_INT16_ARRAY_TYPE:
+    case FIXED_UINT32_ARRAY_TYPE:
+    case FIXED_INT32_ARRAY_TYPE:
+    case FIXED_FLOAT32_ARRAY_TYPE:
+    case FIXED_FLOAT64_ARRAY_TYPE:
+    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
+      return kVisitFixedTypedArray;
+
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
         case NAME##_TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)

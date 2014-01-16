@@ -5218,7 +5218,8 @@ Handle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     }
 
     js_object->ValidateElements();
-    if (js_object->HasExternalArrayElements()) {
+    if (js_object->HasExternalArrayElements() ||
+        js_object->HasFixedTypedArrayElements()) {
       if (!value->IsNumber() && !value->IsUndefined()) {
         bool has_exception;
         Handle<Object> number =
@@ -10007,6 +10008,15 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // External arrays are always dense.
       return length;
   }

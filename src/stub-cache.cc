@@ -1676,7 +1676,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
     Handle<Map> receiver_map) {
   ElementsKind elements_kind = receiver_map->elements_kind();
   if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
+      receiver_map->has_external_array_elements() ||
+      receiver_map->has_fixed_typed_array_elements()) {
     Handle<Code> stub = KeyedLoadFastElementStub(
         receiver_map->instance_type() == JS_ARRAY_TYPE,
         elements_kind).GetCode(isolate());
@@ -1701,7 +1702,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
   if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
+      receiver_map->has_external_array_elements() ||
+      receiver_map->has_fixed_typed_array_elements()) {
     stub = KeyedStoreFastElementStub(
         is_jsarray,
         elements_kind,
@@ -1799,7 +1801,8 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
       ElementsKind elements_kind = receiver_map->elements_kind();
 
       if (IsFastElementsKind(elements_kind) ||
-          IsExternalArrayElementsKind(elements_kind)) {
+          IsExternalArrayElementsKind(elements_kind) ||
+          IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub =
             KeyedLoadFastElementStub(is_js_array,
                                      elements_kind).GetCode(isolate());
@@ -1842,7 +1845,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
       cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
       if (receiver_map->has_fast_elements() ||
-          receiver_map->has_external_array_elements()) {
+          receiver_map->has_external_array_elements() ||
+          receiver_map->has_fixed_typed_array_elements()) {
         cached_stub = KeyedStoreFastElementStub(
             is_js_array,
             elements_kind,
