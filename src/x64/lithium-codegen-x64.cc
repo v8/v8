@@ -3409,13 +3409,58 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 }
 
 
-void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
+void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
-  CallKnownFunction(instr->hydrogen()->function(),
-                    instr->hydrogen()->formal_parameter_count(),
-                    instr->arity(),
-                    instr,
-                    RDI_UNINITIALIZED);
+
+  LPointerMap* pointers = instr->pointer_map();
+  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+
+  if (instr->target()->IsConstantOperand()) {
+    LConstantOperand* target = LConstantOperand::cast(instr->target());
+    Handle<Code> code = Handle<Code>::cast(ToHandle(target));
+    generator.BeforeCall(__ CallSize(code));
+    __ call(code, RelocInfo::CODE_TARGET);
+  } else {
+    ASSERT(instr->target()->IsRegister());
+    Register target = ToRegister(instr->target());
+    generator.BeforeCall(__ CallSize(target));
+    __ addq(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ call(target);
+  }
+  generator.AfterCall();
+}
+
+
+void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
+  ASSERT(ToRegister(instr->function()).is(rdi));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  if (instr->hydrogen()->pass_argument_count()) {
+    __ Set(rax, instr->arity());
+  }
+
+  // Change context.
+  __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+
+  LPointerMap* pointers = instr->pointer_map();
+  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+
+  bool is_self_call = false;
+  if (instr->hydrogen()->function()->IsConstant()) {
+    Handle<JSFunction> jsfun = Handle<JSFunction>::null();
+    HConstant* fun_const = HConstant::cast(instr->hydrogen()->function());
+    jsfun = Handle<JSFunction>::cast(fun_const->handle(isolate()));
+    is_self_call = jsfun.is_identical_to(info()->closure());
+  }
+
+  if (is_self_call) {
+    __ CallSelf();
+  } else {
+    Operand target = FieldOperand(rdi, JSFunction::kCodeEntryOffset);
+    generator.BeforeCall(__ CallSize(target));
+    __ call(target);
+  }
+  generator.AfterCall();
 }
 
 
@@ -3784,29 +3829,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
 }
 
 
-void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
-  ASSERT(ToRegister(instr->context()).is(rsi));
-  ASSERT(ToRegister(instr->key()).is(rcx));
-  ASSERT(ToRegister(instr->result()).is(rax));
-
-  int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
-void LCodeGen::DoCallNamed(LCallNamed* instr) {
-  ASSERT(ToRegister(instr->context()).is(rsi));
-  ASSERT(ToRegister(instr->result()).is(rax));
-
-  int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
-  __ Move(rcx, instr->name());
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
   ASSERT(ToRegister(instr->function()).is(rdi));
@@ -3820,16 +3842,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   } else {
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   }
-}
-
-
-void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
-  ASSERT(ToRegister(instr->result()).is(rax));
-  CallKnownFunction(instr->hydrogen()->target(),
-                    instr->hydrogen()->formal_parameter_count(),
-                    instr->arity(),
-                    instr,
-                    RDI_UNINITIALIZED);
 }
 
 

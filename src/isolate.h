@@ -30,7 +30,6 @@
 
 #include "../include/v8-debug.h"
 #include "allocation.h"
-#include "apiutils.h"
 #include "assert-scope.h"
 #include "atomicops.h"
 #include "builtins.h"
@@ -55,6 +54,7 @@ class Bootstrapper;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
+struct CallInterfaceDescriptor;
 class CodeTracer;
 class CompilationCache;
 class ContextSlotCache;
@@ -886,9 +886,8 @@ class Isolate {
     return descriptor_lookup_cache_;
   }
 
-  v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
-    return &handle_scope_data_;
-  }
+  HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
+
   HandleScopeImplementer* handle_scope_implementer() {
     ASSERT(handle_scope_implementer_);
     return handle_scope_implementer_;
@@ -1073,6 +1072,15 @@ class Isolate {
 
   CodeStubInterfaceDescriptor*
       code_stub_interface_descriptor(int index);
+
+  enum CallDescriptorKey {
+    KeyedCall,
+    NamedCall,
+    ArgumentAdaptorCall,
+    NUMBER_OF_CALL_DESCRIPTORS
+  };
+
+  CallInterfaceDescriptor* call_descriptor(CallDescriptorKey index);
 
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1274,7 +1282,7 @@ class Isolate {
   KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
-  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
   Zone runtime_zone_;
@@ -1299,6 +1307,7 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
+  CallInterfaceDescriptor* call_descriptors_;
   RandomNumberGenerator* random_number_generator_;
 
   // True if fatal error has been signaled for this isolate.

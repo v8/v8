@@ -3591,7 +3591,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   //  a0: actual arguments count
   //  a1: function (passed through to callee)
   //  a2: expected arguments count
-  //  a3: callee code entry
 
   // The code below is made a lot easier because the calling code already sets
   // up actual and expected registers according to the contract if values are
@@ -3670,33 +3669,6 @@ void MacroAssembler::InvokeCode(Register code,
     } else {
       ASSERT(flag == JUMP_FUNCTION);
       Jump(code);
-    }
-    // Continue here if InvokePrologue does handle the invocation due to
-    // mismatched parameter counts.
-    bind(&done);
-  }
-}
-
-
-void MacroAssembler::InvokeCode(Handle<Code> code,
-                                const ParameterCount& expected,
-                                const ParameterCount& actual,
-                                RelocInfo::Mode rmode,
-                                InvokeFlag flag) {
-  // You can't call a function without a valid frame.
-  ASSERT(flag == JUMP_FUNCTION || has_frame());
-
-  Label done;
-
-  bool definitely_mismatches = false;
-  InvokePrologue(expected, actual, code, no_reg,
-                 &done, &definitely_mismatches, flag,
-                 NullCallWrapper());
-  if (!definitely_mismatches) {
-    if (flag == CALL_FUNCTION) {
-      Call(code, rmode);
-    } else {
-      Jump(code, rmode);
     }
     // Continue here if InvokePrologue does handle the invocation due to
     // mismatched parameter counts.

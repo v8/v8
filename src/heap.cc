@@ -3399,6 +3399,11 @@ bool Heap::CreateInitialObjects() {
   }
   set_natives_source_cache(FixedArray::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateCell(undefined_value());
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_undefined_cell(Cell::cast(obj));
+
   // Allocate object to hold object observation state.
   { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     if (!maybe_obj->ToObject(&obj)) return false;

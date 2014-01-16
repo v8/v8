@@ -3505,41 +3505,6 @@ void MacroAssembler::InvokeCode(Register code,
 }
 
 
-void MacroAssembler::InvokeCode(Handle<Code> code,
-                                const ParameterCount& expected,
-                                const ParameterCount& actual,
-                                RelocInfo::Mode rmode,
-                                InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
-  // You can't call a function without a valid frame.
-  ASSERT(flag == JUMP_FUNCTION || has_frame());
-
-  Label done;
-  bool definitely_mismatches = false;
-  Register dummy = rax;
-  InvokePrologue(expected,
-                 actual,
-                 code,
-                 dummy,
-                 &done,
-                 &definitely_mismatches,
-                 flag,
-                 Label::kNear,
-                 call_wrapper);
-  if (!definitely_mismatches) {
-    if (flag == CALL_FUNCTION) {
-      call_wrapper.BeforeCall(CallSize(code));
-      Call(code, rmode);
-      call_wrapper.AfterCall();
-    } else {
-      ASSERT(flag == JUMP_FUNCTION);
-      Jump(code, rmode);
-    }
-    bind(&done);
-  }
-}
-
-
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,

@@ -55,8 +55,7 @@ int HandleScope::NumberOfHandles(Isolate* isolate) {
 
 
 Object** HandleScope::Extend(Isolate* isolate) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
 
   Object** result = current->next;
 
@@ -95,8 +94,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
 
 
 void HandleScope::DeleteExtensions(Isolate* isolate) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
   isolate->handle_scope_implementer()->DeleteExtensions(current->limit);
 }
 
@@ -751,8 +749,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
   impl_->BeginDeferredScope();
-  v8::ImplementationUtilities::HandleScopeData* data =
-      impl_->isolate()->handle_scope_data();
+  HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Object** new_next = impl_->GetSpareOrNewBlock();
   Object** new_limit = &new_next[kHandleBlockSize];
   ASSERT(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
@@ -778,8 +775,7 @@ DeferredHandleScope::~DeferredHandleScope() {
 
 DeferredHandles* DeferredHandleScope::Detach() {
   DeferredHandles* deferred = impl_->Detach(prev_limit_);
-  v8::ImplementationUtilities::HandleScopeData* data =
-      impl_->isolate()->handle_scope_data();
+  HandleScopeData* data = impl_->isolate()->handle_scope_data();
   data->next = prev_next_;
   data->limit = prev_limit_;
 #ifdef DEBUG

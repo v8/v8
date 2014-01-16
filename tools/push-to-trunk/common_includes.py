@@ -195,9 +195,9 @@ class SideEffectHandler(object):
   def ReadLine(self):
     return sys.stdin.readline().strip()
 
-  def ReadURL(self, url):
+  def ReadURL(self, url, params=None):
     # pylint: disable=E1121
-    url_fh = urllib2.urlopen(url, None, 60)
+    url_fh = urllib2.urlopen(url, params, 60)
     try:
       return url_fh.read()
     finally:
@@ -303,9 +303,9 @@ class Step(object):
       return self._side_effect_handler.Command(os.environ["EDITOR"], args,
                                                pipe=False)
 
-  def ReadURL(self, url, retry_on=None, wait_plan=None):
+  def ReadURL(self, url, params=None, retry_on=None, wait_plan=None):
     wait_plan = wait_plan or [3, 60, 600]
-    cmd = lambda: self._side_effect_handler.ReadURL(url)
+    cmd = lambda: self._side_effect_handler.ReadURL(url, params)
     return self.Retry(cmd, retry_on, wait_plan)
 
   def GetDate(self):
