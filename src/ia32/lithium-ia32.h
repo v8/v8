@@ -1581,6 +1581,12 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   bool is_external() const {
     return hydrogen()->is_external();
   }
+  bool is_fixed_typed_array() const {
+    return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
@@ -1602,7 +1608,10 @@ inline static bool ExternalArrayOpRequiresTemp(
   return key_representation.IsSmi() &&
       (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
-       elements_kind == EXTERNAL_PIXEL_ELEMENTS);
+       elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
+       elements_kind == UINT8_ELEMENTS ||
+       elements_kind == INT8_ELEMENTS ||
+       elements_kind == UINT8_CLAMPED_ELEMENTS);
 }
 
 
@@ -2232,6 +2241,12 @@ class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, 0> {
   }
 
   bool is_external() const { return hydrogen()->is_external(); }
+  bool is_fixed_typed_array() const {
+    return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }

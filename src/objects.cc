@@ -1677,6 +1677,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<ExternalDoubleArray[%u]>",
                        ExternalDoubleArray::cast(this)->length());
       break;
+    case FIXED_UINT8_ARRAY_TYPE:
+      accumulator->Add("<FixedUint8Array[%u]>",
+                       FixedUint8Array::cast(this)->length());
+      break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
       SmartArrayPointer<char> debug_name =
@@ -1866,6 +1870,15 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
     case EXTERNAL_FLOAT_ARRAY_TYPE:
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
+    case FIXED_INT8_ARRAY_TYPE:
+    case FIXED_UINT8_ARRAY_TYPE:
+    case FIXED_INT16_ARRAY_TYPE:
+    case FIXED_UINT16_ARRAY_TYPE:
+    case FIXED_INT32_ARRAY_TYPE:
+    case FIXED_UINT32_ARRAY_TYPE:
+    case FIXED_FLOAT32_ARRAY_TYPE:
+    case FIXED_FLOAT64_ARRAY_TYPE:
+    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
       break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
@@ -5377,6 +5390,15 @@ bool JSObject::ReferencesObject(Object* obj) {
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // Raw pixels and external arrays do not reference other
       // objects.
       break;
@@ -5869,6 +5891,15 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         // No contained objects, nothing to do.
         break;
     }
@@ -6106,6 +6137,15 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // Ignore getters and setters on pixel and external array elements.
       return;
     case DICTIONARY_ELEMENTS:
@@ -6564,6 +6604,15 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
         return factory->undefined_value();
@@ -12721,6 +12770,51 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
           ExternalDoubleArray::cast(object->elements()));
       return ExternalDoubleArray::SetValue(array, index, value);
     }
+    case UINT8_ELEMENTS: {
+      Handle<FixedUint8Array> array(
+          FixedUint8Array::cast(object->elements()));
+      return FixedUint8Array::SetValue(array, index, value);
+    }
+    case UINT8_CLAMPED_ELEMENTS: {
+      Handle<FixedUint8ClampedArray> array(
+          FixedUint8ClampedArray::cast(object->elements()));
+      return FixedUint8ClampedArray::SetValue(array, index, value);
+    }
+    case INT8_ELEMENTS: {
+      Handle<FixedInt8Array> array(
+          FixedInt8Array::cast(object->elements()));
+      return FixedInt8Array::SetValue(array, index, value);
+    }
+    case UINT16_ELEMENTS: {
+      Handle<FixedUint16Array> array(
+          FixedUint16Array::cast(object->elements()));
+      return FixedUint16Array::SetValue(array, index, value);
+    }
+    case INT16_ELEMENTS: {
+      Handle<FixedInt16Array> array(
+          FixedInt16Array::cast(object->elements()));
+      return FixedInt16Array::SetValue(array, index, value);
+    }
+    case UINT32_ELEMENTS: {
+      Handle<FixedUint32Array> array(
+          FixedUint32Array::cast(object->elements()));
+      return FixedUint32Array::SetValue(array, index, value);
+    }
+    case INT32_ELEMENTS: {
+      Handle<FixedInt32Array> array(
+          FixedInt32Array::cast(object->elements()));
+      return FixedInt32Array::SetValue(array, index, value);
+    }
+    case FLOAT32_ELEMENTS: {
+      Handle<FixedFloat32Array> array(
+          FixedFloat32Array::cast(object->elements()));
+      return FixedFloat32Array::SetValue(array, index, value);
+    }
+    case FLOAT64_ELEMENTS: {
+      Handle<FixedFloat64Array> array(
+          FixedFloat64Array::cast(object->elements()));
+      return FixedFloat64Array::SetValue(array, index, value);
+    }
     case DICTIONARY_ELEMENTS:
       return SetDictionaryElement(object, index, value, attributes, strict_mode,
                                   check_prototype,
@@ -13132,11 +13226,21 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS: {
       // External arrays are considered 100% used.
-      ExternalArray* external_array = ExternalArray::cast(elements());
+      FixedArrayBase* external_array = FixedArrayBase::cast(elements());
       *capacity = external_array->length();
       *used = external_array->length();
       break;
+    }
   }
 }
 
@@ -13644,8 +13748,17 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      int length = ExternalArray::cast(elements())->length();
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS: {
+      int length = FixedArrayBase::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
           storage->set(counter, Smi::FromInt(counter));
