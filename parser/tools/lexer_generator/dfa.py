@@ -189,7 +189,9 @@ class DfaMinimizer:
       all_keys.append(state.key_iter())
       if action:
         if state not in terminal_set:
-          assert action.entry_action()
+          # Match actions are valid only if we have matched the whole token, not
+          # just some sub-part of it.
+          assert not action.match_action()
           key = ("nonterminal action", action)
         else:
           key = ("terminal action", action)
