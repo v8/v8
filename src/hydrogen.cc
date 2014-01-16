@@ -2078,9 +2078,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     bool is_store,
     LoadKeyedHoleMode load_mode,
     KeyedAccessStoreMode store_mode) {
-  ASSERT((!IsExternalArrayElementsKind(elements_kind) &&
-              !IsFixedTypedArrayElementsKind(elements_kind)) ||
-         !is_js_array);
+  ASSERT(!IsExternalArrayElementsKind(elements_kind) || !is_js_array);
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
   // on a HElementsTransition instruction. The flag can also be removed if the
   // map to check has FAST_HOLEY_ELEMENTS, since there can be no further
@@ -2110,17 +2108,11 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   length->set_type(HType::Smi());
   HValue* checked_key = NULL;
-  if (IsExternalArrayElementsKind(elements_kind) ||
-      IsFixedTypedArrayElementsKind(elements_kind)) {
-    HValue* backing_store;
-    if (IsExternalArrayElementsKind(elements_kind)) {
-      backing_store =
-         Add<HLoadExternalArrayPointer>(elements);
-    } else {
-      backing_store = elements;
-    }
+  if (IsExternalArrayElementsKind(elements_kind)) {
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       NoObservableSideEffectsScope no_effects(this);
+       HLoadExternalArrayPointer* external_elements =
+           Add<HLoadExternalArrayPointer>(elements);
       IfBuilder length_checker(this);
       length_checker.If<HCompareNumericAndBranch>(key, length, Token::LT);
       length_checker.Then();
@@ -2129,7 +2121,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = AddElementAccess(
-          backing_store, key, val, bounds_check, elements_kind, is_store);
+          external_elements, key, val, bounds_check, elements_kind, is_store);
       negative_checker.ElseDeopt("Negative key encountered");
       negative_checker.End();
       length_checker.End();
@@ -2137,8 +2129,10 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     } else {
       ASSERT(store_mode == STANDARD_STORE);
       checked_key = Add<HBoundsCheck>(key, length);
+      HLoadExternalArrayPointer* external_elements =
+          Add<HLoadExternalArrayPointer>(elements);
       return AddElementAccess(
-          backing_store, checked_key, val,
+          external_elements, checked_key, val,
           checked_object, elements_kind, is_store);
     }
   }
@@ -2319,8 +2313,7 @@ HInstruction* HGraphBuilder::AddElementAccess(
     LoadKeyedHoleMode load_mode) {
   if (is_store) {
     ASSERT(val != NULL);
-    if (elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
-        elements_kind == UINT8_CLAMPED_ELEMENTS) {
+    if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
       val = Add<HClampToUint8>(val);
     }
     return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
@@ -2334,8 +2327,7 @@ HInstruction* HGraphBuilder::AddElementAccess(
   HLoadKeyed* load = Add<HLoadKeyed>(
       elements, checked_key, dependency, elements_kind, load_mode);
   if (FLAG_opt_safe_uint32_operations &&
-      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS ||
-       elements_kind == UINT32_ELEMENTS)) {
+      elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
     graph()->RecordUint32Instruction(load);
   }
   return load;

@@ -2033,23 +2033,24 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyed* result = NULL;
 
-  if (!instr->is_typed_elements()) {
+  if (!instr->is_external()) {
     LOperand* obj = UseRegisterAtStart(instr->elements());
     result = new(zone()) LLoadKeyed(obj, key);
   } else {
     ASSERT(
         (instr->representation().IsInteger32() &&
-         !(IsDoubleOrFloatElementsKind(instr->elements_kind()))) ||
+         (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
+         (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
         (instr->representation().IsDouble() &&
-         (IsDoubleOrFloatElementsKind(instr->elements_kind()))));
-    LOperand* backing_store = UseRegister(instr->elements());
-    result = new(zone()) LLoadKeyed(backing_store, key);
+         ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+          (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
+    LOperand* external_pointer = UseRegister(instr->elements());
+    result = new(zone()) LLoadKeyed(external_pointer, key);
   }
 
   DefineAsRegister(result);
   bool can_deoptimize = instr->RequiresHoleCheck() ||
-      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) ||
-      (elements_kind == UINT32_ELEMENTS);
+      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS);
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
   return can_deoptimize ? AssignEnvironment(result) : result;
@@ -2070,7 +2071,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
 
-  if (!instr->is_typed_elements()) {
+  if (!instr->is_external()) {
     ASSERT(instr->elements()->representation().IsTagged());
     bool needs_write_barrier = instr->NeedsWriteBarrier();
     LOperand* object = NULL;
@@ -2100,23 +2101,21 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   }
 
   ASSERT(
-       (instr->value()->representation().IsInteger32() &&
-       !IsDoubleOrFloatElementsKind(elements_kind)) ||
-       (instr->value()->representation().IsDouble() &&
-       IsDoubleOrFloatElementsKind(elements_kind)));
-  ASSERT((instr->is_fixed_typed_array() &&
-          instr->elements()->representation().IsTagged()) ||
-         (instr->is_external() &&
-          instr->elements()->representation().IsExternal()));
+      (instr->value()->representation().IsInteger32() &&
+       (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
+       (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
+      (instr->value()->representation().IsDouble() &&
+       ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+        (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
+  ASSERT(instr->elements()->representation().IsExternal());
   bool val_is_temp_register =
       elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
-      elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS;
+      elements_kind == EXTERNAL_FLOAT_ELEMENTS;
   LOperand* val = val_is_temp_register ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
-  LOperand* backing_store = UseRegister(instr->elements());
-  return new(zone()) LStoreKeyed(backing_store, key, val);
+  LOperand* external_pointer = UseRegister(instr->elements());
+  return new(zone()) LStoreKeyed(external_pointer, key, val);
 }
 
 

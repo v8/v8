@@ -31,7 +31,6 @@
 #include <cmath>
 
 #include "heap.h"
-#include "heap-profiler.h"
 #include "isolate.h"
 #include "list-inl.h"
 #include "objects.h"
@@ -667,7 +666,7 @@ Isolate* Heap::isolate() {
     }                                                                          \
     if (__maybe_object__->IsRetryAfterGC()) {                                  \
       /* TODO(1181417): Fix this. */                                           \
-      v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);\
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);  \
     }                                                                          \
     RETURN_EMPTY;                                                              \
   } while (false)
@@ -679,7 +678,7 @@ Isolate* Heap::isolate() {
       FUNCTION_CALL,                                                       \
       RETURN_VALUE,                                                        \
       RETURN_EMPTY,                                                        \
-      v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY", true))
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY", true))
 
 #define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
   CALL_AND_RETRY_OR_DIE(ISOLATE,                                              \

@@ -63,26 +63,13 @@ enum ElementsKind {
   EXTERNAL_DOUBLE_ELEMENTS,
   EXTERNAL_PIXEL_ELEMENTS,
 
-  // Fixed typed arrays
-  UINT8_ELEMENTS,
-  INT8_ELEMENTS,
-  UINT16_ELEMENTS,
-  INT16_ELEMENTS,
-  UINT32_ELEMENTS,
-  INT32_ELEMENTS,
-  FLOAT32_ELEMENTS,
-  FLOAT64_ELEMENTS,
-  UINT8_CLAMPED_ELEMENTS,
-
   // Derived constants from ElementsKind
   FIRST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
-  LAST_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
+  LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
   FIRST_FAST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
   LAST_FAST_ELEMENTS_KIND = FAST_HOLEY_DOUBLE_ELEMENTS,
   FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_BYTE_ELEMENTS,
   LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
-  FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
-  LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = FAST_HOLEY_ELEMENTS
 };
 
@@ -116,12 +103,6 @@ inline bool IsExternalArrayElementsKind(ElementsKind kind) {
 }
 
 
-inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
-  return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
-      kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
-}
-
-
 inline bool IsFastElementsKind(ElementsKind kind) {
   ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= FAST_HOLEY_DOUBLE_ELEMENTS;
@@ -140,15 +121,9 @@ inline bool IsExternalFloatOrDoubleElementsKind(ElementsKind kind) {
 }
 
 
-inline bool IsFixedFloatElementsKind(ElementsKind kind) {
-  return kind == FLOAT32_ELEMENTS || kind == FLOAT64_ELEMENTS;
-}
-
-
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsFastDoubleElementsKind(kind) ||
-      IsExternalFloatOrDoubleElementsKind(kind) ||
-      IsFixedFloatElementsKind(kind);
+      IsExternalFloatOrDoubleElementsKind(kind);
 }
 
 
