@@ -3220,20 +3220,28 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
   int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  int additional_offset = instr->additional_index() << element_size_shift;
+  int additional_offset = IsFixedTypedArrayElementsKind(elements_kind)
+      ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
+      : 0;
+
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+      elements_kind == FLOAT32_ELEMENTS ||
+      elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      elements_kind == FLOAT64_ELEMENTS) {
+    int base_offset =
+      (instr->additional_index() << element_size_shift) + additional_offset;
     DwVfpRegister result = ToDoubleRegister(instr->result());
     Operand operand = key_is_constant
         ? Operand(constant_key << element_size_shift)
         : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
-    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-      __ vldr(double_scratch0().low(), scratch0(), additional_offset);
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == FLOAT32_ELEMENTS) {
+      __ vldr(double_scratch0().low(), scratch0(), base_offset);
       __ vcvt_f64_f32(result, double_scratch0().low());
-    } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ vldr(result, scratch0(), additional_offset);
+    } else  {  // loading doubles, not floats.
+      __ vldr(result, scratch0(), base_offset);
     }
   } else {
     Register result = ToRegister(instr->result());
@@ -3243,28 +3251,37 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         instr->additional_index(), additional_offset);
     switch (elements_kind) {
       case EXTERNAL_BYTE_ELEMENTS:
+      case INT8_ELEMENTS:
         __ ldrsb(result, mem_operand);
         break;
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         __ ldrb(result, mem_operand);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
+      case INT16_ELEMENTS:
         __ ldrsh(result, mem_operand);
         break;
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case UINT16_ELEMENTS:
         __ ldrh(result, mem_operand);
         break;
       case EXTERNAL_INT_ELEMENTS:
+      case INT32_ELEMENTS:
         __ ldr(result, mem_operand);
         break;
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case UINT32_ELEMENTS:
         __ ldr(result, mem_operand);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
           __ cmp(result, Operand(0x80000000));
           DeoptimizeIf(cs, instr->environment());
         }
         break;
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
@@ -3362,7 +3379,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
-  if (instr->is_external()) {
+  if (instr->is_typed_elements()) {
     DoLoadKeyedExternalArray(instr);
   } else if (instr->hydrogen()->representation().IsDouble()) {
     DoLoadKeyedFixedDoubleArray(instr);
@@ -3380,14 +3397,26 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key,
                                          int shift_size,
                                          int additional_index,
                                          int additional_offset) {
-  if (additional_index != 0 && !key_is_constant) {
-    additional_index *= 1 << (element_size - shift_size);
-    __ add(scratch0(), key, Operand(additional_index));
-  }
-
+  int base_offset = (additional_index << element_size) + additional_offset;
   if (key_is_constant) {
     return MemOperand(base,
-                      (constant_key << element_size) + additional_offset);
+                      base_offset + (constant_key << element_size));
+  }
+
+  if (additional_offset != 0) {
+    __ mov(scratch0(), Operand(base_offset));
+    if (shift_size >= 0) {
+      __ add(scratch0(), scratch0(), Operand(key, LSL, shift_size));
+    } else {
+      ASSERT_EQ(-1, shift_size);
+      __ add(scratch0(), scratch0(), Operand(key, LSR, 1));
+    }
+    return MemOperand(base, scratch0());
+  }
+
+  if (additional_index != 0) {
+    additional_index *= 1 << (element_size - shift_size);
+    __ add(scratch0(), key, Operand(additional_index));
   }
 
   if (additional_index == 0) {
@@ -4255,10 +4284,16 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
   int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  int additional_offset = instr->additional_index() << element_size_shift;
+  int additional_offset = IsFixedTypedArrayElementsKind(elements_kind)
+      ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
+      : 0;
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+      elements_kind == FLOAT32_ELEMENTS ||
+      elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      elements_kind == FLOAT64_ELEMENTS) {
+    int base_offset =
+      (instr->additional_index() << element_size_shift) + additional_offset;
     Register address = scratch0();
     DwVfpRegister value(ToDoubleRegister(instr->value()));
     if (key_is_constant) {
@@ -4271,11 +4306,12 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     } else {
       __ add(address, external_pointer, Operand(key, LSL, shift_size));
     }
-    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == FLOAT32_ELEMENTS) {
       __ vcvt_f32_f64(double_scratch0().low(), value);
-      __ vstr(double_scratch0().low(), address, additional_offset);
-    } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ vstr(value, address, additional_offset);
+      __ vstr(double_scratch0().low(), address, base_offset);
+    } else {  // Storing doubles, not floats.
+      __ vstr(value, address, base_offset);
     }
   } else {
     Register value(ToRegister(instr->value()));
@@ -4287,16 +4323,25 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
+      case INT8_ELEMENTS:
         __ strb(value, mem_operand);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT16_ELEMENTS:
         __ strh(value, mem_operand);
         break;
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case INT32_ELEMENTS:
+      case UINT32_ELEMENTS:
         __ str(value, mem_operand);
         break;
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -4406,7 +4451,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
 
 void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
   // By cases: external, fast double
-  if (instr->is_external()) {
+  if (instr->is_typed_elements()) {
     DoStoreKeyedExternalArray(instr);
   } else if (instr->hydrogen()->value()->representation().IsDouble()) {
     DoStoreKeyedFixedDoubleArray(instr);

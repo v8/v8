@@ -16113,14 +16113,6 @@ static void ObjectWithExternalArrayTestHelper(
   result = CompileRun("ext_array[1]");
   CHECK_EQ(1, result->Int32Value());
 
-  // Check pass through of assigned smis
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += ext_array[i] = ext_array[i] = -i;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(-28, result->Int32Value());
-
   // Check assigned smis
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  ext_array[i] = i;"
@@ -16130,7 +16122,16 @@ static void ObjectWithExternalArrayTestHelper(
                       "  sum += ext_array[i];"
                       "}"
                       "sum;");
+
   CHECK_EQ(28, result->Int32Value());
+  // Check pass through of assigned smis
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i] = ext_array[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
 
   // Check assigned smis in reverse order
   result = CompileRun("for (var i = 8; --i >= 0; ) {"
@@ -16395,6 +16396,111 @@ static void ObjectWithExternalArrayTestHelper(
 
   result = CompileRun("ext_array[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
+}
+
+
+template <class FixedTypedArrayClass,
+          i::ElementsKind elements_kind,
+          class ElementType>
+static void FixedTypedArrayTestHelper(
+    v8::ExternalArrayType array_type,
+    ElementType low,
+    ElementType high) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope scope(context->GetIsolate());
+  const int kElementCount = 260;
+  i::Handle<FixedTypedArrayClass> fixed_array =
+    i::Handle<FixedTypedArrayClass>::cast(
+        factory->NewFixedTypedArray(kElementCount, array_type));
+  CHECK_EQ(FixedTypedArrayClass::kInstanceType,
+           fixed_array->map()->instance_type());
+  CHECK_EQ(kElementCount, fixed_array->length());
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    fixed_array->set(i, static_cast<ElementType>(i));
+  }
+  // Force GC to trigger verification.
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(static_cast<int64_t>(static_cast<ElementType>(i)),
+             static_cast<int64_t>(fixed_array->get_scalar(i)));
+  }
+  v8::Handle<v8::Object> obj = v8::Object::New(CcTest::isolate());
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  i::Handle<i::Map> fixed_array_map =
+      isolate->factory()->GetElementsTransitionMap(jsobj, elements_kind);
+  jsobj->set_map(*fixed_array_map);
+  jsobj->set_elements(*fixed_array);
+
+  ObjectWithExternalArrayTestHelper<FixedTypedArrayClass, ElementType>(
+      context.local(), obj, kElementCount, array_type, low, high);
+}
+
+
+THREADED_TEST(FixedUint8Array) {
+  FixedTypedArrayTestHelper<i::FixedUint8Array, i::UINT8_ELEMENTS, uint8_t>(
+    v8::kExternalUnsignedByteArray,
+    0x0, 0xFF);
+}
+
+
+THREADED_TEST(FixedUint8ClampedArray) {
+  FixedTypedArrayTestHelper<i::FixedUint8ClampedArray,
+                            i::UINT8_CLAMPED_ELEMENTS, uint8_t>(
+    v8::kExternalPixelArray,
+    0x0, 0xFF);
+}
+
+
+THREADED_TEST(FixedInt8Array) {
+  FixedTypedArrayTestHelper<i::FixedInt8Array, i::INT8_ELEMENTS, int8_t>(
+    v8::kExternalByteArray,
+    -0x80, 0x7F);
+}
+
+
+THREADED_TEST(FixedUint16Array) {
+  FixedTypedArrayTestHelper<i::FixedUint16Array, i::UINT16_ELEMENTS, uint16_t>(
+    v8::kExternalUnsignedShortArray,
+    0x0, 0xFFFF);
+}
+
+
+THREADED_TEST(FixedInt16Array) {
+  FixedTypedArrayTestHelper<i::FixedInt16Array, i::INT16_ELEMENTS, int16_t>(
+    v8::kExternalShortArray,
+    -0x8000, 0x7FFF);
+}
+
+
+THREADED_TEST(FixedUint32Array) {
+  FixedTypedArrayTestHelper<i::FixedUint32Array, i::UINT32_ELEMENTS, uint32_t>(
+    v8::kExternalUnsignedIntArray,
+    0x0, 0xFFFFFFFF);
+}
+
+
+THREADED_TEST(FixedInt32Array) {
+  FixedTypedArrayTestHelper<i::FixedInt32Array, i::INT32_ELEMENTS, int32_t>(
+    v8::kExternalIntArray,
+    -0x80000000, 0x7FFFFFFF);
+}
+
+
+THREADED_TEST(FixedFloat32Array) {
+  FixedTypedArrayTestHelper<i::FixedFloat32Array, i::FLOAT32_ELEMENTS, float>(
+    v8::kExternalFloatArray,
+    -500, 500);
+}
+
+
+THREADED_TEST(FixedFloat64Array) {
+  FixedTypedArrayTestHelper<i::FixedFloat64Array, i::FLOAT64_ELEMENTS, float>(
+    v8::kExternalDoubleArray,
+    -500, 500);
 }
 
 

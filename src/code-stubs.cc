@@ -570,6 +570,15 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
