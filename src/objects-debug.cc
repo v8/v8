@@ -132,33 +132,6 @@ void HeapObject::HeapObjectVerify() {
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
       ExternalDoubleArray::cast(this)->ExternalDoubleArrayVerify();
       break;
-    case FIXED_UINT8_ARRAY_TYPE:
-      FixedUint8Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_INT8_ARRAY_TYPE:
-      FixedInt8Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_UINT16_ARRAY_TYPE:
-      FixedUint16Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_INT16_ARRAY_TYPE:
-      FixedInt16Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_UINT32_ARRAY_TYPE:
-      FixedUint32Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_INT32_ARRAY_TYPE:
-      FixedInt32Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_FLOAT32_ARRAY_TYPE:
-      FixedFloat32Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_FLOAT64_ARRAY_TYPE:
-      FixedFloat64Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
-      FixedUint8ClampedArray::cast(this)->FixedTypedArrayVerify();
-      break;
     case CODE_TYPE:
       Code::cast(this)->CodeVerify();
       break;
@@ -331,14 +304,6 @@ void ExternalFloatArray::ExternalFloatArrayVerify() {
 
 void ExternalDoubleArray::ExternalDoubleArrayVerify() {
   CHECK(IsExternalDoubleArray());
-}
-
-
-template <class Traits>
-void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
-  CHECK(IsHeapObject() &&
-        HeapObject::cast(this)->map()->instance_type() ==
-            Traits::kInstanceType);
 }
 
 
@@ -1122,18 +1087,9 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS: {
+    case EXTERNAL_PIXEL_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
-      FixedArrayBase* e = FixedArrayBase::cast(elements());
+      ExternalPixelArray* e = ExternalPixelArray::cast(elements());
       info->number_of_fast_used_elements_ += e->length();
       break;
     }

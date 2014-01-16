@@ -1845,8 +1845,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   if (store_mode != STANDARD_STORE) {
     int external_arrays = 0;
     for (int i = 0; i < target_receiver_maps.length(); ++i) {
-      if (target_receiver_maps[i]->has_external_array_elements() ||
-          target_receiver_maps[i]->has_fixed_typed_array_elements()) {
+      if (target_receiver_maps[i]->has_external_array_elements()) {
         external_arrays++;
       }
     }

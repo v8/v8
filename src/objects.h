@@ -386,17 +386,6 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
   V(EXTERNAL_DOUBLE_ARRAY_TYPE)                                                \
   V(EXTERNAL_PIXEL_ARRAY_TYPE)                                                 \
-                                                                               \
-  V(FIXED_INT8_ARRAY_TYPE)                                                     \
-  V(FIXED_UINT8_ARRAY_TYPE)                                                    \
-  V(FIXED_INT16_ARRAY_TYPE)                                                    \
-  V(FIXED_UINT16_ARRAY_TYPE)                                                   \
-  V(FIXED_INT32_ARRAY_TYPE)                                                    \
-  V(FIXED_UINT32_ARRAY_TYPE)                                                   \
-  V(FIXED_FLOAT32_ARRAY_TYPE)                                                  \
-  V(FIXED_FLOAT64_ARRAY_TYPE)                                                  \
-  V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                                            \
-                                                                               \
   V(FILLER_TYPE)                                                               \
                                                                                \
   V(DECLARED_ACCESSOR_DESCRIPTOR_TYPE)                                         \
@@ -731,17 +720,6 @@ enum InstanceType {
   EXTERNAL_FLOAT_ARRAY_TYPE,
   EXTERNAL_DOUBLE_ARRAY_TYPE,
   EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
-
-  FIXED_INT8_ARRAY_TYPE,  // FIRST_FIXED_TYPED_ARRAY_TYPE
-  FIXED_UINT8_ARRAY_TYPE,
-  FIXED_INT16_ARRAY_TYPE,
-  FIXED_UINT16_ARRAY_TYPE,
-  FIXED_INT32_ARRAY_TYPE,
-  FIXED_UINT32_ARRAY_TYPE,
-  FIXED_FLOAT32_ARRAY_TYPE,
-  FIXED_FLOAT64_ARRAY_TYPE,
-  FIXED_UINT8_CLAMPED_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
-
   FIXED_DOUBLE_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
@@ -819,9 +797,6 @@ enum InstanceType {
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
-  // Boundaries for testing for a fixed typed array.
-  FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
-  LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
   // Boundary for promotion to old data space/old pointer space.
   LAST_DATA_TYPE = FILLER_TYPE,
   // Boundary for objects represented as JSReceiver (i.e. JSObject or JSProxy).
@@ -1014,16 +989,6 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalFloatArray)                        \
   V(ExternalDoubleArray)                       \
   V(ExternalPixelArray)                        \
-  V(FixedTypedArrayBase)                       \
-  V(FixedUint8Array)                           \
-  V(FixedInt8Array)                            \
-  V(FixedUint16Array)                          \
-  V(FixedInt16Array)                           \
-  V(FixedUint32Array)                          \
-  V(FixedInt32Array)                           \
-  V(FixedFloat32Array)                         \
-  V(FixedFloat64Array)                         \
-  V(FixedUint8ClampedArray)                    \
   V(ByteArray)                                 \
   V(FreeSpace)                                 \
   V(JSReceiver)                                \
@@ -2144,7 +2109,6 @@ class JSObject: public JSReceiver {
   inline bool HasFastHoleyElements();
   inline bool HasNonStrictArgumentsElements();
   inline bool HasDictionaryElements();
-
   inline bool HasExternalPixelElements();
   inline bool HasExternalArrayElements();
   inline bool HasExternalByteElements();
@@ -2155,9 +2119,6 @@ class JSObject: public JSReceiver {
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
   inline bool HasExternalDoubleElements();
-
-  inline bool HasFixedTypedArrayElements();
-
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
@@ -4867,76 +4828,6 @@ class ExternalDoubleArray: public ExternalArray {
 };
 
 
-class FixedTypedArrayBase: public FixedArrayBase {
- public:
-  // Casting:
-  static inline FixedTypedArrayBase* cast(Object* obj);
-
-  static const int kDataOffset = kHeaderSize;
-
-  inline int size();
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
-};
-
-
-template <class Traits>
-class FixedTypedArray: public FixedTypedArrayBase {
- public:
-  typedef typename Traits::ElementType ElementType;
-  static const InstanceType kInstanceType = Traits::kInstanceType;
-
-  // Casting:
-  static inline FixedTypedArray<Traits>* cast(Object* obj);
-
-  static inline int SizeFor(int length) {
-    return kDataOffset + length * sizeof(ElementType);
-  }
-
-  inline ElementType get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
-  inline void set(int index, ElementType value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
-
-  static Handle<Object> SetValue(Handle<FixedTypedArray<Traits> > array,
-                                 uint32_t index,
-                                 Handle<Object> value);
-
-  DECLARE_PRINTER(FixedTypedArray)
-  DECLARE_VERIFIER(FixedTypedArray)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
-};
-
-#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType)               \
-  class Type##ArrayTraits {                                                   \
-    public:                                                                   \
-      typedef elementType ElementType;                                        \
-      static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;    \
-      static const char* Designator() { return #type " array"; }              \
-      static inline MaybeObject* ToObject(Heap* heap, elementType scalar);    \
-      static elementType defaultValue() { return 0; }                         \
-  };                                                                          \
-                                                                              \
-  typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
-
-FIXED_TYPED_ARRAY_TRAITS(Uint8, uint8, UINT8, uint8_t)
-FIXED_TYPED_ARRAY_TRAITS(Int8, int8, INT8, int8_t)
-FIXED_TYPED_ARRAY_TRAITS(Uint16, uint16, UINT16, uint16_t)
-FIXED_TYPED_ARRAY_TRAITS(Int16, int16, INT16, int16_t)
-FIXED_TYPED_ARRAY_TRAITS(Uint32, uint32, UINT32, uint32_t)
-FIXED_TYPED_ARRAY_TRAITS(Int32, int32, INT32, int32_t)
-FIXED_TYPED_ARRAY_TRAITS(Float32, float32, FLOAT32, float)
-FIXED_TYPED_ARRAY_TRAITS(Float64, float64, FLOAT64, double)
-FIXED_TYPED_ARRAY_TRAITS(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t)
-
-#undef FIXED_TYPED_ARRAY_TRAITS
-
 // DeoptimizationInputData is a fixed array used to hold the deoptimization
 // data for code generated by the Hydrogen/Lithium compiler.  It also
 // contains information about functions that were inlined.  If N different
@@ -5944,10 +5835,6 @@ class Map: public HeapObject {
 
   inline bool has_external_array_elements() {
     return IsExternalArrayElementsKind(elements_kind());
-  }
-
-  inline bool has_fixed_typed_array_elements() {
-    return IsFixedTypedArrayElementsKind(elements_kind());
   }
 
   inline bool has_dictionary_elements() {

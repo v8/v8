@@ -207,8 +207,7 @@ class LChunkBuilder;
   V(InobjectFields)                            \
   V(OsrEntries)                                \
   V(ExternalMemory)                            \
-  V(StringChars)                               \
-  V(TypedArrayElements)
+  V(StringChars)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)                              \
@@ -6367,12 +6366,6 @@ class HLoadKeyed V8_FINAL
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
   }
-  bool is_fixed_typed_array() const {
-    return IsFixedTypedArrayElementsKind(elements_kind());
-  }
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
-  }
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* dependency() {
@@ -6401,10 +6394,9 @@ class HLoadKeyed V8_FINAL
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    // kind_fast:                 tagged[int32] (none)
-    // kind_double:               tagged[int32] (none)
-    // kind_fixed_typed_array:    tagged[int32] (none)
-    // kind_external:             external[int32] (none)
+    // kind_fast:       tagged[int32] (none)
+    // kind_double:     tagged[int32] (none)
+    // kind_external: external[int32] (none)
     if (index == 0) {
       return is_external() ? Representation::External()
           : Representation::Tagged();
@@ -6454,7 +6446,7 @@ class HLoadKeyed V8_FINAL
     SetOperandAt(1, key);
     SetOperandAt(2, dependency != NULL ? dependency : obj);
 
-    if (!is_typed_elements()) {
+    if (!is_external()) {
       // I can detect the case between storing double (holey and fast) and
       // smi/object by looking at elements_kind_.
       ASSERT(IsFastSmiOrObjectElementsKind(elements_kind) ||
@@ -6481,21 +6473,13 @@ class HLoadKeyed V8_FINAL
       }
     } else {
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-          elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
-          elements_kind == FLOAT32_ELEMENTS ||
-          elements_kind == FLOAT64_ELEMENTS) {
+          elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
         set_representation(Representation::Double());
       } else {
         set_representation(Representation::Integer32());
       }
 
-      if (is_external()) {
-        SetGVNFlag(kDependsOnExternalMemory);
-      } else if (is_fixed_typed_array()) {
-        SetGVNFlag(kDependsOnTypedArrayElements);
-      } else {
-        UNREACHABLE();
-      }
+      SetGVNFlag(kDependsOnExternalMemory);
       // Native code could change the specialized array.
       SetGVNFlag(kDependsOnCalls);
     }
@@ -6754,11 +6738,10 @@ class HStoreKeyed V8_FINAL
                                  ElementsKind, StoreFieldOrKeyedMode);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    // kind_fast:               tagged[int32] = tagged
-    // kind_double:             tagged[int32] = double
-    // kind_smi   :             tagged[int32] = smi
-    // kind_fixed_typed_array:  tagged[int32] = (double | int32)
-    // kind_external:           external[int32] = (double | int32)
+    // kind_fast:       tagged[int32] = tagged
+    // kind_double:     tagged[int32] = double
+    // kind_smi   :     tagged[int32] = smi
+    // kind_external: external[int32] = (double | int32)
     if (index == 0) {
       return is_external() ? Representation::External()
                            : Representation::Tagged();
@@ -6778,21 +6761,12 @@ class HStoreKeyed V8_FINAL
       return Representation::Smi();
     }
 
-    return is_external() || is_fixed_typed_array()
-        ? Representation::Integer32()
-        : Representation::Tagged();
+    return is_external() ? Representation::Integer32()
+                         : Representation::Tagged();
   }
 
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
-  }
-
-  bool is_fixed_typed_array() const {
-    return IsFixedTypedArrayElementsKind(elements_kind());
-  }
-
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
 
   virtual Representation observed_input_representation(int index) V8_OVERRIDE {
@@ -6809,7 +6783,7 @@ class HStoreKeyed V8_FINAL
     if (IsFastSmiElementsKind(elements_kind())) {
       return Representation::Smi();
     }
-    if (is_typed_elements()) {
+    if (is_external()) {
       return Representation::Integer32();
     }
     // For fast object elements kinds, don't assume anything.
@@ -6894,18 +6868,13 @@ class HStoreKeyed V8_FINAL
       SetGVNFlag(kChangesDoubleArrayElements);
     } else if (IsFastSmiElementsKind(elements_kind)) {
       SetGVNFlag(kChangesArrayElements);
-    } else if (is_fixed_typed_array()) {
-      SetGVNFlag(kChangesTypedArrayElements);
-      SetFlag(kAllowUndefinedAsNaN);
     } else {
       SetGVNFlag(kChangesArrayElements);
     }
 
     // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
-    if ((elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
-        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) ||
-        (elements_kind >= UINT8_ELEMENTS &&
-        elements_kind <= INT32_ELEMENTS)) {
+    if (elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
+        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) {
       SetFlag(kTruncatingToInt32);
     }
   }

@@ -2963,51 +2963,39 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ movsxlq(key_reg, key_reg);
     }
   }
-  int base_offset = instr->is_fixed_typed_array()
-    ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
-    : 0;
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
       key,
       elements_kind,
-      base_offset,
+      0,
       instr->additional_index()));
 
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
     __ cvtss2sd(result, result);
-  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
-             elements_kind == FLOAT64_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     __ movsd(ToDoubleRegister(instr->result()), operand);
   } else {
     Register result(ToRegister(instr->result()));
     switch (elements_kind) {
       case EXTERNAL_BYTE_ELEMENTS:
-      case INT8_ELEMENTS:
         __ movsxbq(result, operand);
         break;
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       case EXTERNAL_PIXEL_ELEMENTS:
-      case UINT8_ELEMENTS:
-      case UINT8_CLAMPED_ELEMENTS:
         __ movzxbq(result, operand);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
-      case INT16_ELEMENTS:
         __ movsxwq(result, operand);
         break;
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case UINT16_ELEMENTS:
         __ movzxwq(result, operand);
         break;
       case EXTERNAL_INT_ELEMENTS:
-      case INT32_ELEMENTS:
         __ movsxlq(result, operand);
         break;
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      case UINT32_ELEMENTS:
         __ movl(result, operand);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
           __ testl(result, result);
@@ -3016,8 +3004,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         break;
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
-      case FLOAT32_ELEMENTS:
-      case FLOAT64_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_SMI_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -3125,7 +3111,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
-  if (instr->is_typed_elements()) {
+  if (instr->is_external()) {
     DoLoadKeyedExternalArray(instr);
   } else if (instr->hydrogen()->representation().IsDouble()) {
     DoLoadKeyedFixedDoubleArray(instr);
@@ -4156,23 +4142,18 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       __ movsxlq(key_reg, key_reg);
     }
   }
-  int base_offset = instr->is_fixed_typed_array()
-    ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
-    : 0;
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
       key,
       elements_kind,
-      base_offset,
+      0,
       instr->additional_index()));
 
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister value(ToDoubleRegister(instr->value()));
     __ cvtsd2ss(value, value);
     __ movss(operand, value);
-  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
-             elements_kind == FLOAT64_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     __ movsd(operand, ToDoubleRegister(instr->value()));
   } else {
     Register value(ToRegister(instr->value()));
@@ -4180,27 +4161,18 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case INT8_ELEMENTS:
-      case UINT8_ELEMENTS:
-      case UINT8_CLAMPED_ELEMENTS:
         __ movb(operand, value);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case INT16_ELEMENTS:
-      case UINT16_ELEMENTS:
         __ movw(operand, value);
         break;
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      case INT32_ELEMENTS:
-      case UINT32_ELEMENTS:
         __ movl(operand, value);
         break;
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
-      case FLOAT32_ELEMENTS:
-      case FLOAT64_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_SMI_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -4332,7 +4304,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
-  if (instr->is_typed_elements()) {
+  if (instr->is_external()) {
     DoStoreKeyedExternalArray(instr);
   } else if (instr->hydrogen()->value()->representation().IsDouble()) {
     DoStoreKeyedFixedDoubleArray(instr);

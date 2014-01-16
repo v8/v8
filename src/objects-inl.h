@@ -41,7 +41,6 @@
 #include "conversions-inl.h"
 #include "heap.h"
 #include "isolate.h"
-#include "heap-inl.h"
 #include "property.h"
 #include "spaces.h"
 #include "store-buffer.h"
@@ -86,13 +85,6 @@ PropertyDetails PropertyDetails::AsDeleted() {
     return reinterpret_cast<type*>(object);     \
   }
 
-
-#define FIXED_TYPED_ARRAY_CAST_ACCESSOR(type)   \
-  template<>                                    \
-  type* type::cast(Object* object) {            \
-    SLOW_ASSERT(object->Is##type());            \
-    return reinterpret_cast<type*>(object);     \
-  }
 
 #define INT_ACCESSORS(holder, name, offset)                             \
   int holder::name() { return READ_INT_FIELD(this, offset); }           \
@@ -142,8 +134,7 @@ PropertyDetails PropertyDetails::AsDeleted() {
 
 
 bool Object::IsFixedArrayBase() {
-  return IsFixedArray() || IsFixedDoubleArray() || IsConstantPoolArray() ||
-         IsFixedTypedArrayBase() || IsExternalArray();
+  return IsFixedArray() || IsFixedDoubleArray() || IsConstantPoolArray();
 }
 
 
@@ -271,8 +262,7 @@ bool Object::IsExternalTwoByteString() {
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
-  return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray() ||
-         IsFixedTypedArrayBase();
+  return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray();
 }
 
 
@@ -496,27 +486,6 @@ TYPE_CHECKER(ExternalIntArray, EXTERNAL_INT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalUnsignedIntArray, EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalFloatArray, EXTERNAL_FLOAT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalDoubleArray, EXTERNAL_DOUBLE_ARRAY_TYPE)
-
-
-bool Object::IsFixedTypedArrayBase() {
-  if (!Object::IsHeapObject()) return false;
-
-  InstanceType instance_type =
-      HeapObject::cast(this)->map()->instance_type();
-  return (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
-          instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE);
-}
-
-
-TYPE_CHECKER(FixedUint8Array, FIXED_UINT8_ARRAY_TYPE)
-TYPE_CHECKER(FixedInt8Array, FIXED_INT8_ARRAY_TYPE)
-TYPE_CHECKER(FixedUint16Array, FIXED_UINT16_ARRAY_TYPE)
-TYPE_CHECKER(FixedInt16Array, FIXED_INT16_ARRAY_TYPE)
-TYPE_CHECKER(FixedUint32Array, FIXED_UINT32_ARRAY_TYPE)
-TYPE_CHECKER(FixedInt32Array, FIXED_INT32_ARRAY_TYPE)
-TYPE_CHECKER(FixedFloat32Array, FIXED_FLOAT32_ARRAY_TYPE)
-TYPE_CHECKER(FixedFloat64Array, FIXED_FLOAT64_ARRAY_TYPE)
-TYPE_CHECKER(FixedUint8ClampedArray, FIXED_UINT8_CLAMPED_ARRAY_TYPE)
 
 
 bool MaybeObject::IsFailure() {
@@ -1986,7 +1955,8 @@ void Object::VerifyApiCallResultType() {
 
 
 FixedArrayBase* FixedArrayBase::cast(Object* object) {
-  ASSERT(object->IsFixedArrayBase());
+  ASSERT(object->IsFixedArray() || object->IsFixedDoubleArray() ||
+         object->IsConstantPoolArray());
   return reinterpret_cast<FixedArrayBase*>(object);
 }
 
@@ -2665,7 +2635,6 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedDoubleArray)
-CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(ConstantPoolArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
@@ -2734,14 +2703,6 @@ CAST_ACCESSOR(ExternalDoubleArray)
 CAST_ACCESSOR(ExternalPixelArray)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(AccessorInfo)
-
-template <class Traits>
-FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
-  SLOW_ASSERT(object->IsHeapObject() &&
-      HeapObject::cast(object)->map()->instance_type() ==
-          Traits::kInstanceType);
-  return reinterpret_cast<FixedTypedArray<Traits>*>(object);
-}
 
 
 #define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
@@ -3518,133 +3479,6 @@ void ExternalDoubleArray::set(int index, double value) {
 }
 
 
-int FixedTypedArrayBase::size() {
-  InstanceType instance_type = map()->instance_type();
-  int element_size;
-  switch (instance_type) {
-    case FIXED_UINT8_ARRAY_TYPE:
-    case FIXED_INT8_ARRAY_TYPE:
-    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
-      element_size = 1;
-      break;
-    case FIXED_UINT16_ARRAY_TYPE:
-    case FIXED_INT16_ARRAY_TYPE:
-      element_size = 2;
-      break;
-    case FIXED_UINT32_ARRAY_TYPE:
-    case FIXED_INT32_ARRAY_TYPE:
-    case FIXED_FLOAT32_ARRAY_TYPE:
-      element_size = 4;
-      break;
-    case FIXED_FLOAT64_ARRAY_TYPE:
-      element_size = 8;
-      break;
-    default:
-      UNREACHABLE();
-      return 0;
-  }
-  return OBJECT_POINTER_ALIGN(kDataOffset + length() * element_size);
-}
-
-
-template <class Traits>
-typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
-  ASSERT((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(
-      FIELD_ADDR(this, kDataOffset));
-  return ptr[index];
-}
-
-template <class Traits>
-void FixedTypedArray<Traits>::set(int index, ElementType value) {
-  ASSERT((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(
-      FIELD_ADDR(this, kDataOffset));
-  ptr[index] = value;
-}
-
-
-template <class Traits>
-MaybeObject* FixedTypedArray<Traits>::get(int index) {
-  return Traits::ToObject(GetHeap(), get_scalar(index));
-}
-
-template <class Traits>
-MaybeObject* FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
-  ElementType cast_value = Traits::defaultValue();
-  if (index < static_cast<uint32_t>(length())) {
-    if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
-      cast_value = static_cast<ElementType>(int_value);
-    } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
-      cast_value = static_cast<ElementType>(DoubleToInt32(double_value));
-    } else {
-      // Clamp undefined to the default value. All other types have been
-      // converted to a number type further up in the call chain.
-      ASSERT(value->IsUndefined());
-    }
-    set(index, cast_value);
-  }
-  return Traits::ToObject(GetHeap(), cast_value);
-}
-
-template <class Traits>
-Handle<Object> FixedTypedArray<Traits>::SetValue(
-    Handle<FixedTypedArray<Traits> > array,
-    uint32_t index,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* Uint8ArrayTraits::ToObject(Heap*, uint8_t scalar) {
-  return Smi::FromInt(scalar);
-}
-
-
-MaybeObject* Uint8ClampedArrayTraits::ToObject(Heap*, uint8_t scalar) {
-  return Smi::FromInt(scalar);
-}
-
-
-MaybeObject* Int8ArrayTraits::ToObject(Heap*, int8_t scalar) {
-  return Smi::FromInt(scalar);
-}
-
-
-MaybeObject* Uint16ArrayTraits::ToObject(Heap*, uint16_t scalar) {
-  return Smi::FromInt(scalar);
-}
-
-
-MaybeObject* Int16ArrayTraits::ToObject(Heap*, int16_t scalar) {
-  return Smi::FromInt(scalar);
-}
-
-
-MaybeObject* Uint32ArrayTraits::ToObject(Heap* heap, uint32_t scalar) {
-  return heap->NumberFromUint32(scalar);
-}
-
-
-MaybeObject* Int32ArrayTraits::ToObject(Heap* heap, int32_t scalar) {
-  return heap->NumberFromInt32(scalar);
-}
-
-
-MaybeObject* Float32ArrayTraits::ToObject(Heap* heap, float scalar) {
-  return heap->NumberFromDouble(scalar);
-}
-
-
-MaybeObject* Float64ArrayTraits::ToObject(Heap* heap, double scalar) {
-  return heap->NumberFromDouble(scalar);
-}
-
-
 int Map::visitor_id() {
   return READ_BYTE_FIELD(this, kVisitorIdOffset);
 }
@@ -3704,10 +3538,6 @@ int HeapObject::SizeFromMap(Map* map) {
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_int64_entries(),
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_ptr_entries(),
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_int32_entries());
-  }
-  if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
-      instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
-    return reinterpret_cast<FixedTypedArrayBase*>(this)->size();
   }
   ASSERT(instance_type == CODE_TYPE);
   return reinterpret_cast<Code*>(this)->CodeSize();
@@ -5875,13 +5705,6 @@ EXTERNAL_ELEMENTS_CHECK(Float,
 EXTERNAL_ELEMENTS_CHECK(Double,
                         EXTERNAL_DOUBLE_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Pixel, EXTERNAL_PIXEL_ARRAY_TYPE)
-
-
-bool JSObject::HasFixedTypedArrayElements() {
-  HeapObject* array = elements();
-  ASSERT(array != NULL);
-  return array->IsFixedTypedArrayBase();
-}
 
 
 bool JSObject::HasNamedInterceptor() {

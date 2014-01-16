@@ -729,7 +729,7 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
                                                 ExternalArrayType array_type,
                                                 void* external_pointer,
                                                 PretenureFlag pretenure) {
-  ASSERT(0 <= length && length <= Smi::kMaxValue);
+  ASSERT(0 <= length);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateExternalArray(length,
@@ -737,20 +737,6 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
                                                external_pointer,
                                                pretenure),
       ExternalArray);
-}
-
-
-Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
-    int length,
-    ExternalArrayType array_type,
-    PretenureFlag pretenure) {
-  ASSERT(0 <= length && length <= Smi::kMaxValue);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFixedTypedArray(length,
-                                                 array_type,
-                                                 pretenure),
-      FixedTypedArrayBase);
 }
 
 
