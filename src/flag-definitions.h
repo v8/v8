@@ -220,7 +220,7 @@ DEFINE_bool(pretenuring, true, "allocate objects in old space")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
 DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
-DEFINE_bool(allocation_site_pretenuring, false,
+DEFINE_bool(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_bool(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
@@ -398,9 +398,7 @@ DEFINE_bool(enable_vldr_imm, false,
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
-#ifdef ADDRESS_SANITIZER
 DEFINE_bool(expose_free_buffer, false, "expose freeBuffer extension")
-#endif
 DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_string(expose_gc_as, NULL,
               "expose gc extension under the specified name")

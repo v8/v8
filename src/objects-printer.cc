@@ -136,6 +136,24 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
       ExternalDoubleArray::cast(this)->ExternalDoubleArrayPrint(out);
       break;
+#define PRINT_FIXED_TYPED_ARRAY(Type)                                          \
+    case Fixed##Type##Array::kInstanceType:                                    \
+      Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(out);               \
+      break;
+
+    PRINT_FIXED_TYPED_ARRAY(Uint8)
+    PRINT_FIXED_TYPED_ARRAY(Int8)
+    PRINT_FIXED_TYPED_ARRAY(Uint16)
+    PRINT_FIXED_TYPED_ARRAY(Int16)
+    PRINT_FIXED_TYPED_ARRAY(Uint32)
+    PRINT_FIXED_TYPED_ARRAY(Int32)
+    PRINT_FIXED_TYPED_ARRAY(Float32)
+    PRINT_FIXED_TYPED_ARRAY(Float64)
+    PRINT_FIXED_TYPED_ARRAY(Uint8Clamped)
+
+#undef PPINT_FIXED_TYPED_ARRAY
+
+
     case FILLER_TYPE:
       PrintF(out, "filler");
       break;
@@ -285,6 +303,11 @@ void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
   PrintF(out, "external double array");
 }
 
+template <class Traits>
+void FixedTypedArray<Traits>::FixedTypedArrayPrint(FILE* out) {
+  PrintF(out, "fixed %s", Traits::Designator());
+}
+
 
 void JSObject::PrintProperties(FILE* out) {
   if (HasFastProperties()) {
@@ -324,6 +347,24 @@ void JSObject::PrintProperties(FILE* out) {
 }
 
 
+template<class T>
+static void DoPrintElements(FILE *out, Object* object) {
+  T* p = T::cast(object);
+  for (int i = 0; i < p->length(); i++) {
+    PrintF(out, "   %d: %d\n", i, p->get_scalar(i));
+  }
+}
+
+
+template<class T>
+static void DoPrintDoubleElements(FILE* out, Object* object) {
+  T* p = T::cast(object);
+  for (int i = 0; i < p->length(); i++) {
+    PrintF(out, "   %d: %f\n", i, p->get_scalar(i));
+  }
+}
+
+
 void JSObject::PrintElements(FILE* out) {
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
@@ -357,72 +398,47 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* p = ExternalPixelArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, p->get_scalar(i));
-      }
-      break;
+
+
+#define PRINT_ELEMENTS(Kind, Type)                                          \
+    case Kind: {                                                            \
+      DoPrintElements<Type>(out, elements());                               \
+      break;                                                                \
     }
-    case EXTERNAL_BYTE_ELEMENTS: {
-      ExternalByteArray* p = ExternalByteArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
-      }
-      break;
+
+#define PRINT_DOUBLE_ELEMENTS(Kind, Type)                                   \
+    case Kind: {                                                            \
+      DoPrintDoubleElements<Type>(out, elements());                         \
+      break;                                                                \
     }
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-      ExternalUnsignedByteArray* p =
-          ExternalUnsignedByteArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
-      }
-      break;
-    }
-    case EXTERNAL_SHORT_ELEMENTS: {
-      ExternalShortArray* p = ExternalShortArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
-      }
-      break;
-    }
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-      ExternalUnsignedShortArray* p =
-          ExternalUnsignedShortArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
-      }
-      break;
-    }
-    case EXTERNAL_INT_ELEMENTS: {
-      ExternalIntArray* p = ExternalIntArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
-      }
-      break;
-    }
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-      ExternalUnsignedIntArray* p =
-          ExternalUnsignedIntArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
-      }
-      break;
-    }
-    case EXTERNAL_FLOAT_ELEMENTS: {
-      ExternalFloatArray* p = ExternalFloatArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %f\n", i, p->get_scalar(i));
-      }
-      break;
-    }
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalDoubleArray* p = ExternalDoubleArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %f\n", i, p->get_scalar(i));
-      }
-      break;
-    }
+
+    PRINT_ELEMENTS(EXTERNAL_PIXEL_ELEMENTS, ExternalPixelArray)
+    PRINT_ELEMENTS(EXTERNAL_BYTE_ELEMENTS, ExternalByteArray)
+    PRINT_ELEMENTS(EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
+        ExternalUnsignedByteArray)
+    PRINT_ELEMENTS(EXTERNAL_SHORT_ELEMENTS, ExternalShortArray)
+    PRINT_ELEMENTS(EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
+        ExternalUnsignedShortArray)
+    PRINT_ELEMENTS(EXTERNAL_INT_ELEMENTS, ExternalIntArray)
+    PRINT_ELEMENTS(EXTERNAL_UNSIGNED_INT_ELEMENTS,
+        ExternalUnsignedIntArray)
+    PRINT_DOUBLE_ELEMENTS(EXTERNAL_FLOAT_ELEMENTS, ExternalFloatArray)
+    PRINT_DOUBLE_ELEMENTS(EXTERNAL_DOUBLE_ELEMENTS, ExternalDoubleArray)
+
+
+    PRINT_ELEMENTS(UINT8_ELEMENTS, FixedUint8Array)
+    PRINT_ELEMENTS(UINT8_CLAMPED_ELEMENTS, FixedUint8ClampedArray)
+    PRINT_ELEMENTS(INT8_ELEMENTS, FixedInt8Array)
+    PRINT_ELEMENTS(UINT16_ELEMENTS, FixedUint16Array)
+    PRINT_ELEMENTS(INT16_ELEMENTS, FixedInt16Array)
+    PRINT_ELEMENTS(UINT32_ELEMENTS, FixedUint32Array)
+    PRINT_ELEMENTS(INT32_ELEMENTS, FixedInt32Array)
+    PRINT_DOUBLE_ELEMENTS(FLOAT32_ELEMENTS, FixedFloat32Array)
+    PRINT_DOUBLE_ELEMENTS(FLOAT64_ELEMENTS, FixedFloat64Array)
+
+#undef PRINT_DOUBLE_ELEMENTS
+#undef PRINT_ELEMENTS
+
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;

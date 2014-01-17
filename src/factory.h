@@ -257,6 +257,11 @@ class Factory {
       void* external_pointer,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<FixedTypedArrayBase> NewFixedTypedArray(
+      int length,
+      ExternalArrayType array_type,
+      PretenureFlag pretenure = NOT_TENURED);
+
   Handle<Cell> NewCell(Handle<Object> value);
 
   Handle<PropertyCell> NewPropertyCellWithHole();

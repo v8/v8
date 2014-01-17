@@ -156,6 +156,15 @@ namespace internal {
   V(ExternalArray, empty_external_double_array, EmptyExternalDoubleArray)      \
   V(ExternalArray, empty_external_pixel_array,                                 \
       EmptyExternalPixelArray)                                                 \
+  V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
+  V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \
+  V(Map, fixed_uint16_array_map, FixedUint16ArrayMap)                          \
+  V(Map, fixed_int16_array_map, FixedInt16ArrayMap)                            \
+  V(Map, fixed_uint32_array_map, FixedUint32ArrayMap)                          \
+  V(Map, fixed_int32_array_map, FixedInt32ArrayMap)                            \
+  V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
+  V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
+  V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
   V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
@@ -875,6 +884,15 @@ class Heap {
       void* external_pointer,
       PretenureFlag pretenure);
 
+  // Allocates a fixed typed array of the specified length and type.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateFixedTypedArray(
+      int length,
+      ExternalArrayType array_type,
+      PretenureFlag pretenure);
+
   // Allocate a symbol in old space.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -1561,6 +1579,10 @@ class Heap {
   MUST_USE_RESULT MaybeObject* Uint32ToString(
       uint32_t value, bool check_number_string_cache = true);
 
+  Map* MapForFixedTypedArray(ExternalArrayType array_type);
+  RootListIndex RootIndexForFixedTypedArray(
+      ExternalArrayType array_type);
+
   Map* MapForExternalArrayType(ExternalArrayType array_type);
   RootListIndex RootIndexForExternalArrayType(
       ExternalArrayType array_type);
@@ -1842,6 +1864,9 @@ class Heap {
   }
 
   void EnsureWeakObjectToCodeTable();
+
+  static void FatalProcessOutOfMemory(const char* location,
+                                      bool take_snapshot = false);
 
  private:
   Heap();
