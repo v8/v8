@@ -283,20 +283,8 @@ class IC_Utility {
 };
 
 
-enum StringStubFeedback {
-  DEFAULT_STRING_STUB = 0,
-  STRING_INDEX_OUT_OF_BOUNDS = 1
-};
-
-
 class CallICBase: public IC {
  public:
-  // ExtraICState bits
-  class StringStubState: public BitField<StringStubFeedback, 0, 1> {};
-  static ExtraICState ComputeExtraICState(StringStubFeedback feedback) {
-    return StringStubState::encode(feedback);
-  }
-
   // Returns a JSFunction or a Failure.
   MUST_USE_RESULT MaybeObject* LoadFunction(Handle<Object> object,
                                             Handle<String> name);

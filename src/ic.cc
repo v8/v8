@@ -231,57 +231,8 @@ static void LookupForRead(Handle<Object> object,
 }
 
 
-bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
-                                   Handle<Object> object) {
-  if (!lookup->IsConstantFunction()) return false;
-  JSFunction* function = lookup->GetConstantFunction();
-  if (!function->shared()->HasBuiltinFunctionId()) return false;
-
-  // Fetch the arguments passed to the called function.
-  const int argc = target()->arguments_count();
-  Address entry = isolate()->c_entry_fp(isolate()->thread_local_top());
-  Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
-  Arguments args(argc + 1,
-                 &Memory::Object_at(fp +
-                                    StandardFrameConstants::kCallerSPOffset +
-                                    argc * kPointerSize));
-  switch (function->shared()->builtin_function_id()) {
-    case kStringCharCodeAt:
-    case kStringCharAt:
-      if (object->IsString()) {
-        String* string = String::cast(*object);
-        // Check there's the right string value or wrapper in the receiver slot.
-        ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
-        // If we're in the default (fastest) state and the index is
-        // out of bounds, update the state to record this fact.
-        if (StringStubState::decode(extra_ic_state()) == DEFAULT_STRING_STUB &&
-            argc >= 1 && args[1]->IsNumber()) {
-          double index = DoubleToInteger(args.number_at(1));
-          if (index < 0 || index >= string->length()) {
-            set_extra_ic_state(StringStubState::update(extra_ic_state(),
-                STRING_INDEX_OUT_OF_BOUNDS));
-            return true;
-          }
-        }
-      }
-      break;
-    default:
-      return false;
-  }
-  return false;
-}
-
-
 bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                 Handle<String> name) {
-  if (target()->is_call_stub()) {
-    LookupResult lookup(isolate());
-    LookupForRead(receiver, name, &lookup);
-    if (static_cast<CallIC*>(this)->TryUpdateExtraICState(&lookup, receiver)) {
-      return true;
-    }
-  }
-
   if (target()->is_keyed_stub()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;

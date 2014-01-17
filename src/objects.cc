@@ -11100,11 +11100,6 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
   PrintF(out, "extra_ic_state = ");
   const char* name = NULL;
   switch (kind) {
-    case CALL_IC:
-      if (extra == STRING_INDEX_OUT_OF_BOUNDS) {
-        name = "STRING_INDEX_OUT_OF_BOUNDS";
-      }
-      break;
     case STORE_IC:
     case KEYED_STORE_IC:
       if (extra == kStrictMode) {

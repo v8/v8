@@ -903,8 +903,6 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
 #define CUSTOM_CALL_IC_GENERATORS(V)            \
   V(ArrayPush)                                  \
   V(ArrayPop)                                   \
-  V(StringCharCodeAt)                           \
-  V(StringCharAt)                               \
   V(StringFromCharCode)                         \
   V(MathFloor)                                  \
   V(MathAbs)

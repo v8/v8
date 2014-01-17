@@ -415,10 +415,8 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
 
 
 Code* StubCache::FindCallInitialize(int argc, Code::Kind kind) {
-  ExtraICState extra_state =
-      CallICBase::StringStubState::encode(DEFAULT_STRING_STUB);
-  Code::Flags flags =
-      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(
+      kind, UNINITIALIZED, kNoExtraICState, Code::NORMAL, argc);
   UnseededNumberDictionary* dictionary =
       isolate()->heap()->non_monomorphic_cache();
   int entry = dictionary->FindEntry(isolate(), flags);
@@ -444,10 +442,8 @@ Code* StubCache::FindPreMonomorphicIC(Code::Kind kind, ExtraICState state) {
 
 
 Handle<Code> StubCache::ComputeCallInitialize(int argc, Code::Kind kind) {
-  ExtraICState extra_state =
-      CallICBase::ComputeExtraICState(DEFAULT_STRING_STUB);
-  Code::Flags flags =
-      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(
+      kind, UNINITIALIZED, kNoExtraICState, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);

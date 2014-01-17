@@ -1087,13 +1087,9 @@ class KeyedArrayCallStub: public HICStub {
     return GetExtraICState() | ArgcBits::encode(argc_);
   }
 
-  // We have to start storing extra ic bits at 1, because calls use bit zero
-  // for string stub state.
-  STATIC_ASSERT(CallICBase::StringStubState::kShift == 0);
-  STATIC_ASSERT(CallICBase::StringStubState::kSize == 1);
-  class HoleyBits: public BitField<bool, 1, 1> {};
-  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 2);
-  class ArgcBits: public BitField<int, 2, Code::kArgumentsBits> {};
+  class HoleyBits: public BitField<bool, 0, 1> {};
+  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 1);
+  class ArgcBits: public BitField<int, 1, Code::kArgumentsBits> {};
   virtual CodeStub::Major MajorKey() { return KeyedArrayCall; }
   int bit_field_;
   int argc_;
