@@ -246,6 +246,7 @@ class RuleProcessor(object):
 
   def __init__(self, parser_state):
     self.__automata = {}
+    self.__rule_trees = {}
     self.__process_parser_state(parser_state)
 
   @staticmethod
@@ -259,6 +260,12 @@ class RuleProcessor(object):
 
   def default_automata(self):
     return self.__automata['default']
+
+  def rule_tree_dots(self):
+    result = {}
+    for rule in self.__rule_trees:
+      result[rule] = NfaBuilder.rule_tree_dot(self.__rule_trees[rule])
+    return result
 
   class Automata(object):
 
@@ -328,6 +335,7 @@ class RuleProcessor(object):
     # build the automata
     for rule_name, graph in rule_map.items():
       self.__automata[rule_name] = RuleProcessor.Automata(builder, graph)
+      self.__rule_trees[rule_name] = graph
     # process default_action
     default_action = parser_state.rules['default']['default_action']
     self.default_action = Action(None, default_action[1]) if default_action else None

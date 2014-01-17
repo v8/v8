@@ -80,7 +80,18 @@ def generate_html(rule_processor, minimize_default):
     if mdfa and mdfa.node_count() != dfa.node_count():
       scripts.append(script_template % (mdfa_i, mdfa.to_dot()))
       loads.append(load_template % ("mdfa [%s]" % name, mdfa_i))
-    body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
+  body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
+  return file_template % body
+
+def generate_rule_tree_html(rule_processor):
+  scripts = []
+  loads = []
+  rule_tree_dots = rule_processor.rule_tree_dots()
+  for i, (rule, dot) in enumerate(rule_tree_dots.items()):
+    rule_i = "rule_%d" % i
+    scripts.append(script_template % (rule_i, dot))
+    loads.append(load_template % ("rules [%s]" % rule, rule_i))
+  body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
   return file_template % body
 
 def generate_code(rule_processor, minimize_default):
@@ -104,6 +115,7 @@ if __name__ == '__main__':
   parser.add_argument('--no-inline', action='store_true')
   parser.add_argument('--verbose', action='store_true')
   parser.add_argument('--debug-code', action='store_true')
+  parser.add_argument('--rule-html')
   args = parser.parse_args()
 
   minimize_default = not args.no_minimize_default
@@ -135,6 +147,14 @@ if __name__ == '__main__':
       f.write(html)
       if verbose:
         print "wrote html to %s" % html_file
+
+  rule_html_file = args.rule_html
+  if rule_html_file:
+    html = generate_rule_tree_html(rule_processor)
+    with open(rule_html_file, 'w') as f:
+      f.write(html)
+      if verbose:
+        print "wrote html to %s" % rule_html_file
 
   code_file = args.code
   if code_file:

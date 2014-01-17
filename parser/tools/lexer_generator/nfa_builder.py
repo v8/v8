@@ -240,6 +240,41 @@ class NfaBuilder(object):
     return Nfa(self.__encoding, start, end, nodes_created)
 
   @staticmethod
+  def rule_tree_dot(graph):
+    node_ix = [0]
+    node_template = 'node [label="%s"]; N_%d;'
+    edge_template = 'N_%d -> N_%d'
+    nodes = []
+    edges = []
+
+    def escape(v):
+      v = str(v)
+      v = v.replace('\r', '\\\\r').replace('\t', '\\\\t').replace('\n', '\\\\n')
+      v = v.replace('\\', '\\\\').replace('\"', '\\\"')
+      return v
+
+    def process_thing(thing):
+      if isinstance(thing, str):
+        node_ix[0] += 1
+        nodes.append(node_template % (escape(thing), node_ix[0]))
+        return node_ix[0]
+      if isinstance(thing, tuple):
+        child_ixs = map(process_thing, list(thing)[1:])
+        node_ix[0] += 1
+        nodes.append(node_template % (escape(thing[0]), node_ix[0]))
+        for child_ix in child_ixs:
+          edges.append(edge_template % (node_ix[0], child_ix))
+        return node_ix[0]
+      if isinstance(thing, Action):
+        node_ix[0] += 1
+        nodes.append(node_template % (str(thing), node_ix[0]))
+        return node_ix[0]
+      raise Exception
+
+    process_thing(graph)
+    return 'digraph { %s %s }' % ('\n'.join(nodes), '\n'.join(edges))
+
+  @staticmethod
   def add_action(graph, action):
     return ('ACTION', graph, action)
 
