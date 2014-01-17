@@ -297,9 +297,7 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
 
-  if (CallStubCompiler::CanBeCached(function)) {
-    HeapObject::UpdateMapCodeCache(stub_holder, name, code);
-  }
+  HeapObject::UpdateMapCodeCache(stub_holder, name, code);
   return code;
 }
 
@@ -402,9 +400,7 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  if (CallStubCompiler::CanBeCached(function)) {
-    HeapObject::UpdateMapCodeCache(receiver, name, code);
-  }
+  HeapObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
 
@@ -1895,18 +1891,6 @@ bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
 
   CallOptimization optimization(function);
   return optimization.is_simple_api_call();
-}
-
-
-bool CallStubCompiler::CanBeCached(Handle<JSFunction> function) {
-  if (function->shared()->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = function->shared()->builtin_function_id();
-#define CALL_GENERATOR_CASE(name) if (id == k##name) return false;
-    SITE_SPECIFIC_CALL_GENERATORS(CALL_GENERATOR_CASE)
-#undef CALL_GENERATOR_CASE
-  }
-
-  return true;
 }
 
 

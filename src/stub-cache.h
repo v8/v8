@@ -907,12 +907,7 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
   V(StringCharAt)                               \
   V(StringFromCharCode)                         \
   V(MathFloor)                                  \
-  V(MathAbs)                                    \
-  V(ArrayCode)
-
-
-#define SITE_SPECIFIC_CALL_GENERATORS(V)        \
-  V(ArrayCode)
+  V(MathAbs)
 
 
 class CallStubCompiler: public StubCompiler {
@@ -969,7 +964,6 @@ class CallStubCompiler: public StubCompiler {
                                  Handle<Name> name);
 
   static bool HasCustomCallGenerator(Handle<JSFunction> function);
-  static bool CanBeCached(Handle<JSFunction> function);
 
  private:
   // Compiles a custom call constant/global IC.  For constant calls cell is
