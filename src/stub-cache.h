@@ -902,8 +902,7 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
 // IC stubs.
 #define CUSTOM_CALL_IC_GENERATORS(V)            \
   V(ArrayPush)                                  \
-  V(ArrayPop)                                   \
-  V(StringFromCharCode)
+  V(ArrayPop)
 
 
 class CallStubCompiler: public StubCompiler {

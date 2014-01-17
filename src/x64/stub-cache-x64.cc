@@ -1905,57 +1905,6 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  // If the object is not a JSObject or we got an unexpected number of
-  // arguments, bail out to the regular call.
-  const int argc = arguments().immediate();
-  StackArgumentsAccessor args(rsp, argc);
-  if (!object->IsJSObject() || argc != 1) return Handle<Code>::null();
-
-  Label miss;
-
-  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
-  if (!cell.is_null()) {
-    ASSERT(cell->value() == *function);
-    GenerateLoadFunctionFromCell(cell, function, &miss);
-  }
-
-  // Load the char code argument.
-  Register code = rbx;
-  __ movq(code, args.GetArgumentOperand(1));
-
-  // Check the code is a smi.
-  Label slow;
-  __ JumpIfNotSmi(code, &slow);
-
-  // Convert the smi code to uint16.
-  __ SmiAndConstant(code, code, Smi::FromInt(0xffff));
-
-  StringCharFromCodeGenerator generator(code, rax);
-  generator.GenerateFast(masm());
-  __ ret(2 * kPointerSize);
-
-  StubRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm(), call_helper);
-
-  __ bind(&slow);
-  // We do not have to patch the receiver because the function makes no use of
-  // it.
-  GenerateJumpFunctionIgnoreReceiver(function);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
 Handle<Code> CallStubCompiler::CompileFastApiCall(
     const CallOptimization& optimization,
     Handle<Object> object,
