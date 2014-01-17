@@ -2542,11 +2542,12 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
+  Register holder_reg = HandlerFrontend(
+      IC::CurrentTypeOf(object, isolate()), receiver(), holder, name);
 
   __ PopReturnAddressTo(scratch1());
   __ push(receiver());
+  __ push(holder_reg);
   __ Push(callback);  // callback info
   __ Push(name);
   __ push(value());
@@ -2555,7 +2556,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
-  __ TailCallExternalReference(store_callback_property, 4, 1);
+  __ TailCallExternalReference(store_callback_property, 5, 1);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

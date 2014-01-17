@@ -810,24 +810,25 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
-  JSObject* recv = JSObject::cast(args[0]);
-  ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[1]);
+  JSObject* receiver = JSObject::cast(args[0]);
+  JSObject* holder = JSObject::cast(args[1]);
+  ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[2]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorSetterCallback fun =
       FUNCTION_CAST<v8::AccessorSetterCallback>(setter_address);
   ASSERT(fun != NULL);
-  ASSERT(callback->IsCompatibleReceiver(recv));
-  Handle<Name> name = args.at<Name>(2);
-  Handle<Object> value = args.at<Object>(3);
+  ASSERT(callback->IsCompatibleReceiver(receiver));
+  Handle<Name> name = args.at<Name>(3);
+  Handle<Object> value = args.at<Object>(4);
   HandleScope scope(isolate);
 
   // TODO(rossberg): Support symbols in the API.
   if (name->IsSymbol()) return *value;
   Handle<String> str = Handle<String>::cast(name);
 
-  LOG(isolate, ApiNamedPropertyAccess("store", recv, *name));
+  LOG(isolate, ApiNamedPropertyAccess("store", receiver, *name));
   PropertyCallbackArguments
-      custom_args(isolate, callback->data(), recv, recv);
+      custom_args(isolate, callback->data(), receiver, holder);
   custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;

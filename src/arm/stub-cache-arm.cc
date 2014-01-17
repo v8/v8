@@ -2518,13 +2518,14 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
+  Register holder_reg = HandlerFrontend(
+      IC::CurrentTypeOf(object, isolate()), receiver(), holder, name);
 
   // Stub never generated for non-global objects that require access checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
 
   __ push(receiver());  // receiver
+  __ push(holder_reg);
   __ mov(ip, Operand(callback));  // callback info
   __ push(ip);
   __ mov(ip, Operand(name));
@@ -2533,7 +2534,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
-  __ TailCallExternalReference(store_callback_property, 4, 1);
+  __ TailCallExternalReference(store_callback_property, 5, 1);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
