@@ -389,7 +389,7 @@ class MacroAssembler: public Assembler {
       }
     } else {
       Pop(src2, src3, cond);
-      str(src1, MemOperand(sp, 4, PostIndex), cond);
+      ldr(src1, MemOperand(sp, 4, PostIndex), cond);
     }
   }
 
@@ -594,47 +594,31 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Set up call kind marking in ecx. The method takes ecx as an
-  // explicit first parameter to make the code more readable at the
-  // call sites.
-  void SetCallKind(Register dst, CallKind kind);
-
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
-
-  void InvokeCode(Handle<Code> code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  RelocInfo::Mode rmode,
-                  InvokeFlag flag,
-                  CallKind call_kind);
+                  const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Register function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void IsObjectJSObjectType(Register heap_object,
                             Register map,
@@ -1125,9 +1109,9 @@ class MacroAssembler: public Assembler {
   // whether soft or hard floating point ABI is used. These functions
   // abstract parameter passing for the three different ways we call
   // C functions from generated code.
-  void SetCallCDoubleArguments(DwVfpRegister dreg);
-  void SetCallCDoubleArguments(DwVfpRegister dreg1, DwVfpRegister dreg2);
-  void SetCallCDoubleArguments(DwVfpRegister dreg, Register reg);
+  void MovToFloatParameter(DwVfpRegister src);
+  void MovToFloatParameters(DwVfpRegister src1, DwVfpRegister src2);
+  void MovToFloatResult(DwVfpRegister src);
 
   // Calls a C function and cleans up the space for arguments allocated
   // by PrepareCallCFunction. The called function is not allowed to trigger a
@@ -1143,7 +1127,8 @@ class MacroAssembler: public Assembler {
                      int num_reg_arguments,
                      int num_double_arguments);
 
-  void GetCFunctionDoubleResult(const DwVfpRegister dst);
+  void MovFromFloatParameter(DwVfpRegister dst);
+  void MovFromFloatResult(DwVfpRegister dst);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space
@@ -1454,8 +1439,7 @@ class MacroAssembler: public Assembler {
                       Label* done,
                       bool* definitely_mismatches,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void InitializeNewString(Register string,
                            Register length,

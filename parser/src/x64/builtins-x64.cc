@@ -79,14 +79,10 @@ static void CallRuntimePassFunction(
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(rdi);
-  // Push call kind information.
-  __ push(rcx);
   // Function is also the parameter to the runtime call.
   __ push(rdi);
 
   __ CallRuntime(function_id, 1);
-  // Restore call kind information.
-  __ pop(rcx);
   // Restore receiver.
   __ pop(rdi);
 }
@@ -373,13 +369,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
       Handle<Code> code =
           masm->isolate()->builtins()->HandleApiCallConstruct();
-      ParameterCount expected(0);
-      __ InvokeCode(code, expected, expected, RelocInfo::CODE_TARGET,
-                    CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+      __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(rax);
-      __ InvokeFunction(rdi, actual, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      __ InvokeFunction(rdi, actual, CALL_FUNCTION, NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -549,8 +542,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     } else {
       ParameterCount actual(rax);
       // Function must be in rdi.
-      __ InvokeFunction(rdi, actual, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      __ InvokeFunction(rdi, actual, CALL_FUNCTION, NullCallWrapper());
     }
     // Exit the internal frame. Notice that this also removes the empty
     // context and the function left on the stack by the code
@@ -583,16 +575,12 @@ static void CallCompileOptimized(MacroAssembler* masm,
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(rdi);
-  // Push call kind information.
-  __ push(rcx);
   // Function is also the parameter to the runtime call.
   __ push(rdi);
   // Whether to compile in a background thread.
   __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
 
   __ CallRuntime(Runtime::kCompileOptimized, 2);
-  // Restore call kind information.
-  __ pop(rcx);
   // Restore receiver.
   __ pop(rdi);
 }
@@ -844,10 +832,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ movq(rdi, args.GetReceiverOperand());
     __ jmp(&patch_receiver, Label::kNear);
 
-    // Use the global receiver object from the called function as the
-    // receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, rbx, rdi);
+    __ movq(rbx,
+            Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ movq(args.GetArgumentOperand(1), rbx);
@@ -890,7 +878,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ testq(rdx, rdx);
     __ j(zero, &function);
     __ Set(rbx, 0);
-    __ SetCallKind(rcx, CALL_AS_METHOD);
     __ cmpq(rdx, Immediate(1));
     __ j(not_equal, &non_proxy);
 
@@ -917,15 +904,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
              FieldOperand(rdx,
                           SharedFunctionInfo::kFormalParameterCountOffset));
   __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ cmpq(rax, rbx);
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
        RelocInfo::CODE_TARGET);
 
   ParameterCount expected(0);
-  __ InvokeCode(rdx, expected, expected, JUMP_FUNCTION,
-                NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeCode(rdx, expected, expected, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -1025,9 +1010,11 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ movq(rbx, rax);
     __ jmp(&push_receiver, Label::kNear);
 
-    // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
-    CallStubCompiler::FetchGlobalProxy(masm, rbx, rdi);
+    __ movq(rbx,
+            Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+
     // Push the receiver.
     __ bind(&push_receiver);
     __ push(rbx);
@@ -1060,25 +1047,23 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ cmpq(rax, Operand(rbp, kLimitOffset));
     __ j(not_equal, &loop);
 
-    // Invoke the function.
+    // Call the function.
     Label call_proxy;
     ParameterCount actual(rax);
     __ SmiToInteger32(rax, rax);
     __ movq(rdi, Operand(rbp, kFunctionOffset));
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &call_proxy);
-    __ InvokeFunction(rdi, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
+    __ InvokeFunction(rdi, actual, CALL_FUNCTION, NullCallWrapper());
 
     frame_scope.GenerateLeaveFrame();
     __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 
-    // Invoke the function proxy.
+    // Call the function proxy.
     __ bind(&call_proxy);
     __ push(rdi);  // add function proxy as last argument
     __ incq(rax);
     __ Set(rbx, 0);
-    __ SetCallKind(rcx, CALL_AS_METHOD);
     __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
     __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
@@ -1316,8 +1301,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : actual number of arguments
   //  -- rbx : expected number of arguments
-  //  -- rcx : call kind information
-  //  -- rdx : code entry to call
+  //  -- rdi: function (passed through to callee)
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;
@@ -1325,6 +1309,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ IncrementCounter(counters->arguments_adaptors(), 1);
 
   Label enough, too_few;
+  __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpq(rax, rbx);
   __ j(less, &too_few);
   __ cmpq(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));

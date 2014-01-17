@@ -243,7 +243,9 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   git checkout $BRANCHNAME \
     || die "cannot ensure that the current branch is $BRANCHNAME"
   wait_for_lgtm
-  PRESUBMIT_TREE_CHECK="skip" git cl dcommit \
+  PRESUBMIT_TREE_CHECK="skip" git cl presubmit \
+    || die "presubmit failed"
+  PRESUBMIT_TREE_CHECK="skip" git cl dcommit --bypass-hooks \
     || die "failed to commit to $MERGE_TO_BRANCH"
 fi
 

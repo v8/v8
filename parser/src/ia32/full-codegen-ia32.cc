@@ -107,7 +107,6 @@ class JumpPatchSite BASE_EMBEDDED {
 // formal parameter count expected by the function.
 //
 // The live registers are:
-//   o ecx: CallKind
 //   o edi: the JS function object being called (i.e. ourselves)
 //   o esi: our context
 //   o ebp: our caller's frame pointer
@@ -133,22 +132,23 @@ void FullCodeGenerator::Generate() {
   }
 #endif
 
-  // Strict mode functions and builtins need to replace the receiver
-  // with undefined when called as functions (without an explicit
-  // receiver object). ecx is zero for method calls and non-zero for
-  // function calls.
-  if (!info->is_classic_mode() || info->is_native()) {
+  // Classic mode functions and builtins need to replace the receiver with the
+  // global proxy when called as functions (without an explicit receiver
+  // object).
+  if (info->is_classic_mode() && !info->is_native()) {
     Label ok;
-    __ test(ecx, ecx);
-    __ j(zero, &ok, Label::kNear);
     // +1 for return address.
     int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
     __ mov(ecx, Operand(esp, receiver_offset));
-    __ JumpIfSmi(ecx, &ok);
-    __ CmpObjectType(ecx, JS_GLOBAL_PROXY_TYPE, ecx);
+
+    __ cmp(ecx, isolate()->factory()->undefined_value());
     __ j(not_equal, &ok, Label::kNear);
-    __ mov(Operand(esp, receiver_offset),
-           Immediate(isolate()->factory()->undefined_value()));
+
+    __ mov(ecx, GlobalObjectOperand());
+    __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
+
+    __ mov(Operand(esp, receiver_offset), ecx);
+
     __ bind(&ok);
   }
 
@@ -2074,19 +2074,21 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     Expression *value,
     JSGeneratorObject::ResumeMode resume_mode) {
   // The value stays in eax, and is ultimately read by the resumed generator, as
-  // if the CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it.  ebx
-  // will hold the generator object until the activation has been resumed.
+  // if the CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. Or it
+  // is read to throw the value when the resumed generator is already closed.
+  // ebx will hold the generator object until the activation has been resumed.
   VisitForStackValue(generator);
   VisitForAccumulatorValue(value);
   __ pop(ebx);
 
   // Check generator state.
-  Label wrong_state, done;
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
+  Label wrong_state, closed_state, done;
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
   __ cmp(FieldOperand(ebx, JSGeneratorObject::kContinuationOffset),
          Immediate(Smi::FromInt(0)));
-  __ j(less_equal, &wrong_state);
+  __ j(equal, &closed_state);
+  __ j(less, &wrong_state);
 
   // Load suspended function and context.
   __ mov(esi, FieldOperand(ebx, JSGeneratorObject::kContextOffset));
@@ -2155,6 +2157,20 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
   __ Abort(kGeneratorFailedToResume);
+
+  // Reach here when generator is closed.
+  __ bind(&closed_state);
+  if (resume_mode == JSGeneratorObject::NEXT) {
+    // Return completed iterator result when generator is closed.
+    __ push(Immediate(isolate()->factory()->undefined_value()));
+    // Pop value from top-of-stack slot; box result into result register.
+    EmitCreateIteratorResult(true);
+  } else {
+    // Throw the provided value.
+    __ push(eax);
+    __ CallRuntime(Runtime::kThrow, 1);
+  }
+  __ jmp(&done);
 
   // Throw error if we attempt to operate on a running generator.
   __ bind(&wrong_state);
@@ -2553,7 +2569,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position of the IC call.
   SetSourcePosition(expr->position());
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arg_count);
   TypeFeedbackId ast_id = mode == CONTEXTUAL
       ? TypeFeedbackId::None()
       : expr->CallFeedbackId();
@@ -2597,7 +2613,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
 }
 
 
-void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
+void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2609,15 +2625,14 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
-  // Record call targets in unoptimized code.
-  flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
   Handle<Object> uninitialized =
       TypeFeedbackCells::UninitializedSentinel(isolate());
   Handle<Cell> cell = isolate()->factory()->NewCell(uninitialized);
   RecordTypeFeedbackCell(expr->CallFeedbackId(), cell);
   __ mov(ebx, cell);
 
-  CallFunctionStub stub(arg_count, flags);
+  // Record call targets in unoptimized code.
+  CallFunctionStub stub(arg_count, RECORD_CALL_TARGET);
   __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub, expr->CallFeedbackId());
 
@@ -2688,7 +2703,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     // Record source position for debugger.
     SetSourcePosition(expr->position());
-    CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
+    CallFunctionStub stub(arg_count, NO_CALL_FUNCTION_FLAGS);
     __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
@@ -2727,14 +2742,13 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ push(eax);
       // The receiver is implicitly the global receiver. Indicate this by
       // passing the hole to the call function stub.
-      __ push(Immediate(isolate()->factory()->the_hole_value()));
+      __ push(Immediate(isolate()->factory()->undefined_value()));
       __ bind(&call);
     }
 
     // The receiver is either the global receiver or an object found by
-    // LoadContextSlot. That object could be the hole if the receiver is
-    // implicitly the global object.
-    EmitCallWithStub(expr, RECEIVER_MIGHT_BE_IMPLICIT);
+    // LoadContextSlot.
+    EmitCallWithStub(expr);
 
   } else if (property != NULL) {
     { PreservePositionScope scope(masm()->positions_recorder());
@@ -2753,11 +2767,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(callee);
     }
-    // Push the hole as receiver.
-    // It will be correctly replaced in the call stub.
-    __ push(Immediate(isolate()->factory()->the_hole_value()));
+    __ push(Immediate(isolate()->factory()->undefined_value()));
     // Emit function call.
-    EmitCallWithStub(expr, RECEIVER_IS_IMPLICIT);
+    EmitCallWithStub(expr);
   }
 
 #ifdef DEBUG
@@ -3692,8 +3704,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   // InvokeFunction requires the function in edi. Move it in there.
   __ mov(edi, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(edi, count, CALL_FUNCTION,
-                    NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeFunction(edi, count, CALL_FUNCTION, NullCallWrapper());
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ jmp(&done);
 
@@ -4134,10 +4145,8 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     // Call the JS runtime function via a call IC.
     __ Set(ecx, Immediate(expr->name()));
-    ContextualMode mode = NOT_CONTEXTUAL;
-    Handle<Code> ic =
-        isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
-    CallIC(ic, mode, expr->CallRuntimeFeedbackId());
+    Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arg_count);
+    CallIC(ic, NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
     // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   } else {

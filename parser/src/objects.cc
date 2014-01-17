@@ -45,7 +45,6 @@
 #include "isolate-inl.h"
 #include "log.h"
 #include "objects-inl.h"
-#include "objects-visiting.h"
 #include "objects-visiting-inl.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
@@ -1678,6 +1677,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<ExternalDoubleArray[%u]>",
                        ExternalDoubleArray::cast(this)->length());
       break;
+    case FIXED_UINT8_ARRAY_TYPE:
+      accumulator->Add("<FixedUint8Array[%u]>",
+                       FixedUint8Array::cast(this)->length());
+      break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
       SmartArrayPointer<char> debug_name =
@@ -1867,6 +1870,15 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
     case EXTERNAL_FLOAT_ARRAY_TYPE:
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
+    case FIXED_INT8_ARRAY_TYPE:
+    case FIXED_UINT8_ARRAY_TYPE:
+    case FIXED_INT16_ARRAY_TYPE:
+    case FIXED_UINT16_ARRAY_TYPE:
+    case FIXED_INT32_ARRAY_TYPE:
+    case FIXED_UINT32_ARRAY_TYPE:
+    case FIXED_FLOAT32_ARRAY_TYPE:
+    case FIXED_FLOAT64_ARRAY_TYPE:
+    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
       break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
@@ -5378,6 +5390,15 @@ bool JSObject::ReferencesObject(Object* obj) {
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // Raw pixels and external arrays do not reference other
       // objects.
       break;
@@ -5870,6 +5891,15 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         // No contained objects, nothing to do.
         break;
     }
@@ -5924,6 +5954,24 @@ bool JSReceiver::IsSimpleEnum() {
 }
 
 
+static bool FilterKey(Object* key, PropertyAttributes filter) {
+  if ((filter & SYMBOLIC) && key->IsSymbol()) {
+    return true;
+  }
+
+  if ((filter & PRIVATE_SYMBOL) &&
+      key->IsSymbol() && Symbol::cast(key)->is_private()) {
+    return true;
+  }
+
+  if ((filter & STRING) && !key->IsSymbol()) {
+    return true;
+  }
+
+  return false;
+}
+
+
 int Map::NumberOfDescribedProperties(DescriptorFlag which,
                                      PropertyAttributes filter) {
   int result = 0;
@@ -5933,7 +5981,7 @@ int Map::NumberOfDescribedProperties(DescriptorFlag which,
       : NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-        ((filter & SYMBOLIC) == 0 || !descs->GetKey(i)->IsSymbol())) {
+        !FilterKey(descs->GetKey(i), filter)) {
       result++;
     }
   }
@@ -6089,6 +6137,15 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // Ignore getters and setters on pixel and external array elements.
       return;
     case DICTIONARY_ELEMENTS:
@@ -6547,6 +6604,15 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
         return factory->undefined_value();
@@ -9184,38 +9250,6 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
-                                                        bool in_GC) {
-  // AllocationMemento objects are only allocated immediately after objects in
-  // NewSpace. Detecting whether a memento is present involves carefully
-  // checking the object immediately after the current object (if there is one)
-  // to see if it's an AllocationMemento.
-  ASSERT(object->GetHeap()->InNewSpace(object));
-  Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
-      object->Size();
-  Address top;
-  if (in_GC) {
-    top = object->GetHeap()->new_space()->FromSpacePageHigh();
-  } else {
-    top = object->GetHeap()->NewSpaceTop();
-  }
-  if ((ptr_end + AllocationMemento::kSize) <= top) {
-    // There is room in newspace for allocation info. Do we have some?
-    Map** possible_allocation_memento_map =
-        reinterpret_cast<Map**>(ptr_end);
-    if (*possible_allocation_memento_map ==
-        object->GetHeap()->allocation_memento_map()) {
-      AllocationMemento* memento = AllocationMemento::cast(
-          reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-      if (memento->IsValid()) {
-        return memento;
-      }
-    }
-  }
-  return NULL;
-}
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -10326,11 +10360,15 @@ void Code::InvalidateRelocation() {
 
 void Code::InvalidateEmbeddedObjects() {
   Object* undefined = GetHeap()->undefined_value();
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  Cell* undefined_cell = GetHeap()->undefined_cell();
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                  RelocInfo::ModeMask(RelocInfo::CELL);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       it.rinfo()->set_target_object(undefined, SKIP_WRITE_BARRIER);
+    } else if (mode == RelocInfo::CELL) {
+      it.rinfo()->set_target_cell(undefined_cell, SKIP_WRITE_BARRIER);
     }
   }
 }
@@ -10525,13 +10563,12 @@ void Code::FindAllTypes(TypeHandleList* types) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  Isolate* isolate = GetIsolate();
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
     if (object->IsMap()) {
       Handle<Map> map(Map::cast(object));
-      types->Add(handle(IC::MapToType(map), isolate));
+      types->Add(IC::MapToType(map));
     }
   }
 }
@@ -11293,7 +11330,8 @@ bool Code::IsWeakEmbeddedObject(Kind kind, Object* object) {
            FLAG_weak_embedded_maps_in_optimized_code;
   }
 
-  if (object->IsJSObject()) {
+  if (object->IsJSObject() ||
+      (object->IsCell() && Cell::cast(object)->value()->IsJSObject())) {
     return FLAG_weak_embedded_objects_in_optimized_code;
   }
 
@@ -11766,7 +11804,7 @@ bool DependentCode::Contains(DependencyGroup group, Code* code) {
 }
 
 
-void DependentCode::DeoptimizeDependentCodeGroup(
+bool DependentCode::MarkCodeForDeoptimization(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
   ASSERT(AllowCodeDependencyChange::IsAllowed());
@@ -11775,7 +11813,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   int start = starts.at(group);
   int end = starts.at(group + 1);
   int code_entries = starts.number_of_entries();
-  if (start == end) return;
+  if (start == end) return false;
 
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
@@ -11801,6 +11839,16 @@ void DependentCode::DeoptimizeDependentCodeGroup(
     clear_at(i);
   }
   set_number_of_entries(group, 0);
+  return marked;
+}
+
+
+void DependentCode::DeoptimizeDependentCodeGroup(
+    Isolate* isolate,
+    DependentCode::DependencyGroup group) {
+  ASSERT(AllowCodeDependencyChange::IsAllowed());
+  DisallowHeapAllocation no_allocation_scope;
+  bool marked = MarkCodeForDeoptimization(isolate, group);
 
   if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate);
 }
@@ -12722,6 +12770,51 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
           ExternalDoubleArray::cast(object->elements()));
       return ExternalDoubleArray::SetValue(array, index, value);
     }
+    case UINT8_ELEMENTS: {
+      Handle<FixedUint8Array> array(
+          FixedUint8Array::cast(object->elements()));
+      return FixedUint8Array::SetValue(array, index, value);
+    }
+    case UINT8_CLAMPED_ELEMENTS: {
+      Handle<FixedUint8ClampedArray> array(
+          FixedUint8ClampedArray::cast(object->elements()));
+      return FixedUint8ClampedArray::SetValue(array, index, value);
+    }
+    case INT8_ELEMENTS: {
+      Handle<FixedInt8Array> array(
+          FixedInt8Array::cast(object->elements()));
+      return FixedInt8Array::SetValue(array, index, value);
+    }
+    case UINT16_ELEMENTS: {
+      Handle<FixedUint16Array> array(
+          FixedUint16Array::cast(object->elements()));
+      return FixedUint16Array::SetValue(array, index, value);
+    }
+    case INT16_ELEMENTS: {
+      Handle<FixedInt16Array> array(
+          FixedInt16Array::cast(object->elements()));
+      return FixedInt16Array::SetValue(array, index, value);
+    }
+    case UINT32_ELEMENTS: {
+      Handle<FixedUint32Array> array(
+          FixedUint32Array::cast(object->elements()));
+      return FixedUint32Array::SetValue(array, index, value);
+    }
+    case INT32_ELEMENTS: {
+      Handle<FixedInt32Array> array(
+          FixedInt32Array::cast(object->elements()));
+      return FixedInt32Array::SetValue(array, index, value);
+    }
+    case FLOAT32_ELEMENTS: {
+      Handle<FixedFloat32Array> array(
+          FixedFloat32Array::cast(object->elements()));
+      return FixedFloat32Array::SetValue(array, index, value);
+    }
+    case FLOAT64_ELEMENTS: {
+      Handle<FixedFloat64Array> array(
+          FixedFloat64Array::cast(object->elements()));
+      return FixedFloat64Array::SetValue(array, index, value);
+    }
     case DICTIONARY_ELEMENTS:
       return SetDictionaryElement(object, index, value, attributes, strict_mode,
                                   check_prototype,
@@ -12773,6 +12866,21 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
 
 
 const double AllocationSite::kPretenureRatio = 0.60;
+
+
+void AllocationSite::ResetPretenureDecision() {
+  set_pretenure_decision(kUndecided);
+  set_memento_found_count(0);
+  set_memento_create_count(0);
+}
+
+
+PretenureFlag AllocationSite::GetPretenureMode() {
+  PretenureDecision mode = pretenure_decision();
+  // Zombie objects "decide" to be untenured.
+  return (mode == kTenure && GetHeap()->GetPretenureMode() == TENURED)
+      ? TENURED : NOT_TENURED;
+}
 
 
 bool AllocationSite::IsNestedSite() {
@@ -12842,22 +12950,16 @@ MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
 }
 
 
-void AllocationSite::AddDependentCompilationInfo(Reason reason,
+// static
+void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
+                                                 Reason reason,
                                                  CompilationInfo* info) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> dep(dependent_code());
+  DependentCode::DependencyGroup group = site->ToDependencyGroup(reason);
+  Handle<DependentCode> dep(site->dependent_code());
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
-}
-
-
-void AllocationSite::AddDependentCode(Reason reason, Handle<Code> code) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()), group, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+  if (*codes != site->dependent_code()) site->set_dependent_code(*codes);
+  info->dependencies(group)->Add(Handle<HeapObject>(*site), info->zone());
 }
 
 
@@ -12869,16 +12971,24 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
-  if (!IsJSArray()) {
-    return this;
-  }
+  if (!IsJSArray()) return this;
 
-  if (!GetHeap()->InNewSpace(this)) return this;
+  Heap* heap = GetHeap();
+  if (!heap->InNewSpace(this)) return this;
 
-  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this);
-  if (memento == NULL || !memento->IsValid()) {
-    return this;
-  }
+  // Either object is the last object in the new space, or there is another
+  // object of at least word size (the header map word) following it, so
+  // suffices to compare ptr and top here.
+  Address ptr = address() + JSArray::kSize;
+  Address top = heap->NewSpaceTop();
+  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
+  if (ptr == top) return this;
+
+  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  if (candidate->map() != heap->allocation_memento_map()) return this;
+
+  AllocationMemento* memento = AllocationMemento::cast(candidate);
+  if (!memento->IsValid()) return this;
 
   // Walk through to the Allocation Site
   AllocationSite* site = memento->GetAllocationSite();
@@ -13116,11 +13226,21 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS: {
       // External arrays are considered 100% used.
-      ExternalArray* external_array = ExternalArray::cast(elements());
+      FixedArrayBase* external_array = FixedArrayBase::cast(elements());
       *capacity = external_array->length();
       *used = external_array->length();
       break;
+    }
   }
 }
 
@@ -13540,7 +13660,7 @@ void JSObject::GetLocalPropertyNames(
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < real_size; i++) {
       if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-          ((filter & SYMBOLIC) == 0 || !descs->GetKey(i)->IsSymbol())) {
+          !FilterKey(descs->GetKey(i), filter)) {
         storage->set(index++, descs->GetKey(i));
       }
     }
@@ -13628,8 +13748,17 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      int length = ExternalArray::cast(elements())->length();
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS: {
+      int length = FixedArrayBase::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
           storage->set(counter, Smi::FromInt(counter));
@@ -13871,142 +14000,23 @@ class RegExpKey : public HashTableKey {
 };
 
 
-// Utf8StringKey carries a vector of chars as key.
-class Utf8StringKey : public HashTableKey {
- public:
-  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsUtf8EqualTo(string_);
-  }
-
-  uint32_t Hash() {
-    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
-    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateInternalizedStringFromUtf8(string_,
-                                                    chars_,
-                                                    hash_field_);
-  }
-
-  Vector<const char> string_;
-  uint32_t hash_field_;
-  int chars_;  // Caches the number of characters when computing the hash code.
-  uint32_t seed_;
-};
+MaybeObject* OneByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  return heap->AllocateOneByteInternalizedString(string_, hash_field_);
+}
 
 
-template <typename Char>
-class SequentialStringKey : public HashTableKey {
- public:
-  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  uint32_t Hash() {
-    hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
-                                                           string_.length(),
-                                                           seed_);
-
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
+MaybeObject* SubStringOneByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+  return heap->AllocateOneByteInternalizedString(chars, hash_field_);
+}
 
 
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  Vector<const Char> string_;
-  uint32_t hash_field_;
-  uint32_t seed_;
-};
-
-
-
-class OneByteStringKey : public SequentialStringKey<uint8_t> {
- public:
-  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
-      : SequentialStringKey<uint8_t>(str, seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsOneByteEqualTo(string_);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateOneByteInternalizedString(string_, hash_field_);
-  }
-};
-
-
-class SubStringOneByteStringKey : public HashTableKey {
- public:
-  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
-                                     int from,
-                                     int length)
-      : string_(string), from_(from), length_(length) { }
-
-  uint32_t Hash() {
-    ASSERT(length_ >= 0);
-    ASSERT(from_ + length_ <= string_->length());
-    uint8_t* chars = string_->GetChars() + from_;
-    hash_field_ = StringHasher::HashSequentialString(
-        chars, length_, string_->GetHeap()->HashSeed());
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  bool IsMatch(Object* string) {
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return String::cast(string)->IsOneByteEqualTo(chars);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return heap->AllocateOneByteInternalizedString(chars, hash_field_);
-  }
-
- private:
-  Handle<SeqOneByteString> string_;
-  int from_;
-  int length_;
-  uint32_t hash_field_;
-};
-
-
-class TwoByteStringKey : public SequentialStringKey<uc16> {
- public:
-  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
-      : SequentialStringKey<uc16>(str, seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsTwoByteEqualTo(string_);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
-  }
-};
+MaybeObject* TwoByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
+}
 
 
 // InternalizedStringKey carries a string/internalized-string object as key.
@@ -15070,37 +15080,6 @@ bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
 }
 
 
-MaybeObject* StringTable::LookupUtf8String(Vector<const char> str,
-                                           Object** s) {
-  Utf8StringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupOneByteString(Vector<const uint8_t> str,
-                                              Object** s) {
-  OneByteStringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupSubStringOneByteString(
-    Handle<SeqOneByteString> str,
-    int from,
-    int length,
-    Object** s) {
-  SubStringOneByteStringKey key(str, from, length);
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupTwoByteString(Vector<const uc16> str,
-                                              Object** s) {
-  TwoByteStringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
-}
-
-
 MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);
 
@@ -15642,7 +15621,7 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k) &&
-        ((filter & SYMBOLIC) == 0 || !k->IsSymbol())) {
+        !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -16587,9 +16566,8 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
   Handle<Type> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
   // embedded into code.
-  Handle<Type> new_type(value->IsConsString() || value->IsTheHole()
-                        ? Type::Any()
-                        : Type::Constant(value, isolate), isolate);
+  Handle<Type> new_type = value->IsConsString() || value->IsTheHole()
+      ? Type::Any(isolate) : Type::Constant(value, isolate);
 
   if (new_type->Is(old_type)) {
     return old_type;
@@ -16602,7 +16580,7 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
     return new_type;
   }
 
-  return handle(Type::Any(), isolate);
+  return Type::Any(isolate);
 }
 
 
@@ -16624,14 +16602,6 @@ void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
   if (*codes != dependent_code()) set_dependent_code(*codes);
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
       Handle<HeapObject>(this), info->zone());
-}
-
-
-void PropertyCell::AddDependentCode(Handle<Code> code) {
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()),
-      DependentCode::kPropertyCellChangedGroup, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
 }
 
 

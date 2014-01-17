@@ -98,6 +98,14 @@ class VerifyMarkingVisitor: public ObjectVisitor {
     }
   }
 
+  void VisitCell(RelocInfo* rinfo) {
+    Code* code = rinfo->host();
+    ASSERT(rinfo->rmode() == RelocInfo::CELL);
+    if (!Code::IsWeakEmbeddedObject(code->kind(), rinfo->target_cell())) {
+      ObjectVisitor::VisitCell(rinfo);
+    }
+  }
+
  private:
   Heap* heap_;
 };
@@ -726,7 +734,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   static const int kMaxMaxEvacuationCandidates = 1000;
   int number_of_pages = space->CountTotalPages();
   int max_evacuation_candidates =
-      static_cast<int>(sqrt(number_of_pages / 2.0) + 1);
+      static_cast<int>(std::sqrt(number_of_pages / 2.0) + 1);
 
   if (FLAG_stress_compaction || FLAG_always_compact) {
     max_evacuation_candidates = kMaxMaxEvacuationCandidates;
@@ -2551,6 +2559,16 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       if (!table->IsKey(key)) continue;
       uint32_t value_index = table->EntryToValueIndex(i);
       Object* value = table->get(value_index);
+      if (key->IsCell() && !IsMarked(key)) {
+        Cell* cell = Cell::cast(key);
+        Object* object = cell->value();
+        if (IsMarked(object)) {
+          MarkBit mark = Marking::MarkBitFrom(cell);
+          SetMark(cell, mark);
+          Object** value_slot = HeapObject::RawField(cell, Cell::kValueOffset);
+          RecordSlot(value_slot, value_slot, *value_slot);
+        }
+      }
       if (IsMarked(key)) {
         if (!IsMarked(value)) {
           HeapObject* obj = HeapObject::cast(value);

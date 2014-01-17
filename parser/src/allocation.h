@@ -109,6 +109,9 @@ class FreeStoreAllocationPolicy {
 };
 
 
+void* AlignedAlloc(size_t size, size_t alignment);
+void AlignedFree(void *ptr);
+
 } }  // namespace v8::internal
 
 #endif  // V8_ALLOCATION_H_

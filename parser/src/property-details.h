@@ -42,9 +42,12 @@ enum PropertyAttributes {
   SEALED            = DONT_DELETE,
   FROZEN            = SEALED | READ_ONLY,
 
-  SYMBOLIC          = 8,  // Used to filter symbol names
-  DONT_SHOW         = DONT_ENUM | SYMBOLIC,
-  ABSENT            = 16  // Used in runtime to indicate a property is absent.
+  STRING            = 8,  // Used to filter symbols and string names
+  SYMBOLIC          = 16,
+  PRIVATE_SYMBOL    = 32,
+
+  DONT_SHOW         = DONT_ENUM | SYMBOLIC | PRIVATE_SYMBOL,
+  ABSENT            = 64  // Used in runtime to indicate a property is absent.
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
   // a non-existent property.
@@ -55,7 +58,9 @@ namespace v8 {
 namespace internal {
 
 class Smi;
-class Type;
+template<class> class TypeImpl;
+struct HeapTypeConfig;
+typedef TypeImpl<HeapTypeConfig> Type;
 class TypeInfo;
 
 // Type of properties.
@@ -102,9 +107,7 @@ class Representation {
   static Representation Integer8() { return Representation(kInteger8); }
   static Representation UInteger8() { return Representation(kUInteger8); }
   static Representation Integer16() { return Representation(kInteger16); }
-  static Representation UInteger16() {
-    return Representation(kUInteger16);
-  }
+  static Representation UInteger16() { return Representation(kUInteger16); }
   static Representation Smi() { return Representation(kSmi); }
   static Representation Integer32() { return Representation(kInteger32); }
   static Representation Double() { return Representation(kDouble); }

@@ -362,6 +362,56 @@ void NewStringAddStub::InitializeInterfaceDescriptor(
 }
 
 
+void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ArgumentAdaptorCall);
+    static Register registers[] = { a1,  // JSFunction
+                                    cp,  // context
+                                    a0,  // actual number of arguments
+                                    a2,  // expected number of arguments
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // JSFunction
+        Representation::Tagged(),     // context
+        Representation::Integer32(),  // actual number of arguments
+        Representation::Integer32(),  // expected number of arguments
+    };
+    descriptor->register_param_count_ = 4;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::KeyedCall);
+    static Register registers[] = { cp,  // context
+                                    a2,  // key
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // context
+        Representation::Tagged(),     // key
+    };
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::NamedCall);
+    static Register registers[] = { cp,  // context
+                                    a2,  // name
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // context
+        Representation::Tagged(),     // name
+    };
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 
@@ -1425,13 +1475,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ PrepareCallCFunction(0, 2, scratch2);
-      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ MovToFloatParameters(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()),
           0, 2);
     }
     __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    __ MovFromFloatResult(double_result);
     __ jmp(&done);
 
     __ bind(&int_exponent_convert);
@@ -1509,13 +1559,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ PrepareCallCFunction(0, 2, scratch);
-      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ MovToFloatParameters(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()),
           0, 2);
     }
     __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    __ MovFromFloatResult(double_result);
 
     __ bind(&done);
     __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);
@@ -3332,43 +3382,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1: pushed function (to be verified)
   __ JumpIfSmi(a1, &non_function);
 
-  // The receiver might implicitly be the global object. This is
-  // indicated by passing the hole as the receiver to the call
-  // function stub.
-  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
-    Label try_call, call, patch_current_context;
-    if (ReceiverMightBeImplicit()) {
-      // Get the receiver from the stack.
-      // function, receiver [, arguments]
-      __ lw(t0, MemOperand(sp, argc_ * kPointerSize));
-      // Call as function is indicated with the hole.
-      __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-      __ Branch(&try_call, ne, t0, Operand(at));
-    }
-    // Patch the receiver on the stack with the global receiver object.
-    // Goto slow case if we do not have a function.
-    __ GetObjectType(a1, a3, a3);
-    __ Branch(&patch_current_context, ne, a3, Operand(JS_FUNCTION_TYPE));
-    CallStubCompiler::FetchGlobalProxy(masm, a3, a1);
-    __ sw(a3, MemOperand(sp, argc_ * kPointerSize));
-    __ Branch(&call);
-
-    __ bind(&patch_current_context);
-    __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
-    __ sw(t0, MemOperand(sp, argc_ * kPointerSize));
-    __ Branch(&slow);
-
-    __ bind(&try_call);
-    // Get the map of the function object.
-    __ GetObjectType(a1, a3, a3);
-    __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
-
-    __ bind(&call);
-  } else {
-    // Get the map of the function object.
-    __ GetObjectType(a1, a3, a3);
-    __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
-  }
+  // Goto slow case if we do not have a function.
+  __ GetObjectType(a1, a3, a3);
+  __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -3378,22 +3394,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1: pushed function
   ParameterCount actual(argc_);
 
-  if (ReceiverMightBeImplicit()) {
-    Label call_as_function;
-    __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-    __ Branch(&call_as_function, eq, t0, Operand(at));
-    __ InvokeFunction(a1,
-                      actual,
-                      JUMP_FUNCTION,
-                      NullCallWrapper(),
-                      CALL_AS_METHOD);
-    __ bind(&call_as_function);
-  }
-  __ InvokeFunction(a1,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper(),
-                    CALL_AS_FUNCTION);
+  __ InvokeFunction(a1, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // Slow-case: Non-function called.
   __ bind(&slow);
@@ -3411,8 +3412,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ push(a1);  // Put proxy as additional argument.
   __ li(a0, Operand(argc_ + 1, RelocInfo::NONE32));
   __ li(a2, Operand(0, RelocInfo::NONE32));
-  __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
-  __ SetCallKind(t1, CALL_AS_FUNCTION);
+  __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -3425,8 +3425,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
   __ li(a0, Operand(argc_));  // Set up the number of arguments.
   __ mov(a2, zero_reg);
-  __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION);
-  __ SetCallKind(t1, CALL_AS_METHOD);
+  __ GetBuiltinFunction(a1, Builtins::CALL_NON_FUNCTION);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -3462,15 +3461,14 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   Label do_call;
   __ bind(&slow);
   __ Branch(&non_function_call, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
-  __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
   __ jmp(&do_call);
 
   __ bind(&non_function_call);
-  __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(a1, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing r0).
   __ li(a2, Operand(0, RelocInfo::NONE32));
-  __ SetCallKind(t1, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -5653,8 +5651,7 @@ void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
   __ Subu(a0, a0, 1);
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   ParameterCount argument_count(a0);
-  __ InvokeFunction(
-      a1, argument_count, JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeFunction(a1, argument_count, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -5732,9 +5729,7 @@ template<class T>
 static void CreateArrayDispatch(MacroAssembler* masm,
                                 AllocationSiteOverrideMode mode) {
   if (mode == DISABLE_ALLOCATION_SITES) {
-    T stub(GetInitialFastElementsKind(),
-           CONTEXT_CHECK_REQUIRED,
-           mode);
+    T stub(GetInitialFastElementsKind(), mode);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
     int last_index = GetSequenceIndexFromFastElementsKind(
@@ -5783,13 +5778,11 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
     ArraySingleArgumentConstructorStub stub_holey(holey_initial,
-                                                  CONTEXT_CHECK_REQUIRED,
                                                   DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub_holey);
 
     __ bind(&normal_sequence);
     ArraySingleArgumentConstructorStub stub(initial,
-                                            CONTEXT_CHECK_REQUIRED,
                                             DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
@@ -5840,7 +5833,7 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
     T stub(kind);
     stub.GetCode(isolate);
     if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
-      T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
+      T stub1(kind, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate);
     }
   }

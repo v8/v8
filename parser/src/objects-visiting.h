@@ -47,13 +47,15 @@ namespace internal {
 class StaticVisitorBase : public AllStatic {
  public:
 #define VISITOR_ID_LIST(V)    \
-  V(SeqOneByteString)           \
+  V(SeqOneByteString)         \
   V(SeqTwoByteString)         \
   V(ShortcutCandidate)        \
   V(ByteArray)                \
   V(FreeSpace)                \
   V(FixedArray)               \
   V(FixedDoubleArray)         \
+  V(FixedTypedArray)          \
+  V(FixedFloat64Array)        \
   V(ConstantPoolArray)        \
   V(NativeContext)            \
   V(AllocationSite)           \
@@ -320,6 +322,10 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   INLINE(static int VisitFixedDoubleArray(Map* map, HeapObject* object)) {
     int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
     return FixedDoubleArray::SizeFor(length);
+  }
+
+  INLINE(static int VisitFixedTypedArray(Map* map, HeapObject* object)) {
+    return reinterpret_cast<FixedTypedArrayBase*>(object)->size();
   }
 
   INLINE(static int VisitJSObject(Map* map, HeapObject* object)) {

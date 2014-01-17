@@ -77,12 +77,9 @@ class LChunkBuilder;
   V(BoundsCheck)                               \
   V(BoundsCheckBaseIndexInformation)           \
   V(Branch)                                    \
-  V(CallConstantFunction)                      \
+  V(CallWithDescriptor)                        \
+  V(CallJSFunction)                            \
   V(CallFunction)                              \
-  V(CallGlobal)                                \
-  V(CallKeyed)                                 \
-  V(CallKnownGlobal)                           \
-  V(CallNamed)                                 \
   V(CallNew)                                   \
   V(CallNewArray)                              \
   V(CallRuntime)                               \
@@ -210,7 +207,8 @@ class LChunkBuilder;
   V(InobjectFields)                            \
   V(OsrEntries)                                \
   V(ExternalMemory)                            \
-  V(StringChars)
+  V(StringChars)                               \
+  V(TypedArrayElements)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)                              \
@@ -645,7 +643,6 @@ class HValue : public ZoneObject {
 
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
-  int LoopWeight() const;
 
   // Note: Never call this method for an unlinked value.
   Isolate* isolate() const;
@@ -1993,11 +1990,10 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
                             FunctionLiteral* function,
                             InliningKind inlining_kind,
                             Variable* arguments_var,
-                            HArgumentsObject* arguments_object,
-                            bool undefined_receiver) {
+                            HArgumentsObject* arguments_object) {
     return new(zone) HEnterInlined(closure, arguments_count, function,
                                    inlining_kind, arguments_var,
-                                   arguments_object, undefined_receiver, zone);
+                                   arguments_object, zone);
   }
 
   void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
@@ -2011,7 +2007,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   void set_arguments_pushed() { arguments_pushed_ = true; }
   FunctionLiteral* function() const { return function_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
-  bool undefined_receiver() const { return undefined_receiver_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
@@ -2029,7 +2024,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
                 InliningKind inlining_kind,
                 Variable* arguments_var,
                 HArgumentsObject* arguments_object,
-                bool undefined_receiver,
                 Zone* zone)
       : closure_(closure),
         arguments_count_(arguments_count),
@@ -2038,7 +2032,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_object_(arguments_object),
-        undefined_receiver_(undefined_receiver),
         return_targets_(2, zone) {
   }
 
@@ -2049,7 +2042,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   InliningKind inlining_kind_;
   Variable* arguments_var_;
   HArgumentsObject* arguments_object_;
-  bool undefined_receiver_;
   ZoneList<HBasicBlock*> return_targets_;
 };
 
@@ -2286,6 +2278,137 @@ class HBinaryCall : public HCall<2> {
 };
 
 
+class HCallJSFunction V8_FINAL : public HCall<1> {
+ public:
+  static HCallJSFunction* New(Zone* zone,
+                              HValue* context,
+                              HValue* function,
+                              int argument_count,
+                              bool pass_argument_count);
+
+  HValue* function() { return OperandAt(0); }
+
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  virtual Representation RequiredInputRepresentation(
+      int index) V8_FINAL V8_OVERRIDE {
+    ASSERT(index == 0);
+    return Representation::Tagged();
+  }
+
+  bool pass_argument_count() const { return pass_argument_count_; }
+
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallJSFunction)
+
+ private:
+  // The argument count includes the receiver.
+  HCallJSFunction(HValue* function,
+                  int argument_count,
+                  bool pass_argument_count,
+                  bool has_stack_check)
+      : HCall<1>(argument_count),
+        pass_argument_count_(pass_argument_count),
+        has_stack_check_(has_stack_check) {
+      SetOperandAt(0, function);
+  }
+
+  bool pass_argument_count_;
+  bool has_stack_check_;
+};
+
+
+class HCallWithDescriptor V8_FINAL : public HInstruction {
+ public:
+  static HCallWithDescriptor* New(Zone* zone, HValue* context,
+      HValue* target,
+      int argument_count,
+      const CallInterfaceDescriptor* descriptor,
+      Vector<HValue*>& operands) {
+    ASSERT(operands.length() == descriptor->environment_length());
+    HCallWithDescriptor* res =
+        new(zone) HCallWithDescriptor(target, argument_count,
+                                      descriptor, operands, zone);
+    return res;
+  }
+
+  virtual int OperandCount() V8_FINAL V8_OVERRIDE { return values_.length(); }
+  virtual HValue* OperandAt(int index) const V8_FINAL V8_OVERRIDE {
+    return values_[index];
+  }
+
+  virtual Representation RequiredInputRepresentation(
+      int index) V8_FINAL V8_OVERRIDE {
+    if (index == 0) {
+      return Representation::Tagged();
+    } else {
+      int par_index = index - 1;
+      ASSERT(par_index < descriptor_->environment_length());
+      return descriptor_->GetParameterRepresentation(par_index);
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor)
+
+  virtual HType CalculateInferredType() V8_FINAL V8_OVERRIDE {
+    return HType::Tagged();
+  }
+
+  virtual int argument_count() const {
+    return argument_count_;
+  }
+
+  virtual int argument_delta() const V8_OVERRIDE {
+    return -argument_count_;
+  }
+
+  const CallInterfaceDescriptor* descriptor() const {
+    return descriptor_;
+  }
+
+  HValue* target() {
+    return OperandAt(0);
+  }
+
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+ private:
+  // The argument count includes the receiver.
+  HCallWithDescriptor(HValue* target,
+                      int argument_count,
+                      const CallInterfaceDescriptor* descriptor,
+                      Vector<HValue*>& operands,
+                      Zone* zone)
+    : descriptor_(descriptor),
+      values_(descriptor->environment_length() + 1, zone) {
+    argument_count_ = argument_count;
+    AddOperand(target, zone);
+    for (int i = 0; i < operands.length(); i++) {
+      AddOperand(operands[i], zone);
+    }
+    this->set_representation(Representation::Tagged());
+    this->SetAllSideEffects();
+  }
+
+  void AddOperand(HValue* v, Zone* zone) {
+    values_.Add(NULL, zone);
+    SetOperandAt(values_.length() - 1, v);
+  }
+
+  void InternalSetOperandAt(int index,
+                            HValue* value) V8_FINAL V8_OVERRIDE {
+    values_[index] = value;
+  }
+
+  const CallInterfaceDescriptor* descriptor_;
+  ZoneList<HValue*> values_;
+  int argument_count_;
+};
+
+
 class HInvokeFunction V8_FINAL : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HInvokeFunction, HValue*, int);
@@ -2335,83 +2458,6 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
 };
 
 
-class HCallConstantFunction V8_FINAL : public HCall<0> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HCallConstantFunction,
-                                 Handle<JSFunction>,
-                                 int);
-
-  Handle<JSFunction> function() const { return function_; }
-  int formal_parameter_count() const { return formal_parameter_count_; }
-
-  bool IsApplyFunction() const {
-    return function_->code() ==
-        function_->GetIsolate()->builtins()->builtin(Builtins::kFunctionApply);
-  }
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
-    return has_stack_check_;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallConstantFunction)
-
- private:
-  HCallConstantFunction(Handle<JSFunction> function, int argument_count)
-      : HCall<0>(argument_count),
-        function_(function),
-        formal_parameter_count_(function->shared()->formal_parameter_count()),
-        has_stack_check_(
-            function->code()->kind() == Code::FUNCTION ||
-            function->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
-
-  Handle<JSFunction> function_;
-  int formal_parameter_count_;
-  bool has_stack_check_;
-};
-
-
-class HCallKeyed V8_FINAL : public HBinaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallKeyed, HValue*, int);
-
-  HValue* context() { return first(); }
-  HValue* key() { return second(); }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallKeyed)
-
- private:
-  HCallKeyed(HValue* context, HValue* key, int argument_count)
-      : HBinaryCall(context, key, argument_count) {
-  }
-};
-
-
-class HCallNamed V8_FINAL : public HUnaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallNamed, Handle<String>, int);
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  HValue* context() { return value(); }
-  Handle<String> name() const { return name_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallNamed)
-
- private:
-  HCallNamed(HValue* context, Handle<String> name, int argument_count)
-      : HUnaryCall(context, argument_count), name_(name) {
-  }
-
-  Handle<String> name_;
-};
-
-
 enum CallMode {
   NORMAL_CALL,
   TAIL_CALL,
@@ -2445,60 +2491,6 @@ class HCallFunction V8_FINAL : public HBinaryCall {
       : HBinaryCall(context, function, argument_count), call_mode_(mode) {
   }
   CallMode call_mode_;
-};
-
-
-class HCallGlobal V8_FINAL : public HUnaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallGlobal, Handle<String>, int);
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  HValue* context() { return value(); }
-  Handle<String> name() const { return name_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallGlobal)
-
- private:
-  HCallGlobal(HValue* context, Handle<String> name, int argument_count)
-      : HUnaryCall(context, argument_count), name_(name) {
-  }
-
-  Handle<String> name_;
-};
-
-
-class HCallKnownGlobal V8_FINAL : public HCall<0> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HCallKnownGlobal, Handle<JSFunction>, int);
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  Handle<JSFunction> target() const { return target_; }
-  int formal_parameter_count() const { return formal_parameter_count_; }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
-    return has_stack_check_;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallKnownGlobal)
-
- private:
-  HCallKnownGlobal(Handle<JSFunction> target, int argument_count)
-      : HCall<0>(argument_count),
-        target_(target),
-        formal_parameter_count_(target->shared()->formal_parameter_count()),
-        has_stack_check_(
-            target->code()->kind() == Code::FUNCTION ||
-            target->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
-
-  Handle<JSFunction> target_;
-  int formal_parameter_count_;
-  bool has_stack_check_;
 };
 
 
@@ -6375,6 +6367,12 @@ class HLoadKeyed V8_FINAL
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
   }
+  bool is_fixed_typed_array() const {
+    return IsFixedTypedArrayElementsKind(elements_kind());
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* dependency() {
@@ -6403,9 +6401,10 @@ class HLoadKeyed V8_FINAL
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    // kind_fast:       tagged[int32] (none)
-    // kind_double:     tagged[int32] (none)
-    // kind_external: external[int32] (none)
+    // kind_fast:                 tagged[int32] (none)
+    // kind_double:               tagged[int32] (none)
+    // kind_fixed_typed_array:    tagged[int32] (none)
+    // kind_external:             external[int32] (none)
     if (index == 0) {
       return is_external() ? Representation::External()
           : Representation::Tagged();
@@ -6455,7 +6454,7 @@ class HLoadKeyed V8_FINAL
     SetOperandAt(1, key);
     SetOperandAt(2, dependency != NULL ? dependency : obj);
 
-    if (!is_external()) {
+    if (!is_typed_elements()) {
       // I can detect the case between storing double (holey and fast) and
       // smi/object by looking at elements_kind_.
       ASSERT(IsFastSmiOrObjectElementsKind(elements_kind) ||
@@ -6482,13 +6481,21 @@ class HLoadKeyed V8_FINAL
       }
     } else {
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-          elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+          elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+          elements_kind == FLOAT32_ELEMENTS ||
+          elements_kind == FLOAT64_ELEMENTS) {
         set_representation(Representation::Double());
       } else {
         set_representation(Representation::Integer32());
       }
 
-      SetGVNFlag(kDependsOnExternalMemory);
+      if (is_external()) {
+        SetGVNFlag(kDependsOnExternalMemory);
+      } else if (is_fixed_typed_array()) {
+        SetGVNFlag(kDependsOnTypedArrayElements);
+      } else {
+        UNREACHABLE();
+      }
       // Native code could change the specialized array.
       SetGVNFlag(kDependsOnCalls);
     }
@@ -6747,10 +6754,11 @@ class HStoreKeyed V8_FINAL
                                  ElementsKind, StoreFieldOrKeyedMode);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    // kind_fast:       tagged[int32] = tagged
-    // kind_double:     tagged[int32] = double
-    // kind_smi   :     tagged[int32] = smi
-    // kind_external: external[int32] = (double | int32)
+    // kind_fast:               tagged[int32] = tagged
+    // kind_double:             tagged[int32] = double
+    // kind_smi   :             tagged[int32] = smi
+    // kind_fixed_typed_array:  tagged[int32] = (double | int32)
+    // kind_external:           external[int32] = (double | int32)
     if (index == 0) {
       return is_external() ? Representation::External()
                            : Representation::Tagged();
@@ -6770,12 +6778,21 @@ class HStoreKeyed V8_FINAL
       return Representation::Smi();
     }
 
-    return is_external() ? Representation::Integer32()
-                         : Representation::Tagged();
+    return is_external() || is_fixed_typed_array()
+        ? Representation::Integer32()
+        : Representation::Tagged();
   }
 
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
+  }
+
+  bool is_fixed_typed_array() const {
+    return IsFixedTypedArrayElementsKind(elements_kind());
+  }
+
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
   }
 
   virtual Representation observed_input_representation(int index) V8_OVERRIDE {
@@ -6792,7 +6809,7 @@ class HStoreKeyed V8_FINAL
     if (IsFastSmiElementsKind(elements_kind())) {
       return Representation::Smi();
     }
-    if (is_external()) {
+    if (is_typed_elements()) {
       return Representation::Integer32();
     }
     // For fast object elements kinds, don't assume anything.
@@ -6877,13 +6894,18 @@ class HStoreKeyed V8_FINAL
       SetGVNFlag(kChangesDoubleArrayElements);
     } else if (IsFastSmiElementsKind(elements_kind)) {
       SetGVNFlag(kChangesArrayElements);
+    } else if (is_fixed_typed_array()) {
+      SetGVNFlag(kChangesTypedArrayElements);
+      SetFlag(kAllowUndefinedAsNaN);
     } else {
       SetGVNFlag(kChangesArrayElements);
     }
 
     // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
-    if (elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
-        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+    if ((elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
+        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) ||
+        (elements_kind >= UINT8_ELEMENTS &&
+        elements_kind <= INT32_ELEMENTS)) {
       SetFlag(kTruncatingToInt32);
     }
   }

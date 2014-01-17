@@ -1737,7 +1737,7 @@ class Call V8_FINAL : public Expression {
 
   // Type feedback information.
   TypeFeedbackId CallFeedbackId() const { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, CallKind call_kind);
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
   }
@@ -2068,7 +2068,7 @@ class CompareOperation V8_FINAL : public Expression {
         op_(op),
         left_(left),
         right_(right),
-        combined_type_(Type::None(), isolate) {
+        combined_type_(Type::None(isolate)) {
     ASSERT(Token::IsCompareOp(op));
   }
 

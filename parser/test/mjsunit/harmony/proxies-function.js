@@ -763,8 +763,8 @@ for (var i = 0; i < 10; i++) {
   assertEquals(Realm.shared.gg, gp());
 
   with (this) {
-    assertEquals(Realm.shared.fg, fp());
-    assertEquals(Realm.shared.gg, gp());
+    assertEquals(this, fp());
+    assertEquals(this, gp());
   }
 
   with ({}) {

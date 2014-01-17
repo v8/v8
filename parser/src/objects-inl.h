@@ -41,6 +41,7 @@
 #include "conversions-inl.h"
 #include "heap.h"
 #include "isolate.h"
+#include "heap-inl.h"
 #include "property.h"
 #include "spaces.h"
 #include "store-buffer.h"
@@ -48,6 +49,7 @@
 #include "factory.h"
 #include "incremental-marking.h"
 #include "transitions-inl.h"
+#include "objects-visiting.h"
 
 namespace v8 {
 namespace internal {
@@ -84,6 +86,13 @@ PropertyDetails PropertyDetails::AsDeleted() {
     return reinterpret_cast<type*>(object);     \
   }
 
+
+#define FIXED_TYPED_ARRAY_CAST_ACCESSOR(type)   \
+  template<>                                    \
+  type* type::cast(Object* object) {            \
+    SLOW_ASSERT(object->Is##type());            \
+    return reinterpret_cast<type*>(object);     \
+  }
 
 #define INT_ACCESSORS(holder, name, offset)                             \
   int holder::name() { return READ_INT_FIELD(this, offset); }           \
@@ -133,7 +142,8 @@ PropertyDetails PropertyDetails::AsDeleted() {
 
 
 bool Object::IsFixedArrayBase() {
-  return IsFixedArray() || IsFixedDoubleArray() || IsConstantPoolArray();
+  return IsFixedArray() || IsFixedDoubleArray() || IsConstantPoolArray() ||
+         IsFixedTypedArrayBase() || IsExternalArray();
 }
 
 
@@ -261,7 +271,8 @@ bool Object::IsExternalTwoByteString() {
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
-  return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray();
+  return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray() ||
+         IsFixedTypedArrayBase();
 }
 
 
@@ -448,6 +459,133 @@ uc32 FlatStringReader::Get(int index) {
 }
 
 
+template <typename Char>
+class SequentialStringKey : public HashTableKey {
+ public:
+  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) { }
+
+  virtual uint32_t Hash() {
+    hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
+                                                           string_.length(),
+                                                           seed_);
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  virtual uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  Vector<const Char> string_;
+  uint32_t hash_field_;
+  uint32_t seed_;
+};
+
+
+class OneByteStringKey : public SequentialStringKey<uint8_t> {
+ public:
+  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
+      : SequentialStringKey<uint8_t>(str, seed) { }
+
+  virtual bool IsMatch(Object* string) {
+    return String::cast(string)->IsOneByteEqualTo(string_);
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap);
+};
+
+
+class SubStringOneByteStringKey : public HashTableKey {
+ public:
+  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
+                                     int from,
+                                     int length)
+      : string_(string), from_(from), length_(length) { }
+
+  virtual uint32_t Hash() {
+    ASSERT(length_ >= 0);
+    ASSERT(from_ + length_ <= string_->length());
+    uint8_t* chars = string_->GetChars() + from_;
+    hash_field_ = StringHasher::HashSequentialString(
+        chars, length_, string_->GetHeap()->HashSeed());
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  virtual uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  virtual bool IsMatch(Object* string) {
+    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+    return String::cast(string)->IsOneByteEqualTo(chars);
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap);
+
+ private:
+  Handle<SeqOneByteString> string_;
+  int from_;
+  int length_;
+  uint32_t hash_field_;
+};
+
+
+class TwoByteStringKey : public SequentialStringKey<uc16> {
+ public:
+  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
+      : SequentialStringKey<uc16>(str, seed) { }
+
+  virtual bool IsMatch(Object* string) {
+    return String::cast(string)->IsTwoByteEqualTo(string_);
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap);
+};
+
+
+// Utf8StringKey carries a vector of chars as key.
+class Utf8StringKey : public HashTableKey {
+ public:
+  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) { }
+
+  virtual bool IsMatch(Object* string) {
+    return String::cast(string)->IsUtf8EqualTo(string_);
+  }
+
+  virtual uint32_t Hash() {
+    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
+    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+  virtual uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap) {
+    if (hash_field_ == 0) Hash();
+    return heap->AllocateInternalizedStringFromUtf8(string_,
+                                                    chars_,
+                                                    hash_field_);
+  }
+
+  Vector<const char> string_;
+  uint32_t hash_field_;
+  int chars_;  // Caches the number of characters when computing the hash code.
+  uint32_t seed_;
+};
+
+
 bool Object::IsNumber() {
   return IsSmi() || IsHeapNumber();
 }
@@ -485,6 +623,27 @@ TYPE_CHECKER(ExternalIntArray, EXTERNAL_INT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalUnsignedIntArray, EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalFloatArray, EXTERNAL_FLOAT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalDoubleArray, EXTERNAL_DOUBLE_ARRAY_TYPE)
+
+
+bool Object::IsFixedTypedArrayBase() {
+  if (!Object::IsHeapObject()) return false;
+
+  InstanceType instance_type =
+      HeapObject::cast(this)->map()->instance_type();
+  return (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
+          instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE);
+}
+
+
+TYPE_CHECKER(FixedUint8Array, FIXED_UINT8_ARRAY_TYPE)
+TYPE_CHECKER(FixedInt8Array, FIXED_INT8_ARRAY_TYPE)
+TYPE_CHECKER(FixedUint16Array, FIXED_UINT16_ARRAY_TYPE)
+TYPE_CHECKER(FixedInt16Array, FIXED_INT16_ARRAY_TYPE)
+TYPE_CHECKER(FixedUint32Array, FIXED_UINT32_ARRAY_TYPE)
+TYPE_CHECKER(FixedInt32Array, FIXED_INT32_ARRAY_TYPE)
+TYPE_CHECKER(FixedFloat32Array, FIXED_FLOAT32_ARRAY_TYPE)
+TYPE_CHECKER(FixedFloat64Array, FIXED_FLOAT64_ARRAY_TYPE)
+TYPE_CHECKER(FixedUint8ClampedArray, FIXED_UINT8_CLAMPED_ARRAY_TYPE)
 
 
 bool MaybeObject::IsFailure() {
@@ -1304,9 +1463,8 @@ void AllocationSite::Initialize() {
   set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::FromInt(0));
-  set_memento_create_count(Smi::FromInt(0));
-  set_memento_found_count(Smi::FromInt(0));
-  set_pretenure_decision(Smi::FromInt(0));
+  set_pretenure_data(Smi::FromInt(0));
+  set_pretenure_create_count(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
                      SKIP_WRITE_BARRIER);
 }
@@ -1315,7 +1473,7 @@ void AllocationSite::Initialize() {
 void AllocationSite::MarkZombie() {
   ASSERT(!IsZombie());
   Initialize();
-  set_pretenure_decision(Smi::FromInt(kZombie));
+  set_pretenure_decision(kZombie);
 }
 
 
@@ -1367,45 +1525,62 @@ inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
 }
 
 
+inline void AllocationSite::set_memento_found_count(int count) {
+  int value = pretenure_data()->value();
+  // Verify that we can count more mementos than we can possibly find in one
+  // new space collection.
+  ASSERT((GetHeap()->MaxSemiSpaceSize() /
+          (StaticVisitorBase::kMinObjectSizeInWords * kPointerSize +
+           AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
+  ASSERT(count < MementoFoundCountBits::kMax);
+  set_pretenure_data(
+      Smi::FromInt(MementoFoundCountBits::update(value, count)),
+      SKIP_WRITE_BARRIER);
+}
+
 inline bool AllocationSite::IncrementMementoFoundCount() {
   if (IsZombie()) return false;
 
-  int value = memento_found_count()->value();
-  set_memento_found_count(Smi::FromInt(value + 1));
+  int value = memento_found_count();
+  set_memento_found_count(value + 1);
   return value == 0;
 }
 
 
 inline void AllocationSite::IncrementMementoCreateCount() {
   ASSERT(FLAG_allocation_site_pretenuring);
-  int value = memento_create_count()->value();
-  set_memento_create_count(Smi::FromInt(value + 1));
+  int value = memento_create_count();
+  set_memento_create_count(value + 1);
 }
 
 
 inline bool AllocationSite::DigestPretenuringFeedback() {
-  bool decision_made = false;
-  if (!PretenuringDecisionMade()) {
-    int create_count = memento_create_count()->value();
-    if (create_count >= kPretenureMinimumCreated) {
-      int found_count = memento_found_count()->value();
-      double ratio = static_cast<double>(found_count) / create_count;
-      if (FLAG_trace_track_allocation_sites) {
-        PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
-               static_cast<void*>(this), create_count, found_count, ratio);
-      }
-      int result = ratio >= kPretenureRatio ? kTenure : kDontTenure;
-      set_pretenure_decision(Smi::FromInt(result));
-      decision_made = true;
-      // TODO(mvstanton): if the decision represents a change, any dependent
-      // code registered for pretenuring changes should be deopted.
+  bool decision_changed = false;
+  int create_count = memento_create_count();
+  if (create_count >= kPretenureMinimumCreated) {
+    int found_count = memento_found_count();
+    double ratio = static_cast<double>(found_count) / create_count;
+    if (FLAG_trace_track_allocation_sites) {
+      PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
+             static_cast<void*>(this), create_count, found_count, ratio);
+    }
+    int current_mode = GetPretenureMode();
+    PretenureDecision result = ratio >= kPretenureRatio
+        ? kTenure
+        : kDontTenure;
+    set_pretenure_decision(result);
+    if (current_mode != GetPretenureMode()) {
+      decision_changed = true;
+      dependent_code()->MarkCodeForDeoptimization(
+          GetIsolate(),
+          DependentCode::kAllocationSiteTenuringChangedGroup);
     }
   }
 
   // Clear feedback calculation fields until the next gc.
-  set_memento_found_count(Smi::FromInt(0));
-  set_memento_create_count(Smi::FromInt(0));
-  return decision_made;
+  set_memento_found_count(0);
+  set_memento_create_count(0);
+  return decision_changed;
 }
 
 
@@ -1938,8 +2113,7 @@ void Object::VerifyApiCallResultType() {
 
 
 FixedArrayBase* FixedArrayBase::cast(Object* object) {
-  ASSERT(object->IsFixedArray() || object->IsFixedDoubleArray() ||
-         object->IsConstantPoolArray());
+  ASSERT(object->IsFixedArrayBase());
   return reinterpret_cast<FixedArrayBase*>(object);
 }
 
@@ -2618,6 +2792,7 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedDoubleArray)
+CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(ConstantPoolArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
@@ -2686,6 +2861,14 @@ CAST_ACCESSOR(ExternalDoubleArray)
 CAST_ACCESSOR(ExternalPixelArray)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(AccessorInfo)
+
+template <class Traits>
+FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
+  SLOW_ASSERT(object->IsHeapObject() &&
+      HeapObject::cast(object)->map()->instance_type() ==
+          Traits::kInstanceType);
+  return reinterpret_cast<FixedTypedArray<Traits>*>(object);
+}
 
 
 #define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
@@ -3462,6 +3645,133 @@ void ExternalDoubleArray::set(int index, double value) {
 }
 
 
+int FixedTypedArrayBase::size() {
+  InstanceType instance_type = map()->instance_type();
+  int element_size;
+  switch (instance_type) {
+    case FIXED_UINT8_ARRAY_TYPE:
+    case FIXED_INT8_ARRAY_TYPE:
+    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
+      element_size = 1;
+      break;
+    case FIXED_UINT16_ARRAY_TYPE:
+    case FIXED_INT16_ARRAY_TYPE:
+      element_size = 2;
+      break;
+    case FIXED_UINT32_ARRAY_TYPE:
+    case FIXED_INT32_ARRAY_TYPE:
+    case FIXED_FLOAT32_ARRAY_TYPE:
+      element_size = 4;
+      break;
+    case FIXED_FLOAT64_ARRAY_TYPE:
+      element_size = 8;
+      break;
+    default:
+      UNREACHABLE();
+      return 0;
+  }
+  return OBJECT_POINTER_ALIGN(kDataOffset + length() * element_size);
+}
+
+
+template <class Traits>
+typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  ElementType* ptr = reinterpret_cast<ElementType*>(
+      FIELD_ADDR(this, kDataOffset));
+  return ptr[index];
+}
+
+template <class Traits>
+void FixedTypedArray<Traits>::set(int index, ElementType value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  ElementType* ptr = reinterpret_cast<ElementType*>(
+      FIELD_ADDR(this, kDataOffset));
+  ptr[index] = value;
+}
+
+
+template <class Traits>
+MaybeObject* FixedTypedArray<Traits>::get(int index) {
+  return Traits::ToObject(GetHeap(), get_scalar(index));
+}
+
+template <class Traits>
+MaybeObject* FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
+  ElementType cast_value = Traits::defaultValue();
+  if (index < static_cast<uint32_t>(length())) {
+    if (value->IsSmi()) {
+      int int_value = Smi::cast(value)->value();
+      cast_value = static_cast<ElementType>(int_value);
+    } else if (value->IsHeapNumber()) {
+      double double_value = HeapNumber::cast(value)->value();
+      cast_value = static_cast<ElementType>(DoubleToInt32(double_value));
+    } else {
+      // Clamp undefined to the default value. All other types have been
+      // converted to a number type further up in the call chain.
+      ASSERT(value->IsUndefined());
+    }
+    set(index, cast_value);
+  }
+  return Traits::ToObject(GetHeap(), cast_value);
+}
+
+template <class Traits>
+Handle<Object> FixedTypedArray<Traits>::SetValue(
+    Handle<FixedTypedArray<Traits> > array,
+    uint32_t index,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetValue(index, *value),
+                     Object);
+}
+
+
+MaybeObject* Uint8ArrayTraits::ToObject(Heap*, uint8_t scalar) {
+  return Smi::FromInt(scalar);
+}
+
+
+MaybeObject* Uint8ClampedArrayTraits::ToObject(Heap*, uint8_t scalar) {
+  return Smi::FromInt(scalar);
+}
+
+
+MaybeObject* Int8ArrayTraits::ToObject(Heap*, int8_t scalar) {
+  return Smi::FromInt(scalar);
+}
+
+
+MaybeObject* Uint16ArrayTraits::ToObject(Heap*, uint16_t scalar) {
+  return Smi::FromInt(scalar);
+}
+
+
+MaybeObject* Int16ArrayTraits::ToObject(Heap*, int16_t scalar) {
+  return Smi::FromInt(scalar);
+}
+
+
+MaybeObject* Uint32ArrayTraits::ToObject(Heap* heap, uint32_t scalar) {
+  return heap->NumberFromUint32(scalar);
+}
+
+
+MaybeObject* Int32ArrayTraits::ToObject(Heap* heap, int32_t scalar) {
+  return heap->NumberFromInt32(scalar);
+}
+
+
+MaybeObject* Float32ArrayTraits::ToObject(Heap* heap, float scalar) {
+  return heap->NumberFromDouble(scalar);
+}
+
+
+MaybeObject* Float64ArrayTraits::ToObject(Heap* heap, double scalar) {
+  return heap->NumberFromDouble(scalar);
+}
+
+
 int Map::visitor_id() {
   return READ_BYTE_FIELD(this, kVisitorIdOffset);
 }
@@ -3521,6 +3831,10 @@ int HeapObject::SizeFromMap(Map* map) {
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_int64_entries(),
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_ptr_entries(),
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_int32_entries());
+  }
+  if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
+      instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
+    return reinterpret_cast<FixedTypedArrayBase*>(this)->size();
   }
   ASSERT(instance_type == CODE_TYPE);
   return reinterpret_cast<Code*>(this)->CodeSize();
@@ -4598,10 +4912,9 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
-ACCESSORS_TO_SMI(AllocationSite, memento_found_count, kMementoFoundCountOffset)
-ACCESSORS_TO_SMI(AllocationSite, memento_create_count,
-                 kMementoCreateCountOffset)
-ACCESSORS_TO_SMI(AllocationSite, pretenure_decision, kPretenureDecisionOffset)
+ACCESSORS_TO_SMI(AllocationSite, pretenure_data, kPretenureDataOffset)
+ACCESSORS_TO_SMI(AllocationSite, pretenure_create_count,
+                 kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
@@ -5691,6 +6004,13 @@ EXTERNAL_ELEMENTS_CHECK(Double,
 EXTERNAL_ELEMENTS_CHECK(Pixel, EXTERNAL_PIXEL_ARRAY_TYPE)
 
 
+bool JSObject::HasFixedTypedArrayElements() {
+  HeapObject* array = elements();
+  ASSERT(array != NULL);
+  return array->IsFixedTypedArrayBase();
+}
+
+
 bool JSObject::HasNamedInterceptor() {
   return map()->has_named_interceptor();
 }
@@ -6477,7 +6797,6 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 #undef WRITE_SHORT_FIELD
 #undef READ_BYTE_FIELD
 #undef WRITE_BYTE_FIELD
-
 
 } }  // namespace v8::internal
 

@@ -31,6 +31,7 @@ import optparse
 import os
 import re
 import sys
+import urllib
 
 from common_includes import *
 
@@ -47,6 +48,7 @@ class AutoRollOptions(CommonOptions):
   def __init__(self, options):
     super(AutoRollOptions, self).__init__(options)
     self.requires_editor = False
+    self.status_password = options.status_password
 
 
 class Preparation(Step):
@@ -78,6 +80,7 @@ class CheckTreeStatus(Step):
     message = json.loads(status_json)["message"]
     if re.search(r"nopush|no push", message, flags=re.I):
       self.Die("Push to trunk disabled by tree state: %s" % message)
+    self.Persist("tree_message", message)
 
 
 class FetchLatestRevision(Step):
@@ -121,18 +124,36 @@ class FetchLKGR(Step):
 class PushToTrunk(Step):
   MESSAGE = "Pushing to trunk if possible."
 
+  def PushTreeStatus(self, message):
+    if not self._options.status_password:
+      print "Skipping tree status update without password file."
+      return
+    params = {
+      "message": message,
+      "username": "v8-auto-roll@chromium.org",
+      "password": FileToText(self._options.status_password).strip(),
+    }
+    params = urllib.urlencode(params)
+    print "Pushing tree status: '%s'" % message
+    self.ReadURL("https://v8-status.appspot.com/status", params,
+                 wait_plan=[5, 20])
+
   def RunStep(self):
     self.RestoreIfUnset("latest")
     self.RestoreIfUnset("lkgr")
+    self.RestoreIfUnset("tree_message")
     latest = int(self._state["latest"])
     lkgr = int(self._state["lkgr"])
     if latest == lkgr:
       print "ToT (r%d) is clean. Pushing to trunk." % latest
+      self.PushTreeStatus("Tree is closed (preparing to push)")
+
       # TODO(machenbach): Call push to trunk script.
       # TODO(machenbach): Update the script before calling it.
       # self._side_effect_handler.Command(
       #     "tools/push-to-trunk/push-to-trunk.py",
       #     "-f -c %s -r %s" % (self._options.c, self._options.r))
+      self.PushTreeStatus(self._state["tree_message"])
     else:
       print("ToT (r%d) is ahead of the LKGR (r%d). Skipping push to trunk."
             % (latest, lkgr))
@@ -163,6 +184,8 @@ def BuildOptions():
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
                     default=0, type="int")
+  result.add_option("--status-password",
+                    help="A file with the password to the status app.")
   return result
 
 

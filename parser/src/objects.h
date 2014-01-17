@@ -386,6 +386,17 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
   V(EXTERNAL_DOUBLE_ARRAY_TYPE)                                                \
   V(EXTERNAL_PIXEL_ARRAY_TYPE)                                                 \
+                                                                               \
+  V(FIXED_INT8_ARRAY_TYPE)                                                     \
+  V(FIXED_UINT8_ARRAY_TYPE)                                                    \
+  V(FIXED_INT16_ARRAY_TYPE)                                                    \
+  V(FIXED_UINT16_ARRAY_TYPE)                                                   \
+  V(FIXED_INT32_ARRAY_TYPE)                                                    \
+  V(FIXED_UINT32_ARRAY_TYPE)                                                   \
+  V(FIXED_FLOAT32_ARRAY_TYPE)                                                  \
+  V(FIXED_FLOAT64_ARRAY_TYPE)                                                  \
+  V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                                            \
+                                                                               \
   V(FILLER_TYPE)                                                               \
                                                                                \
   V(DECLARED_ACCESSOR_DESCRIPTOR_TYPE)                                         \
@@ -720,6 +731,17 @@ enum InstanceType {
   EXTERNAL_FLOAT_ARRAY_TYPE,
   EXTERNAL_DOUBLE_ARRAY_TYPE,
   EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
+
+  FIXED_INT8_ARRAY_TYPE,  // FIRST_FIXED_TYPED_ARRAY_TYPE
+  FIXED_UINT8_ARRAY_TYPE,
+  FIXED_INT16_ARRAY_TYPE,
+  FIXED_UINT16_ARRAY_TYPE,
+  FIXED_INT32_ARRAY_TYPE,
+  FIXED_UINT32_ARRAY_TYPE,
+  FIXED_FLOAT32_ARRAY_TYPE,
+  FIXED_FLOAT64_ARRAY_TYPE,
+  FIXED_UINT8_CLAMPED_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
+
   FIXED_DOUBLE_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
@@ -797,6 +819,9 @@ enum InstanceType {
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
+  // Boundaries for testing for a fixed typed array.
+  FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
+  LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
   // Boundary for promotion to old data space/old pointer space.
   LAST_DATA_TYPE = FILLER_TYPE,
   // Boundary for objects represented as JSReceiver (i.e. JSObject or JSProxy).
@@ -881,7 +906,10 @@ class FixedArrayBase;
 class GlobalObject;
 class ObjectVisitor;
 class StringStream;
-class Type;
+// We cannot just say "class Type;" if it is created from a template... =8-?
+template<class> class TypeImpl;
+struct HeapTypeConfig;
+typedef TypeImpl<HeapTypeConfig> Type;
 
 
 // A template-ized version of the IsXXX functions.
@@ -986,6 +1014,16 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalFloatArray)                        \
   V(ExternalDoubleArray)                       \
   V(ExternalPixelArray)                        \
+  V(FixedTypedArrayBase)                       \
+  V(FixedUint8Array)                           \
+  V(FixedInt8Array)                            \
+  V(FixedUint16Array)                          \
+  V(FixedInt16Array)                           \
+  V(FixedUint32Array)                          \
+  V(FixedInt32Array)                           \
+  V(FixedFloat32Array)                         \
+  V(FixedFloat64Array)                         \
+  V(FixedUint8ClampedArray)                    \
   V(ByteArray)                                 \
   V(FreeSpace)                                 \
   V(JSReceiver)                                \
@@ -2106,6 +2144,7 @@ class JSObject: public JSReceiver {
   inline bool HasFastHoleyElements();
   inline bool HasNonStrictArgumentsElements();
   inline bool HasDictionaryElements();
+
   inline bool HasExternalPixelElements();
   inline bool HasExternalArrayElements();
   inline bool HasExternalByteElements();
@@ -2116,6 +2155,9 @@ class JSObject: public JSReceiver {
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
   inline bool HasExternalDoubleElements();
+
+  inline bool HasFixedTypedArrayElements();
+
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
@@ -3725,21 +3767,8 @@ class StringTable: public HashTable<StringTableShape, HashTableKey*> {
   // added.  The return value is the string table which might have
   // been enlarged.  If the return value is not a failure, the string
   // pointer *s is set to the string found.
-  MUST_USE_RESULT MaybeObject* LookupUtf8String(
-      Vector<const char> str,
-      Object** s);
-  MUST_USE_RESULT MaybeObject* LookupOneByteString(
-      Vector<const uint8_t> str,
-      Object** s);
-  MUST_USE_RESULT MaybeObject* LookupSubStringOneByteString(
-      Handle<SeqOneByteString> str,
-      int from,
-      int length,
-      Object** s);
-  MUST_USE_RESULT MaybeObject* LookupTwoByteString(
-      Vector<const uc16> str,
-      Object** s);
   MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
+  MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
 
   // Looks up a string that is equal to the given string and returns
   // true if it is found, assigning the string to the given output
@@ -3751,8 +3780,6 @@ class StringTable: public HashTable<StringTableShape, HashTableKey*> {
   static inline StringTable* cast(Object* obj);
 
  private:
-  MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
-
   template <bool seq_ascii> friend class JsonParser;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringTable);
@@ -4825,6 +4852,76 @@ class ExternalDoubleArray: public ExternalArray {
 };
 
 
+class FixedTypedArrayBase: public FixedArrayBase {
+ public:
+  // Casting:
+  static inline FixedTypedArrayBase* cast(Object* obj);
+
+  static const int kDataOffset = kHeaderSize;
+
+  inline int size();
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
+};
+
+
+template <class Traits>
+class FixedTypedArray: public FixedTypedArrayBase {
+ public:
+  typedef typename Traits::ElementType ElementType;
+  static const InstanceType kInstanceType = Traits::kInstanceType;
+
+  // Casting:
+  static inline FixedTypedArray<Traits>* cast(Object* obj);
+
+  static inline int SizeFor(int length) {
+    return kDataOffset + length * sizeof(ElementType);
+  }
+
+  inline ElementType get_scalar(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
+  inline void set(int index, ElementType value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
+
+  static Handle<Object> SetValue(Handle<FixedTypedArray<Traits> > array,
+                                 uint32_t index,
+                                 Handle<Object> value);
+
+  DECLARE_PRINTER(FixedTypedArray)
+  DECLARE_VERIFIER(FixedTypedArray)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
+};
+
+#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType)               \
+  class Type##ArrayTraits {                                                   \
+    public:                                                                   \
+      typedef elementType ElementType;                                        \
+      static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;    \
+      static const char* Designator() { return #type " array"; }              \
+      static inline MaybeObject* ToObject(Heap* heap, elementType scalar);    \
+      static elementType defaultValue() { return 0; }                         \
+  };                                                                          \
+                                                                              \
+  typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
+
+FIXED_TYPED_ARRAY_TRAITS(Uint8, uint8, UINT8, uint8_t)
+FIXED_TYPED_ARRAY_TRAITS(Int8, int8, INT8, int8_t)
+FIXED_TYPED_ARRAY_TRAITS(Uint16, uint16, UINT16, uint16_t)
+FIXED_TYPED_ARRAY_TRAITS(Int16, int16, INT16, int16_t)
+FIXED_TYPED_ARRAY_TRAITS(Uint32, uint32, UINT32, uint32_t)
+FIXED_TYPED_ARRAY_TRAITS(Int32, int32, INT32, int32_t)
+FIXED_TYPED_ARRAY_TRAITS(Float32, float32, FLOAT32, float)
+FIXED_TYPED_ARRAY_TRAITS(Float64, float64, FLOAT64, double)
+FIXED_TYPED_ARRAY_TRAITS(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t)
+
+#undef FIXED_TYPED_ARRAY_TRAITS
+
 // DeoptimizationInputData is a fixed array used to hold the deoptimization
 // data for code generated by the Hydrogen/Lithium compiler.  It also
 // contains information about functions that were inlined.  If N different
@@ -5639,6 +5736,9 @@ class DependentCode: public FixedArray {
   void DeoptimizeDependentCodeGroup(Isolate* isolate,
                                     DependentCode::DependencyGroup group);
 
+  bool MarkCodeForDeoptimization(Isolate* isolate,
+                                 DependentCode::DependencyGroup group);
+
   // The following low-level accessors should only be used by this class
   // and the mark compact collector.
   inline int number_of_entries(DependencyGroup group);
@@ -5829,6 +5929,10 @@ class Map: public HeapObject {
 
   inline bool has_external_array_elements() {
     return IsExternalArrayElementsKind(elements_kind());
+  }
+
+  inline bool has_fixed_typed_array_elements() {
+    return IsFixedTypedArrayElementsKind(elements_kind());
   }
 
   inline bool has_dictionary_elements() {
@@ -8122,11 +8226,12 @@ class AllocationSite: public Struct {
   static const int kPretenureMinimumCreated = 100;
 
   // Values for pretenure decision field.
-  enum {
+  enum PretenureDecision {
     kUndecided = 0,
     kDontTenure = 1,
     kTenure = 2,
-    kZombie = 3
+    kZombie = 3,
+    kLastPretenureDecisionValue = kZombie
   };
 
   DECL_ACCESSORS(transition_info, Object)
@@ -8134,11 +8239,8 @@ class AllocationSite: public Struct {
   // walked in a particular order. So [[1, 2], 1, 2] will have one
   // nested_site, but [[1, 2], 3, [4]] will have a list of two.
   DECL_ACCESSORS(nested_site, Object)
-  DECL_ACCESSORS(memento_found_count, Smi)
-  DECL_ACCESSORS(memento_create_count, Smi)
-  // TODO(mvstanton): we don't need a whole integer to record pretenure
-  // decision. Consider sharing space with memento_found_count.
-  DECL_ACCESSORS(pretenure_decision, Smi)
+  DECL_ACCESSORS(pretenure_data, Smi)
+  DECL_ACCESSORS(pretenure_create_count, Smi)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
@@ -8147,9 +8249,15 @@ class AllocationSite: public Struct {
   // This method is expensive, it should only be called for reporting.
   bool IsNestedSite();
 
+  // transition_info bitfields, for constructed array transition info.
   class ElementsKindBits:       public BitField<ElementsKind, 0,  15> {};
   class UnusedBits:             public BitField<int,          15, 14> {};
   class DoNotInlineBit:         public BitField<bool,         29,  1> {};
+
+  // Bitfields for pretenure_data
+  class MementoFoundCountBits:  public BitField<int,          0, 28> {};
+  class PretenureDecisionBits:  public BitField<PretenureDecision, 28, 2> {};
+  STATIC_ASSERT(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
   // Increments the mementos found counter and returns true when the first
   // memento was found for a given allocation site.
@@ -8157,10 +8265,35 @@ class AllocationSite: public Struct {
 
   inline void IncrementMementoCreateCount();
 
-  PretenureFlag GetPretenureMode() {
-    int mode = pretenure_decision()->value();
-    // Zombie objects "decide" to be untenured.
-    return (mode == kTenure) ? TENURED : NOT_TENURED;
+  PretenureFlag GetPretenureMode();
+
+  void ResetPretenureDecision();
+
+  PretenureDecision pretenure_decision() {
+    int value = pretenure_data()->value();
+    return PretenureDecisionBits::decode(value);
+  }
+
+  void set_pretenure_decision(PretenureDecision decision) {
+    int value = pretenure_data()->value();
+    set_pretenure_data(
+        Smi::FromInt(PretenureDecisionBits::update(value, decision)),
+        SKIP_WRITE_BARRIER);
+  }
+
+  int memento_found_count() {
+    int value = pretenure_data()->value();
+    return MementoFoundCountBits::decode(value);
+  }
+
+  inline void set_memento_found_count(int count);
+
+  int memento_create_count() {
+    return pretenure_create_count()->value();
+  }
+
+  void set_memento_create_count(int count) {
+    set_pretenure_create_count(Smi::FromInt(count), SKIP_WRITE_BARRIER);
   }
 
   // The pretenuring decision is made during gc, and the zombie state allows
@@ -8168,7 +8301,7 @@ class AllocationSite: public Struct {
   // a later traversal of new space may discover AllocationMementos that point
   // to this AllocationSite.
   bool IsZombie() {
-    return pretenure_decision()->value() == kZombie;
+    return pretenure_decision() == kZombie;
   }
 
   inline void MarkZombie();
@@ -8212,8 +8345,9 @@ class AllocationSite: public Struct {
     TRANSITIONS
   };
 
-  void AddDependentCompilationInfo(Reason reason, CompilationInfo* info);
-  void AddDependentCode(Reason reason, Handle<Code> code);
+  static void AddDependentCompilationInfo(Handle<AllocationSite> site,
+                                          Reason reason,
+                                          CompilationInfo* info);
 
   DECLARE_PRINTER(AllocationSite)
   DECLARE_VERIFIER(AllocationSite)
@@ -8226,13 +8360,11 @@ class AllocationSite: public Struct {
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
   static const int kNestedSiteOffset = kTransitionInfoOffset + kPointerSize;
-  static const int kMementoFoundCountOffset = kNestedSiteOffset + kPointerSize;
-  static const int kMementoCreateCountOffset =
-      kMementoFoundCountOffset + kPointerSize;
-  static const int kPretenureDecisionOffset =
-      kMementoCreateCountOffset + kPointerSize;
+  static const int kPretenureDataOffset = kNestedSiteOffset + kPointerSize;
+  static const int kPretenureCreateCountOffset =
+      kPretenureDataOffset + kPointerSize;
   static const int kDependentCodeOffset =
-      kPretenureDecisionOffset + kPointerSize;
+      kPretenureCreateCountOffset + kPointerSize;
   static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 
@@ -8249,7 +8381,7 @@ class AllocationSite: public Struct {
  private:
   inline DependentCode::DependencyGroup ToDependencyGroup(Reason reason);
   bool PretenuringDecisionMade() {
-    return pretenure_decision()->value() != kUndecided;
+    return pretenure_decision() != kUndecided;
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
@@ -8275,9 +8407,6 @@ class AllocationMemento: public Struct {
   DECLARE_PRINTER(AllocationMemento)
   DECLARE_VERIFIER(AllocationMemento)
 
-  // Returns NULL if no AllocationMemento is available for object.
-  static AllocationMemento* FindForHeapObject(HeapObject* object,
-                                              bool in_GC = false);
   static inline AllocationMemento* cast(Object* obj);
 
  private:

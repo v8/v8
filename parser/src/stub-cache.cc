@@ -418,12 +418,9 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
 }
 
 
-Code* StubCache::FindCallInitialize(int argc,
-                                    ContextualMode mode,
-                                    Code::Kind kind) {
+Code* StubCache::FindCallInitialize(int argc, Code::Kind kind) {
   ExtraICState extra_state =
-      CallICBase::StringStubState::encode(DEFAULT_STRING_STUB) |
-      CallICBase::Contextual::encode(mode);
+      CallICBase::StringStubState::encode(DEFAULT_STRING_STUB);
   Code::Flags flags =
       Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
   UnseededNumberDictionary* dictionary =
@@ -450,11 +447,9 @@ Code* StubCache::FindPreMonomorphicIC(Code::Kind kind, ExtraICState state) {
 }
 
 
-Handle<Code> StubCache::ComputeCallInitialize(int argc,
-                                              ContextualMode mode,
-                                              Code::Kind kind) {
+Handle<Code> StubCache::ComputeCallInitialize(int argc, Code::Kind kind) {
   ExtraICState extra_state =
-      CallICBase::ComputeExtraICState(mode, DEFAULT_STRING_STUB);
+      CallICBase::ComputeExtraICState(DEFAULT_STRING_STUB);
   Code::Flags flags =
       Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
@@ -469,13 +464,13 @@ Handle<Code> StubCache::ComputeCallInitialize(int argc,
 }
 
 
-Handle<Code> StubCache::ComputeCallInitialize(int argc, ContextualMode mode) {
-  return ComputeCallInitialize(argc, mode, Code::CALL_IC);
+Handle<Code> StubCache::ComputeCallInitialize(int argc) {
+  return ComputeCallInitialize(argc, Code::CALL_IC);
 }
 
 
 Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc) {
-  return ComputeCallInitialize(argc, NOT_CONTEXTUAL, Code::KEYED_CALL_IC);
+  return ComputeCallInitialize(argc, Code::KEYED_CALL_IC);
 }
 
 
@@ -651,7 +646,7 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 
   TypeHandleList types(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); i++) {
-    types.Add(handle(Type::Class(receiver_maps->at(i)), isolate()));
+    types.Add(Type::Class(receiver_maps->at(i), isolate()));
   }
   CodeHandleList handlers(receiver_maps->length());
   KeyedLoadStubCompiler compiler(isolate_);
@@ -1268,13 +1263,6 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
-CallKind CallStubCompiler::call_kind() {
-  return CallICBase::Contextual::decode(extra_state())
-      ? CALL_AS_FUNCTION
-      : CALL_AS_METHOD;
-}
-
-
 void CallStubCompiler::HandlerFrontendFooter(Label* miss) {
   __ bind(miss);
   GenerateMissBranch();
@@ -1285,13 +1273,13 @@ void CallStubCompiler::GenerateJumpFunctionIgnoreReceiver(
     Handle<JSFunction> function) {
   ParameterCount expected(function);
   __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
+                    JUMP_FUNCTION, NullCallWrapper());
 }
 
 
 void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
                                             Handle<JSFunction> function) {
-  PatchGlobalProxy(object, function);
+  PatchImplicitReceiver(object);
   GenerateJumpFunctionIgnoreReceiver(function);
 }
 
@@ -1299,10 +1287,10 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
 void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
                                             Register actual_closure,
                                             Handle<JSFunction> function) {
-  PatchGlobalProxy(object, function);
+  PatchImplicitReceiver(object);
   ParameterCount expected(function);
   __ InvokeFunction(actual_closure, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
+                    JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -1688,7 +1676,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
     Handle<Map> receiver_map) {
   ElementsKind elements_kind = receiver_map->elements_kind();
   if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
+      receiver_map->has_external_array_elements() ||
+      receiver_map->has_fixed_typed_array_elements()) {
     Handle<Code> stub = KeyedLoadFastElementStub(
         receiver_map->instance_type() == JS_ARRAY_TYPE,
         elements_kind).GetCode(isolate());
@@ -1713,7 +1702,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
   if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
+      receiver_map->has_external_array_elements() ||
+      receiver_map->has_fixed_typed_array_elements()) {
     stub = KeyedStoreFastElementStub(
         is_jsarray,
         elements_kind,
@@ -1811,7 +1801,8 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
       ElementsKind elements_kind = receiver_map->elements_kind();
 
       if (IsFastElementsKind(elements_kind) ||
-          IsExternalArrayElementsKind(elements_kind)) {
+          IsExternalArrayElementsKind(elements_kind) ||
+          IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub =
             KeyedLoadFastElementStub(is_js_array,
                                      elements_kind).GetCode(isolate());
@@ -1854,7 +1845,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
       cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
       if (receiver_map->has_fast_elements() ||
-          receiver_map->has_external_array_elements()) {
+          receiver_map->has_external_array_elements() ||
+          receiver_map->has_fixed_typed_array_elements()) {
         cached_stub = KeyedStoreFastElementStub(
             is_js_array,
             elements_kind,

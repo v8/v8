@@ -506,7 +506,8 @@ void Heap::RepairFreeListsAfterBoot() {
 
 
 void Heap::ProcessPretenuringFeedback() {
-  if (FLAG_allocation_site_pretenuring) {
+  if (FLAG_allocation_site_pretenuring &&
+      new_space_high_promotion_mode_active_) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
     int allocation_mementos_found = 0;
@@ -514,27 +515,27 @@ void Heap::ProcessPretenuringFeedback() {
     int active_allocation_sites = 0;
 
     // If the scratchpad overflowed, we have to iterate over the allocation
-    // stites list.
+    // sites list.
     bool use_scratchpad =
         allocation_sites_scratchpad_length < kAllocationSiteScratchpadSize;
 
     int i = 0;
     Object* list_element = allocation_sites_list();
+    bool trigger_deoptimization = false;
     while (use_scratchpad ?
               i < allocation_sites_scratchpad_length :
               list_element->IsAllocationSite()) {
       AllocationSite* site = use_scratchpad ?
         allocation_sites_scratchpad[i] : AllocationSite::cast(list_element);
-      allocation_mementos_found += site->memento_found_count()->value();
-      if (site->memento_found_count()->value() > 0) {
+      allocation_mementos_found += site->memento_found_count();
+      if (site->memento_found_count() > 0) {
         active_allocation_sites++;
       }
-      if (site->DigestPretenuringFeedback()) {
-        if (site->GetPretenureMode() == TENURED) {
-          tenure_decisions++;
-        } else {
-          dont_tenure_decisions++;
-        }
+      if (site->DigestPretenuringFeedback()) trigger_deoptimization = true;
+      if (site->GetPretenureMode() == TENURED) {
+        tenure_decisions++;
+      } else {
+        dont_tenure_decisions++;
       }
       allocation_sites++;
       if (use_scratchpad) {
@@ -543,6 +544,9 @@ void Heap::ProcessPretenuringFeedback() {
         list_element = site->weak_next();
       }
     }
+
+    if (trigger_deoptimization) isolate_->stack_guard()->DeoptMarkedCode();
+
     allocation_sites_scratchpad_length = 0;
 
     // TODO(mvstanton): Pretenure decisions are only made once for an allocation
@@ -701,12 +705,14 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage(int flags, const char* gc_reason) {
+void Heap::CollectAllGarbage(int flags,
+                             const char* gc_reason,
+                             const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
   mark_compact_collector_.SetFlags(flags);
-  CollectGarbage(OLD_POINTER_SPACE, gc_reason);
+  CollectGarbage(OLD_POINTER_SPACE, gc_reason, gc_callback_flags);
   mark_compact_collector_.SetFlags(kNoGCFlags);
 }
 
@@ -749,7 +755,8 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollector collector,
                           const char* gc_reason,
-                          const char* collector_reason) {
+                          const char* collector_reason,
+                          const v8::GCCallbackFlags gc_callback_flags) {
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate_);
 
@@ -804,7 +811,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
           (collector == SCAVENGER) ? isolate_->counters()->gc_scavenger()
                                    : isolate_->counters()->gc_compactor());
       next_gc_likely_to_collect_more =
-          PerformGarbageCollection(collector, &tracer);
+          PerformGarbageCollection(collector, &tracer, gc_callback_flags);
     }
 
     GarbageCollectionEpilogue();
@@ -1031,8 +1038,10 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
   survival_rate_ = survival_rate;
 }
 
-bool Heap::PerformGarbageCollection(GarbageCollector collector,
-                                    GCTracer* tracer) {
+bool Heap::PerformGarbageCollection(
+    GarbageCollector collector,
+    GCTracer* tracer,
+    const v8::GCCallbackFlags gc_callback_flags) {
   bool next_gc_likely_to_collect_more = false;
 
   if (collector != SCAVENGER) {
@@ -1100,12 +1109,15 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       PrintPID("Limited new space size due to high promotion rate: %d MB\n",
                new_space_.InitialCapacity() / MB);
     }
-    // Support for global pre-tenuring uses the high promotion mode as a
-    // heuristic indicator of whether to pretenure or not, we trigger
-    // deoptimization here to take advantage of pre-tenuring as soon as
-    // possible.
+    // The high promotion mode is our indicator to turn on pretenuring. We have
+    // to deoptimize all optimized code in global pretenuring mode and all
+    // code which should be tenured in local pretenuring mode.
     if (FLAG_pretenuring) {
-      isolate_->stack_guard()->FullDeopt();
+      if (FLAG_allocation_site_pretenuring) {
+        ResetAllAllocationSitesDependentCode(NOT_TENURED);
+      } else {
+        isolate_->stack_guard()->FullDeopt();
+      }
     }
   } else if (new_space_high_promotion_mode_active_ &&
       IsStableOrDecreasingSurvivalTrend() &&
@@ -1118,9 +1130,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       PrintPID("Unlimited new space size due to low promotion rate: %d MB\n",
                new_space_.MaximumCapacity() / MB);
     }
-    // Trigger deoptimization here to turn off pre-tenuring as soon as
+    // Trigger deoptimization here to turn off global pretenuring as soon as
     // possible.
-    if (FLAG_pretenuring) {
+    if (FLAG_pretenuring && !FLAG_allocation_site_pretenuring) {
       isolate_->stack_guard()->FullDeopt();
     }
   }
@@ -1160,7 +1172,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState<EXTERNAL> state(isolate_);
     HandleScope handle_scope(isolate_);
-    CallGCEpilogueCallbacks(gc_type);
+    CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
   }
 
 #ifdef VERIFY_HEAP
@@ -1190,18 +1202,19 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
 }
 
 
-void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
+void Heap::CallGCEpilogueCallbacks(GCType gc_type,
+                                   GCCallbackFlags gc_callback_flags) {
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
       if (!gc_epilogue_callbacks_[i].pass_isolate_) {
         v8::GCPrologueCallback callback =
             reinterpret_cast<v8::GCPrologueCallback>(
                 gc_epilogue_callbacks_[i].callback);
-        callback(gc_type, kNoGCCallbackFlags);
+        callback(gc_type, gc_callback_flags);
       } else {
         v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
         gc_epilogue_callbacks_[i].callback(
-            isolate, gc_type, kNoGCCallbackFlags);
+            isolate, gc_type, gc_callback_flags);
       }
     }
   }
@@ -1211,6 +1224,8 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
 void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
+
+  uint64_t size_of_objects_before_gc = SizeOfObjects();
 
   mark_compact_collector_.Prepare(tracer);
 
@@ -1228,6 +1243,10 @@ void Heap::MarkCompact(GCTracer* tracer) {
   isolate_->counters()->objs_since_last_full()->Set(0);
 
   flush_monomorphic_ics_ = false;
+
+  if (FLAG_allocation_site_pretenuring) {
+    EvaluateOldSpaceLocalPretenuring(size_of_objects_before_gc);
+  }
 }
 
 
@@ -1966,6 +1985,47 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
 }
 
 
+void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
+  ASSERT(AllowCodeDependencyChange::IsAllowed());
+  DisallowHeapAllocation no_allocation_scope;
+  Object* cur = allocation_sites_list();
+  bool marked = false;
+  while (cur->IsAllocationSite()) {
+    AllocationSite* casted = AllocationSite::cast(cur);
+    if (casted->GetPretenureMode() == flag) {
+      casted->ResetPretenureDecision();
+      bool got_marked = casted->dependent_code()->MarkCodeForDeoptimization(
+          isolate_,
+          DependentCode::kAllocationSiteTenuringChangedGroup);
+      if (got_marked) marked = true;
+    }
+    cur = casted->weak_next();
+  }
+  if (marked) isolate_->stack_guard()->DeoptMarkedCode();
+}
+
+
+void Heap::EvaluateOldSpaceLocalPretenuring(
+    uint64_t size_of_objects_before_gc) {
+  uint64_t size_of_objects_after_gc = SizeOfObjects();
+  double old_generation_survival_rate =
+      (static_cast<double>(size_of_objects_after_gc) * 100) /
+          static_cast<double>(size_of_objects_before_gc);
+
+  if (old_generation_survival_rate < kOldSurvivalRateLowThreshold) {
+    // Too many objects died in the old generation, pretenuring of wrong
+    // allocation sites may be the cause for that. We have to deopt all
+    // dependent code registered in the allocation sites to re-evaluate
+    // our pretenuring decisions.
+    ResetAllAllocationSitesDependentCode(TENURED);
+    if (FLAG_trace_pretenuring) {
+      PrintF("Deopt all allocation sites dependent code due to low survival "
+             "rate in the old generation %f\n", old_generation_survival_rate);
+    }
+  }
+}
+
+
 void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   DisallowHeapAllocation no_allocation;
   // All external strings are listed in the external string table.
@@ -2089,6 +2149,8 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
     table_.Register(kVisitFixedDoubleArray, &EvacuateFixedDoubleArray);
+    table_.Register(kVisitFixedTypedArray, &EvacuateFixedTypedArray);
+    table_.Register(kVisitFixedFloat64Array, &EvacuateFixedFloat64Array);
 
     table_.Register(kVisitNativeContext,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
@@ -2324,6 +2386,24 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
     int object_size = FixedDoubleArray::SizeFor(length);
+    EvacuateObject<DATA_OBJECT, kDoubleAlignment>(
+        map, slot, object, object_size);
+  }
+
+
+  static inline void EvacuateFixedTypedArray(Map* map,
+                                             HeapObject** slot,
+                                             HeapObject* object) {
+    int object_size = reinterpret_cast<FixedTypedArrayBase*>(object)->size();
+    EvacuateObject<DATA_OBJECT, kObjectAlignment>(
+        map, slot, object, object_size);
+  }
+
+
+  static inline void EvacuateFixedFloat64Array(Map* map,
+                                               HeapObject** slot,
+                                               HeapObject* object) {
+    int object_size = reinterpret_cast<FixedFloat64Array*>(object)->size();
     EvacuateObject<DATA_OBJECT, kDoubleAlignment>(
         map, slot, object, object_size);
   }
@@ -2718,291 +2798,136 @@ bool Heap::CreateInitialMaps() {
   constant_pool_array_map()->set_prototype(null_value());
   constant_pool_array_map()->set_constructor(null_value());
 
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_fixed_cow_array_map(Map::cast(obj));
-  ASSERT(fixed_array_map() != fixed_cow_array_map());
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_scope_info_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_heap_number_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(SYMBOL_TYPE, Symbol::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_symbol_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(FOREIGN_TYPE, Foreign::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_foreign_map(Map::cast(obj));
-
-  for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
-    const StringTypeTable& entry = string_type_table[i];
-    { MaybeObject* maybe_obj = AllocateMap(entry.type, entry.size);
-      if (!maybe_obj->ToObject(&obj)) return false;
+  { // Map allocation
+#define ALLOCATE_MAP(instance_type, size, field_name)                          \
+    { Map* map;                                                                \
+      if (!AllocateMap((instance_type), size)->To(&map)) return false;         \
+      set_##field_name##_map(map);                                             \
     }
-    roots_[entry.index] = Map::cast(obj);
-  }
 
-  { MaybeObject* maybe_obj = AllocateMap(STRING_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_undetectable_string_map(Map::cast(obj));
-  Map::cast(obj)->set_is_undetectable();
+#define ALLOCATE_VARSIZE_MAP(instance_type, field_name)                        \
+    ALLOCATE_MAP(instance_type, kVariableSizeSentinel, field_name)
 
-  { MaybeObject* maybe_obj =
-        AllocateMap(ASCII_STRING_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_undetectable_ascii_string_map(Map::cast(obj));
-  Map::cast(obj)->set_is_undetectable();
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, fixed_cow_array)
+    ASSERT(fixed_array_map() != fixed_cow_array_map());
 
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_DOUBLE_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_fixed_double_array_map(Map::cast(obj));
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
+    ALLOCATE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number)
+    ALLOCATE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol)
+    ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
 
-  { MaybeObject* maybe_obj =
-        AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_byte_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FREE_SPACE_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_free_space_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateByteArray(0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_byte_array(ByteArray::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(EXTERNAL_PIXEL_ARRAY_TYPE, ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_pixel_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_BYTE_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_byte_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_unsigned_byte_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_SHORT_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_short_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_unsigned_short_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_INT_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_int_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_unsigned_int_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_FLOAT_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_float_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_non_strict_arguments_elements_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_DOUBLE_ARRAY_TYPE,
-                                         ExternalArray::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_external_double_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalByteArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_byte_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateEmptyExternalArray(kExternalUnsignedByteArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_unsigned_byte_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalShortArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_short_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(
-      kExternalUnsignedShortArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_unsigned_short_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalIntArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_int_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateEmptyExternalArray(kExternalUnsignedIntArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_unsigned_int_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalFloatArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_float_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalDoubleArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_double_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalPixelArray);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_external_pixel_array(ExternalArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_code_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(CELL_TYPE, Cell::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_cell_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(PROPERTY_CELL_TYPE,
-                                         PropertyCell::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_global_property_cell_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(FILLER_TYPE, kPointerSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_one_pointer_filler_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(FILLER_TYPE, 2 * kPointerSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_two_pointer_filler_map(Map::cast(obj));
-
-  for (unsigned i = 0; i < ARRAY_SIZE(struct_table); i++) {
-    const StructTable& entry = struct_table[i];
-    { MaybeObject* maybe_obj = AllocateMap(entry.type, entry.size);
-      if (!maybe_obj->ToObject(&obj)) return false;
+    for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
+      const StringTypeTable& entry = string_type_table[i];
+      { MaybeObject* maybe_obj = AllocateMap(entry.type, entry.size);
+        if (!maybe_obj->ToObject(&obj)) return false;
+      }
+      roots_[entry.index] = Map::cast(obj);
     }
-    roots_[entry.index] = Map::cast(obj);
+
+    ALLOCATE_VARSIZE_MAP(STRING_TYPE, undetectable_string)
+    undetectable_string_map()->set_is_undetectable();
+
+    ALLOCATE_VARSIZE_MAP(ASCII_STRING_TYPE, undetectable_ascii_string);
+    undetectable_ascii_string_map()->set_is_undetectable();
+
+    ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
+    ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
+    ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
+
+#define ALLOCATE_EXTERNAL_ARRAY_MAP(TYPE, type)                               \
+    ALLOCATE_MAP(EXTERNAL_##TYPE##_ARRAY_TYPE, ExternalArray::kAlignedSize,   \
+        external_##type##_array)
+
+    ALLOCATE_EXTERNAL_ARRAY_MAP(PIXEL, pixel)
+    ALLOCATE_EXTERNAL_ARRAY_MAP(BYTE, byte)
+    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_BYTE, unsigned_byte)
+    ALLOCATE_EXTERNAL_ARRAY_MAP(SHORT, short)  // NOLINT
+    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_SHORT, unsigned_short)
+    ALLOCATE_EXTERNAL_ARRAY_MAP(INT, int)
+    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_INT, unsigned_int)
+    ALLOCATE_EXTERNAL_ARRAY_MAP(FLOAT, float)
+    ALLOCATE_EXTERNAL_ARRAY_MAP(DOUBLE, double)
+#undef ALLOCATE_EXTERNAL_ARRAY_MAP
+
+    ALLOCATE_VARSIZE_MAP(FIXED_UINT8_ARRAY_TYPE, fixed_uint8_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_UINT8_CLAMPED_ARRAY_TYPE,
+        fixed_uint8_clamped_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_INT8_ARRAY_TYPE, fixed_int8_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_UINT16_ARRAY_TYPE, fixed_uint16_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_INT16_ARRAY_TYPE, fixed_int16_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_UINT32_ARRAY_TYPE, fixed_uint32_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_INT32_ARRAY_TYPE, fixed_int32_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_FLOAT32_ARRAY_TYPE, fixed_float32_array)
+    ALLOCATE_VARSIZE_MAP(FIXED_FLOAT64_ARRAY_TYPE, fixed_float64_array)
+
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, non_strict_arguments_elements)
+
+    ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
+
+    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell)
+    ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
+    ALLOCATE_MAP(FILLER_TYPE, kPointerSize, one_pointer_filler)
+    ALLOCATE_MAP(FILLER_TYPE, 2 * kPointerSize, two_pointer_filler)
+
+
+    for (unsigned i = 0; i < ARRAY_SIZE(struct_table); i++) {
+      const StructTable& entry = struct_table[i];
+      Map* map;
+      if (!AllocateMap(entry.type, entry.size)->To(&map))
+        return false;
+      roots_[entry.index] = map;
+    }
+
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, hash_table)
+
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, with_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, block_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, global_context)
+
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, native_context)
+    native_context_map()->set_dictionary_map(true);
+    native_context_map()->set_visitor_id(
+        StaticVisitorBase::kVisitNativeContext);
+
+    ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
+        shared_function_info)
+
+    ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kSize,
+        message_object)
+    ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kPointerSize,
+        external)
+    external_map()->set_is_extensible(false);
+#undef ALLOCATE_VARSIZE_MAP
+#undef ALLOCATE_MAP
   }
 
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_hash_table_map(Map::cast(obj));
+  { // Empty arrays
+    { ByteArray* byte_array;
+      if (!AllocateByteArray(0, TENURED)->To(&byte_array)) return false;
+      set_empty_byte_array(byte_array);
+    }
 
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_function_context_map(Map::cast(obj));
+#define ALLOCATE_EMPTY_EXTERNAL_ARRAY(Type, type)                              \
+    { ExternalArray* obj;                                                      \
+      if (!AllocateEmptyExternalArray(kExternal##Type##Array)->To(&obj))       \
+          return false;                                                        \
+      set_empty_external_##type##_array(obj);                                  \
+    }
 
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Byte, byte)
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedByte, unsigned_byte)
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Short, short)  // NOLINT
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedShort, unsigned_short)
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Int, int)
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedInt, unsigned_int)
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Float, float)
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Double, double)
+    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Pixel, pixel)
+#undef ALLOCATE_EMPTY_EXTERNAL_ARRAY
   }
-  set_catch_context_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_with_context_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_block_context_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_module_context_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_global_context_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Map* native_context_map = Map::cast(obj);
-  native_context_map->set_dictionary_map(true);
-  native_context_map->set_visitor_id(StaticVisitorBase::kVisitNativeContext);
-  set_native_context_map(native_context_map);
-
-  { MaybeObject* maybe_obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE,
-                                         SharedFunctionInfo::kAlignedSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_shared_function_info_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateMap(JS_MESSAGE_OBJECT_TYPE,
-                                         JSMessageObject::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_message_object_map(Map::cast(obj));
-
-  Map* external_map;
-  { MaybeObject* maybe_obj =
-        AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize + kPointerSize);
-    if (!maybe_obj->To(&external_map)) return false;
-  }
-  external_map->set_is_extensible(false);
-  set_external_map(external_map);
-
   ASSERT(!InNewSpace(empty_fixed_array()));
   return true;
 }
@@ -3349,6 +3274,11 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_natives_source_cache(FixedArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateCell(undefined_value());
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_undefined_cell(Cell::cast(obj));
 
   // Allocate object to hold object observation state.
   { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
@@ -3706,6 +3636,39 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
 }
 
 
+Map* Heap::MapForFixedTypedArray(ExternalArrayType array_type) {
+  return Map::cast(roots_[RootIndexForFixedTypedArray(array_type)]);
+}
+
+
+Heap::RootListIndex Heap::RootIndexForFixedTypedArray(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalByteArray:
+      return kFixedInt8ArrayMapRootIndex;
+    case kExternalUnsignedByteArray:
+      return kFixedUint8ArrayMapRootIndex;
+    case kExternalShortArray:
+      return kFixedInt16ArrayMapRootIndex;
+    case kExternalUnsignedShortArray:
+      return kFixedUint16ArrayMapRootIndex;
+    case kExternalIntArray:
+      return kFixedInt32ArrayMapRootIndex;
+    case kExternalUnsignedIntArray:
+      return kFixedUint32ArrayMapRootIndex;
+    case kExternalFloatArray:
+      return kFixedFloat32ArrayMapRootIndex;
+    case kExternalDoubleArray:
+      return kFixedFloat64ArrayMapRootIndex;
+    case kExternalPixelArray:
+      return kFixedUint8ClampedArrayMapRootIndex;
+    default:
+      UNREACHABLE();
+      return kUndefinedValueRootIndex;
+  }
+}
+
+
 Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
     ElementsKind elementsKind) {
   switch (elementsKind) {
@@ -3895,8 +3858,8 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     uint8_t buffer[1];
     buffer[0] = static_cast<uint8_t>(code);
     Object* result;
-    MaybeObject* maybe_result =
-        InternalizeOneByteString(Vector<const uint8_t>(buffer, 1));
+    OneByteStringKey key(Vector<const uint8_t>(buffer, 1), HashSeed());
+    MaybeObject* maybe_result = InternalizeStringWithKey(&key);
 
     if (!maybe_result->ToObject(&result)) return maybe_result;
     single_character_string_cache()->set(code, result);
@@ -3962,6 +3925,84 @@ MaybeObject* Heap::AllocateExternalArray(int length,
       external_pointer);
 
   return result;
+}
+
+static void ForFixedTypedArray(ExternalArrayType array_type,
+                               int* element_size,
+                               ElementsKind* element_kind) {
+  switch (array_type) {
+    case kExternalUnsignedByteArray:
+      *element_size = 1;
+      *element_kind = UINT8_ELEMENTS;
+      return;
+    case kExternalByteArray:
+      *element_size = 1;
+      *element_kind = INT8_ELEMENTS;
+      return;
+    case kExternalUnsignedShortArray:
+      *element_size = 2;
+      *element_kind = UINT16_ELEMENTS;
+      return;
+    case kExternalShortArray:
+      *element_size = 2;
+      *element_kind = INT16_ELEMENTS;
+      return;
+    case kExternalUnsignedIntArray:
+      *element_size = 4;
+      *element_kind = UINT32_ELEMENTS;
+      return;
+    case kExternalIntArray:
+      *element_size = 4;
+      *element_kind = INT32_ELEMENTS;
+      return;
+    case kExternalFloatArray:
+      *element_size = 4;
+      *element_kind = FLOAT32_ELEMENTS;
+      return;
+    case kExternalDoubleArray:
+      *element_size = 8;
+      *element_kind = FLOAT64_ELEMENTS;
+      return;
+    case kExternalPixelArray:
+      *element_size = 1;
+      *element_kind = UINT8_CLAMPED_ELEMENTS;
+      return;
+    default:
+      *element_size = 0;  // Bogus
+      *element_kind = UINT8_ELEMENTS;  // Bogus
+      UNREACHABLE();
+  }
+}
+
+
+MaybeObject* Heap::AllocateFixedTypedArray(int length,
+                                           ExternalArrayType array_type,
+                                           PretenureFlag pretenure) {
+  int element_size;
+  ElementsKind elements_kind;
+  ForFixedTypedArray(array_type, &element_size, &elements_kind);
+  int size = OBJECT_POINTER_ALIGN(
+      length * element_size + FixedTypedArrayBase::kDataOffset);
+#ifndef V8_HOST_ARCH_64_BIT
+  if (array_type == kExternalDoubleArray) {
+    size += kPointerSize;
+  }
+#endif
+  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
+
+  HeapObject* object;
+  MaybeObject* maybe_object = AllocateRaw(size, space, OLD_DATA_SPACE);
+  if (!maybe_object->To(&object)) return maybe_object;
+
+  if (array_type == kExternalDoubleArray) {
+    object = EnsureDoubleAligned(this, object, size);
+  }
+
+  FixedTypedArrayBase* elements =
+      reinterpret_cast<FixedTypedArrayBase*>(object);
+  elements->set_map(MapForFixedTypedArray(array_type));
+  elements->set_length(length);
+  return elements;
 }
 
 
@@ -4701,8 +4742,9 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   SharedFunctionInfo* shared = NULL;
   if (type == JS_FUNCTION_TYPE) {
     String* name;
-    maybe =
-        InternalizeOneByteString(STATIC_ASCII_VECTOR("<freezing call trap>"));
+    OneByteStringKey key(STATIC_ASCII_VECTOR("<freezing call trap>"),
+                         HashSeed());
+    maybe = InternalizeStringWithKey(&key);
     if (!maybe->To<String>(&name)) return maybe;
     maybe = AllocateSharedFunctionInfo(name);
     if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
@@ -5835,67 +5877,8 @@ void Heap::Verify() {
 
 
 MaybeObject* Heap::InternalizeUtf8String(Vector<const char> string) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupUtf8String(string, &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
-}
-
-
-MaybeObject* Heap::InternalizeOneByteString(Vector<const uint8_t> string) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupOneByteString(string, &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
-}
-
-
-MaybeObject* Heap::InternalizeOneByteString(Handle<SeqOneByteString> string,
-                                     int from,
-                                     int length) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupSubStringOneByteString(string,
-                                                   from,
-                                                   length,
-                                                   &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
-}
-
-
-MaybeObject* Heap::InternalizeTwoByteString(Vector<const uc16> string) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupTwoByteString(string, &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
+  Utf8StringKey key(string, HashSeed());
+  return InternalizeStringWithKey(&key);
 }
 
 
@@ -5921,6 +5904,21 @@ bool Heap::InternalizeStringIfExists(String* string, String** result) {
     return true;
   }
   return string_table()->LookupStringIfExists(string, result);
+}
+
+
+MaybeObject* Heap::InternalizeStringWithKey(HashTableKey* key) {
+  Object* result = NULL;
+  Object* new_table;
+  { MaybeObject* maybe_new_table =
+        string_table()->LookupKey(key, &result);
+    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
+  }
+  // Can't use set_string_table because StringTable::cast knows that
+  // StringTable is a singleton and checks for identity.
+  roots_[kStringTableRootIndex] = new_table;
+  ASSERT(result != NULL);
+  return result;
 }
 
 
@@ -6756,6 +6754,10 @@ void Heap::EnsureWeakObjectToCodeTable() {
   }
 }
 
+
+void Heap::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
+  v8::internal::V8::FatalProcessOutOfMemory(location, take_snapshot);
+}
 
 #ifdef DEBUG
 

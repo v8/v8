@@ -31,7 +31,6 @@
 #include "v8.h"
 
 #include "../include/v8-testing.h"
-#include "apiutils.h"
 #include "contexts.h"
 #include "factory.h"
 #include "isolate.h"
@@ -196,7 +195,12 @@ class RegisteredExtension {
 
 class Utils {
  public:
-  static bool ReportApiFailure(const char* location, const char* message);
+  static inline bool ApiCheck(bool condition,
+                              const char* location,
+                              const char* message) {
+    if (!condition) Utils::ReportApiFailure(location, message);
+    return condition;
+  }
 
   static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
   static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);
@@ -303,6 +307,9 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
   static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
     return OpenHandle(*handle);
   }
+
+ private:
+  static void ReportApiFailure(const char* location, const char* message);
 };
 
 
@@ -543,7 +550,8 @@ class HandleScopeImplementer {
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Handle<Context> context);
-  inline bool LeaveContext(Handle<Context> context);
+  inline void LeaveContext();
+  inline bool LastEnteredContextWas(Handle<Context> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
@@ -599,7 +607,7 @@ class HandleScopeImplementer {
   int call_depth_;
   Object** last_handle_before_deferred_block_;
   // This is only used for threading support.
-  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeData handle_scope_data_;
 
   void IterateThis(ObjectVisitor* v);
   char* RestoreThreadHelper(char* from);
@@ -635,12 +643,13 @@ void HandleScopeImplementer::EnterContext(Handle<Context> context) {
 }
 
 
-bool HandleScopeImplementer::LeaveContext(Handle<Context> context) {
-  if (entered_contexts_.is_empty()) return false;
-  // TODO(dcarney): figure out what's wrong here
-  // if (entered_contexts_.last() != *context) return false;
+void HandleScopeImplementer::LeaveContext() {
   entered_contexts_.RemoveLast();
-  return true;
+}
+
+
+bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
+  return !entered_contexts_.is_empty() && entered_contexts_.last() == *context;
 }
 
 

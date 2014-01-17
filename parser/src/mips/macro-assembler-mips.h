@@ -894,47 +894,31 @@ class MacroAssembler: public Assembler {
   // -------------------------------------------------------------------------
   // JavaScript invokes.
 
-  // Set up call kind marking in t1. The method takes t1 as an
-  // explicit first parameter to make the code more readable at the
-  // call sites.
-  void SetCallKind(Register dst, CallKind kind);
-
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
-
-  void InvokeCode(Handle<Code> code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  RelocInfo::Mode rmode,
-                  InvokeFlag flag,
-                  CallKind call_kind);
+                  const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Register function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
 
   void IsObjectJSObjectType(Register heap_object,
@@ -1277,15 +1261,16 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void CallCFunction(Register function,
                      int num_reg_arguments,
                      int num_double_arguments);
-  void GetCFunctionDoubleResult(const DoubleRegister dst);
+  void MovFromFloatResult(DoubleRegister dst);
+  void MovFromFloatParameter(DoubleRegister dst);
 
   // There are two ways of passing double arguments on MIPS, depending on
   // whether soft or hard floating point ABI is used. These functions
   // abstract parameter passing for the three different ways we call
   // C functions from generated code.
-  void SetCallCDoubleArguments(DoubleRegister dreg);
-  void SetCallCDoubleArguments(DoubleRegister dreg1, DoubleRegister dreg2);
-  void SetCallCDoubleArguments(DoubleRegister dreg, Register reg);
+  void MovToFloatParameter(DoubleRegister src);
+  void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
+  void MovToFloatResult(DoubleRegister src);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space
@@ -1615,8 +1600,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                       Label* done,
                       bool* definitely_mismatches,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   // Get the code for the given builtin. Returns if able to resolve
   // the function in the 'resolved' flag.

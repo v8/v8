@@ -59,7 +59,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
     : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
       osr_ast_id_(BailoutId::None()),
-      parameter_count_(0) {
+      parameter_count_(0),
+      this_has_uses_(true) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -70,7 +71,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()),
-      parameter_count_(0) {
+      parameter_count_(0),
+      this_has_uses_(true) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -83,7 +85,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
-      parameter_count_(0) {
+      parameter_count_(0),
+      this_has_uses_(true) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -94,7 +97,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
     : flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()),
-      parameter_count_(0) {
+      parameter_count_(0),
+      this_has_uses_(true) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -399,6 +403,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       : new(info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
+  info()->set_this_has_uses(false);
   graph_ = graph_builder_->CreateGraph();
 
   if (isolate()->has_pending_exception()) {

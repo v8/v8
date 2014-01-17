@@ -364,6 +364,56 @@ void NewStringAddStub::InitializeInterfaceDescriptor(
 }
 
 
+void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ArgumentAdaptorCall);
+    static Register registers[] = { edi,  // JSFunction
+                                    esi,  // context
+                                    eax,  // actual number of arguments
+                                    ebx,  // expected number of arguments
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // JSFunction
+        Representation::Tagged(),     // context
+        Representation::Integer32(),  // actual number of arguments
+        Representation::Integer32(),  // expected number of arguments
+    };
+    descriptor->register_param_count_ = 4;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::KeyedCall);
+    static Register registers[] = { esi,  // context
+                                    ecx,  // key
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // context
+        Representation::Tagged(),     // key
+    };
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::NamedCall);
+    static Register registers[] = { esi,  // context
+                                    ecx,  // name
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),     // context
+        Representation::Tagged(),     // name
+    };
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 
@@ -2520,43 +2570,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Check that the function really is a JavaScript function.
   __ JumpIfSmi(edi, &non_function);
 
-  // The receiver might implicitly be the global object. This is
-  // indicated by passing the hole as the receiver to the call
-  // function stub.
-  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
-    Label try_call, call, patch_current_context;
-    if (ReceiverMightBeImplicit()) {
-      // Get the receiver from the stack.
-      // +1 ~ return address
-      __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
-      // Call as function is indicated with the hole.
-      __ cmp(eax, isolate->factory()->the_hole_value());
-      __ j(not_equal, &try_call, Label::kNear);
-    }
-    // Patch the receiver on the stack with the global receiver object.
-    // Goto slow case if we do not have a function.
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-    __ j(not_equal, &patch_current_context);
-    CallStubCompiler::FetchGlobalProxy(masm, ecx, edi);
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), ecx);
-    __ jmp(&call, Label::kNear);
-
-    __ bind(&patch_current_context);
-    __ mov(edx, isolate->factory()->undefined_value());
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edx);
-    __ jmp(&slow);
-
-    __ bind(&try_call);
-    // Goto slow case if we do not have a function.
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-    __ j(not_equal, &slow);
-
-    __ bind(&call);
-  } else {
-    // Goto slow case if we do not have a function.
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-    __ j(not_equal, &slow);
-  }
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -2565,22 +2581,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
 
-  if (ReceiverMightBeImplicit()) {
-    Label call_as_function;
-    __ cmp(eax, isolate->factory()->the_hole_value());
-    __ j(equal, &call_as_function);
-    __ InvokeFunction(edi,
-                      actual,
-                      JUMP_FUNCTION,
-                      NullCallWrapper(),
-                      CALL_AS_METHOD);
-    __ bind(&call_as_function);
-  }
-  __ InvokeFunction(edi,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper(),
-                    CALL_AS_FUNCTION);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // Slow-case: Non-function called.
   __ bind(&slow);
@@ -2599,7 +2600,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ push(ecx);
   __ Set(eax, Immediate(argc_ + 1));
   __ Set(ebx, Immediate(0));
-  __ SetCallKind(ecx, CALL_AS_FUNCTION);
   __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
@@ -2612,7 +2612,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
-  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
@@ -2660,7 +2659,6 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Set(ebx, Immediate(0));
   Handle<Code> arguments_adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
-  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ jmp(arguments_adaptor, RelocInfo::CODE_TARGET);
 }
 
@@ -5359,8 +5357,7 @@ void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
   __ sub(eax, Immediate(1));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   ParameterCount argument_count(eax);
-  __ InvokeFunction(
-      edi, argument_count, JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeFunction(edi, argument_count, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -5409,7 +5406,6 @@ static void CreateArrayDispatch(MacroAssembler* masm,
                                 AllocationSiteOverrideMode mode) {
   if (mode == DISABLE_ALLOCATION_SITES) {
     T stub(GetInitialFastElementsKind(),
-           CONTEXT_CHECK_REQUIRED,
            mode);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
@@ -5465,13 +5461,11 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
     ArraySingleArgumentConstructorStub stub_holey(holey_initial,
-                                                  CONTEXT_CHECK_REQUIRED,
                                                   DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub_holey);
 
     __ bind(&normal_sequence);
     ArraySingleArgumentConstructorStub stub(initial,
-                                            CONTEXT_CHECK_REQUIRED,
                                             DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
@@ -5523,7 +5517,7 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
     T stub(kind);
     stub.GetCode(isolate);
     if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
-      T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
+      T stub1(kind, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate);
     }
   }

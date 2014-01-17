@@ -56,10 +56,10 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 
 UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &exp;
+  if (!FLAG_fast_math) return &std::exp;
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &exp;
+  if (buffer == NULL) return &std::exp;
   ExternalReference::InitializeMathExpData();
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -92,7 +92,7 @@ UnaryMathFunction CreateSqrtFunction() {
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
                                                  &actual_size,
                                                  true));
-  if (buffer == NULL) return &sqrt;
+  if (buffer == NULL) return &std::sqrt;
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // xmm0: raw double input.

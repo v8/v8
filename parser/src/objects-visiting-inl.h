@@ -60,6 +60,8 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   int>::Visit);
 
   table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
+  table_.Register(kVisitFixedTypedArray, &VisitFixedTypedArray);
+  table_.Register(kVisitFixedFloat64Array, &VisitFixedTypedArray);
 
   table_.Register(kVisitNativeContext,
                   &FixedBodyVisitor<StaticVisitor,
@@ -185,6 +187,10 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 
+  table_.Register(kVisitFixedTypedArray, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitFixedFloat64Array, &DataObjectVisitor::Visit);
+
   table_.Register(kVisitConstantPoolArray, &VisitConstantPoolArray);
 
   table_.Register(kVisitNativeContext, &VisitNativeContext);
@@ -261,6 +267,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
   ASSERT(!rinfo->target_object()->IsConsString());
   HeapObject* object = HeapObject::cast(rinfo->target_object());
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  // TODO(ulan): It could be better to record slots only for strongly embedded
+  // objects here and record slots for weakly embedded object during clearing
+  // of non-live references in mark-compact.
   if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), object)) {
     StaticVisitor::MarkObject(heap, object);
   }
@@ -272,7 +281,10 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCell(
     Heap* heap, RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::CELL);
   Cell* cell = rinfo->target_cell();
-  StaticVisitor::MarkObject(heap, cell);
+  // No need to record slots because the cell space is not compacted during GC.
+  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), cell)) {
+    StaticVisitor::MarkObject(heap, cell);
+  }
 }
 
 

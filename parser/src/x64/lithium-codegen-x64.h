@@ -213,7 +213,6 @@ class LCodeGen: public LCodeGenBase {
                          int formal_parameter_count,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind,
                          RDIState rdi_state);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,

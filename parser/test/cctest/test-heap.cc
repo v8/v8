@@ -2190,7 +2190,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2206,8 +2206,13 @@ TEST(OptimizedPretenuringAllocationFolding) {
       "  this.e = 1.3;"
       "  this.f = [{}];"
       "}"
+      "var number_elements = 20000;"
+      "var elements = new Array();"
       "function f() {"
-      "  return new DataObject();"
+      "  for (var i = 0; i < 20000-1; i++) {"
+      "    elements[i] = new DataObject();"
+      "  }"
+      "  return new DataObject()"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2227,7 +2232,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2235,6 +2240,8 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 30000;"
+      "var elements = new Array(number_elements);"
       "function DataObject() {"
       "  this.a = [{}];"
       "  this.b = [{}];"
@@ -2244,7 +2251,10 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
       "  this.f = 1.3;"
       "}"
       "function f() {"
-      "  return new DataObject();"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = new DataObject();"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2264,17 +2274,20 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
 
 TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [{}, {}, {}];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [{}, {}, {}];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2290,17 +2303,20 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = {a: {c: 2.2, d: {}}, b: 1.1};"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2322,17 +2338,20 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
 TEST(OptimizedPretenuringDoubleArrayProperties) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 30000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = {a: 1.1, b: 2.2};"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = {a: 1.1, b: 2.2};"
+      "  }"
+      "  return elements[i - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2348,17 +2367,20 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
 TEST(OptimizedPretenuringdoubleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [1.1, 2.2, 3.3];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [1.1, 2.2, 3.3];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2374,17 +2396,20 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [[{}, {}, {}],[1.1, 2.2, 3.3]];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2409,17 +2434,20 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedObjectLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [[{}, {}, {}],[{}, {}, {}]];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [[{}, {}, {}],[{}, {}, {}]];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2444,17 +2472,20 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 
 TEST(OptimizedPretenuringNestedDoubleLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -3059,7 +3090,7 @@ TEST(Regression144230) {
     HandleScope inner_scope(isolate);
     AlwaysAllocateScope always_allocate;
     SimulateFullSpace(heap->code_space());
-    isolate->stub_cache()->ComputeCallInitialize(9, NOT_CONTEXTUAL);
+    isolate->stub_cache()->ComputeCallInitialize(9);
   }
 
   // Second compile a CallIC and execute it once so that it gets patched to
@@ -3501,8 +3532,7 @@ TEST(DeferredHandles) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
-  v8::ImplementationUtilities::HandleScopeData* data =
-      isolate->handle_scope_data();
+  HandleScopeData* data = isolate->handle_scope_data();
   Handle<Object> init(heap->empty_string(), isolate);
   while (data->next < data->limit) {
     Handle<Object> obj(heap->empty_string(), isolate);
@@ -3632,4 +3662,88 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   DependentCode::GroupStartIndexes starts(site->dependent_code());
   int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
   CHECK(!(site->dependent_code()->is_code_at(index)));
+}
+
+
+TEST(CellsInOptimizedCodeAreWeak) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  i::FLAG_weak_embedded_objects_in_optimized_code = true;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_crankshaft()) return;
+  HandleScope outer_scope(heap->isolate());
+  Handle<Code> code;
+  {
+    LocalContext context;
+    HandleScope scope(heap->isolate());
+
+    CompileRun("bar = (function() {"
+               "  function bar() {"
+               "    return foo(1);"
+               "  };"
+               "  var foo = function(x) { with (x) { return 1 + x; } };"
+               "  bar(foo);"
+               "  bar(foo);"
+               "  bar(foo);"
+               "  %OptimizeFunctionOnNextCall(bar);"
+               "  bar(foo);"
+               "  return bar;})();");
+
+    Handle<JSFunction> bar =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("bar"))));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
+  }
+
+  // Now make sure that a gc should get rid of the function
+  for (int i = 0; i < 4; i++) {
+    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  }
+
+  ASSERT(code->marked_for_deoptimization());
+}
+
+
+TEST(ObjectsInOptimizedCodeAreWeak) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  i::FLAG_weak_embedded_objects_in_optimized_code = true;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_crankshaft()) return;
+  HandleScope outer_scope(heap->isolate());
+  Handle<Code> code;
+  {
+    LocalContext context;
+    HandleScope scope(heap->isolate());
+
+    CompileRun("function bar() {"
+               "  return foo(1);"
+               "};"
+               "function foo(x) { with (x) { return 1 + x; } };"
+               "bar();"
+               "bar();"
+               "bar();"
+               "%OptimizeFunctionOnNextCall(bar);"
+               "bar();");
+
+    Handle<JSFunction> bar =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("bar"))));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
+  }
+
+  // Now make sure that a gc should get rid of the function
+  for (int i = 0; i < 4; i++) {
+    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  }
+
+  ASSERT(code->marked_for_deoptimization());
 }

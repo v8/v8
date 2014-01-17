@@ -239,7 +239,10 @@ class CommitRepository(Step):
     TextToFile(GetLastChangeLogEntries(self.Config(CHANGELOG_FILE)),
                self.Config(CHANGELOG_ENTRY_FILE))
 
-    if self.Git("cl dcommit -f", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
+    if self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
+      self.Die("'git cl presubmit' failed, please try again.")
+
+    if self.Git("cl dcommit -f --bypass-hooks") is None:
       self.Die("'git cl dcommit' failed, please try again.")
 
 

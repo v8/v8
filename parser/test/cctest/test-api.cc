@@ -10195,7 +10195,8 @@ THREADED_TEST(Regress91517) {
   // Call the runtime version of GetLocalPropertyNames() on the natively
   // created object through JavaScript.
   context->Global()->Set(v8_str("obj"), o4);
-  CompileRun("var names = %GetLocalPropertyNames(obj, true);");
+  // PROPERTY_ATTRIBUTES_NONE = 0
+  CompileRun("var names = %GetLocalPropertyNames(obj, 0);");
 
   ExpectInt32("names.length", 1006);
   ExpectTrue("names.indexOf(\"baz\") >= 0");
@@ -10249,7 +10250,8 @@ THREADED_TEST(Regress269562) {
   // the natively created object through JavaScript.
   context->Global()->Set(v8_str("obj"), o2);
   context->Global()->Set(v8_str("sym"), sym);
-  CompileRun("var names = %GetLocalPropertyNames(obj, true);");
+  // PROPERTY_ATTRIBUTES_NONE = 0
+  CompileRun("var names = %GetLocalPropertyNames(obj, 0);");
 
   ExpectInt32("names.length", 7);
   ExpectTrue("names.indexOf(\"foo\") >= 0");
@@ -11022,45 +11024,44 @@ THREADED_TEST(CallableObject) {
 }
 
 
-static int CountHandles() {
-  return v8::HandleScope::NumberOfHandles();
-}
-
-
-static int Recurse(int depth, int iterations) {
-  v8::HandleScope scope(CcTest::isolate());
-  if (depth == 0) return CountHandles();
+static int Recurse(v8::Isolate* isolate, int depth, int iterations) {
+  v8::HandleScope scope(isolate);
+  if (depth == 0) return v8::HandleScope::NumberOfHandles(isolate);
   for (int i = 0; i < iterations; i++) {
-    Local<v8::Number> n(v8::Integer::New(CcTest::isolate(), 42));
+    Local<v8::Number> n(v8::Integer::New(isolate, 42));
   }
-  return Recurse(depth - 1, iterations);
+  return Recurse(isolate, depth - 1, iterations);
 }
 
 
 THREADED_TEST(HandleIteration) {
   static const int kIterations = 500;
   static const int kNesting = 200;
-  CHECK_EQ(0, CountHandles());
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope0(isolate);
+  CHECK_EQ(0, v8::HandleScope::NumberOfHandles(isolate));
   {
-    v8::HandleScope scope1(CcTest::isolate());
-    CHECK_EQ(0, CountHandles());
+    v8::HandleScope scope1(isolate);
+    CHECK_EQ(0, v8::HandleScope::NumberOfHandles(isolate));
     for (int i = 0; i < kIterations; i++) {
       Local<v8::Number> n(v8::Integer::New(CcTest::isolate(), 42));
-      CHECK_EQ(i + 1, CountHandles());
+      CHECK_EQ(i + 1, v8::HandleScope::NumberOfHandles(isolate));
     }
 
-    CHECK_EQ(kIterations, CountHandles());
+    CHECK_EQ(kIterations, v8::HandleScope::NumberOfHandles(isolate));
     {
       v8::HandleScope scope2(CcTest::isolate());
       for (int j = 0; j < kIterations; j++) {
         Local<v8::Number> n(v8::Integer::New(CcTest::isolate(), 42));
-        CHECK_EQ(j + 1 + kIterations, CountHandles());
+        CHECK_EQ(j + 1 + kIterations,
+                 v8::HandleScope::NumberOfHandles(isolate));
       }
     }
-    CHECK_EQ(kIterations, CountHandles());
+    CHECK_EQ(kIterations, v8::HandleScope::NumberOfHandles(isolate));
   }
-  CHECK_EQ(0, CountHandles());
-  CHECK_EQ(kNesting * kIterations, Recurse(kNesting, kIterations));
+  CHECK_EQ(0, v8::HandleScope::NumberOfHandles(isolate));
+  CHECK_EQ(kNesting * kIterations, Recurse(isolate, kNesting, kIterations));
 }
 
 
@@ -14784,9 +14785,10 @@ TEST(PreCompile) {
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = "function foo(a) { return a+1; }";
-  v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
+  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
+      isolate, script, v8::String::kNormalString, i::StrLength(script)));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
   CHECK(!sd->HasError());
@@ -14797,9 +14799,10 @@ TEST(PreCompile) {
 TEST(PreCompileWithError) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = "function foo(a) { return 1 * * 2; }";
-  v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
+  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
+      isolate, script, v8::String::kNormalString, i::StrLength(script)));
   CHECK(sd->HasError());
   delete sd;
 }
@@ -14808,9 +14811,10 @@ TEST(PreCompileWithError) {
 TEST(Regress31661) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = " The Definintive Guide";
-  v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
+  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
+      isolate, script, v8::String::kNormalString, i::StrLength(script)));
   CHECK(sd->HasError());
   delete sd;
 }
@@ -14820,9 +14824,10 @@ TEST(Regress31661) {
 TEST(PreCompileSerialization) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
   const char* script = "function foo(a) { return a+1; }";
-  v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
+  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
+      isolate, script, v8::String::kNormalString, i::StrLength(script)));
 
   // Serialize.
   int serialized_data_length = sd->Length();
@@ -14865,8 +14870,8 @@ TEST(PreCompileInvalidPreparseDataError) {
 
   const char* script = "function foo(){ return 5;}\n"
       "function bar(){ return 6 + 7;}  foo();";
-  v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
+  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
+      isolate, script, v8::String::kNormalString, i::StrLength(script)));
   CHECK(!sd->HasError());
   // ScriptDataImpl private implementation details
   const int kHeaderSize = i::PreparseDataConstants::kHeaderSize;
@@ -14892,7 +14897,8 @@ TEST(PreCompileInvalidPreparseDataError) {
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position and we should fall
   // back on eager compilation.
-  sd = v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
+  sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
+      isolate, script, v8::String::kNormalString, i::StrLength(script)));
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
@@ -14900,42 +14906,6 @@ TEST(PreCompileInvalidPreparseDataError) {
   CHECK(!try_catch.HasCaught());
 
   delete sd;
-}
-
-
-// Verifies that the Handle<String> and const char* versions of the API produce
-// the same results (at least for one trivial case).
-TEST(PreCompileAPIVariationsAreSame) {
-  v8::V8::Initialize();
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-
-  const char* cstring = "function foo(a) { return a+1; }";
-
-  v8::ScriptData* sd_from_cstring =
-      v8::ScriptData::PreCompile(isolate, cstring, i::StrLength(cstring));
-
-  TestAsciiResource* resource = new TestAsciiResource(cstring);
-  v8::ScriptData* sd_from_external_string = v8::ScriptData::PreCompile(
-      v8::String::NewExternal(isolate, resource));
-
-  v8::ScriptData* sd_from_string = v8::ScriptData::PreCompile(
-      v8::String::NewFromUtf8(isolate, cstring));
-
-  CHECK_EQ(sd_from_cstring->Length(), sd_from_external_string->Length());
-  CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
-                     sd_from_external_string->Data(),
-                     sd_from_cstring->Length()));
-
-  CHECK_EQ(sd_from_cstring->Length(), sd_from_string->Length());
-  CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
-                     sd_from_string->Data(),
-                     sd_from_cstring->Length()));
-
-
-  delete sd_from_cstring;
-  delete sd_from_external_string;
-  delete sd_from_string;
 }
 
 
@@ -16143,14 +16113,6 @@ static void ObjectWithExternalArrayTestHelper(
   result = CompileRun("ext_array[1]");
   CHECK_EQ(1, result->Int32Value());
 
-  // Check pass through of assigned smis
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += ext_array[i] = ext_array[i] = -i;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(-28, result->Int32Value());
-
   // Check assigned smis
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  ext_array[i] = i;"
@@ -16160,7 +16122,16 @@ static void ObjectWithExternalArrayTestHelper(
                       "  sum += ext_array[i];"
                       "}"
                       "sum;");
+
   CHECK_EQ(28, result->Int32Value());
+  // Check pass through of assigned smis
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i] = ext_array[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
 
   // Check assigned smis in reverse order
   result = CompileRun("for (var i = 8; --i >= 0; ) {"
@@ -16425,6 +16396,113 @@ static void ObjectWithExternalArrayTestHelper(
 
   result = CompileRun("ext_array[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
+}
+
+
+template <class FixedTypedArrayClass,
+          i::ElementsKind elements_kind,
+          class ElementType>
+static void FixedTypedArrayTestHelper(
+    v8::ExternalArrayType array_type,
+    ElementType low,
+    ElementType high) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope scope(context->GetIsolate());
+  const int kElementCount = 260;
+  i::Handle<FixedTypedArrayClass> fixed_array =
+    i::Handle<FixedTypedArrayClass>::cast(
+        factory->NewFixedTypedArray(kElementCount, array_type));
+  CHECK_EQ(FixedTypedArrayClass::kInstanceType,
+           fixed_array->map()->instance_type());
+  CHECK_EQ(kElementCount, fixed_array->length());
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    fixed_array->set(i, static_cast<ElementType>(i));
+  }
+  // Force GC to trigger verification.
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(static_cast<int64_t>(static_cast<ElementType>(i)),
+             static_cast<int64_t>(fixed_array->get_scalar(i)));
+  }
+  v8::Handle<v8::Object> obj = v8::Object::New(CcTest::isolate());
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  i::Handle<i::Map> fixed_array_map =
+      isolate->factory()->GetElementsTransitionMap(jsobj, elements_kind);
+  jsobj->set_map(*fixed_array_map);
+  jsobj->set_elements(*fixed_array);
+
+  ObjectWithExternalArrayTestHelper<FixedTypedArrayClass, ElementType>(
+      context.local(), obj, kElementCount, array_type,
+      static_cast<int64_t>(low),
+      static_cast<int64_t>(high));
+}
+
+
+THREADED_TEST(FixedUint8Array) {
+  FixedTypedArrayTestHelper<i::FixedUint8Array, i::UINT8_ELEMENTS, uint8_t>(
+    v8::kExternalUnsignedByteArray,
+    0x0, 0xFF);
+}
+
+
+THREADED_TEST(FixedUint8ClampedArray) {
+  FixedTypedArrayTestHelper<i::FixedUint8ClampedArray,
+                            i::UINT8_CLAMPED_ELEMENTS, uint8_t>(
+    v8::kExternalPixelArray,
+    0x0, 0xFF);
+}
+
+
+THREADED_TEST(FixedInt8Array) {
+  FixedTypedArrayTestHelper<i::FixedInt8Array, i::INT8_ELEMENTS, int8_t>(
+    v8::kExternalByteArray,
+    -0x80, 0x7F);
+}
+
+
+THREADED_TEST(FixedUint16Array) {
+  FixedTypedArrayTestHelper<i::FixedUint16Array, i::UINT16_ELEMENTS, uint16_t>(
+    v8::kExternalUnsignedShortArray,
+    0x0, 0xFFFF);
+}
+
+
+THREADED_TEST(FixedInt16Array) {
+  FixedTypedArrayTestHelper<i::FixedInt16Array, i::INT16_ELEMENTS, int16_t>(
+    v8::kExternalShortArray,
+    -0x8000, 0x7FFF);
+}
+
+
+THREADED_TEST(FixedUint32Array) {
+  FixedTypedArrayTestHelper<i::FixedUint32Array, i::UINT32_ELEMENTS, uint32_t>(
+    v8::kExternalUnsignedIntArray,
+    0x0, UINT_MAX);
+}
+
+
+THREADED_TEST(FixedInt32Array) {
+  FixedTypedArrayTestHelper<i::FixedInt32Array, i::INT32_ELEMENTS, int32_t>(
+    v8::kExternalIntArray,
+    INT_MIN, INT_MAX);
+}
+
+
+THREADED_TEST(FixedFloat32Array) {
+  FixedTypedArrayTestHelper<i::FixedFloat32Array, i::FLOAT32_ELEMENTS, float>(
+    v8::kExternalFloatArray,
+    -500, 500);
+}
+
+
+THREADED_TEST(FixedFloat64Array) {
+  FixedTypedArrayTestHelper<i::FixedFloat64Array, i::FLOAT64_ELEMENTS, float>(
+    v8::kExternalDoubleArray,
+    -500, 500);
 }
 
 
@@ -17827,7 +17905,7 @@ static double DoubleToDateTime(double input) {
   if (std::isnan(input) || input < -date_limit || input > date_limit) {
     return i::OS::nan_value();
   }
-  return (input < 0) ? -(floor(-input)) : floor(input);
+  return (input < 0) ? -(std::floor(-input)) : std::floor(input);
 }
 
 
@@ -21229,7 +21307,8 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%HasElement(other, 1)");
   CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
   CheckCorrectThrow("%GetPropertyNames(other)");
-  CheckCorrectThrow("%GetLocalPropertyNames(other, true)");
+  // PROPERTY_ATTRIBUTES_NONE = 0
+  CheckCorrectThrow("%GetLocalPropertyNames(other, 0)");
   CheckCorrectThrow("%DefineOrRedefineAccessorProperty("
                         "other, 'x', null, null, 1)");
 

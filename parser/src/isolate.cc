@@ -1567,6 +1567,7 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
+      call_descriptors_(NULL),
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
@@ -1775,6 +1776,9 @@ Isolate::~Isolate() {
   delete[] code_stub_interface_descriptors_;
   code_stub_interface_descriptors_ = NULL;
 
+  delete[] call_descriptors_;
+  call_descriptors_ = NULL;
+
   delete regexp_stack_;
   regexp_stack_ = NULL;
 
@@ -1965,6 +1969,8 @@ bool Isolate::Init(Deserializer* des) {
   date_cache_ = new DateCache();
   code_stub_interface_descriptors_ =
       new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
+  call_descriptors_ =
+      new CallInterfaceDescriptor[NUMBER_OF_CALL_DESCRIPTORS];
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
 
@@ -2116,6 +2122,7 @@ bool Isolate::Init(Deserializer* des) {
     stub.InitializeInterfaceDescriptor(
         this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
     BinaryOpICStub::InstallDescriptors(this);
+    BinaryOpWithAllocationSiteStub::InstallDescriptors(this);
     CompareNilICStub::InitializeForIsolate(this);
     ToBooleanStub::InitializeForIsolate(this);
     ArrayConstructorStubBase::InstallDescriptors(this);
@@ -2124,6 +2131,8 @@ bool Isolate::Init(Deserializer* des) {
     NumberToStringStub::InstallDescriptors(this);
     NewStringAddStub::InstallDescriptors(this);
   }
+
+  CallDescriptors::InitializeForIsolate(this);
 
   initialized_from_snapshot_ = (des != NULL);
 
@@ -2299,6 +2308,13 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 CodeStubInterfaceDescriptor*
     Isolate::code_stub_interface_descriptor(int index) {
   return code_stub_interface_descriptors_ + index;
+}
+
+
+CallInterfaceDescriptor*
+    Isolate::call_descriptor(CallDescriptorKey index) {
+  ASSERT(0 <= index && index < NUMBER_OF_CALL_DESCRIPTORS);
+  return &call_descriptors_[index];
 }
 
 

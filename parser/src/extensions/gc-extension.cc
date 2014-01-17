@@ -42,9 +42,11 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   if (args[0]->BooleanValue()) {
-    isolate->heap()->CollectGarbage(NEW_SPACE, "gc extension");
+    isolate->heap()->CollectGarbage(
+        NEW_SPACE, "gc extension", v8::kGCCallbackFlagForced);
   } else {
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
+    isolate->heap()->CollectAllGarbage(
+        Heap::kNoGCFlags, "gc extension", v8::kGCCallbackFlagForced);
   }
 }
 

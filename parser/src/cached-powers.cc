@@ -152,7 +152,7 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
   int kQ = DiyFp::kSignificandSize;
   // Some platforms return incorrect sign on 0 result. We can ignore that here,
   // which means we can avoid depending on platform.h.
-  double k = ceil((min_exponent + kQ - 1) * kD_1_LOG2_10);
+  double k = std::ceil((min_exponent + kQ - 1) * kD_1_LOG2_10);
   int foo = kCachedPowersOffset;
   int index =
       (foo + static_cast<int>(k) - 1) / kDecimalExponentDistance + 1;

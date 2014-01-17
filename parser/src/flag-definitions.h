@@ -220,7 +220,7 @@ DEFINE_bool(pretenuring, true, "allocate objects in old space")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
 DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
-DEFINE_bool(allocation_site_pretenuring, false,
+DEFINE_bool(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_bool(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
@@ -304,7 +304,7 @@ DEFINE_bool(array_index_dehoisting, true,
 DEFINE_bool(analyze_environment_liveness, true,
             "analyze liveness of environment slots and zap dead values")
 DEFINE_bool(load_elimination, true, "use load elimination")
-DEFINE_bool(check_elimination, false, "use check elimination")
+DEFINE_bool(check_elimination, true, "use check elimination")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
 DEFINE_bool(fold_constants, true, "use constant folding")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")
@@ -322,7 +322,6 @@ DEFINE_bool(flush_optimized_code_cache, true,
 DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
-DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 DEFINE_int(escape_analysis_iterations, 2,
            "maximum number of escape analysis fix-point iterations")
 
@@ -399,9 +398,7 @@ DEFINE_bool(enable_vldr_imm, false,
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
-#ifdef ADDRESS_SANITIZER
 DEFINE_bool(expose_free_buffer, false, "expose freeBuffer extension")
-#endif
 DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_string(expose_gc_as, NULL,
               "expose gc extension under the specified name")

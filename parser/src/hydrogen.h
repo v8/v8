@@ -640,16 +640,7 @@ class HEnvironment V8_FINAL : public ZoneObject {
                                 int arguments,
                                 FunctionLiteral* function,
                                 HConstant* undefined,
-                                InliningKind inlining_kind,
-                                bool undefined_receiver) const;
-
-  static bool UseUndefinedReceiver(Handle<JSFunction> closure,
-                                   FunctionLiteral* function,
-                                   CallKind call_kind,
-                                   InliningKind inlining_kind) {
-    return (closure->shared()->native() || !function->is_classic_mode()) &&
-        call_kind == CALL_AS_FUNCTION && inlining_kind != CONSTRUCT_CALL_RETURN;
-  }
+                                InliningKind inlining_kind) const;
 
   HEnvironment* DiscardInlined(bool drop_extra) {
     HEnvironment* outer = outer_;
@@ -1774,6 +1765,7 @@ class HGraphBuilder {
   HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                         Handle<JSObject> holder);
 
+  HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetArrayFunction();
 
@@ -2178,6 +2170,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
+  void PushArgumentsFromEnvironment(int count);
 
   void SetUpScope(Scope* scope);
   virtual void VisitStatements(ZoneList<Statement*>* statements) V8_OVERRIDE;
@@ -2202,9 +2195,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
 
+  HValue* ImplicitReceiverFor(HValue* function,
+                              Handle<JSFunction> target);
+
   int InliningAstSize(Handle<JSFunction> target);
-  bool TryInline(CallKind call_kind,
-                 Handle<JSFunction> target,
+  bool TryInline(Handle<JSFunction> target,
                  int arguments_count,
                  HValue* implicit_return_value,
                  BailoutId ast_id,
@@ -2502,8 +2497,20 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                 HValue* receiver,
                                 Handle<Map> receiver_map);
 
-  void InstallGlobalReceiverInExpressionStack(int index,
-                                              Handle<JSFunction> function);
+  HInstruction* NewPlainFunctionCall(HValue* fun,
+                                     int argument_count,
+                                     bool pass_argument_count);
+
+  HInstruction* NewArgumentAdaptorCall(HValue* fun, HValue* context,
+                                       int argument_count,
+                                       HValue* expected_param_count);
+
+  HInstruction* BuildCallConstantFunction(Handle<JSFunction> target,
+                                          int argument_count);
+
+  HInstruction* NewCallKeyed(HValue* key, int argument_count);
+
+  HInstruction* NewCallNamed(Handle<String> name, int argument_count);
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;

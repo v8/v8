@@ -823,20 +823,24 @@ class V8_EXPORT HandleScope {
   /**
    * Counts the number of allocated handles.
    */
-  static int NumberOfHandles();
+  static int NumberOfHandles(Isolate* isolate);
 
- private:
-  /**
-   * Creates a new handle with the given value.
-   */
+  V8_INLINE Isolate* GetIsolate() const {
+    return reinterpret_cast<Isolate*>(isolate_);
+  }
+
+ protected:
+  V8_INLINE HandleScope() {}
+
+  void Initialize(Isolate* isolate);
+
   static internal::Object** CreateHandle(internal::Isolate* isolate,
                                          internal::Object* value);
-  // Uses HeapObject to obtain the current Isolate.
+
+ private:
+  // Uses heap_object to obtain the current Isolate.
   static internal::Object** CreateHandle(internal::HeapObject* heap_object,
                                          internal::Object* value);
-
-  V8_INLINE HandleScope() {}
-  void Initialize(Isolate* isolate);
 
   // Make it hard to create heap-allocated or illegal handle scopes by
   // disallowing certain operations.
@@ -845,27 +849,15 @@ class V8_EXPORT HandleScope {
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
-  // This Data class is accessible internally as HandleScopeData through a
-  // typedef in the ImplementationUtilities class.
-  class V8_EXPORT Data {
-   public:
-    internal::Object** next;
-    internal::Object** limit;
-    int level;
-    V8_INLINE void Initialize() {
-      next = limit = NULL;
-      level = 0;
-    }
-  };
-
   internal::Isolate* isolate_;
   internal::Object** prev_next_;
   internal::Object** prev_limit_;
 
-  friend class ImplementationUtilities;
-  friend class EscapableHandleScope;
-  template<class F> friend class Handle;
+  // Local::New uses CreateHandle with an Isolate* parameter.
   template<class F> friend class Local;
+
+  // Object::GetInternalField and Context::GetEmbedderData use CreateHandle with
+  // a HeapObject* in their shortcuts.
   friend class Object;
   friend class Context;
 };
@@ -941,16 +933,6 @@ class V8_EXPORT Data {
 class V8_EXPORT ScriptData {  // NOLINT
  public:
   virtual ~ScriptData() { }
-
-  /**
-   * Pre-compiles the specified script (context-independent).
-   *
-   * \param input Pointer to UTF-8 script source code.
-   * \param length Length of UTF-8 script source code.
-   */
-  static ScriptData* PreCompile(Isolate* isolate,
-                                const char* input,
-                                int length);
 
   /**
    * Pre-compiles the specified script (context-independent).
@@ -3903,7 +3885,8 @@ enum GCType {
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
   kGCCallbackFlagCompacted = 1 << 0,
-  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1
+  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1,
+  kGCCallbackFlagForced = 1 << 2
 };
 
 typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
@@ -3970,6 +3953,15 @@ class V8_EXPORT Isolate {
     // Prevent copying of Scope objects.
     Scope(const Scope&);
     Scope& operator=(const Scope&);
+  };
+
+  /**
+   * Types of garbage collections that can be requested via
+   * RequestGarbageCollectionForTesting.
+   */
+  enum GarbageCollectionType {
+    kFullGarbageCollection,
+    kMinorGarbageCollection
   };
 
   /**
@@ -4183,6 +4175,17 @@ class V8_EXPORT Isolate {
    * Can be called from another thread without acquiring a |Locker|.
    */
   void ClearInterrupt();
+
+  /**
+   * Request garbage collection in this Isolate. It is only valid to call this
+   * function if --expose_gc was specified.
+   *
+   * This should only be used for testing purposes and not to enforce a garbage
+   * collection schedule. It has strong negative impact on the garbage
+   * collection performance. Use IdleNotification() or LowMemoryNotification()
+   * instead to influence the garbage collection schedule.
+   */
+  void RequestGarbageCollectionForTesting(GarbageCollectionType type);
 
  private:
   Isolate();
@@ -4912,15 +4915,19 @@ class V8_EXPORT TryCatch {
 
 
 /**
- * Ignore
+ * A container for extension names.
  */
 class V8_EXPORT ExtensionConfiguration {
  public:
+  ExtensionConfiguration() : name_count_(0), names_(NULL) { }
   ExtensionConfiguration(int name_count, const char* names[])
       : name_count_(name_count), names_(names) { }
+
+  const char** begin() const { return &names_[0]; }
+  const char** end()  const { return &names_[name_count_]; }
+
  private:
-  friend class ImplementationUtilities;
-  int name_count_;
+  const int name_count_;
   const char** names_;
 };
 
@@ -5387,7 +5394,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 135;
+  static const int kEmptyStringRootIndex = 145;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5398,7 +5405,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
-  static const int kJSObjectType = 0xb2;
+  static const int kJSObjectType = 0xbb;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;
