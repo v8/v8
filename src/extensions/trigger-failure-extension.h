@@ -45,7 +45,6 @@ class TriggerFailureExtension : public v8::Extension {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void TriggerSlowAssertFalse(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
 
  private:
   static const char* const kSource;

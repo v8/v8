@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
-#include "platform.h"
+#ifndef V8_TEST_CCTEST_TRACE_EXTENSION_H_
+#define V8_TEST_CCTEST_TRACE_EXTENSION_H_
+
+#include "v8.h"
 
 namespace v8 {
 namespace internal {
 
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, GCExtension::GC);
-}
-
-
-void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  if (args[0]->BooleanValue()) {
-    isolate->heap()->CollectGarbage(
-        NEW_SPACE, "gc extension", v8::kGCCallbackFlagForced);
-  } else {
-    isolate->heap()->CollectAllGarbage(
-        Heap::kNoGCFlags, "gc extension", v8::kGCCallbackFlagForced);
-  }
-}
+class TraceExtension : public v8::Extension {
+ public:
+  TraceExtension() : v8::Extension("v8/trace", kSource) { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
+      v8::Handle<v8::String> name);
+  static void Trace(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void JSEntrySP(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void JSEntrySPLevel2(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static Address GetJsEntrySp();
+  static void InitTraceEnv(TickSample* sample);
+  static void DoTrace(Address fp);
+ private:
+  static Address GetFP(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static const char* kSource;
+};
 
 } }  // namespace v8::internal
+
+#endif

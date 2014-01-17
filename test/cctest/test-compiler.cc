@@ -32,53 +32,9 @@
 
 #include "compiler.h"
 #include "disasm.h"
-#include "disassembler.h"
-#include "execution.h"
-#include "factory.h"
-#include "platform.h"
 #include "cctest.h"
 
 using namespace v8::internal;
-
-// --- P r i n t   E x t e n s i o n ---
-
-class PrintExtension : public v8::Extension {
- public:
-  PrintExtension() : v8::Extension("v8/print", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
- private:
-  static const char* kSource;
-};
-
-
-const char* PrintExtension::kSource = "native function print();";
-
-
-v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
-}
-
-
-void PrintExtension::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  for (int i = 0; i < args.Length(); i++) {
-    if (i != 0) printf(" ");
-    v8::HandleScope scope(args.GetIsolate());
-    v8::String::Utf8Value str(args[i]);
-    if (*str == NULL) return;
-    printf("%s", *str);
-  }
-  printf("\n");
-}
-
-
-static PrintExtension kPrintExtension;
-v8::DeclareExtension kPrintExtensionDeclaration(&kPrintExtension);
-
 
 static MaybeObject* GetGlobalProperty(const char* name) {
   Isolate* isolate = CcTest::i_isolate();

@@ -145,10 +145,4 @@ void ExternalizeStringExtension::IsAscii(
   args.GetReturnValue().Set(is_one_byte);
 }
 
-
-void ExternalizeStringExtension::Register() {
-  static ExternalizeStringExtension externalize_extension;
-  static v8::DeclareExtension declaration(&externalize_extension);
-}
-
 } }  // namespace v8::internal

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
-#include "platform.h"
+#include "print-extension.h"
 
 namespace v8 {
 namespace internal {
 
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
+v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate,
     v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, GCExtension::GC);
+  return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
 }
 
 
-void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  if (args[0]->BooleanValue()) {
-    isolate->heap()->CollectGarbage(
-        NEW_SPACE, "gc extension", v8::kGCCallbackFlagForced);
-  } else {
-    isolate->heap()->CollectAllGarbage(
-        Heap::kNoGCFlags, "gc extension", v8::kGCCallbackFlagForced);
+void PrintExtension::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  for (int i = 0; i < args.Length(); i++) {
+    if (i != 0) printf(" ");
+    v8::HandleScope scope(args.GetIsolate());
+    v8::String::Utf8Value str(args[i]);
+    if (*str == NULL) return;
+    printf("%s", *str);
   }
+  printf("\n");
 }
 
 } }  // namespace v8::internal

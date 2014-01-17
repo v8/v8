@@ -400,7 +400,7 @@ TEST(ProfileStartEndTime) {
 
 
 static const v8::CpuProfile* RunProfiler(
-    LocalContext& env, v8::Handle<v8::Function> function,
+    v8::Handle<v8::Context> env, v8::Handle<v8::Function> function,
     v8::Handle<v8::Value> argv[], int argc,
     unsigned min_js_samples) {
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
@@ -554,7 +554,7 @@ TEST(CollectCpuProfile) {
     v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
   };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 200);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
   function->Call(env->Global(), ARRAY_SIZE(args), args);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -628,7 +628,7 @@ TEST(SampleWhenFrameIsNotSetup) {
     v8::Integer::New(env->GetIsolate(), repeat_count)
   };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
 
@@ -748,7 +748,7 @@ TEST(NativeAccessorUninitializedIC) {
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 180);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 180);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
@@ -805,7 +805,7 @@ TEST(NativeAccessorMonomorphicIC) {
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 200);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
@@ -859,7 +859,7 @@ TEST(NativeMethodUninitializedIC) {
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
@@ -916,7 +916,7 @@ TEST(NativeMethodMonomorphicIC) {
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   GetChild(isolate, root, "start");
@@ -957,7 +957,7 @@ TEST(BoundFunctionCall) {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   ScopedVector<v8::Handle<v8::String> > names(3);
@@ -1018,7 +1018,7 @@ TEST(FunctionCallSample) {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   {
@@ -1101,7 +1101,7 @@ TEST(FunctionApplySample) {
   };
 
   const v8::CpuProfile* profile =
-      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   {
@@ -1187,10 +1187,9 @@ static void CallJsFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
 //    55     1        bar #16 5
 //    54    54          foo #16 6
 TEST(JsNativeJsSample) {
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
       env->GetIsolate(), CallJsFunction);
@@ -1272,10 +1271,9 @@ static const char* js_native_js_runtime_js_test_source =
 //    51    51          foo #16 6
 //     2     2    (program) #0 2
 TEST(JsNativeJsRuntimeJsSample) {
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
       env->GetIsolate(), CallJsFunction);
@@ -1361,10 +1359,9 @@ static const char* js_native1_js_native2_js_test_source =
 //    54    54            foo #16 7
 //     2     2    (program) #0 2
 TEST(JsNative1JsNative2JsSample) {
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
       env->GetIsolate(), CallJsFunction);
@@ -1494,10 +1491,9 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
 
 
 TEST(FunctionDetails) {
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope handleScope(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::Handle<v8::Script> script_a = v8::Script::Compile(
       v8::String::NewFromUtf8(
@@ -1514,7 +1510,7 @@ TEST(FunctionDetails) {
           "stopProfiling();\n"),
       v8::String::NewFromUtf8(env->GetIsolate(), "script_b"));
   script_b->Run();
-  const v8::CpuProfile* profile = ProfilerExtension::last_profile;
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
   reinterpret_cast<ProfileNode*>(
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
@@ -1543,11 +1539,10 @@ TEST(FunctionDetails) {
 
 
 TEST(DontStopOnFinishedProfileDelete) {
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
   v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handleScope(isolate);
 
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);

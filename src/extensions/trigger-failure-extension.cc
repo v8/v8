@@ -76,10 +76,4 @@ void TriggerFailureExtension::TriggerSlowAssertFalse(
   SLOW_ASSERT(false);
 }
 
-
-void TriggerFailureExtension::Register() {
-  static TriggerFailureExtension trigger_failure_extension;
-  static v8::DeclareExtension declaration(&trigger_failure_extension);
-}
-
 } }  // namespace v8::internal
