@@ -1774,6 +1774,17 @@ class Call V8_FINAL : public Expression {
 
   BailoutId ReturnId() const { return return_id_; }
 
+  enum CallType {
+    POSSIBLY_EVAL_CALL,
+    GLOBAL_CALL,
+    LOOKUP_SLOT_CALL,
+    PROPERTY_CALL,
+    OTHER_CALL
+  };
+
+  // Helpers to determine how to handle the call.
+  CallType GetCallType(Isolate* isolate) const;
+
   // TODO(rossberg): this should really move somewhere else (and be merged with
   // various similar methods in objets.cc), but for now...
   static Handle<JSObject> GetPrototypeForPrimitiveCheck(

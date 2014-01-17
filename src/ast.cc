@@ -590,9 +590,25 @@ bool FunctionDeclaration::IsInlineable() const {
 // TODO(rossberg): all RecordTypeFeedback functions should disappear
 // once we use the common type field in the AST consistently.
 
-
 void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
   to_boolean_types_ = oracle->ToBooleanTypes(test_id());
+}
+
+
+Call::CallType Call::GetCallType(Isolate* isolate) const {
+  VariableProxy* proxy = expression()->AsVariableProxy();
+  if (proxy != NULL) {
+    if (proxy->var()->is_possibly_eval(isolate)) {
+      return POSSIBLY_EVAL_CALL;
+    } else if (proxy->var()->IsUnallocated()) {
+      return GLOBAL_CALL;
+    } else if (proxy->var()->IsLookupSlot()) {
+      return LOOKUP_SLOT_CALL;
+    }
+  }
+
+  Property* property = expression()->AsProperty();
+  return property != NULL ? PROPERTY_CALL : OTHER_CALL;
 }
 
 
