@@ -105,6 +105,9 @@
     {{dispatch_match_action('backtrack', ('1', 'ILLEGAL'))}}
   {% elif type == 'skip' %}
     RESET_START();
+    {%- if encoding == 'utf16'-%}
+      next_.is_onebyte = true;
+    {%- endif -%}
     goto state_entry_0;
   {% elif type == 'skip_and_terminate' %}
     RESET_START();
@@ -112,6 +115,9 @@
     {{dispatch_match_action('terminate', None)}}
   {% elif type == 'line_terminator' %}
     RESET_START();
+    {%- if encoding == 'utf16'-%}
+      next_.is_onebyte = true;
+    {%- endif -%}
     has_line_terminator_before_next_ = true;
     goto state_entry_0;
   {% elif type == 'token' %}
@@ -264,6 +270,7 @@
 
   {%- if state['long_char_transitions'] -%}
     if ({{long_char_check()}}) {
+      next_.is_onebyte = false;
       {{long_char_create()}}
       {%- for key, transition_state_id in state['long_char_transitions'] %}
         if ({{do_key(key)}}) { // long_char transition
@@ -323,6 +330,7 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
 
   // Setup environment.
   next_.has_escapes = false;
+  next_.is_onebyte = true;
   Token::Value stored_token;
   const {{char_type}} * marker;
   {{char_type}} primary_char;

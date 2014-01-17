@@ -238,6 +238,7 @@ class ScannerBase {
     int beg_pos;
     int end_pos;
     bool has_escapes;
+    bool is_onebyte;
   };
 
   struct LiteralDesc {
