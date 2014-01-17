@@ -1,3 +1,8 @@
+2014-01-17: Version 3.24.18
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-16: Version 3.24.17
 
         Make cells pointing to JSObjects weak in optimized code (issue 2073).
