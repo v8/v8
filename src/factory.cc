@@ -206,9 +206,8 @@ Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
 
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeUtf8String(string),
-                     String);
+  Utf8StringKey key(string, isolate()->heap()->HashSeed());
+  return InternalizeStringWithKey(&key);
 }
 
 
@@ -221,24 +220,28 @@ Handle<String> Factory::InternalizeString(Handle<String> string) {
 
 
 Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeOneByteString(string),
-                     String);
+  OneByteStringKey key(string, isolate()->heap()->HashSeed());
+  return InternalizeStringWithKey(&key);
 }
 
 
 Handle<String> Factory::InternalizeOneByteString(
     Handle<SeqOneByteString> string, int from, int length) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeOneByteString(
-                         string, from, length),
-                     String);
+  SubStringOneByteStringKey key(string, from, length);
+  return InternalizeStringWithKey(&key);
 }
 
 
 Handle<String> Factory::InternalizeTwoByteString(Vector<const uc16> string) {
+  TwoByteStringKey key(string, isolate()->heap()->HashSeed());
+  return InternalizeStringWithKey(&key);
+}
+
+
+template<class StringTableKey>
+Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeTwoByteString(string),
+                     isolate()->heap()->InternalizeStringWithKey(key),
                      String);
 }
 

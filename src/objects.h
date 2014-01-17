@@ -3767,21 +3767,8 @@ class StringTable: public HashTable<StringTableShape, HashTableKey*> {
   // added.  The return value is the string table which might have
   // been enlarged.  If the return value is not a failure, the string
   // pointer *s is set to the string found.
-  MUST_USE_RESULT MaybeObject* LookupUtf8String(
-      Vector<const char> str,
-      Object** s);
-  MUST_USE_RESULT MaybeObject* LookupOneByteString(
-      Vector<const uint8_t> str,
-      Object** s);
-  MUST_USE_RESULT MaybeObject* LookupSubStringOneByteString(
-      Handle<SeqOneByteString> str,
-      int from,
-      int length,
-      Object** s);
-  MUST_USE_RESULT MaybeObject* LookupTwoByteString(
-      Vector<const uc16> str,
-      Object** s);
   MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
+  MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
 
   // Looks up a string that is equal to the given string and returns
   // true if it is found, assigning the string to the given output
@@ -3793,8 +3780,6 @@ class StringTable: public HashTable<StringTableShape, HashTableKey*> {
   static inline StringTable* cast(Object* obj);
 
  private:
-  MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
-
   template <bool seq_ascii> friend class JsonParser;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringTable);

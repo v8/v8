@@ -14000,142 +14000,23 @@ class RegExpKey : public HashTableKey {
 };
 
 
-// Utf8StringKey carries a vector of chars as key.
-class Utf8StringKey : public HashTableKey {
- public:
-  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsUtf8EqualTo(string_);
-  }
-
-  uint32_t Hash() {
-    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
-    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateInternalizedStringFromUtf8(string_,
-                                                    chars_,
-                                                    hash_field_);
-  }
-
-  Vector<const char> string_;
-  uint32_t hash_field_;
-  int chars_;  // Caches the number of characters when computing the hash code.
-  uint32_t seed_;
-};
+MaybeObject* OneByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  return heap->AllocateOneByteInternalizedString(string_, hash_field_);
+}
 
 
-template <typename Char>
-class SequentialStringKey : public HashTableKey {
- public:
-  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  uint32_t Hash() {
-    hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
-                                                           string_.length(),
-                                                           seed_);
-
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
+MaybeObject* SubStringOneByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+  return heap->AllocateOneByteInternalizedString(chars, hash_field_);
+}
 
 
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  Vector<const Char> string_;
-  uint32_t hash_field_;
-  uint32_t seed_;
-};
-
-
-
-class OneByteStringKey : public SequentialStringKey<uint8_t> {
- public:
-  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
-      : SequentialStringKey<uint8_t>(str, seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsOneByteEqualTo(string_);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateOneByteInternalizedString(string_, hash_field_);
-  }
-};
-
-
-class SubStringOneByteStringKey : public HashTableKey {
- public:
-  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
-                                     int from,
-                                     int length)
-      : string_(string), from_(from), length_(length) { }
-
-  uint32_t Hash() {
-    ASSERT(length_ >= 0);
-    ASSERT(from_ + length_ <= string_->length());
-    uint8_t* chars = string_->GetChars() + from_;
-    hash_field_ = StringHasher::HashSequentialString(
-        chars, length_, string_->GetHeap()->HashSeed());
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  bool IsMatch(Object* string) {
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return String::cast(string)->IsOneByteEqualTo(chars);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return heap->AllocateOneByteInternalizedString(chars, hash_field_);
-  }
-
- private:
-  Handle<SeqOneByteString> string_;
-  int from_;
-  int length_;
-  uint32_t hash_field_;
-};
-
-
-class TwoByteStringKey : public SequentialStringKey<uc16> {
- public:
-  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
-      : SequentialStringKey<uc16>(str, seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsTwoByteEqualTo(string_);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
-  }
-};
+MaybeObject* TwoByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
+}
 
 
 // InternalizedStringKey carries a string/internalized-string object as key.
@@ -15196,37 +15077,6 @@ bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
     ASSERT(StringShape(*result).IsInternalized());
     return true;
   }
-}
-
-
-MaybeObject* StringTable::LookupUtf8String(Vector<const char> str,
-                                           Object** s) {
-  Utf8StringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupOneByteString(Vector<const uint8_t> str,
-                                              Object** s) {
-  OneByteStringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupSubStringOneByteString(
-    Handle<SeqOneByteString> str,
-    int from,
-    int length,
-    Object** s) {
-  SubStringOneByteStringKey key(str, from, length);
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupTwoByteString(Vector<const uc16> str,
-                                              Object** s) {
-  TwoByteStringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
 }
 
 

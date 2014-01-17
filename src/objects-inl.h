@@ -459,6 +459,133 @@ uc32 FlatStringReader::Get(int index) {
 }
 
 
+template <typename Char>
+class SequentialStringKey : public HashTableKey {
+ public:
+  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) { }
+
+  virtual uint32_t Hash() {
+    hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
+                                                           string_.length(),
+                                                           seed_);
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  virtual uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  Vector<const Char> string_;
+  uint32_t hash_field_;
+  uint32_t seed_;
+};
+
+
+class OneByteStringKey : public SequentialStringKey<uint8_t> {
+ public:
+  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
+      : SequentialStringKey<uint8_t>(str, seed) { }
+
+  virtual bool IsMatch(Object* string) {
+    return String::cast(string)->IsOneByteEqualTo(string_);
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap);
+};
+
+
+class SubStringOneByteStringKey : public HashTableKey {
+ public:
+  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
+                                     int from,
+                                     int length)
+      : string_(string), from_(from), length_(length) { }
+
+  virtual uint32_t Hash() {
+    ASSERT(length_ >= 0);
+    ASSERT(from_ + length_ <= string_->length());
+    uint8_t* chars = string_->GetChars() + from_;
+    hash_field_ = StringHasher::HashSequentialString(
+        chars, length_, string_->GetHeap()->HashSeed());
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  virtual uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  virtual bool IsMatch(Object* string) {
+    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+    return String::cast(string)->IsOneByteEqualTo(chars);
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap);
+
+ private:
+  Handle<SeqOneByteString> string_;
+  int from_;
+  int length_;
+  uint32_t hash_field_;
+};
+
+
+class TwoByteStringKey : public SequentialStringKey<uc16> {
+ public:
+  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
+      : SequentialStringKey<uc16>(str, seed) { }
+
+  virtual bool IsMatch(Object* string) {
+    return String::cast(string)->IsTwoByteEqualTo(string_);
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap);
+};
+
+
+// Utf8StringKey carries a vector of chars as key.
+class Utf8StringKey : public HashTableKey {
+ public:
+  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) { }
+
+  virtual bool IsMatch(Object* string) {
+    return String::cast(string)->IsUtf8EqualTo(string_);
+  }
+
+  virtual uint32_t Hash() {
+    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
+    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+  virtual uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  virtual MaybeObject* AsObject(Heap* heap) {
+    if (hash_field_ == 0) Hash();
+    return heap->AllocateInternalizedStringFromUtf8(string_,
+                                                    chars_,
+                                                    hash_field_);
+  }
+
+  Vector<const char> string_;
+  uint32_t hash_field_;
+  int chars_;  // Caches the number of characters when computing the hash code.
+  uint32_t seed_;
+};
+
+
 bool Object::IsNumber() {
   return IsSmi() || IsHeapNumber();
 }
@@ -6670,7 +6797,6 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 #undef WRITE_SHORT_FIELD
 #undef READ_BYTE_FIELD
 #undef WRITE_BYTE_FIELD
-
 
 } }  // namespace v8::internal
 
