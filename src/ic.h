@@ -89,20 +89,6 @@ class IC {
     EXTRA_CALL_FRAME = 1
   };
 
-  // ExtraICState shared by all ICs.
-  class Contextual: public BitField<ContextualMode, 0, 1> {};
-  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
-  static ExtraICState ComputeExtraICState(ContextualMode mode) {
-    return Contextual::encode(mode);
-  }
-
-  static ContextualMode GetContextualMode(ExtraICState state) {
-    return Contextual::decode(state);
-  }
-
-  static const ExtraICState kContextualState =
-      static_cast<int>(CONTEXTUAL) << Contextual::kShift;
-
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(FrameDepth depth, Isolate* isolate);
@@ -120,30 +106,19 @@ class IC {
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address);
 
-  // Returns if this IC is for contextual (no explicit receiver)
-  // access to properties.
-  bool IsUndeclaredGlobal(Handle<Object> receiver) {
-    if (receiver->IsGlobalObject()) {
-      return IsCallStub() || IsContextual();
-    } else {
-      ASSERT(!IsContextual());
-      return false;
-    }
-  }
-
 #ifdef DEBUG
-  bool IsLoadStub() {
+  bool IsLoadStub() const {
     return target()->is_load_stub() || target()->is_keyed_load_stub();
   }
 
-  bool IsStoreStub() {
+  bool IsStoreStub() const {
     return target()->is_store_stub() || target()->is_keyed_store_stub();
   }
 
-#endif
-  bool IsCallStub() {
+  bool IsCallStub() const {
     return target()->is_call_stub() || target()->is_keyed_call_stub();
   }
+#endif
 
   // Determines which map must be used for keeping the code stub.
   // These methods should not be called with undefined or null.
@@ -173,12 +148,6 @@ class IC {
   static Handle<Map> TypeToMap(Type* type, Isolate* isolate);
   static Handle<Type> MapToType(Handle<Map> type);
   static Handle<Type> CurrentTypeOf(Handle<Object> object, Isolate* isolate);
-
-  ContextualMode contextual_mode() const {
-    return Contextual::decode(extra_ic_state());
-  }
-
-  bool IsContextual() const { return contextual_mode() == CONTEXTUAL; }
 
  protected:
   // Get the call-site target; used for determining the state.
@@ -439,9 +408,36 @@ class KeyedCallIC: public CallICBase {
 
 class LoadIC: public IC {
  public:
+  // ExtraICState bits
+  class Contextual: public BitField<ContextualMode, 0, 1> {};
+  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
+
+  static ExtraICState ComputeExtraICState(ContextualMode mode) {
+    return Contextual::encode(mode);
+  }
+
+  static ContextualMode GetContextualMode(ExtraICState state) {
+    return Contextual::decode(state);
+  }
+
+  ContextualMode contextual_mode() const {
+    return Contextual::decode(extra_ic_state());
+  }
+
   explicit LoadIC(FrameDepth depth, Isolate* isolate)
       : IC(depth, isolate) {
     ASSERT(IsLoadStub());
+  }
+
+  // Returns if this IC is for contextual (no explicit receiver)
+  // access to properties.
+  bool IsUndeclaredGlobal(Handle<Object> receiver) {
+    if (receiver->IsGlobalObject()) {
+      return contextual_mode() == CONTEXTUAL;
+    } else {
+      ASSERT(contextual_mode() != CONTEXTUAL);
+      return false;
+    }
   }
 
   // Code generator routines.
@@ -461,6 +457,14 @@ class LoadIC: public IC {
 
  protected:
   virtual Code::Kind kind() const { return Code::LOAD_IC; }
+
+  void set_target(Code* code) {
+    // The contextual mode must be preserved across IC patching.
+    ASSERT(GetContextualMode(code->extra_ic_state()) ==
+           GetContextualMode(target()->extra_ic_state()));
+
+    IC::set_target(code);
+  }
 
   virtual Handle<Code> slow_stub() const {
     return isolate()->builtins()->LoadIC_Slow();
@@ -572,15 +576,9 @@ class KeyedLoadIC: public LoadIC {
 
 class StoreIC: public IC {
  public:
-  // ExtraICState bits
   class StrictModeState: public BitField<StrictModeFlag, 1, 1> {};
   static ExtraICState ComputeExtraICState(StrictModeFlag flag) {
     return StrictModeState::encode(flag);
-  }
-
-  static ExtraICState ComputeExtraICState(StrictModeFlag flag,
-                                          ContextualMode mode) {
-    return StrictModeState::encode(flag) | Contextual::encode(mode);
   }
 
   static StrictModeFlag GetStrictMode(ExtraICState state) {
@@ -615,8 +613,7 @@ class StoreIC: public IC {
                                          StrictModeFlag strict_mode);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode,
-                                      ContextualMode mode);
+                                      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* Store(
       Handle<Object> object,
@@ -637,12 +634,11 @@ class StoreIC: public IC {
   }
 
   virtual Handle<Code> pre_monomorphic_stub() {
-    return pre_monomorphic_stub(isolate(), strict_mode(), contextual_mode());
+    return pre_monomorphic_stub(isolate(), strict_mode());
   }
 
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode,
-                                           ContextualMode contextual_mode);
+                                           StrictModeFlag strict_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -661,9 +657,6 @@ class StoreIC: public IC {
     // Strict mode must be preserved across IC patching.
     ASSERT(GetStrictMode(code->extra_ic_state()) ==
            GetStrictMode(target()->extra_ic_state()));
-    // As must the contextual mode
-    ASSERT(GetContextualMode(code->extra_ic_state()) ==
-           GetContextualMode(target()->extra_ic_state()));
     IC::set_target(code);
   }
 

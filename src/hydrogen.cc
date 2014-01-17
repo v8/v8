@@ -5868,8 +5868,8 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     }
   } else {
     HGlobalObject* global_object = Add<HGlobalObject>();
-    HStoreGlobalGeneric* instr =
-        Add<HStoreGlobalGeneric>(global_object, var->name(),
+    HStoreNamedGeneric* instr =
+        Add<HStoreNamedGeneric>(global_object, var->name(),
                                  value, function_strict_mode_flag());
     USE(instr);
     ASSERT(instr->HasObservableSideEffects());

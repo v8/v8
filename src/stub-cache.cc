@@ -884,12 +884,10 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
 
 static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   // If the load is non-contextual, just return the undefined result.
-  // Note that both keyed and non-keyed loads may end up here, so we
-  // can't use either LoadIC or KeyedLoadIC constructors.
+  // Note that both keyed and non-keyed loads may end up here.
   HandleScope scope(isolate);
-  IC ic(IC::NO_EXTRA_FRAME, isolate);
-  ASSERT(ic.IsLoadStub());
-  if (!ic.IsContextual()) {
+  LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
+  if (ic.contextual_mode() != CONTEXTUAL) {
     return isolate->heap()->undefined_value();
   }
 
@@ -1048,9 +1046,6 @@ Handle<Code> StubCompiler::CompileCallNormal(Code::Flags flags) {
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
-    // Call normal is always with a explict receiver.
-    ASSERT(!CallIC::Contextual::decode(
-        Code::ExtractExtraICStateFromFlags(flags)));
     CallIC::GenerateNormal(masm(), argc);
   } else {
     KeyedCallIC::GenerateNormal(masm(), argc);
@@ -1106,7 +1101,7 @@ Handle<Code> StubCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
 
 Handle<Code> StubCompiler::CompileLoadMegamorphic(Code::Flags flags) {
   ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  ContextualMode mode = IC::GetContextualMode(extra_state);
+  ContextualMode mode = LoadIC::GetContextualMode(extra_state);
   LoadIC::GenerateMegamorphic(masm(), mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
   PROFILE(isolate(),

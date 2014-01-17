@@ -2072,16 +2072,6 @@ LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* global_object = UseFixed(instr->global_object(), edx);
-  LOperand* value = UseFixed(instr->value(), eax);
-  LStoreGlobalGeneric* result =
-      new(zone()) LStoreGlobalGeneric(context, global_object, value);
-  return MarkAsCall(result, instr);
-}
-
-
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
   LInstruction* result =

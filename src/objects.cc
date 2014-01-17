@@ -10877,17 +10877,6 @@ bool Code::CanDeoptAt(Address pc) {
 }
 
 
-bool Code::IsContextual() {
-  ASSERT(is_inline_cache_stub());
-  Kind kind = this->kind();
-  if (kind == STORE_IC || kind == LOAD_IC || kind == CALL_IC) {
-    ExtraICState extra_state = extra_ic_state();
-    return IC::GetContextualMode(extra_state) == CONTEXTUAL;
-  }
-  return false;
-}
-
-
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
   switch (kind) {

@@ -3351,12 +3351,6 @@ void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
 }
 
 
-void HStoreGlobalGeneric::PrintDataTo(StringStream* stream) {
-  stream->Add("%o = ", *name());
-  value()->PrintNameTo(stream);
-}
-
-
 void HLoadContextSlot::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add("[%d]", slot_index());

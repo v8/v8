@@ -1345,7 +1345,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm, ContextualMode mode) {
   // -----------------------------------
 
   // Probe the stub cache.
-  ExtraICState extra_ic_state = IC::ComputeExtraICState(mode);
+  ExtraICState extra_ic_state = LoadIC::ComputeExtraICState(mode);
   Code::Flags flags = Code::ComputeFlags(
       Code::HANDLER, MONOMORPHIC, extra_ic_state,
       Code::NORMAL, Code::LOAD_IC);

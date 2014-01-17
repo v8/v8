@@ -517,9 +517,6 @@ class StubCompiler BASE_EMBEDDED {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
-  ContextualMode contextual_mode() {
-    return IC::GetContextualMode(extra_state());
-  }
 
   static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
 
@@ -687,6 +684,10 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   static Register* registers();
 
  protected:
+  ContextualMode contextual_mode() {
+    return LoadIC::GetContextualMode(extra_state());
+  }
+
   virtual Register HandlerFrontendHeader(Handle<Type> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
