@@ -2704,6 +2704,9 @@ HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
         kind_(kind),
         allocation_site_payload_(allocation_site_payload),
         constructor_function_(constructor_function) {
+  ASSERT(!allocation_site_payload->IsConstant() ||
+         HConstant::cast(allocation_site_payload)->handle(
+             builder_->isolate())->IsAllocationSite());
   mode_ = override_mode == DISABLE_ALLOCATION_SITES
       ? DONT_TRACK_ALLOCATION_SITE
       : AllocationSite::GetMode(kind);
@@ -7944,10 +7947,10 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
   Handle<Cell> cell = expr->allocation_info_cell();
   Handle<AllocationSite> site(AllocationSite::cast(cell->value()));
 
-  // Register on the site for deoptimization if the cell value changes.
+  // Register on the site for deoptimization if the transition feedback changes.
   AllocationSite::AddDependentCompilationInfo(
       site, AllocationSite::TRANSITIONS, top_info());
-  HInstruction* cell_instruction = Add<HConstant>(cell);
+  HInstruction* site_instruction = Add<HConstant>(site);
 
   // In the single constant argument case, we may have to adjust elements kind
   // to avoid creating a packed non-empty array.
@@ -7966,7 +7969,7 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
   // Build the array.
   JSArrayBuilder array_builder(this,
                                kind,
-                               cell_instruction,
+                               site_instruction,
                                constructor,
                                DISABLE_ALLOCATION_SITES);
   HValue* new_object;
