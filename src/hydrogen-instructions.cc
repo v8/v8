@@ -842,9 +842,7 @@ void HUnaryCall::PrintDataTo(StringStream* stream) {
 
 
 void HCallJSFunction::PrintDataTo(StringStream* stream) {
-  OperandAt(0)->PrintNameTo(stream);
-  stream->Add(" ");
-  OperandAt(1)->PrintNameTo(stream);
+  function()->PrintNameTo(stream);
   stream->Add(" ");
   stream->Add("#%d", argument_count());
 }
