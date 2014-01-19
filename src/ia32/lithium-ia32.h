@@ -1849,8 +1849,7 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
   LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
                       ZoneList<LOperand*>& operands,
                       Zone* zone)
-    : descriptor_(descriptor),
-      inputs_(descriptor->environment_length() + 1, zone) {
+    : inputs_(descriptor->environment_length() + 1, zone) {
     ASSERT(descriptor->environment_length() + 1 == operands.length());
     inputs_.AddAll(operands, zone);
   }
@@ -1865,7 +1864,6 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 
-  const CallInterfaceDescriptor* descriptor_;
   ZoneList<LOperand*> inputs_;
 
   // Iterator support.
