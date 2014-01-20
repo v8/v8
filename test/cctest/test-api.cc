@@ -7121,6 +7121,7 @@ void WhammyPropertyGetter(Local<String> name,
 
 
 THREADED_TEST(WeakReference) {
+  i::FLAG_expose_gc = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New(isolate);
@@ -13479,6 +13480,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
 TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
 
+  i::FLAG_expose_gc = true;
   v8::V8::Initialize();
 
   for (int i = 0; i < 5; i++) {

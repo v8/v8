@@ -40,14 +40,9 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
 
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  if (args[0]->BooleanValue()) {
-    isolate->heap()->CollectGarbage(
-        NEW_SPACE, "gc extension", v8::kGCCallbackFlagForced);
-  } else {
-    isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
-        "gc extension", v8::kGCCallbackFlagForced);
-  }
+  args.GetIsolate()->RequestGarbageCollectionForTesting(
+      args[0]->BooleanValue() ? v8::Isolate::kMinorGarbageCollection
+                              : v8::Isolate::kFullGarbageCollection);
 }
 
 } }  // namespace v8::internal

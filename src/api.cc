@@ -6444,8 +6444,8 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   } else {
     ASSERT_EQ(kFullGarbageCollection, type);
     reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
-        i::Heap::kNoGCFlags, "Isolate::RequestGarbageCollection",
-        kGCCallbackFlagForced);
+        i::Heap::kAbortIncrementalMarkingMask,
+        "Isolate::RequestGarbageCollection", kGCCallbackFlagForced);
   }
 }
 
