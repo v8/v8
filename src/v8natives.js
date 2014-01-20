@@ -1015,6 +1015,21 @@ function ObjectGetPrototypeOf(obj) {
   return %GetPrototype(obj);
 }
 
+// ES6 section 19.1.2.19.
+function ObjectSetPrototypeOf(obj, proto) {
+  CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
+
+  if (proto !== null && !IS_SPEC_OBJECT(proto)) {
+    throw MakeTypeError("proto_object_or_null", [proto]);
+  }
+
+  if (IS_SPEC_OBJECT(obj)) {
+    %SetPrototype(obj, proto);
+  }
+
+  return obj;
+}
+
 
 // ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
@@ -1443,6 +1458,7 @@ function SetUpObject() {
     "defineProperties", ObjectDefineProperties,
     "freeze", ObjectFreeze,
     "getPrototypeOf", ObjectGetPrototypeOf,
+    "setPrototypeOf", ObjectSetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
     "getOwnPropertyNames", ObjectGetOwnPropertyNames,
     // getOwnPropertySymbols is added in symbol.js.

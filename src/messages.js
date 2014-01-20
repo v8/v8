@@ -78,7 +78,7 @@ var kMessages = {
   getter_must_be_callable:       ["Getter must be a function: ", "%0"],
   setter_must_be_callable:       ["Setter must be a function: ", "%0"],
   value_and_accessor:            ["Invalid property.  A property cannot both have accessors and be writable or have a value, ", "%0"],
-  proto_object_or_null:          ["Object prototype may only be an Object or null"],
+  proto_object_or_null:          ["Object prototype may only be an Object or null: ", "%0"],
   property_desc_object:          ["Property description must be an object: ", "%0"],
   redefine_disallowed:           ["Cannot redefine property: ", "%0"],
   define_disallowed:             ["Cannot define property:", "%0", ", object is not extensible."],
