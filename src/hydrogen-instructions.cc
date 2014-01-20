@@ -2531,6 +2531,7 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
     double_value_ = n;
     has_double_value_ = true;
+    // TODO(titzer): if this heap number is new space, tenure a new one.
   } else {
     is_internalized_string_ = handle->IsInternalizedString();
   }
@@ -2728,6 +2729,9 @@ void HConstant::PrintDataTo(StringStream* stream) {
             external_reference_value_.address()));
   } else {
     handle(Isolate::Current())->ShortPrint(stream);
+  }
+  if (!is_not_in_new_space_) {
+    stream->Add("[new space] ");
   }
 }
 
