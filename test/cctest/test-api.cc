@@ -7614,6 +7614,22 @@ THREADED_TEST(StringWrite) {
   v8::Handle<String> str2 = v8_str("abc\303\260\342\230\203");
   v8::Handle<String> str3 = v8::String::NewFromUtf8(
       context->GetIsolate(), "abc\0def", v8::String::kNormalString, 7);
+  // "ab" + lead surrogate + "cd" + trail surrogate + "ef"
+  uint16_t orphans[8] = { 0x61, 0x62, 0xd800, 0x63, 0x64, 0xdc00, 0x65, 0x66 };
+  v8::Handle<String> orphans_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), orphans, v8::String::kNormalString, 8);
+  // single lead surrogate
+  uint16_t lead[1] = { 0xd800 };
+  v8::Handle<String> lead_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), lead, v8::String::kNormalString, 1);
+  // single trail surrogate
+  uint16_t trail[1] = { 0xdc00 };
+  v8::Handle<String> trail_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), trail, v8::String::kNormalString, 1);
+  // surrogate pair
+  uint16_t pair[2] = { 0xd800,  0xdc00 };
+  v8::Handle<String> pair_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), pair, v8::String::kNormalString, 2);
   const int kStride = 4;  // Must match stride in for loops in JS below.
   CompileRun(
       "var left = '';"
@@ -7686,6 +7702,53 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(2, len);
   CHECK_EQ(2, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "ab\1", 3));
+
+  // allow orphan surrogates by default
+  memset(utf8buf, 0x1, 1000);
+  len = orphans_str->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
+  CHECK_EQ(13, len);
+  CHECK_EQ(8, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "ab\355\240\200cd\355\260\200ef"));
+
+  // replace orphan surrogates with unicode replacement character
+  memset(utf8buf, 0x1, 1000);
+  len = orphans_str->WriteUtf8(utf8buf,
+                               sizeof(utf8buf),
+                               &charlen,
+                               String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(13, len);
+  CHECK_EQ(8, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "ab\357\277\275cd\357\277\275ef"));
+
+  // replace single lead surrogate with unicode replacement character
+  memset(utf8buf, 0x1, 1000);
+  len = lead_str->WriteUtf8(utf8buf,
+                            sizeof(utf8buf),
+                            &charlen,
+                            String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(4, len);
+  CHECK_EQ(1, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "\357\277\275"));
+
+  // replace single trail surrogate with unicode replacement character
+  memset(utf8buf, 0x1, 1000);
+  len = trail_str->WriteUtf8(utf8buf,
+                             sizeof(utf8buf),
+                             &charlen,
+                             String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(4, len);
+  CHECK_EQ(1, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "\357\277\275"));
+
+  // do not replace / write anything if surrogate pair does not fit the buffer
+  // space
+  memset(utf8buf, 0x1, 1000);
+  len = pair_str->WriteUtf8(utf8buf,
+                             3,
+                             &charlen,
+                             String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(0, len);
+  CHECK_EQ(0, charlen);
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = GetUtf8Length(left_tree);

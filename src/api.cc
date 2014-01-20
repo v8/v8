@@ -4454,28 +4454,35 @@ int String::Utf8Length() const {
 class Utf8WriterVisitor {
  public:
   Utf8WriterVisitor(
-      char* buffer, int capacity, bool skip_capacity_check)
-      : early_termination_(false),
-        last_character_(unibrow::Utf16::kNoPreviousCharacter),
-        buffer_(buffer),
-        start_(buffer),
-        capacity_(capacity),
-        skip_capacity_check_(capacity == -1 || skip_capacity_check),
-        utf16_chars_read_(0) {
+      char* buffer,
+      int capacity,
+      bool skip_capacity_check,
+      bool replace_invalid_utf8)
+    : early_termination_(false),
+      last_character_(unibrow::Utf16::kNoPreviousCharacter),
+      buffer_(buffer),
+      start_(buffer),
+      capacity_(capacity),
+      skip_capacity_check_(capacity == -1 || skip_capacity_check),
+      replace_invalid_utf8_(replace_invalid_utf8),
+      utf16_chars_read_(0) {
   }
 
   static int WriteEndCharacter(uint16_t character,
                                int last_character,
                                int remaining,
-                               char* const buffer) {
+                               char* const buffer,
+                               bool replace_invalid_utf8) {
     using namespace unibrow;
     ASSERT(remaining > 0);
     // We can't use a local buffer here because Encode needs to modify
     // previous characters in the stream.  We know, however, that
     // exactly one character will be advanced.
-    if (Utf16::IsTrailSurrogate(character) &&
-        Utf16::IsLeadSurrogate(last_character)) {
-      int written = Utf8::Encode(buffer, character, last_character);
+    if (Utf16::IsSurrogatePair(last_character, character)) {
+      int written = Utf8::Encode(buffer,
+                                 character,
+                                 last_character,
+                                 replace_invalid_utf8);
       ASSERT(written == 1);
       return written;
     }
@@ -4484,7 +4491,8 @@ class Utf8WriterVisitor {
     // Can't encode using last_character as gcc has array bounds issues.
     int written = Utf8::Encode(temp_buffer,
                                character,
-                               Utf16::kNoPreviousCharacter);
+                               Utf16::kNoPreviousCharacter,
+                               replace_invalid_utf8);
     // Won't fit.
     if (written > remaining) return 0;
     // Copy over the character from temp_buffer.
@@ -4494,6 +4502,16 @@ class Utf8WriterVisitor {
     return written;
   }
 
+  // Visit writes out a group of code units (chars) of a v8::String to the
+  // internal buffer_. This is done in two phases. The first phase calculates a
+  // pesimistic estimate (writable_length) on how many code units can be safely
+  // written without exceeding the buffer capacity and without writing the last
+  // code unit (it could be a lead surrogate). The estimated number of code
+  // units is then written out in one go, and the reported byte usage is used
+  // to correct the estimate. This is repeated until the estimate becomes <= 0
+  // or all code units have been written out. The second phase writes out code
+  // units until the buffer capacity is reached, would be exceeded by the next
+  // unit, or all units have been written out.
   template<typename Char>
   void Visit(const Char* chars, const int length) {
     using namespace unibrow;
@@ -4531,7 +4549,10 @@ class Utf8WriterVisitor {
       } else {
         for (; i < fast_length; i++) {
           uint16_t character = *chars++;
-          buffer += Utf8::Encode(buffer, character, last_character);
+          buffer += Utf8::Encode(buffer,
+                                 character,
+                                 last_character,
+                                 replace_invalid_utf8_);
           last_character = character;
           ASSERT(capacity_ == -1 || (buffer - start_) <= capacity_);
         }
@@ -4551,10 +4572,17 @@ class Utf8WriterVisitor {
     ASSERT(remaining_capacity >= 0);
     for (; i < length && remaining_capacity > 0; i++) {
       uint16_t character = *chars++;
+      // remaining_capacity is <= 3 bytes at this point, so we do not write out
+      // an umatched lead surrogate.
+      if (replace_invalid_utf8_ && Utf16::IsLeadSurrogate(character)) {
+        early_termination_ = true;
+        break;
+      }
       int written = WriteEndCharacter(character,
                                       last_character,
                                       remaining_capacity,
-                                      buffer);
+                                      buffer,
+                                      replace_invalid_utf8_);
       if (written == 0) {
         early_termination_ = true;
         break;
@@ -4602,6 +4630,7 @@ class Utf8WriterVisitor {
   char* const start_;
   int capacity_;
   bool const skip_capacity_check_;
+  bool const replace_invalid_utf8_;
   int utf16_chars_read_;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Utf8WriterVisitor);
 };
@@ -4640,9 +4669,11 @@ int String::WriteUtf8(char* buffer,
   }
   const int string_length = str->length();
   bool write_null = !(options & NO_NULL_TERMINATION);
+  bool replace_invalid_utf8 = (options & REPLACE_INVALID_UTF8);
+  int max16BitCodeUnitSize = unibrow::Utf8::kMax16BitCodeUnitSize;
   // First check if we can just write the string without checking capacity.
-  if (capacity == -1 || capacity / 3 >= string_length) {
-    Utf8WriterVisitor writer(buffer, capacity, true);
+  if (capacity == -1 || capacity / max16BitCodeUnitSize >= string_length) {
+    Utf8WriterVisitor writer(buffer, capacity, true, replace_invalid_utf8);
     const int kMaxRecursion = 100;
     bool success = RecursivelySerializeToUtf8(*str, &writer, kMaxRecursion);
     if (success) return writer.CompleteWrite(write_null, nchars_ref);
@@ -4670,7 +4701,7 @@ int String::WriteUtf8(char* buffer,
   }
   // Recursive slow path can potentially be unreasonable slow. Flatten.
   str = FlattenGetString(str);
-  Utf8WriterVisitor writer(buffer, capacity, false);
+  Utf8WriterVisitor writer(buffer, capacity, false, replace_invalid_utf8);
   i::String::VisitFlat(&writer, *str);
   return writer.CompleteWrite(write_null, nchars_ref);
 }
