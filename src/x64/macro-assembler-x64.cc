@@ -3714,7 +3714,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   // Optionally save all XMM registers.
   if (save_doubles) {
     int space = XMMRegister::kMaxNumAllocatableRegisters * kDoubleSize +
-        arg_stack_space * kPointerSize;
+        arg_stack_space * kRegisterSize;
     subq(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
@@ -3722,7 +3722,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
       movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
-    subq(rsp, Immediate(arg_stack_space * kPointerSize));
+    subq(rsp, Immediate(arg_stack_space * kRegisterSize));
   }
 
   // Get the required frame alignment for the OS.
@@ -3767,7 +3767,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     }
   }
   // Get the return address from the stack and restore the frame pointer.
-  movq(rcx, Operand(rbp, 1 * kPointerSize));
+  movq(rcx, Operand(rbp, kFPOnStackSize));
   movq(rbp, Operand(rbp, 0 * kPointerSize));
 
   // Drop everything up to and including the arguments and the receiver
@@ -4640,9 +4640,9 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   ASSERT(IsPowerOf2(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  subq(rsp, Immediate((argument_slots_on_stack + 1) * kPointerSize));
+  subq(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
   and_(rsp, Immediate(-frame_alignment));
-  movq(Operand(rsp, argument_slots_on_stack * kPointerSize), kScratchRegister);
+  movq(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
 }
 
 
@@ -4665,7 +4665,7 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   ASSERT(num_arguments >= 0);
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  movq(rsp, Operand(rsp, argument_slots_on_stack * kPointerSize));
+  movq(rsp, Operand(rsp, argument_slots_on_stack * kRegisterSize));
 }
 
 
