@@ -4257,6 +4257,202 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ArrayPushStub::Generate(MacroAssembler* masm) {
+  int argc = arguments_count();
+
+  StackArgumentsAccessor args(rsp, argc);
+  if (argc == 0) {
+    // Noop, return the length.
+    __ movp(rax, FieldOperand(rdx, JSArray::kLengthOffset));
+    __ ret((argc + 1) * kPointerSize);
+    return;
+  }
+
+  Isolate* isolate = masm->isolate();
+
+  if (argc != 1) {
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  Label call_builtin, attempt_to_grow_elements, with_write_barrier;
+
+  // Get the elements array of the object.
+  __ movp(rdi, FieldOperand(rdx, JSArray::kElementsOffset));
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    // Check that the elements are in fast mode and writable.
+    __ Cmp(FieldOperand(rdi, HeapObject::kMapOffset),
+           isolate->factory()->fixed_array_map());
+    __ j(not_equal, &call_builtin);
+  }
+
+  // Get the array's length into rax and calculate new length.
+  __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
+  STATIC_ASSERT(FixedArray::kMaxLength < Smi::kMaxValue);
+  __ addl(rax, Immediate(argc));
+
+  // Get the elements' length into rcx.
+  __ SmiToInteger32(rcx, FieldOperand(rdi, FixedArray::kLengthOffset));
+
+  // Check if we could survive without allocation.
+  __ cmpl(rax, rcx);
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    __ j(greater, &attempt_to_grow_elements);
+
+    // Check if value is a smi.
+    __ movp(rcx, args.GetArgumentOperand(1));
+    __ JumpIfNotSmi(rcx, &with_write_barrier);
+
+    // Store the value.
+    __ movp(FieldOperand(rdi,
+                         rax,
+                         times_pointer_size,
+                         FixedArray::kHeaderSize - argc * kPointerSize),
+            rcx);
+  } else {
+    __ j(greater, &call_builtin);
+
+    __ movp(rcx, args.GetArgumentOperand(1));
+    __ StoreNumberToDoubleElements(
+        rcx, rdi, rax, xmm0, &call_builtin, argc * kDoubleSize);
+  }
+
+  // Save new length.
+  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+
+  __ Integer32ToSmi(rax, rax);  // Return new length as smi.
+  __ ret((argc + 1) * kPointerSize);
+
+  if (IsFastDoubleElementsKind(elements_kind())) {
+    __ bind(&call_builtin);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  __ bind(&with_write_barrier);
+
+  if (IsFastSmiElementsKind(elements_kind())) {
+    if (FLAG_trace_elements_transitions) __ jmp(&call_builtin);
+
+    __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
+           isolate->factory()->heap_number_map());
+    __ j(equal, &call_builtin);
+
+    ElementsKind target_kind = IsHoleyElementsKind(elements_kind())
+        ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+    __ movp(rbx, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
+    __ movp(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
+    __ movp(rbx, ContextOperand(rbx, Context::JS_ARRAY_MAPS_INDEX));
+    const int header_size = FixedArrayBase::kHeaderSize;
+    // Verify that the object can be transitioned in place.
+    const int origin_offset = header_size + elements_kind() * kPointerSize;
+    __ movp(rdi, FieldOperand(rbx, origin_offset));
+    __ cmpq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
+    __ j(not_equal, &call_builtin);
+
+    const int target_offset = header_size + target_kind * kPointerSize;
+    __ movp(rbx, FieldOperand(rbx, target_offset));
+    ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+        masm, DONT_TRACK_ALLOCATION_SITE, NULL);
+    __ movp(rdi, FieldOperand(rdx, JSArray::kElementsOffset));
+  }
+
+  // Save new length.
+  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+
+  // Store the value.
+  __ lea(rdx, FieldOperand(rdi,
+                           rax, times_pointer_size,
+                           FixedArray::kHeaderSize - argc * kPointerSize));
+  __ movp(Operand(rdx, 0), rcx);
+
+  __ RecordWrite(rdi, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+
+  __ Integer32ToSmi(rax, rax);  // Return new length as smi.
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&attempt_to_grow_elements);
+  if (!FLAG_inline_new) {
+    __ bind(&call_builtin);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  __ movp(rbx, args.GetArgumentOperand(1));
+  // Growing elements that are SMI-only requires special handling in case the
+  // new element is non-Smi. For now, delegate to the builtin.
+  Label no_fast_elements_check;
+  __ JumpIfSmi(rbx, &no_fast_elements_check);
+  __ movp(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ CheckFastObjectElements(rcx, &call_builtin, Label::kFar);
+  __ bind(&no_fast_elements_check);
+
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate);
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address(isolate);
+
+  const int kAllocationDelta = 4;
+  ASSERT(kAllocationDelta >= argc);
+  // Load top.
+  __ Load(rcx, new_space_allocation_top);
+
+  // Check if it's the end of elements.
+  __ lea(rdx, FieldOperand(rdi,
+                           rax, times_pointer_size,
+                           FixedArray::kHeaderSize - argc * kPointerSize));
+  __ cmpq(rdx, rcx);
+  __ j(not_equal, &call_builtin);
+  __ addq(rcx, Immediate(kAllocationDelta * kPointerSize));
+  Operand limit_operand = masm->ExternalOperand(new_space_allocation_limit);
+  __ cmpq(rcx, limit_operand);
+  __ j(above, &call_builtin);
+
+  // We fit and could grow elements.
+  __ Store(new_space_allocation_top, rcx);
+
+  // Push the argument...
+  __ movp(Operand(rdx, 0), rbx);
+  // ... and fill the rest with holes.
+  __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
+  for (int i = 1; i < kAllocationDelta; i++) {
+    __ movp(Operand(rdx, i * kPointerSize), kScratchRegister);
+  }
+
+  if (IsFastObjectElementsKind(elements_kind())) {
+    // We know the elements array is in new space so we don't need the
+    // remembered set, but we just pushed a value onto it so we may have to tell
+    // the incremental marker to rescan the object that we just grew.  We don't
+    // need to worry about the holes because they are in old space and already
+    // marked black.
+    __ RecordWrite(rdi, rdx, rbx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
+  }
+
+  // Restore receiver to rdx as finish sequence assumes it's here.
+  __ movp(rdx, args.GetReceiverOperand());
+
+  // Increment element's and array's sizes.
+  __ SmiAddConstant(FieldOperand(rdi, FixedArray::kLengthOffset),
+                    Smi::FromInt(kAllocationDelta));
+
+  // Make new length a smi before returning it.
+  __ Integer32ToSmi(rax, rax);
+  __ movp(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&call_builtin);
+  __ TailCallExternalReference(
+      ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+}
+
+
 void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rdx    : left

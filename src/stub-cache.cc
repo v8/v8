@@ -1282,6 +1282,41 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
 }
 
 
+Handle<Code> CallStubCompiler::CompileArrayPushCall(
+    Handle<Object> object,
+    Handle<JSObject> holder,
+    Handle<Cell> cell,
+    Handle<JSFunction> function,
+    Handle<String> name,
+    Code::StubType type) {
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
+    return Handle<Code>::null();
+  }
+
+  Label miss;
+
+  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
+
+  Handle<Map> map(Handle<JSArray>::cast(object)->map());
+  ElementsKind elements_kind = map->elements_kind();
+  const int argc = arguments().immediate();
+
+  ArrayPushStub stub(elements_kind, argc);
+  Handle<Code> code = stub.GetCode(isolate());
+  StubCompiler::GenerateTailCall(masm(), code);
+
+  HandlerFrontendFooter(&miss);
+
+  // Return the generated code.
+  return GetCode(type, name);
+}
+
+
 Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Object> object,
     Handle<JSObject> holder,

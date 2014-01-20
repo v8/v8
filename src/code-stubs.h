@@ -78,6 +78,7 @@ namespace internal {
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
+  V(ArrayPush)                           \
   V(ArrayNoArgumentConstructor)          \
   V(ArraySingleArgumentConstructor)      \
   V(ArrayNArgumentsConstructor)          \
@@ -1148,6 +1149,30 @@ class BinaryOpICStub : public HydrogenCodeStub {
   BinaryOpIC::State state_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
+};
+
+
+class ArrayPushStub: public PlatformCodeStub {
+ public:
+  ArrayPushStub(ElementsKind kind, int argc) {
+    bit_field_ = ElementsKindBits::encode(kind) | ArgcBits::encode(argc);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int arguments_count() { return ArgcBits::decode(bit_field_); }
+  ElementsKind elements_kind() {
+    return ElementsKindBits::decode(bit_field_);
+  }
+
+  virtual CodeStub::Major MajorKey() { return ArrayPush; }
+  virtual int MinorKey() { return bit_field_; }
+
+  class ElementsKindBits: public BitField<ElementsKind, 0, 3> {};
+  class ArgcBits: public BitField<int, 3, Code::kArgumentsBits> {};
+
+  int bit_field_;
 };
 
 
