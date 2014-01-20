@@ -503,7 +503,12 @@ template<class Char>
 class SubStringKey : public HashTableKey {
  public:
   SubStringKey(Handle<String> string, int from, int length)
-      : string_(string), from_(from), length_(length) { }
+      : string_(string), from_(from), length_(length) {
+    if (string_->IsSlicedString()) {
+      string_ = Handle<String>(Unslice(*string_, &from_));
+    }
+    ASSERT(string_->IsSeqString() || string->IsExternalString());
+  }
 
   virtual uint32_t Hash() {
     ASSERT(length_ >= 0);
@@ -525,6 +530,14 @@ class SubStringKey : public HashTableKey {
 
  private:
   const Char* GetChars();
+  String* Unslice(String* string, int* offset) {
+    while (string->IsSlicedString()) {
+      SlicedString* sliced = SlicedString::cast(string);
+      *offset += sliced->offset();
+      string = sliced->parent();
+    }
+    return string;
+  }
 
   Handle<String> string_;
   int from_;
