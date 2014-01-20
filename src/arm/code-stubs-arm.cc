@@ -665,17 +665,16 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   int double_offset = offset();
   // Account for saved regs if input is sp.
-  if (input_reg.is(sp)) double_offset += 2 * kPointerSize;
+  if (input_reg.is(sp)) double_offset += 3 * kPointerSize;
 
-  // Immediate values for this stub fit in instructions, so it's safe to use ip.
-  Register scratch = ip;
+  Register scratch = GetRegisterThatIsNotOneOf(input_reg, result_reg);
   Register scratch_low =
       GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch);
   Register scratch_high =
       GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch, scratch_low);
   LowDwVfpRegister double_scratch = kScratchDoubleReg;
 
-  __ Push(scratch_high, scratch_low);
+  __ Push(scratch_high, scratch_low, scratch);
 
   if (!skip_fastpath()) {
     // Load double input.
@@ -758,7 +757,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   __ bind(&done);
 
-  __ Pop(scratch_high, scratch_low);
+  __ Pop(scratch_high, scratch_low, scratch);
   __ Ret();
 }
 
