@@ -236,13 +236,30 @@
     {
       'target_name': 'generated-lexer',
       'type': 'none',
+      'variables': {
+        'lexer_generator_files': [
+          '../../src/lexer/lexer_py.re',
+          '../../tools/lexer_generator/code_generator.jinja',
+          '../../tools/lexer_generator/automaton.py',
+          '../../tools/lexer_generator/code_generator.py',
+          '../../tools/lexer_generator/dfa_optimizer.py',
+          '../../tools/lexer_generator/dfa.py',
+          '../../tools/lexer_generator/generator.py',
+          '../../tools/lexer_generator/__init__.py',
+          '../../tools/lexer_generator/nfa_builder.py',
+          '../../tools/lexer_generator/nfa.py',
+          '../../tools/lexer_generator/regex_lexer.py',
+          '../../tools/lexer_generator/regex_parser.py',
+          '../../tools/lexer_generator/rule_lexer.py',
+          '../../tools/lexer_generator/rule_parser.py',
+          '../../tools/lexer_generator/transition_keys.py',
+        ],
+      },
       'actions': [
         {
           'action_name': 'codegen_8',
           'inputs': [
-            '../../src/lexer/lexer_py.re',
-            '../../tools/lexer_generator/*.py',
-            '../../tools/lexer_generator/*.jinja',
+            '<@(lexer_generator_files)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_latin1.cc',
@@ -258,9 +275,7 @@
         {
           'action_name': 'codegen_16',
           'inputs': [
-            '../../src/lexer/lexer_py.re',
-            '../../tools/lexer_generator/*.py',
-            '../../tools/lexer_generator/*.jinja',
+            '<@(lexer_generator_files)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf16.cc',
@@ -276,9 +291,7 @@
         {
           'action_name': 'codegen_utf8',
           'inputs': [
-            '../../src/lexer/lexer_py.re',
-            '../../tools/lexer_generator/*.py',
-            '../../tools/lexer_generator/*.jinja',
+            '<@(lexer_generator_files)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/generated_lexer_utf8.cc',
