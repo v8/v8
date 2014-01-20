@@ -53,6 +53,33 @@ const int8_t* ExperimentalScanner<int8_t>::GetNewBufferBasedOnHandle() const {
 
 
 template<>
+bool ExperimentalScanner<uint8_t>::IsSubstringOfSource(const TokenDesc& token) {
+  return !token.has_escapes;
+}
+
+
+template<>
+bool ExperimentalScanner<uint16_t>::IsSubstringOfSource(
+    const TokenDesc& token) {
+  if (token.has_escapes) return false;
+  const uint16_t* start = buffer_ + token.beg_pos;
+  const uint16_t* end = buffer_ + token.end_pos;
+  for (const uint16_t* cursor = start; cursor != end; ++cursor) {
+    if (*cursor >= unibrow::Latin1::kMaxChar) return true;
+  }
+  return false;
+}
+
+
+template<>
+bool ExperimentalScanner<int8_t>::IsSubstringOfSource(const TokenDesc& token) {
+  // FIXME: implement.
+  UNREACHABLE();
+  return false;
+}
+
+
+template<>
 bool ExperimentalScanner<uint8_t>::FillLiteral(
     const TokenDesc& token, LiteralDesc* literal) {
   literal->beg_pos = token.beg_pos;
@@ -62,37 +89,16 @@ bool ExperimentalScanner<uint8_t>::FillLiteral(
     ++start;
     --end;
   }
-  if (!token.has_escapes) {
+  if (IsSubstringOfSource(token)) {
     literal->is_ascii = true;
+    literal->is_in_buffer = false;
+    literal->offset = start - buffer_;
     literal->length = end - start;
     literal->ascii_string = Vector<const char>(
         reinterpret_cast<const char*>(start), literal->length);
     return true;
   }
-  literal->buffer.Reset();
-  for (const uint8_t* cursor = start; cursor != end;) {
-    if (*cursor != '\\') {
-      literal->buffer.AddChar(*cursor++);
-    } else if (token.token == Token::IDENTIFIER) {
-      uc32 c;
-      cursor = ScanIdentifierUnicodeEscape(cursor, end, &c);
-      ASSERT(cursor != NULL);
-      if (cursor == NULL) return false;
-      literal->buffer.AddChar(c);
-    } else {
-      cursor = ScanEscape(cursor, end, &literal->buffer);
-      ASSERT(cursor != NULL);
-      if (cursor == NULL) return false;
-    }
-  }
-  literal->is_ascii = literal->buffer.is_ascii();
-  literal->length = literal->buffer.length();
-  if (literal->is_ascii) {
-    literal->ascii_string = literal->buffer.ascii_literal();
-  } else {
-    literal->utf16_string = literal->buffer.utf16_literal();
-  }
-  return true;
+  return CopyToLiteralBuffer(start, end, token, literal);
 }
 
 
@@ -106,44 +112,56 @@ bool ExperimentalScanner<uint16_t>::FillLiteral(
     ++start;
     --end;
   }
-  if (!token.has_escapes) {
-    // UTF-16 can also contain only one byte chars. Note that is_ascii here
-    // means is_onebyte.
-    literal->is_ascii = true;
-    literal->buffer.Reset();
-    for (const uint16_t* cursor = start; cursor != end; ++cursor) {
-      if (*cursor >= unibrow::Latin1::kMaxChar) {
-        literal->is_ascii = false;
-        break;
-      }
-      literal->buffer.AddChar(*cursor);
-    }
+  if (IsSubstringOfSource(token)) {
+    literal->is_ascii = false;
+    literal->is_in_buffer = false;
+    literal->offset = start - buffer_;
     literal->length = end - start;
-    if (literal->is_ascii) {
-      literal->ascii_string = literal->buffer.ascii_literal();
-    } else {
-      literal->buffer.Reset();
-      literal->utf16_string = Vector<const uint16_t>(start, literal->length);
-    }
+    literal->utf16_string = Vector<const uint16_t>(start, literal->length);
     return true;
   }
+  return CopyToLiteralBuffer(start, end, token, literal);
+}
+
+
+template<>
+bool ExperimentalScanner<int8_t>::FillLiteral(
+    const TokenDesc& token, LiteralDesc* literal) {
+  // FIXME: implement.
+  UNREACHABLE();
+  return false;
+}
+
+
+template<class Char>
+bool ExperimentalScanner<Char>::CopyToLiteralBuffer(const Char* start,
+                                                    const Char* end,
+                                                    const TokenDesc& token,
+                                                    LiteralDesc* literal) {
   literal->buffer.Reset();
-  for (const uint16_t* cursor = start; cursor != end;) {
-    if (*cursor != '\\') {
-      literal->buffer.AddChar(*cursor++);
-    } else if (token.token == Token::IDENTIFIER) {
-      uc32 c;
-      cursor = ScanIdentifierUnicodeEscape(cursor, end, &c);
-      ASSERT(cursor != NULL);
-      if (cursor == NULL) return false;
-      literal->buffer.AddChar(c);
-    } else {
-      cursor = ScanEscape(cursor, end, &literal->buffer);
-      ASSERT(cursor != NULL);
-      if (cursor == NULL) return false;
+  if (token.has_escapes) {
+    for (const Char* cursor = start; cursor != end;) {
+      if (*cursor != '\\') {
+        literal->buffer.AddChar(*cursor++);
+      } else if (token.token == Token::IDENTIFIER) {
+        uc32 c;
+        cursor = ScanIdentifierUnicodeEscape(cursor, end, &c);
+        ASSERT(cursor != NULL);
+        if (cursor == NULL) return false;
+        literal->buffer.AddChar(c);
+      } else {
+        cursor = ScanEscape(cursor, end, &literal->buffer);
+        ASSERT(cursor != NULL);
+        if (cursor == NULL) return false;
+      }
+    }
+  } else {
+    for (const Char* cursor = start; cursor != end;) {
+        literal->buffer.AddChar(*cursor++);
     }
   }
   literal->is_ascii = literal->buffer.is_ascii();
+  literal->is_in_buffer = true;
   literal->length = literal->buffer.length();
   if (literal->is_ascii) {
     literal->ascii_string = literal->buffer.ascii_literal();
@@ -153,13 +171,79 @@ bool ExperimentalScanner<uint16_t>::FillLiteral(
   return true;
 }
 
+
+template<class Char>
+Handle<String> ExperimentalScanner<Char>::InternalizeLiteral(
+    LiteralDesc* literal) {
+  Factory* factory = isolate_->factory();
+  if (literal->is_in_buffer) {
+    return literal->is_ascii
+        ? factory->InternalizeOneByteString(
+            Vector<const uint8_t>::cast(literal->ascii_string))
+        : factory->InternalizeTwoByteString(literal->utf16_string);
+  }
+  if (sizeof(Char) == 1) {
+    SubStringKey<uint8_t> key(
+        source_handle_, literal->offset, literal->length);
+    return factory->InternalizeStringWithKey(&key);
+  } else {
+    SubStringKey<uint16_t> key(
+        source_handle_, literal->offset, literal->length);
+    return factory->InternalizeStringWithKey(&key);
+  }
+}
+
+
 template<>
-bool ExperimentalScanner<int8_t>::FillLiteral(
-    const TokenDesc& token, LiteralDesc* literal) {
-  // FIXME: implement.
-  return false;
+Handle<String> ExperimentalScanner<uint8_t>::AllocateLiteral(
+    LiteralDesc* literal, PretenureFlag pretenured) {
+  Factory* factory = isolate_->factory();
+  if (literal->is_in_buffer) {
+    return literal->is_ascii
+        ? factory->NewStringFromAscii(literal->ascii_string, pretenured)
+        : factory->NewStringFromTwoByte(literal->utf16_string, pretenured);
+  }
+  int from = literal->offset;
+  int length = literal->length;
+  // Save the offset and the length before allocating the string as it may
+  // cause a GC, invalidate the literal, and move the source.
+  Handle<String> result = factory->NewRawOneByteString(length, pretenured);
+  uint8_t* chars = SeqOneByteString::cast(*result)->GetChars();
+  String::WriteToFlat(*source_handle_, chars, from, from + length);
+  return result;
 }
 
 
+template<>
+Handle<String> ExperimentalScanner<uint16_t>::AllocateLiteral(
+    LiteralDesc* literal, PretenureFlag pretenured) {
+  Factory* factory = isolate_->factory();
+  if (literal->is_in_buffer) {
+    return literal->is_ascii
+        ? factory->NewStringFromAscii(literal->ascii_string, pretenured)
+        : factory->NewStringFromTwoByte(literal->utf16_string, pretenured);
+  }
+  // Save the offset and the length before allocating the string as it may
+  // cause a GC, invalidate the literal, and move the source.
+  int from = literal->offset;
+  int length = literal->length;
+  Handle<String> result = factory->NewRawTwoByteString(length, pretenured);
+  uint16_t* chars = SeqTwoByteString::cast(*result)->GetChars();
+  String::WriteToFlat(*source_handle_, chars, from, from + length);
+  return result;
 }
+
+
+template<>
+Handle<String> ExperimentalScanner<int8_t>::AllocateLiteral(
+    LiteralDesc* literal, PretenureFlag pretenured) {
+  // FIXME: implement
+  UNREACHABLE();
+  return Handle<String>();
 }
+
+template class ExperimentalScanner<uint8_t>;
+template class ExperimentalScanner<uint16_t>;
+template class ExperimentalScanner<int8_t>;
+
+} }  // v8::internal

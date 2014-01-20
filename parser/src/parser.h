@@ -666,23 +666,11 @@ class Parser : public ParserBase {
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
   Handle<String> LiteralString(PretenureFlag tenured) {
-    if (scanner().is_literal_ascii()) {
-      return isolate_->factory()->NewStringFromAscii(
-          scanner().literal_ascii_string(), tenured);
-    } else {
-      return isolate_->factory()->NewStringFromTwoByte(
-            scanner().literal_utf16_string(), tenured);
-    }
+    return scanner().GetLiteralString(tenured);
   }
 
   Handle<String> NextLiteralString(PretenureFlag tenured) {
-    if (scanner().is_next_literal_ascii()) {
-      return isolate_->factory()->NewStringFromAscii(
-          scanner().next_literal_ascii_string(), tenured);
-    } else {
-      return isolate_->factory()->NewStringFromTwoByte(
-          scanner().next_literal_utf16_string(), tenured);
-    }
+    return scanner().GetNextLiteralString(tenured);
   }
 
   Handle<String> GetSymbol();

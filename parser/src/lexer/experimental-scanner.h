@@ -157,32 +157,39 @@ class ScannerBase {
            has_multiline_comment_before_next_;
   }
 
+  Handle<String> GetLiteralSymbol() {
+    EnsureCurrentLiteralIsValid();
+    return InternalizeLiteral(current_literal_);
+  }
+
+  Handle<String> GetLiteralString(PretenureFlag tenured) {
+    EnsureCurrentLiteralIsValid();
+    return AllocateLiteral(current_literal_, tenured);
+  }
+
+  Handle<String> GetNextLiteralString(PretenureFlag tenured) {
+    EnsureNextLiteralIsValid();
+    return AllocateLiteral(next_literal_, tenured);
+  }
+
   Vector<const char> literal_ascii_string() {
-    if (!current_literal_->Valid(current_.beg_pos)) {
-      FillLiteral(current_, current_literal_);
-    }
+    EnsureCurrentLiteralIsValid();
     return current_literal_->ascii_string;
   }
 
   Vector<const uc16> literal_utf16_string() {
-    if (!current_literal_->Valid(current_.beg_pos)) {
-      FillLiteral(current_, current_literal_);
-    }
+    EnsureCurrentLiteralIsValid();
     return current_literal_->utf16_string;
   }
 
   int literal_length() {
-    if (!current_literal_->Valid(current_.beg_pos)) {
-      FillLiteral(current_, current_literal_);
-    }
+    EnsureCurrentLiteralIsValid();
     return current_literal_->length;
   }
 
   // This should be is_onebyte or is_latin1; it doesn't mean ASCII for real.
   bool is_literal_ascii() {
-    if (!current_literal_->Valid(current_.beg_pos)) {
-      FillLiteral(current_, current_literal_);
-    }
+    EnsureCurrentLiteralIsValid();
     return current_literal_->is_ascii;
   }
 
@@ -198,30 +205,22 @@ class ScannerBase {
   }
 
   Vector<const char> next_literal_ascii_string() {
-    if (!next_literal_->Valid(next_.beg_pos)) {
-      FillLiteral(next_, next_literal_);
-    }
+    EnsureNextLiteralIsValid();
     return next_literal_->ascii_string;
   }
 
   Vector<const uc16> next_literal_utf16_string() {
-    if (!next_literal_->Valid(next_.beg_pos)) {
-      FillLiteral(next_, next_literal_);
-    }
+    EnsureNextLiteralIsValid();
     return next_literal_->utf16_string;
   }
 
   int next_literal_length() {
-    if (!next_literal_->Valid(next_.beg_pos)) {
-      FillLiteral(next_, next_literal_);
-    }
+    EnsureNextLiteralIsValid();
     return next_literal_->length;
   }
 
   bool is_next_literal_ascii() {
-    if (!next_literal_->Valid(next_.beg_pos)) {
-      FillLiteral(next_, next_literal_);
-    }
+    EnsureNextLiteralIsValid();
     return next_literal_->is_ascii;
   }
 
@@ -244,11 +243,14 @@ class ScannerBase {
   struct LiteralDesc {
     int beg_pos;
     bool is_ascii;
+    bool is_in_buffer;
+    int offset;
     int length;
     Vector<const char> ascii_string;
     Vector<const uc16> utf16_string;
     LiteralBuffer buffer;
-    LiteralDesc() : beg_pos(-1), is_ascii(false), length(0) { }
+    LiteralDesc() : beg_pos(-1), is_ascii(false), is_in_buffer(false),
+                    offset(0), length(0) { }
     bool Valid(int pos) { return beg_pos == pos; }
   };
 
@@ -256,9 +258,25 @@ class ScannerBase {
   virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal) = 0;
 
   void ResetLiterals() {
-    current_literal_->beg_pos = -1;
-    next_literal_->beg_pos = -1;
+    if (!current_literal_->is_in_buffer) current_literal_->beg_pos = -1;
+    if (!next_literal_->is_in_buffer) next_literal_->beg_pos = -1;
   }
+
+  void EnsureCurrentLiteralIsValid() {
+    if (!current_literal_->Valid(current_.beg_pos)) {
+      FillLiteral(current_, current_literal_);
+    }
+  }
+
+  void EnsureNextLiteralIsValid() {
+    if (!next_literal_->Valid(next_.beg_pos)) {
+      FillLiteral(next_, next_literal_);
+    }
+  }
+
+  virtual Handle<String> InternalizeLiteral(LiteralDesc* literal) = 0;
+  virtual Handle<String> AllocateLiteral(LiteralDesc* literal,
+                                         PretenureFlag tenured) = 0;
 
   Isolate* isolate_;
   UnicodeCache* unicode_cache_;
@@ -340,6 +358,10 @@ class ExperimentalScanner : public ScannerBase {
   const Char* GetNewBufferBasedOnHandle() const;
 
   virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal);
+  virtual Handle<String> InternalizeLiteral(LiteralDesc* literal);
+  virtual Handle<String> AllocateLiteral(LiteralDesc* literal,
+                                         PretenureFlag tenured);
+
 
  private:
   bool ValidIdentifierPart() {
@@ -365,6 +387,15 @@ class ExperimentalScanner : public ScannerBase {
   const Char* ScanEscape(const Char* start,
                          const Char* end,
                          LiteralBuffer* literal);
+
+  // Returns true if the literal of the token can be represented as a
+  // substring of the source.
+  bool IsSubstringOfSource(const TokenDesc& token);
+
+  bool CopyToLiteralBuffer(const Char* start,
+                           const Char* end,
+                           const TokenDesc& token,
+                           LiteralDesc* literal);
 
   Handle<String> source_handle_;
   const Char* buffer_;

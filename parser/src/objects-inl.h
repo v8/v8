@@ -499,17 +499,16 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
 };
 
 
-class SubStringOneByteStringKey : public HashTableKey {
+template<class Char>
+class SubStringKey : public HashTableKey {
  public:
-  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
-                                     int from,
-                                     int length)
+  SubStringKey(Handle<String> string, int from, int length)
       : string_(string), from_(from), length_(length) { }
 
   virtual uint32_t Hash() {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
-    uint8_t* chars = string_->GetChars() + from_;
+    const Char* chars = GetChars() + from_;
     hash_field_ = StringHasher::HashSequentialString(
         chars, length_, string_->GetHeap()->HashSeed());
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -517,20 +516,17 @@ class SubStringOneByteStringKey : public HashTableKey {
     return result;
   }
 
-
   virtual uint32_t HashForObject(Object* other) {
     return String::cast(other)->Hash();
   }
 
-  virtual bool IsMatch(Object* string) {
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return String::cast(string)->IsOneByteEqualTo(chars);
-  }
-
+  virtual bool IsMatch(Object* string);
   virtual MaybeObject* AsObject(Heap* heap);
 
  private:
-  Handle<SeqOneByteString> string_;
+  const Char* GetChars();
+
+  Handle<String> string_;
   int from_;
   int length_;
   uint32_t hash_field_;

@@ -256,13 +256,7 @@ Handle<String> Parser::LookupSymbol(int symbol_id) {
   // if there is some preparser data.
   if (static_cast<unsigned>(symbol_id)
       >= static_cast<unsigned>(symbol_cache_.length())) {
-    if (scanner().is_literal_ascii()) {
-      return isolate()->factory()->InternalizeOneByteString(
-          Vector<const uint8_t>::cast(scanner().literal_ascii_string()));
-    } else {
-      return isolate()->factory()->InternalizeTwoByteString(
-          scanner().literal_utf16_string());
-    }
+    return scanner().GetLiteralSymbol();
   }
   return LookupCachedSymbol(symbol_id);
 }
@@ -277,13 +271,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
   }
   Handle<String> result = symbol_cache_.at(symbol_id);
   if (result.is_null()) {
-    if (scanner().is_literal_ascii()) {
-      result = isolate()->factory()->InternalizeOneByteString(
-          Vector<const uint8_t>::cast(scanner().literal_ascii_string()));
-    } else {
-      result = isolate()->factory()->InternalizeTwoByteString(
-          scanner().literal_utf16_string());
-    }
+    result = scanner().GetLiteralSymbol();
     symbol_cache_.at(symbol_id) = result;
     return result;
   }
@@ -576,7 +564,7 @@ FunctionLiteral* Parser::ParseProgram() {
   fni_ = new(zone()) FuncNameInferrer(isolate(), zone());
 
   // Initialize parser state.
-  FlattenString(source);
+  source = FlattenGetString(source);
   FunctionLiteral* result;
   if (source->IsTwoByteRepresentation()) {
     delete reusable_preparser_;
@@ -707,7 +695,6 @@ FunctionLiteral* Parser::ParseLazy() {
     timer.Start();
   }
   // Initialize parser state.
-  FlattenString(source);
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
   FunctionLiteral* result = ParseLazy(
       source, shared_info->start_position(), shared_info->end_position());
@@ -721,6 +708,7 @@ FunctionLiteral* Parser::ParseLazy() {
 
 
 FunctionLiteral* Parser::ParseLazy(Handle<String> source, int start, int end) {
+  source = FlattenGetString(source);
   delete reusable_preparser_;
   delete scanner_;
   if (source->IsTwoByteRepresentation()) {
@@ -5614,6 +5602,7 @@ ScriptDataImpl* PreParserApi::PreParse(Isolate* isolate,
                                        Handle<String> source) {
   CompleteParserRecorder recorder;
   HistogramTimerScope timer(isolate->counters()->pre_parse());
+  source = FlattenGetString(source);
   ScannerBase* scanner = NULL;
   if (source->IsTwoByteRepresentation()) {
     scanner = new ExperimentalScanner<uint16_t>(source, isolate);

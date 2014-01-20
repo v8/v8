@@ -227,7 +227,7 @@ Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
 
 Handle<String> Factory::InternalizeOneByteString(
     Handle<SeqOneByteString> string, int from, int length) {
-  SubStringOneByteStringKey key(string, from, length);
+  SubStringKey<uint8_t> key(string, from, length);
   return InternalizeStringWithKey(&key);
 }
 
@@ -244,6 +244,12 @@ Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
                      isolate()->heap()->InternalizeStringWithKey(key),
                      String);
 }
+
+
+template Handle<String> Factory::InternalizeStringWithKey<
+    SubStringKey<uint8_t> > (SubStringKey<uint8_t>* key);
+template Handle<String> Factory::InternalizeStringWithKey<
+    SubStringKey<uint16_t> > (SubStringKey<uint16_t>* key);
 
 
 Handle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
