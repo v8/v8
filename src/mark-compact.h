@@ -744,7 +744,7 @@ class MarkCompactCollector {
   void MarkAllocationSite(AllocationSite* site);
 
  private:
-  MarkCompactCollector();
+  explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
   bool MarkInvalidatedCode();

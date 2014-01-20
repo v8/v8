@@ -462,7 +462,7 @@ class ExternalStringTable {
   void TearDown();
 
  private:
-  ExternalStringTable() { }
+  explicit ExternalStringTable(Heap* heap) : heap_(heap) { }
 
   friend class Heap;
 

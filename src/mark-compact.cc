@@ -56,7 +56,7 @@ const char* Marking::kImpossibleBitPattern = "01";
 // -------------------------------------------------------------------------
 // MarkCompactCollector
 
-MarkCompactCollector::MarkCompactCollector() :  // NOLINT
+MarkCompactCollector::MarkCompactCollector(Heap* heap) :  // NOLINT
 #ifdef DEBUG
       state_(IDLE),
 #endif
@@ -70,7 +70,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       sequential_sweeping_(false),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
-      heap_(NULL),
+      heap_(heap),
       code_flusher_(NULL),
       encountered_weak_collections_(NULL),
       have_code_to_deoptimize_(false) { }

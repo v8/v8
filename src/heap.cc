@@ -134,6 +134,7 @@ Heap::Heap()
       last_gc_end_timestamp_(0.0),
       marking_time_(0.0),
       sweeping_time_(0.0),
+      mark_compact_collector_(this),
       store_buffer_(this),
       marking_(this),
       incremental_marking_(this),
@@ -152,6 +153,7 @@ Heap::Heap()
       allocation_sites_scratchpad_length(0),
       promotion_queue_(this),
       configured_(false),
+      external_string_table_(this),
       chunks_queued_for_free_(NULL),
       relocation_mutex_(NULL) {
   // Allow build-time customization of the max semispace size. Building
@@ -177,8 +179,6 @@ Heap::Heap()
   native_contexts_list_ = NULL;
   array_buffers_list_ = Smi::FromInt(0);
   allocation_sites_list_ = Smi::FromInt(0);
-  mark_compact_collector_.heap_ = this;
-  external_string_table_.heap_ = this;
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
