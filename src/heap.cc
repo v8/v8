@@ -5619,7 +5619,7 @@ bool Heap::IdleNotification(int hint) {
     return false;
   }
 
-  if (!FLAG_incremental_marking || FLAG_expose_gc || Serializer::enabled()) {
+  if (!FLAG_incremental_marking || Serializer::enabled()) {
     return IdleGlobalGC();
   }
 

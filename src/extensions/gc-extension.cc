@@ -45,8 +45,8 @@ void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
     isolate->heap()->CollectGarbage(
         NEW_SPACE, "gc extension", v8::kGCCallbackFlagForced);
   } else {
-    isolate->heap()->CollectAllGarbage(
-        Heap::kNoGCFlags, "gc extension", v8::kGCCallbackFlagForced);
+    isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
+        "gc extension", v8::kGCCallbackFlagForced);
   }
 }
 
