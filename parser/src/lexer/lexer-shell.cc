@@ -72,8 +72,7 @@ byte* ReadFile(const char* name, byte** end, int repeat,
   }
   *end = &chars[size];
 
-  if (!convert_to_utf16)
-    return chars;
+  if (!convert_to_utf16) return chars;
 
   // Length of new_chars is not strictly accurate, but should be enough.
   uint16_t* new_chars = new uint16_t[size];
@@ -83,8 +82,9 @@ byte* ReadFile(const char* name, byte** end, int repeat,
     uc32 c;
     // The 32-bit char type is probably only so that we can have -1 as a return
     // value. If the char is not -1, it should fit into 16 bits.
-    while ((c = stream.Advance()) != -1)
+    while ((c = stream.Advance()) != -1) {
       *cursor++ = c;
+    }
     *end = reinterpret_cast<byte*>(cursor);
   }
   delete[] chars;

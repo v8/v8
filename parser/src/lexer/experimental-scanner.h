@@ -629,6 +629,7 @@ const Char* ExperimentalScanner<Char>::ScanEscape(
   return cursor;
 }
 
+
 template<typename Char>
 ScannerBase::Location ExperimentalScanner<Char>::octal_position() const {
   if (!last_octal_end_)

@@ -74,19 +74,22 @@ class ParserBase {
   void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
   void set_allow_modules(bool allow) {
     allow_harmony_modules_ = allow;
-    if (scanner())
+    if (scanner()) {
       scanner()->SetHarmonyModules(allow);
+    }
   }
 
   void set_allow_harmony_scoping(bool allow) {
     allow_harmony_scoping_ = allow;
-    if (scanner())
+    if (scanner()) {
       scanner()->SetHarmonyScoping(allow);
+    }
   }
   void set_allow_harmony_numeric_literals(bool allow) {
     allow_harmony_numeric_literals_ = allow;
-    if (scanner())
+    if (scanner()) {
       scanner()->SetHarmonyNumericLiterals(allow);
+    }
   }
 
  protected:

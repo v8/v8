@@ -66,6 +66,7 @@ struct IdentifierPart {
   }
 };
 
+
 struct IdentifierPartNotLetter {
   static inline bool Is(uc32 c) {
     return unibrow::Number::Is(c)

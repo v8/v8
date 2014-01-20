@@ -1093,9 +1093,9 @@ void Isolate::UpdateScannersAfterGC(v8::Isolate* isolate,
 
 void Isolate::UpdateScannersAfterGC() {
   for (std::set<ScannerBase*>::const_iterator it = scanners_.begin();
-       it != scanners_.end();
-       ++it)
+       it != scanners_.end(); ++it) {
     (*it)->UpdateBufferBasedOnHandle();
+  }
 }
 
 
