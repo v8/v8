@@ -300,6 +300,9 @@ class ScriptTest(unittest.TestCase):
     "vi": LogMock,
   }
 
+  def Call(self, fun, *args, **kwargs):
+    print "Calling %s with %s and %s" % (str(fun), str(args), str(kwargs))
+
   def Command(self, cmd, args="", prefix="", pipe=True):
     return ScriptTest.MOCKS[cmd](self, cmd, args)
 

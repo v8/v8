@@ -1556,39 +1556,6 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 }
 
 
-Handle<Code> CallStubCompiler::CompileArrayCodeCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  Label miss;
-
-  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
-  if (!cell.is_null()) {
-    ASSERT(cell->value() == *function);
-    GenerateLoadFunctionFromCell(cell, function, &miss);
-  }
-
-  Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
-  site->SetElementsKind(GetInitialFastElementsKind());
-  Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
-  const int argc = arguments().immediate();
-  __ li(a0, Operand(argc));
-  __ li(a2, Operand(site_feedback_cell));
-  __ li(a1, Operand(function));
-
-  ArrayConstructorStub stub(isolate());
-  __ TailCallStub(&stub);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
 Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Handle<Object> object,
     Handle<JSObject> holder,
@@ -1905,374 +1872,6 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  // If object is not a string, bail out to regular call.
-  if (!object->IsString() || !cell.is_null()) return Handle<Code>::null();
-
-  Label miss;
-  Label name_miss;
-  Label index_out_of_range;
-
-  Label* index_out_of_range_label = &index_out_of_range;
-
-  if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_state()) ==
-       DEFAULT_STRING_STUB)) {
-    index_out_of_range_label = &miss;
-  }
-
-  HandlerFrontendHeader(object, holder, name, STRING_CHECK, &name_miss);
-
-  Register receiver = a0;
-  Register index = t1;
-  Register result = a1;
-  const int argc = arguments().immediate();
-  __ lw(receiver, MemOperand(sp, argc * kPointerSize));
-  if (argc > 0) {
-    __ lw(index, MemOperand(sp, (argc - 1) * kPointerSize));
-  } else {
-    __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
-  }
-
-  StringCharCodeAtGenerator generator(receiver,
-                                      index,
-                                      result,
-                                      &miss,  // When not a string.
-                                      &miss,  // When not a number.
-                                      index_out_of_range_label,
-                                      STRING_INDEX_IS_NUMBER);
-  generator.GenerateFast(masm());
-  __ mov(v0, result);
-  __ DropAndRet(argc + 1);
-
-  StubRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm(), call_helper);
-
-  if (index_out_of_range.is_linked()) {
-    __ bind(&index_out_of_range);
-    __ LoadRoot(v0, Heap::kNanValueRootIndex);
-    __ DropAndRet(argc + 1);
-  }
-
-  __ bind(&miss);
-  // Restore function name in a2.
-  __ li(a2, name);
-  HandlerFrontendFooter(&name_miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
-Handle<Code> CallStubCompiler::CompileStringCharAtCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  // If object is not a string, bail out to regular call.
-  if (!object->IsString() || !cell.is_null()) return Handle<Code>::null();
-
-  const int argc = arguments().immediate();
-  Label miss;
-  Label name_miss;
-  Label index_out_of_range;
-  Label* index_out_of_range_label = &index_out_of_range;
-  if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_state()) ==
-       DEFAULT_STRING_STUB)) {
-    index_out_of_range_label = &miss;
-  }
-
-  HandlerFrontendHeader(object, holder, name, STRING_CHECK, &name_miss);
-
-  Register receiver = a0;
-  Register index = t1;
-  Register scratch = a3;
-  Register result = a1;
-  if (argc > 0) {
-    __ lw(index, MemOperand(sp, (argc - 1) * kPointerSize));
-  } else {
-    __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
-  }
-
-  StringCharAtGenerator generator(receiver,
-                                  index,
-                                  scratch,
-                                  result,
-                                  &miss,  // When not a string.
-                                  &miss,  // When not a number.
-                                  index_out_of_range_label,
-                                  STRING_INDEX_IS_NUMBER);
-  generator.GenerateFast(masm());
-  __ mov(v0, result);
-  __ DropAndRet(argc + 1);
-
-  StubRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm(), call_helper);
-
-  if (index_out_of_range.is_linked()) {
-    __ bind(&index_out_of_range);
-    __ LoadRoot(v0, Heap::kempty_stringRootIndex);
-    __ DropAndRet(argc + 1);
-  }
-
-  __ bind(&miss);
-  // Restore function name in a2.
-  __ li(a2, name);
-  HandlerFrontendFooter(&name_miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
-Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  const int argc = arguments().immediate();
-
-  // If the object is not a JSObject or we got an unexpected number of
-  // arguments, bail out to the regular call.
-  if (!object->IsJSObject() || argc != 1) return Handle<Code>::null();
-
-  Label miss;
-  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
-  if (!cell.is_null()) {
-    ASSERT(cell->value() == *function);
-    GenerateLoadFunctionFromCell(cell, function, &miss);
-  }
-
-  // Load the char code argument.
-  Register code = a1;
-  __ lw(code, MemOperand(sp, 0 * kPointerSize));
-
-  // Check the code is a smi.
-  Label slow;
-  STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfNotSmi(code, &slow);
-
-  // Convert the smi code to uint16.
-  __ And(code, code, Operand(Smi::FromInt(0xffff)));
-
-  StringCharFromCodeGenerator generator(code, v0);
-  generator.GenerateFast(masm());
-  __ DropAndRet(argc + 1);
-
-  StubRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm(), call_helper);
-
-  __ bind(&slow);
-  // We do not have to patch the receiver because the function makes no use of
-  // it.
-  GenerateJumpFunctionIgnoreReceiver(function);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
-Handle<Code> CallStubCompiler::CompileMathFloorCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  const int argc = arguments().immediate();
-  // If the object is not a JSObject or we got an unexpected number of
-  // arguments, bail out to the regular call.
-  if (!object->IsJSObject() || argc != 1) return Handle<Code>::null();
-
-  Label miss, slow;
-  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
-  if (!cell.is_null()) {
-    ASSERT(cell->value() == *function);
-    GenerateLoadFunctionFromCell(cell, function, &miss);
-  }
-
-  // Load the (only) argument into v0.
-  __ lw(v0, MemOperand(sp, 0 * kPointerSize));
-
-  // If the argument is a smi, just return.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ SmiTst(v0, t0);
-  __ DropAndRet(argc + 1, eq, t0, Operand(zero_reg));
-
-  __ CheckMap(v0, a1, Heap::kHeapNumberMapRootIndex, &slow, DONT_DO_SMI_CHECK);
-
-  Label wont_fit_smi, no_fpu_error, restore_fcsr_and_return;
-
-  // If fpu is enabled, we use the floor instruction.
-
-  // Load the HeapNumber value.
-  __ ldc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
-
-  // Backup FCSR.
-  __ cfc1(a3, FCSR);
-  // Clearing FCSR clears the exception mask with no side-effects.
-  __ ctc1(zero_reg, FCSR);
-  // Convert the argument to an integer.
-  __ floor_w_d(f0, f0);
-
-  // Start checking for special cases.
-  // Get the argument exponent and clear the sign bit.
-  __ lw(t1, FieldMemOperand(v0, HeapNumber::kValueOffset + kPointerSize));
-  __ And(t2, t1, Operand(~HeapNumber::kSignMask));
-  __ srl(t2, t2, HeapNumber::kMantissaBitsInTopWord);
-
-  // Retrieve FCSR and check for fpu errors.
-  __ cfc1(t5, FCSR);
-  __ And(t5, t5, Operand(kFCSRExceptionFlagMask));
-  __ Branch(&no_fpu_error, eq, t5, Operand(zero_reg));
-
-  // Check for NaN, Infinity, and -Infinity.
-  // They are invariant through a Math.Floor call, so just
-  // return the original argument.
-  __ Subu(t3, t2, Operand(HeapNumber::kExponentMask
-        >> HeapNumber::kMantissaBitsInTopWord));
-  __ Branch(&restore_fcsr_and_return, eq, t3, Operand(zero_reg));
-  // We had an overflow or underflow in the conversion. Check if we
-  // have a big exponent.
-  // If greater or equal, the argument is already round and in v0.
-  __ Branch(&restore_fcsr_and_return, ge, t3,
-      Operand(HeapNumber::kMantissaBits));
-  __ Branch(&wont_fit_smi);
-
-  __ bind(&no_fpu_error);
-  // Move the result back to v0.
-  __ mfc1(v0, f0);
-  // Check if the result fits into a smi.
-  __ Addu(a1, v0, Operand(0x40000000));
-  __ Branch(&wont_fit_smi, lt, a1, Operand(zero_reg));
-  // Tag the result.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ sll(v0, v0, kSmiTagSize);
-
-  // Check for -0.
-  __ Branch(&restore_fcsr_and_return, ne, v0, Operand(zero_reg));
-  // t1 already holds the HeapNumber exponent.
-  __ And(t0, t1, Operand(HeapNumber::kSignMask));
-  // If our HeapNumber is negative it was -0, so load its address and return.
-  // Else v0 is loaded with 0, so we can also just return.
-  __ Branch(&restore_fcsr_and_return, eq, t0, Operand(zero_reg));
-  __ lw(v0, MemOperand(sp, 0 * kPointerSize));
-
-  __ bind(&restore_fcsr_and_return);
-  // Restore FCSR and return.
-  __ ctc1(a3, FCSR);
-
-  __ DropAndRet(argc + 1);
-
-  __ bind(&wont_fit_smi);
-  // Restore FCSR and fall to slow case.
-  __ ctc1(a3, FCSR);
-
-  __ bind(&slow);
-  // We do not have to patch the receiver because the function makes no use of
-  // it.
-  GenerateJumpFunctionIgnoreReceiver(function);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
-Handle<Code> CallStubCompiler::CompileMathAbsCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  const int argc = arguments().immediate();
-  // If the object is not a JSObject or we got an unexpected number of
-  // arguments, bail out to the regular call.
-  if (!object->IsJSObject() || argc != 1) return Handle<Code>::null();
-
-  Label miss;
-
-  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
-  if (!cell.is_null()) {
-    ASSERT(cell->value() == *function);
-    GenerateLoadFunctionFromCell(cell, function, &miss);
-  }
-
-  // Load the (only) argument into v0.
-  __ lw(v0, MemOperand(sp, 0 * kPointerSize));
-
-  // Check if the argument is a smi.
-  Label not_smi;
-  STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfNotSmi(v0, &not_smi);
-
-  // Do bitwise not or do nothing depending on the sign of the
-  // argument.
-  __ sra(t0, v0, kBitsPerInt - 1);
-  __ Xor(a1, v0, t0);
-
-  // Add 1 or do nothing depending on the sign of the argument.
-  __ Subu(v0, a1, t0);
-
-  // If the result is still negative, go to the slow case.
-  // This only happens for the most negative smi.
-  Label slow;
-  __ Branch(&slow, lt, v0, Operand(zero_reg));
-
-  // Smi case done.
-  __ DropAndRet(argc + 1);
-
-  // Check if the argument is a heap number and load its exponent and
-  // sign.
-  __ bind(&not_smi);
-  __ CheckMap(v0, a1, Heap::kHeapNumberMapRootIndex, &slow, DONT_DO_SMI_CHECK);
-  __ lw(a1, FieldMemOperand(v0, HeapNumber::kExponentOffset));
-
-  // Check the sign of the argument. If the argument is positive,
-  // just return it.
-  Label negative_sign;
-  __ And(t0, a1, Operand(HeapNumber::kSignMask));
-  __ Branch(&negative_sign, ne, t0, Operand(zero_reg));
-  __ DropAndRet(argc + 1);
-
-  // If the argument is negative, clear the sign, and return a new
-  // number.
-  __ bind(&negative_sign);
-  __ Xor(a1, a1, Operand(HeapNumber::kSignMask));
-  __ lw(a3, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
-  __ LoadRoot(t2, Heap::kHeapNumberMapRootIndex);
-  __ AllocateHeapNumber(v0, t0, t1, t2, &slow);
-  __ sw(a1, FieldMemOperand(v0, HeapNumber::kExponentOffset));
-  __ sw(a3, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
-  __ DropAndRet(argc + 1);
-
-  __ bind(&slow);
-  // We do not have to patch the receiver because the function makes no use of
-  // it.
-  GenerateJumpFunctionIgnoreReceiver(function);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
 Handle<Code> CallStubCompiler::CompileFastApiCall(
     const CallOptimization& optimization,
     Handle<Object> object,
@@ -2514,14 +2113,15 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
+  Register holder_reg = HandlerFrontend(
+      IC::CurrentTypeOf(object, isolate()), receiver(), holder, name);
 
   // Stub never generated for non-global objects that require access
   // checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
 
   __ push(receiver());  // Receiver.
+  __ push(holder_reg);
   __ li(at, Operand(callback));  // Callback info.
   __ push(at);
   __ li(at, Operand(name));
@@ -2530,7 +2130,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
-  __ TailCallExternalReference(store_callback_property, 4, 1);
+  __ TailCallExternalReference(store_callback_property, 5, 1);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -2677,20 +2277,6 @@ Register* KeyedStoreStubCompiler::registers() {
 }
 
 
-void KeyedLoadStubCompiler::GenerateNameCheck(Handle<Name> name,
-                                              Register name_reg,
-                                              Label* miss) {
-  __ Branch(miss, ne, name_reg, Operand(name));
-}
-
-
-void KeyedStoreStubCompiler::GenerateNameCheck(Handle<Name> name,
-                                               Register name_reg,
-                                               Label* miss) {
-  __ Branch(miss, ne, name_reg, Operand(name));
-}
-
-
 #undef __
 #define __ ACCESS_MASM(masm)
 
@@ -2770,8 +2356,9 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
     IcCheckType check) {
   Label miss;
 
-  if (check == PROPERTY) {
-    GenerateNameCheck(name, this->name(), &miss);
+  if (check == PROPERTY &&
+      (kind() == Code::KEYED_LOAD_IC || kind() == Code::KEYED_STORE_IC)) {
+    __ Branch(&miss, ne, this->name(), Operand(name));
   }
 
   Label number_case;

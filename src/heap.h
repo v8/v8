@@ -1143,16 +1143,13 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* InternalizeUtf8String(Vector<const char> str);
   MUST_USE_RESULT MaybeObject* InternalizeUtf8String(const char* str) {
     return InternalizeUtf8String(CStrVector(str));
   }
-  MUST_USE_RESULT MaybeObject* InternalizeOneByteString(
-      Vector<const uint8_t> str);
-  MUST_USE_RESULT MaybeObject* InternalizeTwoByteString(Vector<const uc16> str);
+  MUST_USE_RESULT MaybeObject* InternalizeUtf8String(Vector<const char> str);
+
   MUST_USE_RESULT MaybeObject* InternalizeString(String* str);
-  MUST_USE_RESULT MaybeObject* InternalizeOneByteString(
-      Handle<SeqOneByteString> string, int from, int length);
+  MUST_USE_RESULT MaybeObject* InternalizeStringWithKey(HashTableKey* key);
 
   bool InternalizeStringIfExists(String* str, String** result);
   bool InternalizeTwoCharsStringIfExists(String* str, String** result);

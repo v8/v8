@@ -3858,8 +3858,8 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     uint8_t buffer[1];
     buffer[0] = static_cast<uint8_t>(code);
     Object* result;
-    MaybeObject* maybe_result =
-        InternalizeOneByteString(Vector<const uint8_t>(buffer, 1));
+    OneByteStringKey key(Vector<const uint8_t>(buffer, 1), HashSeed());
+    MaybeObject* maybe_result = InternalizeStringWithKey(&key);
 
     if (!maybe_result->ToObject(&result)) return maybe_result;
     single_character_string_cache()->set(code, result);
@@ -4742,8 +4742,9 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   SharedFunctionInfo* shared = NULL;
   if (type == JS_FUNCTION_TYPE) {
     String* name;
-    maybe =
-        InternalizeOneByteString(STATIC_ASCII_VECTOR("<freezing call trap>"));
+    OneByteStringKey key(STATIC_ASCII_VECTOR("<freezing call trap>"),
+                         HashSeed());
+    maybe = InternalizeStringWithKey(&key);
     if (!maybe->To<String>(&name)) return maybe;
     maybe = AllocateSharedFunctionInfo(name);
     if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
@@ -5876,67 +5877,8 @@ void Heap::Verify() {
 
 
 MaybeObject* Heap::InternalizeUtf8String(Vector<const char> string) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupUtf8String(string, &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
-}
-
-
-MaybeObject* Heap::InternalizeOneByteString(Vector<const uint8_t> string) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupOneByteString(string, &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
-}
-
-
-MaybeObject* Heap::InternalizeOneByteString(Handle<SeqOneByteString> string,
-                                     int from,
-                                     int length) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupSubStringOneByteString(string,
-                                                   from,
-                                                   length,
-                                                   &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
-}
-
-
-MaybeObject* Heap::InternalizeTwoByteString(Vector<const uc16> string) {
-  Object* result = NULL;
-  Object* new_table;
-  { MaybeObject* maybe_new_table =
-        string_table()->LookupTwoByteString(string, &result);
-    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
-  }
-  // Can't use set_string_table because StringTable::cast knows that
-  // StringTable is a singleton and checks for identity.
-  roots_[kStringTableRootIndex] = new_table;
-  ASSERT(result != NULL);
-  return result;
+  Utf8StringKey key(string, HashSeed());
+  return InternalizeStringWithKey(&key);
 }
 
 
@@ -5962,6 +5904,21 @@ bool Heap::InternalizeStringIfExists(String* string, String** result) {
     return true;
   }
   return string_table()->LookupStringIfExists(string, result);
+}
+
+
+MaybeObject* Heap::InternalizeStringWithKey(HashTableKey* key) {
+  Object* result = NULL;
+  Object* new_table;
+  { MaybeObject* maybe_new_table =
+        string_table()->LookupKey(key, &result);
+    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
+  }
+  // Can't use set_string_table because StringTable::cast knows that
+  // StringTable is a singleton and checks for identity.
+  roots_[kStringTableRootIndex] = new_table;
+  ASSERT(result != NULL);
+  return result;
 }
 
 

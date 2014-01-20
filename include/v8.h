@@ -3718,17 +3718,6 @@ class V8_EXPORT Extension {  // NOLINT
 void V8_EXPORT RegisterExtension(Extension* extension);
 
 
-/**
- * Ignore
- */
-class V8_EXPORT DeclareExtension {
- public:
-  V8_INLINE DeclareExtension(Extension* extension) {
-    RegisterExtension(extension);
-  }
-};
-
-
 // --- Statics ---
 
 V8_INLINE Handle<Primitive> Undefined(Isolate* isolate);

@@ -170,10 +170,4 @@ void StatisticsExtension::GetCounters(
   args.GetReturnValue().Set(result);
 }
 
-
-void StatisticsExtension::Register() {
-  static StatisticsExtension statistics_extension;
-  static v8::DeclareExtension declaration(&statistics_extension);
-}
-
 } }  // namespace v8::internal

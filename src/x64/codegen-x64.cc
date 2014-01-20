@@ -170,7 +170,7 @@ ModuloFunction CreateModuloFunction() {
   __ fstp(0);  // Drop result in st(0).
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
   __ movq(rcx, kNaNValue);
-  __ movq(Operand(rsp, kPointerSize), rcx);
+  __ movp(Operand(rsp, kPointerSize), rcx);
   __ movsd(xmm0, Operand(rsp, kPointerSize));
   __ jmp(&return_result);
 
@@ -223,7 +223,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   }
 
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ movp(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
                       HeapObject::kMapOffset,
                       rbx,
@@ -252,7 +252,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
@@ -268,18 +268,18 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // the same size.
   __ JumpIfNotInNewSpace(r8, rdi, &new_backing_store);
 
-  __ movq(r14, r8);  // Destination array equals source array.
+  __ movp(r14, r8);  // Destination array equals source array.
 
   // r8 : source FixedArray
   // r9 : elements array length
   // r14: destination FixedDoubleArray
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
-  __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
+  __ movp(FieldOperand(r14, HeapObject::kMapOffset), rdi);
 
   __ bind(&allocated);
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ movp(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
                       HeapObject::kMapOffset,
                       rbx,
@@ -304,10 +304,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
-  __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
+  __ movp(FieldOperand(r14, HeapObject::kMapOffset), rdi);
   // Set receiver's backing store.
-  __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r14);
-  __ movq(r11, r14);
+  __ movp(FieldOperand(rdx, JSObject::kElementsOffset), r14);
+  __ movp(r11, r14);
   __ RecordWriteField(rdx,
                       JSObject::kElementsOffset,
                       r11,
@@ -317,12 +317,12 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       OMIT_SMI_CHECK);
   // Set backing store's length.
   __ Integer32ToSmi(r11, r9);
-  __ movq(FieldOperand(r14, FixedDoubleArray::kLengthOffset), r11);
+  __ movp(FieldOperand(r14, FixedDoubleArray::kLengthOffset), r11);
   __ jmp(&allocated);
 
   __ bind(&only_change_map);
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ movp(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
                       HeapObject::kMapOffset,
                       rbx,
@@ -334,7 +334,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Conversion loop.
   __ bind(&loop);
-  __ movq(rbx,
+  __ movp(rbx,
           FieldOperand(r8, r9, times_pointer_size, FixedArray::kHeaderSize));
   // r9 : current element's index
   // rbx: current element (smi-tagged)
@@ -377,13 +377,13 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
   __ push(rax);
 
-  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   // r8 : source FixedDoubleArray
   // r9 : number of elements
@@ -391,9 +391,9 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
-  __ movq(FieldOperand(r11, HeapObject::kMapOffset), rdi);
+  __ movp(FieldOperand(r11, HeapObject::kMapOffset), rdi);
   __ Integer32ToSmi(r14, r9);
-  __ movq(FieldOperand(r11, FixedArray::kLengthOffset), r14);
+  __ movp(FieldOperand(r11, FixedArray::kLengthOffset), r14);
 
   // Prepare for conversion loop.
   __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64));
@@ -405,7 +405,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Call into runtime if GC is required.
   __ bind(&gc_required);
   __ pop(rax);
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ jmp(fail);
 
   // Box doubles into heap numbers.
@@ -423,12 +423,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ AllocateHeapNumber(rax, r15, &gc_required);
   // rax: new heap number
   __ MoveDouble(FieldOperand(rax, HeapNumber::kValueOffset), r14);
-  __ movq(FieldOperand(r11,
+  __ movp(FieldOperand(r11,
                        r9,
                        times_pointer_size,
                        FixedArray::kHeaderSize),
           rax);
-  __ movq(r15, r9);
+  __ movp(r15, r9);
   __ RecordWriteArray(r11,
                       rax,
                       r15,
@@ -439,7 +439,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
-  __ movq(FieldOperand(r11,
+  __ movp(FieldOperand(r11,
                        r9,
                        times_pointer_size,
                        FixedArray::kHeaderSize),
@@ -450,7 +450,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ j(not_sign, &loop);
 
   // Replace receiver's backing store with newly created and filled FixedArray.
-  __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r11);
+  __ movp(FieldOperand(rdx, JSObject::kElementsOffset), r11);
   __ RecordWriteField(rdx,
                       JSObject::kElementsOffset,
                       r11,
@@ -459,11 +459,11 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   __ pop(rax);
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
   __ bind(&only_change_map);
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ movp(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
                       HeapObject::kMapOffset,
                       rbx,
@@ -480,7 +480,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register result,
                                        Label* call_runtime) {
   // Fetch the instance type of the receiver into result register.
-  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movp(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
 
   // We need special handling for indirect strings.
@@ -497,7 +497,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   Label indirect_string_loaded;
   __ SmiToInteger32(result, FieldOperand(string, SlicedString::kOffsetOffset));
   __ addq(index, result);
-  __ movq(string, FieldOperand(string, SlicedString::kParentOffset));
+  __ movp(string, FieldOperand(string, SlicedString::kParentOffset));
   __ jmp(&indirect_string_loaded, Label::kNear);
 
   // Handle cons strings.
@@ -509,10 +509,10 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
                  Heap::kempty_stringRootIndex);
   __ j(not_equal, call_runtime);
-  __ movq(string, FieldOperand(string, ConsString::kFirstOffset));
+  __ movp(string, FieldOperand(string, ConsString::kFirstOffset));
 
   __ bind(&indirect_string_loaded);
-  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movp(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
 
   // Distinguish sequential and external strings. Only these two string
@@ -539,7 +539,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Check encoding.
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ testb(result, Immediate(kStringEncodingMask));
-  __ movq(result, FieldOperand(string, ExternalString::kResourceDataOffset));
+  __ movp(result, FieldOperand(string, ExternalString::kResourceDataOffset));
   __ j(not_equal, &ascii_external, Label::kNear);
   // Two-byte string.
   __ movzxwl(result, Operand(result, index, times_2, 0));
@@ -641,7 +641,7 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
     // FUNCTION and OPTIMIZED_FUNCTION code:
     CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
     patcher.masm()->push(rbp);
-    patcher.masm()->movq(rbp, rsp);
+    patcher.masm()->movp(rbp, rsp);
     patcher.masm()->push(rsi);
     patcher.masm()->push(rdi);
     initialized = true;

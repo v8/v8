@@ -1,3 +1,11 @@
+2014-01-20: Version 3.24.19
+
+        Introduce a setting to control the toolset for which d8 is compiled
+        (issue 1775).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-17: Version 3.24.18
 
         Performance and stability improvements on all platforms.

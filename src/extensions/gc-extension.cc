@@ -50,18 +50,4 @@ void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-
-void GCExtension::Register() {
-  static char buffer[50];
-  Vector<char> temp_vector(buffer, sizeof(buffer));
-  if (FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0) {
-    OS::SNPrintF(temp_vector, "native function %s();", FLAG_expose_gc_as);
-  } else {
-    OS::SNPrintF(temp_vector, "native function gc();");
-  }
-
-  static GCExtension gc_extension(buffer);
-  static v8::DeclareExtension declaration(&gc_extension);
-}
-
 } }  // namespace v8::internal

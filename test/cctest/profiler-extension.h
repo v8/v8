@@ -27,7 +27,13 @@
 //
 // Tests of profiles generator and utilities.
 
+#ifndef V8_TEST_CCTEST_PROFILER_EXTENSION_H_
+#define V8_TEST_CCTEST_PROFILER_EXTENSION_H_
+
 #include "../include/v8-profiler.h"
+
+namespace v8 {
+namespace internal {
 
 class ProfilerExtension : public v8::Extension {
  public:
@@ -41,3 +47,8 @@ class ProfilerExtension : public v8::Extension {
  private:
   static const char* kSource;
 };
+
+
+} }  // namespace v8::internal
+
+#endif

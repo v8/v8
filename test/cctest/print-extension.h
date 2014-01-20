@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_GC_EXTENSION_H_
-#define V8_EXTENSIONS_GC_EXTENSION_H_
+#ifndef V8_TEST_CCTEST_PRINT_EXTENSION_H_
+#define V8_TEST_CCTEST_PRINT_EXTENSION_H_
 
 #include "v8.h"
 
 namespace v8 {
 namespace internal {
 
-class GCExtension : public v8::Extension {
+class PrintExtension : public v8::Extension {
  public:
-  explicit GCExtension(const char* fun_name)
-      : v8::Extension("v8/gc",
-                      BuildSource(buffer_, sizeof(buffer_), fun_name)) {}
+  PrintExtension() : v8::Extension("v8/print", "native function print();") { }
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate,
       v8::Handle<v8::String> name);
-  static void GC(const v8::FunctionCallbackInfo<v8::Value>& args);
-
- private:
-  static const char* BuildSource(char* buf, size_t size, const char* fun_name) {
-    OS::SNPrintF(Vector<char>(buf, static_cast<int>(size)),
-                 "native function %s();", fun_name);
-    return buf;
-  }
-
-  char buffer_[50];
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 } }  // namespace v8::internal
 
-#endif  // V8_EXTENSIONS_GC_EXTENSION_H_
+#endif

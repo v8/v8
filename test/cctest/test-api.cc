@@ -21735,3 +21735,27 @@ TEST(EscapeableHandleScope) {
     }
   }
 }
+
+
+static void SetterWhichExpectsThisAndHolderToDiffer(
+    Local<String>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
+  CHECK(info.Holder() != info.This());
+}
+
+
+TEST(Regress239669) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetAccessor(v8_str("x"), 0, SetterWhichExpectsThisAndHolderToDiffer);
+  context->Global()->Set(v8_str("P"), templ->NewInstance());
+  CompileRun(
+      "function C1() {"
+      "  this.x = 23;"
+      "};"
+      "C1.prototype = P;"
+      "for (var i = 0; i < 4; i++ ) {"
+      "  new C1();"
+      "}");
+}

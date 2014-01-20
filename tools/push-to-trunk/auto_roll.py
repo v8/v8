@@ -34,6 +34,9 @@ import sys
 import urllib
 
 from common_includes import *
+import push_to_trunk
+from push_to_trunk import PushToTrunkOptions
+from push_to_trunk import RunPushToTrunk
 
 SETTINGS_LOCATION = "SETTINGS_LOCATION"
 
@@ -49,6 +52,9 @@ class AutoRollOptions(CommonOptions):
     super(AutoRollOptions, self).__init__(options)
     self.requires_editor = False
     self.status_password = options.status_password
+    self.r = options.r
+    self.c = options.c
+    self.push = getattr(options, 'push', False)
 
 
 class Preparation(Step):
@@ -150,10 +156,16 @@ class PushToTrunk(Step):
 
       # TODO(machenbach): Call push to trunk script.
       # TODO(machenbach): Update the script before calling it.
-      # self._side_effect_handler.Command(
-      #     "tools/push-to-trunk/push-to-trunk.py",
-      #     "-f -c %s -r %s" % (self._options.c, self._options.r))
-      self.PushTreeStatus(self._state["tree_message"])
+      try:
+        if self._options.push:
+          self._side_effect_handler.Call(
+              RunPushToTrunk,
+              push_to_trunk.CONFIG,
+              PushToTrunkOptions.MakeForcedOptions(self._options.r,
+                                                   self._options.c),
+              self._side_effect_handler)
+      finally:
+        self.PushTreeStatus(self._state["tree_message"])
     else:
       print("ToT (r%d) is ahead of the LKGR (r%d). Skipping push to trunk."
             % (latest, lkgr))
@@ -179,6 +191,9 @@ def BuildOptions():
   result.add_option("-c", "--chromium", dest="c",
                     help=("Specify the path to your Chromium src/ "
                           "directory to automate the V8 roll."))
+  result.add_option("-p", "--push",
+                    help="Push to trunk if possible. Dry run if unspecified.",
+                    default=False, action="store_true")
   result.add_option("-r", "--reviewer", dest="r",
                     help=("Specify the account name to be used for reviews."))
   result.add_option("-s", "--step", dest="s",

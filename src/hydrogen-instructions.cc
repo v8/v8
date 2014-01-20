@@ -842,9 +842,7 @@ void HUnaryCall::PrintDataTo(StringStream* stream) {
 
 
 void HCallJSFunction::PrintDataTo(StringStream* stream) {
-  OperandAt(0)->PrintNameTo(stream);
-  stream->Add(" ");
-  OperandAt(1)->PrintNameTo(stream);
+  function()->PrintNameTo(stream);
   stream->Add(" ");
   stream->Add("#%d", argument_count());
 }
@@ -3348,12 +3346,6 @@ void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
   if (details_.IsReadOnly()) stream->Add(" (read-only)");
-}
-
-
-void HStoreGlobalGeneric::PrintDataTo(StringStream* stream) {
-  stream->Add("%o = ", *name());
-  value()->PrintNameTo(stream);
 }
 
 

@@ -53,6 +53,20 @@ CONFIG = {
 
 
 class PushToTrunkOptions(CommonOptions):
+  @staticmethod
+  def MakeForcedOptions(reviewer, chrome_path):
+    """Convenience wrapper."""
+    class Options(object):
+      pass
+    options = Options()
+    options.s = 0
+    options.l = None
+    options.f = True
+    options.m = False
+    options.r = reviewer
+    options.c = chrome_path
+    return PushToTrunkOptions(options)
+
   def __init__(self, options):
     super(PushToTrunkOptions, self).__init__(options, options.m)
     self.requires_editor = not options.f

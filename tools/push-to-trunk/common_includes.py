@@ -189,6 +189,9 @@ def Command(cmd, args="", prefix="", pipe=True):
 
 # Wrapper for side effects.
 class SideEffectHandler(object):
+  def Call(self, fun, *args, **kwargs):
+    return fun(*args, **kwargs)
+
   def Command(self, cmd, args="", prefix="", pipe=True):
     return Command(cmd, args, prefix, pipe)
 

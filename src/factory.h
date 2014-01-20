@@ -104,6 +104,9 @@ class Factory {
                                    int length);
   Handle<String> InternalizeTwoByteString(Vector<const uc16> str);
 
+  template<class StringTableKey>
+  Handle<String> InternalizeStringWithKey(StringTableKey* key);
+
 
   // String creation functions.  Most of the string creation functions take
   // a Heap::PretenureFlag argument to optionally request that they be

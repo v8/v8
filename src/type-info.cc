@@ -179,8 +179,6 @@ void TypeFeedbackOracle::CallReceiverTypes(TypeFeedbackId id,
                                            Handle<String> name,
                                            int arity,
                                            SmallMapList* types) {
-  // Note: Currently we do not take string extra ic data into account
-  // here.
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::CALL_IC, kNoExtraICState, OWN_MAP, Code::NORMAL, arity);
   CollectReceiverTypes(id, name, flags, types);
