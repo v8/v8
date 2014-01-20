@@ -568,10 +568,11 @@ FunctionLiteral* Parser::ParseProgram() {
   FunctionLiteral* result;
   delete reusable_preparser_;
   delete scanner_;
-  if (source->IsTwoByteRepresentation())
+  if (source->IsTwoByteRepresentation()) {
     scanner_ = new ExperimentalScanner<uint16_t>(source, isolate());
-  else
+  } else {
     scanner_ = new ExperimentalScanner<uint8_t>(source, isolate());
+  }
   SetScannerFlags();
   scanner_->Init();
   result = DoParseProgram(info(), source);
