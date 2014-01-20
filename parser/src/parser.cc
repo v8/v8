@@ -566,15 +566,12 @@ FunctionLiteral* Parser::ParseProgram() {
   // Initialize parser state.
   source = FlattenGetString(source);
   FunctionLiteral* result;
-  if (source->IsTwoByteRepresentation()) {
-    delete reusable_preparser_;
-    delete scanner_;
+  delete reusable_preparser_;
+  delete scanner_;
+  if (source->IsTwoByteRepresentation())
     scanner_ = new ExperimentalScanner<uint16_t>(source, isolate());
-  } else {
-    delete reusable_preparser_;
-    delete scanner_;
+  else
     scanner_ = new ExperimentalScanner<uint8_t>(source, isolate());
-  }
   SetScannerFlags();
   scanner_->Init();
   result = DoParseProgram(info(), source);
