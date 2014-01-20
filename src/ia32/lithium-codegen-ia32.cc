@@ -4290,7 +4290,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   __ Set(eax, Immediate(instr->arity()));
-  __ mov(ebx, instr->hydrogen()->property_cell());
+  __ mov(ebx, factory()->undefined_value());
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)

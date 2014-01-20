@@ -95,7 +95,7 @@ class TypeFeedbackOracle: public ZoneObject {
   CheckType GetCallCheckType(TypeFeedbackId id);
   Handle<JSFunction> GetCallTarget(TypeFeedbackId id);
   Handle<JSFunction> GetCallNewTarget(TypeFeedbackId id);
-  Handle<Cell> GetCallNewAllocationInfoCell(TypeFeedbackId id);
+  Handle<AllocationSite> GetCallNewAllocationSite(TypeFeedbackId id);
 
   bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
   bool LoadIsStub(TypeFeedbackId id, ICStub* stub);
@@ -144,9 +144,6 @@ class TypeFeedbackOracle: public ZoneObject {
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
   Handle<Object> GetInfo(TypeFeedbackId id);
-
-  // Return the cell that contains type feedback.
-  Handle<Cell> GetInfoCell(TypeFeedbackId id);
 
  private:
   Handle<Context> native_context_;

@@ -1837,8 +1837,8 @@ class CallNew V8_FINAL : public Expression {
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }
   ElementsKind elements_kind() const { return elements_kind_; }
-  Handle<Cell> allocation_info_cell() const {
-    return allocation_info_cell_;
+  Handle<AllocationSite> allocation_site() const {
+    return allocation_site_;
   }
 
   BailoutId ReturnId() const { return return_id_; }
@@ -1862,7 +1862,7 @@ class CallNew V8_FINAL : public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
   ElementsKind elements_kind_;
-  Handle<Cell> allocation_info_cell_;
+  Handle<AllocationSite> allocation_site_;
 
   const BailoutId return_id_;
 };

@@ -756,16 +756,13 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  allocation_info_cell_ =
-      oracle->GetCallNewAllocationInfoCell(CallNewFeedbackId());
+  allocation_site_ =
+      oracle->GetCallNewAllocationSite(CallNewFeedbackId());
   is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackId());
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(CallNewFeedbackId());
-    Object* value = allocation_info_cell_->value();
-    ASSERT(!value->IsTheHole());
-    if (value->IsAllocationSite()) {
-      AllocationSite* site = AllocationSite::cast(value);
-      elements_kind_ = site->GetElementsKind();
+    if (!allocation_site_.is_null()) {
+      elements_kind_ = allocation_site_->GetElementsKind();
     }
   }
 }

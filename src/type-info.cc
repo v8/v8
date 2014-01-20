@@ -74,17 +74,6 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
 }
 
 
-Handle<Cell> TypeFeedbackOracle::GetInfoCell(
-    TypeFeedbackId ast_id) {
-  int entry = dictionary_->FindEntry(IdToKey(ast_id));
-  if (entry != UnseededNumberDictionary::kNotFound) {
-    Cell* cell = Cell::cast(dictionary_->ValueAt(entry));
-    return Handle<Cell>(cell, isolate_);
-  }
-  return Handle<Cell>::null();
-}
-
-
 bool TypeFeedbackOracle::LoadIsUninitialized(TypeFeedbackId id) {
   Handle<Object> maybe_code = GetInfo(id);
   if (maybe_code->IsCode()) {
@@ -214,9 +203,13 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(TypeFeedbackId id) {
 }
 
 
-Handle<Cell> TypeFeedbackOracle::GetCallNewAllocationInfoCell(
+Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(
     TypeFeedbackId id) {
-  return GetInfoCell(id);
+  Handle<Object> info = GetInfo(id);
+  if (info->IsAllocationSite()) {
+    return Handle<AllocationSite>::cast(info);
+  }
+  return Handle<AllocationSite>::null();
 }
 
 

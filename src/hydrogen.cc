@@ -7944,8 +7944,8 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
   HValue* constructor = environment()->ExpressionStackAt(argument_count);
 
   ElementsKind kind = expr->elements_kind();
-  Handle<Cell> cell = expr->allocation_info_cell();
-  Handle<AllocationSite> site(AllocationSite::cast(cell->value()));
+  Handle<AllocationSite> site = expr->allocation_site();
+  ASSERT(!site.is_null());
 
   // Register on the site for deoptimization if the transition feedback changes.
   AllocationSite::AddDependentCompilationInfo(
@@ -8019,8 +8019,9 @@ bool HOptimizedGraphBuilder::IsCallNewArrayInlineable(CallNew* expr) {
   int argument_count = expr->arguments()->length();
   // We should have the function plus array arguments on the environment stack.
   ASSERT(environment()->length() >= (argument_count + 1));
-  Handle<Cell> cell = expr->allocation_info_cell();
-  AllocationSite* site = AllocationSite::cast(cell->value());
+  Handle<AllocationSite> site = expr->allocation_site();
+  ASSERT(!site.is_null());
+
   if (site->CanInlineCall()) {
     // We also want to avoid inlining in certain 1 argument scenarios.
     if (argument_count == 1) {
@@ -8159,7 +8160,6 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     Handle<JSFunction> array_function(
         isolate()->global_context()->array_function(), isolate());
     bool use_call_new_array = expr->target().is_identical_to(array_function);
-    Handle<Cell> cell = expr->allocation_info_cell();
     if (use_call_new_array && IsCallNewArrayInlineable(expr)) {
       // Verify we are still calling the array function for our native context.
       Add<HCheckValue>(function, array_function);
@@ -8170,7 +8170,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HBinaryCall* call;
     if (use_call_new_array) {
       Add<HCheckValue>(function, array_function);
-      call = New<HCallNewArray>(function, argument_count, cell,
+      call = New<HCallNewArray>(function, argument_count,
                                 expr->elements_kind());
     } else {
       call = New<HCallNew>(function, argument_count);

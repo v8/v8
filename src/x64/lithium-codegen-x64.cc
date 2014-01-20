@@ -3863,7 +3863,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Set(rax, instr->arity());
-  __ Move(rbx, instr->hydrogen()->property_cell());
+  __ Move(rbx, factory()->undefined_value());
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
