@@ -554,10 +554,6 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
                                     Code::StubType type,
                                     IcCheckType check);
 
-  virtual void GenerateNameCheck(Handle<Name> name,
-                                 Register name_reg,
-                                 Label* miss) { }
-
   static Builtins::Name MissBuiltin(Code::Kind kind) {
     switch (kind) {
       case Code::LOAD_IC: return Builtins::kLoadIC_Miss;
@@ -747,13 +743,8 @@ class KeyedLoadStubCompiler: public LoadStubCompiler {
 
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
- protected:
-  static Register* registers();
-
  private:
-  virtual void GenerateNameCheck(Handle<Name> name,
-                                 Register name_reg,
-                                 Label* miss);
+  static Register* registers();
   friend class BaseLoadStoreStubCompiler;
 };
 
@@ -879,21 +870,17 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
 
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
- protected:
+ private:
   static Register* registers();
 
   KeyedAccessStoreMode store_mode() {
     return KeyedStoreIC::GetKeyedAccessStoreMode(extra_state());
   }
 
- private:
   Register transition_map() {
     return registers()[3];
   }
 
-  virtual void GenerateNameCheck(Handle<Name> name,
-                                 Register name_reg,
-                                 Label* miss);
   friend class BaseLoadStoreStubCompiler;
 };
 
