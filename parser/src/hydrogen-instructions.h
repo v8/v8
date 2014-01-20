@@ -165,7 +165,6 @@ class LChunkBuilder;
   V(StoreCodeEntry)                            \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
-  V(StoreGlobalGeneric)                        \
   V(StoreKeyed)                                \
   V(StoreKeyedGeneric)                         \
   V(StoreNamedField)                           \
@@ -5739,52 +5738,6 @@ class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
 
   Unique<PropertyCell> cell_;
   PropertyDetails details_;
-};
-
-
-class HStoreGlobalGeneric : public HTemplateInstruction<3> {
- public:
-  inline static HStoreGlobalGeneric* New(Zone* zone,
-                                         HValue* context,
-                                         HValue* global_object,
-                                         Handle<Object> name,
-                                         HValue* value,
-                                         StrictModeFlag strict_mode_flag) {
-    return new(zone) HStoreGlobalGeneric(context, global_object,
-                                         name, value, strict_mode_flag);
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* global_object() { return OperandAt(1); }
-  Handle<Object> name() const { return name_; }
-  HValue* value() { return OperandAt(2); }
-  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric)
-
- private:
-  HStoreGlobalGeneric(HValue* context,
-                      HValue* global_object,
-                      Handle<Object> name,
-                      HValue* value,
-                      StrictModeFlag strict_mode_flag)
-      : name_(name),
-        strict_mode_flag_(strict_mode_flag) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, global_object);
-    SetOperandAt(2, value);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  Handle<Object> name_;
-  StrictModeFlag strict_mode_flag_;
 };
 
 

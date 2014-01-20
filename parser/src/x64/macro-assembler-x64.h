@@ -721,7 +721,7 @@ class MacroAssembler: public Assembler {
 
   void Move(const Operand& dst, Smi* source) {
     Register constant = GetSmiConstant(source);
-    movq(dst, constant);
+    movp(dst, constant);
   }
 
   void Push(Smi* smi);

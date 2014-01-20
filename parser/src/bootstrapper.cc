@@ -101,12 +101,39 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
 }
 
 
+static const char* GCFunctionName() {
+  bool flag_given = FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0;
+  return flag_given ? FLAG_expose_gc_as : "gc";
+}
+
+
+v8::Extension* Bootstrapper::free_buffer_extension_ = NULL;
+v8::Extension* Bootstrapper::gc_extension_ = NULL;
+v8::Extension* Bootstrapper::externalize_string_extension_ = NULL;
+v8::Extension* Bootstrapper::statistics_extension_ = NULL;
+v8::Extension* Bootstrapper::trigger_failure_extension_ = NULL;
+
+
 void Bootstrapper::InitializeOncePerProcess() {
-  FreeBufferExtension::Register();
-  GCExtension::Register();
-  ExternalizeStringExtension::Register();
-  StatisticsExtension::Register();
-  TriggerFailureExtension::Register();
+  free_buffer_extension_ = new FreeBufferExtension;
+  v8::RegisterExtension(free_buffer_extension_);
+  gc_extension_ = new GCExtension(GCFunctionName());
+  v8::RegisterExtension(gc_extension_);
+  externalize_string_extension_ = new ExternalizeStringExtension;
+  v8::RegisterExtension(externalize_string_extension_);
+  statistics_extension_ = new StatisticsExtension;
+  v8::RegisterExtension(statistics_extension_);
+  trigger_failure_extension_ = new TriggerFailureExtension;
+  v8::RegisterExtension(trigger_failure_extension_);
+}
+
+
+void Bootstrapper::TearDownExtensions() {
+  delete free_buffer_extension_;
+  delete gc_extension_;
+  delete externalize_string_extension_;
+  delete statistics_extension_;
+  delete trigger_failure_extension_;
 }
 
 

@@ -296,7 +296,8 @@ function PromiseOne(values) {
 
 function SetUpPromise() {
   %CheckIsBootstrapping()
-  global.Promise = $Promise;
+  var global_receiver = %GlobalReceiver(global);
+  global_receiver.Promise = $Promise;
   InstallFunctions($Promise, DONT_ENUM, [
     "defer", PromiseDeferred,
     "resolve", PromiseResolved,

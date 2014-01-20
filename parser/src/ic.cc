@@ -231,57 +231,8 @@ static void LookupForRead(Handle<Object> object,
 }
 
 
-bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
-                                   Handle<Object> object) {
-  if (!lookup->IsConstantFunction()) return false;
-  JSFunction* function = lookup->GetConstantFunction();
-  if (!function->shared()->HasBuiltinFunctionId()) return false;
-
-  // Fetch the arguments passed to the called function.
-  const int argc = target()->arguments_count();
-  Address entry = isolate()->c_entry_fp(isolate()->thread_local_top());
-  Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
-  Arguments args(argc + 1,
-                 &Memory::Object_at(fp +
-                                    StandardFrameConstants::kCallerSPOffset +
-                                    argc * kPointerSize));
-  switch (function->shared()->builtin_function_id()) {
-    case kStringCharCodeAt:
-    case kStringCharAt:
-      if (object->IsString()) {
-        String* string = String::cast(*object);
-        // Check there's the right string value or wrapper in the receiver slot.
-        ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
-        // If we're in the default (fastest) state and the index is
-        // out of bounds, update the state to record this fact.
-        if (StringStubState::decode(extra_ic_state()) == DEFAULT_STRING_STUB &&
-            argc >= 1 && args[1]->IsNumber()) {
-          double index = DoubleToInteger(args.number_at(1));
-          if (index < 0 || index >= string->length()) {
-            set_extra_ic_state(StringStubState::update(extra_ic_state(),
-                STRING_INDEX_OUT_OF_BOUNDS));
-            return true;
-          }
-        }
-      }
-      break;
-    default:
-      return false;
-  }
-  return false;
-}
-
-
 bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                 Handle<String> name) {
-  if (target()->is_call_stub()) {
-    LookupResult lookup(isolate());
-    LookupForRead(receiver, name, &lookup);
-    if (static_cast<CallIC*>(this)->TryUpdateExtraICState(&lookup, receiver)) {
-      return true;
-    }
-  }
-
   if (target()->is_keyed_stub()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
@@ -626,7 +577,7 @@ MaybeObject* CallICBase::LoadFunction(Handle<Object> object,
   if (!lookup.IsFound()) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
-    return IsUndeclaredGlobal(object)
+    return object->IsGlobalObject()
         ? ReferenceError("not_defined", name)
         : TypeError("undefined_method", object, name);
   }
@@ -643,7 +594,7 @@ MaybeObject* CallICBase::LoadFunction(Handle<Object> object,
   if (lookup.IsInterceptor() && attr == ABSENT) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
-    return IsUndeclaredGlobal(object)
+    return object->IsGlobalObject()
         ? ReferenceError("not_defined", name)
         : TypeError("undefined_method", object, name);
   }
@@ -1102,7 +1053,7 @@ void IC::PatchCache(Handle<Type> type,
 
 Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
   Handle<Code> ic = isolate->stub_cache()->ComputeLoad(
-      UNINITIALIZED, IC::ComputeExtraICState(mode));
+      UNINITIALIZED, ComputeExtraICState(mode));
   return ic;
 }
 
@@ -1110,7 +1061,7 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
 Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
                                           ContextualMode mode) {
   return isolate->stub_cache()->ComputeLoad(
-      PREMONOMORPHIC, IC::ComputeExtraICState(mode));
+      PREMONOMORPHIC, ComputeExtraICState(mode));
 }
 
 
@@ -1570,7 +1521,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   if (!can_store &&
       strict_mode() == kStrictMode &&
       !(lookup.IsProperty() && lookup.IsReadOnly()) &&
-      IsUndeclaredGlobal(object)) {
+      object->IsGlobalObject()) {
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   }
@@ -1598,9 +1549,8 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
 
 
 Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode,
-                                      ContextualMode mode) {
-  ExtraICState extra_state = ComputeExtraICState(strict_mode, mode);
+                                      StrictModeFlag strict_mode) {
+  ExtraICState extra_state = ComputeExtraICState(strict_mode);
   Handle<Code> ic = isolate->stub_cache()->ComputeStore(
       UNINITIALIZED, extra_state);
   return ic;
@@ -1618,10 +1568,8 @@ Handle<Code> StoreIC::generic_stub() const {
 
 
 Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode,
-                                           ContextualMode contextual_mode) {
-  ExtraICState state = StoreIC::ComputeExtraICState(strict_mode,
-                                                    contextual_mode);
+                                           StrictModeFlag strict_mode) {
+  ExtraICState state = ComputeExtraICState(strict_mode);
   return isolate->stub_cache()->ComputeStore(PREMONOMORPHIC, state);
 }
 

@@ -517,9 +517,6 @@ class StubCompiler BASE_EMBEDDED {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
-  ContextualMode contextual_mode() {
-    return IC::GetContextualMode(extra_state());
-  }
 
   static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
 
@@ -556,10 +553,6 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
                                     Handle<Name> name,
                                     Code::StubType type,
                                     IcCheckType check);
-
-  virtual void GenerateNameCheck(Handle<Name> name,
-                                 Register name_reg,
-                                 Label* miss) { }
 
   static Builtins::Name MissBuiltin(Code::Kind kind) {
     switch (kind) {
@@ -687,6 +680,10 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   static Register* registers();
 
  protected:
+  ContextualMode contextual_mode() {
+    return LoadIC::GetContextualMode(extra_state());
+  }
+
   virtual Register HandlerFrontendHeader(Handle<Type> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
@@ -746,13 +743,8 @@ class KeyedLoadStubCompiler: public LoadStubCompiler {
 
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
- protected:
-  static Register* registers();
-
  private:
-  virtual void GenerateNameCheck(Handle<Name> name,
-                                 Register name_reg,
-                                 Label* miss);
+  static Register* registers();
   friend class BaseLoadStoreStubCompiler;
 };
 
@@ -878,21 +870,17 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
 
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
- protected:
+ private:
   static Register* registers();
 
   KeyedAccessStoreMode store_mode() {
     return KeyedStoreIC::GetKeyedAccessStoreMode(extra_state());
   }
 
- private:
   Register transition_map() {
     return registers()[3];
   }
 
-  virtual void GenerateNameCheck(Handle<Name> name,
-                                 Register name_reg,
-                                 Label* miss);
   friend class BaseLoadStoreStubCompiler;
 };
 
@@ -901,17 +889,7 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
 // IC stubs.
 #define CUSTOM_CALL_IC_GENERATORS(V)            \
   V(ArrayPush)                                  \
-  V(ArrayPop)                                   \
-  V(StringCharCodeAt)                           \
-  V(StringCharAt)                               \
-  V(StringFromCharCode)                         \
-  V(MathFloor)                                  \
-  V(MathAbs)                                    \
-  V(ArrayCode)
-
-
-#define SITE_SPECIFIC_CALL_GENERATORS(V)        \
-  V(ArrayCode)
+  V(ArrayPop)
 
 
 class CallStubCompiler: public StubCompiler {
@@ -968,7 +946,6 @@ class CallStubCompiler: public StubCompiler {
                                  Handle<Name> name);
 
   static bool HasCustomCallGenerator(Handle<JSFunction> function);
-  static bool CanBeCached(Handle<JSFunction> function);
 
  private:
   // Compiles a custom call constant/global IC.  For constant calls cell is

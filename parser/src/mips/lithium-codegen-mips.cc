@@ -2851,18 +2851,6 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 }
 
 
-void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->context()).is(cp));
-  ASSERT(ToRegister(instr->global_object()).is(a1));
-  ASSERT(ToRegister(instr->value()).is(a0));
-
-  __ li(a2, Operand(instr->name()));
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             CONTEXTUAL);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
@@ -4145,8 +4133,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   // Name is always in a2.
   __ li(a2, Operand(instr->name()));
   Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             NOT_CONTEXTUAL);
+                                             instr->strict_mode_flag());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

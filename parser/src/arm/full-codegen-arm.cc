@@ -2721,10 +2721,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
   Comment cmnt(masm_, "[ Call");
   Expression* callee = expr->expression();
-  VariableProxy* proxy = callee->AsVariableProxy();
-  Property* property = callee->AsProperty();
+  Call::CallType call_type = expr->GetCallType(isolate());
 
-  if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
+  if (call_type == Call::POSSIBLY_EVAL_CALL) {
     // In a call to eval, we first call %ResolvePossiblyDirectEval to
     // resolve the function we need to call and the receiver of the
     // call.  Then we call the resolved function using the given
@@ -2763,13 +2762,15 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Restore context register.
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     context()->DropAndPlug(1, r0);
-  } else if (proxy != NULL && proxy->var()->IsUnallocated()) {
+  } else if (call_type == Call::GLOBAL_CALL) {
     // Push global object as receiver for the call IC.
     __ ldr(r0, GlobalObjectOperand());
     __ push(r0);
+    VariableProxy* proxy = callee->AsVariableProxy();
     EmitCallWithIC(expr, proxy->name(), CONTEXTUAL);
-  } else if (proxy != NULL && proxy->var()->IsLookupSlot()) {
+  } else if (call_type == Call::LOOKUP_SLOT_CALL) {
     // Call to a lookup slot (dynamically introduced variable).
+    VariableProxy* proxy = callee->AsVariableProxy();
     Label slow, done;
 
     { PreservePositionScope scope(masm()->positions_recorder());
@@ -2806,7 +2807,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // The receiver is either the global receiver or an object found
     // by LoadContextSlot.
     EmitCallWithStub(expr);
-  } else if (property != NULL) {
+  } else if (call_type == Call::PROPERTY_CALL) {
+    Property* property = callee->AsProperty();
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(property->obj());
     }
@@ -2818,6 +2820,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       EmitKeyedCallWithIC(expr, property->key());
     }
   } else {
+    ASSERT(call_type == Call::OTHER_CALL);
     // Call to an arbitrary expression not handled specially above.
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(callee);

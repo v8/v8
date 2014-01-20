@@ -1058,7 +1058,7 @@ class KeyedLoadFieldStub: public LoadFieldStub {
 class KeyedArrayCallStub: public HICStub {
  public:
   KeyedArrayCallStub(bool holey, int argc) : HICStub(), argc_(argc) {
-    bit_field_ = ContextualBits::encode(false) | HoleyBits::encode(holey);
+    bit_field_ = HoleyBits::encode(holey);
   }
 
   virtual Code::Kind kind() const { return Code::KEYED_CALL_IC; }
@@ -1087,12 +1087,9 @@ class KeyedArrayCallStub: public HICStub {
     return GetExtraICState() | ArgcBits::encode(argc_);
   }
 
-  class ContextualBits: public BitField<bool, 0, 1> {};
-  STATIC_ASSERT(IC::Contextual::kShift == ContextualBits::kShift);
-  STATIC_ASSERT(IC::Contextual::kSize == ContextualBits::kSize);
-  class HoleyBits: public BitField<bool, 1, 1> {};
-  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 2);
-  class ArgcBits: public BitField<int, 2, Code::kArgumentsBits> {};
+  class HoleyBits: public BitField<bool, 0, 1> {};
+  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 1);
+  class ArgcBits: public BitField<int, 1, Code::kArgumentsBits> {};
   virtual CodeStub::Major MajorKey() { return KeyedArrayCall; }
   int bit_field_;
   int argc_;

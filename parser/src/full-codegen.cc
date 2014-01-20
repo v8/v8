@@ -452,7 +452,7 @@ void FullCodeGenerator::CallLoadIC(ContextualMode mode, TypeFeedbackId id) {
 
 
 void FullCodeGenerator::CallStoreIC(ContextualMode mode, TypeFeedbackId id) {
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode(), mode);
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode());
   CallIC(ic, mode, id);
 }
 

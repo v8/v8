@@ -160,7 +160,6 @@ class LCodeGen;
   V(StoreCodeEntry)                             \
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
-  V(StoreGlobalGeneric)                         \
   V(StoreKeyed)                                 \
   V(StoreKeyedGeneric)                          \
   V(StoreNamedField)                            \
@@ -1663,28 +1662,6 @@ class LStoreGlobalCell V8_FINAL : public LTemplateInstruction<0, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
-};
-
-
-class LStoreGlobalGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
- public:
-  LStoreGlobalGeneric(LOperand* context,
-                      LOperand* global_object,
-                      LOperand* value) {
-    inputs_[0] = context;
-    inputs_[1] = global_object;
-    inputs_[2] = value;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* global_object() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric, "store-global-generic")
-  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalGeneric)
-
-  Handle<Object> name() const { return hydrogen()->name(); }
-  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
 

@@ -362,11 +362,11 @@ class RecordWriteStub: public PlatformCodeStub {
       masm->push(scratch1_);
       if (!address_.is(address_orig_)) {
         masm->push(address_);
-        masm->movq(address_, address_orig_);
+        masm->movp(address_, address_orig_);
       }
       if (!object_.is(object_orig_)) {
         masm->push(object_);
-        masm->movq(object_, object_orig_);
+        masm->movp(object_, object_orig_);
       }
     }
 
@@ -375,11 +375,11 @@ class RecordWriteStub: public PlatformCodeStub {
       // them back.  Only in one case is the orig_ reg different from the plain
       // one, since only one of them can alias with rcx.
       if (!object_.is(object_orig_)) {
-        masm->movq(object_orig_, object_);
+        masm->movp(object_orig_, object_);
         masm->pop(object_);
       }
       if (!address_.is(address_orig_)) {
-        masm->movq(address_orig_, address_);
+        masm->movp(address_orig_, address_);
         masm->pop(address_);
       }
       masm->pop(scratch1_);
