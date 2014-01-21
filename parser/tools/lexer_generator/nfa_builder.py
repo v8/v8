@@ -315,10 +315,6 @@ class NfaBuilder(object):
     return ('CATCH_ALL',)
 
   @staticmethod
-  def epsilon():
-    return ('EPSILON',)
-
-  @staticmethod
   def join_subgraph(graph, name, subgraph):
     return ('JOIN', graph, name, subgraph)
 
