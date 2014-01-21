@@ -665,17 +665,16 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   int double_offset = offset();
   // Account for saved regs if input is sp.
-  if (input_reg.is(sp)) double_offset += 2 * kPointerSize;
+  if (input_reg.is(sp)) double_offset += 3 * kPointerSize;
 
-  // Immediate values for this stub fit in instructions, so it's safe to use ip.
-  Register scratch = ip;
+  Register scratch = GetRegisterThatIsNotOneOf(input_reg, result_reg);
   Register scratch_low =
       GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch);
   Register scratch_high =
       GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch, scratch_low);
   LowDwVfpRegister double_scratch = kScratchDoubleReg;
 
-  __ Push(scratch_high, scratch_low);
+  __ Push(scratch_high, scratch_low, scratch);
 
   if (!skip_fastpath()) {
     // Load double input.
@@ -758,7 +757,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   __ bind(&done);
 
-  __ Pop(scratch_high, scratch_low);
+  __ Pop(scratch_high, scratch_low, scratch);
   __ Ret();
 }
 
@@ -4194,6 +4193,211 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // tagged as a small integer.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+}
+
+
+void ArrayPushStub::Generate(MacroAssembler* masm) {
+  Register receiver = r0;
+  Register scratch = r1;
+
+  int argc = arguments_count();
+
+  if (argc == 0) {
+    // Nothing to do, just return the length.
+    __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+    __ Drop(argc + 1);
+    __ Ret();
+    return;
+  }
+
+  Isolate* isolate = masm->isolate();
+
+  if (argc != 1) {
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  Label call_builtin, attempt_to_grow_elements, with_write_barrier;
+
+  Register elements = r6;
+  Register end_elements = r5;
+  // Get the elements array of the object.
+  __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    // Check that the elements are in fast mode and writable.
+    __ CheckMap(elements,
+                scratch,
+                Heap::kFixedArrayMapRootIndex,
+                &call_builtin,
+                DONT_DO_SMI_CHECK);
+  }
+
+  // Get the array's length into scratch and calculate new length.
+  __ ldr(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ add(scratch, scratch, Operand(Smi::FromInt(argc)));
+
+  // Get the elements' length.
+  __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+  // Check if we could survive without allocation.
+  __ cmp(scratch, r4);
+
+  const int kEndElementsOffset =
+      FixedArray::kHeaderSize - kHeapObjectTag - argc * kPointerSize;
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    __ b(gt, &attempt_to_grow_elements);
+
+    // Check if value is a smi.
+    __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
+    __ JumpIfNotSmi(r4, &with_write_barrier);
+
+    // Store the value.
+    // We may need a register containing the address end_elements below, so
+    // write back the value in end_elements.
+    __ add(end_elements, elements, Operand::PointerOffsetFromSmiKey(scratch));
+    __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
+  } else {
+    // Check if we could survive without allocation.
+    __ cmp(scratch, r4);
+    __ b(gt, &call_builtin);
+
+    __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
+    __ StoreNumberToDoubleElements(r4, scratch, elements, r5, d0,
+                                   &call_builtin, argc * kDoubleSize);
+  }
+
+  // Save new length.
+  __ str(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ Drop(argc + 1);
+  __ mov(r0, scratch);
+  __ Ret();
+
+  if (IsFastDoubleElementsKind(elements_kind())) {
+    __ bind(&call_builtin);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  __ bind(&with_write_barrier);
+
+  if (IsFastSmiElementsKind(elements_kind())) {
+    if (FLAG_trace_elements_transitions) __ jmp(&call_builtin);
+
+    __ ldr(r9, FieldMemOperand(r4, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r9, ip);
+    __ b(eq, &call_builtin);
+
+    ElementsKind target_kind = IsHoleyElementsKind(elements_kind())
+        ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+    __ ldr(r3, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+    __ ldr(r3, FieldMemOperand(r3, GlobalObject::kNativeContextOffset));
+    __ ldr(r3, ContextOperand(r3, Context::JS_ARRAY_MAPS_INDEX));
+    const int header_size = FixedArrayBase::kHeaderSize;
+    // Verify that the object can be transitioned in place.
+    const int origin_offset = header_size + elements_kind() * kPointerSize;
+    __ ldr(r2, FieldMemOperand(receiver, origin_offset));
+    __ ldr(ip, FieldMemOperand(r3, HeapObject::kMapOffset));
+    __ cmp(r2, ip);
+    __ b(ne, &call_builtin);
+
+    const int target_offset = header_size + target_kind * kPointerSize;
+    __ ldr(r3, FieldMemOperand(r3, target_offset));
+    __ mov(r2, receiver);
+    ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+        masm, DONT_TRACK_ALLOCATION_SITE, NULL);
+  }
+
+  // Save new length.
+  __ str(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+  // Store the value.
+  // We may need a register containing the address end_elements below, so write
+  // back the value in end_elements.
+  __ add(end_elements, elements, Operand::PointerOffsetFromSmiKey(scratch));
+  __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
+
+  __ RecordWrite(elements,
+                 end_elements,
+                 r4,
+                 kLRHasNotBeenSaved,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+  __ Drop(argc + 1);
+  __ mov(r0, scratch);
+  __ Ret();
+
+  __ bind(&attempt_to_grow_elements);
+  // scratch: array's length + 1.
+
+  if (!FLAG_inline_new) {
+    __ bind(&call_builtin);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  __ ldr(r2, MemOperand(sp, (argc - 1) * kPointerSize));
+  // Growing elements that are SMI-only requires special handling in case the
+  // new element is non-Smi. For now, delegate to the builtin.
+  if (IsFastSmiElementsKind(elements_kind())) {
+    __ JumpIfNotSmi(r2, &call_builtin);
+  }
+
+  // We could be lucky and the elements array could be at the top of new-space.
+  // In this case we can just grow it in place by moving the allocation pointer
+  // up.
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate);
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address(isolate);
+
+  const int kAllocationDelta = 4;
+  ASSERT(kAllocationDelta >= argc);
+  // Load top and check if it is the end of elements.
+  __ add(end_elements, elements, Operand::PointerOffsetFromSmiKey(scratch));
+  __ add(end_elements, end_elements, Operand(kEndElementsOffset));
+  __ mov(r4, Operand(new_space_allocation_top));
+  __ ldr(r3, MemOperand(r4));
+  __ cmp(end_elements, r3);
+  __ b(ne, &call_builtin);
+
+  __ mov(r9, Operand(new_space_allocation_limit));
+  __ ldr(r9, MemOperand(r9));
+  __ add(r3, r3, Operand(kAllocationDelta * kPointerSize));
+  __ cmp(r3, r9);
+  __ b(hi, &call_builtin);
+
+  // We fit and could grow elements.
+  // Update new_space_allocation_top.
+  __ str(r3, MemOperand(r4));
+  // Push the argument.
+  __ str(r2, MemOperand(end_elements));
+  // Fill the rest with holes.
+  __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
+  for (int i = 1; i < kAllocationDelta; i++) {
+    __ str(r3, MemOperand(end_elements, i * kPointerSize));
+  }
+
+  // Update elements' and array's sizes.
+  __ str(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ add(r4, r4, Operand(Smi::FromInt(kAllocationDelta)));
+  __ str(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+  // Elements are in new space, so write barrier is not required.
+  __ Drop(argc + 1);
+  __ mov(r0, scratch);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ TailCallExternalReference(
+      ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
 }
 
 

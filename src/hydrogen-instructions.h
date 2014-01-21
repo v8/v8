@@ -1581,6 +1581,8 @@ class HReturn V8_FINAL : public HTemplateControlInstruction<0, 3> {
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HReturn, HValue*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    // TODO(titzer): require an Int32 input for faster returns.
+    if (index == 2) return Representation::Smi();
     return Representation::Tagged();
   }
 
@@ -2510,10 +2512,9 @@ class HCallNew V8_FINAL : public HBinaryCall {
 
 class HCallNewArray V8_FINAL : public HBinaryCall {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HCallNewArray,
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallNewArray,
                                               HValue*,
                                               int,
-                                              Handle<Cell>,
                                               ElementsKind);
 
   HValue* context() { return first(); }
@@ -2521,23 +2522,17 @@ class HCallNewArray V8_FINAL : public HBinaryCall {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Cell> property_cell() const {
-    return type_cell_;
-  }
-
   ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNewArray)
 
  private:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-                Handle<Cell> type_cell, ElementsKind elements_kind)
+                ElementsKind elements_kind)
       : HBinaryCall(context, constructor, argument_count),
-        elements_kind_(elements_kind),
-        type_cell_(type_cell) {}
+        elements_kind_(elements_kind) {}
 
   ElementsKind elements_kind_;
-  Handle<Cell> type_cell_;
 };
 
 

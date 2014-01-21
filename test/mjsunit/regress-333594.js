@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,24 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
-#include "platform.h"
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
+var a = { x: 1.1 };
+a.x = 0;
+var G = a.x;
+var o = { x: {} };
 
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, GCExtension::GC);
+function func() {
+  return {x: G};
 }
 
-
-void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetIsolate()->RequestGarbageCollectionForTesting(
-      args[0]->BooleanValue() ? v8::Isolate::kMinorGarbageCollection
-                              : v8::Isolate::kFullGarbageCollection);
-}
-
-} }  // namespace v8::internal
+func();
+func();
+%OptimizeFunctionOnNextCall(func);
+assertEquals(0, func().x);
