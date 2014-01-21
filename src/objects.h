@@ -2980,6 +2980,9 @@ class FixedArray: public FixedArrayBase {
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
 
+  // Shrink length and insert filler objects.
+  void Shrink(int length);
+
   // Copy operations.
   MUST_USE_RESULT inline MaybeObject* Copy();
   MUST_USE_RESULT MaybeObject* CopySize(int new_length,

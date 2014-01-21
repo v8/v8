@@ -137,22 +137,24 @@ namespace internal {
 //   typedef Region;
 //   template<class> struct Handle { typedef type; }  // No template typedefs...
 //   static Handle<Type>::type handle(Type* type);    // !is_bitset(type)
-//   static bool is_bitset(Type* type);
-//   static bool is_class(Type* type);
-//   static bool is_constant(Type* type);
-//   static bool is_union(Type* type);
-//   static int as_bitset(Type* type);
-//   static i::Handle<i::Map> as_class(Type* type);
-//   static i::Handle<i::Object> as_constant(Type* type);
-//   static Handle<Unioned>::type as_union(Type* type);
+//   static bool is_bitset(Type*);
+//   static bool is_class(Type*);
+//   static bool is_constant(Type*);
+//   static bool is_union(Type*);
+//   static int as_bitset(Type*);
+//   static i::Handle<i::Map> as_class(Type*);
+//   static i::Handle<i::Object> as_constant(Type*);
+//   static Handle<Unioned>::type as_union(Type*);
 //   static Type* from_bitset(int bitset);
-//   static Handle<Type>::type from_bitset(int bitset, Region* region);
-//   static Handle<Type>::type from_class(i::Handle<i::Map> map, Region* region)
-//   static Handle<Type>::type from_constant(
-//                               i::Handle<i::Object> value, Region* region);
-//   static Handle<Type>::type from_union(Handle<Unioned>::T unioned);
-//   static Handle<Unioned>::type union_create(int size, Region* region);
-//   static Handle<Type>::type union_get(Handle<Unioned>::T unioned, int i);
+//   static Handle<Type>::type from_bitset(int bitset, Region*);
+//   static Handle<Type>::type from_class(i::Handle<i::Map>, Region*)
+//   static Handle<Type>::type from_constant(i::Handle<i::Object>, Region*);
+//   static Handle<Type>::type from_union(Handle<Unioned>::type);
+//   static Handle<Unioned>::type union_create(int size, Region*);
+//   static void union_shrink(Handle<Unioned>::type, int size);
+//   static Handle<Type>::type union_get(Handle<Unioned>::type, int);
+//   static void union_set(Handle<Unioned>::type, int, Handle<Type>::type);
+//   static int union_length(Handle<Unioned>::type);
 // }
 template<class Config>
 class TypeImpl : public Config::Base {
@@ -183,14 +185,17 @@ class TypeImpl : public Config::Base {
   }
 
   bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }
+  template<class TypeHandle>
   bool Is(TypeHandle that) { return this->Is(*that); }
   bool Maybe(TypeImpl* that);
+  template<class TypeHandle>
   bool Maybe(TypeHandle that) { return this->Maybe(*that); }
 
   // State-dependent versions of Of and Is that consider subtyping between
   // a constant and its map class.
   static TypeHandle OfCurrently(i::Handle<i::Object> value, Region* region);
   bool IsCurrently(TypeImpl* that);
+  template<class TypeHandle>
   bool IsCurrently(TypeHandle that)  { return this->IsCurrently(*that); }
 
   bool IsClass() { return Config::is_class(this); }
@@ -232,7 +237,7 @@ class TypeImpl : public Config::Base {
     return Iterator<i::Object>(Config::handle(this));
   }
 
-  static TypeImpl* cast(i::Object* object) {
+  static TypeImpl* cast(typename Config::Base* object) {
     TypeImpl* t = static_cast<TypeImpl*>(object);
     ASSERT(t->IsBitset() || t->IsClass() || t->IsConstant() || t->IsUnion());
     return t;
@@ -276,9 +281,10 @@ class TypeImpl : public Config::Base {
   static int LubBitset(i::Map* map);
 
   bool InUnion(UnionedHandle unioned, int current_size);
-  int ExtendUnion(UnionedHandle unioned, int current_size);
-  int ExtendIntersection(
-      UnionedHandle unioned, TypeHandle type, int current_size);
+  static int ExtendUnion(
+      UnionedHandle unioned, TypeHandle t, int current_size);
+  static int ExtendIntersection(
+      UnionedHandle unioned, TypeHandle t, TypeHandle other, int current_size);
 
 #ifdef OBJECT_PRINT
   static const char* bitset_name(int bitset);
@@ -286,6 +292,141 @@ class TypeImpl : public Config::Base {
 };
 
 
+// Zone-allocated types are either (odd) integers to represent bitsets, or
+// (even) pointers to zone lists for everything else. The first slot of every
+// list is an explicit tag value to distinguish representation.
+struct ZoneTypeConfig {
+ private:
+  typedef i::ZoneList<void*> Tagged;
+
+  enum Tag {
+    kClassTag,
+    kConstantTag,
+    kUnionTag
+  };
+
+  static Tagged* tagged_create(Tag tag, int size, Zone* zone) {
+    Tagged* tagged = new(zone) Tagged(size + 1, zone);
+    tagged->Add(reinterpret_cast<void*>(tag), zone);
+    tagged->AddBlock(NULL, size, zone);
+    return tagged;
+  }
+  static void tagged_shrink(Tagged* tagged, int size) {
+    tagged->Rewind(size + 1);
+  }
+  static Tag tagged_tag(Tagged* tagged) {
+    return static_cast<Tag>(reinterpret_cast<intptr_t>(tagged->at(0)));
+  }
+  template<class T>
+  static T tagged_get(Tagged* tagged, int i) {
+    return reinterpret_cast<T>(tagged->at(i + 1));
+  }
+  template<class T>
+  static void tagged_set(Tagged* tagged, int i, T value) {
+    tagged->at(i + 1) = reinterpret_cast<T>(value);
+  }
+  static int tagged_length(Tagged* tagged) {
+    return tagged->length() - 1;
+  }
+
+ public:
+  typedef TypeImpl<ZoneTypeConfig> Type;
+  class Base {};
+  typedef i::ZoneList<Type*> Unioned;
+  typedef i::Zone Region;
+  template<class T> struct Handle { typedef T* type; };
+
+  static Type* handle(Type* type) { return type; }
+
+  static bool is(Type* type, Tag tag) {
+    return is_tagged(type) && tagged_tag(as_tagged(type)) == tag;
+  }
+
+  static bool is_bitset(Type* type) {
+    return reinterpret_cast<intptr_t>(type) & 1;
+  }
+  static bool is_tagged(Type* type) { return !is_bitset(type); }
+  static bool is_class(Type* type) { return is(type, kClassTag); }
+  static bool is_constant(Type* type) { return is(type, kConstantTag); }
+  static bool is_union(Type* type) { return is(type, kUnionTag); }
+  static bool tagged_is_union(Tagged* tagged) {
+    return is(from_tagged(tagged), kUnionTag);
+  }
+
+  static int as_bitset(Type* type) {
+    ASSERT(is_bitset(type));
+    return reinterpret_cast<intptr_t>(type) >> 1;
+  }
+  static Tagged* as_tagged(Type* type) {
+    ASSERT(is_tagged(type));
+    return reinterpret_cast<Tagged*>(type);
+  }
+  static i::Handle<i::Map> as_class(Type* type) {
+    ASSERT(is_class(type));
+    return i::Handle<i::Map>(tagged_get<i::Map**>(as_tagged(type), 0));
+  }
+  static i::Handle<i::Object> as_constant(Type* type) {
+    ASSERT(is_constant(type));
+    return i::Handle<i::Object>(tagged_get<i::Object**>(as_tagged(type), 0));
+  }
+  static Unioned* as_union(Type* type) {
+    ASSERT(is_union(type));
+    return tagged_as_union(as_tagged(type));
+  }
+  static Unioned* tagged_as_union(Tagged* tagged) {
+    ASSERT(tagged_is_union(tagged));
+    return reinterpret_cast<Unioned*>(tagged);
+  }
+
+  static Type* from_bitset(int bitset) {
+    return reinterpret_cast<Type*>((bitset << 1) | 1);
+  }
+  static Type* from_bitset(int bitset, Zone* Zone) {
+    return from_bitset(bitset);
+  }
+  static Type* from_tagged(Tagged* tagged) {
+    return reinterpret_cast<Type*>(tagged);
+  }
+  static Type* from_class(i::Handle<i::Map> map, Zone* zone) {
+    Tagged* tagged = tagged_create(kClassTag, 1, zone);
+    tagged_set(tagged, 0, map.location());
+    return from_tagged(tagged);
+  }
+  static Type* from_constant(i::Handle<i::Object> value, Zone* zone) {
+    Tagged* tagged = tagged_create(kConstantTag, 1, zone);
+    tagged_set(tagged, 0, value.location());
+    return from_tagged(tagged);
+  }
+  static Type* from_union(Unioned* unioned) {
+    return from_tagged(tagged_from_union(unioned));
+  }
+  static Tagged* tagged_from_union(Unioned* unioned) {
+    return reinterpret_cast<Tagged*>(unioned);
+  }
+
+  static Unioned* union_create(int size, Zone* zone) {
+    return tagged_as_union(tagged_create(kUnionTag, size, zone));
+  }
+  static void union_shrink(Unioned* unioned, int size) {
+    tagged_shrink(tagged_from_union(unioned), size);
+  }
+  static Type* union_get(Unioned* unioned, int i) {
+    Type* type = tagged_get<Type*>(tagged_from_union(unioned), i);
+    ASSERT(!is_union(type));
+    return type;
+  }
+  static void union_set(Unioned* unioned, int i, Type* type) {
+    ASSERT(!is_union(type));
+    tagged_set(tagged_from_union(unioned), i, type);
+  }
+  static int union_length(Unioned* unioned) {
+    return tagged_length(tagged_from_union(unioned));
+  }
+};
+
+
+// Heap-allocated types are either smis for bitsets, maps for classes, boxes for
+// constants, or fixed arrays for unions.
 struct HeapTypeConfig {
   typedef TypeImpl<HeapTypeConfig> Type;
   typedef i::Object Base;
@@ -327,8 +468,6 @@ struct HeapTypeConfig {
   }
   static i::Handle<Type> from_constant(
       i::Handle<i::Object> value, Isolate* isolate) {
-    ASSERT(isolate || value->IsHeapObject());
-    if (!isolate) isolate = i::HeapObject::cast(*value)->GetIsolate();
     i::Handle<Box> box = isolate->factory()->NewBox(value);
     return i::Handle<Type>::cast(i::Handle<Object>::cast(box));
   }
@@ -339,13 +478,25 @@ struct HeapTypeConfig {
   static i::Handle<Unioned> union_create(int size, Isolate* isolate) {
     return isolate->factory()->NewFixedArray(size);
   }
+  static void union_shrink(i::Handle<Unioned> unioned, int size) {
+    unioned->Shrink(size);
+  }
   static i::Handle<Type> union_get(i::Handle<Unioned> unioned, int i) {
     Type* type = static_cast<Type*>(unioned->get(i));
     ASSERT(!is_union(type));
     return i::handle(type, unioned->GetIsolate());
   }
+  static void union_set(
+      i::Handle<Unioned> unioned, int i, i::Handle<Type> type) {
+    ASSERT(!is_union(*type));
+    unioned->set(i, *type);
+  }
+  static int union_length(i::Handle<Unioned> unioned) {
+    return unioned->length();
+  }
 };
 
+typedef TypeImpl<ZoneTypeConfig> ZoneType;
 typedef TypeImpl<HeapTypeConfig> Type;
 
 
@@ -399,6 +550,7 @@ struct BoundsImpl {
   }
 };
 
+typedef BoundsImpl<ZoneTypeConfig> ZoneBounds;
 typedef BoundsImpl<HeapTypeConfig> Bounds;
 
 
