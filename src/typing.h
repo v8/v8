@@ -70,13 +70,12 @@ class AstTyper: public AstVisitor {
   Store store_;
 
   TypeFeedbackOracle* oracle() { return &oracle_; }
-  Zone* zone() const { return info_->zone(); }
 
   void NarrowType(Expression* e, Bounds b) {
-    e->set_bounds(Bounds::Both(e->bounds(), b, isolate_));
+    e->set_bounds(Bounds::Both(e->bounds(), b, zone()));
   }
-  void NarrowLowerType(Expression* e, Handle<Type> t) {
-    e->set_bounds(Bounds::NarrowLower(e->bounds(), t, isolate_));
+  void NarrowLowerType(Expression* e, Type* t) {
+    e->set_bounds(Bounds::NarrowLower(e->bounds(), t, zone()));
   }
 
   Effects EnterEffects() {

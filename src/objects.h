@@ -906,10 +906,10 @@ class FixedArrayBase;
 class GlobalObject;
 class ObjectVisitor;
 class StringStream;
-// We cannot just say "class Type;" if it is created from a template... =8-?
+// We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;
 struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> Type;
+typedef TypeImpl<HeapTypeConfig> HeapType;
 
 
 // A template-ized version of the IsXXX functions.
@@ -9512,8 +9512,8 @@ class Cell: public HeapObject {
 class PropertyCell: public Cell {
  public:
   // [type]: type of the global property.
-  Type* type();
-  void set_type(Type* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  HeapType* type();
+  void set_type(HeapType* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [dependent_code]: dependent code that depends on the type of the global
   // property.
@@ -9528,8 +9528,8 @@ class PropertyCell: public Cell {
 
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the 'type' field.
-  static Handle<Type> UpdatedType(Handle<PropertyCell> cell,
-                                  Handle<Object> value);
+  static Handle<HeapType> UpdatedType(Handle<PropertyCell> cell,
+                                      Handle<Object> value);
 
   void AddDependentCompilationInfo(CompilationInfo* info);
 

@@ -1143,7 +1143,7 @@ void StubCompiler::GenerateTailCall(MacroAssembler* masm, Handle<Code> code) {
 #define __ ACCESS_MASM(masm())
 
 
-Register StubCompiler::CheckPrototypes(Handle<Type> type,
+Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
                                        Register object_reg,
                                        Handle<JSObject> holder,
                                        Register holder_reg,
@@ -1281,7 +1281,7 @@ void StoreStubCompiler::HandlerFrontendFooter(Handle<Name> name, Label* miss) {
 
 
 Register LoadStubCompiler::CallbackHandlerFrontend(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Register object_reg,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1978,7 +1978,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<Type> type,
+Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<HeapType> type,
                                                       Handle<JSObject> last,
                                                       Handle<Name> name) {
   NonexistentHandlerFrontend(type, last, name);
@@ -2056,7 +2056,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 
 
 Handle<Code> LoadStubCompiler::CompileLoadGlobal(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<GlobalObject> global,
     Handle<PropertyCell> cell,
     Handle<Name> name,
@@ -2116,12 +2116,12 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   int receiver_count = types->length();
   int number_of_handled_maps = 0;
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Type> type = types->at(current);
+    Handle<HeapType> type = types->at(current);
     Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
       __ cmp(map_reg, map);
-      if (type->Is(Type::Number())) {
+      if (type->Is(HeapType::Number())) {
         ASSERT(!number_case.is_unused());
         __ bind(&number_case);
       }

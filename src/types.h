@@ -496,8 +496,8 @@ struct HeapTypeConfig {
   }
 };
 
-typedef TypeImpl<ZoneTypeConfig> ZoneType;
-typedef TypeImpl<HeapTypeConfig> Type;
+typedef TypeImpl<ZoneTypeConfig> Type;
+typedef TypeImpl<HeapTypeConfig> HeapType;
 
 
 // A simple struct to represent a pair of lower/upper type bounds.
@@ -550,8 +550,7 @@ struct BoundsImpl {
   }
 };
 
-typedef BoundsImpl<ZoneTypeConfig> ZoneBounds;
-typedef BoundsImpl<HeapTypeConfig> Bounds;
+typedef BoundsImpl<ZoneTypeConfig> Bounds;
 
 
 } }  // namespace v8::internal

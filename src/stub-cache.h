@@ -92,11 +92,11 @@ class StubCache {
                            InlineCacheHolderFlag cache_holder = OWN_MAP);
 
   Handle<Code> ComputeMonomorphicIC(Handle<Name> name,
-                                    Handle<Type> type,
+                                    Handle<HeapType> type,
                                     Handle<Code> handler,
                                     ExtraICState extra_ic_state);
 
-  Handle<Code> ComputeLoadNonexistent(Handle<Name> name, Handle<Type> type);
+  Handle<Code> ComputeLoadNonexistent(Handle<Name> name, Handle<HeapType> type);
 
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
@@ -475,7 +475,7 @@ class StubCompiler BASE_EMBEDDED {
   // The function can optionally (when save_at_depth !=
   // kInvalidProtoDepth) save the object at the given depth by moving
   // it to [esp + kPointerSize].
-  Register CheckPrototypes(Handle<Type> type,
+  Register CheckPrototypes(Handle<HeapType> type,
                            Register object_reg,
                            Handle<JSObject> holder,
                            Register holder_reg,
@@ -530,7 +530,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   }
   virtual ~BaseLoadStoreStubCompiler() { }
 
-  Handle<Code> CompileMonomorphicIC(Handle<Type> type,
+  Handle<Code> CompileMonomorphicIC(Handle<HeapType> type,
                                     Handle<Code> handler,
                                     Handle<Name> name);
 
@@ -552,7 +552,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   }
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<Type> type,
+  virtual Register HandlerFrontendHeader(Handle<HeapType> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
@@ -560,7 +560,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
 
   virtual void HandlerFrontendFooter(Handle<Name> name, Label* miss) = 0;
 
-  Register HandlerFrontend(Handle<Type> type,
+  Register HandlerFrontend(Handle<HeapType> type,
                            Register object_reg,
                            Handle<JSObject> holder,
                            Handle<Name> name);
@@ -619,32 +619,32 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                   cache_holder) { }
   virtual ~LoadStubCompiler() { }
 
-  Handle<Code> CompileLoadField(Handle<Type> type,
+  Handle<Code> CompileLoadField(Handle<HeapType> type,
                                 Handle<JSObject> holder,
                                 Handle<Name> name,
                                 PropertyIndex index,
                                 Representation representation);
 
-  Handle<Code> CompileLoadCallback(Handle<Type> type,
+  Handle<Code> CompileLoadCallback(Handle<HeapType> type,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<ExecutableAccessorInfo> callback);
 
-  Handle<Code> CompileLoadCallback(Handle<Type> type,
+  Handle<Code> CompileLoadCallback(Handle<HeapType> type,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    const CallOptimization& call_optimization);
 
-  Handle<Code> CompileLoadConstant(Handle<Type> type,
+  Handle<Code> CompileLoadConstant(Handle<HeapType> type,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<Object> value);
 
-  Handle<Code> CompileLoadInterceptor(Handle<Type> type,
+  Handle<Code> CompileLoadInterceptor(Handle<HeapType> type,
                                       Handle<JSObject> holder,
                                       Handle<Name> name);
 
-  Handle<Code> CompileLoadViaGetter(Handle<Type> type,
+  Handle<Code> CompileLoadViaGetter(Handle<HeapType> type,
                                     Handle<JSObject> holder,
                                     Handle<Name> name,
                                     Handle<JSFunction> getter);
@@ -653,11 +653,11 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                     Register receiver,
                                     Handle<JSFunction> getter);
 
-  Handle<Code> CompileLoadNonexistent(Handle<Type> type,
+  Handle<Code> CompileLoadNonexistent(Handle<HeapType> type,
                                       Handle<JSObject> last,
                                       Handle<Name> name);
 
-  Handle<Code> CompileLoadGlobal(Handle<Type> type,
+  Handle<Code> CompileLoadGlobal(Handle<HeapType> type,
                                  Handle<GlobalObject> holder,
                                  Handle<PropertyCell> cell,
                                  Handle<Name> name,
@@ -670,7 +670,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
     return LoadIC::GetContextualMode(extra_state());
   }
 
-  virtual Register HandlerFrontendHeader(Handle<Type> type,
+  virtual Register HandlerFrontendHeader(Handle<HeapType> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
@@ -678,12 +678,12 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
 
   virtual void HandlerFrontendFooter(Handle<Name> name, Label* miss);
 
-  Register CallbackHandlerFrontend(Handle<Type> type,
+  Register CallbackHandlerFrontend(Handle<HeapType> type,
                                    Register object_reg,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<Object> callback);
-  void NonexistentHandlerFrontend(Handle<Type> type,
+  void NonexistentHandlerFrontend(Handle<HeapType> type,
                                   Handle<JSObject> last,
                                   Handle<Name> name);
 
@@ -814,7 +814,7 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
   }
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<Type> type,
+  virtual Register HandlerFrontendHeader(Handle<HeapType> type,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,

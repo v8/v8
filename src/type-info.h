@@ -45,7 +45,6 @@ class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
                      Handle<Context> native_context,
-                     Isolate* isolate,
                      Zone* zone);
 
   bool LoadIsUninitialized(TypeFeedbackId id);
@@ -107,22 +106,22 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Get type information for arithmetic operations and compares.
   void BinaryType(TypeFeedbackId id,
-                  Handle<Type>* left,
-                  Handle<Type>* right,
-                  Handle<Type>* result,
+                  Type** left,
+                  Type** right,
+                  Type** result,
                   Maybe<int>* fixed_right_arg,
                   Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
   void CompareType(TypeFeedbackId id,
-                   Handle<Type>* left,
-                   Handle<Type>* right,
-                   Handle<Type>* combined);
+                   Type** left,
+                   Type** right,
+                   Type** combined);
 
-  Handle<Type> CountType(TypeFeedbackId id);
+  Type* CountType(TypeFeedbackId id);
 
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const { return isolate_; }
+  Isolate* isolate() const { return zone_->isolate(); }
 
  private:
   void CollectReceiverTypes(TypeFeedbackId id,
@@ -147,7 +146,6 @@ class TypeFeedbackOracle: public ZoneObject {
 
  private:
   Handle<Context> native_context_;
-  Isolate* isolate_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
 

@@ -59,8 +59,8 @@ namespace internal {
 
 class Smi;
 template<class> class TypeImpl;
-struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> Type;
+struct ZoneTypeConfig;
+typedef TypeImpl<ZoneTypeConfig> Type;
 class TypeInfo;
 
 // Type of properties.
@@ -116,7 +116,7 @@ class Representation {
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
 
-  static Representation FromType(Handle<Type> type);
+  static Representation FromType(Type* type);
 
   bool Equals(const Representation& other) const {
     return kind_ == other.kind_;

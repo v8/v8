@@ -130,9 +130,9 @@ class IC {
                                                Object* object,
                                                InlineCacheHolderFlag holder);
 
-  static inline InlineCacheHolderFlag GetCodeCacheFlag(Type* type);
+  static inline InlineCacheHolderFlag GetCodeCacheFlag(HeapType* type);
   static inline Handle<Map> GetCodeCacheHolder(InlineCacheHolderFlag flag,
-                                               Type* type,
+                                               HeapType* type,
                                                Isolate* isolate);
 
   static bool IsCleared(Code* code) {
@@ -145,9 +145,10 @@ class IC {
   // - The heap_number_map is used as a marker which includes heap numbers as
   //   well as smis.
   // - The oddball map is only used for booleans.
-  static Handle<Map> TypeToMap(Type* type, Isolate* isolate);
-  static Handle<Type> MapToType(Handle<Map> type);
-  static Handle<Type> CurrentTypeOf(Handle<Object> object, Isolate* isolate);
+  static Handle<Map> TypeToMap(HeapType* type, Isolate* isolate);
+  static Handle<HeapType> MapToType(Handle<Map> map);
+  static Handle<HeapType> CurrentTypeOf(
+      Handle<Object> object, Isolate* isolate);
 
  protected:
   // Get the call-site target; used for determining the state.
@@ -201,19 +202,19 @@ class IC {
     return Handle<Code>::null();
   }
 
-  void UpdateMonomorphicIC(Handle<Type> type,
+  void UpdateMonomorphicIC(Handle<HeapType> type,
                            Handle<Code> handler,
                            Handle<String> name);
 
-  bool UpdatePolymorphicIC(Handle<Type> type,
+  bool UpdatePolymorphicIC(Handle<HeapType> type,
                            Handle<String> name,
                            Handle<Code> code);
 
-  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code);
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionOfMonomorphicTarget(Handle<Type> type);
-  void PatchCache(Handle<Type> type,
+  bool IsTransitionOfMonomorphicTarget(Handle<HeapType> type);
+  void PatchCache(Handle<HeapType> type,
                   Handle<String> name,
                   Handle<Code> code);
   virtual Code::Kind kind() const {
@@ -536,7 +537,7 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
 
  private:
   // Stub accessors.
@@ -708,7 +709,7 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
 
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate(), strict_mode());
@@ -843,13 +844,13 @@ class BinaryOpIC: public IC {
     OverwriteMode mode() const { return mode_; }
     Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
-    Handle<Type> GetLeftType(Isolate* isolate) const {
-      return KindToType(left_kind_, isolate);
+    Type* GetLeftType(Zone* zone) const {
+      return KindToType(left_kind_, zone);
     }
-    Handle<Type> GetRightType(Isolate* isolate) const {
-      return KindToType(right_kind_, isolate);
+    Type* GetRightType(Zone* zone) const {
+      return KindToType(right_kind_, zone);
     }
-    Handle<Type> GetResultType(Isolate* isolate) const;
+    Type* GetResultType(Zone* zone) const;
 
     void Print(StringStream* stream) const;
 
@@ -863,7 +864,7 @@ class BinaryOpIC: public IC {
     Kind UpdateKind(Handle<Object> object, Kind kind) const;
 
     static const char* KindToString(Kind kind);
-    static Handle<Type> KindToType(Kind kind, Isolate* isolate);
+    static Type* KindToType(Kind kind, Zone* zone);
     static bool KindMaybeSmi(Kind kind) {
       return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
     }
@@ -921,16 +922,16 @@ class CompareIC: public IC {
 
   static State NewInputState(State old_state, Handle<Object> value);
 
-  static Handle<Type> StateToType(Isolate* isolate,
-                                  State state,
-                                  Handle<Map> map = Handle<Map>());
+  static Type* StateToType(Zone* zone,
+                           State state,
+                           Handle<Map> map = Handle<Map>());
 
   static void StubInfoToType(int stub_minor_key,
-                             Handle<Type>* left_type,
-                             Handle<Type>* right_type,
-                             Handle<Type>* overall_type,
+                             Type** left_type,
+                             Type** right_type,
+                             Type** overall_type,
                              Handle<Map> map,
-                             Isolate* isolate);
+                             Zone* zone);
 
   CompareIC(Isolate* isolate, Token::Value op)
       : IC(EXTRA_CALL_FRAME, isolate), op_(op) { }

@@ -323,7 +323,7 @@ template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
   HValue* number = GetParameter(NumberToStringStub::kNumber);
-  return BuildNumberToString(number, Type::Number(isolate()));
+  return BuildNumberToString(number, Type::Number(zone()));
 }
 
 
@@ -841,7 +841,7 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   CompareNilICStub* stub = casted_stub();
   HIfContinuation continuation;
   Handle<Map> sentinel_map(isolate->heap()->meta_map());
-  Handle<Type> type = stub->GetType(isolate, sentinel_map);
+  Type* type = stub->GetType(zone(), sentinel_map);
   BuildCompareNil(GetParameter(0), type, &continuation);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();
@@ -868,9 +868,9 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   HValue* left = GetParameter(BinaryOpICStub::kLeft);
   HValue* right = GetParameter(BinaryOpICStub::kRight);
 
-  Handle<Type> left_type = state.GetLeftType(isolate());
-  Handle<Type> right_type = state.GetRightType(isolate());
-  Handle<Type> result_type = state.GetResultType(isolate());
+  Type* left_type = state.GetLeftType(zone());
+  Type* right_type = state.GetRightType(zone());
+  Type* result_type = state.GetResultType(zone());
 
   ASSERT(!left_type->Is(Type::None()) && !right_type->Is(Type::None()) &&
          (state.HasSideEffects() || !result_type->Is(Type::None())));
@@ -889,7 +889,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
-                    Type::String(isolate()), right_type,
+                    Type::String(zone()), right_type,
                     result_type, state.fixed_right_arg(),
                     allocation_mode));
       }
@@ -909,7 +909,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
-                    left_type, Type::String(isolate()),
+                    left_type, Type::String(zone()),
                     result_type, state.fixed_right_arg(),
                     allocation_mode));
       }
@@ -983,9 +983,9 @@ HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
   HValue* left = GetParameter(BinaryOpWithAllocationSiteStub::kLeft);
   HValue* right = GetParameter(BinaryOpWithAllocationSiteStub::kRight);
 
-  Handle<Type> left_type = state.GetLeftType(isolate());
-  Handle<Type> right_type = state.GetRightType(isolate());
-  Handle<Type> result_type = state.GetResultType(isolate());
+  Type* left_type = state.GetLeftType(zone());
+  Type* right_type = state.GetRightType(zone());
+  Type* result_type = state.GetResultType(zone());
   HAllocationMode allocation_mode(allocation_site);
 
   return BuildBinaryOperation(state.op(), left, right,

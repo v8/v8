@@ -111,8 +111,8 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object) {
 
 
 HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
-                                 Object* object,
-                                 InlineCacheHolderFlag holder) {
+                                   Object* object,
+                                   InlineCacheHolderFlag holder) {
   if (object->IsSmi()) holder = PROTOTYPE_MAP;
   Object* map_owner = holder == OWN_MAP
       ? object : object->GetPrototype(isolate);
@@ -120,11 +120,11 @@ HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
 }
 
 
-InlineCacheHolderFlag IC::GetCodeCacheFlag(Type* type) {
-  if (type->Is(Type::Boolean()) ||
-      type->Is(Type::Number()) ||
-      type->Is(Type::String()) ||
-      type->Is(Type::Symbol())) {
+InlineCacheHolderFlag IC::GetCodeCacheFlag(HeapType* type) {
+  if (type->Is(HeapType::Boolean()) ||
+      type->Is(HeapType::Number()) ||
+      type->Is(HeapType::String()) ||
+      type->Is(HeapType::Symbol())) {
     return PROTOTYPE_MAP;
   }
   return OWN_MAP;
@@ -132,19 +132,19 @@ InlineCacheHolderFlag IC::GetCodeCacheFlag(Type* type) {
 
 
 Handle<Map> IC::GetCodeCacheHolder(InlineCacheHolderFlag flag,
-                                   Type* type,
+                                   HeapType* type,
                                    Isolate* isolate) {
   if (flag == PROTOTYPE_MAP) {
     Context* context = isolate->context()->native_context();
     JSFunction* constructor;
-    if (type->Is(Type::Boolean())) {
+    if (type->Is(HeapType::Boolean())) {
       constructor = context->boolean_function();
-    } else if (type->Is(Type::Number())) {
+    } else if (type->Is(HeapType::Number())) {
       constructor = context->number_function();
-    } else if (type->Is(Type::String())) {
+    } else if (type->Is(HeapType::String())) {
       constructor = context->string_function();
     } else {
-      ASSERT(type->Is(Type::Symbol()));
+      ASSERT(type->Is(HeapType::Symbol()));
       constructor = context->symbol_function();
     }
     return handle(JSObject::cast(constructor->instance_prototype())->map());

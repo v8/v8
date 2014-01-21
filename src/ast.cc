@@ -82,8 +82,8 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) {
 }
 
 
-VariableProxy::VariableProxy(Isolate* isolate, Variable* var, int position)
-    : Expression(isolate, position),
+VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
+    : Expression(zone, position),
       name_(var->name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
@@ -94,12 +94,12 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var, int position)
 }
 
 
-VariableProxy::VariableProxy(Isolate* isolate,
+VariableProxy::VariableProxy(Zone* zone,
                              Handle<String> name,
                              bool is_this,
                              Interface* interface,
                              int position)
-    : Expression(isolate, position),
+    : Expression(zone, position),
       name_(name),
       var_(NULL),
       is_this_(is_this),
@@ -126,17 +126,17 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
-Assignment::Assignment(Isolate* isolate,
+Assignment::Assignment(Zone* zone,
                        Token::Value op,
                        Expression* target,
                        Expression* value,
                        int pos)
-    : Expression(isolate, pos),
+    : Expression(zone, pos),
       op_(op),
       target_(target),
       value_(value),
       binary_operation_(NULL),
-      assignment_id_(GetNextId(isolate)),
+      assignment_id_(GetNextId(zone)),
       is_uninitialized_(false),
       is_pre_monomorphic_(false),
       store_mode_(STANDARD_STORE) { }
@@ -203,15 +203,14 @@ void FunctionLiteral::InitializeSharedInfo(
 }
 
 
-ObjectLiteralProperty::ObjectLiteralProperty(Literal* key,
-                                             Expression* value,
-                                             Isolate* isolate) {
+ObjectLiteralProperty::ObjectLiteralProperty(
+    Zone* zone, Literal* key, Expression* value) {
   emit_store_ = true;
   key_ = key;
   value_ = value;
   Object* k = *key->value();
   if (k->IsInternalizedString() &&
-      isolate->heap()->proto_string()->Equals(String::cast(k))) {
+      zone->isolate()->heap()->proto_string()->Equals(String::cast(k))) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -223,8 +222,8 @@ ObjectLiteralProperty::ObjectLiteralProperty(Literal* key,
 }
 
 
-ObjectLiteralProperty::ObjectLiteralProperty(bool is_getter,
-                                             FunctionLiteral* value) {
+ObjectLiteralProperty::ObjectLiteralProperty(
+    Zone* zone, bool is_getter, FunctionLiteral* value) {
   emit_store_ = true;
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
@@ -1146,16 +1145,16 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 }
 
 
-CaseClause::CaseClause(Isolate* isolate,
+CaseClause::CaseClause(Zone* zone,
                        Expression* label,
                        ZoneList<Statement*>* statements,
                        int pos)
-    : Expression(isolate, pos),
+    : Expression(zone, pos),
       label_(label),
       statements_(statements),
-      compare_type_(Type::None(isolate)),
-      compare_id_(AstNode::GetNextId(isolate)),
-      entry_id_(AstNode::GetNextId(isolate)) {
+      compare_type_(Type::None(zone)),
+      compare_id_(AstNode::GetNextId(zone)),
+      entry_id_(AstNode::GetNextId(zone)) {
 }
 
 

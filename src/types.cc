@@ -541,7 +541,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
 
 
 // TODO(rossberg): this does not belong here.
-Representation Representation::FromType(Handle<Type> type) {
+Representation Representation::FromType(Type* type) {
   if (type->Is(Type::None())) return Representation::None();
   if (type->Is(Type::Smi())) return Representation::Smi();
   if (type->Is(Type::Signed32())) return Representation::Integer32();

@@ -126,31 +126,29 @@ class Types {
 
 // Testing auxiliaries (breaking the Type abstraction).
 struct ZoneRep {
-  static bool IsTagged(ZoneType* t, int tag) {
+  static bool IsTagged(Type* t, int tag) {
     return !IsBitset(t)
         && reinterpret_cast<intptr_t>(AsTagged(t)->at(0)) == tag;
   }
-  static bool IsBitset(ZoneType* t) {
-    return reinterpret_cast<intptr_t>(t) & 1;
-  }
-  static bool IsClass(ZoneType* t) { return IsTagged(t, 0); }
-  static bool IsConstant(ZoneType* t) { return IsTagged(t, 1); }
-  static bool IsUnion(ZoneType* t) { return IsTagged(t, 2); }
+  static bool IsBitset(Type* t) { return reinterpret_cast<intptr_t>(t) & 1; }
+  static bool IsClass(Type* t) { return IsTagged(t, 0); }
+  static bool IsConstant(Type* t) { return IsTagged(t, 1); }
+  static bool IsUnion(Type* t) { return IsTagged(t, 2); }
 
-  static ZoneList<void*>* AsTagged(ZoneType* t) {
+  static ZoneList<void*>* AsTagged(Type* t) {
     return reinterpret_cast<ZoneList<void*>*>(t);
   }
-  static int AsBitset(ZoneType* t) {
+  static int AsBitset(Type* t) {
     return static_cast<int>(reinterpret_cast<intptr_t>(t) >> 1);
   }
-  static Map* AsClass(ZoneType* t) {
+  static Map* AsClass(Type* t) {
     return *reinterpret_cast<Map**>(AsTagged(t)->at(1));
   }
-  static Object* AsConstant(ZoneType* t) {
+  static Object* AsConstant(Type* t) {
     return *reinterpret_cast<Object**>(AsTagged(t)->at(1));
   }
-  static ZoneList<ZoneType*>* AsUnion(ZoneType* t) {
-    return reinterpret_cast<ZoneList<ZoneType*>*>(AsTagged(t));
+  static ZoneList<Type*>* AsUnion(Type* t) {
+    return reinterpret_cast<ZoneList<Type*>*>(AsTagged(t));
   }
 
   static Zone* ToRegion(Zone* zone, Isolate* isolate) { return zone; }
@@ -158,15 +156,19 @@ struct ZoneRep {
 
 
 struct HeapRep {
-  static bool IsBitset(Handle<Type> t) { return t->IsSmi(); }
-  static bool IsClass(Handle<Type> t) { return t->IsMap(); }
-  static bool IsConstant(Handle<Type> t) { return t->IsBox(); }
-  static bool IsUnion(Handle<Type> t) { return t->IsFixedArray(); }
+  static bool IsBitset(Handle<HeapType> t) { return t->IsSmi(); }
+  static bool IsClass(Handle<HeapType> t) { return t->IsMap(); }
+  static bool IsConstant(Handle<HeapType> t) { return t->IsBox(); }
+  static bool IsUnion(Handle<HeapType> t) { return t->IsFixedArray(); }
 
-  static int AsBitset(Handle<Type> t) { return Smi::cast(*t)->value(); }
-  static Map* AsClass(Handle<Type> t) { return Map::cast(*t); }
-  static Object* AsConstant(Handle<Type> t) { return Box::cast(*t)->value(); }
-  static FixedArray* AsUnion(Handle<Type> t) { return FixedArray::cast(*t); }
+  static int AsBitset(Handle<HeapType> t) { return Smi::cast(*t)->value(); }
+  static Map* AsClass(Handle<HeapType> t) { return Map::cast(*t); }
+  static Object* AsConstant(Handle<HeapType> t) {
+    return Box::cast(*t)->value();
+  }
+  static FixedArray* AsUnion(Handle<HeapType> t) {
+    return FixedArray::cast(*t);
+  }
 
   static Isolate* ToRegion(Zone* zone, Isolate* isolate) { return isolate; }
 };
@@ -755,8 +757,8 @@ struct Tests : Rep {
   }
 };
 
-typedef Tests<ZoneType, ZoneType*, Zone, ZoneRep> ZoneTests;
-typedef Tests<Type, Handle<Type>, Isolate, HeapRep> HeapTests;
+typedef Tests<Type, Type*, Zone, ZoneRep> ZoneTests;
+typedef Tests<HeapType, Handle<HeapType>, Isolate, HeapRep> HeapTests;
 
 
 TEST(Bitset) {

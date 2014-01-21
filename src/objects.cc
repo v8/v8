@@ -16541,25 +16541,25 @@ void JSTypedArray::Neuter() {
 }
 
 
-Type* PropertyCell::type() {
-  return static_cast<Type*>(type_raw());
+HeapType* PropertyCell::type() {
+  return static_cast<HeapType*>(type_raw());
 }
 
 
-void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+void PropertyCell::set_type(HeapType* type, WriteBarrierMode ignored) {
   ASSERT(IsPropertyCell());
   set_type_raw(type, ignored);
 }
 
 
-Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
-                                       Handle<Object> value) {
+Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
+                                           Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
-  Handle<Type> old_type(cell->type(), isolate);
+  Handle<HeapType> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
   // embedded into code.
-  Handle<Type> new_type = value->IsConsString() || value->IsTheHole()
-      ? Type::Any(isolate) : Type::Constant(value, isolate);
+  Handle<HeapType> new_type = value->IsConsString() || value->IsTheHole()
+      ? HeapType::Any(isolate) : HeapType::Constant(value, isolate);
 
   if (new_type->Is(old_type)) {
     return old_type;
@@ -16568,19 +16568,19 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
   cell->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kPropertyCellChangedGroup);
 
-  if (old_type->Is(Type::None()) || old_type->Is(Type::Undefined())) {
+  if (old_type->Is(HeapType::None()) || old_type->Is(HeapType::Undefined())) {
     return new_type;
   }
 
-  return Type::Any(isolate);
+  return HeapType::Any(isolate);
 }
 
 
 void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
                                      Handle<Object> value) {
   cell->set_value(*value);
-  if (!Type::Any()->Is(cell->type())) {
-    Handle<Type> new_type = UpdatedType(cell, value);
+  if (!HeapType::Any()->Is(cell->type())) {
+    Handle<HeapType> new_type = UpdatedType(cell, value);
     cell->set_type(*new_type);
   }
 }

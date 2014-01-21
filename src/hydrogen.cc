@@ -1557,8 +1557,7 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
 }
 
 
-HValue* HGraphBuilder::BuildNumberToString(HValue* object,
-                                           Handle<Type> type) {
+HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
   NoObservableSideEffectsScope scope(this);
 
   // Convert constant numbers at compile time.
@@ -2584,7 +2583,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
 
 void HGraphBuilder::BuildCompareNil(
     HValue* value,
-    Handle<Type> type,
+    Type* type,
     HIfContinuation* continuation) {
   IfBuilder if_nil(this);
   bool some_case_handled = false;
@@ -2902,7 +2901,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
   function_state_= &initial_function_state_;
-  InitializeAstVisitor(info->isolate());
+  InitializeAstVisitor(info->zone());
   if (FLAG_emit_opt_code_positions) {
     SetSourcePosition(info->shared_info()->start_position());
   }
@@ -4233,7 +4232,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   CHECK_ALIVE(VisitForValue(stmt->tag()));
   Add<HSimulate>(stmt->EntryId());
   HValue* tag_value = Top();
-  Handle<Type> tag_type = stmt->tag()->bounds().lower;
+  Type* tag_type = stmt->tag()->bounds().lower;
 
   // 1. Build all the tests, with dangling true branches
   BailoutId default_id = BailoutId::None();
@@ -4249,8 +4248,8 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     CHECK_ALIVE(VisitForValue(clause->label()));
     HValue* label_value = Pop();
 
-    Handle<Type> label_type = clause->label()->bounds().lower;
-    Handle<Type> combined_type = clause->compare_type();
+    Type* label_type = clause->label()->bounds().lower;
+    Type* combined_type = clause->compare_type();
     HControlInstruction* compare = BuildCompareInstruction(
         Token::EQ_STRICT, tag_value, label_value, tag_type, label_type,
         combined_type, stmt->tag()->position(), clause->label()->position(),
@@ -8590,8 +8589,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     bool returns_original_input,
     CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
-  Handle<Type> info = expr->type();
-  Representation rep = Representation::FromType(info);
+  Representation rep = Representation::FromType(expr->type());
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
   }
@@ -8842,7 +8840,7 @@ bool CanBeZero(HValue* right) {
 
 
 HValue* HGraphBuilder::EnforceNumberType(HValue* number,
-                                         Handle<Type> expected) {
+                                         Type* expected) {
   if (expected->Is(Type::Smi())) {
     return AddUncasted<HForceRepresentation>(number, Representation::Smi());
   }
@@ -8854,12 +8852,12 @@ HValue* HGraphBuilder::EnforceNumberType(HValue* number,
 }
 
 
-HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
+HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     Maybe<HConstant*> number = constant->CopyToTruncatedNumber(zone());
     if (number.has_value) {
-      *expected = Type::Number(isolate());
+      *expected = Type::Number(zone());
       return AddInstruction(number.value);
     }
   }
@@ -8869,25 +8867,24 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
   // pushes with a NoObservableSideEffectsScope.
   NoObservableSideEffectsScope no_effects(this);
 
-  Handle<Type> expected_type = *expected;
+  Type* expected_type = *expected;
 
   // Separate the number type from the rest.
-  Handle<Type> expected_obj = Type::Intersect(
-      expected_type, Type::NonNumber(isolate()), isolate());
-  Handle<Type> expected_number = Type::Intersect(
-      expected_type, Type::Number(isolate()), isolate());
+  Type* expected_obj =
+      Type::Intersect(expected_type, Type::NonNumber(zone()), zone());
+  Type* expected_number =
+      Type::Intersect(expected_type, Type::Number(zone()), zone());
 
   // We expect to get a number.
   // (We need to check first, since Type::None->Is(Type::Any()) == true.
   if (expected_obj->Is(Type::None())) {
-    ASSERT(!expected_number->Is(Type::None()));
+    ASSERT(!expected_number->Is(Type::None(zone())));
     return value;
   }
 
-  if (expected_obj->Is(Type::Undefined())) {
+  if (expected_obj->Is(Type::Undefined(zone()))) {
     // This is already done by HChange.
-    *expected = Type::Union(
-          expected_number, Type::Double(isolate()), isolate());
+    *expected = Type::Union(expected_number, Type::Double(zone()), zone());
     return value;
   }
 
@@ -8899,9 +8896,9 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
     HValue* right) {
-  Handle<Type> left_type = expr->left()->bounds().lower;
-  Handle<Type> right_type = expr->right()->bounds().lower;
-  Handle<Type> result_type = expr->bounds().lower;
+  Type* left_type = expr->left()->bounds().lower;
+  Type* right_type = expr->right()->bounds().lower;
+  Type* result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Handle<AllocationSite> allocation_site = expr->allocation_site();
 
@@ -8931,9 +8928,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Token::Value op,
     HValue* left,
     HValue* right,
-    Handle<Type> left_type,
-    Handle<Type> right_type,
-    Handle<Type> result_type,
+    Type* left_type,
+    Type* right_type,
+    Type* result_type,
     Maybe<int> fixed_right_arg,
     HAllocationMode allocation_mode) {
 
@@ -8949,7 +8946,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
                      Deoptimizer::SOFT);
     // TODO(rossberg): we should be able to get rid of non-continuous
     // defaults.
-    left_type = Type::Any(isolate());
+    left_type = Type::Any(zone());
   } else {
     if (!maybe_string_add) left = TruncateToNumber(left, &left_type);
     left_rep = Representation::FromType(left_type);
@@ -8958,7 +8955,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   if (right_type->Is(Type::None())) {
     Add<HDeoptimize>("Insufficient type feedback for RHS of binary operation",
                      Deoptimizer::SOFT);
-    right_type = Type::Any(isolate());
+    right_type = Type::Any(zone());
   } else {
     if (!maybe_string_add) right = TruncateToNumber(right, &right_type);
     right_rep = Representation::FromType(right_type);
@@ -9366,9 +9363,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  Handle<Type> left_type = expr->left()->bounds().lower;
-  Handle<Type> right_type = expr->right()->bounds().lower;
-  Handle<Type> combined_type = expr->combined_type();
+  Type* left_type = expr->left()->bounds().lower;
+  Type* right_type = expr->right()->bounds().lower;
+  Type* combined_type = expr->combined_type();
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
@@ -9445,9 +9442,9 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     Token::Value op,
     HValue* left,
     HValue* right,
-    Handle<Type> left_type,
-    Handle<Type> right_type,
-    Handle<Type> combined_type,
+    Type* left_type,
+    Type* right_type,
+    Type* combined_type,
     int left_position,
     int right_position,
     BailoutId bailout_id) {
@@ -9457,7 +9454,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     Add<HDeoptimize>("Insufficient type feedback for combined type "
                      "of binary operation",
                      Deoptimizer::SOFT);
-    combined_type = left_type = right_type = Type::Any(isolate());
+    combined_type = left_type = right_type = Type::Any(zone());
   }
 
   Representation left_rep = Representation::FromType(left_type);
@@ -9553,8 +9550,8 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
     return ast_context()->ReturnControl(instr, expr->id());
   } else {
     ASSERT_EQ(Token::EQ, expr->op());
-    Handle<Type> type = expr->combined_type()->Is(Type::None())
-        ? Type::Any(isolate_) : expr->combined_type();
+    Type* type = expr->combined_type()->Is(Type::None())
+        ? Type::Any(zone()) : expr->combined_type();
     HIfContinuation continuation;
     BuildCompareNil(value, type, &continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
@@ -10324,7 +10321,7 @@ void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* number = Pop();
-  HValue* result = BuildNumberToString(number, Type::Any(isolate()));
+  HValue* result = BuildNumberToString(number, Type::Any(zone()));
   return ast_context()->ReturnValue(result);
 }
 
