@@ -591,9 +591,18 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
 
 
 intptr_t MarkCompactCollector::RefillFreeLists(PagedSpace* space) {
-  FreeList* free_list = space == heap()->old_pointer_space()
-                            ? free_list_old_pointer_space_.get()
-                            : free_list_old_data_space_.get();
+  FreeList* free_list;
+
+  if (space == heap()->old_pointer_space()) {
+    free_list = free_list_old_pointer_space_.get();
+  } else if (space == heap()->old_data_space()) {
+    free_list = free_list_old_data_space_.get();
+  } else {
+    // Any PagedSpace might invoke RefillFreeLists, so we need to make sure
+    // to only refill them for old data and pointer spaces.
+    return 0;
+  }
+
   intptr_t freed_bytes = space->free_list()->Concatenate(free_list);
   space->AddToAccountingStats(freed_bytes);
   space->DecrementUnsweptFreeBytes(freed_bytes);
