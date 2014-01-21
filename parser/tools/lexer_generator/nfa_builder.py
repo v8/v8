@@ -38,10 +38,16 @@ class NfaBuilder(object):
     self.__encoding = encoding
     self.__character_classes = character_classes
     self.__states = []
+    self.__global_end_node = None
 
   def __new_state(self):
     self.__node_number += 1
     return NfaState()
+
+  def __global_end(self):
+    if not self.__global_end_node:
+      self.__global_end_node = self.__new_state()
+    return self.__global_end_node
 
   def __or(self, graph):
     start = self.__new_state()
@@ -131,6 +137,9 @@ class NfaBuilder(object):
     end = self.__new_state()
     self.__patch_ends(ends, end)
     end.set_action(action)
+    if action.match_action():
+      global_end = self.__global_end()
+      end.add_epsilon_transition(global_end)
     return (start, [end])
 
   def __continue(self, graph):
@@ -152,9 +161,12 @@ class NfaBuilder(object):
     (subgraph_start, subgraph_end, nodes_in_subgraph) = subgraphs[name]
     (start, ends) = self.__process(graph)
     self.__patch_ends(ends, subgraph_start)
-    end = self.__new_state()
-    subgraph_end.add_epsilon_transition(end)
-    return (start, [end])
+    if subgraph_end:
+      end = self.__new_state()
+      subgraph_end.add_epsilon_transition(end)
+      return (start, [end])
+    else:
+      return (start, [])
 
   def __process(self, graph):
     assert type(graph) == TupleType
@@ -180,7 +192,7 @@ class NfaBuilder(object):
     return self.__states.pop()
 
   def __peek_state(self):
-    return self.__states[len(self.__states) - 1]
+    return self.__states[-1]
 
   def __nfa(self, graph):
     start_node_number = self.__node_number
@@ -191,13 +203,17 @@ class NfaBuilder(object):
       state['start_node'].close(start)
       start = state['start_node']
     for k, subgraph in state['subgraphs'].items():
-      subgraph[1].close(None)
-    end =  self.__new_state()
-    if self.__states:
-      self.__peek_state()['unpatched_ends'] += state['unpatched_ends']
-    else:
-      self.__patch_ends(state['unpatched_ends'], end)
-    self.__patch_ends(ends, end)
+      if subgraph[1]:
+        subgraph[1].close(None)
+
+    # Don't create an end node for the subgraph if it would be unused (ends can
+    # be an empty list e.g., in the case when everything inside the subgraph is
+    # "continue").
+    end = None
+    if ends:
+      end = self.__new_state()
+      self.__patch_ends(ends, end)
+
     return (start, end, self.__node_number - start_node_number)
 
   @staticmethod
@@ -233,11 +249,23 @@ class NfaBuilder(object):
 
   def nfa(self, graph):
     (start, end, nodes_created) = self.__nfa(graph)
-    end.close(None)
+
+    global_end_to_return = self.__global_end_node or end
+    assert global_end_to_return
+    if end and self.__global_end_node:
+      end.close(self.__global_end_node)
+
+    global_end_to_return.close(None)
+
+    # FIXME: the same NfaBuilder should not be called twice, so this cleanup
+    # should be unnecessary.
+    self.__global_end_node = None
+
     self.__compute_epsilon_closures(start)
     f = lambda node, state: self.__replace_catch_all(self.__encoding, node)
     Automaton.visit_states(set([start]), f)
-    return Nfa(self.__encoding, start, end, nodes_created)
+
+    return Nfa(self.__encoding, start, global_end_to_return, nodes_created)
 
   @staticmethod
   def rule_tree_dot(graph):

@@ -302,7 +302,6 @@ class RuleProcessor(object):
     assert 'default' in parser_state.rules
     def process(subgraph, v):
       graphs = []
-      continues = 0
       for graph, precedence, action in v['regex']:
         (entry_action, match_action, transition) = action
         if entry_action or match_action:
@@ -312,15 +311,12 @@ class RuleProcessor(object):
           pass
         elif transition == 'continue':
           assert not subgraph == 'default'
-          continues += 1
           graph = NfaBuilder.add_continue(graph)
         else:
           assert subgraph == 'default'
           graph = NfaBuilder.join_subgraph(
             graph, transition, rule_map[transition])
         graphs.append(graph)
-      if continues == len(graphs):
-        graphs.append(NfaBuilder.epsilon())
       if v['catch_all']:
         (precedence, catch_all) = v['catch_all']
         assert catch_all == (None, None, 'continue'), "unimplemented"
