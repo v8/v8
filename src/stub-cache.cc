@@ -1994,45 +1994,20 @@ CallOptimization::CallOptimization(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> CallOptimization::LookupHolderOfExpectedType(
-    Handle<JSObject> receiver,
+int CallOptimization::GetPrototypeDepthOfExpectedType(
     Handle<JSObject> object,
-    Handle<JSObject> holder,
-    HolderLookup* holder_lookup) const {
+    Handle<JSObject> holder) const {
   ASSERT(is_simple_api_call());
-  ASSERT_EQ(kHolderNotFound, *holder_lookup);
-  *holder_lookup = kHolderIsReceiver;
-  Handle<Map> map_to_holder;
-  if (expected_receiver_type_.is_null()) {
-    // no expected type, load from receiver.
-    return map_to_holder;
-  }
-  // walk down the prototype chain to the object
-  while (!receiver.is_identical_to(object)) {
-    *holder_lookup = kHolderIsPrototypeOfMap;
-    map_to_holder = Handle<Map>(receiver->map());
-    receiver = Handle<JSObject>(JSObject::cast(map_to_holder->prototype()));
-    ASSERT(!expected_receiver_type_->IsTemplateFor(*map_to_holder));
-  }
-  // start looking for the holder
+  if (expected_receiver_type_.is_null()) return 0;
+  int depth = 0;
   while (!object.is_identical_to(holder)) {
-    Handle<Map> object_map(object->map());
-    if (expected_receiver_type_->IsTemplateFor(*object_map)) {
-      return map_to_holder;
-    }
-    if (!object_map->is_hidden_prototype()) {
-      *holder_lookup = kHolderNotFound;
-      return Handle<Map>::null();
-    }
-    *holder_lookup = kHolderIsPrototypeOfMap;
-    map_to_holder = object_map;
-    object = Handle<JSObject>(JSObject::cast(object_map->prototype()));
+    if (expected_receiver_type_->IsTemplateFor(object->map())) return depth;
+    object = Handle<JSObject>(JSObject::cast(object->GetPrototype()));
+    if (!object->map()->is_hidden_prototype()) return kInvalidProtoDepth;
+    ++depth;
   }
-  if (expected_receiver_type_->IsTemplateFor(holder->map())) {
-    return map_to_holder;
-  }
-  *holder_lookup = kHolderNotFound;
-  return Handle<Map>::null();
+  if (expected_receiver_type_->IsTemplateFor(holder->map())) return depth;
+  return kInvalidProtoDepth;
 }
 
 
