@@ -10277,7 +10277,7 @@ void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* number = Pop();
-  HValue* result = BuildNumberToString(number, Type::Number(isolate()));
+  HValue* result = BuildNumberToString(number, Type::Any(isolate()));
   return ast_context()->ReturnValue(result);
 }
 
