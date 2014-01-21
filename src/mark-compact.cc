@@ -3078,7 +3078,7 @@ void MarkCompactCollector::EvacuatePages() {
     // crash in concurrent sweeping.
     CHECK(p->IsEvacuationCandidate() ||
           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
-    CHECK_EQ(p->parallel_sweeping(), 0);
+    CHECK_EQ(static_cast<int>(p->parallel_sweeping()), 0);
     if (p->IsEvacuationCandidate()) {
       // During compaction we might have to request a new page.
       // Check that space still have room for that.
