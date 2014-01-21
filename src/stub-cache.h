@@ -483,20 +483,6 @@ class StubCompiler BASE_EMBEDDED {
                            Register scratch2,
                            Handle<Name> name,
                            Label* miss,
-                           PrototypeCheckType check = CHECK_ALL_MAPS) {
-    return CheckPrototypes(type, object_reg, holder, holder_reg, scratch1,
-                           scratch2, name, kInvalidProtoDepth, miss, check);
-  }
-
-  Register CheckPrototypes(Handle<Type> type,
-                           Register object_reg,
-                           Handle<JSObject> holder,
-                           Register holder_reg,
-                           Register scratch1,
-                           Register scratch2,
-                           Handle<Name> name,
-                           int save_at_depth,
-                           Label* miss,
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
   void GenerateBooleanCheck(Register object, Label* miss);
@@ -1028,10 +1014,19 @@ class CallOptimization BASE_EMBEDDED {
     return api_call_info_;
   }
 
-  // Returns the depth of the object having the expected type in the
-  // prototype chain between the two arguments.
-  int GetPrototypeDepthOfExpectedType(Handle<JSObject> object,
-                                      Handle<JSObject> holder) const;
+  enum HolderLookup {
+    kHolderNotFound,
+    kHolderIsReceiver,
+    kHolderIsPrototypeOfMap
+  };
+  // Returns a map whose prototype has the expected type in the
+  // prototype chain between the two arguments
+  // null will be returned if the first argument has that property
+  // lookup will be set accordingly
+  Handle<Map> LookupHolderOfExpectedType(Handle<JSObject> receiver,
+                                         Handle<JSObject> object,
+                                         Handle<JSObject> holder,
+                                         HolderLookup* holder_lookup) const;
 
   bool IsCompatibleReceiver(Object* receiver) {
     ASSERT(is_simple_api_call());
