@@ -141,7 +141,7 @@ struct ZoneRep {
     return reinterpret_cast<ZoneList<void*>*>(t);
   }
   static int AsBitset(ZoneType* t) {
-    return reinterpret_cast<intptr_t>(t) >> 1;
+    return static_cast<int>(reinterpret_cast<intptr_t>(t) >> 1);
   }
   static Map* AsClass(ZoneType* t) {
     return *reinterpret_cast<Map**>(AsTagged(t)->at(1));

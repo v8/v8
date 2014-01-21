@@ -355,7 +355,7 @@ struct ZoneTypeConfig {
 
   static int as_bitset(Type* type) {
     ASSERT(is_bitset(type));
-    return reinterpret_cast<intptr_t>(type) >> 1;
+    return static_cast<int>(reinterpret_cast<intptr_t>(type) >> 1);
   }
   static Tagged* as_tagged(Type* type) {
     ASSERT(is_tagged(type));
