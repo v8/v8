@@ -1521,6 +1521,7 @@ class FreeListCategory {
   FreeListNode* PickNodeFromList(int size_in_bytes, int *node_size);
 
   intptr_t EvictFreeListItemsInList(Page* p);
+  bool ContainsPageFreeListItemsInList(Page* p);
 
   void RepairFreeList(Heap* heap);
 
@@ -1537,6 +1538,10 @@ class FreeListCategory {
   void set_available(int available) { available_ = available; }
 
   Mutex* mutex() { return &mutex_; }
+
+  bool IsEmpty() {
+    return top_ == NULL;
+  }
 
 #ifdef DEBUG
   intptr_t SumFreeList();
@@ -1605,6 +1610,11 @@ class FreeList {
   // 'wasted_bytes'.  The size should be a non-zero multiple of the word size.
   MUST_USE_RESULT HeapObject* Allocate(int size_in_bytes);
 
+  bool IsEmpty() {
+    return small_list_.IsEmpty() && medium_list_.IsEmpty() &&
+           large_list_.IsEmpty() && huge_list_.IsEmpty();
+  }
+
 #ifdef DEBUG
   void Zap();
   intptr_t SumFreeLists();
@@ -1615,6 +1625,7 @@ class FreeList {
   void RepairLists(Heap* heap);
 
   intptr_t EvictFreeListItems(Page* p);
+  bool ContainsPageFreeListItems(Page* p);
 
   FreeListCategory* small_list() { return &small_list_; }
   FreeListCategory* medium_list() { return &medium_list_; }

@@ -1142,6 +1142,11 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
     DecreaseUnsweptFreeBytes(page);
   }
 
+  // TODO(hpayer): This check is just used for debugging purpose and
+  // should be removed or turned into an assert after investigating the
+  // crash in concurrent sweeping.
+  CHECK(!free_list_.ContainsPageFreeListItems(page));
+
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
     allocation_info_.set_top(NULL);
     allocation_info_.set_limit(NULL);
@@ -2125,6 +2130,16 @@ intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
 }
 
 
+bool FreeListCategory::ContainsPageFreeListItemsInList(Page* p) {
+  FreeListNode** n = &top_;
+  while (*n != NULL) {
+    if (Page::FromAddress((*n)->address()) == p) return true;
+    n = (*n)->next_address();
+  }
+  return false;
+}
+
+
 FreeListNode* FreeListCategory::PickNodeFromList(int *node_size) {
   FreeListNode* node = top_;
 
@@ -2449,6 +2464,14 @@ intptr_t FreeList::EvictFreeListItems(Page* p) {
   }
 
   return sum;
+}
+
+
+bool FreeList::ContainsPageFreeListItems(Page* p) {
+  return huge_list_.EvictFreeListItemsInList(p) ||
+         small_list_.EvictFreeListItemsInList(p) ||
+         medium_list_.EvictFreeListItemsInList(p) ||
+         large_list_.EvictFreeListItemsInList(p);
 }
 
 

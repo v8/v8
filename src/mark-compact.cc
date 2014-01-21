@@ -570,6 +570,11 @@ void MarkCompactCollector::ClearMarkbits() {
 
 
 void MarkCompactCollector::StartSweeperThreads() {
+  // TODO(hpayer): This check is just used for debugging purpose and
+  // should be removed or turned into an assert after investigating the
+  // crash in concurrent sweeping.
+  CHECK(free_list_old_pointer_space_.get()->IsEmpty());
+  CHECK(free_list_old_data_space_.get()->IsEmpty());
   sweeping_pending_ = true;
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
@@ -3068,8 +3073,12 @@ void MarkCompactCollector::EvacuatePages() {
   int npages = evacuation_candidates_.length();
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
-    ASSERT(p->IsEvacuationCandidate() ||
-           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+    // TODO(hpayer): This check is just used for debugging purpose and
+    // should be removed or turned into an assert after investigating the
+    // crash in concurrent sweeping.
+    CHECK(p->IsEvacuationCandidate() ||
+          p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+    CHECK_EQ(p->parallel_sweeping(), 0);
     if (p->IsEvacuationCandidate()) {
       // During compaction we might have to request a new page.
       // Check that space still have room for that.
@@ -3900,7 +3909,10 @@ template<MarkCompactCollector::SweepingParallelism mode>
 intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
                                                    FreeList* free_list,
                                                    Page* p) {
-  ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
+  // TODO(hpayer): This check is just used for debugging purpose and
+  // should be removed or turned into an assert after investigating the
+  // crash in concurrent sweeping.
+  CHECK(!p->IsEvacuationCandidate() && !p->WasSwept());
   ASSERT((mode == MarkCompactCollector::SWEEP_IN_PARALLEL &&
          free_list != NULL) ||
          (mode == MarkCompactCollector::SWEEP_SEQUENTIALLY &&
