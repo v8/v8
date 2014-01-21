@@ -179,7 +179,7 @@ class Automaton(object):
     valid_states = self.epsilon_closure(valid_states)
     return len(self.terminal_set().intersection(valid_states)) > 0
 
-  def lex(self, string):
+  def lex(self, string, default_action):
     last_position = 0
     valid_states = self.start_set()
     for pos, c in enumerate(string):
@@ -188,7 +188,9 @@ class Automaton(object):
         valid_states = transitions
         continue
       action = Action.dominant_action(valid_states)
-      assert action # must invoke default action here
+      if not action:
+        assert default_action
+        action = default_action
       yield (action, last_position, pos)
       last_position = pos
       # lex next token
@@ -196,7 +198,9 @@ class Automaton(object):
       assert valid_states
     valid_states = self.epsilon_closure(valid_states)
     action = Action.dominant_action(valid_states)
-    assert action # must invoke default action here
+    if not action:
+      assert default_action
+      action = default_action
     yield (action, last_position, len(string))
 
   def to_dot(self):

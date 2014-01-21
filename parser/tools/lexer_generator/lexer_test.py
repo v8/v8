@@ -32,10 +32,13 @@ from rule_parser import RuleProcessor
 class LexerTestCase(unittest.TestCase):
 
   def __verify_action_stream(self, rules, string, expected):
-    expected = map(lambda (action, s) : (Action(None, (action, None)), s), expected)
-    automata = RuleProcessor.parse(rules, 'latin1').default_automata()
+    expected = map(lambda (action, s) : (Action(None, (action, None)), s),
+                   expected)
+    rule_processor = RuleProcessor.parse(rules, 'latin1')
+    automata = rule_processor.default_automata()
     for automaton in [automata.nfa(), automata.dfa(), automata.minimal_dfa()]:
-        for i, (action, start, stop) in enumerate(automaton.lex(string)):
+        for i, (action, start, stop) in enumerate(
+            automaton.lex(string, rule_processor.default_action)):
           self.assertEquals(expected[i][0], action)
           self.assertEquals(expected[i][1], string[start : stop])
 
@@ -102,3 +105,45 @@ class LexerTestCase(unittest.TestCase):
     self.__verify_action_stream(rules, 'ke', [('ID', 'ke')])
     self.__verify_action_stream(rules, 'key', [('ID', 'key')])
     self.__verify_action_stream(rules, 'keys', [('ID', 'keys')])
+
+  def test_simple_subgraph(self):
+    rules = '''
+    <<default>>
+    /[a-z]/ <|ID|Identifier>
+    " "     <|SPACE|>
+    <<Identifier>>
+    /[a-z]/ <|ID|continue>
+    '''
+    self.__verify_action_stream(rules, 'a bc def',
+                                [('ID', 'a'), ('SPACE', ' '), ('ID', 'bc'),
+                                 ('SPACE', ' '), ('ID', 'def')])
+
+  def test_entering_subgraph_without_match_action(self):
+    # Note: there is no match action for entering the subgraph. It means that
+    # one char identifiers are not accepted.
+    rules = '''
+    <<default>>
+    /[a-z]/ <||Identifier>
+    " "     <|SPACE|>
+    default_action <ILLEGAL>
+    <<Identifier>>
+    /[a-z]/ <|ID|continue>
+    '''
+    self.__verify_action_stream(rules, 'bc a def',
+                                [('ID', 'bc'), ('SPACE', ' '), ('ILLEGAL', 'a'),
+                                 ('SPACE', ' '), ('ID', 'def')])
+
+  def test_subgraph_with_noncontinue(self):
+    # In the "Identifier" subgraph, we have rules which don't have "continue".
+    rules = '''
+    <<default>>
+    /[b-z]/ <|ID|Identifier>
+    " "     <|SPACE|>
+    <<Identifier>>
+    /[b-z]/ <|ID|continue>
+    /[a]/   <|INVALID|>
+    '''
+    self.__verify_action_stream(rules, 'bc ba de',
+                                [('ID', 'bc'), ('SPACE', ' '),
+                                 ('INVALID', 'ba'), ('SPACE', ' '),
+                                 ('ID', 'de')])
