@@ -104,13 +104,23 @@
   # Tests verifying CHECK and ASSERT.
   'verify-check-false': [FAIL, NO_VARIANTS],
   'verify-assert-false': [NO_VARIANTS, ['mode == release', PASS], ['mode == debug', FAIL]],
-
-  # TODO(machenbach): Temporarily marked as flaky until there is infrastructure
-  # to disable these tests on GC stress.
-  'elements-kind': [PASS, ['mode == debug and system == linux', FLAKY]],
-  'osr-elements-kind': [PASS, ['mode == debug and system == linux', FLAKY]],
-  'array-literal-feedback': [PASS, ['mode == debug and system == linux', FLAKY]],
 }],  # ALWAYS
+
+##############################################################################
+['gc_stress == True', {
+  # Skip tests not suitable for GC stress.
+  'allocation-site-info': [SKIP],
+  'array-constructor-feedback': [SKIP],
+  'array-feedback': [SKIP],
+  'array-literal-feedback': [SKIP],
+  'd8-performance-now': [SKIP],
+  'elements-kind': [SKIP],
+  'fast-prototype': [SKIP],
+  'opt-elements-kind': [SKIP],
+  'osr-elements-kind': [SKIP],
+  'regress/regress-165637': [SKIP],
+  'regress/regress-2249': [SKIP],
+}],  # 'gc_stress == True'
 
 ##############################################################################
 ['arch == arm or arch == android_arm', {

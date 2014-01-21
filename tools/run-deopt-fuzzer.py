@@ -363,12 +363,13 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # Find available test suites and read test cases from them.
   variables = {
-    "mode": mode,
     "arch": arch,
-    "system": utils.GuessOS(),
-    "isolates": options.isolates,
     "deopt_fuzzer": True,
+    "gc_stress": False,
+    "isolates": options.isolates,
+    "mode": mode,
     "no_i18n": False,
+    "system": utils.GuessOS(),
   }
   all_tests = []
   num_tests = 0
