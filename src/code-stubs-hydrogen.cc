@@ -652,10 +652,7 @@ HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
     AllocationSiteOverrideMode override_mode,
     ArgumentClass argument_class) {
   HValue* constructor = GetParameter(ArrayConstructorStubBase::kConstructor);
-  HValue* property_cell = GetParameter(ArrayConstructorStubBase::kPropertyCell);
-  // Walk through the property cell to the AllocationSite
-  HValue* alloc_site = Add<HLoadNamedField>(property_cell,
-                                            HObjectAccess::ForCellValue());
+  HValue* alloc_site = GetParameter(ArrayConstructorStubBase::kAllocationSite);
   JSArrayBuilder array_builder(this, kind, alloc_site, constructor,
                                override_mode);
   HValue* result = NULL;

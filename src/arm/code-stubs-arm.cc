@@ -200,7 +200,7 @@ static void InitializeArrayConstructorDescriptor(
   // register state
   // r0 -- number of arguments
   // r1 -- function
-  // r2 -- type info cell with elements kind
+  // r2 -- allocation site with elements kind
   static Register registers_variable_args[] = { r1, r2, r0 };
   static Register registers_no_args[] = { r1, r2 };
 
@@ -5784,7 +5784,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
 
 static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
                                            AllocationSiteOverrideMode mode) {
-  // r2 - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // r2 - allocation site (if mode != DISABLE_ALLOCATION_SITES)
   // r3 - kind (if mode != DISABLE_ALLOCATION_SITES)
   // r0 - number of arguments
   // r1 - constructor?
@@ -5824,22 +5824,20 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // We are going to create a holey array, but our kind is non-holey.
     // Fix kind and retry (only if we have an allocation site in the cell).
     __ add(r3, r3, Operand(1));
-    __ ldr(r5, FieldMemOperand(r2, Cell::kValueOffset));
 
     if (FLAG_debug_code) {
-      __ ldr(r5, FieldMemOperand(r5, 0));
+      __ ldr(r5, FieldMemOperand(r2, 0));
       __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
-      __ Assert(eq, kExpectedAllocationSiteInCell);
-      __ ldr(r5, FieldMemOperand(r2, Cell::kValueOffset));
+      __ Assert(eq, kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store r3
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field...upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ ldr(r4, FieldMemOperand(r5, AllocationSite::kTransitionInfoOffset));
+    __ ldr(r4, FieldMemOperand(r2, AllocationSite::kTransitionInfoOffset));
     __ add(r4, r4, Operand(Smi::FromInt(kFastElementsKindPackedToHoley)));
-    __ str(r4, FieldMemOperand(r5, AllocationSite::kTransitionInfoOffset));
+    __ str(r4, FieldMemOperand(r2, AllocationSite::kTransitionInfoOffset));
 
     __ bind(&normal_sequence);
     int last_index = GetSequenceIndexFromFastElementsKind(
@@ -5963,15 +5961,15 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // Get the elements kind and case on that.
   __ CompareRoot(r2, Heap::kUndefinedValueRootIndex);
   __ b(eq, &no_info);
-  __ ldr(r3, FieldMemOperand(r2, Cell::kValueOffset));
+  __ ldr(r2, FieldMemOperand(r2, Cell::kValueOffset));
 
   // If the type cell is undefined, or contains anything other than an
   // AllocationSite, call an array constructor that doesn't use AllocationSites.
-  __ ldr(r4, FieldMemOperand(r3, 0));
+  __ ldr(r4, FieldMemOperand(r2, 0));
   __ CompareRoot(r4, Heap::kAllocationSiteMapRootIndex);
   __ b(ne, &no_info);
 
-  __ ldr(r3, FieldMemOperand(r3, AllocationSite::kTransitionInfoOffset));
+  __ ldr(r3, FieldMemOperand(r2, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(r3);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
   __ and_(r3, r3, Operand(AllocationSite::ElementsKindBits::kMask));
