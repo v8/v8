@@ -109,6 +109,7 @@
   # to disable these tests on GC stress.
   'elements-kind': [PASS, ['mode == debug and system == linux', FLAKY]],
   'osr-elements-kind': [PASS, ['mode == debug and system == linux', FLAKY]],
+  'array-literal-feedback': [PASS, ['mode == debug and system == linux', FLAKY]],
 }],  # ALWAYS
 
 ##############################################################################
