@@ -571,6 +571,8 @@ class MarkCompactCollector {
 
   static void Initialize();
 
+  void SetUp();
+
   void TearDown();
 
   void CollectEvacuationCandidates(PagedSpace* space);
@@ -716,8 +718,7 @@ class MarkCompactCollector {
 
   // Concurrent and parallel sweeping support.
   void SweepInParallel(PagedSpace* space,
-                       FreeList* private_free_list,
-                       FreeList* free_list);
+                       FreeList* private_free_list);
 
   void WaitUntilSweepingCompleted();
 
@@ -956,6 +957,9 @@ class MarkCompactCollector {
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;
+
+  SmartPointer<FreeList> free_list_old_data_space_;
+  SmartPointer<FreeList> free_list_old_pointer_space_;
 
   friend class Heap;
 };

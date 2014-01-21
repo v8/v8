@@ -1576,7 +1576,7 @@ class FreeListCategory {
 //     These spaces are call large.
 // At least 16384 words.  This list is for objects of 2048 words or larger.
 //     Empty pages are added to this list.  These spaces are called huge.
-class FreeList BASE_EMBEDDED {
+class FreeList {
  public:
   explicit FreeList(PagedSpace* owner);
 
@@ -1945,7 +1945,7 @@ class PagedSpace : public Space {
   MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   friend class PageIterator;
-  friend class SweeperThread;
+  friend class MarkCompactCollector;
 };
 
 

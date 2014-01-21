@@ -45,8 +45,6 @@ SweeperThread::SweeperThread(Isolate* isolate)
        start_sweeping_semaphore_(0),
        end_sweeping_semaphore_(0),
        stop_semaphore_(0),
-       free_list_old_data_space_(heap_->paged_space(OLD_DATA_SPACE)),
-       free_list_old_pointer_space_(heap_->paged_space(OLD_POINTER_SPACE)),
        private_free_list_old_data_space_(heap_->paged_space(OLD_DATA_SPACE)),
        private_free_list_old_pointer_space_(
            heap_->paged_space(OLD_POINTER_SPACE)) {
@@ -69,23 +67,11 @@ void SweeperThread::Run() {
     }
 
     collector_->SweepInParallel(heap_->old_data_space(),
-                                &private_free_list_old_data_space_,
-                                &free_list_old_data_space_);
+                                &private_free_list_old_data_space_);
     collector_->SweepInParallel(heap_->old_pointer_space(),
-                                &private_free_list_old_pointer_space_,
-                                &free_list_old_pointer_space_);
+                                &private_free_list_old_pointer_space_);
     end_sweeping_semaphore_.Signal();
   }
-}
-
-
-intptr_t SweeperThread::StealMemory(PagedSpace* space) {
-  if (space->identity() == OLD_POINTER_SPACE) {
-    return space->free_list()->Concatenate(&free_list_old_pointer_space_);
-  } else if (space->identity() == OLD_DATA_SPACE) {
-    return space->free_list()->Concatenate(&free_list_old_data_space_);
-  }
-  return 0;
 }
 
 

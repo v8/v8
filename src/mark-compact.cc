@@ -348,6 +348,12 @@ static void VerifyNativeContextSeparation(Heap* heap) {
 #endif
 
 
+void MarkCompactCollector::SetUp() {
+  free_list_old_data_space_.Reset(new FreeList(heap_->old_data_space()));
+  free_list_old_pointer_space_.Reset(new FreeList(heap_->old_pointer_space()));
+}
+
+
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
 }
@@ -586,10 +592,10 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
 
 intptr_t MarkCompactCollector::
              StealMemoryFromSweeperThreads(PagedSpace* space) {
-  intptr_t freed_bytes = 0;
-  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
-    freed_bytes += isolate()->sweeper_threads()[i]->StealMemory(space);
-  }
+  FreeList* free_list = space == heap()->old_pointer_space()
+                            ? free_list_old_pointer_space_.get()
+                            : free_list_old_data_space_.get();
+  intptr_t freed_bytes = space->free_list()->Concatenate(free_list);
   space->AddToAccountingStats(freed_bytes);
   space->DecrementUnsweptFreeBytes(freed_bytes);
   return freed_bytes;
@@ -3971,9 +3977,11 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
 
 
 void MarkCompactCollector::SweepInParallel(PagedSpace* space,
-                                           FreeList* private_free_list,
-                                           FreeList* free_list) {
+                                           FreeList* private_free_list) {
   PageIterator it(space);
+  FreeList* free_list = space == heap()->old_pointer_space()
+                            ? free_list_old_pointer_space_.get()
+                            : free_list_old_data_space_.get();
   while (it.has_next()) {
     Page* p = it.next();
 

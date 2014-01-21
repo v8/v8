@@ -6531,6 +6531,8 @@ bool Heap::SetUp() {
 
   store_buffer()->SetUp();
 
+  mark_compact_collector()->SetUp();
+
   if (FLAG_concurrent_recompilation) relocation_mutex_ = new Mutex;
 
   return true;
