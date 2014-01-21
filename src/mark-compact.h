@@ -721,7 +721,7 @@ class MarkCompactCollector {
 
   void WaitUntilSweepingCompleted();
 
-  intptr_t StealMemoryFromSweeperThreads(PagedSpace* space);
+  intptr_t RefillFreeLists(PagedSpace* space);
 
   bool AreSweeperThreadsActivated();
 

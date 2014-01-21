@@ -583,15 +583,14 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
     isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
   sweeping_pending_ = false;
-  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
-  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
+  RefillFreeLists(heap()->paged_space(OLD_DATA_SPACE));
+  RefillFreeLists(heap()->paged_space(OLD_POINTER_SPACE));
   heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
   heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
 }
 
 
-intptr_t MarkCompactCollector::
-             StealMemoryFromSweeperThreads(PagedSpace* space) {
+intptr_t MarkCompactCollector::RefillFreeLists(PagedSpace* space) {
   FreeList* free_list = space == heap()->old_pointer_space()
                             ? free_list_old_pointer_space_.get()
                             : free_list_old_data_space_.get();

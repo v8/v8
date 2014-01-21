@@ -2612,7 +2612,7 @@ bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->AreSweeperThreadsActivated()) {
     if (collector->IsConcurrentSweepingInProgress()) {
-      if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
+      if (collector->RefillFreeLists(this) < size_in_bytes) {
         if (!collector->sequential_sweeping()) {
           collector->WaitUntilSweepingCompleted();
           return true;
