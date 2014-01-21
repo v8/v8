@@ -44,10 +44,7 @@ SweeperThread::SweeperThread(Isolate* isolate)
        collector_(heap_->mark_compact_collector()),
        start_sweeping_semaphore_(0),
        end_sweeping_semaphore_(0),
-       stop_semaphore_(0),
-       private_free_list_old_data_space_(heap_->paged_space(OLD_DATA_SPACE)),
-       private_free_list_old_pointer_space_(
-           heap_->paged_space(OLD_POINTER_SPACE)) {
+       stop_semaphore_(0) {
   NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
 }
 
@@ -66,10 +63,8 @@ void SweeperThread::Run() {
       return;
     }
 
-    collector_->SweepInParallel(heap_->old_data_space(),
-                                &private_free_list_old_data_space_);
-    collector_->SweepInParallel(heap_->old_pointer_space(),
-                                &private_free_list_old_pointer_space_);
+    collector_->SweepInParallel(heap_->old_data_space());
+    collector_->SweepInParallel(heap_->old_pointer_space());
     end_sweeping_semaphore_.Signal();
   }
 }

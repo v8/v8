@@ -717,8 +717,7 @@ class MarkCompactCollector {
   MarkingParity marking_parity() { return marking_parity_; }
 
   // Concurrent and parallel sweeping support.
-  void SweepInParallel(PagedSpace* space,
-                       FreeList* private_free_list);
+  void SweepInParallel(PagedSpace* space);
 
   void WaitUntilSweepingCompleted();
 
