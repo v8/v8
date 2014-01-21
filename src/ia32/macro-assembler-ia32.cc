@@ -3585,10 +3585,16 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
 
   // Check that there are no elements. Register rcx contains the current JS
   // object we've reached through the prototype chain.
+  Label no_elements;
   mov(ecx, FieldOperand(ecx, JSObject::kElementsOffset));
   cmp(ecx, isolate()->factory()->empty_fixed_array());
+  j(equal, &no_elements);
+
+  // Second chance, the object may be using the empty slow element dictionary.
+  cmp(ecx, isolate()->factory()->empty_slow_element_dictionary());
   j(not_equal, call_runtime);
 
+  bind(&no_elements);
   mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
   cmp(ecx, isolate()->factory()->null_value());
   j(not_equal, &next);
