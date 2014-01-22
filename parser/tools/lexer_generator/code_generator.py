@@ -51,6 +51,9 @@ class CodeGenerator:
     self.__log = log
     self.__inline = inline
     self.__switching = switching
+    self.__jump_table = []
+
+  __jump_labels = ['state_entry', 'after_entry_code']
 
   @staticmethod
   def __transform_state(encoding, state):
@@ -111,13 +114,14 @@ class CodeGenerator:
       'distinct_keys' : distinct_keys,
       'ranges' : ranges,
       # record of which entry points will be needed
-      'entry_points' : {
-        'state_entry' : True,
-        'after_entry_code' : False,
-        # 'before_match' : False,
-        # 'before_deferred' : False,
-      }
+      'entry_points' : {k : False for k in CodeGenerator.__jump_labels}
     }
+
+  def __register_jump(self, node_id, label):
+    assert label in CodeGenerator.__jump_labels
+    state = self.__dfa_states[node_id]['entry_points'][label] = True
+    self.__jump_table.append((node_id, label))
+    return len(self.__jump_table) - 1
 
   def __set_inline(self, count, state):
     assert state['inline'] == None
@@ -282,20 +286,36 @@ class CodeGenerator:
     for state in states:
       if not state['match_action']:
         continue
-      if state['match_action'][0] in mapped_actions:
+      action = state['match_action'][0]
+      if action in mapped_actions:
         value = state['match_action'][1]
-        value = tuple(list(value[:-1]) + [goto_map[value[-1]]])
-        state['match_action'] = (state['match_action'][0], value)
-        if state['match_action'][0] != 'goto_start':
-          states[value[-1]]['entry_points']['after_entry_code'] = True
+        target_id = goto_map[value[-1]]
+        if action != 'goto_start':
           state['can_elide_read'] = False
+          label = 'after_entry_code'
         else:
-          states[value[-1]]['can_elide_read'] = False
+          states[target_id]['can_elide_read'] = False
+          label = 'state_entry'
+        jump_label = self.__register_jump(target_id, label)
+        state['match_action'] = (action, tuple(list(value[:-1]) + [jump_label]))
 
-  @staticmethod
-  def __mark_entry_points(dfa_states):
+  def __rewrite_transitions_to_jumps(self):
+    transition_names = [
+      'if_transitions',
+      'switch_transitions',
+      'deferred_transitions',
+      'long_char_transitions']
+    def f((key, target_id)):
+      return (key, self.__register_jump(target_id, 'state_entry'))
+    for state in self.__dfa_states:
+      for name in transition_names:
+        state[name] = map(f, state[name])
+
+  def __mark_entry_points(self):
+    # mark the entry point in case there are implicit jumps to it
+    self.__dfa_states[0]['entry_points']['state_entry'] = True
     # inlined states can write no labels
-    for state in dfa_states:
+    for state in self.__dfa_states:
       entry_points = state['entry_points']
       if state['inline']:
         for k in entry_points.keys():
@@ -304,16 +324,7 @@ class CodeGenerator:
   def process(self):
 
     self.__build_dfa_states()
-    self.__rewrite_gotos()
-
     dfa_states = self.__dfa_states
-    # set nodes to inline
-    if self.__inline:
-      inlined = reduce(self.__set_inline, dfa_states, 0)
-      if self.__log:
-        print "%s states inlined" % inlined
-    elif self.__log:
-      print "no inlining"
     # split transitions
     switched = reduce(self.__split_transitions, dfa_states, 0)
     if self.__log:
@@ -321,8 +332,19 @@ class CodeGenerator:
     # rewrite deferred transitions
     for state in dfa_states:
       self.__rewrite_deferred_transitions(state)
+    # rewrite gotos
+    self.__rewrite_gotos()
+    # rewrite transitions to use jumps
+    self.__rewrite_transitions_to_jumps()
+    # set nodes to inline
+    if self.__inline:
+      inlined = reduce(self.__set_inline, dfa_states, 0)
+      if self.__log:
+        print "%s states inlined" % inlined
+    elif self.__log:
+      print "no inlining"
     # mark all the entry points that will be used
-    self.__mark_entry_points(dfa_states)
+    self.__mark_entry_points()
 
     default_action = self.__default_action
     assert(default_action and default_action.match_action())
@@ -343,6 +365,7 @@ class CodeGenerator:
       debug_print = self.__debug_print,
       default_action = default_action,
       dfa_states = dfa_states,
+      jump_table = self.__jump_table,
       encoding = encoding.name(),
       char_type = char_type,
       upper_bound = encoding.primary_range()[1])

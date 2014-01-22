@@ -25,6 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+{%- macro jump(id) -%}
+  {%- set node = jump_table[id] -%}
+  goto {{ node[1] ~ '_' ~ node[0] }};
+{%- endmacro -%}
+
 {%- macro do_key(key) -%}
   {%- for r in key -%}
     {%- if not loop.first %} || {% endif -%}
@@ -124,10 +129,10 @@
     DO_TOKEN(Token::{{value}})
     return;
   {% elif type == 'goto_start' %}
-    goto state_entry_{{value[0]}};
+    {{ jump(value[0]) }}
   {% elif type == 'store_token_and_goto' %}
     stored_token = Token::{{value[0]}};
-    goto after_entry_code_{{value[1]}};
+    {{ jump(value[1]) }}
   {% elif type == 'do_stored_token' %}
     DO_TOKEN(stored_token)
     return;
@@ -149,7 +154,7 @@
     } else {
       stored_token = Token::{{value[2]}};
     }
-    goto after_entry_code_{{value[3]}};
+    {{ jump(value[3]) }}
   {% elif type == 'octal_number' %}
     last_octal_end_ = cursor_;
     DO_TOKEN(Token::NUMBER);
@@ -233,38 +238,39 @@
     fprintf(stderr, "char at hand is %c (%d)\n", primary_char, primary_char);
   {% endif -%}
 
-  {%- macro do_transition(transition_state_id) -%}
+  {%- macro do_transition(jump_id) -%}
+    {%- set transition_state_id = jump_table[jump_id][0] -%}
     {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
     FORWARD();
     {%- if inline_transition %}
       {{ do_dfa_state([transition_state_id] + node_number_chain) }}
     {% else %}
-      goto state_entry_{{transition_state_id}};
+      {{ jump(jump_id) }}
     {% endif %}
   {%- endmacro -%}
 
   {%- if state['switch_transitions'] -%}
     switch(primary_char) {
-    {%- for ranges, transition_state_id in state['switch_transitions'] %}
+    {%- for ranges, jump_id in state['switch_transitions'] %}
       {%- for r in ranges -%}
         {%- for key in range(r[0], r[1] + 1) -%}
           case {{key}}:
         {% endfor %}
       {%- endfor -%}
-      {{ do_transition(transition_state_id) }}
+      {{ do_transition(jump_id) }}
     {% endfor -%}
     }
   {%- endif -%}
 
-  {%- for key, transition_state_id in state['if_transitions'] %}
+  {%- for key, jump_id in state['if_transitions'] %}
     if ({{do_key(key)}}) { // normal if transition
-      {{ do_transition(transition_state_id) }}
+      {{ do_transition(jump_id) }}
     }
   {% endfor -%}
 
-  {%- for key, transition_state_id in state['deferred_transitions'] %}
+  {%- for key, jump_id in state['deferred_transitions'] %}
     if ({{do_key(key)}}) { // deferred transition
-      {{ do_transition(transition_state_id) }}
+      {{ do_transition(jump_id) }}
     }
   {% endfor -%}
 
@@ -272,9 +278,9 @@
     if ({{long_char_check()}}) {
       next_.is_onebyte = false;
       {{long_char_create()}}
-      {%- for key, transition_state_id in state['long_char_transitions'] %}
+      {%- for key, jump_id in state['long_char_transitions'] %}
         if ({{do_key(key)}}) { // long_char transition
-          {{ do_transition(transition_state_id) }}
+          {{ do_transition(jump_id) }}
         }
       {% endfor -%}
     }
