@@ -4218,9 +4218,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   // Check for accessor in prototype chain removed here in clone.
   if (!lookup.IsFound()) {
+    object->map()->LookupTransition(*object, *name, &lookup);
+    TransitionFlag flag = lookup.IsFound()
+        ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
     return AddProperty(object, name, value, attributes, kNonStrictMode,
-        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode);
+        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode, flag);
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();

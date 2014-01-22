@@ -1999,6 +1999,21 @@ THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
 }
 
 
+THREADED_TEST(EmptyInterceptorBreakTransitions) {
+  v8::HandleScope scope(CcTest::isolate());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
+  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Constructor"), templ->GetFunction());
+  CompileRun("var o1 = new Constructor;"
+             "o1.a = 1;"  // Ensure a and x share the descriptor array.
+             "Object.defineProperty(o1, 'x', {value: 10});");
+  CompileRun("var o2 = new Constructor;"
+             "o2.a = 1;"
+             "Object.defineProperty(o2, 'x', {value: 10});");
+}
+
+
 THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
