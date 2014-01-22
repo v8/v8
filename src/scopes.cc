@@ -290,8 +290,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Allocate the variables.
   {
-    AstNodeFactory<AstNullVisitor> ast_node_factory(info->isolate(),
-                                                    info->zone());
+    AstNodeFactory<AstNullVisitor> ast_node_factory(info->zone());
     if (!top->AllocateVariables(info, &ast_node_factory)) return false;
   }
 

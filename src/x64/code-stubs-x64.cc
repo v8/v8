@@ -187,7 +187,7 @@ static void InitializeArrayConstructorDescriptor(
   // register state
   // rax -- number of arguments
   // rdi -- function
-  // rbx -- type info cell with elements kind
+  // rbx -- allocation site with elements kind
   static Register registers_variable_args[] = { rdi, rbx, rax };
   static Register registers_no_args[] = { rdi, rbx };
 
@@ -5428,7 +5428,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
 
 static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
                                            AllocationSiteOverrideMode mode) {
-  // rbx - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // rbx - allocation site (if mode != DISABLE_ALLOCATION_SITES)
   // rdx - kind (if mode != DISABLE_ALLOCATION_SITES)
   // rax - number of arguments
   // rdi - constructor?
@@ -5474,19 +5474,19 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // We are going to create a holey array, but our kind is non-holey.
     // Fix kind and retry (only if we have an allocation site in the cell).
     __ incl(rdx);
-    __ movp(rcx, FieldOperand(rbx, Cell::kValueOffset));
+
     if (FLAG_debug_code) {
       Handle<Map> allocation_site_map =
           masm->isolate()->factory()->allocation_site_map();
-      __ Cmp(FieldOperand(rcx, 0), allocation_site_map);
-      __ Assert(equal, kExpectedAllocationSiteInCell);
+      __ Cmp(FieldOperand(rbx, 0), allocation_site_map);
+      __ Assert(equal, kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store r3
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field...upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ SmiAddConstant(FieldOperand(rcx, AllocationSite::kTransitionInfoOffset),
+    __ SmiAddConstant(FieldOperand(rbx, AllocationSite::kTransitionInfoOffset),
                       Smi::FromInt(kFastElementsKindPackedToHoley));
 
     __ bind(&normal_sequence);
@@ -5619,13 +5619,13 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ Cmp(rbx, undefined_sentinel);
   __ j(equal, &no_info);
-  __ movp(rdx, FieldOperand(rbx, Cell::kValueOffset));
-  __ Cmp(FieldOperand(rdx, 0),
+  __ movp(rbx, FieldOperand(rbx, Cell::kValueOffset));
+  __ Cmp(FieldOperand(rbx, 0),
          masm->isolate()->factory()->allocation_site_map());
   __ j(not_equal, &no_info);
 
   // Only look at the lower 16 bits of the transition info.
-  __ movp(rdx, FieldOperand(rdx, AllocationSite::kTransitionInfoOffset));
+  __ movp(rdx, FieldOperand(rbx, AllocationSite::kTransitionInfoOffset));
   __ SmiToInteger32(rdx, rdx);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
   __ and_(rdx, Immediate(AllocationSite::ElementsKindBits::kMask));

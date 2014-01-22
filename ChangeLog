@@ -1,3 +1,8 @@
+2014-01-22: Version 3.24.21
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-21: Version 3.24.20
 
         ES6: Implement Object.setPrototypeOf (issue 2675).

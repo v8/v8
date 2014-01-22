@@ -191,7 +191,7 @@ static void InitializeArrayConstructorDescriptor(
   // register state
   // eax -- number of arguments
   // edi -- function
-  // ebx -- type info cell with elements kind
+  // ebx -- allocation site with elements kind
   static Register registers_variable_args[] = { edi, ebx, eax };
   static Register registers_no_args[] = { edi, ebx };
 
@@ -5623,7 +5623,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
 
 static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
                                            AllocationSiteOverrideMode mode) {
-  // ebx - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // ebx - allocation site (if mode != DISABLE_ALLOCATION_SITES)
   // edx - kind (if mode != DISABLE_ALLOCATION_SITES)
   // eax - number of arguments
   // edi - constructor?
@@ -5664,19 +5664,19 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // We are going to create a holey array, but our kind is non-holey.
     // Fix kind and retry.
     __ inc(edx);
-    __ mov(ecx, FieldOperand(ebx, Cell::kValueOffset));
+
     if (FLAG_debug_code) {
       Handle<Map> allocation_site_map =
           masm->isolate()->factory()->allocation_site_map();
-      __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
-      __ Assert(equal, kExpectedAllocationSiteInCell);
+      __ cmp(FieldOperand(ebx, 0), Immediate(allocation_site_map));
+      __ Assert(equal, kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store r3
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field...upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ add(FieldOperand(ecx, AllocationSite::kTransitionInfoOffset),
+    __ add(FieldOperand(ebx, AllocationSite::kTransitionInfoOffset),
            Immediate(Smi::FromInt(kFastElementsKindPackedToHoley)));
 
     __ bind(&normal_sequence);
@@ -5808,13 +5808,13 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ cmp(ebx, Immediate(undefined_sentinel));
   __ j(equal, &no_info);
-  __ mov(edx, FieldOperand(ebx, Cell::kValueOffset));
-  __ cmp(FieldOperand(edx, 0), Immediate(
+  __ mov(ebx, FieldOperand(ebx, Cell::kValueOffset));
+  __ cmp(FieldOperand(ebx, 0), Immediate(
       masm->isolate()->factory()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
   // Only look at the lower 16 bits of the transition info.
-  __ mov(edx, FieldOperand(edx, AllocationSite::kTransitionInfoOffset));
+  __ mov(edx, FieldOperand(ebx, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(edx);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
   __ and_(edx, Immediate(AllocationSite::ElementsKindBits::kMask));

@@ -1368,8 +1368,8 @@ class ICCompareStub: public PlatformCodeStub {
 
 class CompareNilICStub : public HydrogenCodeStub  {
  public:
-  Handle<Type> GetType(Isolate* isolate, Handle<Map> map = Handle<Map>());
-  Handle<Type> GetInputType(Isolate* isolate, Handle<Map> map);
+  Type* GetType(Zone* zone, Handle<Map> map = Handle<Map>());
+  Type* GetInputType(Zone* zone, Handle<Map> map);
 
   explicit CompareNilICStub(NilValue nil) : nil_value_(nil) { }
 
@@ -2062,7 +2062,7 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kConstructor = 0;
-  static const int kPropertyCell = 1;
+  static const int kAllocationSite = 1;
 
  protected:
   void BasePrintName(const char* name, StringStream* stream);

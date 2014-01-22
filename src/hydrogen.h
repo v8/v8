@@ -1306,7 +1306,7 @@ class HGraphBuilder {
                                    ElementsKind to_kind,
                                    bool is_jsarray);
 
-  HValue* BuildNumberToString(HValue* object, Handle<Type> type);
+  HValue* BuildNumberToString(HValue* object, Type* type);
 
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
                                               HValue* key);
@@ -1386,9 +1386,9 @@ class HGraphBuilder {
   HValue* BuildBinaryOperation(Token::Value op,
                                HValue* left,
                                HValue* right,
-                               Handle<Type> left_type,
-                               Handle<Type> right_type,
-                               Handle<Type> result_type,
+                               Type* left_type,
+                               Type* right_type,
+                               Type* result_type,
                                Maybe<int> fixed_right_arg,
                                HAllocationMode allocation_mode);
 
@@ -1396,8 +1396,8 @@ class HGraphBuilder {
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
 
-  HValue* EnforceNumberType(HValue* number, Handle<Type> expected);
-  HValue* TruncateToNumber(HValue* value, Handle<Type>* expected);
+  HValue* EnforceNumberType(HValue* number, Type* expected);
+  HValue* TruncateToNumber(HValue* value, Type** expected);
 
   void FinishExitWithHardDeoptimization(const char* reason,
                                         HBasicBlock* continuation);
@@ -1753,7 +1753,7 @@ class HGraphBuilder {
 
   void BuildCompareNil(
       HValue* value,
-      Handle<Type> type,
+      Type* type,
       HIfContinuation* continuation);
 
   void BuildCreateAllocationMemento(HValue* previous_object,
@@ -2368,9 +2368,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HControlInstruction* BuildCompareInstruction(Token::Value op,
                                                HValue* left,
                                                HValue* right,
-                                               Handle<Type> left_type,
-                                               Handle<Type> right_type,
-                                               Handle<Type> combined_type,
+                                               Type* left_type,
+                                               Type* right_type,
+                                               Type* combined_type,
                                                int left_position,
                                                int right_position,
                                                BailoutId bailout_id);

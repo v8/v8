@@ -128,7 +128,7 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 
 Handle<Code> StubCache::ComputeMonomorphicIC(
     Handle<Name> name,
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<Code> handler,
     ExtraICState extra_ic_state) {
   Code::Kind kind = handler->handler_kind();
@@ -139,7 +139,7 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
   // There are multiple string maps that all use the same prototype. That
   // prototype cannot hold multiple handlers, one for each of the string maps,
   // for a single name. Hence, turn off caching of the IC.
-  bool can_be_cached = !type->Is(Type::String());
+  bool can_be_cached = !type->Is(HeapType::String());
   if (can_be_cached) {
     stub_holder = IC::GetCodeCacheHolder(flag, *type, isolate());
     ic = FindIC(name, stub_holder, kind, extra_ic_state, flag);
@@ -169,7 +169,7 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
 
 
 Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
-                                               Handle<Type> type) {
+                                               Handle<HeapType> type) {
   InlineCacheHolderFlag flag = IC::GetCodeCacheFlag(*type);
   Handle<Map> stub_holder = IC::GetCodeCacheHolder(flag, *type, isolate());
   // If no dictionary mode objects are present in the prototype chain, the load
@@ -638,7 +638,7 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 
   TypeHandleList types(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); i++) {
-    types.Add(Type::Class(receiver_maps->at(i), isolate()));
+    types.Add(HeapType::Class(receiver_maps->at(i), isolate()));
   }
   CodeHandleList handlers(receiver_maps->length());
   KeyedLoadStubCompiler compiler(isolate_);
@@ -1343,20 +1343,20 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
 
 
 Register LoadStubCompiler::HandlerFrontendHeader(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Register object_reg,
     Handle<JSObject> holder,
     Handle<Name> name,
     Label* miss) {
   PrototypeCheckType check_type = CHECK_ALL_MAPS;
   int function_index = -1;
-  if (type->Is(Type::String())) {
+  if (type->Is(HeapType::String())) {
     function_index = Context::STRING_FUNCTION_INDEX;
-  } else if (type->Is(Type::Symbol())) {
+  } else if (type->Is(HeapType::Symbol())) {
     function_index = Context::SYMBOL_FUNCTION_INDEX;
-  } else if (type->Is(Type::Number())) {
+  } else if (type->Is(HeapType::Number())) {
     function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (type->Is(Type::Boolean())) {
+  } else if (type->Is(HeapType::Boolean())) {
     // Booleans use the generic oddball map, so an additional check is needed to
     // ensure the receiver is really a boolean.
     GenerateBooleanCheck(object_reg, miss);
@@ -1384,7 +1384,7 @@ Register LoadStubCompiler::HandlerFrontendHeader(
 // HandlerFrontend for store uses the name register. It has to be restored
 // before a miss.
 Register StoreStubCompiler::HandlerFrontendHeader(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Register object_reg,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1396,13 +1396,13 @@ Register StoreStubCompiler::HandlerFrontendHeader(
 
 bool BaseLoadStoreStubCompiler::IncludesNumberType(TypeHandleList* types) {
   for (int i = 0; i < types->length(); ++i) {
-    if (types->at(i)->Is(Type::Number())) return true;
+    if (types->at(i)->Is(HeapType::Number())) return true;
   }
   return false;
 }
 
 
-Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<Type> type,
+Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<HeapType> type,
                                                     Register object_reg,
                                                     Handle<JSObject> holder,
                                                     Handle<Name> name) {
@@ -1416,7 +1416,7 @@ Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<Type> type,
 }
 
 
-void LoadStubCompiler::NonexistentHandlerFrontend(Handle<Type> type,
+void LoadStubCompiler::NonexistentHandlerFrontend(Handle<HeapType> type,
                                                   Handle<JSObject> last,
                                                   Handle<Name> name) {
   Label miss;
@@ -1461,7 +1461,7 @@ void LoadStubCompiler::NonexistentHandlerFrontend(Handle<Type> type,
 
 
 Handle<Code> LoadStubCompiler::CompileLoadField(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     PropertyIndex field,
@@ -1481,7 +1481,7 @@ Handle<Code> LoadStubCompiler::CompileLoadField(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadConstant(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<Object> value) {
@@ -1494,7 +1494,7 @@ Handle<Code> LoadStubCompiler::CompileLoadConstant(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadCallback(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
@@ -1508,7 +1508,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadCallback(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     const CallOptimization& call_optimization) {
@@ -1523,7 +1523,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadInterceptor(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name) {
   LookupResult lookup(isolate());
@@ -1576,7 +1576,7 @@ void LoadStubCompiler::GenerateLoadPostInterceptor(
 
 
 Handle<Code> BaseLoadStoreStubCompiler::CompileMonomorphicIC(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<Code> handler,
     Handle<Name> name) {
   TypeHandleList types(1);
@@ -1589,7 +1589,7 @@ Handle<Code> BaseLoadStoreStubCompiler::CompileMonomorphicIC(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<JSFunction> getter) {

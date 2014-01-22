@@ -485,9 +485,7 @@ class Parser::BlockState BASE_EMBEDDED {
 };
 
 
-Parser::FunctionState::FunctionState(Parser* parser,
-                                     Scope* scope,
-                                     Isolate* isolate)
+Parser::FunctionState::FunctionState(Parser* parser, Scope* scope)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
@@ -495,11 +493,11 @@ Parser::FunctionState::FunctionState(Parser* parser,
       parser_(parser),
       outer_function_state_(parser->current_function_state_),
       outer_scope_(parser->top_scope_),
-      saved_ast_node_id_(isolate->ast_node_id()),
-      factory_(isolate, parser->zone()) {
+      saved_ast_node_id_(parser->zone()->isolate()->ast_node_id()),
+      factory_(parser->zone()) {
   parser->top_scope_ = scope;
   parser->current_function_state_ = this;
-  isolate->set_ast_node_id(BailoutId::FirstUsable().ToInt());
+  parser->zone()->isolate()->set_ast_node_id(BailoutId::FirstUsable().ToInt());
 }
 
 
@@ -645,7 +643,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     ParsingModeScope parsing_mode(this, mode);
 
     // Enters 'scope'.
-    FunctionState function_state(this, scope, isolate());
+    FunctionState function_state(this, scope);
 
     top_scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
@@ -759,7 +757,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
                                            zone());
     }
     original_scope_ = scope;
-    FunctionState function_state(this, scope, isolate());
+    FunctionState function_state(this, scope);
     ASSERT(scope->language_mode() != STRICT_MODE || !info()->is_classic_mode());
     ASSERT(scope->language_mode() != EXTENDED_MODE ||
            info()->is_extended_mode());
@@ -3835,7 +3833,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     Expression* value = ParseAssignmentExpression(true, CHECK_OK);
 
     ObjectLiteral::Property* property =
-        new(zone()) ObjectLiteral::Property(key, value, isolate());
+        factory()->NewObjectLiteralProperty(key, value);
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
@@ -4084,7 +4082,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   AstProperties ast_properties;
   BailoutReason dont_optimize_reason = kNoReason;
   // Parse function body.
-  { FunctionState function_state(this, scope, isolate());
+  { FunctionState function_state(this, scope);
     top_scope_->SetScopeName(function_name);
 
     if (is_generator) {

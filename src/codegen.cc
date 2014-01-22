@@ -89,12 +89,12 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #ifdef DEBUG
   if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter(info->isolate()).PrintProgram(info->function()));
+           PrettyPrinter(info->zone()).PrintProgram(info->function()));
   }
 
   if (!info->IsStub() && print_ast) {
     PrintF("--- AST ---\n%s\n",
-           AstPrinter(info->isolate()).PrintProgram(info->function()));
+           AstPrinter(info->zone()).PrintProgram(info->function()));
   }
 #endif  // DEBUG
 }

@@ -52,8 +52,8 @@ class JumpPatchSite;
 // debugger to piggybag on.
 class BreakableStatementChecker: public AstVisitor {
  public:
-  explicit BreakableStatementChecker(Isolate* isolate) : is_breakable_(false) {
-    InitializeAstVisitor(isolate);
+  explicit BreakableStatementChecker(Zone* zone) : is_breakable_(false) {
+    InitializeAstVisitor(zone);
   }
 
   void Check(Statement* stmt);
@@ -99,8 +99,7 @@ class FullCodeGenerator: public AstVisitor {
         type_feedback_cells_(info->HasDeoptimizationSupport()
                              ? info->function()->ast_node_count() : 0,
                              info->zone()),
-        ic_total_count_(0),
-        zone_(info->zone()) {
+        ic_total_count_(0) {
     Initialize();
   }
 
@@ -121,8 +120,6 @@ class FullCodeGenerator: public AstVisitor {
     UNREACHABLE();
     return NULL;
   }
-
-  Zone* zone() const { return zone_; }
 
   static const int kMaxBackEdgeWeight = 127;
 
@@ -853,7 +850,6 @@ class FullCodeGenerator: public AstVisitor {
   Handle<FixedArray> handler_table_;
   Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
-  Zone* zone_;
 
   friend class NestedStatement;
 

@@ -41,10 +41,9 @@ AstTyper::AstTyper(CompilationInfo* info)
       oracle_(
           Handle<Code>(info->closure()->shared()->code()),
           Handle<Context>(info->closure()->context()->native_context()),
-          info->isolate(),
           info->zone()),
       store_(info->zone()) {
-  InitializeAstVisitor(info->isolate());
+  InitializeAstVisitor(info->zone());
 }
 
 
@@ -72,7 +71,7 @@ void AstTyper::Run(CompilationInfo* info) {
 
 
 #ifdef OBJECT_PRINT
-  static void PrintObserved(Variable* var, Object* value, Handle<Type> type) {
+  static void PrintObserved(Variable* var, Object* value, Type* type) {
     PrintF("  observed %s ", var->IsParameter() ? "param" : "local");
     var->name()->Print();
     PrintF(" : ");
@@ -84,8 +83,8 @@ void AstTyper::Run(CompilationInfo* info) {
 
 
 Effect AstTyper::ObservedOnStack(Object* value) {
-  Handle<Type> lower = Type::OfCurrently(handle(value, isolate()), isolate());
-  return Effect(Bounds(lower, Type::Any(isolate())));
+  Type* lower = Type::OfCurrently(handle(value, isolate()), zone());
+  return Effect(Bounds(lower, Type::Any(zone())));
 }
 
 
@@ -233,7 +232,9 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
     if (!clause->is_default()) {
       Expression* label = clause->label();
       // Collect type feedback.
-      Handle<Type> tag_type, label_type, combined_type;
+      Type* tag_type;
+      Type* label_type;
+      Type* combined_type;
       oracle()->CompareType(clause->CompareId(),
                             &tag_type, &label_type, &combined_type);
       NarrowLowerType(stmt->tag(), tag_type);
@@ -392,7 +393,7 @@ void AstTyper::VisitConditional(Conditional* expr) {
 
   NarrowType(expr, Bounds::Either(
       expr->then_expression()->bounds(),
-      expr->else_expression()->bounds(), isolate_));
+      expr->else_expression()->bounds(), zone()));
 }
 
 
@@ -405,13 +406,13 @@ void AstTyper::VisitVariableProxy(VariableProxy* expr) {
 
 
 void AstTyper::VisitLiteral(Literal* expr) {
-  Handle<Type> type = Type::Constant(expr->value(), isolate_);
+  Type* type = Type::Constant(expr->value(), zone());
   NarrowType(expr, Bounds(type));
 }
 
 
 void AstTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
-  NarrowType(expr, Bounds(Type::RegExp(isolate_)));
+  NarrowType(expr, Bounds(Type::RegExp(zone())));
 }
 
 
@@ -432,7 +433,7 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
     RECURSE(Visit(prop->value()));
   }
 
-  NarrowType(expr, Bounds(Type::Object(isolate_)));
+  NarrowType(expr, Bounds(Type::Object(zone())));
 }
 
 
@@ -443,7 +444,7 @@ void AstTyper::VisitArrayLiteral(ArrayLiteral* expr) {
     RECURSE(Visit(value));
   }
 
-  NarrowType(expr, Bounds(Type::Array(isolate_)));
+  NarrowType(expr, Bounds(Type::Array(zone())));
 }
 
 
@@ -495,7 +496,7 @@ void AstTyper::VisitThrow(Throw* expr) {
   RECURSE(Visit(expr->exception()));
   // TODO(rossberg): is it worth having a non-termination effect?
 
-  NarrowType(expr, Bounds(Type::None(isolate_)));
+  NarrowType(expr, Bounds(Type::None(zone())));
 }
 
 
@@ -587,13 +588,13 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::NOT:
     case Token::DELETE:
-      NarrowType(expr, Bounds(Type::Boolean(isolate_)));
+      NarrowType(expr, Bounds(Type::Boolean(zone())));
       break;
     case Token::VOID:
-      NarrowType(expr, Bounds(Type::Undefined(isolate_)));
+      NarrowType(expr, Bounds(Type::Undefined(zone())));
       break;
     case Token::TYPEOF:
-      NarrowType(expr, Bounds(Type::InternalizedString(isolate_)));
+      NarrowType(expr, Bounds(Type::InternalizedString(zone())));
       break;
     default:
       UNREACHABLE();
@@ -611,7 +612,7 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
 
   RECURSE(Visit(expr->expression()));
 
-  NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Number(isolate_)));
+  NarrowType(expr, Bounds(Type::Smi(zone()), Type::Number(zone())));
 
   VariableProxy* proxy = expr->expression()->AsVariableProxy();
   if (proxy != NULL && proxy->var()->IsStackAllocated()) {
@@ -622,7 +623,9 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
 
 void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   // Collect type feedback.
-  Handle<Type> type, left_type, right_type;
+  Type* type;
+  Type* left_type;
+  Type* right_type;
   Maybe<int> fixed_right_arg;
   Handle<AllocationSite> allocation_site;
   oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
@@ -655,20 +658,17 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       store_.Seq(left_effects);
 
       NarrowType(expr, Bounds::Either(
-          expr->left()->bounds(), expr->right()->bounds(), isolate_));
+          expr->left()->bounds(), expr->right()->bounds(), zone()));
       break;
     }
     case Token::BIT_OR:
     case Token::BIT_AND: {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      Handle<Type> upper = Type::Union(
-          expr->left()->bounds().upper, expr->right()->bounds().upper,
-          isolate_);
-      if (!upper->Is(Type::Signed32()))
-        upper = Type::Signed32(isolate_);
-      Handle<Type> lower =
-          Type::Intersect(Type::Smi(isolate_), upper, isolate_);
+      Type* upper = Type::Union(
+          expr->left()->bounds().upper, expr->right()->bounds().upper, zone());
+      if (!upper->Is(Type::Signed32())) upper = Type::Signed32(zone());
+      Type* lower = Type::Intersect(Type::Smi(zone()), upper, zone());
       NarrowType(expr, Bounds(lower, upper));
       break;
     }
@@ -677,7 +677,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SAR:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Signed32(isolate_)));
+      NarrowType(expr, Bounds(Type::Smi(zone()), Type::Signed32(zone())));
       break;
     case Token::SHR:
       RECURSE(Visit(expr->left()));
@@ -685,25 +685,25 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       // TODO(rossberg): The upper bound would be Unsigned32, but since there
       // is no 'positive Smi' type for the lower bound, we use the smallest
       // union of Smi and Unsigned32 as upper bound instead.
-      NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Number(isolate_)));
+      NarrowType(expr, Bounds(Type::Smi(zone()), Type::Number(zone())));
       break;
     case Token::ADD: {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
       Bounds l = expr->left()->bounds();
       Bounds r = expr->right()->bounds();
-      Handle<Type> lower =
+      Type* lower =
           l.lower->Is(Type::None()) || r.lower->Is(Type::None()) ?
-              Type::None(isolate_) :
+              Type::None(zone()) :
           l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
-              Type::String(isolate_) :
+              Type::String(zone()) :
           l.lower->Is(Type::Number()) && r.lower->Is(Type::Number()) ?
-              Type::Smi(isolate_) : Type::None(isolate_);
-      Handle<Type> upper =
+              Type::Smi(zone()) : Type::None(zone());
+      Type* upper =
           l.upper->Is(Type::String()) || r.upper->Is(Type::String()) ?
-              Type::String(isolate_) :
+              Type::String(zone()) :
           l.upper->Is(Type::Number()) && r.upper->Is(Type::Number()) ?
-              Type::Number(isolate_) : Type::NumberOrString(isolate_);
+              Type::Number(zone()) : Type::NumberOrString(zone());
       NarrowType(expr, Bounds(lower, upper));
       break;
     }
@@ -713,7 +713,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::MOD:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, Bounds(Type::Smi(isolate_), Type::Number(isolate_)));
+      NarrowType(expr, Bounds(Type::Smi(zone()), Type::Number(zone())));
       break;
     default:
       UNREACHABLE();
@@ -723,7 +723,9 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
 
 void AstTyper::VisitCompareOperation(CompareOperation* expr) {
   // Collect type feedback.
-  Handle<Type> left_type, right_type, combined_type;
+  Type* left_type;
+  Type* right_type;
+  Type* combined_type;
   oracle()->CompareType(expr->CompareOperationFeedbackId(),
       &left_type, &right_type, &combined_type);
   NarrowLowerType(expr->left(), left_type);
@@ -733,7 +735,7 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
   RECURSE(Visit(expr->left()));
   RECURSE(Visit(expr->right()));
 
-  NarrowType(expr, Bounds(Type::Boolean(isolate_)));
+  NarrowType(expr, Bounds(Type::Boolean(zone())));
 }
 
 

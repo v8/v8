@@ -451,9 +451,7 @@ class Parser : public ParserBase {
 
   class FunctionState BASE_EMBEDDED {
    public:
-    FunctionState(Parser* parser,
-                  Scope* scope,
-                  Isolate* isolate);
+    FunctionState(Parser* parser, Scope* scope);
     ~FunctionState();
 
     int NextMaterializedLiteralIndex() {

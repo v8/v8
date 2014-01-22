@@ -68,6 +68,11 @@ MODE_FLAGS = {
     "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
                  "--nofold-constants"]}
 
+GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
+                   "--concurrent-recompilation-queue-length=64",
+                   "--concurrent-recompilation-delay=500",
+                   "--concurrent-recompilation"]
+
 SUPPORTED_ARCHS = ["android_arm",
                    "android_ia32",
                    "arm",
@@ -108,6 +113,9 @@ def BuildOptions():
   result.add_option("--pass-fail-tests",
                     help="Regard pass|fail tests (run|skip|dontcare)",
                     default="dontcare")
+  result.add_option("--gc-stress",
+                    help="Switch on GC stress mode",
+                    default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
@@ -220,6 +228,10 @@ def ProcessOptions(options):
     options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
   options.extra_flags = shlex.split(options.extra_flags)
+
+  if options.gc_stress:
+    options.extra_flags += GC_STRESS_FLAGS
+
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
 
@@ -373,12 +385,13 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # Find available test suites and read test cases from them.
   variables = {
-    "mode": mode,
     "arch": arch,
-    "system": utils.GuessOS(),
-    "isolates": options.isolates,
     "deopt_fuzzer": False,
+    "gc_stress": options.gc_stress,
+    "isolates": options.isolates,
+    "mode": mode,
     "no_i18n": options.no_i18n,
+    "system": utils.GuessOS(),
   }
   all_tests = []
   num_tests = 0

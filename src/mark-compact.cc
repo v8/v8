@@ -348,6 +348,12 @@ static void VerifyNativeContextSeparation(Heap* heap) {
 #endif
 
 
+void MarkCompactCollector::SetUp() {
+  free_list_old_data_space_.Reset(new FreeList(heap_->old_data_space()));
+  free_list_old_pointer_space_.Reset(new FreeList(heap_->old_pointer_space()));
+}
+
+
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
 }
@@ -564,6 +570,11 @@ void MarkCompactCollector::ClearMarkbits() {
 
 
 void MarkCompactCollector::StartSweeperThreads() {
+  // TODO(hpayer): This check is just used for debugging purpose and
+  // should be removed or turned into an assert after investigating the
+  // crash in concurrent sweeping.
+  CHECK(free_list_old_pointer_space_.get()->IsEmpty());
+  CHECK(free_list_old_data_space_.get()->IsEmpty());
   sweeping_pending_ = true;
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
@@ -577,19 +588,27 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
     isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
   sweeping_pending_ = false;
-  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
-  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
+  RefillFreeLists(heap()->paged_space(OLD_DATA_SPACE));
+  RefillFreeLists(heap()->paged_space(OLD_POINTER_SPACE));
   heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
   heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
 }
 
 
-intptr_t MarkCompactCollector::
-             StealMemoryFromSweeperThreads(PagedSpace* space) {
-  intptr_t freed_bytes = 0;
-  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
-    freed_bytes += isolate()->sweeper_threads()[i]->StealMemory(space);
+intptr_t MarkCompactCollector::RefillFreeLists(PagedSpace* space) {
+  FreeList* free_list;
+
+  if (space == heap()->old_pointer_space()) {
+    free_list = free_list_old_pointer_space_.get();
+  } else if (space == heap()->old_data_space()) {
+    free_list = free_list_old_data_space_.get();
+  } else {
+    // Any PagedSpace might invoke RefillFreeLists, so we need to make sure
+    // to only refill them for old data and pointer spaces.
+    return 0;
   }
+
+  intptr_t freed_bytes = space->free_list()->Concatenate(free_list);
   space->AddToAccountingStats(freed_bytes);
   space->DecrementUnsweptFreeBytes(freed_bytes);
   return freed_bytes;
@@ -3054,8 +3073,12 @@ void MarkCompactCollector::EvacuatePages() {
   int npages = evacuation_candidates_.length();
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
-    ASSERT(p->IsEvacuationCandidate() ||
-           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+    // TODO(hpayer): This check is just used for debugging purpose and
+    // should be removed or turned into an assert after investigating the
+    // crash in concurrent sweeping.
+    CHECK(p->IsEvacuationCandidate() ||
+          p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+    CHECK_EQ(static_cast<int>(p->parallel_sweeping()), 0);
     if (p->IsEvacuationCandidate()) {
       // During compaction we might have to request a new page.
       // Check that space still have room for that.
@@ -3886,7 +3909,10 @@ template<MarkCompactCollector::SweepingParallelism mode>
 intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
                                                    FreeList* free_list,
                                                    Page* p) {
-  ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
+  // TODO(hpayer): This check is just used for debugging purpose and
+  // should be removed or turned into an assert after investigating the
+  // crash in concurrent sweeping.
+  CHECK(!p->IsEvacuationCandidate() && !p->WasSwept());
   ASSERT((mode == MarkCompactCollector::SWEEP_IN_PARALLEL &&
          free_list != NULL) ||
          (mode == MarkCompactCollector::SWEEP_SEQUENTIALLY &&
@@ -3970,16 +3996,18 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
 }
 
 
-void MarkCompactCollector::SweepInParallel(PagedSpace* space,
-                                           FreeList* private_free_list,
-                                           FreeList* free_list) {
+void MarkCompactCollector::SweepInParallel(PagedSpace* space) {
   PageIterator it(space);
+  FreeList* free_list = space == heap()->old_pointer_space()
+                            ? free_list_old_pointer_space_.get()
+                            : free_list_old_data_space_.get();
+  FreeList private_free_list(space);
   while (it.has_next()) {
     Page* p = it.next();
 
     if (p->TryParallelSweeping()) {
-      SweepConservatively<SWEEP_IN_PARALLEL>(space, private_free_list, p);
-      free_list->Concatenate(private_free_list);
+      SweepConservatively<SWEEP_IN_PARALLEL>(space, &private_free_list, p);
+      free_list->Concatenate(&private_free_list);
     }
   }
 }

@@ -1986,7 +1986,6 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
 
 
 void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
-  ASSERT(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   Object* cur = allocation_sites_list();
   bool marked = false;
@@ -2980,7 +2979,7 @@ MaybeObject* Heap::AllocatePropertyCell() {
   cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                            SKIP_WRITE_BARRIER);
   cell->set_value(the_hole_value());
-  cell->set_type(Type::None());
+  cell->set_type(HeapType::None());
   return result;
 }
 
@@ -6530,6 +6529,8 @@ bool Heap::SetUp() {
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
   store_buffer()->SetUp();
+
+  mark_compact_collector()->SetUp();
 
   if (FLAG_concurrent_recompilation) relocation_mutex_ = new Mutex;
 
