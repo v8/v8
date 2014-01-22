@@ -66,7 +66,7 @@ class DfaOptimizer(object):
 
     def is_replacement_candidate(state):
       action = state.action()
-      if not action or action.entry_action() or not action.match_action():
+      if not action or not action.match_action():
         return False
       if (action.match_action()[0] == 'token' or
           action.match_action()[0] == 'harmony_token'):
@@ -116,7 +116,6 @@ class DfaOptimizer(object):
     store_states = set([])
     # generate a store action to replace an existing action
     def replacement_action(old_action, transition_state):
-      assert not old_action.entry_action()
       assert old_action.match_action()
       state_id = name(transition_state)
       if old_action.match_action()[0] == 'token':
@@ -138,7 +137,8 @@ class DfaOptimizer(object):
         counters['store_harmony_token_and_goto'] += 1
       else:
         raise Exception(old_action.match_action())
-      return Action(None, match_action, old_action.precedence())
+      return Action(old_action.entry_action(), match_action,
+                    old_action.precedence())
     # map the old state to the new state, with fewer transitions and
     # goto actions
     def replace_state(state, acc):
@@ -167,6 +167,7 @@ class DfaOptimizer(object):
       assert not state_replacements
     self.__dfa.visit_all_states(replace_state)
     # now patch up all states with stores
+    start_name = name(self.__dfa.start_state())
     for state_id in store_states:
       old_action = states[state_id]['action']
       assert not old_action.entry_action()
@@ -176,7 +177,12 @@ class DfaOptimizer(object):
       precedence = old_action.precedence()
       states[state_id]['action'] = Action(
         entry_action, match_action, precedence)
-    start_name = name(self.__dfa.start_state())
+      # The state might be only reachable via gotos; make sure it's connected in
+      # the state graph by adding a bogus transition from the start state. This
+      # transition doens't match any character.
+      states[start_name]['transitions'][
+          TransitionKey.unique('no_match')] = state_id
+
     if self.__log:
       print 'goto_start inserted %s' % counters['goto_start']
       print 'store_token_and_goto inserted %s' % (

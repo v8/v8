@@ -66,31 +66,29 @@ class CodeGenerator:
     transitions = sorted(transitions, cmp)
     # map transition keys to disjoint ranges and collect stats
     disjoint_keys = []
-    eos_transition = None
+    unique_transitions = {}
     old_transitions = transitions
     transitions = []
     (class_keys, distinct_keys, ranges) = (0, 0, 0)
     for key, transition_id in old_transitions:
-      keys = list(key.range_iter(encoding))
-      eos_found = False
-      for (t, r) in keys:
+      keys = []
+      for (t, r) in key.range_iter(encoding):
         if t == 'CLASS':
           class_keys += 1
+          keys.append((t, r))
         elif t == 'PRIMARY_RANGE':
           distinct_keys += r[1] - r[0] + 1
           ranges += 1
+          keys.append((t, r))
         elif t == 'UNIQUE':
-          assert r == 'eos'
-          assert len(keys) == 1
-          assert eos_transition == None
-          eos_transition = transition_id
-          eos_found = True
+          assert r == 'no_match' or r == 'eos'
+          assert r not in unique_transitions
+          unique_transitions[r] = transition_id
         else:
           raise Exception()
-      if not eos_found:
+      if keys:
         transitions.append((keys, transition_id))
     # eos_transitions is for a followup cl
-    assert not eos_transition
     return {
       'node_number' : None,
       'original_node_number' : state.node_number(),
@@ -104,7 +102,7 @@ class CodeGenerator:
       'switch_transitions' : [],
       'deferred_transitions' : [],
       'long_char_transitions' : [],
-      'eos_transition' : eos_transition,
+      'unique_transitions' : unique_transitions,
       # state actions
       'entry_action' : entry_action,
       'match_action' : match_action,
@@ -247,6 +245,8 @@ class CodeGenerator:
     current_node['node_number'] = len(dfa_states)
     dfa_states.append(current_node)
     for (key, node_number) in current_node['transitions']:
+      CodeGenerator.__reorder(node_number, id_map, dfa_states)
+    for node_number in current_node['unique_transitions'].values():
       CodeGenerator.__reorder(node_number, id_map, dfa_states)
 
   def __build_dfa_states(self):
