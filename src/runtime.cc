@@ -259,9 +259,11 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
                                 constant_properties,
                                 &is_result_from_cache);
 
+  PretenureFlag pretenure_flag =
+      isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
+
   Handle<JSObject> boilerplate =
-      isolate->factory()->NewJSObjectFromMap(
-          map, isolate->heap()->GetPretenureMode());
+      isolate->factory()->NewJSObjectFromMap(map, pretenure_flag);
 
   // Normalize the elements of the boilerplate to save space if needed.
   if (!should_have_fast_elements) JSObject::NormalizeElements(boilerplate);
@@ -367,9 +369,11 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
   Handle<JSFunction> constructor(
       JSFunction::NativeContextFromLiterals(*literals)->array_function());
 
+  PretenureFlag pretenure_flag =
+      isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
+
   Handle<JSArray> object = Handle<JSArray>::cast(
-      isolate->factory()->NewJSObject(
-          constructor, isolate->heap()->GetPretenureMode()));
+      isolate->factory()->NewJSObject(constructor, pretenure_flag));
 
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(elements->get(0))->value());
@@ -6809,8 +6813,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToStringSkipCache) {
   Object* number = args[0];
   RUNTIME_ASSERT(number->IsNumber());
 
-  return isolate->heap()->NumberToString(
-      number, false, isolate->heap()->GetPretenureMode());
+  return isolate->heap()->NumberToString(number, false);
 }
 
 

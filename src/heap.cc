@@ -3562,8 +3562,7 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
 
 
 MaybeObject* Heap::NumberToString(Object* number,
-                                  bool check_number_string_cache,
-                                  PretenureFlag pretenure) {
+                                  bool check_number_string_cache) {
   isolate_->counters()->number_to_string_runtime()->Increment();
   if (check_number_string_cache) {
     Object* cached = GetNumberStringCache(number);
@@ -3584,8 +3583,11 @@ MaybeObject* Heap::NumberToString(Object* number,
   }
 
   Object* js_string;
+
+  // We tenure the allocated string since it is referenced from the
+  // number-string cache which lives in the old space.
   MaybeObject* maybe_js_string =
-      AllocateStringFromOneByte(CStrVector(str), pretenure);
+      AllocateStringFromOneByte(CStrVector(str), TENURED);
   if (maybe_js_string->ToObject(&js_string)) {
     SetNumberStringCache(number, String::cast(js_string));
   }

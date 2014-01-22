@@ -1571,8 +1571,7 @@ class Heap {
   bool RootCanBeTreatedAsConstant(RootListIndex root_index);
 
   MUST_USE_RESULT MaybeObject* NumberToString(
-      Object* number, bool check_number_string_cache = true,
-      PretenureFlag pretenure = NOT_TENURED);
+      Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
       uint32_t value, bool check_number_string_cache = true);
 
