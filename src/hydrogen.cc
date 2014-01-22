@@ -8951,11 +8951,16 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       return AddUncasted<HInvokeFunction>(function, 2);
     }
 
-    // Inline the string addition into the stub when creating allocation
-    // mementos to gather allocation site feedback.
-    if (graph()->info()->IsStub() &&
-        allocation_mode.CreateAllocationMementos()) {
-      return BuildStringAdd(left, right, allocation_mode);
+    // Fast path for empty constant strings.
+    if (left->IsConstant() &&
+        HConstant::cast(left)->HasStringValue() &&
+        HConstant::cast(left)->StringValue()->length() == 0) {
+      return right;
+    }
+    if (right->IsConstant() &&
+        HConstant::cast(right)->HasStringValue() &&
+        HConstant::cast(right)->StringValue()->length() == 0) {
+      return left;
     }
 
     // Register the dependent code with the allocation site.
@@ -8966,28 +8971,20 @@ HValue* HGraphBuilder::BuildBinaryOperation(
           site, AllocationSite::TENURING, top_info());
     }
 
-    // Inline string addition if we know that we'll create a cons string.
-    if (left->IsConstant()) {
-      HConstant* c_left = HConstant::cast(left);
-      if (c_left->HasStringValue()) {
-        int c_left_length = c_left->StringValue()->length();
-        if (c_left_length == 0) {
-          return right;
-        } else if (c_left_length + 1 >= ConsString::kMinLength) {
-          return BuildStringAdd(left, right, allocation_mode);
-        }
-      }
-    }
-    if (right->IsConstant()) {
-      HConstant* c_right = HConstant::cast(right);
-      if (c_right->HasStringValue()) {
-        int c_right_length = c_right->StringValue()->length();
-        if (c_right_length == 0) {
-          return left;
-        } else if (c_right_length + 1 >= ConsString::kMinLength) {
-          return BuildStringAdd(left, right, allocation_mode);
-        }
-      }
+    // Inline the string addition into the stub when creating allocation
+    // mementos to gather allocation site feedback, or if we can statically
+    // infer that we're going to create a cons string.
+    if ((graph()->info()->IsStub() &&
+         allocation_mode.CreateAllocationMementos()) ||
+        (left->IsConstant() &&
+         HConstant::cast(left)->HasStringValue() &&
+         HConstant::cast(left)->StringValue()->length() + 1 >=
+           ConsString::kMinLength) ||
+        (right->IsConstant() &&
+         HConstant::cast(right)->HasStringValue() &&
+         HConstant::cast(right)->StringValue()->length() + 1 >=
+           ConsString::kMinLength)) {
+      return BuildStringAdd(left, right, allocation_mode);
     }
 
     // Fallback to using the string add stub.
