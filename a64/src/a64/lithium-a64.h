@@ -155,6 +155,7 @@ class LCodeGen;
   V(OuterContext)                               \
   V(Parameter)                                  \
   V(PushArgument)                               \
+  V(RegExpLiteral)                              \
   V(Return)                                     \
   V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
@@ -604,6 +605,13 @@ class LAllocate: public LTemplateInstruction<1, 1, 2> {
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
+};
+
+
+class LRegExpLiteral: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral, "regexp-literal")
+  DECLARE_HYDROGEN_ACCESSOR(RegExpLiteral)
 };
 
 

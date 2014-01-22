@@ -1821,7 +1821,7 @@ LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
 
 
 LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  return MarkAsCall(DefineFixed(new(zone()) LRegExpLiteral, x0), instr);
 }
 
 
