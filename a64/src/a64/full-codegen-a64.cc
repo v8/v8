@@ -1261,7 +1261,61 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 
 void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
-  UNIMPLEMENTED();
+  Comment cmnt(masm_, "[ ForOfStatement");
+  SetStatementPosition(stmt);
+
+  Iteration loop_statement(this, stmt);
+  increment_loop_depth();
+
+  // var iterator = iterable[@@iterator]()
+  VisitForAccumulatorValue(stmt->assign_iterator());
+
+  // As with for-in, skip the loop if the iterator is null or undefined.
+  __ CompareRoot(x0, Heap::kUndefinedValueRootIndex);
+  __ B(eq, loop_statement.break_label());
+  __ CompareRoot(x0, Heap::kNullValueRootIndex);
+  __ B(eq, loop_statement.break_label());
+
+  // Convert the iterator to a JS object.
+  Label convert, done_convert;
+  __ JumpIfSmi(x0, &convert);
+  __ CompareObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE);
+  __ B(ge, &done_convert);
+  __ Bind(&convert);
+  __ Push(x0);
+  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+  __ Bind(&done_convert);
+  __ Push(x0);
+
+  // Loop entry.
+  __ Bind(loop_statement.continue_label());
+
+  // result = iterator.next()
+  VisitForEffect(stmt->next_result());
+
+  // if (result.done) break;
+  Label result_not_done;
+  VisitForControl(stmt->result_done(),
+                  loop_statement.break_label(),
+                  &result_not_done,
+                  &result_not_done);
+  __ Bind(&result_not_done);
+
+  // each = result.value
+  VisitForEffect(stmt->assign_each());
+
+  // Generate code for the body of the loop.
+  Visit(stmt->body());
+
+  // Check stack before looping.
+  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
+  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
+  __ B(loop_statement.continue_label());
+
+  // Exit and decrement the loop depth.
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ Bind(loop_statement.break_label());
+  decrement_loop_depth();
 }
 
 

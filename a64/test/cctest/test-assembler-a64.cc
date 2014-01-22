@@ -3086,7 +3086,7 @@ TEST(claim_drop_zero) {
   __ DropBySMI(xzr, 8);
   __ ClaimBySMI(xzr, 0);
   __ DropBySMI(xzr, 0);
-  CHECK_NE(0, __ SizeOfCodeGeneratedSince(&start));
+  CHECK_EQ(0, __ SizeOfCodeGeneratedSince(&start));
 
   END();
 
