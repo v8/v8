@@ -53,19 +53,6 @@ class CodeGenerator:
     self.__switching = switching
 
   @staticmethod
-  def __range_cmp(left, right):
-    if left[0] == 'PRIMARY_RANGE':
-      if right[0] == 'PRIMARY_RANGE':
-        return cmp(left[1], right[1])
-      assert right[0] == 'CLASS'
-      return -1
-    assert left[0] == 'CLASS'
-    if right[0] == 'PRIMARY_RANGE':
-      return 1
-    # TODO store numeric values and cmp
-    return cmp(left[1], right[1])
-
-  @staticmethod
   def __transform_state(encoding, state):
     # action data
     action = state.action()
@@ -77,37 +64,51 @@ class CodeGenerator:
     def cmp(left, right):
       return TransitionKey.canonical_compare(left[0], right[0])
     transitions = sorted(transitions, cmp)
-    # map transition keys to disjoint ranges
-    disjoint_keys = {'value' : []}
-    def f((key, state)):
-      ranges = list(key.range_iter(encoding))
-      disjoint_keys['value'] += ranges
-      return (ranges, state)
-    transitions = map(f, transitions)
-    disjoint_keys = sorted(disjoint_keys['value'], CodeGenerator.__range_cmp)
-    # dictionary object representing state
+    # map transition keys to disjoint ranges and collect stats
+    disjoint_keys = []
+    eos_transition = None
+    old_transitions = transitions
+    transitions = []
     (class_keys, distinct_keys, ranges) = (0, 0, 0)
-    for (t, r) in disjoint_keys:
-      if t == 'CLASS':
-        class_keys += 1
-      elif t == 'PRIMARY_RANGE':
-        distinct_keys += r[1] - r[0] + 1
-        ranges += 1
-      else:
-        raise Exception()
+    for key, transition_id in old_transitions:
+      keys = list(key.range_iter(encoding))
+      eos_found = False
+      for (t, r) in keys:
+        if t == 'CLASS':
+          class_keys += 1
+        elif t == 'PRIMARY_RANGE':
+          distinct_keys += r[1] - r[0] + 1
+          ranges += 1
+        elif t == 'UNIQUE':
+          assert r == 'eos'
+          assert len(keys) == 1
+          assert eos_transition == None
+          eos_transition = transition_id
+          eos_found = True
+        else:
+          raise Exception()
+      if not eos_found:
+        transitions.append((keys, transition_id))
+    # eos_transitions is for a followup cl
+    assert not eos_transition
     return {
       'node_number' : None,
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
+      # flags for code generator
       'can_elide_read' : len(transitions) == 0,
+      'is_eos_handler' : False,
+      'inline' : None,
+      # transitions for code generator
+      'if_transitions' : [],
       'switch_transitions' : [],
       'deferred_transitions' : [],
       'long_char_transitions' : [],
-      'disjoint_keys' : disjoint_keys,
-      'inline' : None,
-      'action' : action,
+      'eos_transition' : eos_transition,
+      # state actions
       'entry_action' : entry_action,
       'match_action' : match_action,
+      # statistics for states
       'class_keys' : class_keys,
       'distinct_keys' : distinct_keys,
       'ranges' : ranges,
@@ -164,7 +165,7 @@ class CodeGenerator:
         switch_transitions.append((s, node_id))
       if d:
         deferred_transitions.append((d, node_id))
-    state['transitions'] = if_transitions
+    state['if_transitions'] = if_transitions
     state['switch_transitions'] = switch_transitions
     state['deferred_transitions'] = deferred_transitions
     return split_count + (0 if no_switch else 1)

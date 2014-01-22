@@ -256,7 +256,7 @@
     }
   {%- endif -%}
 
-  {%- for key, transition_state_id in state.transitions %}
+  {%- for key, transition_state_id in state['if_transitions'] %}
     if ({{do_key(key)}}) { // normal if transition
       {{ do_transition(transition_state_id) }}
     }
