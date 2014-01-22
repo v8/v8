@@ -888,8 +888,7 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
 // Subset of FUNCTIONS_WITH_ID_LIST with custom constant/global call
 // IC stubs.
 #define CUSTOM_CALL_IC_GENERATORS(V)            \
-  V(ArrayPush)                                  \
-  V(ArrayPop)
+  V(ArrayPush)
 
 
 class CallStubCompiler: public StubCompiler {
