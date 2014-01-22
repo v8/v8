@@ -139,6 +139,10 @@ macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
 # we cannot handle those anyway.
 macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
 
+# Macro for ES6 CheckObjectCoercible
+# Will throw a TypeError of the form "[functionName] called on null or undefined".
+macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL_OR_UNDEFINED(arg) && !IS_UNDETECTABLE(arg)) throw MakeTypeError('called_on_null_or_undefined', [functionName]);
+
 # Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
 const kBoundFunctionIndex = 0;
 const kBoundThisIndex = 1;
