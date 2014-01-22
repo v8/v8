@@ -131,6 +131,9 @@ class FullCodeGenerator: public AstVisitor {
   static const int kBackEdgeDistanceUnit = 142;
 #elif V8_TARGET_ARCH_MIPS
   static const int kBackEdgeDistanceUnit = 142;
+#elif V8_TARGET_ARCH_A64
+// TODO(all): Copied ARM value. Check this is sensible for A64.
+  static const int kBackEdgeDistanceUnit = 142;
 #else
 #error Unsupported target architecture.
 #endif

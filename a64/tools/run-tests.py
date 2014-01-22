@@ -70,14 +70,16 @@ SUPPORTED_ARCHS = ["android_arm",
                    "mipsel",
                    "nacl_ia32",
                    "nacl_x64",
-                   "x64"]
+                   "x64",
+                   "a64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
               "android_ia32",
               "arm",
               "mipsel",
               "nacl_ia32",
-              "nacl_x64"]
+              "nacl_x64",
+              "a64"]
 
 
 def BuildOptions():

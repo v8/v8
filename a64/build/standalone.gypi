@@ -46,7 +46,11 @@
               # to gyp.
               'host_arch%':
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
-                  s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/mips.*/mipsel/")',
+                                       s/x86_64/x64/;\
+                                       s/amd64/x64/;\
+                                       s/aarch64/a64/;\
+                                       s/arm.*/arm/;\
+                                       s/mips.*/mipsel/")',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
               # OS!="netbsd" and OS!="mac"
@@ -67,6 +71,7 @@
     'werror%': '-Werror',
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
+        (v8_target_arch=="a64" and host_arch!="a64") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
         (v8_target_arch=="x64" and host_arch!="x64") or \
         (OS=="android")', {

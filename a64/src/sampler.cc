@@ -76,6 +76,9 @@
 //
 // See http://code.google.com/p/android/issues/detail?id=34784
 
+// TODO(jbramley): This is not (and has never been) defined for A64. Does A64's
+// Android provide ucontext_t? Should we add an A64 variant?
+
 #if defined(__arm__)
 
 typedef struct sigcontext mcontext_t;
@@ -246,13 +249,20 @@ class SampleHelper {
 
 #if defined(USE_SIMULATOR)
   inline void FillRegisters(TickSample* sample) {
+#if V8_TARGET_ARCH_ARM
     sample->pc = reinterpret_cast<Address>(simulator_->get_pc());
     sample->sp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::sp));
-#if V8_TARGET_ARCH_ARM
     sample->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::r11));
+#elif V8_TARGET_ARCH_A64
+    sample->pc = reinterpret_cast<Address>(simulator_->pc());
+    sample->sp = reinterpret_cast<Address>(simulator_->sp());
+    sample->fp = reinterpret_cast<Address>(simulator_->lr());
 #elif V8_TARGET_ARCH_MIPS
+    sample->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    sample->sp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::sp));
     sample->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::fp));
 #endif
@@ -358,6 +368,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
         // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#elif V8_HOST_ARCH_A64
+  sample->pc = reinterpret_cast<Address>(mcontext.pc);
+  sample->sp = reinterpret_cast<Address>(mcontext.sp);
+  // FP is an alias for x29.
+  sample->fp = reinterpret_cast<Address>(mcontext.regs[29]);
 #elif V8_HOST_ARCH_MIPS
   sample->pc = reinterpret_cast<Address>(mcontext.pc);
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[29]);

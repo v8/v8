@@ -308,6 +308,11 @@
           }],  # _toolset=="target"
         ],
       }],  # v8_target_arch=="arm"
+      ['v8_target_arch=="a64"', {
+        'defines': [
+          'V8_TARGET_ARCH_A64',
+        ],
+      }],
       ['v8_target_arch=="ia32"', {
         'defines': [
           'V8_TARGET_ARCH_IA32',
@@ -493,7 +498,11 @@
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                        '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
+                        '-Wnon-virtual-dtor', '-Woverloaded-virtual',
+                        # Hide some GCC 4.8 warnings:
+                        # TODO(jbramley): Only enable these on GCC 4.8.
+                        '-Wno-unused-local-typedefs',
+                        '-Wno-maybe-uninitialized' ],
           }],
           ['OS=="linux" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
@@ -537,6 +546,10 @@
               '-fdata-sections',
               '-ffunction-sections',
               '-O3',
+              # Hide some GCC 4.8 warnings:
+              # TODO(jbramley): Only enable these on GCC 4.8.
+              '-Wno-unused-local-typedefs',
+              '-Wno-maybe-uninitialized',
             ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {

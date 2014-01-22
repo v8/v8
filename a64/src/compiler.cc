@@ -313,6 +313,15 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   Handle<Code> code(info()->shared_info()->code());
   ASSERT(code->kind() == Code::FUNCTION);
 
+  if (FLAG_trace_opt) {
+    // TODO(jbramley): This was added to help analyse the behaviour of
+    // Crankshaft for the A64 Crankshaft port. It should eventually be deleted.
+    Handle<JSFunction> function = info()->closure();
+    PrintF("Attempting optimization of ");
+    function->PrintName();
+    PrintF(" / %" V8PRIxPTR "\n", reinterpret_cast<intptr_t>(*function));
+  }
+
   // We should never arrive here if optimization has been disabled on the
   // shared function info.
   ASSERT(!info()->shared_info()->optimization_disabled());

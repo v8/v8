@@ -418,7 +418,9 @@ void OS::Abort() {
 void OS::DebugBreak() {
 // TODO(lrn): Introduce processor define for runtime system (!= V8_ARCH_x,
 //  which is the architecture of generated code).
-#if (defined(__arm__) || defined(__thumb__))
+#if defined(__aarch64__)
+  asm("hlt 0");
+#elif (defined(__arm__) || defined(__thumb__))
   asm("bkpt 0");
 #elif defined(__mips__)
   asm("break");
