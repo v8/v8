@@ -683,7 +683,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     // Try a conversion to a signed integer.
     __ Trunc_w_d(double_scratch, double_scratch);
     // Move the converted value into the result register.
-    __ mfc1(result_reg, double_scratch);
+    __ mfc1(scratch3, double_scratch);
 
     // Retrieve and restore the FCSR.
     __ cfc1(scratch, FCSR);
@@ -694,8 +694,12 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
         scratch, scratch,
         kFCSROverflowFlagMask | kFCSRUnderflowFlagMask
            | kFCSRInvalidOpFlagMask);
-    // If we had no exceptions we are done.
-    __ Branch(&done, eq, scratch, Operand(zero_reg));
+    // If we had no exceptions then set result_reg and we are done.
+    Label error;
+    __ Branch(&error, ne, scratch, Operand(zero_reg));
+    __ Move(result_reg, scratch3);
+    __ Branch(&done);
+    __ bind(&error);
   }
 
   // Load the double value and perform a manual truncation.
