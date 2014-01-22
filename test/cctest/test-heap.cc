@@ -2374,7 +2374,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Local<v8::Value> res = CompileRun(
-      "var number_elements = 20000;"
+      "var number_elements = 30000;"
       "var elements = new Array(number_elements);"
       "function f() {"
       "  for (var i = 0; i < number_elements; i++) {"
