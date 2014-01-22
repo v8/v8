@@ -126,19 +126,17 @@ class TransitionKey(object):
   @staticmethod
   def __verify_ranges(encoding, ranges, check_merged):
     assert ranges
-    if len(ranges) == 1 and TransitionKey.__is_unique_range(ranges[0]):
-      return
     last = None
     for r in ranges:
-      assert not TransitionKey.__is_unique_range(r)
-      r_is_class = encoding.is_class_range(r)
+      r_is_class = (TransitionKey.__is_unique_range(r) or
+                    encoding.is_class_range(r))
       # Assert that the ranges are in order.
       if last != None and check_merged:
         assert last[1] + 1 < r[0] or r_is_class
-      last = r
-
-  def __is_unique(self):
-    return len(self.__ranges) == 1 and self.__is_unique_range(self.__ranges[0])
+      if r_is_class:
+        last = None
+      else:
+        last = r
 
   @staticmethod
   def __cached_key(encoding, name, bounds_getter):
@@ -237,7 +235,7 @@ class TransitionKey(object):
   def is_superset_of_key(self, key):
     '''Returns true if 'key' is a sub-key of this TransitionKey.'''
     assert isinstance(key, self.__class__)
-    assert key != TransitionKey.epsilon() and not key.__is_unique()
+    assert key != TransitionKey.epsilon()
     assert len(key.__ranges) == 1
     subkey = key.__ranges[0]
     matches = False
@@ -278,14 +276,24 @@ class TransitionKey(object):
   @staticmethod
   def __class_name(encoding, r):
     for name, v in encoding.class_range_iter():
-      if r == v: return name
+      if r == v:
+        return name
+    assert False
+
+  @staticmethod
+  def __unique_name(r):
+    for name, v in TransitionKey.__cached_keys['no_encoding'].items():
+      if v.__ranges and r == v.__ranges[0]:
+        return name[2:]
     assert False
 
   def range_iter(self, encoding):
-    assert not self == TransitionKey.epsilon() and not self.__is_unique()
+    assert not self == TransitionKey.epsilon()
     for r in self.__ranges:
-      if encoding.is_class_range(r):
-        yield ('CLASS', TransitionKey.__class_name(encoding, r))
+      if self.__is_unique_range(r):
+        yield ('UNIQUE', self.__unique_name(r))
+      elif encoding.is_class_range(r):
+        yield ('CLASS', self.__class_name(encoding, r))
       else:
         yield ('PRIMARY_RANGE', r)
 
@@ -297,6 +305,8 @@ class TransitionKey(object):
 
   @staticmethod
   def __range_str(encoding, r):
+    if TransitionKey.__is_unique_range(r):
+      return TransitionKey.__unique_name(r)
     if encoding and encoding.is_class_range(r):
       return TransitionKey.__class_name(encoding, r)
     def to_str(x):
@@ -364,7 +374,6 @@ class TransitionKey(object):
       return []
     range_map = {}
     for x in key_set:
-      assert not x.__is_unique()
       assert x != TransitionKey.epsilon()
       for r in x.__ranges:
         if not r[0] in range_map:
@@ -404,6 +413,7 @@ class TransitionKey(object):
   def __key_from_ranges(encoding, invert, ranges):
     range_map = {}
     for r in ranges:
+      assert r
       if not r[0] in range_map:
         range_map[r[0]] = []
       range_map[r[0]].append(r[1])
@@ -418,10 +428,11 @@ class TransitionKey(object):
     merged = []
     last = None
     for r in ranges:
-      assert not TransitionKey.__is_unique_range(r)
       if last == None:
         last = r
-      elif (last[1] + 1 == r[0] and not encoding.is_class_range(r)):
+      elif (last[1] + 1 == r[0] and
+            not TransitionKey.__is_unique_range(r) and
+            not encoding.is_class_range(r)):
         last = (last[0], r[1])
       else:
         merged.append(last)

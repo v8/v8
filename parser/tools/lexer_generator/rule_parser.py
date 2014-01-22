@@ -87,7 +87,7 @@ class RuleParser:
     if not state.current_state in state.rules:
       state.rules[state.current_state] = {
         'default_action': None,
-        'catch_all' : None,
+        'uniques' : {},
         'regex' : []
       }
     p[0] = state.current_state
@@ -113,8 +113,9 @@ class RuleParser:
       assert not rules['default_action']
       rules['default_action'] = action
     elif p[1] == 'catch_all':
-      assert not rules['catch_all']
-      rules['catch_all'] = (precedence, action)
+      assert p[1] not in rules['uniques']
+      rules['uniques'][p[1]] = True
+      rules['regex'].append((NfaBuilder.unique_key(p[1]), precedence, action))
     else:
       regex = p[1]
       rules['regex'].append((regex, precedence, action))
@@ -317,10 +318,6 @@ class RuleProcessor(object):
           graph = NfaBuilder.join_subgraph(
             graph, transition, rule_map[transition])
         graphs.append(graph)
-      if v['catch_all']:
-        (precedence, catch_all) = v['catch_all']
-        assert catch_all == (None, None, 'continue'), "unimplemented"
-        graphs.append(NfaBuilder.add_continue(NfaBuilder.catch_all()))
       graph = NfaBuilder.or_graphs(graphs)
       rule_map[subgraph] = graph
     # process first the subgraphs, then the default graph

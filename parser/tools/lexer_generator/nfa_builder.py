@@ -150,8 +150,8 @@ class NfaBuilder(object):
     self.__patch_ends(ends, state['start_node'])
     return (start, [])
 
-  def __catch_all(self, graph):
-    return self.__key_state(TransitionKey.unique('catch_all'))
+  def __unique_key(self, graph):
+    return self.__key_state(TransitionKey.unique(graph[1]))
 
   def __join(self, graph):
     (graph, name, subgraph) = graph[1:]
@@ -311,8 +311,8 @@ class NfaBuilder(object):
     return ('CONTINUE', graph)
 
   @staticmethod
-  def catch_all():
-    return ('CATCH_ALL',)
+  def unique_key(name):
+    return ('UNIQUE_KEY', name)
 
   @staticmethod
   def join_subgraph(graph, name, subgraph):
