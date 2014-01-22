@@ -45,7 +45,6 @@ namespace internal {
   V(BinaryOpICWithAllocationSite)        \
   V(BinaryOpWithAllocationSite)          \
   V(StringAdd)                           \
-  V(NewStringAdd)                        \
   V(SubString)                           \
   V(StringCompare)                       \
   V(Compare)                             \
@@ -446,19 +445,6 @@ class RuntimeCallHelper {
   DISALLOW_COPY_AND_ASSIGN(RuntimeCallHelper);
 };
 
-
-// TODO(bmeurer): Move to the StringAddStub declaration once we're
-// done with the translation to a hydrogen code stub.
-enum StringAddFlags {
-  // Omit both parameter checks.
-  STRING_ADD_CHECK_NONE = 0,
-  // Check left parameter.
-  STRING_ADD_CHECK_LEFT = 1 << 0,
-  // Check right parameter.
-  STRING_ADD_CHECK_RIGHT = 1 << 1,
-  // Check both parameters.
-  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT
-};
 
 } }  // namespace v8::internal
 
@@ -1256,10 +1242,21 @@ class BinaryOpWithAllocationSiteStub V8_FINAL : public BinaryOpICStub {
 };
 
 
-// TODO(bmeurer): Rename to StringAddStub once we dropped the old StringAddStub.
-class NewStringAddStub V8_FINAL : public HydrogenCodeStub {
+enum StringAddFlags {
+  // Omit both parameter checks.
+  STRING_ADD_CHECK_NONE = 0,
+  // Check left parameter.
+  STRING_ADD_CHECK_LEFT = 1 << 0,
+  // Check right parameter.
+  STRING_ADD_CHECK_RIGHT = 1 << 1,
+  // Check both parameters.
+  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT
+};
+
+
+class StringAddStub V8_FINAL : public HydrogenCodeStub {
  public:
-  NewStringAddStub(StringAddFlags flags, PretenureFlag pretenure_flag)
+  StringAddStub(StringAddFlags flags, PretenureFlag pretenure_flag)
       : bit_field_(StringAddFlagsBits::encode(flags) |
                    PretenureFlagBits::encode(pretenure_flag)) {}
 
@@ -1292,12 +1289,12 @@ class NewStringAddStub V8_FINAL : public HydrogenCodeStub {
   class PretenureFlagBits: public BitField<PretenureFlag, 2, 1> {};
   uint32_t bit_field_;
 
-  virtual Major MajorKey() V8_OVERRIDE { return NewStringAdd; }
+  virtual Major MajorKey() V8_OVERRIDE { return StringAdd; }
   virtual int NotMissMinorKey() V8_OVERRIDE { return bit_field_; }
 
   virtual void PrintBaseName(StringStream* stream) V8_OVERRIDE;
 
-  DISALLOW_COPY_AND_ASSIGN(NewStringAddStub);
+  DISALLOW_COPY_AND_ASSIGN(StringAddStub);
 };
 
 

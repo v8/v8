@@ -1000,13 +1000,13 @@ Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
-HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
-  NewStringAddStub* stub = casted_stub();
+HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
+  StringAddStub* stub = casted_stub();
   StringAddFlags flags = stub->flags();
   PretenureFlag pretenure_flag = stub->pretenure_flag();
 
-  HValue* left = GetParameter(NewStringAddStub::kLeft);
-  HValue* right = GetParameter(NewStringAddStub::kRight);
+  HValue* left = GetParameter(StringAddStub::kLeft);
+  HValue* right = GetParameter(StringAddStub::kRight);
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
@@ -1020,7 +1020,7 @@ HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
 }
 
 
-Handle<Code> NewStringAddStub::GenerateCode(Isolate* isolate) {
+Handle<Code> StringAddStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 

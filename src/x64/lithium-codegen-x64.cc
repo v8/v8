@@ -4388,18 +4388,11 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
-  if (FLAG_new_string_add) {
-    ASSERT(ToRegister(instr->left()).is(rdx));
-    ASSERT(ToRegister(instr->right()).is(rax));
-    NewStringAddStub stub(instr->hydrogen()->flags(),
-                          isolate()->heap()->GetPretenureMode());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else {
-    EmitPushTaggedOperand(instr->left());
-    EmitPushTaggedOperand(instr->right());
-    StringAddStub stub(instr->hydrogen()->flags());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  ASSERT(ToRegister(instr->left()).is(rdx));
+  ASSERT(ToRegister(instr->right()).is(rax));
+  StringAddStub stub(instr->hydrogen()->flags(),
+                     isolate()->heap()->GetPretenureMode());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

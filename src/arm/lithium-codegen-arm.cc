@@ -4508,18 +4508,11 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  if (FLAG_new_string_add) {
-    ASSERT(ToRegister(instr->left()).is(r1));
-    ASSERT(ToRegister(instr->right()).is(r0));
-    NewStringAddStub stub(instr->hydrogen()->flags(),
-                          isolate()->heap()->GetPretenureMode());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ push(ToRegister(instr->left()));
-    __ push(ToRegister(instr->right()));
-    StringAddStub stub(instr->hydrogen()->flags());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  ASSERT(ToRegister(instr->left()).is(r1));
+  ASSERT(ToRegister(instr->right()).is(r0));
+  StringAddStub stub(instr->hydrogen()->flags(),
+                     isolate()->heap()->GetPretenureMode());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

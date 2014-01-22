@@ -4907,18 +4907,11 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
-  if (FLAG_new_string_add) {
-    ASSERT(ToRegister(instr->left()).is(edx));
-    ASSERT(ToRegister(instr->right()).is(eax));
-    NewStringAddStub stub(instr->hydrogen()->flags(),
-                          instr->hydrogen()->pretenure_flag());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else {
-    EmitPushTaggedOperand(instr->left());
-    EmitPushTaggedOperand(instr->right());
-    StringAddStub stub(instr->hydrogen()->flags());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  ASSERT(ToRegister(instr->left()).is(edx));
+  ASSERT(ToRegister(instr->right()).is(eax));
+  StringAddStub stub(instr->hydrogen()->flags(),
+                     instr->hydrogen()->pretenure_flag());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

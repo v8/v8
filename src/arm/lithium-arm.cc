@@ -2280,12 +2280,8 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* left = FLAG_new_string_add
-      ? UseFixed(instr->left(), r1)
-      : UseRegisterAtStart(instr->left());
-  LOperand* right = FLAG_new_string_add
-      ? UseFixed(instr->right(), r0)
-      : UseRegisterAtStart(instr->right());
+  LOperand* left = UseFixed(instr->left(), r1);
+  LOperand* right = UseFixed(instr->right(), r0);
   return MarkAsCall(
       DefineFixed(new(zone()) LStringAdd(context, left, right), r0),
       instr);
