@@ -1986,7 +1986,6 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
 
 
 void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
-  ASSERT(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   Object* cur = allocation_sites_list();
   bool marked = false;
