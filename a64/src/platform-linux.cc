@@ -420,7 +420,7 @@ void OS::DebugBreak() {
 //  which is the architecture of generated code).
 #if defined(__aarch64__)
   asm("hlt 0");
-#elif (defined(__arm__) || defined(__thumb__))
+#elif defined(__arm__) || defined(__thumb__)
   asm("bkpt 0");
 #elif defined(__mips__)
   asm("break");
