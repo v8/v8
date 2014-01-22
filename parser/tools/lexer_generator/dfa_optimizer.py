@@ -29,6 +29,113 @@ from transition_keys import TransitionKey
 from automaton import Action
 from dfa import Dfa
 
+# --- Optimization: Replacing tokens with gotos ---
+#
+# This optimization reduces the code size for grammars which have constructs
+# similar to keywords and identifiers. Consider the following grammar:
+#
+# "baz" <|token(BAZ)|>
+# "bazz" <|token(BAZZ)|>
+#
+# /[a-z]/ <|token(IDENTIFIER)|Identifier>
+#
+# <<Identifier>>
+# /[a-z]/ <|token(IDENTIFIER)|continue>
+#
+# In the corresponding dfa, we have a set of nodes for recognizing the keywords,
+# and one node for the "Identifier" state. From every node in the keyword part
+# of the dfa, there is an edge to the Identifier state with the letters which
+# cannot be used for advancing in the keyword part (e.g., we have seen "baz" and
+# the next character is "s", so that's an identifier and not the keyword
+# "baz" or "bazz").
+#
+# [ ] ---b---> [ ] ---a---> [ ] ---z---> [BAZ] ---z---> [BAZZ]
+#               |            |             |            |
+#             [b-z]        [a-y]         [a-y]        [a-z]
+#               |            |             |            |
+#               \---------------------------------------/
+#                                  |
+#                                  v
+#                                 [ID] ----------\
+#                                  ^            [a-z]
+#                                  --------------/
+#
+# If we generate code from the dfa, these edges contribute a lot to the code
+# size. To reduce the code size, we do the following transformation:
+#
+# For each state which is an end of a keyword, we, add a match action "store
+# token and goto". The match action will be executed only if we cannot advance
+# in the graph with the next character. For example, if we have seen "baz", we
+# first check if the next character is "z" to get "bazz", and if the next
+# character is not "z", we execute the match action.
+#
+# When we execute the "store token and goto" action, we record that we have seen
+# the corresponding keyword (the token might still be an identifier, depending
+# on what the next character is). Then we jump to the Identifier state of the
+# graph. The Identifier state has an entry action "store_token(IDENTIFIER)" for
+# [a-z]. When it is executed, it overwrites the stored token with IDENTIFIER.
+#
+# Example: if we have seen "baz" and the next character is not "z", we store the
+# token BAZ and jump to the Identifier state. If the next character is "a", we
+# are sure the token is not the keyword "baz", and overwrite the stored token
+# with IDENTIFIER.
+#
+# The Identifier state has a match action "do stored token", which returns the
+# stored token to the upper layer.
+#
+# Example: if we have seen "baz" and the next character is not "z", we store the
+# token BAZ and jump to the Identifier state. If the next character is a space,
+# we cannot advance in the dfa, and the match action is executed. The match
+# action returns the stored token BAZ to the upper layer.
+#
+# For each state which is an intermediate state in a keyword, we add the same
+# "goto", but we don't need to store a token.
+#
+# [ ] ---b---> [ ] ---a---> [ ] ---z---> [BAZ] ---z---> [BAZZ]
+#               |            |             |            |
+#            goto         goto     store BAZ, goto  store BAZZ, goto
+#               |            |             |            |
+#               \---------------------------------------/
+#                                  |
+#                                  v
+#                                 [ID] ----------\
+#                                  ^           [a-z], store IDENTIFIER
+#                                  --------------/
+#
+# (Note: this graph illustrates the logic, but is not accurate wrt the entry
+# actions and match actions of the states.)
+#
+# The code size decreases, because we remove the checks which correspond to
+# transitions from keyword states to the identifier state ([b-z], [a-y] etc.),
+# and replace them with a more general check ([a-z]) in one place. This works
+# because the more specialized checks (e.g., checking for "z" when we have seen
+# "baz") are done before we "goto" to the state which has the generic check.
+#
+# There is one complication though: When we consider adding a goto from a state
+# s1 to state s2, we need to check all possible transitions from s1 and from s2,
+# and see if they match. We cannot jump to a state which has different
+# transitions than the state where we're jumping from.
+#
+# For example, the following partial dfa allows distinguishing identifiers which
+# have only lower case letters from identifiers which have at least one upper
+# case letter.
+#
+# [s1] ---a---> [ ]
+#  |
+#  |            /---[a-z]--\
+#  |            v          |
+#  ---[b-z]--> [s2] ------/
+#  |             |
+#  |           [A-Z]
+#  |             |
+#  |             v
+#  \--[A-Z]---> [s3]
+#
+# We can add a goto from s1 to s2 (after checking for "a"), because the
+# transitions match: with [b-z], both states transition to s2, and with [A-Z],
+# both states transition to s3. Note that [a-z] is a superkey of [b-z], and the
+# transition from s2 is defined for the superkey, but that is ok.
+
 class DfaOptimizer(object):
 
   def __init__(self, dfa, log):
