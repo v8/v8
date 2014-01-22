@@ -1442,7 +1442,6 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
   if (op() == kMathFloor) {
     HValue* val = value();
-    if (val->IsChange()) val = HChange::cast(val)->value();
     if (val->IsDiv() && (val->UseCount() == 1)) {
       HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
@@ -1481,17 +1480,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
       }
       HMathFloorOfDiv* instr =
           HMathFloorOfDiv::New(block()->zone(), context(), new_left, new_right);
-      // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
       instr->InsertBefore(this);
-      ReplaceAllUsesWith(instr);
-      Kill();
-      // We know the division had no other uses than this HMathFloor. Delete it.
-      // Dead code elimination will deal with |left| and |right| if
-      // appropriate.
-      hdiv->DeleteAndReplaceWith(NULL);
-
-      // Return NULL to remove this instruction from the graph.
-      return NULL;
+      return instr;
     }
   }
   return this;
