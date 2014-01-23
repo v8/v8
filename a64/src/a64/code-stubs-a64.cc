@@ -6713,8 +6713,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 #endif
 
   // The caller's return address is above the saved temporaries.
-  // Grab that for the second argument to the hook.
-  __ Peek(x1, kNumSavedRegs * kPointerSize);
+  // Grab its location for the second argument to the hook.
+  __ Add(x1, __ StackPointer(), kNumSavedRegs * kPointerSize);
 
   {
     // Create a dummy frame, as CallCFunction requires this.
