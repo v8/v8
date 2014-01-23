@@ -297,6 +297,14 @@ void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
+void LStringCompareAndBranch::PrintDataTo(StringStream* stream) {
+  stream->Add("if string_compare(");
+  left()->PrintTo(stream);
+  right()->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add("%p -> %p", *original_map(), *transitioned_map());
@@ -2112,7 +2120,13 @@ LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
 
 LInstruction* LChunkBuilder::DoStringCompareAndBranch(
     HStringCompareAndBranch* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  ASSERT(instr->left()->representation().IsTagged());
+  ASSERT(instr->right()->representation().IsTagged());
+  LOperand* left = UseFixed(instr->left(), x1);
+  LOperand* right = UseFixed(instr->right(), x0);
+  LStringCompareAndBranch* result =
+      new(zone()) LStringCompareAndBranch(left, right);
+  return MarkAsCall(result, instr);
 }
 
 

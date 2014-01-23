@@ -174,6 +174,7 @@ class LCodeGen;
   V(StringAdd)                                  \
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
+  V(StringCompareAndBranch)                     \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -2283,6 +2284,26 @@ class LStringCharFromCode: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode, "string-char-from-code")
   DECLARE_HYDROGEN_ACCESSOR(StringCharFromCode)
+};
+
+
+class LStringCompareAndBranch: public LControlInstruction<2, 0> {
+ public:
+  LStringCompareAndBranch(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCompareAndBranch,
+                               "string-compare-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(StringCompareAndBranch)
+
+  Token::Value op() const { return hydrogen()->token(); }
+
+  virtual void PrintDataTo(StringStream* stream);
 };
 
 

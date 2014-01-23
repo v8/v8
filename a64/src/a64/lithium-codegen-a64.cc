@@ -4734,6 +4734,19 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
 }
 
 
+void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
+  Token::Value op = instr->op();
+
+  Handle<Code> ic = CompareIC::GetUninitialized(isolate(), op);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  InlineSmiCheckInfo::EmitNotInlined(masm());
+
+  Condition condition = TokenToCondition(op, false);
+
+  EmitBranch(instr, condition);
+}
+
+
 void LCodeGen::DoStringLength(LStringLength* instr) {
   Register string = ToRegister(instr->string());
   Register result = ToRegister(instr->result());
