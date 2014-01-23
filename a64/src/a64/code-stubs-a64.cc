@@ -2253,9 +2253,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   Register exponent_integer = x12;
   Register scratch1 = x14;
   Register scratch0 = x15;
+  Register saved_lr = x19;
   FPRegister result_double = d0;
-  FPRegister base_double = d1;
-  FPRegister exponent_double = d2;
+  FPRegister base_double = d0;
+  FPRegister exponent_double = d1;
+  FPRegister base_double_copy = d2;
   FPRegister scratch1_double = d6;
   FPRegister scratch0_double = d7;
 
@@ -2265,10 +2267,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
   // Allocate a heap number for the result, and return it.
   Label done;
-
-  // TODO(all): Cases other than ON_STACK are only used by Lithium, and we do
-  // not yet support them.
-  ASSERT(exponent_type_ == ON_STACK);
 
   // Unpack the inputs.
   if (exponent_type_ == ON_STACK) {
@@ -2295,8 +2293,10 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // exponent_tagged is a heap number, so load its double value.
     __ Ldr(exponent_double,
            FieldMemOperand(exponent_tagged, HeapNumber::kValueOffset));
-  } else {
-    UNIMPLEMENTED_M("MathPowStub types other than ON_STACK are unimplemented.");
+  } else if (exponent_type_ == TAGGED) {
+    __ JumpIfSmi(exponent_tagged, &exponent_is_smi);
+    __ Ldr(exponent_double,
+           FieldMemOperand(exponent_tagged, HeapNumber::kValueOffset));
   }
 
   // Handle double (heap number) exponents.
@@ -2383,17 +2383,17 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ Fmov(scratch0_double, 1.0);
       __ Fdiv(result_double, scratch0_double, result_double);
       __ B(&done);
-    } else {
-      UNIMPLEMENTED_M(
-          "MathPowStub types other than ON_STACK are unimplemented.");
     }
 
-    // TODO(all): From here, call the C power function for non-ON_STACK types.
-    // ON_STACK types should not be able to reach this point.
-    ASM_UNIMPLEMENTED_BREAK(
-        "MathPowStub types other than ON_STACK are unimplemented.");
-  } else {
-    UNIMPLEMENTED_M("MathPowStub types other than ON_STACK are unimplemented.");
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ Mov(saved_lr, lr);
+      __ CallCFunction(
+          ExternalReference::power_double_double_function(masm->isolate()),
+          0, 2);
+      __ Mov(lr, saved_lr);
+      __ B(&done);
+    }
   }
 
   // Handle integer (and SMI) exponents.
@@ -2427,6 +2427,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   //  }
   Label power_loop, power_loop_entry, power_loop_exit;
   __ Fmov(scratch1_double, base_double);
+  __ Fmov(base_double_copy, base_double);
   __ Fmov(result_double, 1.0);
   __ B(&power_loop_entry);
 
@@ -2474,7 +2475,18 @@ void MathPowStub::Generate(MacroAssembler* masm) {
         masm->isolate()->counters()->math_pow(), 1, scratch0, scratch1);
     __ Ret();
   } else {
-    UNIMPLEMENTED_M("MathPowStub types other than ON_STACK are unimplemented.");
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ Mov(saved_lr, lr);
+    __ Fmov(base_double, base_double_copy);
+    __ Scvtf(exponent_double, exponent_integer);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()),
+        0, 2);
+    __ Mov(lr, saved_lr);
+    __ Bind(&done);
+    __ IncrementCounter(
+        masm->isolate()->counters()->math_pow(), 1, scratch0, scratch1);
+    __ Ret();
   }
 }
 

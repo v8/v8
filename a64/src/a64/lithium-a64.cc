@@ -1812,7 +1812,19 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
 
 
 LInstruction* LChunkBuilder::DoPower(HPower* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  ASSERT(instr->representation().IsDouble());
+  // We call a C function for double power. It can't trigger a GC.
+  // We need to use fixed result register for the call.
+  Representation exponent_type = instr->right()->representation();
+  ASSERT(instr->left()->representation().IsDouble());
+  LOperand* left = UseFixedDouble(instr->left(), d0);
+  LOperand* right = exponent_type.IsDouble() ?
+      UseFixedDouble(instr->right(), d1) :
+      UseFixed(instr->right(), x11);
+  LPower* result = new(zone()) LPower(left, right);
+  return MarkAsCall(DefineFixedDouble(result, d0),
+                    instr,
+                    CAN_DEOPTIMIZE_EAGERLY);
 }
 
 

@@ -3624,6 +3624,40 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
 }
 
 
+void LCodeGen::DoPower(LPower* instr) {
+  Representation exponent_type = instr->hydrogen()->right()->representation();
+  // Having marked this as a call, we can use any registers.
+  // Just make sure that the input/output registers are the expected ones.
+  ASSERT(!instr->right()->IsDoubleRegister() ||
+         ToDoubleRegister(instr->right()).is(d1));
+  ASSERT(!instr->right()->IsRegister() ||
+         ToRegister(instr->right()).is(x11));
+  ASSERT(ToDoubleRegister(instr->left()).is(d0));
+  ASSERT(ToDoubleRegister(instr->result()).is(d0));
+
+  if (exponent_type.IsSmi()) {
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsTagged()) {
+    Label no_deopt;
+    __ JumpIfSmi(x11, &no_deopt);
+    __ Ldr(x0, FieldMemOperand(x11, HeapObject::kMapOffset));
+    DeoptimizeIfNotRoot(x0, Heap::kHeapNumberMapRootIndex,
+                        instr->environment());
+    __ Bind(&no_deopt);
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsInteger32()) {
+    MathPowStub stub(MathPowStub::INTEGER);
+    __ CallStub(&stub);
+  } else {
+    ASSERT(exponent_type.IsDouble());
+    MathPowStub stub(MathPowStub::DOUBLE);
+    __ CallStub(&stub);
+  }
+}
+
+
 void LCodeGen::DoMathRound(LMathRound* instr) {
   // TODO(jbramley): We could provide a double result here using frint.
   DoubleRegister input = ToDoubleRegister(instr->value());
