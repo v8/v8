@@ -165,7 +165,7 @@ Page* Page::Initialize(Heap* heap,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  ASSERT(page->area_size() <= kMaxNonCodeHeapObjectSize);
+  ASSERT(page->area_size() <= kMaxRegularHeapObjectSize);
   ASSERT(chunk->owner() == owner);
   owner->IncreaseCapacity(page->area_size());
   owner->Free(page->area_start(), page->area_size());

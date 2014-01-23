@@ -9757,7 +9757,7 @@ static MaybeObject* Allocate(Isolate* isolate,
   Heap* heap = isolate->heap();
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
   RUNTIME_ASSERT(size > 0);
-  RUNTIME_ASSERT(size <= heap->MaxRegularSpaceAllocationSize());
+  RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
   HeapObject* allocation;
   { MaybeObject* maybe_allocation = heap->AllocateRaw(size, space, space);
     if (!maybe_allocation->To(&allocation)) return maybe_allocation;

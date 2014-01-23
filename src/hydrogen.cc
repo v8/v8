@@ -2369,10 +2369,9 @@ HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* old_capacity) {
 
 
 void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
-  Heap* heap = isolate()->heap();
   int element_size = IsFastDoubleElementsKind(kind) ? kDoubleSize
                                                     : kPointerSize;
-  int max_size = heap->MaxRegularSpaceAllocationSize() / element_size;
+  int max_size = Page::kMaxRegularHeapObjectSize / element_size;
   max_size -= JSArray::kSize / element_size;
   HConstant* max_size_constant = Add<HConstant>(max_size);
   Add<HBoundsCheck>(length, max_size_constant);

@@ -103,7 +103,7 @@ class Isolate;
   ASSERT((OffsetFrom(address) & kObjectAlignmentMask) == 0)
 
 #define ASSERT_OBJECT_SIZE(size)                                               \
-  ASSERT((0 < size) && (size <= Page::kMaxNonCodeHeapObjectSize))
+  ASSERT((0 < size) && (size <= Page::kMaxRegularHeapObjectSize))
 
 #define ASSERT_PAGE_OFFSET(offset)                                             \
   ASSERT((Page::kObjectStartOffset <= offset)                                  \
@@ -783,7 +783,7 @@ class Page : public MemoryChunk {
   // are allocated in large object space and are never moved in memory. This
   // also applies to new space allocation, since objects are never migrated
   // from new space to large object space.  Takes double alignment into account.
-  static const int kMaxNonCodeHeapObjectSize = kPageSize - kObjectStartOffset;
+  static const int kMaxRegularHeapObjectSize = kPageSize - kObjectStartOffset;
 
   // Page size mask.
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
@@ -1076,7 +1076,7 @@ class MemoryAllocator {
 
   // Returns maximum available bytes that the old space can have.
   intptr_t MaxAvailable() {
-    return (Available() / Page::kPageSize) * Page::kMaxNonCodeHeapObjectSize;
+    return (Available() / Page::kPageSize) * Page::kMaxRegularHeapObjectSize;
   }
 
   // Returns an indication of whether a pointer is in a space that has
@@ -1631,7 +1631,7 @@ class FreeList {
  private:
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
-  static const int kMaxBlockSize = Page::kMaxNonCodeHeapObjectSize;
+  static const int kMaxBlockSize = Page::kMaxRegularHeapObjectSize;
 
   FreeListNode* FindNodeFor(int size_in_bytes, int* node_size);
 
@@ -2009,7 +2009,7 @@ class NewSpacePage : public MemoryChunk {
     (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
     (1 << MemoryChunk::SCAN_ON_SCAVENGE);
 
-  static const int kAreaSize = Page::kMaxNonCodeHeapObjectSize;
+  static const int kAreaSize = Page::kMaxRegularHeapObjectSize;
 
   inline NewSpacePage* next_page() const {
     return static_cast<NewSpacePage*>(next_chunk());
@@ -2669,7 +2669,7 @@ class MapSpace : public PagedSpace {
   virtual void VerifyObject(HeapObject* obj);
 
  private:
-  static const int kMapsPerPage = Page::kMaxNonCodeHeapObjectSize / Map::kSize;
+  static const int kMapsPerPage = Page::kMaxRegularHeapObjectSize / Map::kSize;
 
   // Do map space compaction if there is a page gap.
   int CompactionThreshold() {

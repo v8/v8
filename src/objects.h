@@ -2663,7 +2663,7 @@ class JSObject: public JSReceiver {
   // don't want to be wasteful with long lived objects.
   static const int kMaxUncheckedOldFastElementsLength = 500;
 
-  // Note that Heap::MaxRegularSpaceAllocationSize() puts a limit on
+  // Note that Page::kMaxRegularHeapObjectSize puts a limit on
   // permissible values (see the ASSERT in heap.cc).
   static const int kInitialMaxFastElementArray = 100000;
 

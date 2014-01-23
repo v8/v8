@@ -531,7 +531,6 @@ class Heap {
   int InitialSemiSpaceSize() { return initial_semispace_size_; }
   intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
   intptr_t MaxExecutableSize() { return max_executable_size_; }
-  int MaxRegularSpaceAllocationSize() { return InitialSemiSpaceSize() * 4/5; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -2103,7 +2102,7 @@ class Heap {
                                      PretenureFlag pretenure) {
     ASSERT(preferred_old_space == OLD_POINTER_SPACE ||
            preferred_old_space == OLD_DATA_SPACE);
-    if (object_size > Page::kMaxNonCodeHeapObjectSize) return LO_SPACE;
+    if (object_size > Page::kMaxRegularHeapObjectSize) return LO_SPACE;
     return (pretenure == TENURED) ? preferred_old_space : NEW_SPACE;
   }
 

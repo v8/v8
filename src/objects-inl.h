@@ -4702,7 +4702,7 @@ bool Map::CanHaveMoreTransitions() {
   if (!HasTransitionArray()) return true;
   return FixedArray::SizeFor(transitions()->length() +
                              TransitionArray::kTransitionSize)
-      <= Page::kMaxNonCodeHeapObjectSize;
+      <= Page::kMaxRegularHeapObjectSize;
 }
 
 
