@@ -4337,6 +4337,19 @@ void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
 }
 
 
+void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
+  Register scratch1 = x5;
+  Register scratch2 = x6;
+  ASSERT(instr->IsMarkedAsCall());
+
+  ASM_UNIMPLEMENTED_BREAK("DoDeclareGlobals");
+  __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
+  __ Mov(scratch2, Operand(Smi::FromInt(instr->hydrogen()->flags())));
+  __ Push(cp, scratch1, scratch2);  // The context is the first argument.
+  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+}
+
+
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   __ CallRuntimeSaveDoubles(Runtime::kStackGuard);

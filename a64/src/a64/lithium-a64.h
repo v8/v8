@@ -90,6 +90,7 @@ class LCodeGen;
   V(Context)                                    \
   V(DateField)                                  \
   V(DebugBreak)                                 \
+  V(DeclareGlobals)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
@@ -1187,6 +1188,13 @@ class LDateField: public LTemplateInstruction<1, 1, 0> {
 class LDebugBreak: public LTemplateInstruction<0, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(DebugBreak, "break")
+};
+
+
+class LDeclareGlobals: public LTemplateInstruction<0, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals, "declare-globals")
+  DECLARE_HYDROGEN_ACCESSOR(DeclareGlobals)
 };
 
 

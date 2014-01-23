@@ -1322,7 +1322,7 @@ LInstruction* LChunkBuilder::DoDebugBreak(HDebugBreak* instr) {
 
 
 LInstruction* LChunkBuilder::DoDeclareGlobals(HDeclareGlobals* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  return MarkAsCall(new(zone()) LDeclareGlobals, instr);
 }
 
 
