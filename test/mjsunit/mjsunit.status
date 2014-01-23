@@ -35,9 +35,6 @@
   # BUG(v8:2921).
   'debug-step-4-in-frame': [PASS, FAIL, SLOW],
 
-  # TODO(hpayer): Investigate.
-  'json2': [PASS, FLAKY],
-
   ##############################################################################
   # Fails.
   'regress/regress-1119': [FAIL],
