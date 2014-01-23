@@ -1282,41 +1282,6 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
 }
 
 
-Handle<Code> CallStubCompiler::CompileArrayPushCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  // If object is not an array or is observed or sealed, bail out to regular
-  // call.
-  if (!object->IsJSArray() ||
-      !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed() ||
-      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
-    return Handle<Code>::null();
-  }
-
-  Label miss;
-
-  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
-
-  Handle<Map> map(Handle<JSArray>::cast(object)->map());
-  ElementsKind elements_kind = map->elements_kind();
-  const int argc = arguments().immediate();
-
-  ArrayPushStub stub(elements_kind, argc);
-  Handle<Code> code = stub.GetCode(isolate());
-  StubCompiler::GenerateTailCall(masm(), code);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
-}
-
-
 Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Object> object,
     Handle<JSObject> holder,
@@ -1913,13 +1878,6 @@ CallStubCompiler::CallStubCompiler(Isolate* isolate,
 
 
 bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
-  if (function->shared()->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = function->shared()->builtin_function_id();
-#define CALL_GENERATOR_CASE(name) if (id == k##name) return true;
-    CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
-#undef CALL_GENERATOR_CASE
-  }
-
   CallOptimization optimization(function);
   return optimization.is_simple_api_call();
 }
@@ -1933,21 +1891,6 @@ Handle<Code> CallStubCompiler::CompileCustomCall(
     Handle<String> fname,
     Code::StubType type) {
   ASSERT(HasCustomCallGenerator(function));
-
-  if (function->shared()->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = function->shared()->builtin_function_id();
-#define CALL_GENERATOR_CASE(name)                               \
-    if (id == k##name) {                                        \
-      return CallStubCompiler::Compile##name##Call(object,      \
-                                                   holder,      \
-                                                   cell,        \
-                                                   function,    \
-                                                   fname,       \
-                                                   type);       \
-    }
-    CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
-#undef CALL_GENERATOR_CASE
-  }
   CallOptimization optimization(function);
   ASSERT(optimization.is_simple_api_call());
   return CompileFastApiCall(optimization,
