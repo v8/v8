@@ -292,6 +292,15 @@ class SquashCommits(Step):
     # Remove date and trailing white space.
     text = re.sub(r"^%s: " % self._state["date"], "", text.rstrip())
 
+    # Retrieve svn revision for showing the used bleeding edge revision in the
+    # commit message.
+    args = "svn find-rev %s" % self._state["prepare_commit_hash"]
+    svn_revision = self.Git(args).strip()
+    self.Persist("svn_revision", svn_revision)
+    text = MSub(r"^(Version \d+\.\d+\.\d+)$",
+                "\\1 (based on bleeding_edge revision r%s)" % svn_revision,
+                text)
+
     # Remove indentation and merge paragraphs into single long lines, keeping
     # empty lines between them.
     def SplitMapJoin(split_text, fun, join_text):
@@ -477,7 +486,10 @@ class UploadCL(Step):
       print "Please enter the email address of a reviewer for the roll CL: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       rev = self.ReadLine()
-    args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
+    self.RestoreIfUnset("svn_revision")
+    args = ("commit -am \"Update V8 to version %s "
+            "(based on bleeding_edge revision r%s).\n\nTBR=%s\""
+            % (ver, self._state["svn_revision"], rev))
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
     force_flag = " -f" if self._options.force_upload else ""

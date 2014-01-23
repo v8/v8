@@ -28,6 +28,7 @@
 
 import os
 import tempfile
+import traceback
 import unittest
 
 import common_includes
@@ -247,7 +248,11 @@ class SimpleMock(object):
     # The expectation list contains a mandatory return value and an optional
     # callback for checking the context at the time of the call.
     if len(expected_call) == len(args) + 2:
-      expected_call[len(args) + 1]()
+      try:
+        expected_call[len(args) + 1]()
+      except:
+        tb = traceback.format_exc()
+        raise NoRetryException("Caught exception from callback: %s" % tb)
     return_value = expected_call[len(args)]
 
     # If the return value is an exception, raise it instead of returning.
@@ -563,6 +568,7 @@ class ScriptTest(unittest.TestCase):
 
     self.ExpectGit([
       ["diff svn/trunk hash1", "patch content"],
+      ["svn find-rev hash1", "123455\n"],
     ])
 
     self.MakeStep().Persist("prepare_commit_hash", "hash1")
@@ -581,7 +587,7 @@ class ScriptTest(unittest.TestCase):
         Chromium issue 12345
 
         Performance and stability improvements on all platforms.\n"""
-    commit_msg = """Version 3.22.5
+    commit_msg = """Version 3.22.5 (based on bleeding_edge revision r123455)
 
 Log text 1. Chromium issue 12345
 
@@ -595,7 +601,7 @@ Performance and stability improvements on all platforms."""
         12345).
 
         Performance and stability improvements on all platforms.\n"""
-    commit_msg = """Version 3.22.5
+    commit_msg = """Version 3.22.5 (based on bleeding_edge revision r123455)
 
 Long commit message that fills more than 80 characters (Chromium issue 12345).
 
@@ -631,13 +637,14 @@ Performance and stability improvements on all platforms."""
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+6", version))
 
-    def CheckUpload():
-      cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
-
     def CheckSVNCommit():
       commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
-      self.assertTrue(re.search(r"Version 3.22.5", commit))
-      self.assertTrue(re.search(r"Log text 1 \(issue 321\).", commit))
+      self.assertEquals(
+"""Version 3.22.5 (based on bleeding_edge revision r123455)
+
+Log text 1 (issue 321).
+
+Performance and stability improvements on all platforms.""", commit)
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
@@ -676,6 +683,7 @@ Performance and stability improvements on all platforms."""
         "Now working on version 3.22.6.\""),
        "hash1\n"],
       ["diff svn/trunk hash1", "patch content\n"],
+      ["svn find-rev hash1", "123455\n"],
       ["checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], ""],
       ["apply --index --reject  \"%s\"" % TEST_CONFIG[PATCH_FILE], ""],
       ["add \"%s\"" % TEST_CONFIG[VERSION_FILE], ""],
@@ -686,7 +694,8 @@ Performance and stability improvements on all platforms."""
       ["checkout master", ""],
       ["pull", ""],
       ["checkout -b v8-roll-123456", ""],
-      [("commit -am \"Update V8 to version 3.22.5.\n\n"
+      [("commit -am \"Update V8 to version 3.22.5 "
+        "(based on bleeding_edge revision r123455).\n\n"
         "TBR=reviewer@chromium.org\""),
        ""],
       ["cl upload --send-mail%s" % force_flag, ""],
