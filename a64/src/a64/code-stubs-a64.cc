@@ -3338,13 +3338,15 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Slow-case. Tail call builtin.
   __ Bind(&slow);
   if (!ReturnTrueFalseObject()) {
+    FrameScope scope(masm, StackFrame::INTERNAL);
     // Arguments have either been passed into registers or have been previously
     // popped. We need to push them before calling builtin.
     __ Push(object, function);
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
+    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
   } else {
     ASM_UNIMPLEMENTED("InstanceofStub call builtin and return object");
   }
+  __ Ret();
 }
 
 
