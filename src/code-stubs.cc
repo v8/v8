@@ -269,8 +269,8 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
 }
 
 
-void NewStringAddStub::PrintBaseName(StringStream* stream) {
-  stream->Add("NewStringAddStub");
+void StringAddStub::PrintBaseName(StringStream* stream) {
+  stream->Add("StringAddStub");
   if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
     stream->Add("_CheckBoth");
   } else if ((flags() & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
@@ -766,6 +766,12 @@ void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
+void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
+  FastNewContextStub stub(FastNewContextStub::kMaximumSlots);
+  InstallDescriptor(isolate, &stub);
+}
+
+
 // static
 void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
   BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
@@ -781,8 +787,8 @@ void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
 
 
 // static
-void NewStringAddStub::InstallDescriptors(Isolate* isolate) {
-  NewStringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
+void StringAddStub::InstallDescriptors(Isolate* isolate) {
+  StringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
   InstallDescriptor(isolate, &stub);
 }
 

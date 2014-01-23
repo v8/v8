@@ -182,20 +182,22 @@ void FullCodeGenerator::Generate() {
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate context");
     // Argument to NewContext is the function, which is still in edi.
-    __ push(edi);
     if (FLAG_harmony_scoping && info->scope()->is_global_scope()) {
+      __ push(edi);
       __ Push(info->scope()->GetScopeInfo());
       __ CallRuntime(Runtime::kNewGlobalContext, 2);
     } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
+      __ push(edi);
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     function_in_register = false;
-    // Context is returned in both eax and esi.  It replaces the context
-    // passed to us.  It's saved in the stack and kept live in esi.
-    __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
+    // Context is returned in eax.  It replaces the context passed to us.
+    // It's saved in the stack and kept live in esi.
+    __ mov(esi, eax);
+    __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), eax);
 
     // Copy parameters into context if necessary.
     int num_parameters = info->scope()->num_parameters();
@@ -3636,21 +3638,12 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
 void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
+  VisitForStackValue(args->at(0));
+  VisitForAccumulatorValue(args->at(1));
 
-  if (FLAG_new_string_add) {
-    VisitForStackValue(args->at(0));
-    VisitForAccumulatorValue(args->at(1));
-
-    __ pop(edx);
-    NewStringAddStub stub(STRING_ADD_CHECK_BOTH, NOT_TENURED);
-    __ CallStub(&stub);
-  } else {
-    VisitForStackValue(args->at(0));
-    VisitForStackValue(args->at(1));
-
-    StringAddStub stub(STRING_ADD_CHECK_BOTH);
-    __ CallStub(&stub);
-  }
+  __ pop(edx);
+  StringAddStub stub(STRING_ADD_CHECK_BOTH, NOT_TENURED);
+  __ CallStub(&stub);
   context()->Plug(eax);
 }
 

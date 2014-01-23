@@ -4780,6 +4780,17 @@ void Map::set_transitions(TransitionArray* transition_array,
   // When there is another reference to the array somewhere (e.g. a handle),
   // not zapping turns from a waste of memory into a source of crashes.
   if (HasTransitionArray()) {
+#ifdef DEBUG
+    for (int i = 0; i < transitions()->number_of_transitions(); i++) {
+      Map* target = transitions()->GetTarget(i);
+      if (target->instance_descriptors() == instance_descriptors()) {
+        Name* key = transitions()->GetKey(i);
+        int new_target_index = transition_array->Search(key);
+        ASSERT(new_target_index != TransitionArray::kNotFound);
+        ASSERT(transition_array->GetTarget(new_target_index) == target);
+      }
+    }
+#endif
     ASSERT(transitions() != transition_array);
     ZapTransitions();
   }

@@ -1564,13 +1564,14 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 
 #ifdef V8_SHARED
 static void SetStandaloneFlagsViaCommandLine() {
-  int fake_argc = 2;
-  char **fake_argv = new char*[2];
+  int fake_argc = 3;
+  char **fake_argv = new char*[3];
   fake_argv[0] = NULL;
   fake_argv[1] = strdup("--trace-hydrogen-file=hydrogen.cfg");
   fake_argv[2] = strdup("--redirect-code-traces-to=code.asm");
   v8::V8::SetFlagsFromCommandLine(&fake_argc, fake_argv, false);
   free(fake_argv[1]);
+  free(fake_argv[2]);
   delete[] fake_argv;
 }
 #endif

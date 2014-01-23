@@ -349,8 +349,6 @@ DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
 
-DEFINE_bool(new_string_add, true, "enable new string addition")
-
 // Profiler flags.
 DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
            // 0x1700 fits in the immediate field of an ARM instruction.

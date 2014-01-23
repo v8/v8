@@ -153,6 +153,8 @@
         ['v8_target_arch=="mipsel"', {
           'sources': [
             'test-assembler-mips.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-mips.cc',
             'test-disasm-mips.cc',
             'test-macro-assembler-mips.cc'
           ],

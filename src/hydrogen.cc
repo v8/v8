@@ -7613,6 +7613,53 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         return true;
       }
       break;
+    case kArrayPop: {
+      if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+        return false;
+      }
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(elements_kind)) return false;
+      AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+
+      Drop(expr->arguments()->length());
+      HValue* result;
+      HValue* checked_object;
+      HValue* reduced_length;
+      HValue* receiver = Pop();
+      { NoObservableSideEffectsScope scope(this);
+        checked_object = AddCheckMap(receiver, receiver_map);
+        HValue* elements = AddLoadElements(checked_object);
+        // Ensure that we aren't popping from a copy-on-write array.
+        if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+          Add<HCheckMaps>(
+              elements, isolate()->factory()->fixed_array_map(), top_info());
+        }
+        HValue* length = Add<HLoadNamedField>(
+            checked_object, HObjectAccess::ForArrayLength(elements_kind));
+        reduced_length = AddUncasted<HSub>(length, graph()->GetConstant1());
+        HValue* bounds_check = Add<HBoundsCheck>(
+            graph()->GetConstant0(), length);
+        result = AddElementAccess(elements, reduced_length, NULL,
+                                  bounds_check, elements_kind, false);
+        Factory* factory = isolate()->factory();
+        double nan_double = FixedDoubleArray::hole_nan_as_double();
+        HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
+            ? Add<HConstant>(factory->the_hole_value())
+            : Add<HConstant>(nan_double);
+        if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+          elements_kind = FAST_HOLEY_ELEMENTS;
+        }
+        AddElementAccess(
+            elements, reduced_length, hole, bounds_check, elements_kind, true);
+      }
+      Add<HStoreNamedField>(
+          checked_object, HObjectAccess::ForArrayLength(elements_kind),
+          reduced_length);
+      ast_context()->ReturnValue(result);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      return true;
+    }
     default:
       // Not yet supported for inlining.
       break;
@@ -8951,11 +8998,16 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       return AddUncasted<HInvokeFunction>(function, 2);
     }
 
-    // Inline the string addition into the stub when creating allocation
-    // mementos to gather allocation site feedback.
-    if (graph()->info()->IsStub() &&
-        allocation_mode.CreateAllocationMementos()) {
-      return BuildStringAdd(left, right, allocation_mode);
+    // Fast path for empty constant strings.
+    if (left->IsConstant() &&
+        HConstant::cast(left)->HasStringValue() &&
+        HConstant::cast(left)->StringValue()->length() == 0) {
+      return right;
+    }
+    if (right->IsConstant() &&
+        HConstant::cast(right)->HasStringValue() &&
+        HConstant::cast(right)->StringValue()->length() == 0) {
+      return left;
     }
 
     // Register the dependent code with the allocation site.
@@ -8966,28 +9018,20 @@ HValue* HGraphBuilder::BuildBinaryOperation(
           site, AllocationSite::TENURING, top_info());
     }
 
-    // Inline string addition if we know that we'll create a cons string.
-    if (left->IsConstant()) {
-      HConstant* c_left = HConstant::cast(left);
-      if (c_left->HasStringValue()) {
-        int c_left_length = c_left->StringValue()->length();
-        if (c_left_length == 0) {
-          return right;
-        } else if (c_left_length + 1 >= ConsString::kMinLength) {
-          return BuildStringAdd(left, right, allocation_mode);
-        }
-      }
-    }
-    if (right->IsConstant()) {
-      HConstant* c_right = HConstant::cast(right);
-      if (c_right->HasStringValue()) {
-        int c_right_length = c_right->StringValue()->length();
-        if (c_right_length == 0) {
-          return left;
-        } else if (c_right_length + 1 >= ConsString::kMinLength) {
-          return BuildStringAdd(left, right, allocation_mode);
-        }
-      }
+    // Inline the string addition into the stub when creating allocation
+    // mementos to gather allocation site feedback, or if we can statically
+    // infer that we're going to create a cons string.
+    if ((graph()->info()->IsStub() &&
+         allocation_mode.CreateAllocationMementos()) ||
+        (left->IsConstant() &&
+         HConstant::cast(left)->HasStringValue() &&
+         HConstant::cast(left)->StringValue()->length() + 1 >=
+           ConsString::kMinLength) ||
+        (right->IsConstant() &&
+         HConstant::cast(right)->HasStringValue() &&
+         HConstant::cast(right)->StringValue()->length() + 1 >=
+           ConsString::kMinLength)) {
+      return BuildStringAdd(left, right, allocation_mode);
     }
 
     // Fallback to using the string add stub.

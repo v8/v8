@@ -243,42 +243,42 @@ struct Tests : Rep {
   }
 
   void Bitset() {
-    CHECK(IsBitset(T.None));
-    CHECK(IsBitset(T.Any));
-    CHECK(IsBitset(T.String));
-    CHECK(IsBitset(T.Object));
+    CHECK(this->IsBitset(T.None));
+    CHECK(this->IsBitset(T.Any));
+    CHECK(this->IsBitset(T.String));
+    CHECK(this->IsBitset(T.Object));
 
-    CHECK(IsBitset(T.Union(T.String, T.Number)));
-    CHECK(IsBitset(T.Union(T.String, T.Receiver)));
+    CHECK(this->IsBitset(T.Union(T.String, T.Number)));
+    CHECK(this->IsBitset(T.Union(T.String, T.Receiver)));
 
-    CHECK_EQ(0, AsBitset(T.None));
-    CHECK_EQ(AsBitset(T.Number) | AsBitset(T.String),
-             AsBitset(T.Union(T.String, T.Number)));
-    CHECK_EQ(AsBitset(T.Receiver),
-             AsBitset(T.Union(T.Receiver, T.Object)));
+    CHECK_EQ(0, this->AsBitset(T.None));
+    CHECK_EQ(this->AsBitset(T.Number) | this->AsBitset(T.String),
+             this->AsBitset(T.Union(T.String, T.Number)));
+    CHECK_EQ(this->AsBitset(T.Receiver),
+             this->AsBitset(T.Union(T.Receiver, T.Object)));
   }
 
   void Class() {
-    CHECK(IsClass(T.ObjectClass));
-    CHECK(IsClass(T.ArrayClass));
+    CHECK(this->IsClass(T.ObjectClass));
+    CHECK(this->IsClass(T.ArrayClass));
 
-    CHECK(*T.object_map == AsClass(T.ObjectClass));
-    CHECK(*T.array_map == AsClass(T.ArrayClass));
+    CHECK(*T.object_map == this->AsClass(T.ObjectClass));
+    CHECK(*T.array_map == this->AsClass(T.ArrayClass));
   }
 
   void Constant() {
-    CHECK(IsConstant(T.SmiConstant));
-    CHECK(IsConstant(T.ObjectConstant1));
-    CHECK(IsConstant(T.ObjectConstant2));
-    CHECK(IsConstant(T.ArrayConstant1));
-    CHECK(IsConstant(T.ArrayConstant2));
+    CHECK(this->IsConstant(T.SmiConstant));
+    CHECK(this->IsConstant(T.ObjectConstant1));
+    CHECK(this->IsConstant(T.ObjectConstant2));
+    CHECK(this->IsConstant(T.ArrayConstant1));
+    CHECK(this->IsConstant(T.ArrayConstant2));
 
-    CHECK(*T.smi == AsConstant(T.SmiConstant));
-    CHECK(*T.object1 == AsConstant(T.ObjectConstant1));
-    CHECK(*T.object2 == AsConstant(T.ObjectConstant2));
-    CHECK(*T.object1 != AsConstant(T.ObjectConstant2));
-    CHECK(*T.array == AsConstant(T.ArrayConstant1));
-    CHECK(*T.array == AsConstant(T.ArrayConstant2));
+    CHECK(*T.smi == this->AsConstant(T.SmiConstant));
+    CHECK(*T.object1 == this->AsConstant(T.ObjectConstant1));
+    CHECK(*T.object2 == this->AsConstant(T.ObjectConstant2));
+    CHECK(*T.object1 != this->AsConstant(T.ObjectConstant2));
+    CHECK(*T.array == this->AsConstant(T.ArrayConstant1));
+    CHECK(*T.array == this->AsConstant(T.ArrayConstant2));
   }
 
   void Is() {
@@ -430,9 +430,9 @@ struct Tests : Rep {
 
   void Union() {
     // Bitset-bitset
-    CHECK(IsBitset(T.Union(T.Object, T.Number)));
-    CHECK(IsBitset(T.Union(T.Object, T.Object)));
-    CHECK(IsBitset(T.Union(T.Any, T.None)));
+    CHECK(this->IsBitset(T.Union(T.Object, T.Number)));
+    CHECK(this->IsBitset(T.Union(T.Object, T.Object)));
+    CHECK(this->IsBitset(T.Union(T.Any, T.None)));
 
     CheckEqual(T.Union(T.None, T.Number), T.Number);
     CheckEqual(T.Union(T.Object, T.Proxy), T.Receiver);
@@ -440,8 +440,8 @@ struct Tests : Rep {
     CheckSub(T.Union(T.Number, T.String), T.Any);
 
     // Class-class
-    CHECK(IsClass(T.Union(T.ObjectClass, T.ObjectClass)));
-    CHECK(IsUnion(T.Union(T.ObjectClass, T.ArrayClass)));
+    CHECK(this->IsClass(T.Union(T.ObjectClass, T.ObjectClass)));
+    CHECK(this->IsUnion(T.Union(T.ObjectClass, T.ArrayClass)));
 
     CheckEqual(T.Union(T.ObjectClass, T.ObjectClass), T.ObjectClass);
     CheckSub(T.None, T.Union(T.ObjectClass, T.ArrayClass));
@@ -454,9 +454,9 @@ struct Tests : Rep {
     CheckDisjoint(T.Union(T.ObjectClass, T.ArrayClass), T.Number);
 
     // Constant-constant
-    CHECK(IsConstant(T.Union(T.ObjectConstant1, T.ObjectConstant1)));
-    CHECK(IsConstant(T.Union(T.ArrayConstant1, T.ArrayConstant1)));
-    CHECK(IsUnion(T.Union(T.ObjectConstant1, T.ObjectConstant2)));
+    CHECK(this->IsConstant(T.Union(T.ObjectConstant1, T.ObjectConstant1)));
+    CHECK(this->IsConstant(T.Union(T.ArrayConstant1, T.ArrayConstant1)));
+    CHECK(this->IsUnion(T.Union(T.ObjectConstant1, T.ObjectConstant2)));
 
     CheckEqual(
         T.Union(T.ObjectConstant1, T.ObjectConstant1),
@@ -479,8 +479,8 @@ struct Tests : Rep {
     CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.ObjectClass);
 
     // Bitset-class
-    CHECK(IsBitset(T.Union(T.ObjectClass, T.Object)));
-    CHECK(IsUnion(T.Union(T.ObjectClass, T.Number)));
+    CHECK(this->IsBitset(T.Union(T.ObjectClass, T.Object)));
+    CHECK(this->IsUnion(T.Union(T.ObjectClass, T.Number)));
 
     CheckEqual(T.Union(T.ObjectClass, T.Object), T.Object);
     CheckSub(T.None, T.Union(T.ObjectClass, T.Number));
@@ -492,9 +492,9 @@ struct Tests : Rep {
     CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
 
     // Bitset-constant
-    CHECK(IsBitset(T.Union(T.SmiConstant, T.Number)));
-    CHECK(IsBitset(T.Union(T.ObjectConstant1, T.Object)));
-    CHECK(IsUnion(T.Union(T.ObjectConstant2, T.Number)));
+    CHECK(this->IsBitset(T.Union(T.SmiConstant, T.Number)));
+    CHECK(this->IsBitset(T.Union(T.ObjectConstant1, T.Object)));
+    CHECK(this->IsUnion(T.Union(T.ObjectConstant2, T.Number)));
 
     CheckEqual(T.Union(T.SmiConstant, T.Number), T.Number);
     CheckEqual(T.Union(T.ObjectConstant1, T.Object), T.Object);
@@ -509,8 +509,8 @@ struct Tests : Rep {
     CheckEqual(T.Union(T.Signed32, T.Signed32Constant), T.Signed32);
 
     // Class-constant
-    CHECK(IsUnion(T.Union(T.ObjectConstant1, T.ObjectClass)));
-    CHECK(IsUnion(T.Union(T.ArrayClass, T.ObjectConstant2)));
+    CHECK(this->IsUnion(T.Union(T.ObjectConstant1, T.ObjectClass)));
+    CHECK(this->IsUnion(T.Union(T.ArrayClass, T.ObjectConstant2)));
 
     CheckSub(T.None, T.Union(T.ObjectConstant1, T.ArrayClass));
     CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass), T.Any);
@@ -525,9 +525,10 @@ struct Tests : Rep {
     CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectClass);
 
     // Bitset-union
-    CHECK(IsBitset(
+    CHECK(this->IsBitset(
         T.Union(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass))));
-    CHECK(IsUnion(T.Union(T.Union(T.ArrayClass, T.ObjectConstant2), T.Number)));
+    CHECK(this->IsUnion(
+        T.Union(T.Union(T.ArrayClass, T.ObjectConstant2), T.Number)));
 
     CheckEqual(
         T.Union(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass)),
@@ -552,9 +553,9 @@ struct Tests : Rep {
         T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
 
     // Class-union
-    CHECK(IsUnion(
+    CHECK(this->IsUnion(
         T.Union(T.Union(T.ArrayClass, T.ObjectConstant2), T.ArrayClass)));
-    CHECK(IsUnion(
+    CHECK(this->IsUnion(
         T.Union(T.Union(T.ArrayClass, T.ObjectConstant2), T.ObjectClass)));
 
     CheckEqual(
@@ -574,11 +575,11 @@ struct Tests : Rep {
         T.Union(T.ArrayClass, T.ObjectConstant2));
 
     // Constant-union
-    CHECK(IsUnion(T.Union(
+    CHECK(this->IsUnion(T.Union(
         T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2))));
-    CHECK(IsUnion(T.Union(
+    CHECK(this->IsUnion(T.Union(
         T.Union(T.ArrayConstant1, T.ObjectClass), T.ObjectConstant1)));
-    CHECK(IsUnion(T.Union(
+    CHECK(this->IsUnion(T.Union(
         T.Union(T.ArrayConstant1, T.ObjectConstant2), T.ObjectConstant1)));
 
     CheckEqual(
@@ -592,10 +593,10 @@ struct Tests : Rep {
             T.ObjectConstant2, T.Union(T.ArrayConstant1, T.ObjectConstant1)));
 
     // Union-union
-    CHECK(IsBitset(T.Union(
+    CHECK(this->IsBitset(T.Union(
         T.Union(T.Number, T.ArrayClass),
         T.Union(T.Signed32, T.Array))));
-    CHECK(IsUnion(T.Union(
+    CHECK(this->IsUnion(T.Union(
         T.Union(T.Number, T.ArrayClass),
         T.Union(T.ObjectClass, T.ArrayClass))));
 
@@ -618,9 +619,9 @@ struct Tests : Rep {
 
   void Intersect() {
     // Bitset-bitset
-    CHECK(IsBitset(T.Intersect(T.Object, T.Number)));
-    CHECK(IsBitset(T.Intersect(T.Object, T.Object)));
-    CHECK(IsBitset(T.Intersect(T.Any, T.None)));
+    CHECK(this->IsBitset(T.Intersect(T.Object, T.Number)));
+    CHECK(this->IsBitset(T.Intersect(T.Object, T.Object)));
+    CHECK(this->IsBitset(T.Intersect(T.Any, T.None)));
 
     CheckEqual(T.Intersect(T.None, T.Number), T.None);
     CheckEqual(T.Intersect(T.Object, T.Proxy), T.None);
@@ -628,16 +629,16 @@ struct Tests : Rep {
     CheckEqual(T.Intersect(T.UniqueName, T.String), T.InternalizedString);
 
     // Class-class
-    CHECK(IsClass(T.Intersect(T.ObjectClass, T.ObjectClass)));
-    CHECK(IsBitset(T.Intersect(T.ObjectClass, T.ArrayClass)));
+    CHECK(this->IsClass(T.Intersect(T.ObjectClass, T.ObjectClass)));
+    CHECK(this->IsBitset(T.Intersect(T.ObjectClass, T.ArrayClass)));
 
     CheckEqual(T.Intersect(T.ObjectClass, T.ObjectClass), T.ObjectClass);
     CheckEqual(T.Intersect(T.ObjectClass, T.ArrayClass), T.None);
 
     // Constant-constant
-    CHECK(IsConstant(T.Intersect(T.ObjectConstant1, T.ObjectConstant1)));
-    CHECK(IsConstant(T.Intersect(T.ArrayConstant1, T.ArrayConstant2)));
-    CHECK(IsBitset(T.Intersect(T.ObjectConstant1, T.ObjectConstant2)));
+    CHECK(this->IsConstant(T.Intersect(T.ObjectConstant1, T.ObjectConstant1)));
+    CHECK(this->IsConstant(T.Intersect(T.ArrayConstant1, T.ArrayConstant2)));
+    CHECK(this->IsBitset(T.Intersect(T.ObjectConstant1, T.ObjectConstant2)));
 
     CheckEqual(
         T.Intersect(T.ObjectConstant1, T.ObjectConstant1), T.ObjectConstant1);
@@ -646,33 +647,33 @@ struct Tests : Rep {
     CheckEqual(T.Intersect(T.ObjectConstant1, T.ObjectConstant2), T.None);
 
     // Bitset-class
-    CHECK(IsClass(T.Intersect(T.ObjectClass, T.Object)));
-    CHECK(IsBitset(T.Intersect(T.ObjectClass, T.Number)));
+    CHECK(this->IsClass(T.Intersect(T.ObjectClass, T.Object)));
+    CHECK(this->IsBitset(T.Intersect(T.ObjectClass, T.Number)));
 
     CheckEqual(T.Intersect(T.ObjectClass, T.Object), T.ObjectClass);
     CheckEqual(T.Intersect(T.ObjectClass, T.Array), T.None);
     CheckEqual(T.Intersect(T.ObjectClass, T.Number), T.None);
 
     // Bitset-constant
-    CHECK(IsBitset(T.Intersect(T.Smi, T.Number)));
-    CHECK(IsConstant(T.Intersect(T.SmiConstant, T.Number)));
-    CHECK(IsConstant(T.Intersect(T.ObjectConstant1, T.Object)));
+    CHECK(this->IsBitset(T.Intersect(T.Smi, T.Number)));
+    CHECK(this->IsConstant(T.Intersect(T.SmiConstant, T.Number)));
+    CHECK(this->IsConstant(T.Intersect(T.ObjectConstant1, T.Object)));
 
     CheckEqual(T.Intersect(T.Smi, T.Number), T.Smi);
     CheckEqual(T.Intersect(T.SmiConstant, T.Number), T.SmiConstant);
     CheckEqual(T.Intersect(T.ObjectConstant1, T.Object), T.ObjectConstant1);
 
     // Class-constant
-    CHECK(IsBitset(T.Intersect(T.ObjectConstant1, T.ObjectClass)));
-    CHECK(IsBitset(T.Intersect(T.ArrayClass, T.ObjectConstant2)));
+    CHECK(this->IsBitset(T.Intersect(T.ObjectConstant1, T.ObjectClass)));
+    CHECK(this->IsBitset(T.Intersect(T.ArrayClass, T.ObjectConstant2)));
 
     CheckEqual(T.Intersect(T.ObjectConstant1, T.ObjectClass), T.None);
     CheckEqual(T.Intersect(T.ArrayClass, T.ObjectConstant2), T.None);
 
     // Bitset-union
-    CHECK(IsUnion(
+    CHECK(this->IsUnion(
         T.Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass))));
-    CHECK(IsBitset(
+    CHECK(this->IsBitset(
         T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant2), T.Number)));
 
     CheckEqual(
@@ -683,11 +684,11 @@ struct Tests : Rep {
         T.None);
 
     // Class-union
-    CHECK(IsClass(
+    CHECK(this->IsClass(
         T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant2), T.ArrayClass)));
-    CHECK(IsClass(
+    CHECK(this->IsClass(
         T.Intersect(T.Union(T.Object, T.SmiConstant), T.ArrayClass)));
-    CHECK(IsBitset(
+    CHECK(this->IsBitset(
         T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant1), T.ArrayClass)));
 
     CheckEqual(
@@ -701,11 +702,11 @@ struct Tests : Rep {
         T.None);
 
     // Constant-union
-    CHECK(IsConstant(T.Intersect(
+    CHECK(this->IsConstant(T.Intersect(
         T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2))));
-    CHECK(IsConstant(T.Intersect(
+    CHECK(this->IsConstant(T.Intersect(
         T.Union(T.Number, T.ObjectClass), T.SmiConstant)));
-    CHECK(IsBitset(T.Intersect(
+    CHECK(this->IsBitset(T.Intersect(
         T.Union(T.ArrayConstant1, T.ObjectClass), T.ObjectConstant1)));
 
     CheckEqual(
@@ -721,9 +722,9 @@ struct Tests : Rep {
         T.None);
 
     // Union-union
-    CHECK(IsUnion(T.Intersect(
+    CHECK(this->IsUnion(T.Intersect(
         T.Union(T.Number, T.ArrayClass), T.Union(T.Signed32, T.Array))));
-    CHECK(IsBitset(T.Intersect(
+    CHECK(this->IsBitset(T.Intersect(
         T.Union(T.Number, T.ObjectClass), T.Union(T.Signed32, T.Array))));
 
     CheckEqual(
