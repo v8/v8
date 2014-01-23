@@ -28,6 +28,7 @@
 import os
 import sys
 import jinja2
+from copy import deepcopy
 from dfa import Dfa
 from transition_keys import TransitionKey
 
@@ -100,6 +101,7 @@ class CodeGenerator:
       'can_elide_read' : len(transitions) == 0,
       'is_eos_handler' : False,
       'inline' : None,
+      'must_not_inline' : False,
       # transitions for code generator
       'if_transitions' : [],
       'switch_transitions' : [],
@@ -118,8 +120,9 @@ class CodeGenerator:
     }
 
   def __register_jump(self, node_id, label):
-    assert label in CodeGenerator.__jump_labels
-    state = self.__dfa_states[node_id]['entry_points'][label] = True
+    if label != 'inline':
+      assert label in CodeGenerator.__jump_labels
+      state = self.__dfa_states[node_id]['entry_points'][label] = True
     self.__jump_table.append((node_id, label))
     return len(self.__jump_table) - 1
 
@@ -127,7 +130,9 @@ class CodeGenerator:
     assert state['inline'] == None
     inline = False
     # inline terminal states
-    if not state['transitions']:
+    if state['must_not_inline']:
+      inline = False
+    elif not state['transitions']:
       inline = True
     # inline next to terminal states with 1 or 2 transitions
     elif state['distinct_keys'] < 3 and state['class_keys'] == 0:
@@ -290,6 +295,7 @@ class CodeGenerator:
       if action in mapped_actions:
         value = state['match_action'][1]
         target_id = goto_map[value[-1]]
+        states[target_id]['must_not_inline'] = True
         if action != 'goto_start':
           state['can_elide_read'] = False
           label = 'after_entry_code'
@@ -299,27 +305,61 @@ class CodeGenerator:
         jump_label = self.__register_jump(target_id, label)
         state['match_action'] = (action, tuple(list(value[:-1]) + [jump_label]))
 
-  def __rewrite_transitions_to_jumps(self):
-    transition_names = [
-      'if_transitions',
-      'switch_transitions',
-      'deferred_transitions',
-      'long_char_transitions']
-    def f((key, target_id)):
-      return (key, self.__register_jump(target_id, 'state_entry'))
-    for state in self.__dfa_states:
-      for name in transition_names:
-        state[name] = map(f, state[name])
+  def __inlined_state(self, target_id):
+    state = deepcopy(self.__dfa_states[target_id])
+    state['node_number'] = len(self.__dfa_states)
+    self.__dfa_states.append(state)
+    # mark inline as none, to be correctly handled below
+    state['inline'] = None
+    # clear transitions, they shouldn't be used anymore
+    state['transitions'] = []
+    # clear entry points
+    state['entry_points'] = {k : False for k in CodeGenerator.__jump_labels}
+    return state['node_number']
 
-  def __mark_entry_points(self):
-    # mark the entry point in case there are implicit jumps to it
-    self.__dfa_states[0]['entry_points']['state_entry'] = True
-    # inlined states can write no labels
-    for state in self.__dfa_states:
-      entry_points = state['entry_points']
-      if state['inline']:
-        for k in entry_points.keys():
-          entry_points[k] = False
+  def __rewrite_transitions_to_jumps(self, start_id, count, inline_mapping_in):
+    # order here should match the order of code generation
+    transition_names = [
+      'switch_transitions',
+      'if_transitions',
+      'long_char_transitions',
+      'deferred_transitions']
+    end_offset = start_id + count
+    assert len(self.__dfa_states) == end_offset
+    total_nodes_created = 0
+    for state_id in range(start_id, end_offset):
+      state = self.__dfa_states[state_id]
+      # this will be ignored during code generation,
+      # and it's needed as a template, so don't rewrite
+      if state['inline'] == True:
+        continue
+      # these is a new inline state, now mark as inline and rewrite
+      if state['inline'] == None:
+        state['inline'] = True
+      inline_mapping = inline_mapping_in.copy()
+      def generate_jump((key, target_id)):
+        jump_type = 'state_entry'
+        if self.__dfa_states[target_id]['inline']:
+          # generate at most one inline state for all transitions
+          if not target_id in inline_mapping:
+            inline_mapping[target_id] = self.__inlined_state(target_id)
+            jump_type = 'inline'
+          target_id = inline_mapping[target_id]
+        else:
+          assert not target_id in inline_mapping
+        return (key, self.__register_jump(target_id, jump_type))
+      for name in transition_names:
+        state[name] = map(generate_jump, state[name])
+      # now rewrite all nodes created
+      nodes_created = len(inline_mapping) - len(inline_mapping_in)
+      assert len(self.__dfa_states) == (
+        end_offset + total_nodes_created + nodes_created)
+      if nodes_created == 0:
+        continue
+      created = self.__rewrite_transitions_to_jumps(
+        end_offset + total_nodes_created, nodes_created, inline_mapping)
+      total_nodes_created += nodes_created + created
+    return total_nodes_created
 
   def process(self):
 
@@ -334,17 +374,17 @@ class CodeGenerator:
       self.__rewrite_deferred_transitions(state)
     # rewrite gotos
     self.__rewrite_gotos()
-    # rewrite transitions to use jumps
-    self.__rewrite_transitions_to_jumps()
     # set nodes to inline
     if self.__inline:
       inlined = reduce(self.__set_inline, dfa_states, 0)
       if self.__log:
         print "%s states inlined" % inlined
-    elif self.__log:
-      print "no inlining"
-    # mark all the entry points that will be used
-    self.__mark_entry_points()
+    # rewrite transitions to use jumps
+    inlined_nodes = self.__rewrite_transitions_to_jumps(0, len(dfa_states), {})
+    if self.__log:
+      print "%s inlined nodes created" % inlined_nodes
+    # mark the entry point in case there are implicit jumps to it
+    self.__dfa_states[0]['entry_points']['state_entry'] = True
 
     default_action = self.__default_action
     assert(default_action and default_action.match_action())

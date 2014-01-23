@@ -196,11 +196,10 @@
 {%- endmacro -%}
 
 
-{%- macro write_label(label_name, node_number_chain) %}
-  {%- set node_number = node_number_chain|first -%}
+{%- macro write_label(label_name, node_number) %}
   {%- set state = dfa_states[node_number] -%}
   {%- set used = state['entry_points'][label_name] -%}
-  {%- set long_label = label_name + '_' + node_number_chain|join('_') -%}
+  {%- set long_label = label_name ~ '_' ~ node_number -%}
   {% if used -%}
     {{long_label}}:
   {%- else -%}
@@ -209,12 +208,11 @@
 {% endmacro -%}
 
 
-{%- macro do_dfa_state(node_number_chain) -%}
+{%- macro do_dfa_state(node_number) -%}
 
-  {%- set node_number = node_number_chain|first -%}
   {%- set state = dfa_states[node_number] -%}
 
-  {{ write_label('state_entry', node_number_chain) }}
+  {{ write_label('state_entry', node_number) }}
 
   {% if not state['can_elide_read'] -%}
     READ_CURSOR();
@@ -232,7 +230,7 @@
     {{ dispatch_entry_action(entry_action[0], entry_action[1]) }}
   {%- endif %}
 
-  {{ write_label('after_entry_code', node_number_chain) }}
+  {{ write_label('after_entry_code', node_number) }}
 
   {%- if debug_print %}
     fprintf(stderr, "char at hand is %c (%d)\n", primary_char, primary_char);
@@ -240,10 +238,10 @@
 
   {%- macro do_transition(jump_id) -%}
     {%- set transition_state_id = jump_table[jump_id][0] -%}
-    {%- set inline_transition = dfa_states[transition_state_id]['inline'] %}
+    {%- set inline_transition = jump_table[jump_id][1] == 'inline' %}
     FORWARD();
     {%- if inline_transition %}
-      {{ do_dfa_state([transition_state_id] + node_number_chain) }}
+      {{ do_dfa_state(transition_state_id) }}
     {% else %}
       {{ jump(jump_id) }}
     {% endif %}
@@ -344,7 +342,7 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
 {# first node is start node #}
 {% for dfa_state in dfa_states -%}
   {%- if not dfa_state['inline'] %}
-    {{ do_dfa_state([dfa_state['node_number']]) }}
+    {{ do_dfa_state(dfa_state['node_number']) }}
   {%- endif -%}
 {%- endfor %}
 
