@@ -4345,7 +4345,7 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
     int offset = (index * kPointerSize) + map->instance_size();
-    return HObjectAccess(kInobject, offset, representation);
+    return HObjectAccess(kInobject, offset, representation, name);
   } else {
     // Non-negative property indices are in the properties array.
     int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
