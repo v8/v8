@@ -100,7 +100,7 @@ namespace internal {
   F(GetOptimizationCount, 1, 1) \
   F(UnblockConcurrentRecompilation, 0, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
-  F(SetAllocationTimeout, 2, 1) \
+  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(AllocateInTargetSpace, 2, 1) \
   F(SetNativeFlag, 1, 1) \
