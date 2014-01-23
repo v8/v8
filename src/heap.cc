@@ -6397,7 +6397,7 @@ int64_t Heap::PromotedExternalMemorySize() {
 
 
 void Heap::EnableInlineAllocation() {
-  ASSERT(inline_allocation_disabled_);
+  if (!inline_allocation_disabled_) return;
   inline_allocation_disabled_ = false;
 
   // Update inline allocation limit for new space.
@@ -6406,7 +6406,7 @@ void Heap::EnableInlineAllocation() {
 
 
 void Heap::DisableInlineAllocation() {
-  ASSERT(!inline_allocation_disabled_);
+  if (inline_allocation_disabled_) return;
   inline_allocation_disabled_ = true;
 
   // Update inline allocation limit for new space.
