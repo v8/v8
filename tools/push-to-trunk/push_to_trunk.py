@@ -256,7 +256,8 @@ class CommitRepository(Step):
     if self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
       self.Die("'git cl presubmit' failed, please try again.")
 
-    if self.Git("cl dcommit -f --bypass-hooks") is None:
+    if self.Git("cl dcommit -f --bypass-hooks",
+                retry_on=lambda x: x is None) is None:
       self.Die("'git cl dcommit' failed, please try again.")
 
 
@@ -366,7 +367,7 @@ class CommitSVN(Step):
   MESSAGE = "Commit to SVN."
 
   def RunStep(self):
-    result = self.Git("svn dcommit 2>&1")
+    result = self.Git("svn dcommit 2>&1", retry_on=lambda x: x is None)
     if not result:
       self.Die("'git svn dcommit' failed.")
     result = filter(lambda x: re.search(r"^Committed r[0-9]+", x),
@@ -395,7 +396,8 @@ class TagRevision(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    if self.Git("svn tag %s -m \"Tagging version %s\"" % (ver, ver)) is None:
+    if self.Git("svn tag %s -m \"Tagging version %s\"" % (ver, ver),
+                retry_on=lambda x: x is None) is None:
       self.Die("'git svn tag' failed.")
 
 
