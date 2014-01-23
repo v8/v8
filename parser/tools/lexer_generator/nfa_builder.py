@@ -29,6 +29,15 @@ from types import TupleType
 from inspect import getmembers
 from nfa import *
 
+# Nfa is built in two stages:
+# 1. Build a tree of operations on rules.
+#    Each node in the tree is a tuple (operation, subtree1, ... subtreeN).
+#    Rule parser builds this tree by invoking static methods of NfaBuilder.
+# 2. For each node, perform the operation of the node to produce an Nfa.
+#    If an operation is called X, then it is performed by the method
+#    of NfaBuilder called __x(). See __process() for mapping from
+#    operation to processing methods.
+
 class NfaBuilder(object):
 
   def __init__(self, encoding, character_classes = {}):
