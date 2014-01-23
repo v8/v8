@@ -139,6 +139,7 @@ class LCodeGen;
   V(MathAbsTagged)                              \
   V(MathExp)                                    \
   V(MathFloor)                                  \
+  V(MathFloorOfDiv)                             \
   V(MathLog)                                    \
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
@@ -1832,6 +1833,25 @@ class LMathFloor: public LUnaryMathOperation<0> {
  public:
   explicit LMathFloor(LOperand* value) : LUnaryMathOperation<0>(value) { }
   DECLARE_CONCRETE_INSTRUCTION(MathFloor, "math-floor")
+};
+
+
+class LMathFloorOfDiv : public LTemplateInstruction<1, 2, 1> {
+ public:
+  LMathFloorOfDiv(LOperand* left,
+                  LOperand* right,
+                  LOperand* temp = NULL) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+    temps_[0] = temp;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv, "math-floor-of-div")
+  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
 };
 
 

@@ -1692,8 +1692,46 @@ LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
 }
 
 
+HValue* LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
+  // A value with an integer representation does not need to be transformed.
+  if (dividend->representation().IsInteger32()) {
+    return dividend;
+  // A change from an integer32 can be replaced by the integer32 value.
+  } else if (dividend->IsChange() &&
+      HChange::cast(dividend)->from().IsInteger32()) {
+    return HChange::cast(dividend)->value();
+  }
+  return NULL;
+}
+
+
+HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
+  // A value with an integer representation does not need to be transformed.
+  if (divisor->representation().IsInteger32()) {
+    return divisor;
+  // A change from an integer32 can be replaced by the integer32 value.
+  } else if (divisor->IsChange() &&
+             HChange::cast(divisor)->from().IsInteger32()) {
+    return HChange::cast(divisor)->value();
+  }
+
+  if (divisor->IsConstant() && HConstant::cast(divisor)->HasInteger32Value()) {
+    HConstant* constant_val = HConstant::cast(divisor);
+    return constant_val->CopyToRepresentation(Representation::Integer32(),
+                                              divisor->block()->zone());
+  }
+
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  HValue* right = instr->right();
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = UseRegister(right);
+  LOperand* remainder = TempRegister();
+  return AssignEnvironment(DefineAsRegister(
+          new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
 }
 
 
