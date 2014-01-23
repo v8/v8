@@ -854,7 +854,7 @@ void Simulator::PrintRegisters(bool print_all_regs) {
               clr_normal);
     }
     // Cache the new register value so the next run can detect any changes.
-    last_regs[i] = xreg(i);
+    last_regs[i] = xreg(i, Reg31IsStackPointer);
   }
   first_run = false;
 }
