@@ -51,7 +51,8 @@ class HandlifiedTypes {
       Null(Type::Null(), isolate),
       Undefined(Type::Undefined(), isolate),
       Number(Type::Number(), isolate),
-      Smi(Type::Smi(), isolate),
+      Integer31(Type::Integer31(), isolate),
+      Integer32(Type::Integer32(), isolate),
       Double(Type::Double(), isolate),
       Name(Type::Name(), isolate),
       UniqueName(Type::UniqueName(), isolate),
@@ -72,7 +73,7 @@ class HandlifiedTypes {
     array = isolate->factory()->NewJSArray(20);
     ObjectClass = handle(Type::Class(object_map), isolate);
     ArrayClass = handle(Type::Class(array_map), isolate);
-    SmiConstant = handle(Type::Constant(smi, isolate), isolate);
+    Integer31Constant = handle(Type::Constant(smi, isolate), isolate);
     ObjectConstant1 = handle(Type::Constant(object1), isolate);
     ObjectConstant2 = handle(Type::Constant(object2), isolate);
     ArrayConstant = handle(Type::Constant(array), isolate);
@@ -85,7 +86,8 @@ class HandlifiedTypes {
   Handle<Type> Null;
   Handle<Type> Undefined;
   Handle<Type> Number;
-  Handle<Type> Smi;
+  Handle<Type> Integer31;
+  Handle<Type> Integer32;
   Handle<Type> Double;
   Handle<Type> Name;
   Handle<Type> UniqueName;
@@ -101,7 +103,7 @@ class HandlifiedTypes {
   Handle<Type> ObjectClass;
   Handle<Type> ArrayClass;
 
-  Handle<Type> SmiConstant;
+  Handle<Type> Integer31Constant;
   Handle<Type> ObjectConstant1;
   Handle<Type> ObjectConstant2;
   Handle<Type> ArrayConstant;
@@ -168,12 +170,12 @@ TEST(Constant) {
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
-  CHECK(IsConstant(*T.SmiConstant));
+  CHECK(IsConstant(*T.Integer31Constant));
   CHECK(IsConstant(*T.ObjectConstant1));
   CHECK(IsConstant(*T.ObjectConstant2));
   CHECK(IsConstant(*T.ArrayConstant));
 
-  CHECK(*T.smi == AsConstant(*T.SmiConstant));
+  CHECK(*T.smi == AsConstant(*T.Integer31Constant));
   CHECK(*T.object1 == AsConstant(*T.ObjectConstant1));
   CHECK(*T.object2 == AsConstant(*T.ObjectConstant2));
   CHECK(*T.object1 != AsConstant(*T.ObjectConstant2));
@@ -224,9 +226,12 @@ TEST(Is) {
   CheckUnordered(T.Boolean, T.Undefined);
 
   CheckSub(T.Number, T.Any);
-  CheckSub(T.Smi, T.Number);
+  CheckSub(T.Integer31, T.Number);
+  CheckSub(T.Integer32, T.Number);
   CheckSub(T.Double, T.Number);
-  CheckUnordered(T.Smi, T.Double);
+  CheckSub(T.Integer31, T.Integer32);
+  CheckUnordered(T.Integer31, T.Double);
+  CheckUnordered(T.Integer32, T.Double);
 
   CheckSub(T.Name, T.Any);
   CheckSub(T.UniqueName, T.Any);
@@ -255,8 +260,9 @@ TEST(Is) {
   CheckSub(T.ArrayClass, T.Object);
   CheckUnordered(T.ObjectClass, T.ArrayClass);
 
-  CheckSub(T.SmiConstant, T.Smi);
-  CheckSub(T.SmiConstant, T.Number);
+  CheckSub(T.Integer31Constant, T.Integer31);
+  CheckSub(T.Integer31Constant, T.Integer32);
+  CheckSub(T.Integer31Constant, T.Number);
   CheckSub(T.ObjectConstant1, T.Object);
   CheckSub(T.ObjectConstant2, T.Object);
   CheckSub(T.ArrayConstant, T.Object);
@@ -308,9 +314,9 @@ TEST(Maybe) {
   CheckDisjoint(T.Boolean, T.Undefined);
 
   CheckOverlap(T.Number, T.Any);
-  CheckOverlap(T.Smi, T.Number);
+  CheckOverlap(T.Integer31, T.Number);
   CheckOverlap(T.Double, T.Number);
-  CheckDisjoint(T.Smi, T.Double);
+  CheckDisjoint(T.Integer32, T.Double);
 
   CheckOverlap(T.Name, T.Any);
   CheckOverlap(T.UniqueName, T.Any);
@@ -340,9 +346,10 @@ TEST(Maybe) {
   CheckOverlap(T.ArrayClass, T.ArrayClass);
   CheckDisjoint(T.ObjectClass, T.ArrayClass);
 
-  CheckOverlap(T.SmiConstant, T.Smi);
-  CheckOverlap(T.SmiConstant, T.Number);
-  CheckDisjoint(T.SmiConstant, T.Double);
+  CheckOverlap(T.Integer31Constant, T.Integer31);
+  CheckOverlap(T.Integer31Constant, T.Integer32);
+  CheckOverlap(T.Integer31Constant, T.Number);
+  CheckDisjoint(T.Integer31Constant, T.Double);
   CheckOverlap(T.ObjectConstant1, T.Object);
   CheckOverlap(T.ObjectConstant2, T.Object);
   CheckOverlap(T.ArrayConstant, T.Object);
@@ -425,21 +432,22 @@ TEST(Union) {
 
   CheckEqual(T.Union(T.ObjectClass, T.Object), T.Object);
   CheckSub(T.Union(T.ObjectClass, T.Number), T.Any);
-  CheckSub(T.Union(T.ObjectClass, T.Smi), T.Union(T.Object, T.Number));
+  CheckSub(T.Union(T.ObjectClass, T.Integer31), T.Union(T.Object, T.Number));
   CheckSub(T.Union(T.ObjectClass, T.Array), T.Object);
   CheckUnordered(T.Union(T.ObjectClass, T.String), T.Array);
   CheckOverlap(T.Union(T.ObjectClass, T.String), T.Object);
   CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
 
   // Bitset-constant
-  CHECK(IsBitset(Type::Union(T.SmiConstant, T.Number)));
+  CHECK(IsBitset(Type::Union(T.Integer31Constant, T.Number)));
   CHECK(IsBitset(Type::Union(T.ObjectConstant1, T.Object)));
   CHECK(IsUnion(Type::Union(T.ObjectConstant2, T.Number)));
 
-  CheckEqual(T.Union(T.SmiConstant, T.Number), T.Number);
+  CheckEqual(T.Union(T.Integer31Constant, T.Number), T.Number);
   CheckEqual(T.Union(T.ObjectConstant1, T.Object), T.Object);
   CheckSub(T.Union(T.ObjectConstant1, T.Number), T.Any);
-  CheckSub(T.Union(T.ObjectConstant1, T.Smi), T.Union(T.Object, T.Number));
+  CheckSub(
+      T.Union(T.ObjectConstant1, T.Integer32), T.Union(T.Object, T.Number));
   CheckSub(T.Union(T.ObjectConstant1, T.Array), T.Object);
   CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.Array);
   CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object);
@@ -516,8 +524,8 @@ TEST(Union) {
       T.Union(T.ObjectConstant2, T.Union(T.ArrayConstant, T.ObjectConstant1)));
 
   // Union-union
-  CHECK(IsBitset(
-      Type::Union(T.Union(T.Number, T.ArrayClass), T.Union(T.Smi, T.Array))));
+  CHECK(IsBitset(Type::Union(
+      T.Union(T.Number, T.ArrayClass), T.Union(T.Integer32, T.Array))));
 
   CheckEqual(
       T.Union(T.Union(T.ObjectConstant2, T.ObjectConstant1),
@@ -528,6 +536,6 @@ TEST(Union) {
               T.Union(T.ObjectConstant1, T.ArrayConstant)),
       T.Union(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ArrayConstant));
   CheckEqual(
-      T.Union(T.Union(T.Number, T.ArrayClass), T.Union(T.Smi, T.Array)),
+      T.Union(T.Union(T.Number, T.ArrayClass), T.Union(T.Integer31, T.Array)),
       T.Union(T.Number, T.Array));
 }

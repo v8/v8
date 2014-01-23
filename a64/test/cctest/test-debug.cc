@@ -143,6 +143,7 @@ class DebugLocalContext {
   inline ~DebugLocalContext() {
     context_->Exit();
   }
+  inline v8::Local<v8::Context> context() { return context_; }
   inline v8::Context* operator->() { return *context_; }
   inline v8::Context* operator*() { return *context_; }
   inline bool IsReady() { return !context_.IsEmpty(); }
@@ -788,8 +789,8 @@ static void DebugEventCounter(v8::DebugEvent event,
     // Check whether the exception was uncaught.
     v8::Local<v8::String> fun_name = v8::String::New("uncaught");
     v8::Local<v8::Function> fun =
-        v8::Function::Cast(*event_data->Get(fun_name));
-    v8::Local<v8::Value> result = *fun->Call(event_data, 0, NULL);
+        v8::Local<v8::Function>::Cast(event_data->Get(fun_name));
+    v8::Local<v8::Value> result = fun->Call(event_data, 0, NULL);
     if (result->IsTrue()) {
       uncaught_exception_hit_count++;
     }
@@ -6457,7 +6458,7 @@ static void ExecuteScriptForContextCheck() {
   // Enter and run function in the context.
   {
     v8::Context::Scope context_scope(context_1);
-    expected_context = v8::Local<v8::Context>(*context_1);
+    expected_context = context_1;
     expected_context_data = data_1;
     v8::Local<v8::Function> f = CompileFunction(source, "f");
     f->Call(context_1->Global(), 0, NULL);
@@ -7041,11 +7042,11 @@ static void DebugEventGetAtgumentPropertyValue(
   if (event == v8::Break) {
     break_point_hit_count++;
     CHECK(debugger_context == v8::Context::GetCurrent());
-    v8::Handle<v8::Function> func(v8::Function::Cast(*CompileRun(
+    v8::Handle<v8::Function> func = v8::Handle<v8::Function>::Cast(CompileRun(
         "(function(exec_state) {\n"
         "    return (exec_state.frame(0).argumentValue(0).property('a').\n"
         "            value().value() == 1);\n"
-        "})")));
+        "})"));
     const int argc = 1;
     v8::Handle<v8::Value> argv[argc] = { exec_state };
     v8::Handle<v8::Value> result = func->Call(exec_state, argc, argv);
@@ -7063,7 +7064,7 @@ TEST(CallingContextIsNotDebugContext) {
 
   // Save handles to the debugger and debugee contexts to be used in
   // NamedGetterWithCallingContextCheck.
-  debugee_context = v8::Local<v8::Context>(*env);
+  debugee_context = env.context();
   debugger_context = v8::Utils::ToLocal(debug->debug_context());
 
   // Create object with 'a' property accessor.

@@ -403,6 +403,7 @@ static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
 
 
 TEST(WeakGlobalHandlesScavenge) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
@@ -489,6 +490,7 @@ TEST(WeakGlobalHandlesMark) {
 
 
 TEST(DeleteWeakGlobalHandle) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
@@ -877,6 +879,7 @@ TEST(StringAllocation) {
 static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
+  heap->EnsureHeapIsIterable();
   HeapIterator iterator(heap);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     for (int i = 0; i < size; i++) {
@@ -1977,6 +1980,7 @@ TEST(PrototypeTransitionClearing) {
 
 
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
@@ -2033,6 +2037,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
 
 TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
@@ -2215,6 +2220,7 @@ static int CountMapTransitions(Map* map) {
 // Test that map transitions are cleared and maps are collected with
 // incremental marking as well.
 TEST(Regress1465) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_trace_incremental_marking = true;
   CcTest::InitializeVM();
@@ -2382,6 +2388,7 @@ TEST(ReleaseOverReservedPages) {
 
 
 TEST(Regress2237) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
@@ -2498,15 +2505,15 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
       f->shared()->code()->type_feedback_info())->type_feedback_cells());
 
   CHECK_EQ(2, cells->CellCount());
-  CHECK(cells->Cell(0)->value()->IsJSFunction());
-  CHECK(cells->Cell(1)->value()->IsJSFunction());
+  CHECK(cells->GetCell(0)->value()->IsJSFunction());
+  CHECK(cells->GetCell(1)->value()->IsJSFunction());
 
   SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   CHECK_EQ(2, cells->CellCount());
-  CHECK(cells->Cell(0)->value()->IsTheHole());
-  CHECK(cells->Cell(1)->value()->IsTheHole());
+  CHECK(cells->GetCell(0)->value()->IsTheHole());
+  CHECK(cells->GetCell(1)->value()->IsTheHole());
 }
 
 
@@ -2689,6 +2696,7 @@ TEST(ReleaseStackTraceData) {
 
 
 TEST(Regression144230) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();

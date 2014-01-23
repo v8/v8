@@ -260,6 +260,7 @@ class HLoopInformation: public ZoneObject {
   HStackCheck* stack_check_;
 };
 
+
 class BoundsCheckTable;
 class HGraph: public ZoneObject {
  public:
@@ -409,6 +410,10 @@ class HGraph: public ZoneObject {
     isolate()->initial_array_prototype()->map()->AddDependentCompilationInfo(
         DependentCode::kElementsCantBeAddedGroup, info());
     depends_on_empty_array_proto_elements_ = true;
+  }
+
+  bool depends_on_empty_array_proto_elements() {
+    return depends_on_empty_array_proto_elements_;
   }
 
   void RecordUint32Instruction(HInstruction* instr) {
@@ -876,6 +881,11 @@ class FunctionState {
   HEnterInlined* entry() { return entry_; }
   void set_entry(HEnterInlined* entry) { entry_ = entry; }
 
+  HArgumentsObject* arguments_object() { return arguments_object_; }
+  void set_arguments_object(HArgumentsObject* arguments_object) {
+    arguments_object_ = arguments_object;
+  }
+
   HArgumentsElements* arguments_elements() { return arguments_elements_; }
   void set_arguments_elements(HArgumentsElements* arguments_elements) {
     arguments_elements_ = arguments_elements;
@@ -909,6 +919,7 @@ class FunctionState {
   // entry.
   HEnterInlined* entry_;
 
+  HArgumentsObject* arguments_object_;
   HArgumentsElements* arguments_elements_;
 
   FunctionState* outer_;
@@ -1080,8 +1091,7 @@ class HGraphBuilder {
     HInstruction* IfCompare(
         HValue* left,
         HValue* right,
-        Token::Value token,
-        Representation input_representation = Representation::Integer32());
+        Token::Value token);
 
     HInstruction* IfCompareMap(HValue* left, Handle<Map> map);
 
@@ -1113,10 +1123,9 @@ class HGraphBuilder {
     HInstruction* OrIfCompare(
         HValue* p1,
         HValue* p2,
-        Token::Value token,
-        Representation input_representation = Representation::Integer32()) {
+        Token::Value token) {
       Or();
-      return IfCompare(p1, p2, token, input_representation);
+      return IfCompare(p1, p2, token);
     }
 
     HInstruction* OrIfCompareMap(HValue* left, Handle<Map> map) {
@@ -1139,10 +1148,9 @@ class HGraphBuilder {
     HInstruction* AndIfCompare(
         HValue* p1,
         HValue* p2,
-        Token::Value token,
-        Representation input_representation = Representation::Integer32()) {
+        Token::Value token) {
       And();
-      return IfCompare(p1, p2, token, input_representation);
+      return IfCompare(p1, p2, token);
     }
 
     HInstruction* AndIfCompareMap(HValue* left, Handle<Map> map) {
@@ -1353,8 +1361,7 @@ class HGraphBuilder {
 
   void BuildCompareNil(
       HValue* value,
-      CompareNilICStub::Types types,
-      Handle<Map> map,
+      Handle<Type> type,
       int position,
       HIfContinuation* continuation);
 
@@ -1625,6 +1632,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
 
   static Representation ToRepresentation(TypeInfo info);
+  static Representation ToRepresentation(Handle<Type> type);
 
   void SetUpScope(Scope* scope);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
@@ -1690,11 +1698,16 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
-  bool HandlePolymorphicArrayLengthLoad(Property* expr,
+  HInstruction* TryLoadPolymorphicAsMonomorphic(Property* expr,
+                                                HValue* object,
+                                                SmallMapList* types,
+                                                Handle<String> name);
+  void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
+                                        HValue* value,
                                         SmallMapList* types,
                                         Handle<String> name);
-  void HandlePolymorphicStoreNamedField(Assignment* expr,
+  bool TryStorePolymorphicAsMonomorphic(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
                                         SmallMapList* types,
@@ -1922,7 +1935,7 @@ class HPhase BASE_EMBEDDED {
  public:
   static const char* const kFullCodeGen;
 
-  HPhase(const char* name, Isolate* isolate);
+  HPhase(const char* name, Isolate* isolate, Zone* zone);
   HPhase(const char* name, HGraph* graph);
   HPhase(const char* name, LChunk* chunk);
   HPhase(const char* name, LAllocator* allocator);
@@ -1931,12 +1944,14 @@ class HPhase BASE_EMBEDDED {
  private:
   void Init(Isolate* isolate,
             const char* name,
+            Zone* zone,
             HGraph* graph,
             LChunk* chunk,
             LAllocator* allocator);
 
   Isolate* isolate_;
   const char* name_;
+  Zone* zone_;
   HGraph* graph_;
   LChunk* chunk_;
   LAllocator* allocator_;

@@ -60,6 +60,7 @@ namespace internal {
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
   V(Oddball, uninitialized_value, UninitializedValue)                          \
+  V(Map, cell_map, CellMap)                                                    \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
@@ -588,6 +589,9 @@ class Heap {
   OldSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
   CellSpace* cell_space() { return cell_space_; }
+  PropertyCellSpace* property_cell_space() {
+    return property_cell_space_;
+  }
   LargeObjectSpace* lo_space() { return lo_space_; }
   PagedSpace* paged_space(int idx) {
     switch (idx) {
@@ -599,6 +603,8 @@ class Heap {
         return map_space();
       case CELL_SPACE:
         return cell_space();
+      case PROPERTY_CELL_SPACE:
+        return property_cell_space();
       case CODE_SPACE:
         return code_space();
       case NEW_SPACE:
@@ -933,11 +939,17 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateSymbol();
 
+  // Allocate a tenured simple cell.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateCell(Object* value);
+
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSGlobalPropertyCell(Object* value);
+  MUST_USE_RESULT MaybeObject* AllocatePropertyCell(Object* value);
 
   // Allocate Box.
   MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
@@ -1958,6 +1970,7 @@ class Heap {
   OldSpace* code_space_;
   MapSpace* map_space_;
   CellSpace* cell_space_;
+  PropertyCellSpace* property_cell_space_;
   LargeObjectSpace* lo_space_;
   HeapState gc_state_;
   int gc_post_processing_depth_;
@@ -2114,8 +2127,11 @@ class Heap {
   // (since both AllocateRaw and AllocateRawMap are inlined).
   MUST_USE_RESULT inline MaybeObject* AllocateRawMap();
 
-  // Allocate an uninitialized object in the global property cell space.
+  // Allocate an uninitialized object in the simple cell space.
   MUST_USE_RESULT inline MaybeObject* AllocateRawCell();
+
+  // Allocate an uninitialized object in the global property cell space.
+  MUST_USE_RESULT inline MaybeObject* AllocateRawPropertyCell();
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(JSObject* obj,
@@ -2277,7 +2293,6 @@ class Heap {
 
   void StartIdleRound() {
     mark_sweeps_since_idle_round_started_ = 0;
-    ms_count_at_last_idle_notification_ = ms_count_;
   }
 
   void FinishIdleRound() {
@@ -2354,7 +2369,6 @@ class Heap {
   bool last_idle_notification_gc_count_init_;
 
   int mark_sweeps_since_idle_round_started_;
-  int ms_count_at_last_idle_notification_;
   unsigned int gc_count_at_last_idle_gc_;
   int scavenges_since_last_idle_round_;
 
@@ -2437,6 +2451,8 @@ class HeapStats {
   int* size_per_type;                   // 22
   int* os_error;                        // 23
   int* end_marker;                      // 24
+  intptr_t* property_cell_space_size;   // 25
+  intptr_t* property_cell_space_capacity;    // 26
 };
 
 

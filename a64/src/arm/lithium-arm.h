@@ -2692,7 +2692,6 @@ class LChunkBuilder BASE_EMBEDDED {
   LInstruction* DoRSub(HSub* instr);
 
   static bool HasMagicNumberForDivisor(int32_t divisor);
-  static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* val);
   static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
 
   LInstruction* DoMathFloor(HUnaryMathOperation* instr);

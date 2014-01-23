@@ -1,3 +1,48 @@
+2013-06-18: Version 3.19.18
+
+	Fixed read-only attribute of Function.length in strict mode.
+	(issue 2705)
+
+	Fixed Runtime_SetProperty to properly handle OOM failures
+	(Chromium issue 249873)
+
+	Emit deprecated check for constant function transitions.
+	(Chromium issue 250609)
+	
+	Made MathFloorOfDiv optimization trigger more often
+	(Issue 2205)
+
+	Make more GCs in idle notification handler.
+	(Chromium issue 241815)
+
+	Increased default type info threshold.
+	(Issue 2730)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-14: Version 3.19.16
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-13: Version 3.19.15
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-13: Version 3.19.14
+
+        Fixed crashes when calling new Array(a) with a single argument that
+        could result in creating a holey array with a packed elements kind.
+        (Chromium issue 245480)
+
+        Fixed issues in parallel compilation.
+        (Chromium issue 248076)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-11: Version 3.19.13
 
         Performance and stability improvements on all platforms.

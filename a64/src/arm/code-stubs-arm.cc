@@ -3504,7 +3504,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Get the map location in scratch and patch it.
     __ GetRelocatedValueLocation(inline_site, scratch);
     __ ldr(scratch, MemOperand(scratch));
-    __ str(map, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
+    __ str(map, FieldMemOperand(scratch, Cell::kValueOffset));
   }
 
   // Register mapping: r3 is object map and r4 is function prototype.
@@ -4637,7 +4637,7 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
             masm->isolate()->heap()->the_hole_value());
 
   // Load the cache state into r3.
-  __ ldr(r3, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ ldr(r3, FieldMemOperand(r2, Cell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -4652,10 +4652,10 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex, ne);
-  __ str(ip, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset), ne);
+  __ str(ip, FieldMemOperand(r2, Cell::kValueOffset), ne);
 
   // An uninitialized cache is patched with the function.
-  __ str(r1, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset), eq);
+  __ str(r1, FieldMemOperand(r2, Cell::kValueOffset), eq);
   // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
@@ -4677,7 +4677,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
             masm->isolate()->heap()->the_hole_value());
 
   // Load the cache state into r3.
-  __ ldr(r3, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ ldr(r3, FieldMemOperand(r2, Cell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -4711,7 +4711,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // write-barrier is needed.
   __ bind(&megamorphic);
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ str(ip, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ str(ip, FieldMemOperand(r2, Cell::kValueOffset));
   __ jmp(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -4729,11 +4729,11 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
       TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
           GetInitialFastElementsKind());
   __ mov(r3, Operand(initial_kind_sentinel));
-  __ str(r3, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ str(r3, FieldMemOperand(r2, Cell::kValueOffset));
   __ b(&done);
 
   __ bind(&not_array_function);
-  __ str(r1, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ str(r1, FieldMemOperand(r2, Cell::kValueOffset));
   // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
@@ -4809,7 +4809,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
               masm->isolate()->heap()->undefined_value());
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ str(ip, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+    __ str(ip, FieldMemOperand(r2, Cell::kValueOffset));
   }
   // Check for function proxy.
   __ cmp(r3, Operand(JS_FUNCTION_PROXY_TYPE));
@@ -6482,13 +6482,6 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    ExternalReference function) {
-  __ mov(r2, Operand(function));
-  GenerateCall(masm, r2);
-}
-
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
@@ -7062,10 +7055,10 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : element value to store
-  //  -- r1    : array literal
-  //  -- r2    : map of array literal
   //  -- r3    : element index as smi
-  //  -- r4    : array literal index in function as smi
+  //  -- sp[0] : array literal index in function as smi
+  //  -- sp[4] : array literal
+  // clobbers r1, r2, r4
   // -----------------------------------
 
   Label element_done;
@@ -7073,6 +7066,11 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label smi_element;
   Label slow_elements;
   Label fast_elements;
+
+  // Get array literal index, array literal and its map.
+  __ ldr(r4, MemOperand(sp, 0 * kPointerSize));
+  __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
+  __ ldr(r2, FieldMemOperand(r1, JSObject::kMapOffset));
 
   __ CheckFastElements(r2, r5, &double_elements);
   // FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS
@@ -7332,14 +7330,13 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ CompareObjectType(r3, r3, r4, MAP_TYPE);
     __ Assert(eq, "Unexpected initial map for Array function");
 
-    // We should either have undefined in ebx or a valid jsglobalpropertycell
+    // We should either have undefined in ebx or a valid cell
     Label okay_here;
-    Handle<Map> global_property_cell_map(
-        masm->isolate()->heap()->global_property_cell_map());
+    Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
     __ cmp(r2, Operand(undefined_sentinel));
     __ b(eq, &okay_here);
     __ ldr(r3, FieldMemOperand(r2, 0));
-    __ cmp(r3, Operand(global_property_cell_map));
+    __ cmp(r3, Operand(cell_map));
     __ Assert(eq, "Expected property cell in register ebx");
     __ bind(&okay_here);
   }
@@ -7349,7 +7346,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Get the elements kind and case on that.
     __ cmp(r2, Operand(undefined_sentinel));
     __ b(eq, &no_info);
-    __ ldr(r3, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+    __ ldr(r3, FieldMemOperand(r2, PropertyCell::kValueOffset));
     __ JumpIfNotSmi(r3, &no_info);
     __ SmiUntag(r3);
     __ jmp(&switch_ready);

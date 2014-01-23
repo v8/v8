@@ -86,9 +86,9 @@ class Zone {
 
   inline void adjust_segment_bytes_allocated(int delta);
 
-  inline Isolate* isolate() { return isolate_; }
+  inline unsigned allocation_size() { return allocation_size_; }
 
-  static unsigned allocation_size_;
+  inline Isolate* isolate() { return isolate_; }
 
  private:
   friend class Isolate;
@@ -110,6 +110,9 @@ class Zone {
 
   // Report zone excess when allocation exceeds this limit.
   int zone_excess_limit_;
+
+  // The number of bytes allocated in this zone so far.
+  unsigned allocation_size_;
 
   // The number of bytes allocated in segments.  Note that this number
   // includes memory allocated from the OS but not yet allocated from

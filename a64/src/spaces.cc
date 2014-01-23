@@ -72,6 +72,7 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
          owner == page->heap()->old_data_space() ||
          owner == page->heap()->map_space() ||
          owner == page->heap()->cell_space() ||
+         owner == page->heap()->property_cell_space() ||
          owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner),
              page->area_start(),
@@ -1042,6 +1043,9 @@ intptr_t PagedSpace::SizeOfFirstPage() {
       break;
     case CELL_SPACE:
       size = 16 * kPointerSize * KB;
+      break;
+    case PROPERTY_CELL_SPACE:
+      size = 8 * kPointerSize * KB;
       break;
     case CODE_SPACE:
       if (heap()->isolate()->code_range()->exists()) {
@@ -2114,13 +2118,13 @@ FreeListNode* FreeListCategory::PickNodeFromList(int *node_size) {
 
   while (node != NULL &&
          Page::FromAddress(node->address())->IsEvacuationCandidate()) {
-    available_ -= node->Size();
+    available_ -= reinterpret_cast<FreeSpace*>(node)->Size();
     node = node->next();
   }
 
   if (node != NULL) {
     set_top(node->next());
-    *node_size = node->Size();
+    *node_size = reinterpret_cast<FreeSpace*>(node)->Size();
     available_ -= *node_size;
   } else {
     set_top(NULL);
@@ -2130,6 +2134,18 @@ FreeListNode* FreeListCategory::PickNodeFromList(int *node_size) {
     set_end(NULL);
   }
 
+  return node;
+}
+
+
+FreeListNode* FreeListCategory::PickNodeFromList(int size_in_bytes,
+                                                 int *node_size) {
+  FreeListNode* node = PickNodeFromList(node_size);
+  if (node != NULL && *node_size < size_in_bytes) {
+    Free(node, *node_size);
+    *node_size = 0;
+    return NULL;
+  }
   return node;
 }
 
@@ -2223,8 +2239,10 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kSmallAllocationMax) {
     node = small_list_.PickNodeFromList(node_size);
     if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_small_free_list(-(*node_size));
+      ASSERT(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
@@ -2232,8 +2250,10 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kMediumAllocationMax) {
     node = medium_list_.PickNodeFromList(node_size);
     if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_medium_free_list(-(*node_size));
+      ASSERT(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
@@ -2241,8 +2261,10 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kLargeAllocationMax) {
     node = large_list_.PickNodeFromList(node_size);
     if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_large_free_list(-(*node_size));
+      ASSERT(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
@@ -2285,10 +2307,37 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (huge_list_.top() == NULL) {
     huge_list_.set_end(NULL);
   }
-
   huge_list_.set_available(huge_list_available);
-  ASSERT(IsVeryLong() || available() == SumFreeLists());
 
+  if (node != NULL) {
+    ASSERT(IsVeryLong() || available() == SumFreeLists());
+    return node;
+  }
+
+  if (size_in_bytes <= kSmallListMax) {
+    node = small_list_.PickNodeFromList(size_in_bytes, node_size);
+    if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
+      page = Page::FromAddress(node->address());
+      page->add_available_in_small_free_list(-(*node_size));
+    }
+  } else if (size_in_bytes <= kMediumListMax) {
+    node = medium_list_.PickNodeFromList(size_in_bytes, node_size);
+    if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
+      page = Page::FromAddress(node->address());
+      page->add_available_in_medium_free_list(-(*node_size));
+    }
+  } else if (size_in_bytes <= kLargeListMax) {
+    node = large_list_.PickNodeFromList(size_in_bytes, node_size);
+    if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
+      page = Page::FromAddress(node->address());
+      page->add_available_in_large_free_list(-(*node_size));
+    }
+  }
+
+  ASSERT(IsVeryLong() || available() == SumFreeLists());
   return node;
 }
 
@@ -2834,14 +2883,21 @@ void MapSpace::VerifyObject(HeapObject* object) {
 
 
 // -----------------------------------------------------------------------------
-// GlobalPropertyCellSpace implementation
+// CellSpace and PropertyCellSpace implementation
 // TODO(mvstanton): this is weird...the compiler can't make a vtable unless
 // there is at least one non-inlined virtual function. I would prefer to hide
 // the VerifyObject definition behind VERIFY_HEAP.
 
 void CellSpace::VerifyObject(HeapObject* object) {
   // The object should be a global object property cell or a free-list node.
-  CHECK(object->IsJSGlobalPropertyCell() ||
+  CHECK(object->IsCell() ||
+         object->map() == heap()->two_pointer_filler_map());
+}
+
+
+void PropertyCellSpace::VerifyObject(HeapObject* object) {
+  // The object should be a global object property cell or a free-list node.
+  CHECK(object->IsPropertyCell() ||
          object->map() == heap()->two_pointer_filler_map());
 }
 

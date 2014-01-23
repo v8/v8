@@ -182,8 +182,11 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_MESSAGE_OBJECT_TYPE:
       JSMessageObject::cast(this)->JSMessageObjectPrint(out);
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellPrint(out);
+    case CELL_TYPE:
+      Cell::cast(this)->CellPrint(out);
+      break;
+    case PROPERTY_CELL_TYPE:
+      PropertyCell::cast(this)->PropertyCellPrint(out);
       break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(out);
@@ -533,7 +536,8 @@ static const char* TypeToString(InstanceType type) {
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
     case ODDBALL_TYPE: return "ODDBALL";
-    case JS_GLOBAL_PROPERTY_CELL_TYPE: return "JS_GLOBAL_PROPERTY_CELL";
+    case CELL_TYPE: return "CELL";
+    case PROPERTY_CELL_TYPE: return "PROPERTY_CELL";
     case SHARED_FUNCTION_INFO_TYPE: return "SHARED_FUNCTION_INFO";
     case JS_GENERATOR_OBJECT_TYPE: return "JS_GENERATOR_OBJECT";
     case JS_MODULE_TYPE: return "JS_MODULE";
@@ -917,8 +921,13 @@ void JSBuiltinsObject::JSBuiltinsObjectPrint(FILE* out) {
 }
 
 
-void JSGlobalPropertyCell::JSGlobalPropertyCellPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "JSGlobalPropertyCell");
+void Cell::CellPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "Cell");
+}
+
+
+void PropertyCell::PropertyCellPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "PropertyCell");
 }
 
 
@@ -1093,8 +1102,8 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
 void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "AllocationSiteInfo");
   PrintF(out, " - payload: ");
-  if (payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+  if (payload()->IsCell()) {
+    Cell* cell = Cell::cast(payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       ElementsKind kind = static_cast<ElementsKind>(

@@ -655,7 +655,7 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
                                     void* data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
   HandleScope scope(isolate);
-  Handle<Object> internal_object = Utils::OpenHandle(**object);
+  Handle<Object> internal_object = Utils::OpenPersistent(object);
   Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(*internal_object));
 
   if (!array_buffer->is_external()) {
@@ -711,11 +711,10 @@ bool Runtime::SetupArrayBufferAllocatingData(
 
   SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
 
-  v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Persistent<v8::Value> weak_handle(
-      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(array_buffer)));
-  weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
-  weak_handle.MarkIndependent(external_isolate);
+  Handle<Object> persistent = isolate->global_handles()->Create(*array_buffer);
+  GlobalHandles::MakeWeak(persistent.location(), data, ArrayBufferWeakCallback);
+  GlobalHandles::MarkIndependent(persistent.location());
+
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
 
   return true;
@@ -4514,7 +4513,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
             (dictionary->DetailsAt(entry).type() == NORMAL)) {
           Object* value = dictionary->ValueAt(entry);
           if (!receiver->IsGlobalObject()) return value;
-          value = JSGlobalPropertyCell::cast(value)->value();
+          value = PropertyCell::cast(value)->value();
           if (!value->IsTheHole()) return value;
           // If value is the hole do the general lookup.
         }
@@ -4754,25 +4753,40 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     }
 
     js_object->ValidateElements();
-    Handle<Object> result = JSObject::SetElement(
-        js_object, index, value, attr, strict_mode, set_mode);
+    if (js_object->HasExternalArrayElements()) {
+      if (!value->IsNumber() && !value->IsUndefined()) {
+        bool has_exception;
+        Handle<Object> number = Execution::ToNumber(value, &has_exception);
+        if (has_exception) return Failure::Exception();
+        value = number;
+      }
+    }
+    MaybeObject* result = js_object->SetElement(
+        index, *value, attr, strict_mode, true, set_mode);
     js_object->ValidateElements();
-    if (result.is_null()) return Failure::Exception();
+    if (result->IsFailure()) return result;
     return *value;
   }
 
   if (key->IsName()) {
-    Handle<Object> result;
+    MaybeObject* result;
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
-      result = JSObject::SetElement(
-          js_object, index, value, attr, strict_mode, set_mode);
+      if (js_object->HasExternalArrayElements()) {
+        if (!value->IsNumber() && !value->IsUndefined()) {
+          bool has_exception;
+          Handle<Object> number = Execution::ToNumber(value, &has_exception);
+          if (has_exception) return Failure::Exception();
+          value = number;
+        }
+      }
+      result = js_object->SetElement(
+          index, *value, attr, strict_mode, true, set_mode);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      result = JSReceiver::SetProperty(
-          js_object, name, value, attr, strict_mode);
+      result = js_object->SetProperty(*name, *value, attr, strict_mode);
     }
-    if (result.is_null()) return Failure::Exception();
+    if (result->IsFailure()) return result;
     return *value;
   }
 
@@ -8071,6 +8085,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsParallelRecompilationSupported) {
+  HandleScope scope(isolate);
+  return FLAG_parallel_recompilation
+      ? isolate->heap()->true_value() : isolate->heap()->false_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
@@ -8243,9 +8264,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   Deoptimizer::RevertInterruptCode(*unoptimized,
                                    *interrupt_code,
                                    *replacement_code);
-
-  // Allow OSR only at nesting level zero again.
-  unoptimized->set_allow_osr_at_loop_nesting_level(0);
 
   // If the optimization attempt succeeded, return the AST id tagged as a
   // smi. This tells the builtin that we need to translate the unoptimized
@@ -13481,9 +13499,9 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
   MaybeObject* maybe_array;
   if (!type_info.is_null() &&
       *type_info != isolate->heap()->undefined_value() &&
-      JSGlobalPropertyCell::cast(*type_info)->value()->IsSmi() &&
+      Cell::cast(*type_info)->value()->IsSmi() &&
       can_use_type_feedback) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
+    Cell* cell = Cell::cast(*type_info);
     Smi* smi = Smi::cast(cell->value());
     ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
     if (holey && !IsFastHoleyElementsKind(to_kind)) {

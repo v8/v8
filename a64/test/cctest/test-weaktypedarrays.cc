@@ -85,6 +85,7 @@ static bool HasTypedArrayInWeakList(JSArrayBuffer* array_buffer,
 
 
 TEST(WeakArrayBuffersFromApi) {
+  i::FLAG_stress_compaction = false;
   v8::V8::Initialize();
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
@@ -137,12 +138,12 @@ TEST(WeakArrayBuffersFromScript) {
         CompileRun("var ab1 = new ArrayBuffer(256);"
                    "var ab2 = new ArrayBuffer(256);"
                    "var ab3 = new ArrayBuffer(256);");
-        v8::Handle<v8::ArrayBuffer> ab1(
-            v8::ArrayBuffer::Cast(*CompileRun("ab1")));
-        v8::Handle<v8::ArrayBuffer> ab2(
-            v8::ArrayBuffer::Cast(*CompileRun("ab2")));
-        v8::Handle<v8::ArrayBuffer> ab3(
-            v8::ArrayBuffer::Cast(*CompileRun("ab3")));
+        v8::Handle<v8::ArrayBuffer> ab1 =
+            v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab1"));
+        v8::Handle<v8::ArrayBuffer> ab2 =
+            v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab2"));
+        v8::Handle<v8::ArrayBuffer> ab3 =
+            v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab3"));
 
         CHECK_EQ(3, CountArrayBuffersInWeakList(isolate->heap()));
         CHECK(HasArrayBufferInWeakList(isolate->heap(),
@@ -166,8 +167,8 @@ TEST(WeakArrayBuffersFromScript) {
         for (int j = 1; j <= 3; j++) {
           if (j == i) continue;
           i::OS::SNPrintF(source, "ab%d", j);
-          v8::Handle<v8::ArrayBuffer> ab(
-              v8::ArrayBuffer::Cast(*CompileRun(source.start())));
+          v8::Handle<v8::ArrayBuffer> ab =
+              v8::Handle<v8::ArrayBuffer>::Cast(CompileRun(source.start()));
           CHECK(HasArrayBufferInWeakList(isolate->heap(),
                 *v8::Utils::OpenHandle(*ab)));
           }
@@ -285,10 +286,14 @@ static void TestTypedArrayFromScript(const char* constructor) {
                   constructor, constructor, constructor);
 
       CompileRun(source.start());
-      v8::Handle<v8::ArrayBuffer> ab(v8::ArrayBuffer::Cast(*CompileRun("ab")));
-      v8::Handle<TypedArray> ta1(TypedArray::Cast(*CompileRun("ta1")));
-      v8::Handle<TypedArray> ta2(TypedArray::Cast(*CompileRun("ta2")));
-      v8::Handle<TypedArray> ta3(TypedArray::Cast(*CompileRun("ta3")));
+      v8::Handle<v8::ArrayBuffer> ab =
+          v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab"));
+      v8::Handle<TypedArray> ta1 =
+          v8::Handle<TypedArray>::Cast(CompileRun("ta1"));
+      v8::Handle<TypedArray> ta2 =
+          v8::Handle<TypedArray>::Cast(CompileRun("ta2"));
+      v8::Handle<TypedArray> ta3 =
+          v8::Handle<TypedArray>::Cast(CompileRun("ta3"));
       CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
       CHECK_EQ(3, CountTypedArrays(*iab));
@@ -306,14 +311,15 @@ static void TestTypedArrayFromScript(const char* constructor) {
 
     {
       v8::HandleScope s2(context->GetIsolate());
-      v8::Handle<v8::ArrayBuffer> ab(v8::ArrayBuffer::Cast(*CompileRun("ab")));
+      v8::Handle<v8::ArrayBuffer> ab =
+          v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab"));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
       CHECK_EQ(2, CountTypedArrays(*iab));
       for (int j = 1; j <= 3; j++) {
         if (j == i) continue;
         i::OS::SNPrintF(source, "ta%d", j);
-        v8::Handle<TypedArray> ta(
-            TypedArray::Cast(*CompileRun(source.start())));
+        v8::Handle<TypedArray> ta =
+            v8::Handle<TypedArray>::Cast(CompileRun(source.start()));
         CHECK(HasTypedArrayInWeakList(*iab, *v8::Utils::OpenHandle(*ta)));
       }
     }
@@ -326,7 +332,8 @@ static void TestTypedArrayFromScript(const char* constructor) {
 
     {
       v8::HandleScope s3(context->GetIsolate());
-      v8::Handle<v8::ArrayBuffer> ab(v8::ArrayBuffer::Cast(*CompileRun("ab")));
+      v8::Handle<v8::ArrayBuffer> ab =
+          v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab"));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
       CHECK_EQ(0, CountTypedArrays(*iab));
     }

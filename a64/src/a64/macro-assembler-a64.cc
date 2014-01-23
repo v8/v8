@@ -872,10 +872,9 @@ void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
     Mov(result, Operand(cell));
-    Ldr(result, FieldMemOperand(result, JSGlobalPropertyCell::kValueOffset));
+    Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
   } else {
     Mov(result, Operand(object));
   }
@@ -1289,10 +1288,14 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
+                                              Address function_address,
+                                              ExternalReference thunk_ref,
+                                              Register thunk_last_arg,
                                               int stack_space,
                                               int spill_offset,
                                               bool returns_handle,
                                               int return_value_offset_from_fp) {
+  ASM_LOCATION("CallApiFunctionAndReturn");
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -1333,12 +1336,32 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
     PopSafepointRegisters();
   }
 
+  Label profiler_disabled;
+  Label end_profiler_check;
+  bool* is_profiling_flag = isolate()->cpu_profiler()->is_profiling_address();
+  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
+  Mov(x10, reinterpret_cast<uintptr_t>(is_profiling_flag));
+  Ldrb(w10, MemOperand(x10));
+  Cbz(w10, &profiler_disabled);
+
+  Register function_reg = x10;
+  ASSERT(!AreAliased(thunk_last_arg, function_reg));
+
+  // Additional parameter is the address of the actual callback.
+  Mov(thunk_last_arg, reinterpret_cast<uintptr_t>(function_address));
+  Mov(function_reg, Operand(thunk_ref));
+  B(&end_profiler_check);
+
+  Bind(&profiler_disabled);
+  Mov(function_reg, Operand(function));
+
+  Bind(&end_profiler_check);
+
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
   DirectCEntryStub stub;
-  __ Mov(x2, Operand(function));
-  stub.GenerateCall(this, x2);
+  stub.GenerateCall(this, function_reg);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);

@@ -163,8 +163,11 @@ void HeapObject::HeapObjectVerify() {
     case JS_BUILTINS_OBJECT_TYPE:
       JSBuiltinsObject::cast(this)->JSBuiltinsObjectVerify();
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellVerify();
+    case CELL_TYPE:
+      Cell::cast(this)->CellVerify();
+      break;
+    case PROPERTY_CELL_TYPE:
+      PropertyCell::cast(this)->PropertyCellVerify();
       break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
@@ -615,9 +618,16 @@ void Oddball::OddballVerify() {
 }
 
 
-void JSGlobalPropertyCell::JSGlobalPropertyCellVerify() {
-  CHECK(IsJSGlobalPropertyCell());
+void Cell::CellVerify() {
+  CHECK(IsCell());
   VerifyObjectField(kValueOffset);
+}
+
+
+void PropertyCell::PropertyCellVerify() {
+  CHECK(IsPropertyCell());
+  VerifyObjectField(kValueOffset);
+  VerifyObjectField(kTypeOffset);
 }
 
 

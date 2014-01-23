@@ -376,7 +376,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // performance of the hydrogen-based compiler.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
-    HPhase phase(HPhase::kFullCodeGen, isolate());
+    HPhase phase(HPhase::kFullCodeGen, isolate(), info()->zone());
     CompilationInfoWithZone unoptimized(info()->shared_info());
     // Note that we use the same AST that we will use for generating the
     // optimized code.
@@ -411,7 +411,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   }
 
   // Type-check the function.
-  AstTyper::Type(info());
+  AstTyper::Run(info());
 
   graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info());
 
@@ -1190,16 +1190,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
-    Handle<String> script_name;
     if (script->name()->IsString()) {
-      script_name = Handle<String>(String::cast(script->name()));
-    } else {
-      Handle<Object> name = GetScriptNameOrSourceURL(script);
-      if (!name.is_null() && name->IsString()) {
-        script_name = Handle<String>::cast(name);
-      }
-    }
-    if (!script_name.is_null()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
       USE(line_num);
       PROFILE(info->isolate(),
@@ -1207,7 +1198,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *code,
                               *shared,
                               info,
-                              String::cast(*script_name),
+                              String::cast(script->name()),
                               line_num));
     } else {
       PROFILE(info->isolate(),

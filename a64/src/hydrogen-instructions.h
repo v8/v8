@@ -1150,6 +1150,7 @@ class HValue: public ZoneObject {
     return representation();
   }
   Representation RepresentationFromUses();
+  Representation RepresentationFromUseRequirements();
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentation* h_infer,
                                     const char* reason);
@@ -2016,6 +2017,9 @@ enum InliningKind {
 };
 
 
+class HArgumentsObject;
+
+
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
   HEnterInlined(Handle<JSFunction> closure,
@@ -2023,7 +2027,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 FunctionLiteral* function,
                 InliningKind inlining_kind,
                 Variable* arguments_var,
-                ZoneList<HValue*>* arguments_values,
+                HArgumentsObject* arguments_object,
                 bool undefined_receiver,
                 Zone* zone)
       : closure_(closure),
@@ -2032,7 +2036,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
         function_(function),
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
-        arguments_values_(arguments_values),
+        arguments_object_(arguments_object),
         undefined_receiver_(undefined_receiver),
         return_targets_(2, zone) {
   }
@@ -2055,7 +2059,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   }
 
   Variable* arguments_var() { return arguments_var_; }
-  ZoneList<HValue*>* arguments_values() { return arguments_values_; }
+  HArgumentsObject* arguments_object() { return arguments_object_; }
 
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
@@ -2066,7 +2070,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   InliningKind inlining_kind_;
   Variable* arguments_var_;
-  ZoneList<HValue*>* arguments_values_;
+  HArgumentsObject* arguments_object_;
   bool undefined_receiver_;
   ZoneList<HBasicBlock*> return_targets_;
 };
@@ -2473,14 +2477,14 @@ class HCallNew: public HBinaryCall {
 class HCallNewArray: public HCallNew {
  public:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-              Handle<JSGlobalPropertyCell> type_cell)
+                Handle<Cell> type_cell)
       : HCallNew(context, constructor, argument_count),
         type_cell_(type_cell) {
     elements_kind_ = static_cast<ElementsKind>(
         Smi::cast(type_cell->value())->value());
   }
 
-  Handle<JSGlobalPropertyCell> property_cell() const {
+  Handle<Cell> property_cell() const {
     return type_cell_;
   }
 
@@ -2490,7 +2494,7 @@ class HCallNewArray: public HCallNew {
 
  private:
   ElementsKind elements_kind_;
-  Handle<JSGlobalPropertyCell> type_cell_;
+  Handle<Cell> type_cell_;
 };
 
 
@@ -3065,7 +3069,6 @@ class HPhi: public HValue {
 
   virtual Range* InferRange(Zone* zone);
   virtual void InferRepresentation(HInferRepresentation* h_infer);
-  Representation RepresentationFromUseRequirements();
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();
   }
@@ -3202,10 +3205,21 @@ class HInductionVariableAnnotation : public HUnaryOperation {
 
 class HArgumentsObject: public HTemplateInstruction<0> {
  public:
-  HArgumentsObject() {
+  HArgumentsObject(int count, Zone* zone) : values_(count, zone) {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+
+  const ZoneList<HValue*>* arguments_values() const { return &values_; }
+  int arguments_count() const { return values_.length(); }
+
+  void AddArgument(HValue* argument, Zone* zone) {
+    values_.Add(NULL, zone);  // Resize list.
+    SetOperandAt(values_.length() - 1, argument);
+  }
+
+  virtual int OperandCount() { return values_.length(); }
+  virtual HValue* OperandAt(int index) const { return values_[index]; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -3213,14 +3227,21 @@ class HArgumentsObject: public HTemplateInstruction<0> {
 
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
 
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    values_[index] = value;
+  }
+
  private:
   virtual bool IsDeletable() const { return true; }
+
+  ZoneList<HValue*> values_;
 };
 
 
 class HConstant: public HTemplateInstruction<0> {
  public:
-  HConstant(Handle<Object> handle, Representation r);
+  HConstant(Handle<Object> handle, Representation r = Representation::None());
   HConstant(int32_t value,
             Representation r = Representation::None(),
             bool is_not_in_new_space = true,
@@ -4832,14 +4853,14 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
 
 class HLoadGlobalCell: public HTemplateInstruction<0> {
  public:
-  HLoadGlobalCell(Handle<JSGlobalPropertyCell> cell, PropertyDetails details)
+  HLoadGlobalCell(Handle<Cell> cell, PropertyDetails details)
       : cell_(cell), details_(details), unique_id_() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnGlobalVars);
   }
 
-  Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  Handle<Cell> cell() const { return cell_; }
   bool RequiresHoleCheck() const;
 
   virtual void PrintDataTo(StringStream* stream);
@@ -4867,7 +4888,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
  private:
   virtual bool IsDeletable() const { return !RequiresHoleCheck(); }
 
-  Handle<JSGlobalPropertyCell> cell_;
+  Handle<Cell> cell_;
   PropertyDetails details_;
   UniqueValueId unique_id_;
 };
@@ -5047,7 +5068,7 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
 class HStoreGlobalCell: public HUnaryOperation {
  public:
   HStoreGlobalCell(HValue* value,
-                   Handle<JSGlobalPropertyCell> cell,
+                   Handle<PropertyCell> cell,
                    PropertyDetails details)
       : HUnaryOperation(value),
         cell_(cell),
@@ -5055,7 +5076,7 @@ class HStoreGlobalCell: public HUnaryOperation {
     SetGVNFlag(kChangesGlobalVars);
   }
 
-  Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  Handle<PropertyCell> cell() const { return cell_; }
   bool RequiresHoleCheck() {
     return !details_.IsDontDelete() || details_.IsReadOnly();
   }
@@ -5071,7 +5092,7 @@ class HStoreGlobalCell: public HUnaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell)
 
  private:
-  Handle<JSGlobalPropertyCell> cell_;
+  Handle<PropertyCell> cell_;
   PropertyDetails details_;
 };
 

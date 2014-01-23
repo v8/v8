@@ -802,9 +802,7 @@ TEST(NativeAccessorMonomorphicIC) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
-  // TODO(yurys): in LoadIC should be changed to report external callback
-  // invocation. See r13768 where it was LoadCallbackProperty was removed.
-  // GetChild(startNode, "get foo");
+  GetChild(startNode, "get foo");
   GetChild(startNode, "set foo");
 
   cpu_profiler->DeleteAllCpuProfiles();
@@ -911,85 +909,8 @@ TEST(NativeMethodMonomorphicIC) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   GetChild(root, "start");
-  // TODO(yurys): in CallIC should be changed to report external callback
-  // invocation.
-  // GetChild(startNode, "fooMethod");
-
-  cpu_profiler->DeleteAllCpuProfiles();
-}
-
-
-static const char* cpu_profiler_sourceURL_source =
-"function start(timeout) {\n"
-"  var start = Date.now();\n"
-"  var duration = 0;\n"
-"  do {\n"
-"    try {\n"
-"      duration = Date.now() - start;\n"
-"    } catch(e) { }\n"
-"  } while (duration < timeout);\n"
-"  return duration;\n"
-"}\n"
-"//# sourceURL=cpu_profiler_sourceURL_source.js";
-
-
-TEST(SourceURLSupportForNewFunctions) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  v8::Script::Compile(v8::String::New(cpu_profiler_sourceURL_source))->Run();
-  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("start")));
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  int32_t profiling_interval_ms = 100;
-
-  // Cold run.
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-  cpu_profiler->StartCpuProfiling(profile_name);
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(profiling_interval_ms) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-  CHECK_NE(NULL, profile);
-
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
-  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
-
-  CHECK_EQ(v8::String::New("cpu_profiler_sourceURL_source.js"),
-           startNode->GetScriptResourceName());
-
-  cpu_profiler->DeleteAllCpuProfiles();
-}
-
-TEST(LogExistingFunctionSourceURLCheck) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  v8::Script::Compile(v8::String::New(cpu_profiler_sourceURL_source))->Run();
-  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(v8::String::New("start")));
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  int32_t profiling_interval_ms = 100;
-
-  // Warm up.
-  v8::Handle<v8::Value> args[] = { v8::Integer::New(profiling_interval_ms) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-  cpu_profiler->StartCpuProfiling(profile_name);
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-  CHECK_NE(NULL, profile);
-
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
-  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-  const v8::CpuProfileNode* startNode = GetChild(root, "start");
-  CHECK_EQ(v8::String::New("cpu_profiler_sourceURL_source.js"),
-           startNode->GetScriptResourceName());
+  GetChild(startNode, "fooMethod");
 
   cpu_profiler->DeleteAllCpuProfiles();
 }

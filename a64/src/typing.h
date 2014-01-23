@@ -43,7 +43,7 @@ namespace internal {
 
 class AstTyper: public AstVisitor {
  public:
-  static void Type(CompilationInfo* info);
+  static void Run(CompilationInfo* info);
 
   void* operator new(size_t size, Zone* zone) {
     return zone->New(static_cast<int>(size));

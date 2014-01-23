@@ -315,7 +315,8 @@ if (support_smi_only_arrays) {
     instanceof_check(realmBArray);
     %OptimizeFunctionOnNextCall(instanceof_check);
     instanceof_check(Array);
-    instanceof_check(realmBArray);
     assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+    instanceof_check(realmBArray);
+    assertTrue(1 != %GetOptimizationStatus(instanceof_check));
   }
 }

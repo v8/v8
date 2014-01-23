@@ -933,7 +933,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
   BailoutId ast_id = hydrogen_env->ast_id();
   ASSERT(!ast_id.IsNone() ||
          hydrogen_env->frame_type() != JS_FUNCTION);
-  int value_count = hydrogen_env->length();
+  int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
   LEnvironment* result = new(zone()) LEnvironment(
       hydrogen_env->closure(),
       hydrogen_env->frame_type(),
@@ -944,13 +944,15 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
       outer,
       hydrogen_env->entry(),
       zone());
+  bool needs_arguments_object_materialization = false;
   int argument_index = *argument_index_accumulator;
-  for (int i = 0; i < value_count; ++i) {
+  for (int i = 0; i < hydrogen_env->length(); ++i) {
     if (hydrogen_env->is_special_index(i)) continue;
 
     HValue* value = hydrogen_env->values()->at(i);
     LOperand* op = NULL;
     if (value->IsArgumentsObject()) {
+      needs_arguments_object_materialization = true;
       op = NULL;
     } else if (value->IsPushArgument()) {
       op = new(zone()) LArgument(argument_index++);
@@ -960,6 +962,21 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
     result->AddValue(op,
                      value->representation(),
                      value->CheckFlag(HInstruction::kUint32));
+  }
+
+  if (needs_arguments_object_materialization) {
+    HArgumentsObject* arguments = hydrogen_env->entry() == NULL
+        ? graph()->GetArgumentsObject()
+        : hydrogen_env->entry()->arguments_object();
+    ASSERT(arguments->IsLinked());
+    for (int i = 1; i < arguments->arguments_count(); ++i) {
+      HValue* value = arguments->arguments_values()->at(i);
+      ASSERT(!value->IsArgumentsObject() && !value->IsPushArgument());
+      LOperand* op = UseAny(value);
+      result->AddValue(op,
+                       value->representation(),
+                       value->CheckFlag(HInstruction::kUint32));
+    }
   }
 
   if (hydrogen_env->frame_type() == JS_FUNCTION) {
@@ -1342,24 +1359,66 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
   } else if (instr->representation().IsInteger32()) {
-    // TODO(1042) The fixed register allocation
-    // is needed because we call TypeRecordingBinaryOpStub from
-    // the generated code, which requires registers a0
-    // and a1 to be used. We should remove that
-    // when we provide a native implementation.
-    LOperand* dividend = UseFixed(instr->left(), a0);
-    LOperand* divisor = UseFixed(instr->right(), a1);
-    return AssignEnvironment(AssignPointerMap(
-             DefineFixed(new(zone()) LDivI(dividend, divisor), v0)));
+    LOperand* dividend = UseRegister(instr->left());
+    LOperand* divisor = UseRegister(instr->right());
+    LDivI* div = new(zone()) LDivI(dividend, divisor);
+    return AssignEnvironment(DefineAsRegister(div));
   } else {
     return DoArithmeticT(Token::DIV, instr);
   }
 }
 
 
-LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-  UNIMPLEMENTED();
+bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
+  uint32_t divisor_abs = abs(divisor);
+  // Dividing by 0, 1, and powers of 2 is easy.
+  // Note that IsPowerOf2(0) returns true;
+  ASSERT(IsPowerOf2(0) == true);
+  if (IsPowerOf2(divisor_abs)) return true;
+
+  // We have magic numbers for a few specific divisors.
+  // Details and proofs can be found in:
+  // - Hacker's Delight, Henry S. Warren, Jr.
+  // - The PowerPC Compiler Writer's Guide
+  // and probably many others.
+  //
+  // We handle
+  //   <divisor with magic numbers> * <power of 2>
+  // but not
+  //   <divisor with magic numbers> * <other divisor with magic numbers>
+  int32_t power_of_2_factor =
+    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
+  DivMagicNumbers magic_numbers =
+    DivMagicNumberFor(divisor_abs >> power_of_2_factor);
+  if (magic_numbers.M != InvalidDivMagicNumber.M) return true;
+
+  return false;
+}
+
+
+HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
+  // Only optimize when we have magic numbers for the divisor.
+  // The standard integer division routine is usually slower than transitionning
+  // to FPU.
+  if (divisor->IsConstant() &&
+      HConstant::cast(divisor)->HasInteger32Value()) {
+    HConstant* constant_val = HConstant::cast(divisor);
+    return constant_val->CopyToRepresentation(Representation::Integer32(),
+                                                divisor->block()->zone());
+  }
   return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+    HValue* right = instr->right();
+    LOperand* dividend = UseRegister(instr->left());
+    LOperand* divisor = UseRegisterOrConstant(right);
+    LOperand* remainder = TempRegister();
+    ASSERT(right->IsConstant() &&
+           HConstant::cast(right)->HasInteger32Value());
+    return AssignEnvironment(DefineAsRegister(
+          new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
 }
 
 
@@ -2451,8 +2510,9 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                undefined,
                                                instr->inlining_kind(),
                                                instr->undefined_receiver());
-  if (instr->arguments_var() != NULL) {
-    inner->Bind(instr->arguments_var(), graph()->GetArgumentsObject());
+  // Only replay binding of arguments object if it wasn't removed from graph.
+  if (instr->arguments_var() != NULL && instr->arguments_object()->IsLinked()) {
+    inner->Bind(instr->arguments_var(), instr->arguments_object());
   }
   inner->set_entry(instr);
   current_block_->UpdateEnvironment(inner);

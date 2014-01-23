@@ -697,6 +697,8 @@ void MacroAssembler::PrepareCallApiFunction(int arg_stack_space,
 
 
 void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
+                                              Address thunk_address,
+                                              Register thunk_last_arg,
                                               int stack_space,
                                               bool returns_handle,
                                               int return_value_offset) {
@@ -737,9 +739,29 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
     PopSafepointRegisters();
   }
 
+
+  Label profiler_disabled;
+  Label end_profiler_check;
+  bool* is_profiling_flag =
+      isolate()->cpu_profiler()->is_profiling_address();
+  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
+  movq(rax, is_profiling_flag, RelocInfo::EXTERNAL_REFERENCE);
+  cmpb(Operand(rax, 0), Immediate(0));
+  j(zero, &profiler_disabled);
+
+  // Third parameter is the address of the actual getter function.
+  movq(thunk_last_arg, function_address, RelocInfo::EXTERNAL_REFERENCE);
+  movq(rax, thunk_address, RelocInfo::EXTERNAL_REFERENCE);
+  jmp(&end_profiler_check);
+
+  bind(&profiler_disabled);
   // Call the api function!
   movq(rax, reinterpret_cast<int64_t>(function_address),
        RelocInfo::EXTERNAL_REFERENCE);
+
+  bind(&end_profiler_check);
+
+  // Call the api function!
   call(rax);
 
   if (FLAG_log_timer_events) {
@@ -2357,9 +2379,8 @@ void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
-    movq(result, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    movq(result, cell, RelocInfo::CELL);
     movq(result, Operand(result, 0));
   } else {
     Move(result, object);
@@ -2370,9 +2391,8 @@ void MacroAssembler::LoadHeapObject(Register result,
 void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
-    movq(kScratchRegister, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    movq(kScratchRegister, cell, RelocInfo::CELL);
     cmpq(reg, Operand(kScratchRegister, 0));
   } else {
     Cmp(reg, object);
@@ -2383,9 +2403,8 @@ void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
 void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
-    movq(kScratchRegister, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    movq(kScratchRegister, cell, RelocInfo::CELL);
     movq(kScratchRegister, Operand(kScratchRegister, 0));
     push(kScratchRegister);
   } else {
@@ -2394,13 +2413,12 @@ void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
 }
 
 
-void MacroAssembler::LoadGlobalCell(Register dst,
-                                    Handle<JSGlobalPropertyCell> cell) {
+void MacroAssembler::LoadGlobalCell(Register dst, Handle<Cell> cell) {
   if (dst.is(rax)) {
     AllowDeferredHandleDereference embedding_raw_address;
-    load_rax(cell.location(), RelocInfo::GLOBAL_PROPERTY_CELL);
+    load_rax(cell.location(), RelocInfo::CELL);
   } else {
-    movq(dst, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    movq(dst, cell, RelocInfo::CELL);
     movq(dst, Operand(dst, 0));
   }
 }

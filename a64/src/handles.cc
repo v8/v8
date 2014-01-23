@@ -347,7 +347,7 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 static void ClearWrapperCache(v8::Isolate* v8_isolate,
                               Persistent<v8::Value>* handle,
                               void*) {
-  Handle<Object> cache = Utils::OpenHandle(**handle);
+  Handle<Object> cache = Utils::OpenPersistent(handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
   ASSERT(foreign->foreign_address() ==
@@ -599,9 +599,6 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 
 Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
-  if (!isolate->IsInitialized()) {
-    return isolate->factory()->undefined_value();
-  }
   Handle<String> name_or_source_url_key =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("nameOrSourceURL"));

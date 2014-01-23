@@ -669,21 +669,20 @@ void RelocInfo::set_target_runtime_entry(Address target,
 }
 
 
-Handle<JSGlobalPropertyCell> RelocInfo::target_cell_handle() {
+Handle<Cell> RelocInfo::target_cell_handle() {
   UNIMPLEMENTED();
-  JSGlobalPropertyCell *null_cell = NULL;
-  return Handle<JSGlobalPropertyCell>(null_cell);
+  Cell *null_cell = NULL;
+  return Handle<Cell>(null_cell);
 }
 
 
-JSGlobalPropertyCell* RelocInfo::target_cell() {
-  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
-  return JSGlobalPropertyCell::FromValueAddress(Memory::Address_at(pc_));
+Cell* RelocInfo::target_cell() {
+  ASSERT(rmode_ == RelocInfo::CELL);
+  return Cell::FromValueAddress(Memory::Address_at(pc_));
 }
 
 
-void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell,
-                                WriteBarrierMode mode) {
+void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
   UNIMPLEMENTED();
 }
 
@@ -756,8 +755,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitEmbeddedPointer(this);
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
-  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    visitor->VisitGlobalPropertyCell(this);
+  } else if (mode == RelocInfo::CELL) {
+    visitor->VisitCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -782,8 +781,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitEmbeddedPointer(heap, this);
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(heap, this);
-  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    StaticVisitor::VisitGlobalPropertyCell(heap, this);
+  } else if (mode == RelocInfo::CELL) {
+    StaticVisitor::VisitCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT

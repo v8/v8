@@ -629,9 +629,9 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
-    value = JSGlobalPropertyCell::cast(value)->value();
+    value = PropertyCell::cast(value)->value();
   }
-  ASSERT(!value->IsJSGlobalPropertyCell());
+  ASSERT(!value->IsPropertyCell() && !value->IsCell());
   return value;
 }
 
@@ -639,9 +639,8 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
   ASSERT(!HasFastProperties());
   if (IsGlobalObject()) {
-    JSGlobalPropertyCell* cell =
-        JSGlobalPropertyCell::cast(
-            property_dictionary()->ValueAt(result->GetDictionaryEntry()));
+    PropertyCell* cell = PropertyCell::cast(
+        property_dictionary()->ValueAt(result->GetDictionaryEntry()));
     cell->set_value(value);
   } else {
     property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
@@ -670,7 +669,7 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
     if (IsGlobalObject()) {
       Heap* heap = name->GetHeap();
       MaybeObject* maybe_store_value =
-          heap->AllocateJSGlobalPropertyCell(value);
+          heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
     Object* dict;
@@ -697,8 +696,8 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
       details.attributes(), details.type(), enumeration_index);
 
   if (IsGlobalObject()) {
-    JSGlobalPropertyCell* cell =
-        JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
+    PropertyCell* cell =
+        PropertyCell::cast(property_dictionary()->ValueAt(entry));
     cell->set_value(value);
     // Please note we have to update the property details.
     property_dictionary()->DetailsAtPut(entry, details);
@@ -730,8 +729,7 @@ MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
         ASSERT(new_map->is_dictionary_map());
         set_map(new_map);
       }
-      JSGlobalPropertyCell* cell =
-          JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
+      PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
       cell->set_value(cell->GetHeap()->the_hole_value());
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
@@ -1385,7 +1383,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
                        global_object ? "Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
-                accumulator->Add(" with %smap 0x%p",
+                accumulator->Add(" with %smap %p",
                     map_of_this->is_deprecated() ? "deprecated " : "",
                     map_of_this);
                 printed = true;
@@ -1567,9 +1565,13 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case FOREIGN_TYPE:
       accumulator->Add("<Foreign>");
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+    case CELL_TYPE:
       accumulator->Add("Cell for ");
-      JSGlobalPropertyCell::cast(this)->value()->ShortPrint(accumulator);
+      Cell::cast(this)->value()->ShortPrint(accumulator);
+      break;
+    case PROPERTY_CELL_TYPE:
+      accumulator->Add("PropertyCell for ");
+      PropertyCell::cast(this)->value()->ShortPrint(accumulator);
       break;
     default:
       accumulator->Add("<Other heap object (%d)>", map()->instance_type());
@@ -1661,8 +1663,11 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case CODE_TYPE:
       reinterpret_cast<Code*>(this)->CodeIterateBody(v);
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::BodyDescriptor::IterateBody(this, v);
+    case CELL_TYPE:
+      Cell::BodyDescriptor::IterateBody(this, v);
+      break;
+    case PROPERTY_CELL_TYPE:
+      PropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
     case SYMBOL_TYPE:
       Symbol::BodyDescriptor::IterateBody(this, v);
@@ -1931,7 +1936,7 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     int entry = dict->FindEntry(name);
     if (entry != NameDictionary::kNotFound) {
       store_value = dict->ValueAt(entry);
-      JSGlobalPropertyCell::cast(store_value)->set_value(value);
+      PropertyCell::cast(store_value)->set_value(value);
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
@@ -1942,10 +1947,10 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     }
     Heap* heap = GetHeap();
     { MaybeObject* maybe_store_value =
-          heap->AllocateJSGlobalPropertyCell(value);
+          heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
-    JSGlobalPropertyCell::cast(store_value)->set_value(value);
+    PropertyCell::cast(store_value)->set_value(value);
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Object* result;
@@ -3267,7 +3272,7 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
         result->NotFound();
         return;
       }
-      value = JSGlobalPropertyCell::cast(value)->value();
+      value = PropertyCell::cast(value)->value();
     }
     // Make sure to disallow caching for uninitialized constants
     // found in the dictionary-mode objects.
@@ -8905,8 +8910,8 @@ AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
 
 bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
   ASSERT(kind != NULL);
-  if (payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+  if (payload()->IsCell()) {
+    Cell* cell = Cell::cast(payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       *kind = static_cast<ElementsKind>(
@@ -9193,7 +9198,10 @@ void JSFunction::MarkForLazyRecompilation() {
 void JSFunction::MarkForParallelRecompilation() {
   ASSERT(is_compiled() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_parallel_recompilation);
+  if (!FLAG_parallel_recompilation) {
+    JSFunction::MarkForLazyRecompilation();
+    return;
+  }
   if (FLAG_trace_parallel_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
@@ -9980,13 +9988,13 @@ void ObjectVisitor::VisitCodeEntry(Address entry_address) {
 }
 
 
-void ObjectVisitor::VisitGlobalPropertyCell(RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+void ObjectVisitor::VisitCell(RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::CELL);
   Object* cell = rinfo->target_cell();
   Object* old_cell = cell;
   VisitPointer(&cell);
   if (cell != old_cell) {
-    rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
+    rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
   }
 }
 
@@ -10012,7 +10020,7 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
-byte Code::compare_nil_types() {
+byte Code::compare_nil_state() {
   ASSERT(is_compare_nil_ic_stub());
   return CompareNilICStub::ExtractTypesFromExtraICState(
       extended_extra_ic_state());
@@ -10048,7 +10056,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
   intptr_t delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
+                  RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
@@ -10059,8 +10067,8 @@ void Code::CopyFrom(const CodeDesc& desc) {
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p, SKIP_WRITE_BARRIER);
-    } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-      Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
+    } else if (mode == RelocInfo::CELL) {
+      Handle<Cell> cell  = it.rinfo()->target_cell_handle();
       it.rinfo()->set_target_cell(*cell, SKIP_WRITE_BARRIER);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
@@ -10246,7 +10254,7 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
     TypeFeedbackCells* type_feedback_cells =
         TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
     for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
-      JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
+      Cell* cell = type_feedback_cells->GetCell(i);
       cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
     }
   }
@@ -10296,6 +10304,18 @@ byte* Code::FindCodeAgeSequence() {
        (kind() == FUNCTION && !has_debug_break_slots()))
       ? instruction_start() + prologue_offset()
       : NULL;
+}
+
+
+int Code::GetAge() {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence == NULL) {
+    return Code::kNoAge;
+  }
+  Age age;
+  MarkingParity parity;
+  GetCodeAgeAndParity(sequence, &age, &parity);
+  return age;
 }
 
 
@@ -10538,11 +10558,8 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         }
 
         case Translation::ARGUMENTS_OBJECT: {
-          bool args_known = iterator.Next();
-          int args_index = iterator.Next();
           int args_length = iterator.Next();
-          PrintF(out, "{index=%d, length=%d, known=%d}",
-                 args_index, args_length, args_known);
+          PrintF(out, "{length=%d}", args_length);
           break;
         }
       }
@@ -12043,7 +12060,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     StrictModeFlag strict_mode,
                                     SetPropertyMode set_mode) {
   if (object->HasExternalArrayElements()) {
-    if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
+    if (!value->IsNumber() && !value->IsUndefined()) {
       bool has_exception;
       Handle<Object> number = Execution::ToNumber(value, &has_exception);
       if (has_exception) return Handle<Object>();
@@ -12321,8 +12338,8 @@ MaybeObject* JSObject::UpdateAllocationSiteInfo(ElementsKind to_kind) {
         return payload->TransitionElementsKind(to_kind);
       }
     }
-  } else if (info->payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(info->payload());
+  } else if (info->payload()->IsCell()) {
+    Cell* cell = Cell::cast(info->payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       ElementsKind kind = static_cast<ElementsKind>(
@@ -14244,20 +14261,20 @@ MaybeObject* ExternalDoubleArray::SetValue(uint32_t index, Object* value) {
 }
 
 
-JSGlobalPropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
+PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  return JSGlobalPropertyCell::cast(value);
+  return PropertyCell::cast(value);
 }
 
 
-Handle<JSGlobalPropertyCell> GlobalObject::EnsurePropertyCell(
+Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
     Handle<GlobalObject> global,
     Handle<Name> name) {
   Isolate* isolate = global->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
                      global->EnsurePropertyCell(*name),
-                     JSGlobalPropertyCell);
+                     PropertyCell);
 }
 
 
@@ -14268,7 +14285,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
     Heap* heap = GetHeap();
     Object* cell;
     { MaybeObject* maybe_cell =
-          heap->AllocateJSGlobalPropertyCell(heap->the_hole_value());
+          heap->AllocatePropertyCell(heap->the_hole_value());
       if (!maybe_cell->ToObject(&cell)) return maybe_cell;
     }
     PropertyDetails details(NONE, NORMAL, 0);
@@ -14282,7 +14299,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
     return cell;
   } else {
     Object* value = property_dictionary()->ValueAt(entry);
-    ASSERT(value->IsJSGlobalPropertyCell());
+    ASSERT(value->IsPropertyCell());
     return value;
   }
 }
@@ -15065,8 +15082,8 @@ Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
     Object* k =  HashTable<Shape, Key>::KeyAt(i);
     if (Dictionary<Shape, Key>::IsKey(k)) {
       Object* e = ValueAt(i);
-      if (e->IsJSGlobalPropertyCell()) {
-        e = JSGlobalPropertyCell::cast(e)->value();
+      if (e->IsPropertyCell()) {
+        e = PropertyCell::cast(e)->value();
       }
       if (e == value) return k;
     }
@@ -15794,5 +15811,16 @@ void JSTypedArray::Neuter() {
   set_length(Smi::FromInt(0));
   set_elements(GetHeap()->EmptyExternalArrayForMap(map()));
 }
+
+
+Type* PropertyCell::type() {
+  return static_cast<Type*>(type_raw());
+}
+
+
+void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+  set_type_raw(type, ignored);
+}
+
 
 } }  // namespace v8::internal

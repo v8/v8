@@ -48,9 +48,6 @@
 #error both DEBUG and NDEBUG are set
 #endif
 
-// TODO(dcarney): remove this
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-
 // Basic includes
 #include "../include/v8.h"
 #include "v8globals.h"

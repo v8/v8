@@ -123,17 +123,18 @@ class FullCodeGenerator: public AstVisitor {
 
   static const int kMaxBackEdgeWeight = 127;
 
+  // Platform-specific code size multiplier.
 #if V8_TARGET_ARCH_IA32
-  static const int kBackEdgeDistanceUnit = 100;
+  static const int kCodeSizeMultiplier = 100;
 #elif V8_TARGET_ARCH_X64
-  static const int kBackEdgeDistanceUnit = 162;
+  static const int kCodeSizeMultiplier = 162;
 #elif V8_TARGET_ARCH_ARM
-  static const int kBackEdgeDistanceUnit = 142;
-#elif V8_TARGET_ARCH_MIPS
-  static const int kBackEdgeDistanceUnit = 142;
+  static const int kCodeSizeMultiplier = 142;
 #elif V8_TARGET_ARCH_A64
 // TODO(all): Copied ARM value. Check this is sensible for A64.
-  static const int kBackEdgeDistanceUnit = 142;
+  static const int kCodeSizeMultiplier = 142;
+#elif V8_TARGET_ARCH_MIPS
+  static const int kCodeSizeMultiplier = 142;
 #else
 #error Unsupported target architecture.
 #endif
@@ -413,10 +414,10 @@ class FullCodeGenerator: public AstVisitor {
   // this has to be a separate pass _before_ populating or executing any module.
   void AllocateModules(ZoneList<Declaration*>* declarations);
 
-  // Generator code to return a fresh iterator result object.  The "value"
-  // property is set to a value popped from the stack, and "done" is set
-  // according to the argument.
-  void EmitReturnIteratorResult(bool done);
+  // Generate code to create an iterator result object.  The "value" property is
+  // set to a value popped from the stack, and "done" is set according to the
+  // argument.  The result object is left in the result register.
+  void EmitCreateIteratorResult(bool done);
 
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
@@ -440,8 +441,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Cache cell support.  This associates AST ids with global property cells
   // that will be cleared during GC and collected by the type-feedback oracle.
-  void RecordTypeFeedbackCell(TypeFeedbackId id,
-                              Handle<JSGlobalPropertyCell> cell);
+  void RecordTypeFeedbackCell(TypeFeedbackId id, Handle<Cell> cell);
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -474,6 +474,11 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitProfilingCounterDecrement(int delta);
   void EmitProfilingCounterReset();
+
+  // Emit code to pop values from the stack associated with nested statements
+  // like try/catch, try/finally, etc, running the finallies and unwinding the
+  // handlers as needed.
+  void EmitUnwindBeforeReturn();
 
   // Platform-specific return sequence
   void EmitReturnSequence();
@@ -651,7 +656,7 @@ class FullCodeGenerator: public AstVisitor {
 
   struct TypeFeedbackCellEntry {
     TypeFeedbackId ast_id;
-    Handle<JSGlobalPropertyCell> cell;
+    Handle<Cell> cell;
   };
 
 
@@ -847,7 +852,7 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
-  Handle<JSGlobalPropertyCell> profiling_counter_;
+  Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
   Zone* zone_;
 

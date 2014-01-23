@@ -275,18 +275,12 @@ class LCodeGen BASE_EMBEDDED {
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
   // Emit frame translation commands for an environment.
-  void WriteTranslation(LEnvironment* environment,
-                        Translation* translation,
-                        int* arguments_index,
-                        int* arguments_count);
+  void WriteTranslation(LEnvironment* environment, Translation* translation);
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,
                         bool is_tagged,
-                        bool is_uint32,
-                        bool arguments_known,
-                        int arguments_index,
-                        int arguments_count);
+                        bool is_uint32);
 
   // Code generation steps.  Returns true if code generation should continue.
   bool GeneratePrologue();

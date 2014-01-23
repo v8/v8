@@ -168,27 +168,15 @@ class TestAndBranch : public BranchGenerator {
 
 
 void LCodeGen::WriteTranslation(LEnvironment* environment,
-                                Translation* translation,
-                                int* pushed_arguments_index,
-                                int* pushed_arguments_count) {
+                                Translation* translation) {
   if (environment == NULL) return;
 
   // The translation includes one command per value in the environment.
-  int translation_size = environment->values()->length();
+  int translation_size = environment->translation_size();
   // The output frame height does not include the parameters.
   int height = translation_size - environment->parameter_count();
 
-  // Function parameters are arguments to the outermost environment. The
-  // arguments index points to the first element of a sequence of tagged
-  // values on the stack that represent the arguments. This needs to be
-  // kept in sync with the LArgumentsElements implementation.
-  *pushed_arguments_index = -environment->parameter_count();
-  *pushed_arguments_count = environment->parameter_count();
-
-  WriteTranslation(environment->outer(),
-                   translation,
-                   pushed_arguments_index,
-                   pushed_arguments_count);
+  WriteTranslation(environment->outer(), translation);
   bool has_closure_id = !info()->closure().is_null() &&
       !info()->closure().is_identical_to(environment->closure());
   int closure_id = has_closure_id
@@ -222,23 +210,6 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       UNREACHABLE();
   }
 
-  // Inlined frames which push their arguments cause the index to be
-  // bumped and another stack area to be used for materialization,
-  // otherwise actual argument values are unknown for inlined frames.
-  bool arguments_known = true;
-  int arguments_index = *pushed_arguments_index;
-  int arguments_count = *pushed_arguments_count;
-  if (environment->entry() != NULL) {
-    arguments_known = environment->entry()->arguments_pushed();
-    arguments_index = arguments_index < 0
-        ? GetStackSlotCount() : arguments_index + arguments_count;
-    arguments_count = environment->entry()->arguments_count() + 1;
-    if (environment->entry()->arguments_pushed()) {
-      *pushed_arguments_index = arguments_index;
-      *pushed_arguments_count = arguments_count;
-    }
-  }
-
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
     // spilled_registers_ and spilled_double_registers_ are either
@@ -250,10 +221,7 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
         AddToTranslation(translation,
                          environment->spilled_registers()[value->index()],
                          environment->HasTaggedValueAt(i),
-                         environment->HasUint32ValueAt(i),
-                         arguments_known,
-                         arguments_index,
-                         arguments_count);
+                         environment->HasUint32ValueAt(i));
       } else if (
           value->IsDoubleRegister() &&
           (environment->spilled_double_registers()[value->index()] != NULL)) {
@@ -262,20 +230,36 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
             translation,
             environment->spilled_double_registers()[value->index()],
             false,
-            false,
-            arguments_known,
-            arguments_index,
-            arguments_count);
+            false);
       }
+    }
+
+    // TODO(mstarzinger): Introduce marker operands to indicate that this value
+    // is not present and must be reconstructed from the deoptimizer. Currently
+    // this is only used for the arguments object.
+    if (value == NULL) {
+      int arguments_count = environment->values()->length() - translation_size;
+      translation->BeginArgumentsObject(arguments_count);
+      for (int i = 0; i < arguments_count; ++i) {
+        LOperand* value = environment->values()->at(translation_size + i);
+        ASSERT(environment->spilled_registers() == NULL ||
+               !value->IsRegister() ||
+               environment->spilled_registers()[value->index()] == NULL);
+        ASSERT(environment->spilled_registers() == NULL ||
+               !value->IsDoubleRegister() ||
+               environment->spilled_double_registers()[value->index()] == NULL);
+        AddToTranslation(translation,
+                         value,
+                         environment->HasTaggedValueAt(translation_size + i),
+                         environment->HasUint32ValueAt(translation_size + i));
+      }
+      continue;
     }
 
     AddToTranslation(translation,
                      value,
                      environment->HasTaggedValueAt(i),
-                     environment->HasUint32ValueAt(i),
-                     arguments_known,
-                     arguments_index,
-                     arguments_count);
+                     environment->HasUint32ValueAt(i));
   }
 }
 
@@ -283,17 +267,8 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 void LCodeGen::AddToTranslation(Translation* translation,
                                 LOperand* op,
                                 bool is_tagged,
-                                bool is_uint32,
-                                bool arguments_known,
-                                int arguments_index,
-                                int arguments_count) {
-  if (op == NULL) {
-    // TODO(twuerthinger): Introduce marker operands to indicate that this value
-    // is not present and must be reconstructed from the deoptimizer. Currently
-    // this is only used for the arguments object.
-    translation->StoreArgumentsObject(
-        arguments_known, arguments_index, arguments_count);
-  } else if (op->IsStackSlot()) {
+                                bool is_uint32) {
+  if (op->IsStackSlot()) {
     if (is_tagged) {
       translation->StoreStackSlot(op->index());
     } else if (is_uint32) {
@@ -344,8 +319,6 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
   if (!environment->HasBeenRegistered()) {
     int frame_count = 0;
     int jsframe_count = 0;
-    int args_index = 0;
-    int args_count = 0;
     for (LEnvironment* e = environment; e != NULL; e = e->outer()) {
       ++frame_count;
       if (e->frame_type() == JS_FUNCTION) {
@@ -353,7 +326,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
       }
     }
     Translation translation(&translations_, frame_count, jsframe_count, zone());
-    WriteTranslation(environment, &translation, &args_index, &args_count);
+    WriteTranslation(environment, &translation);
     int deoptimization_index = deoptimizations_.length();
     int pc_offset = masm()->pc_offset();
     environment->Register(deoptimization_index,
@@ -438,8 +411,25 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
     ArrayNoArgumentConstructorStub stub(kind, disable_allocation_sites);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else if (instr->arity() == 1) {
+    Label done;
+    if (IsFastPackedElementsKind(kind)) {
+      Label packed_case;
+
+      // We might need to create a holey array; look at the first argument.
+      __ Peek(x10, 0);
+      __ Cbz(x10, &packed_case);
+
+      ElementsKind holey_kind = GetHoleyElementsKind(kind);
+      ArraySingleArgumentConstructorStub stub(holey_kind,
+                                              disable_allocation_sites);
+      CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+      __ B(&done);
+      __ Bind(&packed_case);
+    }
+
     ArraySingleArgumentConstructorStub stub(kind, disable_allocation_sites);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+    __ Bind(&done);
   } else {
     ArrayNArgumentsConstructorStub stub(kind, disable_allocation_sites);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
@@ -2206,10 +2196,9 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*target)) {
     Register temp = ToRegister(instr->temp());
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(target);
+    Handle<Cell> cell = isolate()->factory()->NewPropertyCell(target);
     __ Mov(temp, Operand(Handle<Object>(cell)));
-    __ Ldr(temp, FieldMemOperand(temp, JSGlobalPropertyCell::kValueOffset));
+    __ Ldr(temp, FieldMemOperand(temp, Cell::kValueOffset));
     __ Cmp(reg, temp);
   } else {
     __ Cmp(reg, Operand(target));
@@ -3031,7 +3020,7 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   __ Mov(result, Operand(Handle<Object>(instr->hydrogen()->cell())));
-  __ Ldr(result, FieldMemOperand(result, JSGlobalPropertyCell::kValueOffset));
+  __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     DeoptimizeIfRoot(
         result, Heap::kTheHoleValueRootIndex, instr->environment());
@@ -4459,13 +4448,13 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   // it as no longer deleted. We deoptimize in that case.
   if (instr->hydrogen()->RequiresHoleCheck()) {
     Register payload = ToRegister(instr->temp2());
-    __ Ldr(payload, FieldMemOperand(cell, JSGlobalPropertyCell::kValueOffset));
+    __ Ldr(payload, FieldMemOperand(cell, Cell::kValueOffset));
     DeoptimizeIfRoot(
         payload, Heap::kTheHoleValueRootIndex, instr->environment());
   }
 
   // Store the value.
-  __ Str(value, FieldMemOperand(cell, JSGlobalPropertyCell::kValueOffset));
+  __ Str(value, FieldMemOperand(cell, Cell::kValueOffset));
   // Cells are always rescanned, so no write barrier here.
 }
 

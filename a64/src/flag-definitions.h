@@ -178,8 +178,7 @@ DEFINE_implication(harmony, harmony_symbols)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
 DEFINE_implication(harmony, harmony_observation)
-// TODO(wingo): Re-enable when GC bug that appeared in r15060 is gone.
-// DEFINE_implication(harmony, harmony_generators)
+DEFINE_implication(harmony, harmony_generators)
 DEFINE_implication(harmony, harmony_iteration)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
@@ -291,10 +290,10 @@ DEFINE_bool(opt_safe_uint32_operations, true,
             "allow uint32 values on optimize frames if they are used only in "
             "safe operations")
 
-DEFINE_bool(parallel_recompilation, false,
+DEFINE_bool(parallel_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
 DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
-DEFINE_int(parallel_recompilation_queue_length, 3,
+DEFINE_int(parallel_recompilation_queue_length, 8,
            "the length of the parallel compilation queue")
 DEFINE_int(parallel_recompilation_delay, 0,
            "artificial compilation delay in ms")
@@ -318,7 +317,7 @@ DEFINE_bool(weighted_back_edges, false,
            // 0x1700 fits in the immediate field of an ARM instruction.
 DEFINE_int(interrupt_budget, 0x1700,
            "execution budget before interrupt is triggered")
-DEFINE_int(type_info_threshold, 15,
+DEFINE_int(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
 DEFINE_int(self_opt_count, 130, "call count before self-optimization")
 

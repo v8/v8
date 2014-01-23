@@ -1722,9 +1722,9 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
+void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                   StrictModeFlag strict_mode) {
-  ASM_LOCATION("StoreIC::GenerateGlobalProxy");
+  ASM_LOCATION("StoreIC::GenerateRuntimeSetProperty");
   // ----------- S t a t e -------------
   //  -- x0    : value
   //  -- x1    : receiver

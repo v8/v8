@@ -60,8 +60,10 @@ assertUnoptimized(g);
 %OptimizeFunctionOnNextCall(g, "parallel");
 f(g(2));  // Trigger optimization.
 
-assertUnoptimized(f);  // Not yet optimized.
-assertUnoptimized(g);
+if (%IsParallelRecompilationSupported()) {
+  assertUnoptimized(f);  // Not yet optimized.
+  assertUnoptimized(g);
+}
 
 %CompleteOptimization(f);  // Wait till optimized code is installed.
 %CompleteOptimization(g);

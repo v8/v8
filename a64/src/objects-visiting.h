@@ -88,6 +88,7 @@ class StaticVisitorBase : public AllStatic {
   V(Oddball)                  \
   V(Code)                     \
   V(Map)                      \
+  V(Cell)                     \
   V(PropertyCell)             \
   V(SharedFunctionInfo)       \
   V(JSFunction)               \
@@ -394,7 +395,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   INLINE(static void VisitCodeEntry(Heap* heap, Address entry_address));
   INLINE(static void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo));
-  INLINE(static void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo));
+  INLINE(static void VisitCell(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitDebugTarget(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitCodeTarget(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitCodeAgeSequence(Heap* heap, RelocInfo* rinfo));

@@ -52,7 +52,7 @@ AstTyper::AstTyper(CompilationInfo* info)
   } while (false)
 
 
-void AstTyper::Type(CompilationInfo* info) {
+void AstTyper::Run(CompilationInfo* info) {
   AstTyper* visitor = new(info->zone()) AstTyper(info);
   Scope* scope = info->scope();
 

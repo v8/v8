@@ -4474,7 +4474,7 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
             masm->isolate()->heap()->the_hole_value());
 
   // Load the cache state.
-  __ Ldr(x3, FieldMemOperand(x2, JSGlobalPropertyCell::kValueOffset));
+  __ Ldr(x3, FieldMemOperand(x2, Cell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -4488,12 +4488,12 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   Label skip_undef_store;
   __ JumpIfRoot(x3, Heap::kTheHoleValueRootIndex, &skip_undef_store);
   __ LoadRoot(ip0, Heap::kUndefinedValueRootIndex);
-  __ Str(ip0, FieldMemOperand(x2, JSGlobalPropertyCell::kValueOffset));
+  __ Str(ip0, FieldMemOperand(x2, Cell::kValueOffset));
   __ B(&done);
   __ Bind(&skip_undef_store);
 
   // An uninitialized cache is patched with the function.
-  __ Str(x1, FieldMemOperand(x2, JSGlobalPropertyCell::kValueOffset));
+  __ Str(x1, FieldMemOperand(x2, Cell::kValueOffset));
   // No need for a write barrier here - cells are rescanned.
 
   __ Bind(&done);
@@ -4515,7 +4515,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
             masm->isolate()->heap()->the_hole_value());
 
   // Load the cache state.
-  __ Ldr(x3, FieldMemOperand(x2, JSGlobalPropertyCell::kValueOffset));
+  __ Ldr(x3, FieldMemOperand(x2, Cell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -4547,7 +4547,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // write-barrier is needed.
   __ Bind(&megamorphic);
   __ LoadRoot(x3, Heap::kUndefinedValueRootIndex);
-  __ Str(x3, FieldMemOperand(x2, JSGlobalPropertyCell::kValueOffset));
+  __ Str(x3, FieldMemOperand(x2, Cell::kValueOffset));
   __ B(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -4565,12 +4565,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
       TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
           GetInitialFastElementsKind());
   __ Mov(x3, Operand(initial_kind_sentinel));
-  __ Str(x3, FieldMemOperand(x2, JSGlobalPropertyCell::kValueOffset));
+  __ Str(x3, FieldMemOperand(x2, Cell::kValueOffset));
   __ B(&done);
 
   __ Bind(&not_array_function);
   // An uninitialized cache is patched with the function.
-  __ Str(x1, FieldMemOperand(x2, JSGlobalPropertyCell::kValueOffset));
+  __ Str(x1, FieldMemOperand(x2, Cell::kValueOffset));
   // No need for a write barrier here - cells are rescanned.
 
   __ Bind(&done);
@@ -4647,8 +4647,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
               masm->isolate()->heap()->undefined_value());
     __ LoadRoot(x11, Heap::kUndefinedValueRootIndex);
-    __ Str(x11, FieldMemOperand(cache_cell,
-                                JSGlobalPropertyCell::kValueOffset));
+    __ Str(x11, FieldMemOperand(cache_cell, Cell::kValueOffset));
   }
   // Check for function proxy.
   // x10 : function type.
@@ -6601,17 +6600,21 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // 2. Refactor the Ldr/Add sequence at the start of fast_elements and
   //    smi_element.
 
-  // x0   value            element value to store
-  // x1   array            array literal
-  // x2   array_map        map of array literal
-  // x3   index_smi        element index as smi
-  // x4   array_index_smi  array literal index in function as smi
+  // x0     value            element value to store
+  // x3     index_smi        element index as smi
+  // sp[0]  array_index_smi  array literal index in function as smi
+  // sp[1]  array            array literal
 
   Register value = x0;
+  Register index_smi = x3;
+
   Register array = x1;
   Register array_map = x2;
-  Register index_smi = x3;
   Register array_index_smi = x4;
+  // TODO(jbramley): Implement PeekPair and use it here.
+  __ Peek(array, 1 * kPointerSize);
+  __ Peek(array_index_smi, 0 * kPointerSize);
+  __ Ldr(array_map, FieldMemOperand(array, JSObject::kMapOffset));
 
   Label double_elements, smi_element, fast_elements, slow_elements;
   __ CheckFastElements(array_map, x10, &double_elements);
@@ -7163,16 +7166,13 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Abort("Unexpected initial map for Array function");
     __ Bind(&map_ok);
 
-    // In type_info_cell, we expect either undefined or a valid
-    // JSGlobalPropertyCell.
+    // In type_info_cell, we expect either undefined or a valid Cell.
     Label okay_here;
-    Handle<Map> global_property_cell_map(
-        masm->isolate()->heap()->global_property_cell_map());
+    Handle<Map> cell_map(masm->isolate()->heap()->global_property_cell_map());
     __ CompareAndBranch(type_info_cell, Operand(undefined_sentinel),
                         eq, &okay_here);
-    __ Ldr(x10, FieldMemOperand(type_info_cell,
-                                JSGlobalPropertyCell::kMapOffset));
-    __ Cmp(x10, Operand(global_property_cell_map));
+    __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kMapOffset));
+    __ Cmp(x10, Operand(cell_map));
     __ Assert(eq, "Expected property cell in type_info_cell");
     __ Bind(&okay_here);
   }
@@ -7183,8 +7183,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Get the elements kind and case on that.
     __ CompareAndBranch(type_info_cell, Operand(undefined_sentinel),
                         eq, &no_info);
-    __ Ldr(kind, FieldMemOperand(type_info_cell,
-                                 JSGlobalPropertyCell::kValueOffset));
+    __ Ldr(kind, FieldMemOperand(type_info_cell, PropertyCell::kValueOffset));
     __ JumpIfNotSmi(kind, &no_info);
     __ SmiUntag(kind);
     __ B(&switch_ready);
@@ -7244,18 +7243,17 @@ void InternalArrayConstructorStub::GenerateCase(
 
   // One argument.
   if (IsFastPackedElementsKind(kind)) {
-    Label normal_sequence;
+    Label packed_case;
 
     // We might need to create a holey array; look at the first argument.
-    // TODO(jbramley): Is x3 significant? x10 is the convention in A64.
-    __ Peek(x3, 0);
-    __ Cbz(x3, &normal_sequence);
+    __ Peek(x10, 0);
+    __ Cbz(x10, &packed_case);
 
     InternalArraySingleArgumentConstructorStub
         stub1_holey(GetHoleyElementsKind(kind));
     __ TailCallStub(&stub1_holey);
 
-    __ Bind(&normal_sequence);
+    __ Bind(&packed_case);
   }
   InternalArraySingleArgumentConstructorStub stub1(kind);
   __ TailCallStub(&stub1);

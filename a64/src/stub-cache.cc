@@ -321,7 +321,7 @@ Handle<Code> StubCache::ComputeLoadNormal(Handle<Name> name,
 Handle<Code> StubCache::ComputeLoadGlobal(Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           Handle<GlobalObject> holder,
-                                          Handle<JSGlobalPropertyCell> cell,
+                                          Handle<PropertyCell> cell,
                                           bool is_dont_delete) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
   Handle<Code> stub = FindIC(name, stub_holder, Code::LOAD_IC, Code::NORMAL);
@@ -497,7 +497,7 @@ Handle<Code> StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
 
 Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
                                            Handle<GlobalObject> receiver,
-                                           Handle<JSGlobalPropertyCell> cell,
+                                           Handle<PropertyCell> cell,
                                            StrictModeFlag strict_mode) {
   Handle<Code> stub = FindIC(
       name, Handle<JSObject>::cast(receiver),
@@ -644,7 +644,10 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -734,7 +737,7 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
                                           Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           Handle<GlobalObject> holder,
-                                          Handle<JSGlobalPropertyCell> cell,
+                                          Handle<PropertyCell> cell,
                                           Handle<JSFunction> function) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
@@ -753,7 +756,9 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -1974,12 +1979,25 @@ bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
 }
 
 
+bool CallStubCompiler::CanBeCached(Handle<JSFunction> function) {
+  if (function->shared()->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function->shared()->builtin_function_id();
+#define CALL_GENERATOR_CASE(name) if (id == k##name) return false;
+    SITE_SPECIFIC_CALL_GENERATORS(CALL_GENERATOR_CASE)
+#undef CALL_GENERATOR_CASE
+  }
+
+  return true;
+}
+
+
 Handle<Code> CallStubCompiler::CompileCustomCall(
     Handle<Object> object,
     Handle<JSObject> holder,
-    Handle<JSGlobalPropertyCell> cell,
+    Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> fname) {
+    Handle<String> fname,
+    Code::StubType type) {
   ASSERT(HasCustomCallGenerator(function));
 
   if (function->shared()->HasBuiltinFunctionId()) {
@@ -1990,7 +2008,8 @@ Handle<Code> CallStubCompiler::CompileCustomCall(
                                                    holder,      \
                                                    cell,        \
                                                    function,    \
-                                                   fname);      \
+                                                   fname,       \
+                                                   type);       \
     }
     CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
 #undef CALL_GENERATOR_CASE

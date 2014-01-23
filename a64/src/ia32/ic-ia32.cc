@@ -1482,8 +1482,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode) {
+void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                         StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
