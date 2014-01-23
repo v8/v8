@@ -43,14 +43,6 @@
       {%- else -%}
         ({{r[1][0]}} <= primary_char && primary_char <= {{r[1][1]}})
       {%- endif -%}
-    {%- elif r[0] == 'CLASS' -%}
-      {%- if r[1] == 'eos' -%}
-        (primary_char == 0 && cursor_ >= buffer_end_)
-      {%- elif r[1] == 'zero' -%}
-        (primary_char == 0 && cursor_ < buffer_end_)
-      {%- else %}
-        uncompilable code for {{encoding}} {{r[0]}} {{r[1]}}
-      {%- endif -%}
     {# These classes require long_char and to be outside the primary range #}
     {%- elif r[0] == 'LONG_CHAR_CLASS' and encoding in ['utf16', 'utf8'] -%}
       {%- if r[1] == 'byte_order_mark' -%}
@@ -274,17 +266,11 @@
     }
   {% endfor -%}
 
-  {%- for key, jump_id in state['deferred_transitions'] %}
-    if ({{do_key(key)}}) { // deferred transition
-      {{ do_transition(jump_id) }}
-    }
-  {% endfor -%}
-
-  {%- if state['long_char_transitions'] -%}
+  {%- if state['deferred_transitions'] -%}
     if ({{long_char_check()}}) {
       next_.is_onebyte = false;
       {{long_char_create()}}
-      {%- for key, jump_id in state['long_char_transitions'] %}
+      {%- for key, jump_id in state['deferred_transitions'] %}
         if ({{do_key(key)}}) { // long_char transition
           {{ do_transition(jump_id) }}
         }

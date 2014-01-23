@@ -105,7 +105,6 @@ class CodeGenerator:
       'if_transitions' : [],
       'switch_transitions' : [],
       'deferred_transitions' : [],
-      'long_char_transitions' : [],
       'unique_transitions' : unique_transitions,
       # state actions
       'entry_action' : entry_action,
@@ -184,7 +183,6 @@ class CodeGenerator:
   }
 
   def __rewrite_deferred_transitions(self, state):
-    assert not state['long_char_transitions']
     transitions = state['deferred_transitions']
     if not transitions:
       return
@@ -192,58 +190,45 @@ class CodeGenerator:
     bom = 'byte_order_mark'
     catch_all = 'non_primary_everything_else'
     all_classes = set(encoding.class_name_iter())
-    fast_classes = set([])
-    call_classes = all_classes - fast_classes - set([bom, catch_all])
+    call_classes = all_classes - set([bom, catch_all])
     def remap_transition(class_name):
       if class_name in call_classes:
         return ('LONG_CHAR_CLASS', 'call', self.__call_map[class_name])
       if class_name == bom:
         return ('LONG_CHAR_CLASS', class_name)
       raise Exception(class_name)
-    fast_transitions = []
     long_class_transitions = []
     long_class_map = {}
     catchall_transition = None
     # loop through and remove catch_all_transitions
     for (classes, transition_node_id) in transitions:
-      ft = []
       lct = []
       has_catch_all = False
       for (class_type, class_name) in classes:
-        if class_name in fast_classes:
-          ft.append((class_type, class_name))
+        assert not class_name in long_class_map
+        long_class_map[class_name] = transition_node_id
+        if class_name == catch_all:
+          assert not has_catch_all
+          assert catchall_transition == None
+          has_catch_all = True
         else:
-          assert not class_name in long_class_map
-          long_class_map[class_name] = transition_node_id
-          if class_name == catch_all:
-            assert not has_catch_all
-            assert catchall_transition == None
-            has_catch_all = True
-          else:
-            lct.append(remap_transition(class_name))
-      if ft:
-        fast_transitions.append((ft, transition_node_id))
+          lct.append(remap_transition(class_name))
       if has_catch_all:
         catchall_transition = (lct, transition_node_id)
       elif lct:
         long_class_transitions.append((lct, transition_node_id))
-    # all transitions are fast
-    if not long_class_map:
-      return
     if catchall_transition:
-      catchall_transitions = all_classes - fast_classes
+      catchall_transitions = all_classes
       for class_name in long_class_map.iterkeys():
         catchall_transitions.remove(class_name)
       assert not catchall_transitions, "class inversion not unimplemented"
-    # split deferred transitions
-    state['deferred_transitions'] = fast_transitions
     if catchall_transition:
       catchall_transition = [
         ([('LONG_CHAR_CLASS', 'catch_all')], catchall_transition[1])]
     else:
       catchall_transition = []
-    state['long_char_transitions'] = (long_class_transitions +
-                                      catchall_transition) # must be last
+    state['deferred_transitions'] = (long_class_transitions +
+                                     catchall_transition) # must be last
 
   @staticmethod
   def __reorder(current_node_number, id_map, dfa_states):
@@ -337,7 +322,6 @@ class CodeGenerator:
     transition_names = [
       'switch_transitions',
       'if_transitions',
-      'long_char_transitions',
       'deferred_transitions']
     end_offset = start_id + count
     assert len(self.__dfa_states) == end_offset
