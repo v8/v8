@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Character classes and auxiliary regexps.
+
 line_terminator = [:line_terminator:];
 identifier_start = [$_:letter:];
 identifier_char = [:identifier_start::identifier_part_not_letter:];
@@ -51,11 +53,20 @@ harmony_number = "0"[bBoO][:digit:]+;
 line_terminator_sequence = /[:line_terminator:]|(\r\n|\n\r)/;
 eos = [:eos:];
 
-# grammar is
-#   regex <action_on_state_entry|action_on_match|transition>
+# Rules.
+
+# Grammar is
+#   regex <entry_action|match_action|transition>
 #
-# actions are identifiers to be passed to codegen
-# transition must be 'continue' or the name of a subgraph
+# Actions are identifiers to be passed to codegen.
+#
+# Entry action is executed when we enter the corresponding automaton state, that
+# is, right after seeing something that matches the regex. Match action is
+# executed when we have matched the regex but cannot continue to match something
+# bigger (there is no legal transition out with the next character we're
+# lexing).
+#
+# Transition must be 'continue' or the name of a subgraph.
 
 <<default>>
 
