@@ -34,8 +34,10 @@
   {%- for r in key -%}
     {%- if not loop.first %} || {% endif -%}
     {%- if r[0] == 'PRIMARY_RANGE' -%}
-      {%- if r[1][0] == r[1][1] -%}
+      {%- if r[1][0] == r[1][1] and r[1][0] != 0 -%}
         primary_char == {{r[1][0]}}
+      {%- elif r[1][0] == r[1][1] -%}
+        (primary_char == 0 && cursor_ < buffer_end_)
       {%- elif r[1][0] == 0 -%}
         primary_char <= {{r[1][1]}}
       {%- elif r[1][1] == upper_bound and not encoding == 'utf16'-%}
@@ -229,22 +231,14 @@
   {% endif -%}
 
   {%- macro do_transition(jump_id) -%}
+    {%- set transition_state_id = jump_table[jump_id][0] -%}
+    {%- set inline_transition = jump_table[jump_id][1] == 'inline' %}
     FORWARD();
-    if (cursor_ < buffer_end_) {
-      {%- set transition_state_id = jump_table[jump_id][0] -%}
-      {%- set inline_transition = jump_table[jump_id][1] == 'inline' %}
-      {%- if inline_transition %}
-        {{ do_dfa_state(transition_state_id) }}
-      {% else %}
-        {{ jump(jump_id) }}
-      {% endif %}
-    }
-    {% if 'eos' in state['unique_transitions'] -%}
-      {{ jump(state['unique_transitions']['eos']) }} // eos handler
-    {%- else -%}
-      BACKWARD(1);
-      {{ jump(state['jump_before_match']) }} // no eos handler
-    {%- endif %}
+    {%- if inline_transition %}
+      {{ do_dfa_state(transition_state_id) }}
+    {% else %}
+      {{ jump(jump_id) }}
+    {% endif %}
   {%- endmacro -%}
 
   {%- if state['switch_transitions'] -%}
@@ -266,7 +260,13 @@
     }
   {% endfor -%}
 
-  {%- if state['deferred_transitions'] -%}
+  {%- if 'eos' in state['unique_transitions'] %}
+    if (primary_char == 0 && cursor_ >= buffer_end_) { // eos handler
+      {{ jump(state['unique_transitions']['eos']) }}
+    }
+  {%- endif -%}
+
+  {%- if state['deferred_transitions'] %}
     if ({{long_char_check()}}) {
       next_.is_onebyte = false;
       {{long_char_create()}}
@@ -276,9 +276,7 @@
         }
       {% endfor -%}
     }
-  {%- endif-%}
-
-  {{ write_label('before_match', node_number) }}
+  {%- endif -%}
 
   {%- set match_action = state.match_action -%}
   {%- if match_action %}
@@ -312,8 +310,8 @@
 }
 
 #define READ_CURSOR() {                           \
-  ASSERT(cursor_ < buffer_end_);                  \
-  primary_char = *(cursor_);                      \
+  if (cursor_ >= buffer_end_) primary_char = 0;   \
+  else primary_char = *(cursor_);                 \
 }
 
 #ifdef DEBUG

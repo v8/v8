@@ -54,7 +54,7 @@ class CodeGenerator:
     self.__switching = switching
     self.__jump_table = []
 
-  __jump_labels = ['state_entry', 'after_entry_code', 'before_match']
+  __jump_labels = ['state_entry', 'after_entry_code']
 
   @staticmethod
   def __transform_state(encoding, state):
@@ -74,6 +74,7 @@ class CodeGenerator:
     old_transitions = transitions
     transitions = []
     (class_keys, distinct_keys, ranges) = (0, 0, 0)
+    zero_transition = None
     for key, transition_id in old_transitions:
       keys = []
       for (t, r) in key.range_iter(encoding):
@@ -83,6 +84,14 @@ class CodeGenerator:
         elif t == 'PRIMARY_RANGE':
           distinct_keys += r[1] - r[0] + 1
           ranges += 1
+          # split 0 out of range, don't bother updating stats
+          assert r[0] >= 0
+          if r[0] == 0:
+            assert zero_transition == None
+            zero_transition = transition_id
+            if r[0] == r[1]:
+              continue
+            r = (r[0] + 1, r[1])
           keys.append((t, r))
         elif t == 'UNIQUE':
           assert r == 'no_match' or r == 'eos'
@@ -92,6 +101,9 @@ class CodeGenerator:
           raise Exception()
       if keys:
         transitions.append((keys, transition_id))
+    # delay zero transition until last
+    if zero_transition != None:
+      transitions.append(([('PRIMARY_RANGE', (0, 0))], transition_id))
     return {
       'node_number' : None,
       'original_node_number' : state.node_number(),
@@ -99,7 +111,7 @@ class CodeGenerator:
       # flags for code generator
       'can_elide_read' : len(transitions) == 0,
       'is_eos_handler' : False,
-      'inline' : None,
+      'inline' : False,
       'must_not_inline' : False,
       # transitions for code generator
       'if_transitions' : [],
@@ -125,7 +137,6 @@ class CodeGenerator:
     return len(self.__jump_table) - 1
 
   def __set_inline(self, count, state):
-    assert state['inline'] == None
     inline = False
     if state['must_not_inline']:
       inline = False
@@ -160,7 +171,8 @@ class CodeGenerator:
         # all class checks will be deferred to after all other checks
         if r[0] == 'CLASS':
           d.append(r)
-        elif no_switch:
+        # zero must assigned to an if check because of eos check
+        elif no_switch or (r[1][0] == 0):
           i.append(r)
         else:
           s.append(r[1])
@@ -354,9 +366,6 @@ class CodeGenerator:
         eos_state_id = state['unique_transitions']['eos']
         jump = self.__register_jump(eos_state_id, 'state_entry')
         state['unique_transitions']['eos'] = jump
-      elif state['transitions']:
-        jump = self.__register_jump(state_id, 'before_match')
-        state['jump_before_match'] = jump
       # now rewrite all nodes created
       nodes_created = len(inline_mapping) - len(inline_mapping_in)
       assert len(self.__dfa_states) == (
