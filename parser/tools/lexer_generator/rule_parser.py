@@ -99,6 +99,7 @@ class RuleParser:
   def p_transition_rule(self, p):
     '''transition_rule : composite_regex action
                        | DEFAULT_ACTION default_action
+                       | EOS eos
                        | CATCH_ALL action'''
     precedence = RuleParser.__rule_precedence_counter
     RuleParser.__rule_precedence_counter += 1
@@ -112,7 +113,7 @@ class RuleParser:
       assert self.__state.current_state == 'default'
       assert not rules['default_action']
       rules['default_action'] = action
-    elif p[1] == 'catch_all':
+    elif p[1] == 'eos' or p[1] == 'catch_all':
       assert p[1] not in rules['uniques']
       rules['uniques'][p[1]] = True
       rules['regex'].append((NfaBuilder.unique_key(p[1]), precedence, action))
@@ -126,6 +127,10 @@ class RuleParser:
 
   def p_default_action(self, p):
     'default_action : ACTION_OPEN identifier_action ACTION_CLOSE'
+    p[0] = (None, p[2], None)
+
+  def p_eos(self, p):
+    'eos : ACTION_OPEN identifier_action ACTION_CLOSE'
     p[0] = (None, p[2], None)
 
   def p_maybe_identifier_action(self, p):

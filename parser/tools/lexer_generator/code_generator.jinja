@@ -237,14 +237,22 @@
   {% endif -%}
 
   {%- macro do_transition(jump_id) -%}
-    {%- set transition_state_id = jump_table[jump_id][0] -%}
-    {%- set inline_transition = jump_table[jump_id][1] == 'inline' %}
     FORWARD();
-    {%- if inline_transition %}
-      {{ do_dfa_state(transition_state_id) }}
-    {% else %}
-      {{ jump(jump_id) }}
-    {% endif %}
+    if (cursor_ < buffer_end_) {
+      {%- set transition_state_id = jump_table[jump_id][0] -%}
+      {%- set inline_transition = jump_table[jump_id][1] == 'inline' %}
+      {%- if inline_transition %}
+        {{ do_dfa_state(transition_state_id) }}
+      {% else %}
+        {{ jump(jump_id) }}
+      {% endif %}
+    }
+    {% if 'eos' in state['unique_transitions'] -%}
+      {{ jump(state['unique_transitions']['eos']) }} // eos handler
+    {%- else -%}
+      BACKWARD(1);
+      {{ jump(state['jump_before_match']) }} // no eos handler
+    {%- endif %}
   {%- endmacro -%}
 
   {%- if state['switch_transitions'] -%}
@@ -284,8 +292,9 @@
     }
   {%- endif-%}
 
-  {%- set match_action = state.match_action -%}
+  {{ write_label('before_match', node_number) }}
 
+  {%- set match_action = state.match_action -%}
   {%- if match_action %}
     {{ dispatch_match_action(match_action[0], match_action[1]) }}
     CRASH();
@@ -317,8 +326,8 @@
 }
 
 #define READ_CURSOR() {                           \
-  if (cursor_ >= buffer_end_) primary_char = 0;   \
-  else primary_char = *(cursor_);                 \
+  ASSERT(cursor_ < buffer_end_);                  \
+  primary_char = *(cursor_);                      \
 }
 
 #ifdef DEBUG

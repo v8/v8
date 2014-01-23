@@ -54,7 +54,7 @@ class CodeGenerator:
     self.__switching = switching
     self.__jump_table = []
 
-  __jump_labels = ['state_entry', 'after_entry_code']
+  __jump_labels = ['state_entry', 'after_entry_code', 'before_match']
 
   @staticmethod
   def __transform_state(encoding, state):
@@ -92,7 +92,6 @@ class CodeGenerator:
           raise Exception()
       if keys:
         transitions.append((keys, transition_id))
-    # eos_transitions is for a followup cl
     return {
       'node_number' : None,
       'original_node_number' : state.node_number(),
@@ -129,9 +128,9 @@ class CodeGenerator:
   def __set_inline(self, count, state):
     assert state['inline'] == None
     inline = False
-    # inline terminal states
     if state['must_not_inline']:
       inline = False
+    # inline terminal states
     elif not state['transitions']:
       inline = True
     # inline next to terminal states with 1 or 2 transitions
@@ -193,7 +192,7 @@ class CodeGenerator:
     bom = 'byte_order_mark'
     catch_all = 'non_primary_everything_else'
     all_classes = set(encoding.class_name_iter())
-    fast_classes = set(['eos', 'zero'])
+    fast_classes = set([])
     call_classes = all_classes - fast_classes - set([bom, catch_all])
     def remap_transition(class_name):
       if class_name in call_classes:
@@ -258,6 +257,17 @@ class CodeGenerator:
     for node_number in current_node['unique_transitions'].values():
       CodeGenerator.__reorder(node_number, id_map, dfa_states)
 
+  @staticmethod
+  def __mark_eos_states(dfa_states, eos_states):
+    for state_id in eos_states:
+      state = dfa_states[state_id]
+      state['is_eos_handler'] = True
+      state['must_not_inline'] = True
+      assert state['match_action']
+      assert not state['entry_action']
+      assert not state['transitions']
+      assert not state['unique_transitions']
+
   def __build_dfa_states(self):
     dfa_states = []
     self.__dfa.visit_all_states(lambda state, acc: dfa_states.append(state))
@@ -267,13 +277,20 @@ class CodeGenerator:
     id_map = {x['original_node_number'] : x for x in dfa_states}
     dfa_states = []
     CodeGenerator.__reorder(self.__start_node_number, id_map, dfa_states)
+    # store states
+    eos_states = set([])
     def f((key, original_node_number)):
       return (key, id_map[original_node_number]['node_number'])
     for state in dfa_states:
       state['transitions'] = map(f, state['transitions'])
+      state['unique_transitions'] = {k : id_map[v]['node_number']
+          for k, v in state['unique_transitions'].items()}
+      if 'eos' in state['unique_transitions']:
+        eos_states.add(state['unique_transitions']['eos'])
     assert id_map[self.__start_node_number]['node_number'] == 0
     assert len(dfa_states) == self.__dfa.node_count()
-    # store states
+    # mark eos states
+    self.__mark_eos_states(dfa_states, eos_states)
     self.__dfa_states = dfa_states
 
   def __rewrite_gotos(self):
@@ -311,8 +328,6 @@ class CodeGenerator:
     self.__dfa_states.append(state)
     # mark inline as none, to be correctly handled below
     state['inline'] = None
-    # clear transitions, they shouldn't be used anymore
-    state['transitions'] = []
     # clear entry points
     state['entry_points'] = {k : False for k in CodeGenerator.__jump_labels}
     return state['node_number']
@@ -350,6 +365,14 @@ class CodeGenerator:
         return (key, self.__register_jump(target_id, jump_type))
       for name in transition_names:
         state[name] = map(generate_jump, state[name])
+      if 'eos' in state['unique_transitions']:
+        # eos state is not inlined
+        eos_state_id = state['unique_transitions']['eos']
+        jump = self.__register_jump(eos_state_id, 'state_entry')
+        state['unique_transitions']['eos'] = jump
+      elif state['transitions']:
+        jump = self.__register_jump(state_id, 'before_match')
+        state['jump_before_match'] = jump
       # now rewrite all nodes created
       nodes_created = len(inline_mapping) - len(inline_mapping_in)
       assert len(self.__dfa_states) == (

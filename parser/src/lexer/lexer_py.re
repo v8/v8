@@ -51,7 +51,6 @@ number =
   non_octal_whole_part /(\.[:digit:]*)?/ maybe_exponent );
 harmony_number = "0"[bBoO][:digit:]+;
 line_terminator_sequence = /[:line_terminator:]|(\r\n|\n\r)/;
-eos = [:eos:];
 
 # Rules.
 
@@ -197,7 +196,7 @@ line_terminator+   <|line_terminator|>
 identifier_start <|token(IDENTIFIER)|Identifier>
 /\\u[:hex_digit:]{4}/ <check_escaped_identifier_start|token(IDENTIFIER)|Identifier>
 
-eos             <|terminate|>
+eos             <terminate>
 default_action  <do_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
@@ -211,8 +210,8 @@ default_action  <do_token_and_go_forward(ILLEGAL)>
 "\\"                          <|token(ILLEGAL)|>
 line_terminator               <|token(ILLEGAL)|>
 "\""                          <|token(STRING)|>
-eos                           <|terminate_illegal|>
 catch_all                     <||continue>
+eos                           <terminate_illegal>
 
 <<SingleQuoteString>>
 # TODO subgraph for '\'
@@ -226,8 +225,8 @@ catch_all                     <||continue>
 "\\"                          <|token(ILLEGAL)|>
 line_terminator               <|token(ILLEGAL)|>
 "'"                           <|token(STRING)|>
-eos                           <|terminate_illegal|>
 catch_all                     <||continue>
+eos                           <terminate_illegal>
 
 <<Identifier>>
 identifier_char <|token(IDENTIFIER)|continue>
@@ -235,7 +234,7 @@ identifier_char <|token(IDENTIFIER)|continue>
 
 <<SingleLineComment>>
 line_terminator  <|line_terminator|>
-eos              <|skip_and_terminate|>
+eos              <skip_and_terminate>
 catch_all        <||continue>
 
 <<MultiLineComment>>
@@ -243,5 +242,5 @@ catch_all        <||continue>
 # TODO find a way to generate the below rule
 /\*+[^\/*]/      <||continue>
 line_terminator  <line_terminator_in_multiline_comment||continue>
-eos              <|terminate_illegal|>
 catch_all        <||continue>
+eos              <terminate_illegal>

@@ -251,6 +251,7 @@ class NfaBuilder(object):
     keys = reduce(f, reachable_states, set())
     keys.discard(TransitionKey.epsilon())
     keys.discard(catch_all)
+    keys.discard(TransitionKey.unique('eos'))
     inverse_key = TransitionKey.inverse_key(encoding, keys)
     if inverse_key:
       transitions[inverse_key] = transitions[catch_all]

@@ -475,8 +475,8 @@ class Latin1Encoding(KeyEncoding):
   def __init__(self):
     super(Latin1Encoding, self).__init__(
       'latin1',
-      (1, 255),
-      ['eos', 'zero'])
+      (0, 255),
+      [])
     self.add_predefined_range(
       'whitespace', [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160)])
     self.add_predefined_range(
@@ -492,8 +492,8 @@ class Utf16Encoding(KeyEncoding):
   def __init__(self):
     super(Utf16Encoding, self).__init__(
       'utf16',
-      (1, 255),
-      ['eos', 'zero', 'byte_order_mark',
+      (0, 255),
+      ['byte_order_mark',
        'non_primary_whitespace',
        'non_primary_letter',
        'non_primary_identifier_part_not_letter',
@@ -522,8 +522,8 @@ class Utf8Encoding(KeyEncoding):
   def __init__(self):
     super(Utf8Encoding, self).__init__(
       'utf8',
-      (1, 127),
-      ['eos', 'zero', 'byte_order_mark',
+      (0, 127),
+      ['byte_order_mark',
        'non_primary_whitespace',
        'non_primary_letter',
        'non_primary_identifier_part_not_letter',

@@ -48,13 +48,12 @@ class LexerTestCase(unittest.TestCase):
 
   def test_simple(self):
     rules = '''
-    eos = [:eos:];
     <<default>>
     "("           <|LBRACE|>
     ")"           <|RBRACE|>
 
     "foo"         <|FOO|>
-    eos           <|terminate|>'''
+    eos           <terminate>'''
 
     string = 'foo()'
     self.__verify_action_stream(rules, string,
@@ -62,12 +61,11 @@ class LexerTestCase(unittest.TestCase):
 
   def test_maximal_matching(self):
     rules = '''
-    eos = [:eos:];
     <<default>>
     "<"           <|LT|>
     "<<"          <|SHL|>
     " "           <|SPACE|>
-    eos           <|terminate|>'''
+    eos           <terminate>'''
 
     string = '<< <'
     self.__verify_action_stream(rules, string,
@@ -75,7 +73,6 @@ class LexerTestCase(unittest.TestCase):
 
   def test_consecutive_epsilon_transitions(self):
     rules = '''
-    eos = [:eos:];
     digit = [0-9];
     number = (digit+ ("." digit+)?);
     <<default>>
