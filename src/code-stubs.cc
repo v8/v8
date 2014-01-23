@@ -766,6 +766,12 @@ void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
+void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
+  FastNewContextStub stub(FastNewContextStub::kMaximumSlots);
+  InstallDescriptor(isolate, &stub);
+}
+
+
 // static
 void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
   BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);

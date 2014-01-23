@@ -1330,6 +1330,60 @@ Handle<Code> FastNewClosureStub::GenerateCode(Isolate* isolate) {
 
 
 template<>
+HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
+  int length = casted_stub()->slots() + Context::MIN_CONTEXT_SLOTS;
+
+  // Get the function.
+  HParameter* function = GetParameter(FastNewContextStub::kFunction);
+
+  // Allocate the context in new space.
+  HAllocate* function_context = Add<HAllocate>(
+      Add<HConstant>(length * kPointerSize + FixedArray::kHeaderSize),
+      HType::Tagged(), NOT_TENURED, FIXED_ARRAY_TYPE);
+
+  // Set up the object header.
+  AddStoreMapConstant(function_context,
+                      isolate()->factory()->function_context_map());
+  Add<HStoreNamedField>(function_context,
+                        HObjectAccess::ForFixedArrayLength(),
+                        Add<HConstant>(length));
+
+  // Set up the fixed slots.
+  Add<HStoreNamedField>(function_context,
+                        HObjectAccess::ForContextSlot(Context::CLOSURE_INDEX),
+                        function);
+  Add<HStoreNamedField>(function_context,
+                        HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX),
+                        context());
+  Add<HStoreNamedField>(function_context,
+                        HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX),
+                        graph()->GetConstant0());
+
+  // Copy the global object from the previous context.
+  HValue* global_object = Add<HLoadNamedField>(
+      context(), HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  Add<HStoreNamedField>(function_context,
+                        HObjectAccess::ForContextSlot(
+                            Context::GLOBAL_OBJECT_INDEX),
+                        global_object);
+
+  // Initialize the rest of the slots to undefined.
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {
+    Add<HStoreNamedField>(function_context,
+                          HObjectAccess::ForContextSlot(i),
+                          graph()->GetConstantUndefined());
+  }
+
+  return function_context;
+}
+
+
+Handle<Code> FastNewContextStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template<>
 HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(0);
   HValue* key = GetParameter(1);

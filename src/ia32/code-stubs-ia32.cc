@@ -54,6 +54,16 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
 }
 
 
+void FastNewContextStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { edi };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -438,49 +448,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ ret(0);
-}
-
-
-void FastNewContextStub::Generate(MacroAssembler* masm) {
-  // Try to allocate the context in new space.
-  Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ Allocate((length * kPointerSize) + FixedArray::kHeaderSize,
-              eax, ebx, ecx, &gc, TAG_OBJECT);
-
-  // Get the function from the stack.
-  __ mov(ecx, Operand(esp, 1 * kPointerSize));
-
-  // Set up the object header.
-  Factory* factory = masm->isolate()->factory();
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset),
-         factory->function_context_map());
-  __ mov(FieldOperand(eax, Context::kLengthOffset),
-         Immediate(Smi::FromInt(length)));
-
-  // Set up the fixed slots.
-  __ Set(ebx, Immediate(0));  // Set to NULL.
-  __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
-  __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), esi);
-  __ mov(Operand(eax, Context::SlotOffset(Context::EXTENSION_INDEX)), ebx);
-
-  // Copy the global object from the previous context.
-  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)), ebx);
-
-  // Initialize the rest of the slots to undefined.
-  __ mov(ebx, factory->undefined_value());
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
-    __ mov(Operand(eax, Context::SlotOffset(i)), ebx);
-  }
-
-  // Return and remove the on-stack parameter.
-  __ mov(esi, eax);
-  __ ret(1 * kPointerSize);
-
-  // Need to collect. Call into runtime system.
-  __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 

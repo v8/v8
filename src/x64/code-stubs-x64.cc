@@ -50,6 +50,16 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
 }
 
 
+void FastNewContextStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdi };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -435,48 +445,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void FastNewContextStub::Generate(MacroAssembler* masm) {
-  // Try to allocate the context in new space.
-  Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ Allocate((length * kPointerSize) + FixedArray::kHeaderSize,
-              rax, rbx, rcx, &gc, TAG_OBJECT);
-
-  // Get the function from the stack.
-  StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rcx, args.GetArgumentOperand(0));
-
-  // Set up the object header.
-  __ LoadRoot(kScratchRegister, Heap::kFunctionContextMapRootIndex);
-  __ movp(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
-  __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
-
-  // Set up the fixed slots.
-  __ Set(rbx, 0);  // Set to NULL.
-  __ movp(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
-  __ movp(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rsi);
-  __ movp(Operand(rax, Context::SlotOffset(Context::EXTENSION_INDEX)), rbx);
-
-  // Copy the global object from the previous context.
-  __ movp(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ movp(Operand(rax, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)), rbx);
-
-  // Initialize the rest of the slots to undefined.
-  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
-    __ movp(Operand(rax, Context::SlotOffset(i)), rbx);
-  }
-
-  // Return and remove the on-stack parameter.
-  __ movp(rsi, rax);
-  __ ret(1 * kPointerSize);
-
-  // Need to collect. Call into runtime system.
-  __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 
