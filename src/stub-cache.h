@@ -472,9 +472,6 @@ class StubCompiler BASE_EMBEDDED {
   // register is only clobbered if it the same as the holder register. The
   // function returns a register containing the holder - either object_reg or
   // holder_reg.
-  // The function can optionally (when save_at_depth !=
-  // kInvalidProtoDepth) save the object at the given depth by moving
-  // it to [esp + kPointerSize].
   Register CheckPrototypes(Handle<HeapType> type,
                            Register object_reg,
                            Handle<JSObject> holder,
@@ -482,20 +479,6 @@ class StubCompiler BASE_EMBEDDED {
                            Register scratch1,
                            Register scratch2,
                            Handle<Name> name,
-                           Label* miss,
-                           PrototypeCheckType check = CHECK_ALL_MAPS) {
-    return CheckPrototypes(type, object_reg, holder, holder_reg, scratch1,
-                           scratch2, name, kInvalidProtoDepth, miss, check);
-  }
-
-  Register CheckPrototypes(Handle<HeapType> type,
-                           Register object_reg,
-                           Handle<JSObject> holder,
-                           Register holder_reg,
-                           Register scratch1,
-                           Register scratch2,
-                           Handle<Name> name,
-                           int save_at_depth,
                            Label* miss,
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
@@ -1028,10 +1011,19 @@ class CallOptimization BASE_EMBEDDED {
     return api_call_info_;
   }
 
-  // Returns the depth of the object having the expected type in the
-  // prototype chain between the two arguments.
-  int GetPrototypeDepthOfExpectedType(Handle<JSObject> object,
-                                      Handle<JSObject> holder) const;
+  enum HolderLookup {
+    kHolderNotFound,
+    kHolderIsReceiver,
+    kHolderIsPrototypeOfMap
+  };
+  // Returns a map whose prototype has the expected type in the
+  // prototype chain between the two arguments
+  // null will be returned if the first argument has that property
+  // lookup will be set accordingly
+  Handle<Map> LookupHolderOfExpectedType(Handle<JSObject> receiver,
+                                         Handle<JSObject> object,
+                                         Handle<JSObject> holder,
+                                         HolderLookup* holder_lookup) const;
 
   bool IsCompatibleReceiver(Object* receiver) {
     ASSERT(is_simple_api_call());
