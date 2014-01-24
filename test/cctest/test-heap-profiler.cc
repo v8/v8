@@ -2319,3 +2319,24 @@ TEST(TrackBumpPointerAllocations) {
     heap_profiler->StopTrackingHeapObjects();
   }
 }
+
+
+TEST(ArrayBufferAndArrayBufferView) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun("arr1 = new Uint32Array(100);\n");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* arr1_obj =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "arr1");
+  CHECK_NE(NULL, arr1_obj);
+  const v8::HeapGraphNode* arr1_buffer =
+      GetProperty(arr1_obj, v8::HeapGraphEdge::kInternal, "buffer");
+  CHECK_NE(NULL, arr1_buffer);
+  const v8::HeapGraphNode* first_view =
+      GetProperty(arr1_buffer, v8::HeapGraphEdge::kWeak, "2");
+  CHECK_NE(NULL, first_view);
+}

@@ -1130,6 +1130,18 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(global_obj, entry,
                          "global_receiver", global_obj->global_receiver(),
                          GlobalObject::kGlobalReceiverOffset);
+  } else if (obj->IsJSArrayBufferView()) {
+    JSArrayBufferView* view = JSArrayBufferView::cast(obj);
+    SetInternalReference(view, entry, "buffer", view->buffer(),
+                         JSArrayBufferView::kBufferOffset);
+    SetWeakReference(view, entry, 1, view->weak_next(),
+                     JSArrayBufferView::kWeakNextOffset);
+  } else if (obj->IsJSArrayBuffer()) {
+    JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
+    SetWeakReference(buffer, entry, 1, buffer->weak_next(),
+                     JSArrayBuffer::kWeakNextOffset);
+    SetWeakReference(buffer, entry, 2, buffer->weak_first_view(),
+                     JSArrayBuffer::kWeakFirstViewOffset);
   }
   TagObject(js_obj->properties(), "(object properties)");
   SetInternalReference(obj, entry,
