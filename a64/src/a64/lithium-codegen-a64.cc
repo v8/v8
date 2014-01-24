@@ -5384,12 +5384,14 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // builtins and strict-mode functions.
   Label global_object, done, deopt;
 
-  // Do not transform the receiver to object for strict mode functions.
   __ Ldr(temp, FieldMemOperand(function,
                                JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(temp,
-         UntagSmiFieldMemOperand(temp,
-                                 SharedFunctionInfo::kCompilerHintsOffset));
+
+  // CompilerHints is an int32 field. See objects.h.
+  __ Ldr(temp.W(),
+         FieldMemOperand(temp, SharedFunctionInfo::kCompilerHintsOffset));
+
+  // Do not transform the receiver to object for strict mode functions.
   __ Tbnz(temp, SharedFunctionInfo::kStrictModeFunction, &done);
 
   // Do not transform the receiver to object for builtins.
