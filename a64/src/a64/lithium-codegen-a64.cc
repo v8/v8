@@ -3579,18 +3579,23 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
 
 
 void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
-  const Register result = ToRegister32(instr->result());
-  const Register left = ToRegister32(instr->left());
-  const Register right = ToRegister32(instr->right());
-  const Register remainder = ToRegister32(instr->temp());
+  Register result = ToRegister32(instr->result());
+  Register left = ToRegister32(instr->left());
+  Register right = ToRegister32(instr->right());
+  Register remainder = ToRegister32(instr->temp());
+
+  // This can't cause an exception on ARM, so we can speculatively
+  // execute it already now.
+  __ Sdiv(result, left, right);
 
   // Check for x / 0.
   DeoptimizeIfZero(right, instr->environment());
 
   // Check for (kMinInt / -1).
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-    __ Cmp(left, kMinInt);
-    __ Ccmp(right, -1, ZFlag, eq);
+    // The V flag will be set iff left == kMinInt.
+    __ Cmp(left, 1);
+    __ Ccmp(right, -1, ZFlag, vs);
     DeoptimizeIf(eq, instr->environment());
   }
 
@@ -3605,17 +3610,14 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
   }
 
   Label done;
-  __ Sdiv(result, left, right);
   // If both operands have the same sign then we are done.
-  __ Eor(remainder, left, Operand(right));
+  __ Eor(remainder, left, right);
   __ Tbz(remainder, kWSignBit, &done);
 
   // Check if the result needs to be corrected.
-  __ Mul(remainder, result, right);
-  __ Sub(remainder, remainder, left);
-  __ Cmp(remainder, 0);
-  __ B(eq, &done);
-  __ Sub(result, result, Operand(1));
+  __ Msub(remainder, result, right, left);
+  __ Cbz(remainder, &done);
+  __ Sub(result, result, 1);
 
   __ Bind(&done);
 }
