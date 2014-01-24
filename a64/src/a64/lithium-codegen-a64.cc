@@ -3999,24 +3999,15 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
                                     LOperand* temp1,
                                     LOperand* temp2,
                                     IntegerSignedness signedness) {
-  Label slow;
+  Label slow, convert_and_store;
   Register src = ToRegister32(value);
   Register dst = ToRegister(instr->result());
-  DoubleRegister dbl_scratch = double_scratch();
-
-  Label done;
-  if (signedness == SIGNED_INT32) {
-    ASM_UNIMPLEMENTED_BREAK("DeferredNumberTagI - signed int32 case.");
-  } else {
-    ASSERT(signedness == UNSIGNED_INT32);
-    __ Ucvtf(dbl_scratch, src);
-  }
-
   Register scratch1 = ToRegister(temp1);
+
   if (FLAG_inline_new) {
     Register scratch2 = ToRegister(temp2);
     __ AllocateHeapNumber(dst, &slow, scratch1, scratch2);
-    __ B(&done);
+    __ B(&convert_and_store);
   }
 
   // Slow case: call the runtime system to do the number allocation.
@@ -4041,9 +4032,16 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
     __ StoreToSafepointRegisterSlot(x0, dst);
   }
 
-  // Done. Move converted value in dbl_scratch into the newly allocated heap
+  // Convert number to floating point and store in the newly allocated heap
   // number.
-  __ Bind(&done);
+  __ Bind(&convert_and_store);
+  DoubleRegister dbl_scratch = double_scratch();
+  if (signedness == SIGNED_INT32) {
+    ASM_UNIMPLEMENTED_BREAK("DeferredNumberTagI - signed int32 case.");
+  } else {
+    ASSERT(signedness == UNSIGNED_INT32);
+    __ Ucvtf(dbl_scratch, src);
+  }
   __ Str(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
 }
 

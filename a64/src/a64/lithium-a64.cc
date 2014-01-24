@@ -1133,9 +1133,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     info()->MarkAsDeferredCalling();
     if (to.IsTagged()) {
       HValue* val = instr->value();
-      LOperand* value = UseRegisterAtStart(val);
 
       if (val->CheckFlag(HInstruction::kUint32)) {
+        LOperand* value = UseRegister(val);
         LNumberTagU* result = new(zone()) LNumberTagU(value,
                                                       TempRegister(),
                                                       TempRegister());
@@ -1143,6 +1143,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         STATIC_ASSERT((kMinInt == Smi::kMinValue) &&
                       (kMaxInt == Smi::kMaxValue));
+        LOperand* value = UseRegisterAtStart(val);
         return DefineAsRegister(new(zone()) LSmiTag(value));
       }
     } else if (to.IsSmi()) {
