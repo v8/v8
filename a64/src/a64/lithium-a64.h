@@ -148,6 +148,7 @@ class LCodeGen;
   V(MathSin)                                    \
   V(MathSqrt)                                   \
   V(MathTan)                                    \
+  V(ModI)                                       \
   V(MulConstI)                                  \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -1923,6 +1924,21 @@ class LMathTan: public LUnaryMathOperation<0> {
  public:
   explicit LMathTan(LOperand* value) : LUnaryMathOperation<0>(value) { }
   DECLARE_CONCRETE_INSTRUCTION(MathTan, "math-tan")
+};
+
+
+class LModI: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LModI(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ModI, "mod-i")
+  DECLARE_HYDROGEN_ACCESSOR(Mod)
 };
 
 

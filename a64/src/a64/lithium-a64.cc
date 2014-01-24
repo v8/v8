@@ -1761,16 +1761,37 @@ LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoMod(HMod* instr) {
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+LInstruction* LChunkBuilder::DoMod(HMod* hmod) {
+  HValue* hleft = hmod->left();
+  HValue* hright = hmod->right();
 
-    UNIMPLEMENTED_INSTRUCTION();
-  } else if (instr->representation().IsSmiOrTagged()) {
-    UNIMPLEMENTED_INSTRUCTION();
+  if (hmod->representation().IsInteger32()) {
+    ASSERT(hleft->representation().IsInteger32());
+    ASSERT(hleft->representation().IsInteger32());
+    LOperand* left_op;
+    LOperand* right_op;
+
+    if (hmod->HasPowerOf2Divisor()) {
+      left_op = UseRegisterAtStart(hleft);
+      right_op = UseConstant(hright);
+    } else {
+      right_op = UseRegister(hright);
+      left_op = UseRegister(hleft);
+    }
+
+    LModI* lmod = new(zone()) LModI(left_op, right_op);
+
+    if (hmod->right()->CanBeZero() ||
+        (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
+         hmod->left()->CanBeNegative() && hmod->CanBeZero())) {
+      AssignEnvironment(lmod);
+    }
+    return DefineAsRegister(lmod);
+
+  } else if (hmod->representation().IsSmiOrTagged()) {
+    return DoArithmeticT(Token::MOD, hmod);
   } else {
-    return DoArithmeticD(Token::MOD, instr);
+    return DoArithmeticD(Token::MOD, hmod);
   }
 }
 

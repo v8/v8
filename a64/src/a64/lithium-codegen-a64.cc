@@ -3803,6 +3803,64 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 }
 
 
+void LCodeGen::DoModI(LModI* instr) {
+  HMod* hmod = instr->hydrogen();
+  HValue* hleft = hmod->left();
+  HValue* hright = hmod->right();
+
+  Label done;
+  Register result = ToRegister32(instr->result());
+  Register dividend = ToRegister32(instr->left());
+
+  bool need_minus_zero_check = (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
+                                hleft->CanBeNegative() && hmod->CanBeZero());
+
+  if (hmod->HasPowerOf2Divisor()) {
+    // Note: The code below even works when right contains kMinInt.
+    int32_t divisor = Abs(hright->GetInteger32Constant());
+
+    if (hleft->CanBeNegative()) {
+      __ Cmp(dividend, 0);
+      __ Cneg(result, dividend, mi);
+      __ And(result, result, divisor - 1);
+      __ Cneg(result, result, mi);
+      if (need_minus_zero_check) {
+        __ Cbnz(result, &done);
+        // The result is 0. Deoptimize if the dividend was negative.
+        DeoptimizeIf(mi, instr->environment());
+      }
+    } else {
+      __ And(result, dividend, divisor - 1);
+    }
+
+  } else {
+    Label deopt;
+    Register divisor = ToRegister32(instr->right());
+    // Compute:
+    //   modulo = dividend - quotient * divisor
+    __ Sdiv(result, dividend, divisor);
+    if (hright->CanBeZero()) {
+      // Combine the deoptimization sites.
+      Label ok;
+      __ Cbnz(divisor, &ok);
+      __ Bind(&deopt);
+      Deoptimize(instr->environment());
+      __ Bind(&ok);
+    }
+    __ Msub(result, result, divisor, dividend);
+    if (need_minus_zero_check) {
+      __ Cbnz(result, &done);
+      if (deopt.is_bound()) {
+        __ Tbnz(dividend, kWSignBit, &deopt);
+      } else {
+        DeoptimizeIfNegative(dividend, instr->environment());
+      }
+    }
+  }
+  __ Bind(&done);
+}
+
+
 void LCodeGen::DoMulConstI(LMulConstI* instr) {
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
