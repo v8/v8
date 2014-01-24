@@ -7612,6 +7612,90 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         return true;
       }
       break;
+    case kArrayPop: {
+      if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+        return false;
+      }
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(elements_kind)) return false;
+      AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+
+      Drop(expr->arguments()->length());
+      HValue* result;
+      HValue* checked_object;
+      HValue* reduced_length;
+      HValue* receiver = Pop();
+      { NoObservableSideEffectsScope scope(this);
+        checked_object = AddCheckMap(receiver, receiver_map);
+        HValue* elements = AddLoadElements(checked_object);
+        // Ensure that we aren't popping from a copy-on-write array.
+        if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+          Add<HCheckMaps>(
+              elements, isolate()->factory()->fixed_array_map(), top_info());
+        }
+        HValue* length = Add<HLoadNamedField>(
+            checked_object, HObjectAccess::ForArrayLength(elements_kind));
+        reduced_length = AddUncasted<HSub>(length, graph()->GetConstant1());
+        HValue* bounds_check = Add<HBoundsCheck>(
+            graph()->GetConstant0(), length);
+        result = AddElementAccess(elements, reduced_length, NULL,
+                                  bounds_check, elements_kind, false);
+        Factory* factory = isolate()->factory();
+        double nan_double = FixedDoubleArray::hole_nan_as_double();
+        HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
+            ? Add<HConstant>(factory->the_hole_value())
+            : Add<HConstant>(nan_double);
+        if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+          elements_kind = FAST_HOLEY_ELEMENTS;
+        }
+        AddElementAccess(
+            elements, reduced_length, hole, bounds_check, elements_kind, true);
+      }
+      Add<HStoreNamedField>(
+          checked_object, HObjectAccess::ForArrayLength(elements_kind),
+          reduced_length);
+      if (!ast_context()->IsEffect()) Push(result);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      if (!ast_context()->IsEffect()) Drop(1);
+      ast_context()->ReturnValue(result);
+      return true;
+    }
+    case kArrayPush: {
+      if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+        return false;
+      }
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(elements_kind)) return false;
+      AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+
+      HValue* op_vals[] = {
+        context(),
+        // Receiver.
+        environment()->ExpressionStackAt(expr->arguments()->length())
+      };
+
+      const int argc = expr->arguments()->length();
+      // Includes receiver.
+      PushArgumentsFromEnvironment(argc + 1);
+
+      CallInterfaceDescriptor* descriptor =
+          isolate()->call_descriptor(Isolate::CallHandler);
+
+      ArrayPushStub stub(receiver_map->elements_kind(), argc);
+      Handle<Code> code = stub.GetCode(isolate());
+      HConstant* code_value = Add<HConstant>(code);
+
+      ASSERT((sizeof(op_vals) / kPointerSize) ==
+             descriptor->environment_length());
+
+      HInstruction* call = New<HCallWithDescriptor>(
+          code_value, argc + 1, descriptor,
+          Vector<HValue*>(op_vals, descriptor->environment_length()));
+      ast_context()->ReturnInstruction(call, expr->id());
+      return true;
+    }
     default:
       // Not yet supported for inlining.
       break;
