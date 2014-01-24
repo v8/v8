@@ -1222,19 +1222,33 @@ void RegExpMacroAssemblerA64::WriteCurrentPositionToRegister(int reg,
 void RegExpMacroAssemblerA64::ClearRegisters(int reg_from, int reg_to) {
   ASSERT(reg_from <= reg_to);
   int num_registers = reg_to - reg_from + 1;
+
+  // If the first capture register is cached in a hardware register but not
+  // aligned on a 64-bit one, we need to clear the first one specifically.
+  if ((reg_from < kNumCachedRegisters) && ((reg_from % 2) != 0)) {
+    StoreRegister(reg_from, non_position_value());
+    num_registers--;
+    reg_from++;
+  }
+
+  // Clear cached registers in pairs as far as possible.
+  while ((num_registers >= 2) && (reg_from < kNumCachedRegisters)) {
+    ASSERT(GetRegisterState(reg_from) == CACHED_LSW);
+    __ Mov(GetCachedRegister(reg_from), twice_non_position_value());
+    reg_from += 2;
+    num_registers -= 2;
+  }
+
   if ((num_registers % 2) == 1) {
     StoreRegister(reg_from, non_position_value());
     num_registers--;
     reg_from++;
   }
-  // Clear cached registers.
-  while ((reg_from <= reg_to) && (reg_from < kNumCachedRegisters)) {
-    ASSERT(GetRegisterState(reg_from) != STACKED);
-    __ Mov(GetCachedRegister(reg_from), twice_non_position_value());
-    reg_from += 2;
-    num_registers -= 2;
-  }
+
   if (num_registers > 0) {
+    // If there are some remaining registers, they are stored on the stack.
+    ASSERT(reg_from >= kNumCachedRegisters);
+
     // Move down the indexes of the registers on stack to get the correct offset
     // in memory.
     reg_from -= kNumCachedRegisters;
