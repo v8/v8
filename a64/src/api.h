@@ -170,6 +170,7 @@ class RegisteredExtension {
   V(Object, JSObject)                          \
   V(Array, JSArray)                            \
   V(ArrayBuffer, JSArrayBuffer)                \
+  V(ArrayBufferView, JSArrayBufferView)        \
   V(TypedArray, JSTypedArray)                  \
   V(Uint8Array, JSTypedArray)                  \
   V(Uint8ClampedArray, JSTypedArray)           \
@@ -180,6 +181,7 @@ class RegisteredExtension {
   V(Int32Array, JSTypedArray)                  \
   V(Float32Array, JSTypedArray)                \
   V(Float64Array, JSTypedArray)                \
+  V(DataView, JSDataView)                      \
   V(String, String)                            \
   V(Symbol, Symbol)                            \
   V(Script, Object)                            \
@@ -217,6 +219,10 @@ class Utils {
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<ArrayBuffer> ToLocal(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
+  static inline Local<ArrayBufferView> ToLocal(
+      v8::internal::Handle<v8::internal::JSArrayBufferView> obj);
+  static inline Local<DataView> ToLocal(
+      v8::internal::Handle<v8::internal::JSDataView> obj);
 
   static inline Local<TypedArray> ToLocal(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
@@ -348,6 +354,8 @@ MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
+MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
+MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 
 MAKE_TO_LOCAL_TYPED_ARRAY(Uint8Array, kExternalUnsignedByteArray)

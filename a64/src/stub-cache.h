@@ -367,7 +367,7 @@ class StubCache {
   Factory* factory() { return isolate()->factory(); }
 
  private:
-  StubCache(Isolate* isolate, Zone* zone);
+  explicit StubCache(Isolate* isolate);
 
   Handle<Code> ComputeCallInitialize(int argc,
                                      RelocInfo::Mode mode,

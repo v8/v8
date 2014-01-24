@@ -689,6 +689,12 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register scratch) {
   ASSERT(!AreAliased(left, right, left_type, right_type, scratch));
 
+  if (masm->emit_debug_code()) {
+    // We assume that the arguments are not identical.
+    __ Cmp(left, right);
+    __ Assert(ne, "Expected non-identical objects.");
+  }
+
   // If either operand is a JS object or an oddball value, then they are not
   // equal since their pointers are different.
   // There is no test for undetectability in strict equality.
@@ -718,12 +724,14 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
 
   __ B(ge, &return_not_equal);
 
-  // Check for internalized-internalized comparison. Ensure that no non-strings
-  // have the internalized bit set.
-  STATIC_ASSERT(LAST_TYPE < (kNotStringTag + kIsInternalizedMask));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ And(scratch, right_type, left_type);
-  __ Tbnz(scratch, MaskToBit(kIsInternalizedMask), &return_not_equal);
+  // Internalized strings are unique, so they can only be equal if they are the
+  // same object. We have already tested that case, so if left and right are
+  // both internalized strings, they cannot be equal.
+  __ And(scratch, right_type, kIsNotStringMask | kIsInternalizedMask);
+  __ Cmp(scratch, kInternalizedTag | kStringTag);
+  __ And(scratch, left_type, kIsNotStringMask | kIsInternalizedMask);
+  __ Ccmp(scratch, kInternalizedTag | kStringTag, NoFlag, eq);
+  __ B(eq, &return_not_equal);
 }
 
 
@@ -814,7 +822,6 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   ASSERT(!AreAliased(left, right, left_map, right_map, left_type, right_type));
   Register result = x0;
 
-  // Ensure that no non-strings have the internalized bit set.
   Label object_test;
   STATIC_ASSERT(kStringTag == 0);
   STATIC_ASSERT(kInternalizedTag != 0);
@@ -1754,7 +1761,7 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   ASM_LOCATION("BinaryOpStub::GenerateSmiStub");
   Label right_arg_changed, call_runtime;
 
-  if ((op_ == Token::MOD) && has_fixed_right_arg_) {
+  if ((op_ == Token::MOD) && encoded_right_arg_.has_value) {
     // It is guaranteed that the value will fit into a Smi, because if it
     // didn't, we wouldn't be here, see BinaryOp_Patch.
     __ CompareAndBranch(x0, Operand(Smi::FromInt(fixed_right_arg_value())), ne,
@@ -2500,10 +2507,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
-
-  if (FLAG_optimize_constructed_arrays) {
-    ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
-  }
+  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 
@@ -4459,56 +4463,12 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 }
 
 
-// TODO(mcapewel): This code has been ported as part of the merge process, but
-//                 is currently untested.
-// TODO(jbramley): Don't use static registers here, but take them as arguments.
-static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
-  ASM_UNIMPLEMENTED_BREAK("Untested: GenerateRecordCallTargetNoArray");
-  // Cache the called function in a global property cell. Cache states are
-  // uninitialized, monomorphic (indicated by a JSFunction), and megamorphic.
-  //  x1 : the function to call
-  //  x2 : cache cell for the call target
-  Label done;
-
-  ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->undefined_value());
-  ASSERT_EQ(*TypeFeedbackCells::UninitializedSentinel(masm->isolate()),
-            masm->isolate()->heap()->the_hole_value());
-
-  // Load the cache state.
-  __ Ldr(x3, FieldMemOperand(x2, Cell::kValueOffset));
-
-  // A monomorphic cache hit or an already megamorphic state: invoke the
-  // function without changing the state.
-  __ Cmp(x3, x1);
-  __ B(eq, &done);
-  __ JumpIfRoot(x3, Heap::kUndefinedValueRootIndex, &done);
-
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic. MegamorphicSentinal is an immortal immovable object
-  // (undefined) so no write-barrier is needed.
-  Label skip_undef_store;
-  __ JumpIfRoot(x3, Heap::kTheHoleValueRootIndex, &skip_undef_store);
-  __ LoadRoot(ip0, Heap::kUndefinedValueRootIndex);
-  __ Str(ip0, FieldMemOperand(x2, Cell::kValueOffset));
-  __ B(&done);
-  __ Bind(&skip_undef_store);
-
-  // An uninitialized cache is patched with the function.
-  __ Str(x1, FieldMemOperand(x2, Cell::kValueOffset));
-  // No need for a write barrier here - cells are rescanned.
-
-  __ Bind(&done);
-}
-
-
 // TODO(jbramley): Don't use static registers here, but take them as arguments.
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell. Cache states are
   // uninitialized, monomorphic (indicated by a JSFunction), and megamorphic.
   //  x1 : the function to call
   //  x2 : cache cell for the call target
-  ASSERT(FLAG_optimize_constructed_arrays);
   Label initialize, done, miss, megamorphic, not_array_function;
 
   ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
@@ -4613,11 +4573,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotObjectType(function, x10, x10, JS_FUNCTION_TYPE, &slow);
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTarget(masm);
   }
 
   // Fast-case: Invoke the function now.
@@ -4695,15 +4651,11 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
                          &slow);
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTarget(masm);
   }
 
   // Jump to the function-specific construct stub.
-  Register jump_reg = FLAG_optimize_constructed_arrays ? x3 : x2;
+  Register jump_reg = x3;
   Register shared_func_info = jump_reg;
   Register cons_stub = jump_reg;
   Register cons_stub_code = jump_reg;
@@ -4964,9 +4916,12 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ Ldr(rhs_map, FieldMemOperand(rhs, HeapObject::kMapOffset));
   __ Ldrb(lhs_type, FieldMemOperand(lhs_map, Map::kInstanceTypeOffset));
   __ Ldrb(rhs_type, FieldMemOperand(rhs_map, Map::kInstanceTypeOffset));
-  __ And(x10, lhs_type, rhs_type);
-  __ Tbz(x10, MaskToBit(kIsInternalizedMask), &miss);
-  STATIC_ASSERT(kInternalizedTag != 0);
+
+  __ And(x12, rhs_type, kIsNotStringMask | kIsInternalizedMask);
+  __ And(x13, lhs_type, kIsNotStringMask | kIsInternalizedMask);
+  __ Cmp(x12, kInternalizedTag | kStringTag);
+  __ Ccmp(x13, kInternalizedTag | kStringTag, NoFlag, eq);
+  __ B(ne, &miss);
 
   // Internalized strings are compared by identity.
   STATIC_ASSERT(EQUAL == 0);
@@ -5004,14 +4959,8 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
   // To avoid a miss, each instance type should be either SYMBOL_TYPE or it
   // should have kInternalizedTag set.
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ Tst(lhs_instance_type, kIsInternalizedMask);
-  __ Ccmp(lhs_instance_type, SYMBOL_TYPE, ZFlag, eq);
-  __ B(ne, &miss);
-
-  __ Tst(rhs_instance_type, kIsInternalizedMask);
-  __ Ccmp(rhs_instance_type, SYMBOL_TYPE, ZFlag, eq);
-  __ B(ne, &miss);
+  __ JumpIfNotUniqueName(lhs_instance_type, &miss);
+  __ JumpIfNotUniqueName(rhs_instance_type, &miss);
 
   // Unique names are compared by identity.
   STATIC_ASSERT(EQUAL == 0);
@@ -5063,7 +5012,8 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // Handle not identical strings
 
   // Check that both strings are internalized strings. If they are, we're done
-  // because we already know they are not identical.
+  // because we already know they are not identical. We know they are both
+  // strings.
   if (equality) {
     ASSERT(GetCondition() == eq);
     STATIC_ASSERT(kInternalizedTag != 0);
@@ -6898,9 +6848,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ Ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
     __ Ldrb(entity_name,
             FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ TestAndBranchIfAnySet(entity_name, kIsInternalizedMask, &good);
-    __ CompareAndBranch(entity_name, SYMBOL_TYPE, ne, miss);
-
+    __ JumpIfNotUniqueName(entity_name, miss);
     __ Bind(&good);
   }
 
@@ -6985,13 +6933,9 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
       // Check if the entry name is not a unique name.
-      Label cont;
       __ Ldr(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ Ldrb(entry_key, FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      STATIC_ASSERT(kIsInternalizedMask != 0);
-      __ Tbnz(entry_key, MaskToBit(kIsInternalizedMask), &cont);
-      __ CompareAndBranch(entry_key, SYMBOL_TYPE, ne, &maybe_in_dictionary);
-      __ Bind(&cont);
+      __ JumpIfNotUniqueName(entry_key, &maybe_in_dictionary);
     }
   }
 
@@ -7179,58 +7123,45 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Bind(&okay_here);
   }
 
-  if (FLAG_optimize_constructed_arrays) {
-    Register kind = x3;
-    Label no_info, switch_ready;
-    // Get the elements kind and case on that.
-    __ CompareAndBranch(type_info_cell, Operand(undefined_sentinel),
-                        eq, &no_info);
-    __ Ldr(kind, FieldMemOperand(type_info_cell, PropertyCell::kValueOffset));
-    __ JumpIfNotSmi(kind, &no_info);
-    __ SmiUntag(kind);
-    __ B(&switch_ready);
+  Register kind = x3;
+  Label no_info, switch_ready;
+  // Get the elements kind and case on that.
+  __ CompareAndBranch(type_info_cell, Operand(undefined_sentinel),
+                      eq, &no_info);
+  __ Ldr(kind, FieldMemOperand(type_info_cell, PropertyCell::kValueOffset));
+  __ JumpIfNotSmi(kind, &no_info);
+  __ SmiUntag(kind);
+  __ B(&switch_ready);
 
-    __ Bind(&no_info);
-    __ Mov(kind, GetInitialFastElementsKind());
-    __ Bind(&switch_ready);
+  __ Bind(&no_info);
+  __ Mov(kind, GetInitialFastElementsKind());
+  __ Bind(&switch_ready);
 
-    if (argument_count_ == ANY) {
-      Label zero_case, n_case;
-      __ Cbz(argc, &zero_case);
-      __ Cmp(argc, 1);
-      __ B(ne, &n_case);
+  if (argument_count_ == ANY) {
+    Label zero_case, n_case;
+    __ Cbz(argc, &zero_case);
+    __ Cmp(argc, 1);
+    __ B(ne, &n_case);
 
-      // One argument.
-      CreateArrayDispatchOneArgument(masm);
+    // One argument.
+    CreateArrayDispatchOneArgument(masm);
 
-      __ Bind(&zero_case);
-      // No arguments.
-      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+    __ Bind(&zero_case);
+    // No arguments.
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
 
-      __ Bind(&n_case);
-      // N arguments.
-      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
+    __ Bind(&n_case);
+    // N arguments.
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
 
-    } else if (argument_count_ == NONE) {
-      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-    } else if (argument_count_ == ONE) {
-      CreateArrayDispatchOneArgument(masm);
-    } else if (argument_count_ == MORE_THAN_ONE) {
-      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-    } else {
-      UNREACHABLE();
-    }
+  } else if (argument_count_ == NONE) {
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+  } else if (argument_count_ == ONE) {
+    CreateArrayDispatchOneArgument(masm);
+  } else if (argument_count_ == MORE_THAN_ONE) {
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
   } else {
-     Label generic_constructor;
-     // Run the native code for the Array function called as a constructor.
-     ArrayNativeCode(masm, &generic_constructor);
-
-     // Jump to the generic construct code in case the specialized code cannot
-     // handle the construction.
-     __ Bind(&generic_constructor);
-     Handle<Code> generic_construct_stub =
-         masm->isolate()->builtins()->JSConstructStubGeneric();
-     __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+    UNREACHABLE();
   }
 }
 
@@ -7300,45 +7231,32 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Bind(&map_ok);
   }
 
-  if (FLAG_optimize_constructed_arrays) {
-    Register kind = w3;
-    // Figure out the right elements kind
-    __ Ldr(x10, FieldMemOperand(constructor,
-                                JSFunction::kPrototypeOrInitialMapOffset));
+  Register kind = w3;
+  // Figure out the right elements kind
+  __ Ldr(x10, FieldMemOperand(constructor,
+                              JSFunction::kPrototypeOrInitialMapOffset));
 
-    // TODO(jbramley): Add a helper function to read elements kind from an
-    // existing map.
-    // Load the map's "bit field 2" into result.
-    __ Ldr(kind, FieldMemOperand(x10, Map::kBitField2Offset));
-    // Retrieve elements_kind from bit field 2.
-    __ Ubfx(kind, kind, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  // TODO(jbramley): Add a helper function to read elements kind from an
+  // existing map.
+  // Load the map's "bit field 2" into result.
+  __ Ldr(kind, FieldMemOperand(x10, Map::kBitField2Offset));
+  // Retrieve elements_kind from bit field 2.
+  __ Ubfx(kind, kind, Map::kElementsKindShift, Map::kElementsKindBitCount);
 
-    if (FLAG_debug_code) {
-      Label done;
-      __ Cmp(x3, FAST_ELEMENTS);
-      __ Ccmp(x3, FAST_HOLEY_ELEMENTS, ZFlag, ne);
-      __ Assert(eq,
-            "Invalid ElementsKind for InternalArray or InternalPackedArray");
-    }
-
-    Label fast_elements_case;
-    __ CompareAndBranch(kind, FAST_ELEMENTS, eq, &fast_elements_case);
-    GenerateCase(masm, FAST_HOLEY_ELEMENTS);
-
-    __ Bind(&fast_elements_case);
-    GenerateCase(masm, FAST_ELEMENTS);
-  } else {
-    Label generic_constructor;
-    // Run the native code for the Array function called as constructor.
-    ArrayNativeCode(masm, &generic_constructor);
-
-    // Jump to the generic construct code in case the specialized code cannot
-    // handle the construction.
-    __ Bind(&generic_constructor);
-    Handle<Code> generic_construct_stub =
-        masm->isolate()->builtins()->JSConstructStubGeneric();
-    __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+  if (FLAG_debug_code) {
+    Label done;
+    __ Cmp(x3, FAST_ELEMENTS);
+    __ Ccmp(x3, FAST_HOLEY_ELEMENTS, ZFlag, ne);
+    __ Assert(eq,
+              "Invalid ElementsKind for InternalArray or InternalPackedArray");
   }
+
+  Label fast_elements_case;
+  __ CompareAndBranch(kind, FAST_ELEMENTS, eq, &fast_elements_case);
+  GenerateCase(masm, FAST_HOLEY_ELEMENTS);
+
+  __ Bind(&fast_elements_case);
+  GenerateCase(masm, FAST_ELEMENTS);
 }
 
 

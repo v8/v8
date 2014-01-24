@@ -66,6 +66,7 @@ class LChunkBuilder;
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(Allocate)                                  \
+  V(AllocateObject)                            \
   V(ApplyArguments)                            \
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
@@ -88,9 +89,9 @@ class LChunkBuilder;
   V(CallStub)                                  \
   V(Change)                                    \
   V(CheckFunction)                             \
+  V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
-  V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
@@ -433,7 +434,7 @@ class HType {
 
   bool IsHeapObject() const {
     ASSERT(type_ != kUninitialized);
-    return IsHeapNumber() || IsString() || IsNonPrimitive();
+    return IsHeapNumber() || IsString() || IsBoolean() || IsNonPrimitive();
   }
 
   static HType TypeFromValue(Handle<Object> value);
@@ -783,6 +784,7 @@ class HValue: public ZoneObject {
 
   enum Flag {
     kFlexibleRepresentation,
+    kCannotBeTagged,
     // Participate in Global Value Numbering, i.e. elimination of
     // unnecessary recomputations. If an instruction sets this flag, it must
     // implement DataEquals(), which will be used to determine if other
@@ -888,6 +890,7 @@ class HValue: public ZoneObject {
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
     ASSERT(CheckFlag(kFlexibleRepresentation));
+    ASSERT(!CheckFlag(kCannotBeTagged) || !r.IsTagged());
     RepresentationChanged(r);
     representation_ = r;
     if (r.IsTagged()) {
@@ -913,6 +916,10 @@ class HValue: public ZoneObject {
   void set_type(HType new_type) {
     ASSERT(new_type.IsSubtypeOf(type_));
     type_ = new_type;
+  }
+
+  bool IsHeapObject() {
+    return representation_.IsHeapObject() || type_.IsHeapObject();
   }
 
   // An operation needs to override this function iff:
@@ -1596,17 +1603,21 @@ class HBranch: public HUnaryControlInstruction {
   HBranch(HValue* value,
           HBasicBlock* true_target,
           HBasicBlock* false_target,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::no_types())
+          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types())
       : HUnaryControlInstruction(value, true_target, false_target),
         expected_input_types_(expected_input_types) {
     ASSERT(true_target != NULL && false_target != NULL);
+    SetFlag(kAllowUndefinedAsNaN);
   }
   explicit HBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) { }
+      : HUnaryControlInstruction(value, NULL, NULL) {
+    SetFlag(kAllowUndefinedAsNaN);
+  }
   HBranch(HValue* value, ToBooleanStub::Types expected_input_types)
       : HUnaryControlInstruction(value, NULL, NULL),
-        expected_input_types_(expected_input_types) { }
-
+        expected_input_types_(expected_input_types) {
+    SetFlag(kAllowUndefinedAsNaN);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -2941,9 +2952,9 @@ class HCheckInstanceType: public HUnaryOperation {
 };
 
 
-class HCheckNonSmi: public HUnaryOperation {
+class HCheckHeapObject: public HUnaryOperation {
  public:
-  explicit HCheckNonSmi(HValue* value) : HUnaryOperation(value) {
+  explicit HCheckHeapObject(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
@@ -2960,17 +2971,13 @@ class HCheckNonSmi: public HUnaryOperation {
 
   virtual HValue* Canonicalize() {
     HType value_type = value()->type();
-    if (!value_type.IsUninitialized() &&
-        (value_type.IsHeapNumber() ||
-         value_type.IsString() ||
-         value_type.IsBoolean() ||
-         value_type.IsNonPrimitive())) {
+    if (!value_type.IsUninitialized() && value_type.IsHeapObject()) {
       return NULL;
     }
     return this;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckNonSmi)
+  DECLARE_CONCRETE_INSTRUCTION(CheckHeapObject)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -4461,11 +4468,9 @@ class HMod: public HArithmeticBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right,
-                           bool has_fixed_right_arg,
-                           int fixed_right_arg_value);
+                           Maybe<int> fixed_right_arg);
 
-  bool has_fixed_right_arg() const { return has_fixed_right_arg_; }
-  int fixed_right_arg_value() const { return fixed_right_arg_value_; }
+  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
   bool HasPowerOf2Divisor() {
     if (right()->IsConstant() &&
@@ -4492,17 +4497,14 @@ class HMod: public HArithmeticBinaryOperation {
   HMod(HValue* context,
        HValue* left,
        HValue* right,
-       bool has_fixed_right_arg,
-       int fixed_right_arg_value)
+       Maybe<int> fixed_right_arg)
       : HArithmeticBinaryOperation(context, left, right),
-        has_fixed_right_arg_(has_fixed_right_arg),
-        fixed_right_arg_value_(fixed_right_arg_value) {
+        fixed_right_arg_(fixed_right_arg) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
   }
 
-  const bool has_fixed_right_arg_;
-  const int fixed_right_arg_value_;
+  const Maybe<int> fixed_right_arg_;
 };
 
 
@@ -4927,6 +4929,48 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
+class HAllocateObject: public HTemplateInstruction<1> {
+ public:
+  HAllocateObject(HValue* context, Handle<JSFunction> constructor)
+      : constructor_(constructor) {
+    SetOperandAt(0, context);
+    set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
+    constructor_initial_map_ = constructor->has_initial_map()
+        ? Handle<Map>(constructor->initial_map())
+        : Handle<Map>::null();
+    // If slack tracking finished, the instance size and property counts
+    // remain unchanged so that we can allocate memory for the object.
+    ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
+  }
+
+  // Maximum instance size for which allocations will be inlined.
+  static const int kMaxSize = 64 * kPointerSize;
+
+  HValue* context() { return OperandAt(0); }
+  Handle<JSFunction> constructor() { return constructor_; }
+  Handle<Map> constructor_initial_map() { return constructor_initial_map_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+    ASSERT(!constructor_initial_map_.is_null());
+    return constructor_initial_map_;
+  }
+  virtual HType CalculateInferredType();
+
+  DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
+
+ private:
+  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
+  //  virtual bool IsDeletable() const { return true; }
+
+  Handle<JSFunction> constructor_;
+  Handle<Map> constructor_initial_map_;
+};
+
+
 class HAllocate: public HTemplateInstruction<2> {
  public:
   enum Flags {
@@ -4944,9 +4988,6 @@ class HAllocate: public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesNewSpacePromotion);
   }
-
-  // Maximum instance size for which allocations will be inlined.
-  static const int kMaxInlineSize = 64 * kPointerSize;
 
   static Flags DefaultFlags() {
     return CAN_ALLOCATE_IN_NEW_SPACE;
@@ -4970,14 +5011,6 @@ class HAllocate: public HTemplateInstruction<2> {
     } else {
       return Representation::Integer32();
     }
-  }
-
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
-    return known_initial_map_;
-  }
-
-  void set_known_initial_map(Handle<Map> known_initial_map) {
-    known_initial_map_ = known_initial_map;
   }
 
   virtual HType CalculateInferredType();
@@ -5014,7 +5047,6 @@ class HAllocate: public HTemplateInstruction<2> {
  private:
   HType type_;
   Flags flags_;
-  Handle<Map> known_initial_map_;
 };
 
 
@@ -5058,6 +5090,7 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
         new_space_dominator);
   }
   if (object != new_space_dominator) return true;
+  if (object->IsAllocateObject()) return false;
   if (object->IsAllocate()) {
     return !HAllocate::cast(object)->GuaranteedInNewSpace();
   }

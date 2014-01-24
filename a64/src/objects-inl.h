@@ -221,12 +221,9 @@ bool Object::IsSpecFunction() {
 bool Object::IsInternalizedString() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
-  // Because the internalized tag is non-zero and no non-string types have the
-  // internalized bit set we can test for internalized strings with a very
-  // simple test operation.
   STATIC_ASSERT(kInternalizedTag != 0);
-  ASSERT(kNotStringTag + kIsInternalizedMask > LAST_TYPE);
-  return (type & kIsInternalizedMask) != 0;
+  return (type & (kIsNotStringMask | kIsInternalizedMask)) ==
+      (kInternalizedTag | kStringTag);
 }
 
 
@@ -323,7 +320,8 @@ StringShape::StringShape(InstanceType t)
 bool StringShape::IsInternalized() {
   ASSERT(valid());
   STATIC_ASSERT(kInternalizedTag != 0);
-  return (type_ & kIsInternalizedMask) != 0;
+  return (type_ & (kIsNotStringMask | kIsInternalizedMask)) ==
+      (kInternalizedTag | kStringTag);
 }
 
 
@@ -695,6 +693,14 @@ bool Object::IsBoolean() {
 TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
 TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
 TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
+TYPE_CHECKER(JSDataView, JS_DATA_VIEW_TYPE)
+
+
+bool Object::IsJSArrayBufferView() {
+  return IsJSDataView() || IsJSTypedArray();
+}
+
+
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 
 
@@ -1633,6 +1639,7 @@ void Cell::set_value(Object* val, WriteBarrierMode ignored) {
   WRITE_FIELD(this, kValueOffset, val);
 }
 
+ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 
 Object* PropertyCell::type_raw() {
   return READ_FIELD(this, kTypeOffset);
@@ -1673,6 +1680,8 @@ int JSObject::GetHeaderSize() {
       return JSArrayBuffer::kSize;
     case JS_TYPED_ARRAY_TYPE:
       return JSTypedArray::kSize;
+    case JS_DATA_VIEW_TYPE:
+      return JSDataView::kSize;
     case JS_SET_TYPE:
       return JSSet::kSize;
     case JS_MAP_TYPE:
@@ -2551,7 +2560,9 @@ CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
+CAST_ACCESSOR(JSArrayBufferView)
 CAST_ACCESSOR(JSTypedArray)
+CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
@@ -3376,15 +3387,13 @@ int Map::pre_allocated_property_fields() {
 int HeapObject::SizeFromMap(Map* map) {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
-  // We can ignore the "internalized" bit because it is only set for strings
-  // and thus implies a string type.
-  int instance_type =
-      static_cast<int>(map->instance_type()) & ~kIsInternalizedMask;
   // Only inline the most frequent cases.
+  int instance_type = static_cast<int>(map->instance_type());
   if (instance_type == FIXED_ARRAY_TYPE) {
     return FixedArray::BodyDescriptor::SizeOf(map, this);
   }
-  if (instance_type == ASCII_STRING_TYPE) {
+  if (instance_type == ASCII_STRING_TYPE ||
+      instance_type == ASCII_INTERNALIZED_STRING_TYPE) {
     return SeqOneByteString::SizeFor(
         reinterpret_cast<SeqOneByteString*>(this)->length());
   }
@@ -3394,7 +3403,8 @@ int HeapObject::SizeFromMap(Map* map) {
   if (instance_type == FREE_SPACE_TYPE) {
     return reinterpret_cast<FreeSpace*>(this)->size();
   }
-  if (instance_type == STRING_TYPE) {
+  if (instance_type == STRING_TYPE ||
+      instance_type == INTERNALIZED_STRING_TYPE) {
     return SeqTwoByteString::SizeFor(
         reinterpret_cast<SeqTwoByteString*>(this)->length());
   }
@@ -4029,7 +4039,12 @@ void Code::set_marked_for_deoptimization(bool flag) {
 
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
-  return kind >= FIRST_IC_KIND && kind <= LAST_IC_KIND;
+  switch (kind) {
+#define CASE(name) case name: return true;
+    IC_KIND_LIST(CASE)
+#undef CASE
+    default: return false;
+  }
 }
 
 
@@ -4434,7 +4449,7 @@ ACCESSORS(AllocationSiteInfo, payload, Object, kPayloadOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)
-ACCESSORS(Script, id, Object, kIdOffset)
+ACCESSORS(Script, id, Smi, kIdOffset)
 ACCESSORS_TO_SMI(Script, line_offset, kLineOffsetOffset)
 ACCESSORS_TO_SMI(Script, column_offset, kColumnOffsetOffset)
 ACCESSORS(Script, data, Object, kDataOffset)
@@ -4781,17 +4796,6 @@ BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
 }
 
 
-int SharedFunctionInfo::code_age() {
-  return (compiler_hints() >> kCodeAgeShift) & kCodeAgeMask;
-}
-
-
-void SharedFunctionInfo::set_code_age(int code_age) {
-  int hints = compiler_hints() & ~(kCodeAgeMask << kCodeAgeShift);
-  set_compiler_hints(hints | ((code_age & kCodeAgeMask) << kCodeAgeShift));
-}
-
-
 int SharedFunctionInfo::ic_age() {
   return ICAgeBits::decode(counters());
 }
@@ -4895,12 +4899,7 @@ bool JSFunction::IsInRecompileQueue() {
 
 
 Code* JSFunction::code() {
-  return Code::cast(unchecked_code());
-}
-
-
-Code* JSFunction::unchecked_code() {
-  return reinterpret_cast<Code*>(
+  return Code::cast(
       Code::GetObjectFromEntryAddress(FIELD_ADDR(this, kCodeEntryOffset)));
 }
 
@@ -4942,11 +4941,6 @@ void JSFunction::ReplaceCode(Code* code) {
 
 Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));
-}
-
-
-Object* JSFunction::unchecked_context() {
-  return READ_FIELD(this, kContextOffset);
 }
 
 
@@ -5309,14 +5303,14 @@ void JSArrayBuffer::set_is_external(bool value) {
 
 
 ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
-ACCESSORS(JSArrayBuffer, weak_first_array, Object, kWeakFirstArrayOffset)
+ACCESSORS(JSArrayBuffer, weak_first_view, Object, kWeakFirstViewOffset)
 
 
-ACCESSORS(JSTypedArray, buffer, Object, kBufferOffset)
-ACCESSORS(JSTypedArray, byte_offset, Object, kByteOffsetOffset)
-ACCESSORS(JSTypedArray, byte_length, Object, kByteLengthOffset)
+ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
+ACCESSORS(JSArrayBufferView, byte_offset, Object, kByteOffsetOffset)
+ACCESSORS(JSArrayBufferView, byte_length, Object, kByteLengthOffset)
+ACCESSORS(JSArrayBufferView, weak_next, Object, kWeakNextOffset)
 ACCESSORS(JSTypedArray, length, Object, kLengthOffset)
-ACCESSORS(JSTypedArray, weak_next, Object, kWeakNextOffset)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 

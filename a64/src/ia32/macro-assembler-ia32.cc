@@ -2807,6 +2807,17 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
 }
 
 
+void MacroAssembler::JumpIfNotUniqueName(Operand operand,
+                                         Label* not_unique_name,
+                                         Label::Distance distance) {
+  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
+  cmp(operand, Immediate(kInternalizedTag));
+  j(less, not_unique_name, distance);
+  cmp(operand, Immediate(SYMBOL_TYPE));
+  j(greater, not_unique_name, distance);
+}
+
+
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   int frame_alignment = OS::ActivationFrameAlignment();
   if (frame_alignment != 0) {

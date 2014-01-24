@@ -149,6 +149,7 @@ Object** RelocInfo::target_object_address() {
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  ASSERT(!target->IsConsString());
   Assembler::set_target_pointer_at(pc_, reinterpret_cast<Address>(target));
   if (mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&

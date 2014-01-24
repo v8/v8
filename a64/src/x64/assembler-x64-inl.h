@@ -308,6 +308,7 @@ Address* RelocInfo::target_reference_address() {
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  ASSERT(!target->IsConsString());
   Memory::Object_at(pc_) = target;
   CPU::FlushICache(pc_, sizeof(Address));
   if (mode == UPDATE_WRITE_BARRIER &&

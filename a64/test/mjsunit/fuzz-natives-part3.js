@@ -204,6 +204,11 @@ var knownProblems = {
   // Only applicable to generators.
   "_GeneratorNext": true,
   "_GeneratorThrow": true,
+
+  // Only applicable to DataViews.
+  "DataViewGetBuffer": true,
+  "DataViewGetByteLength": true,
+  "DataViewGetByteOffset": true
 };
 
 var currentlyUncallable = {

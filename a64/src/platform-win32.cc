@@ -1485,12 +1485,6 @@ int OS::ActivationFrameAlignment() {
 }
 
 
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-  MemoryBarrier();
-  *ptr = value;
-}
-
-
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 

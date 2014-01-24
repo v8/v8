@@ -562,8 +562,7 @@ class Parser BASE_EMBEDDED {
   };
 
   FunctionLiteral* ParseLazy();
-  FunctionLiteral* ParseLazy(Utf16CharacterStream* source,
-                             ZoneScope* zone_scope);
+  FunctionLiteral* ParseLazy(Utf16CharacterStream* source);
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
@@ -571,8 +570,7 @@ class Parser BASE_EMBEDDED {
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(CompilationInfo* info,
-                                  Handle<String> source,
-                                  ZoneScope* zone_scope);
+                                  Handle<String> source);
 
   // Report syntax error
   void ReportUnexpectedToken(Token::Value token);
@@ -887,8 +885,6 @@ class CompileTimeValue: public AllStatic {
   };
 
   static bool IsCompileTimeValue(Expression* expression);
-
-  static bool ArrayLiteralElementNeedsInitialization(Expression* value);
 
   // Get the value as a compile time value.
   static Handle<FixedArray> GetValue(Expression* expression);

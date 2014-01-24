@@ -53,7 +53,7 @@ static void ProbeTable(Isolate* isolate,
   ASSERT(kPointerSizeLog2 == kHeapObjectTagSize + 1);
   ScaleFactor scale_factor = times_2;
 
-  ASSERT_EQ(24, sizeof(StubCache::Entry));
+  ASSERT_EQ(3 * kPointerSize, sizeof(StubCache::Entry));
   // The offset register holds the entry offset times four (due to masking
   // and shifting optimizations).
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
@@ -171,8 +171,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   USE(extra2);  // The register extra2 is not used on the X64 platform.
   USE(extra3);  // The register extra2 is not used on the X64 platform.
   // Make sure that code is valid. The multiplying code relies on the
-  // entry size being 24.
-  ASSERT(sizeof(Entry) == 24);
+  // entry size being 3 * kPointerSize.
+  ASSERT(sizeof(Entry) == 3 * kPointerSize);
 
   // Make sure the flags do not name a specific type.
   ASSERT(Code::ExtractTypeFromFlags(flags) == 0);
@@ -1315,8 +1315,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     Register reg,
     Handle<ExecutableAccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
-  ASSERT(!scratch2().is(reg));
-  __ pop(scratch2());  // Get return address to place it below.
+  ASSERT(!scratch4().is(reg));
+  __ pop(scratch4());  // Get return address to place it below.
 
   __ push(receiver());  // receiver
   __ push(reg);  // holder
@@ -1354,9 +1354,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   Register name_arg = rdi;
 #endif
 
-  ASSERT(!name_arg.is(scratch2()));
+  ASSERT(!name_arg.is(scratch4()));
   __ movq(name_arg, rsp);
-  __ push(scratch2());  // Restore return address.
+  __ push(scratch4());  // Restore return address.
 
   // v8::Arguments::values_ and handler for name.
   const int kStackSpace = PropertyCallbackArguments::kArgsLength + 1;

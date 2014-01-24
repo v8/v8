@@ -29,15 +29,13 @@
 
 #if defined(V8_TARGET_ARCH_A64)
 
-#include "frames-inl.h"
+#include "assembler.h"
+#include "assembler-a64.h"
+#include "assembler-a64-inl.h"
+#include "frames.h"
 
 namespace v8 {
 namespace internal {
-
-
-Address ExitFrame::ComputeStackPointer(Address fp) {
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
-}
 
 
 Register JavaScriptFrame::fp_register() { return v8::internal::fp; }

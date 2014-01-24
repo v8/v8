@@ -83,7 +83,6 @@ class LCodeGen BASE_EMBEDDED {
   Heap* heap() const { return isolate()->heap(); }
   Zone* zone() const { return zone_; }
 
-  // TODO(svenpanne) Use this consistently.
   int LookupDestination(int block_id) const {
     return chunk()->LookupDestination(block_id);
   }
@@ -157,6 +156,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredRandom(LRandom* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
+  void DoDeferredAllocateObject(LAllocateObject* instr);
   void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
@@ -317,7 +317,8 @@ class LCodeGen BASE_EMBEDDED {
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
-  void EmitBranch(int left_block, int right_block, Condition cc);
+  template<class InstrType>
+  void EmitBranch(InstrType instr, Condition cc);
   void EmitNumberUntagD(
       Register input,
       Register temp,
@@ -356,7 +357,8 @@ class LCodeGen BASE_EMBEDDED {
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsString(Register input,
                          Register temp1,
-                         Label* is_not_string);
+                         Label* is_not_string,
+                         SmiCheck check_needed);
 
   // Emits optimized code for %_IsConstructCall().
   // Caller should branch on equal condition.

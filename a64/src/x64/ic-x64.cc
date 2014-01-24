@@ -337,7 +337,8 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
   __ testl(hash, Immediate(Name::kContainsCachedArrayIndexMask));
   __ j(zero, index_string);  // The value in hash is used at jump target.
 
-  // Is the string internalized?
+  // Is the string internalized? We already know it's a string so a single
+  // bit test is enough.
   STATIC_ASSERT(kInternalizedTag != 0);
   __ testb(FieldOperand(map, Map::kInstanceTypeOffset),
            Immediate(kIsInternalizedMask));

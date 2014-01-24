@@ -2158,6 +2158,18 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 }
 
 
+void MacroAssembler::JumpIfNotUniqueName(Register type,
+                                         Label* not_unique_name) {
+  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
+  // if ((type < kInternalizedTag) || (type > SYMBOL_TYPE)) {
+  //   goto not_unique_name;
+  // }
+  Cmp(type, kInternalizedTag);
+  Ccmp(type, SYMBOL_TYPE, NVFlag, ge);
+  B(gt, not_unique_name);
+}
+
+
 void MacroAssembler::GenerateNumberUnaryOperation(Token::Value op,
                                                   InvokeFlag flag) {
   Runtime::FunctionId fid;

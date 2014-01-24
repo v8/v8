@@ -82,7 +82,6 @@ class LCodeGen BASE_EMBEDDED {
   Scope* scope() const { return scope_; }
   Heap* heap() const { return isolate()->heap(); }
 
-  // TODO(svenpanne) Use this consistently.
   int LookupDestination(int block_id) const {
     return chunk()->LookupDestination(block_id);
   }
@@ -175,6 +174,7 @@ class LCodeGen BASE_EMBEDDED {
                            LOperand* temp1,
                            LOperand* temp2);
   void DoDeferredAllocate(LAllocate* instr);
+  void DoDeferredAllocateObject(LAllocateObject* instr);
 
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
@@ -207,6 +207,11 @@ class LCodeGen BASE_EMBEDDED {
                          const Register& value,
                          uint64_t mask);
 
+  template<class InstrType>
+  void EmitBranchIfNonZeroNumber(InstrType instr,
+                                 const FPRegister& value,
+                                 const FPRegister& scratch);
+
   // Emits optimized code to deep-copy the contents of statically known object
   // graphs (e.g. object literal boilerplate). Expects a pointer to the
   // allocated destination object in the result register, and a pointer to the
@@ -221,7 +226,8 @@ class LCodeGen BASE_EMBEDDED {
   // Emits optimized code for %_IsString(x).  Preserves input register.
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
-  Condition EmitIsString(Register input, Register temp1, Label* is_not_string);
+  Condition EmitIsString(Register input, Register temp1, Label* is_not_string,
+                         SmiCheck check_needed);
 
   void EmitLoadFieldOrConstantFunction(Register result,
                                        Register object,

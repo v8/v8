@@ -713,11 +713,7 @@ class Translation BASE_EMBEDDED {
     INT32_STACK_SLOT,
     UINT32_STACK_SLOT,
     DOUBLE_STACK_SLOT,
-    LITERAL,
-
-    // A prefix indicating that the next command is a duplicate of the one
-    // that follows it.
-    DUPLICATE
+    LITERAL
   };
 
   Translation(TranslationBuffer* buffer, int frame_count, int jsframe_count,
@@ -749,7 +745,7 @@ class Translation BASE_EMBEDDED {
   void StoreUint32StackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
-  void MarkDuplicate();
+  void StoreArgumentsObject(bool args_known, int args_index, int args_length);
 
   Zone* zone() const { return zone_; }
 

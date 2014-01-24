@@ -1319,7 +1319,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   InstanceType type = map->instance_type();
   if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
 
-  Object* second = reinterpret_cast<ConsString*>(object)->unchecked_second();
+  Object* second = reinterpret_cast<ConsString*>(object)->second();
   Heap* heap = map->GetHeap();
   if (second != heap->empty_string()) {
     return object;
@@ -1328,7 +1328,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   // Since we don't have the object's start, it is impossible to update the
   // page dirty marks. Therefore, we only replace the string with its left
   // substring when page dirty marks do not change.
-  Object* first = reinterpret_cast<ConsString*>(object)->unchecked_first();
+  Object* first = reinterpret_cast<ConsString*>(object)->first();
   if (!heap->InNewSpace(object) && heap->InNewSpace(first)) return object;
 
   *p = first;
@@ -1713,23 +1713,6 @@ VisitorDispatchTable<MarkCompactMarkingVisitor::Callback>
     MarkCompactMarkingVisitor::non_count_table_;
 
 
-class MarkingVisitor : public ObjectVisitor {
- public:
-  explicit MarkingVisitor(Heap* heap) : heap_(heap) { }
-
-  void VisitPointer(Object** p) {
-    MarkCompactMarkingVisitor::VisitPointer(heap_, p);
-  }
-
-  void VisitPointers(Object** start, Object** end) {
-    MarkCompactMarkingVisitor::VisitPointers(heap_, start, end);
-  }
-
- private:
-  Heap* heap_;
-};
-
-
 class CodeMarkingVisitor : public ThreadVisitor {
  public:
   explicit CodeMarkingVisitor(MarkCompactCollector* collector)
@@ -2038,14 +2021,13 @@ bool MarkCompactCollector::IsUnmarkedHeapObjectWithHeap(Heap* heap,
 }
 
 
-void MarkCompactCollector::MarkStringTable() {
+void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
   MarkBit string_table_mark = Marking::MarkBitFrom(string_table);
   SetMark(string_table, string_table_mark);
   // Explicitly mark the prefix.
-  MarkingVisitor marker(heap());
-  string_table->IteratePrefix(&marker);
+  string_table->IteratePrefix(visitor);
   ProcessMarkingDeque();
 }
 
@@ -2056,7 +2038,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   heap()->IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
 
   // Handle the string table specially.
-  MarkStringTable();
+  MarkStringTable(visitor);
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_deque_.overflowed()) {
@@ -2269,14 +2251,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       while ((cell = js_global_property_cell_iterator.Next()) != NULL) {
         ASSERT(cell->IsPropertyCell());
         if (IsMarked(cell)) {
-          int offset = PropertyCell::kValueOffset;
-          MarkCompactMarkingVisitor::VisitPointer(
-              heap(),
-              reinterpret_cast<Object**>(cell->address() + offset));
-          offset = PropertyCell::kTypeOffset;
-          MarkCompactMarkingVisitor::VisitPointer(
-              heap(),
-              reinterpret_cast<Object**>(cell->address() + offset));
+          MarkCompactMarkingVisitor::VisitPropertyCell(cell->map(), cell);
         }
       }
     }
@@ -2416,7 +2391,6 @@ void MarkCompactCollector::ReattachInitialMaps() {
   for (HeapObject* obj = map_iterator.Next();
        obj != NULL;
        obj = map_iterator.Next()) {
-    if (obj->IsFreeSpace()) continue;
     Map* map = Map::cast(obj);
 
     STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
@@ -2430,21 +2404,19 @@ void MarkCompactCollector::ReattachInitialMaps() {
 
 
 void MarkCompactCollector::ClearNonLiveReferences() {
-  HeapObjectIterator map_iterator(heap()->map_space());
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  This action
   // is carried out only on maps of JSObjects and related subtypes.
+  HeapObjectIterator map_iterator(heap()->map_space());
   for (HeapObject* obj = map_iterator.Next();
-       obj != NULL; obj = map_iterator.Next()) {
-    Map* map = reinterpret_cast<Map*>(obj);
-    MarkBit map_mark = Marking::MarkBitFrom(map);
-    if (map->IsFreeSpace()) continue;
+       obj != NULL;
+       obj = map_iterator.Next()) {
+    Map* map = Map::cast(obj);
 
-    ASSERT(map->IsMap());
     if (!map->CanTransition()) continue;
 
-    if (map_mark.Get() &&
-        map->attached_to_shared_function_info()) {
+    MarkBit map_mark = Marking::MarkBitFrom(map);
+    if (map_mark.Get() && map->attached_to_shared_function_info()) {
       // This map is used for inobject slack tracking and has been detached
       // from SharedFunctionInfo during the mark phase.
       // Since it survived the GC, reattach it now.
@@ -2455,9 +2427,20 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     ClearNonLiveMapTransitions(map, map_mark);
 
     if (map_mark.Get()) {
-      ClearNonLiveDependentCode(map);
+      ClearNonLiveDependentCode(map->dependent_code());
     } else {
       ClearAndDeoptimizeDependentCode(map);
+    }
+  }
+
+  // Iterate over property cell space, removing dependent code that is not
+  // otherwise kept alive by strong references.
+  HeapObjectIterator cell_iterator(heap_->property_cell_space());
+  for (HeapObject* cell = cell_iterator.Next();
+       cell != NULL;
+       cell = cell_iterator.Next()) {
+    if (IsMarked(cell)) {
+      ClearNonLiveDependentCode(PropertyCell::cast(cell)->dependent_code());
     }
   }
 }
@@ -2545,9 +2528,8 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
 }
 
 
-void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
+void MarkCompactCollector::ClearNonLiveDependentCode(DependentCode* entries) {
   DisallowHeapAllocation no_allocation;
-  DependentCode* entries = map->dependent_code();
   DependentCode::GroupStartIndexes starts(entries);
   int number_of_entries = starts.number_of_entries();
   if (number_of_entries == 0) return;
@@ -3291,10 +3273,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   bool code_slots_filtering_required;
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     code_slots_filtering_required = MarkInvalidatedCode();
-
     EvacuateNewSpace();
   }
-
 
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_EVACUATE_PAGES);
     EvacuatePages();
@@ -3418,9 +3398,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
        cell != NULL;
        cell = cell_iterator.Next()) {
     if (cell->IsCell()) {
-      Address value_address = reinterpret_cast<Address>(cell) +
-          (Cell::kValueOffset - kHeapObjectTag);
-      updating_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
+      Cell::BodyDescriptor::IterateBody(cell, &updating_visitor);
     }
   }
 
@@ -3430,14 +3408,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
        cell != NULL;
        cell = js_global_property_cell_iterator.Next()) {
     if (cell->IsPropertyCell()) {
-      Address value_address =
-          reinterpret_cast<Address>(cell) +
-          (PropertyCell::kValueOffset - kHeapObjectTag);
-      updating_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
-      Address type_address =
-          reinterpret_cast<Address>(cell) +
-          (PropertyCell::kTypeOffset - kHeapObjectTag);
-      updating_visitor.VisitPointer(reinterpret_cast<Object**>(type_address));
+      PropertyCell::BodyDescriptor::IterateBody(cell, &updating_visitor);
     }
   }
 

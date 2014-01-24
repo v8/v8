@@ -97,6 +97,7 @@ class BreakLocationIterator {
   void ClearBreakPoint(Handle<Object> break_point_object);
   void SetOneShot();
   void ClearOneShot();
+  bool IsStepInLocation(Isolate* isolate);
   void PrepareStepIn(Isolate* isolate);
   bool IsExit() const;
   bool HasBreakPoint();

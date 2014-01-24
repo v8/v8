@@ -209,23 +209,21 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     MaybeObject* maybe_array = array->Initialize(0);
     if (maybe_array->IsFailure()) return maybe_array;
 
-    if (FLAG_optimize_constructed_arrays) {
-      AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
-      ElementsKind to_kind = array->GetElementsKind();
-      if (info != NULL && info->GetElementsKindPayload(&to_kind)) {
-        if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
-                                                to_kind)) {
-          // We have advice that we should change the elements kind
-          if (FLAG_trace_track_allocation_sites) {
-            PrintF("AllocationSiteInfo: pre-transitioning array %p(%s->%s)\n",
-                   reinterpret_cast<void*>(array),
-                   ElementsKindToString(array->GetElementsKind()),
-                   ElementsKindToString(to_kind));
-          }
-
-          maybe_array = array->TransitionElementsKind(to_kind);
-          if (maybe_array->IsFailure()) return maybe_array;
+    AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
+    ElementsKind to_kind = array->GetElementsKind();
+    if (info != NULL && info->GetElementsKindPayload(&to_kind)) {
+      if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
+                                              to_kind)) {
+        // We have advice that we should change the elements kind
+        if (FLAG_trace_track_allocation_sites) {
+          PrintF("AllocationSiteInfo: pre-transitioning array %p(%s->%s)\n",
+                 reinterpret_cast<void*>(array),
+                 ElementsKindToString(array->GetElementsKind()),
+                 ElementsKindToString(to_kind));
         }
+
+        maybe_array = array->TransitionElementsKind(to_kind);
+        if (maybe_array->IsFailure()) return maybe_array;
       }
     }
 
@@ -1267,14 +1265,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
                                      args.length() - 1,
                                      is_construct);
 
-    v8::Handle<v8::Value> value;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(callback_obj));
-      value = custom.Call(callback);
-    }
+    v8::Handle<v8::Value> value = custom.Call(callback);
     if (value.IsEmpty()) {
       result = heap->undefined_value();
     } else {
@@ -1343,14 +1334,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
                                      &args[0] - 1,
                                      args.length() - 1,
                                      is_construct_call);
-    v8::Handle<v8::Value> value;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(callback_obj));
-      value = custom.Call(callback);
-    }
+    v8::Handle<v8::Value> value = custom.Call(callback);
     if (value.IsEmpty()) {
       result = heap->undefined_value();
     } else {

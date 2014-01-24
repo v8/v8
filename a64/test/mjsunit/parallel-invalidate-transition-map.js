@@ -28,6 +28,11 @@
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
 // Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
+if (!%IsParallelRecompilationSupported()) {
+  print("Parallel recompilation is disabled. Skipping this test.");
+  quit();
+}
+
 function assertUnoptimized(fun) {
   assertTrue(%GetOptimizationStatus(fun) != 1);
 }

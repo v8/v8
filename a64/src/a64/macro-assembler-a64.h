@@ -892,6 +892,8 @@ class MacroAssembler : public Assembler {
       Register scratch2,
       Label* failure);
 
+  void JumpIfNotUniqueName(Register type, Label* not_unique_name);
+
   // ---- Calling / Jumping helpers ----
 
   // This is required for compatibility in architecture indepenedant code.

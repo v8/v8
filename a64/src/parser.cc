@@ -566,7 +566,6 @@ Parser::Parser(CompilationInfo* info)
 
 
 FunctionLiteral* Parser::ParseProgram() {
-  ZoneScope zone_scope(zone(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -583,11 +582,11 @@ FunctionLiteral* Parser::ParseProgram() {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), source, &zone_scope);
+    result = DoParseProgram(info(), source);
   } else {
     GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), source, &zone_scope);
+    result = DoParseProgram(info(), source);
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -608,8 +607,7 @@ FunctionLiteral* Parser::ParseProgram() {
 
 
 FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
-                                        Handle<String> source,
-                                        ZoneScope* zone_scope) {
+                                        Handle<String> source) {
   ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
   if (pre_parse_data_ != NULL) pre_parse_data_->Initialize();
@@ -690,15 +688,11 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   // Make sure the target stack is empty.
   ASSERT(target_stack_ == NULL);
 
-  // If there was a syntax error we have to get rid of the AST
-  // and it is not safe to do so before the scope has been deleted.
-  if (result == NULL) zone_scope->DeleteOnExit();
   return result;
 }
 
 
 FunctionLiteral* Parser::ParseLazy() {
-  ZoneScope zone_scope(zone(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -713,12 +707,12 @@ FunctionLiteral* Parser::ParseLazy() {
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
-    result = ParseLazy(&stream, &zone_scope);
+    result = ParseLazy(&stream);
   } else {
     GenericStringUtf16CharacterStream stream(source,
                                              shared_info->start_position(),
                                              shared_info->end_position());
-    result = ParseLazy(&stream, &zone_scope);
+    result = ParseLazy(&stream);
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -730,8 +724,7 @@ FunctionLiteral* Parser::ParseLazy() {
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
-                                   ZoneScope* zone_scope) {
+FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
   scanner_.Initialize(source);
   ASSERT(top_scope_ == NULL);
@@ -779,10 +772,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
   // Make sure the target stack is empty.
   ASSERT(target_stack_ == NULL);
 
-  // If there was a stack overflow we have to get rid of AST and it is
-  // not safe to do before scope has been deleted.
   if (result == NULL) {
-    zone_scope->DeleteOnExit();
     if (stack_overflow_) isolate()->StackOverflow();
   } else {
     Handle<String> inferred_name(shared_info->inferred_name());
@@ -889,8 +879,8 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       // Still processing directive prologue?
       if ((e_stat = stat->AsExpressionStatement()) != NULL &&
           (literal = e_stat->expression()->AsLiteral()) != NULL &&
-          literal->handle()->IsString()) {
-        Handle<String> directive = Handle<String>::cast(literal->handle());
+          literal->value()->IsString()) {
+        Handle<String> directive = Handle<String>::cast(literal->value());
 
         // Check "use strict" directive (ES5 14.1).
         if (top_scope_->is_classic_mode() &&
@@ -3067,10 +3057,10 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
       Expression* y = ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
 
       // Compute some expressions involving only number literals.
-      if (x && x->AsLiteral() && x->AsLiteral()->handle()->IsNumber() &&
-          y && y->AsLiteral() && y->AsLiteral()->handle()->IsNumber()) {
-        double x_val = x->AsLiteral()->handle()->Number();
-        double y_val = y->AsLiteral()->handle()->Number();
+      if (x && x->AsLiteral() && x->AsLiteral()->value()->IsNumber() &&
+          y && y->AsLiteral() && y->AsLiteral()->value()->IsNumber()) {
+        double x_val = x->AsLiteral()->value()->Number();
+        double y_val = y->AsLiteral()->value()->Number();
 
         switch (op) {
           case Token::ADD:
@@ -3169,7 +3159,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     Expression* expression = ParseUnaryExpression(CHECK_OK);
 
     if (expression != NULL && (expression->AsLiteral() != NULL)) {
-      Handle<Object> literal = expression->AsLiteral()->handle();
+      Handle<Object> literal = expression->AsLiteral()->value();
       if (op == Token::NOT) {
         // Convert the literal to a boolean condition and negate it.
         bool condition = literal->BooleanValue();
@@ -3734,18 +3724,6 @@ bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
 }
 
 
-bool CompileTimeValue::ArrayLiteralElementNeedsInitialization(
-    Expression* value) {
-  // If value is a literal the property value is already set in the
-  // boilerplate object.
-  if (value->AsLiteral() != NULL) return false;
-  // If value is a materialized literal the property value is already set
-  // in the boilerplate object if it is simple.
-  if (CompileTimeValue::IsCompileTimeValue(value)) return false;
-  return true;
-}
-
-
 Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
   Factory* factory = Isolate::Current()->factory();
   ASSERT(IsCompileTimeValue(expression));
@@ -3783,7 +3761,7 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 
 Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   if (expression->AsLiteral() != NULL) {
-    return expression->AsLiteral()->handle();
+    return expression->AsLiteral()->value();
   }
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
     return CompileTimeValue::GetValue(expression);
@@ -3896,7 +3874,7 @@ void Parser::BuildObjectLiteralConstantProperties(
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->handle();
+    Handle<Object> key = property->key()->value();
     Handle<Object> value = GetBoilerplateValue(property->value());
 
     // Ensure objects that may, at any point in time, contain fields with double

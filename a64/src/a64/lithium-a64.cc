@@ -554,7 +554,7 @@ LOperand* LChunkBuilder::FixedTemp(DoubleRegister reg) {
 LPlatformChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
   chunk_ = new(zone_) LPlatformChunk(info_, graph_);
-  HPhase phase("L_Building chunk", chunk_);
+  LPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
   for (int i = 0; i < blocks->length(); i++) {
@@ -877,6 +877,14 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
+  info()->MarkAsDeferredCalling();
+  LAllocateObject* result =
+      new(zone()) LAllocateObject(TempRegister(), TempRegister());
+  return AssignPointerMap(DefineAsRegister(result));
+}
+
+
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* function = UseFixed(instr->function(), x1);
   LOperand* receiver = UseFixed(instr->receiver(), x0);
@@ -965,25 +973,39 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
     return new(zone()) LGoto(successor->block_id());
   }
 
-  Representation rep = value->representation();
+  Representation r = value->representation();
   HType type = value->type();
 
-  if (rep.IsTagged() && !type.IsSmi() && !type.IsBoolean()) {
-    ToBooleanStub::Types expected = instr->expected_input_types();
-    LOperand* temp1 = NULL;
-    LOperand* temp2 = NULL;
-
-    if (expected.NeedsMap() || expected.IsEmpty()) {
-      temp1 = TempRegister();
-      temp2 = TempRegister();
+  if (r.IsInteger32() || r.IsSmi() || r.IsDouble()) {
+    // These representations have simple checks that cannot deoptimize.
+    return new(zone()) LBranch(UseRegister(value), NULL, NULL);
+  } else {
+    ASSERT(r.IsTagged());
+    if (type.IsBoolean() || type.IsSmi() || type.IsJSArray() ||
+        type.IsHeapNumber()) {
+      // These types have simple checks that cannot deoptimize.
+      return new(zone()) LBranch(UseRegister(value), NULL, NULL);
     }
 
-    // Tagged values that are not known smis or booleans require a
-    // deoptimization environment.
-    return AssignEnvironment(
-        new(zone()) LBranch(UseRegister(value), temp1, temp2));
-  } else {
-    return new(zone()) LBranch(UseRegister(value), NULL, NULL);
+    if (type.IsString()) {
+      // This type cannot deoptimize, but needs a scratch register.
+      return new(zone()) LBranch(UseRegister(value), TempRegister(), NULL);
+    }
+
+    ToBooleanStub::Types expected = instr->expected_input_types();
+    bool needs_temps = expected.NeedsMap() || expected.IsEmpty();
+    LOperand* temp1 = needs_temps ? TempRegister() : NULL;
+    LOperand* temp2 = needs_temps ? TempRegister() : NULL;
+
+    if (expected.IsGeneric() || expected.IsEmpty()) {
+      // The generic case cannot deoptimize because it already supports every
+      // possible input type.
+      ASSERT(needs_temps);
+      return new(zone()) LBranch(UseRegister(value), temp1, temp2);
+    } else {
+      return AssignEnvironment(
+          new(zone()) LBranch(UseRegister(value), temp1, temp2));
+    }
   }
 }
 
@@ -1192,9 +1214,7 @@ LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
-  // TODO(all): On newer v8 versions, this hydrogen instruction has been renamed
-  // into HCheckHeapObject but still translate into LCheckNonSmi.
+LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckNonSmi(value));
 }

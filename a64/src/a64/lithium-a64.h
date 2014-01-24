@@ -50,6 +50,7 @@ class LCodeGen;
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
   V(Allocate)                                   \
+  V(AllocateObject)                             \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
   V(ArgumentsLength)                            \
@@ -352,8 +353,8 @@ class LControlInstruction: public LTemplateInstruction<0, I, T> {
   }
 
  protected:
-  int true_block_id() { return hydrogen()->SuccessorAt(0)->block_id(); }
-  int false_block_id() { return hydrogen()->SuccessorAt(1)->block_id(); }
+  int true_block_id() { return SuccessorAt(0)->block_id(); }
+  int false_block_id() { return SuccessorAt(1)->block_id(); }
 
  private:
   DECLARE_HYDROGEN_ACCESSOR(ControlInstruction);
@@ -516,30 +517,10 @@ class LLabel: public LGap {
 
 class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
  public:
-  LOsrEntry();
+  LOsrEntry() {}
 
   virtual bool HasInterestingComment(LCodeGen* gen) const { return false; }
   DECLARE_CONCRETE_INSTRUCTION(OsrEntry, "osr-entry")
-
-  LOperand** SpilledRegisterArray() { return register_spills_; }
-  LOperand** SpilledDoubleRegisterArray() { return double_register_spills_; }
-
-  void MarkSpilledRegister(int allocation_index, LOperand* spill_operand) {
-    UNIMPLEMENTED();
-  }
-  void MarkSpilledDoubleRegister(int allocation_index,
-                                 LOperand* spill_operand) {
-    UNIMPLEMENTED();
-  }
-
- private:
-  // Arrays of spill slot operands for registers with an assigned spill
-  // slot, i.e., that must also be restored to the spill slot on OSR entry.
-  // NULL if the register has no assigned spill slot.  Indexed by allocation
-  // index.
-  LOperand* register_spills_[Register::kMaxNumAllocatableRegisters];
-  LOperand*
-      double_register_spills_[DoubleRegister::kMaxNumAllocatableRegisters];
 };
 
 
@@ -613,10 +594,21 @@ class LAllocate: public LTemplateInstruction<1, 1, 2> {
 };
 
 
-class LRegExpLiteral: public LTemplateInstruction<1, 0, 0> {
+class LAllocateObject: public LTemplateInstruction<1, 0, 2> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral, "regexp-literal")
-  DECLARE_HYDROGEN_ACCESSOR(RegExpLiteral)
+  // TODO(jbramley): On ia32, this takes a context, and it is used by the
+  // deferred code. On ARM, an LOperand is allocated for another input, but it
+  // is never used, and the deferred code doesn't need the context. Why?
+  LAllocateObject(LOperand* temp1, LOperand* temp2) {
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
+  DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
 };
 
 
@@ -959,6 +951,7 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckNonSmi, "check-non-smi")
+  DECLARE_HYDROGEN_ACCESSOR(CheckHeapObject)
 };
 
 
@@ -2054,6 +2047,13 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument, "push-argument")
+};
+
+
+class LRegExpLiteral: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral, "regexp-literal")
+  DECLARE_HYDROGEN_ACCESSOR(RegExpLiteral)
 };
 
 

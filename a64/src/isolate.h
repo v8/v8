@@ -370,8 +370,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
-  /* SafeStackFrameIterator activations count. */                              \
-  V(int, safe_stack_iterator_counter, 0)                                       \
   V(bool, observer_delivery_pending, false)                                    \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
@@ -899,7 +897,6 @@ class Isolate {
     ASSERT(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
-  Zone* runtime_zone() { return &runtime_zone_; }
 
   UnicodeCache* unicode_cache() {
     return unicode_cache_;
@@ -1113,13 +1110,13 @@ class Isolate {
     callback_table_ = callback_table;
   }
 
+  int id() const { return static_cast<int>(id_); }
+
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
 
  private:
   Isolate();
-
-  int id() const { return static_cast<int>(id_); }
 
   friend struct GlobalState;
   friend struct InitializeGlobalState;
@@ -1268,7 +1265,6 @@ class Isolate {
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
-  Zone runtime_zone_;
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
   bool preallocated_storage_preallocated_;

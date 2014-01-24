@@ -462,12 +462,15 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractSharedFunctionInfoReferences(int entry,
                                            SharedFunctionInfo* shared);
   void ExtractScriptReferences(int entry, Script* script);
+  void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
+  bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,
+                                   Object* key, Object* callback_obj);
   void ExtractElementReferences(JSObject* js_obj, int entry);
   void ExtractInternalReferences(JSObject* js_obj, int entry);
   bool IsEssentialObject(Object* object);

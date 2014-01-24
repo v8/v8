@@ -884,6 +884,15 @@ class MacroAssembler: public Assembler {
                                            Register scratch2,
                                            Label* on_not_flat_ascii_strings);
 
+  // Checks if the given register or operand is a unique name
+  void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
+                           Label::Distance distance = Label::kFar) {
+    JumpIfNotUniqueName(Operand(reg), not_unique_name, distance);
+  }
+
+  void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
+                           Label::Distance distance = Label::kFar);
+
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }

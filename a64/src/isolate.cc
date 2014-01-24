@@ -1742,7 +1742,6 @@ Isolate::Isolate()
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
-      runtime_zone_(this),
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
@@ -1940,9 +1939,6 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
-  // Has to be called while counters_ are still alive.
-  runtime_zone_.DeleteKeptSegment();
-
   delete[] assembler_spare_buffer_;
   assembler_spare_buffer_ = NULL;
 
@@ -2104,7 +2100,7 @@ bool Isolate::Init(Deserializer* des) {
   isolate_addresses_[Isolate::k##CamelName##Address] =          \
       reinterpret_cast<Address>(hacker_name##_address());
   FOR_EACH_ISOLATE_ADDRESS_NAME(ASSIGN_ELEMENT)
-#undef C
+#undef ASSIGN_ELEMENT
 
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
@@ -2119,7 +2115,7 @@ bool Isolate::Init(Deserializer* des) {
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper(this);
   handle_scope_implementer_ = new HandleScopeImplementer(this);
-  stub_cache_ = new StubCache(this, runtime_zone());
+  stub_cache_ = new StubCache(this);
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
@@ -2222,8 +2218,6 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCompiledFunctions());
   }
 
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, state_)),
-           Internals::kIsolateStateOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),

@@ -244,6 +244,7 @@ class TypeFeedbackOracle: public ZoneObject {
   bool LoadIsMonomorphicNormal(Property* expr);
   bool LoadIsUninitialized(Property* expr);
   bool LoadIsPolymorphic(Property* expr);
+  bool StoreIsUninitialized(TypeFeedbackId ast_id);
   bool StoreIsMonomorphicNormal(TypeFeedbackId ast_id);
   bool StoreIsPolymorphic(TypeFeedbackId ast_id);
   bool CallIsMonomorphic(Call* expr);
@@ -299,14 +300,12 @@ class TypeFeedbackOracle: public ZoneObject {
                   Handle<Type>* left,
                   Handle<Type>* right,
                   Handle<Type>* result,
-                  bool* has_fixed_right_arg,
-                  int* fixed_right_arg_value);
+                  Maybe<int>* fixed_right_arg);
 
-  void CompareTypes(TypeFeedbackId id,
-                    Handle<Type>* left_type,
-                    Handle<Type>* right_type,
-                    Handle<Type>* overall_type,
-                    Handle<Type>* compare_nil_type);
+  void CompareType(TypeFeedbackId id,
+                   Handle<Type>* left,
+                   Handle<Type>* right,
+                   Handle<Type>* combined);
 
   Handle<Type> ClauseType(TypeFeedbackId id);
 

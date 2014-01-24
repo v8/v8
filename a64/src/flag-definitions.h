@@ -195,9 +195,6 @@ DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenuring, true, "allocate objects in old space")
-// TODO(hpayer): We will remove this flag as soon as we have pretenuring
-// support for specific allocation sites.
-DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
@@ -267,8 +264,6 @@ DEFINE_bool(unreachable_code_elimination, false,
             "eliminate unreachable code (hidden behind soft deopts)")
 DEFINE_bool(track_allocation_sites, true,
             "Use allocation site info to reduce transitions")
-DEFINE_bool(optimize_constructed_arrays, true,
-            "Use allocation site info on constructed arrays")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
@@ -399,6 +394,7 @@ DEFINE_bool(trace_opt, false, "trace lazy optimization")
 DEFINE_bool(trace_opt_stats, false, "trace lazy optimization statistics")
 DEFINE_bool(opt, true, "use adaptive optimizations")
 DEFINE_bool(always_opt, false, "always try to optimize functions")
+DEFINE_bool(always_osr, false, "always try to OSR functions")
 DEFINE_bool(prepare_always_opt, false, "prepare for turning on always opt")
 DEFINE_bool(trace_deopt, false, "trace optimize function deoptimization")
 DEFINE_bool(trace_stub_failures, false,
@@ -480,7 +476,7 @@ DEFINE_bool(flush_code_incrementally, true,
 DEFINE_bool(trace_code_flushing, false, "trace code flushing progress")
 DEFINE_bool(age_code, true,
             "track un-executed functions to age code and flush only "
-            "old code")
+            "old code (required for code flushing)")
 DEFINE_bool(incremental_marking, true, "use incremental marking")
 DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_bool(trace_incremental_marking, false,

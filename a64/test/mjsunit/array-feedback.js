@@ -37,18 +37,11 @@
 
 // support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 support_smi_only_arrays = true;
-optimize_constructed_arrays = true;
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");
 } else {
   print("Tests do NOT include smi-only arrays.");
-}
-
-if (optimize_constructed_arrays) {
-  print("Tests include constructed array optimizations.");
-} else {
-  print("Tests do NOT include constructed array optimizations.");
 }
 
 var elements_kind = {
@@ -87,7 +80,7 @@ function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
 
-if (support_smi_only_arrays && optimize_constructed_arrays) {
+if (support_smi_only_arrays) {
 
   // Verify that basic elements kind feedback works for non-constructor
   // array calls (as long as the call is made through an IC, and not

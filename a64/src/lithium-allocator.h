@@ -474,7 +474,6 @@ class LAllocator BASE_EMBEDDED {
   void ConnectRanges();
   void ResolveControlFlow();
   void PopulatePointerMaps();
-  void ProcessOsrEntry();
   void AllocateRegisters();
   bool CanEagerlyResolveControlFlow(HBasicBlock* block) const;
   inline bool SafePointsAreInOrder() const;
@@ -643,6 +642,20 @@ class LAllocator BASE_EMBEDDED {
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(LAllocator);
+};
+
+
+class LAllocatorPhase : public CompilationPhase {
+ public:
+  LAllocatorPhase(const char* name, LAllocator* allocator)
+      : CompilationPhase(name, allocator->graph()->info()),
+        allocator_(allocator) { }
+  ~LAllocatorPhase();
+
+ private:
+  LAllocator* allocator_;
+
+  DISALLOW_COPY_AND_ASSIGN(LAllocatorPhase);
 };
 
 

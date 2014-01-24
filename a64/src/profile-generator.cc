@@ -183,7 +183,9 @@ size_t StringsStorage::GetUsedMemorySize() const {
   return size;
 }
 
+
 const char* const CodeEntry::kEmptyNamePrefix = "";
+const char* const CodeEntry::kEmptyResourceName = "";
 
 
 CodeEntry::~CodeEntry() {
@@ -296,12 +298,7 @@ class DeleteNodesCallback {
 
 
 ProfileTree::ProfileTree()
-    : root_entry_(Logger::FUNCTION_TAG,
-                  "",
-                  "(root)",
-                  "",
-                  0,
-                  TokenEnumerator::kNoSecurityToken),
+    : root_entry_(Logger::FUNCTION_TAG, "", "(root)"),
       next_node_id_(1),
       root_(new ProfileNode(this, &root_entry_)) {
 }
@@ -797,9 +794,9 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
   CodeEntry* entry = new CodeEntry(tag,
                                    CodeEntry::kEmptyNamePrefix,
                                    GetFunctionName(name),
+                                   TokenEnumerator::kNoSecurityToken,
                                    GetName(resource_name),
-                                   line_number,
-                                   TokenEnumerator::kNoSecurityToken);
+                                   line_number);
   code_entries_.Add(entry);
   return entry;
 }
@@ -809,10 +806,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                const char* name) {
   CodeEntry* entry = new CodeEntry(tag,
                                    CodeEntry::kEmptyNamePrefix,
-                                   GetFunctionName(name),
-                                   "",
-                                   v8::CpuProfileNode::kNoLineNumberInfo,
-                                   TokenEnumerator::kNoSecurityToken);
+                                   GetFunctionName(name));
   code_entries_.Add(entry);
   return entry;
 }
@@ -824,8 +818,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
   CodeEntry* entry = new CodeEntry(tag,
                                    name_prefix,
                                    GetName(name),
-                                   "",
-                                   v8::CpuProfileNode::kNoLineNumberInfo,
                                    TokenEnumerator::kInheritsSecurityToken);
   code_entries_.Add(entry);
   return entry;
@@ -837,8 +829,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
   CodeEntry* entry = new CodeEntry(tag,
                                    "args_count: ",
                                    GetName(args_count),
-                                   "",
-                                   v8::CpuProfileNode::kNoLineNumberInfo,
                                    TokenEnumerator::kInheritsSecurityToken);
   code_entries_.Add(entry);
   return entry;
@@ -910,7 +900,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     Address start;
     CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
     // If pc is in the function code before it set up stack frame or after the
-    // frame was destroyed SafeStackTraceFrameIterator incorrectly thinks that
+    // frame was destroyed SafeStackFrameIterator incorrectly thinks that
     // ebp contains return address of the current function and skips caller's
     // frame. Check for this case and just skip such samples.
     if (pc_entry) {

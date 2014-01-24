@@ -130,6 +130,7 @@ void HValue::UpdateRepresentation(Representation new_rep,
                                   const char* reason) {
   Representation r = representation();
   if (new_rep.is_more_general_than(r)) {
+    if (CheckFlag(kCannotBeTagged) && new_rep.IsTagged()) return;
     if (FLAG_trace_representation) {
       PrintF("Changing #%d %s representation %s -> %s based on %s\n",
              id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
@@ -1157,8 +1158,12 @@ void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   HValue* actual_length = length()->ActualValue();
   Representation index_rep = actual_index->representation();
   Representation length_rep = actual_length->representation();
-  if (index_rep.IsTagged()) index_rep = Representation::Smi();
-  if (length_rep.IsTagged()) length_rep = Representation::Smi();
+  if (index_rep.IsTagged() && actual_index->type().IsSmi()) {
+    index_rep = Representation::Smi();
+  }
+  if (length_rep.IsTagged() && actual_length->type().IsSmi()) {
+    length_rep = Representation::Smi();
+  }
   Representation r = index_rep.generalize(length_rep);
   if (r.is_more_general_than(Representation::Integer32())) {
     r = Representation::Integer32();
@@ -1278,20 +1283,26 @@ void HReturn::PrintDataTo(StringStream* stream) {
 
 Representation HBranch::observed_input_representation(int index) {
   static const ToBooleanStub::Types tagged_types(
-      ToBooleanStub::UNDEFINED |
       ToBooleanStub::NULL_TYPE |
       ToBooleanStub::SPEC_OBJECT |
       ToBooleanStub::STRING |
       ToBooleanStub::SYMBOL);
   if (expected_input_types_.ContainsAnyOf(tagged_types)) {
     return Representation::Tagged();
-  } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
-    return Representation::Double();
-  } else if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
-    return Representation::Smi();
-  } else {
-    return Representation::None();
   }
+  if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {
+    if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+      return Representation::Double();
+    }
+    return Representation::Tagged();
+  }
+  if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+    return Representation::Double();
+  }
+  if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
+    return Representation::Smi();
+  }
+  return Representation::None();
 }
 
 
@@ -1760,9 +1771,12 @@ Range* HConstant::InferRange(Zone* zone) {
 
 
 Range* HPhi::InferRange(Zone* zone) {
-  if (representation().IsInteger32()) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32()) {
     if (block()->IsLoopHeader()) {
-      Range* range = new(zone) Range(kMinInt, kMaxInt);
+      Range* range = r.IsSmi()
+          ? new(zone) Range(Smi::kMinValue, Smi::kMaxValue)
+          : new(zone) Range(kMinInt, kMaxInt);
       return range;
     } else {
       Range* range = OperandAt(0)->range()->Copy(zone);
@@ -3057,9 +3071,8 @@ HType HCheckFunction::CalculateInferredType() {
 }
 
 
-HType HCheckNonSmi::CalculateInferredType() {
-  // TODO(kasperl): Is there any way to signal that this isn't a smi?
-  return HType::Tagged();
+HType HCheckHeapObject::CalculateInferredType() {
+  return HType::NonPrimitive();
 }
 
 
@@ -3146,6 +3159,11 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 
 HType HStringCharFromCode::CalculateInferredType() {
   return HType::String();
+}
+
+
+HType HAllocateObject::CalculateInferredType() {
+  return HType::JSObject();
 }
 
 
@@ -3329,10 +3347,9 @@ HInstruction* HStringAdd::New(
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
     if (c_left->HasStringValue() && c_right->HasStringValue()) {
-      Factory* factory = Isolate::Current()->factory();
-      return new(zone) HConstant(factory->NewConsString(c_left->StringValue(),
-                                                        c_right->StringValue()),
-                                 Representation::Tagged());
+      Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
+          c_left->StringValue(), c_right->StringValue());
+      return new(zone) HConstant(concat, Representation::Tagged());
     }
   }
   return new(zone) HStringAdd(context, left, right);
@@ -3489,8 +3506,7 @@ HInstruction* HMod::New(Zone* zone,
                         HValue* context,
                         HValue* left,
                         HValue* right,
-                        bool has_fixed_right_arg,
-                        int fixed_right_arg_value) {
+                        Maybe<int> fixed_right_arg) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -3509,11 +3525,7 @@ HInstruction* HMod::New(Zone* zone,
       }
     }
   }
-  return new(zone) HMod(context,
-                        left,
-                        right,
-                        has_fixed_right_arg,
-                        fixed_right_arg_value);
+  return new(zone) HMod(context, left, right, fixed_right_arg);
 }
 
 
@@ -3729,7 +3741,7 @@ void HSimulate::Verify() {
 }
 
 
-void HCheckNonSmi::Verify() {
+void HCheckHeapObject::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

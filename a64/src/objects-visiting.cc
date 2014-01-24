@@ -143,6 +143,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_TYPED_ARRAY_TYPE:
       return kVisitJSTypedArray;
 
+    case JS_DATA_VIEW_TYPE:
+      return kVisitJSDataView;
+
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:

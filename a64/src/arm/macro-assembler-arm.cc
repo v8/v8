@@ -3089,6 +3089,16 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
 }
 
 
+void MacroAssembler::JumpIfNotUniqueName(Register reg,
+                                         Label* not_unique_name) {
+  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
+  cmp(reg, Operand(kInternalizedTag));
+  b(lt, not_unique_name);
+  cmp(reg, Operand(SYMBOL_TYPE));
+  b(gt, not_unique_name);
+}
+
+
 // Allocates a heap number or jumps to the need_gc label if the young space
 // is full and a scavenge is needed.
 void MacroAssembler::AllocateHeapNumber(Register result,

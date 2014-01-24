@@ -1687,10 +1687,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         ASSERT(!CompileTimeValue::IsCompileTimeValue(property->value()));
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
-        if (key->handle()->IsInternalizedString()) {
+        if (key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(value);
-            __ Mov(x2, Operand(key->handle()));
+            __ Mov(x2, Operand(key->value()));
             __ Peek(x1, 0);
             Handle<Code> ic = is_classic_mode()
                 ? isolate()->builtins()->StoreIC_Initialize()
@@ -1826,10 +1826,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     Expression* subexpr = subexprs->at(i);
     // If the subexpression is a literal or a simple materialized literal it
     // is already set in the cloned array.
-    if (subexpr->AsLiteral() != NULL ||
-        CompileTimeValue::IsCompileTimeValue(subexpr)) {
-      continue;
-    }
+    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     if (!result_saved) {
       __ Push(x0);
@@ -1981,7 +1978,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
-  __ Mov(x2, Operand(key->handle()));
+  __ Mov(x2, Operand(key->value()));
   // Call load IC. It has arguments receiver and property name x0 and x2.
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   CallIC(ic, RelocInfo::CODE_TARGET, prop->PropertyFeedbackId());
@@ -2145,7 +2142,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       // this copy.
       __ Mov(x1, x0);
       __ Pop(x0);  // Restore value.
-      __ Mov(x2, Operand(prop->key()->AsLiteral()->handle()));
+      __ Mov(x2, Operand(prop->key()->AsLiteral()->value()));
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()
           : isolate()->builtins()->StoreIC_Initialize_Strict();
@@ -2275,7 +2272,7 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  __ Mov(x2, Operand(prop->key()->AsLiteral()->handle()));
+  __ Mov(x2, Operand(prop->key()->AsLiteral()->value()));
   __ Pop(x1);
 
   Handle<Code> ic = is_classic_mode()
@@ -2562,7 +2559,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     if (property->key()->IsPropertyName()) {
       EmitCallWithIC(expr,
-                     property->key()->AsLiteral()->handle(),
+                     property->key()->AsLiteral()->value(),
                      RelocInfo::CODE_TARGET);
     } else {
       EmitKeyedCallWithIC(expr, property->key());
@@ -3174,7 +3171,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   ASSERT_NE(NULL, args->at(1)->AsLiteral());
-  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->handle()));
+  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->value()));
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
@@ -3597,7 +3594,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
   ASSERT_NE(NULL, args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->value()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
       isolate()->native_context()->jsfunction_result_caches());
@@ -4257,7 +4254,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     case NAMED_PROPERTY: {
-      __ Mov(x2, Operand(prop->key()->AsLiteral()->handle()));
+      __ Mov(x2, Operand(prop->key()->AsLiteral()->value()));
       __ Pop(x1);
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()
@@ -4532,6 +4529,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // this. It stays on the stack while we update the iterator.
   VisitForStackValue(expr->expression());
 
+  // TODO(jbramley): Tidy this up once the merge is done, using named registers
+  // and suchlike. The implementation changes a little by bleeding_edge so I
+  // don't want to spend too much time on it now.
+
   switch (expr->yield_kind()) {
     case Yield::SUSPEND:
       // Pop value from top-of-stack slot; box result into result register.
@@ -4539,14 +4540,32 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ Push(result_register());
       // Fall through.
     case Yield::INITIAL: {
-      VisitForStackValue(expr->generator_object());
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-      __ Ldr(context_register(),
-             MemOperand(fp, StandardFrameConstants::kContextOffset));
+      Label suspend, continuation, post_runtime, resume;
 
-      Label resume;
-      __ JumpIfNotRoot(result_register(), Heap::kTheHoleValueRootIndex,
-                       &resume);
+      __ B(&suspend);
+
+      // TODO(jbramley): This label is bound here because the following code
+      // looks at its pos(). Is it possible to do something more efficient here,
+      // perhaps using Adr?
+      __ Bind(&continuation);
+      __ B(&resume);
+
+      __ Bind(&suspend);
+      VisitForAccumulatorValue(expr->generator_object());
+      ASSERT((continuation.pos() > 0) && Smi::IsValid(continuation.pos()));
+      __ Mov(x1, Operand(Smi::FromInt(continuation.pos())));
+      __ Str(x1, FieldMemOperand(x0, JSGeneratorObject::kContinuationOffset));
+      __ Str(cp, FieldMemOperand(x0, JSGeneratorObject::kContextOffset));
+      __ Mov(x1, cp);
+      __ RecordWriteField(x0, JSGeneratorObject::kContextOffset, x1, x2,
+                          kLRHasBeenSaved, kDontSaveFPRegs);
+      __ Add(x1, fp, StandardFrameConstants::kExpressionsOffset);
+      __ Cmp(__ StackPointer(), x1);
+      __ B(eq, &post_runtime);
+      __ Push(x0);  // generator object
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ Bind(&post_runtime);
       __ Pop(result_register());
       EmitReturnSequence();
 
@@ -4574,11 +4593,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // [sp + 1 * kPointerSize] iter
       // [sp + 0 * kPointerSize] g
 
-      // TODO(jbramley): Tidy this up once the merge is done, using named
-      // registers and suchlike. The implementation changes a little by
-      // bleeding_edge so I don't want to spend too much time on it now.
-
-      Label l_catch, l_try, l_resume, l_next, l_call, l_loop;
+      Label l_catch, l_try, l_suspend, l_continuation, l_resume;
+      Label l_next, l_call, l_loop;
       // Initial send value is undefined.
       __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
       __ B(&l_next);
@@ -4600,12 +4616,27 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ PushTryHandler(StackHandler::CATCH, expr->index());
       const int handler_size = StackHandlerConstants::kSize;
       __ Push(x0);                                       // result
-      __ Peek(x3, (1 * kPointerSize) + handler_size);    // g
-      __ Push(x3);                                       // g
+      __ B(&l_suspend);
+
+      // TODO(jbramley): This label is bound here because the following code
+      // looks at its pos(). Is it possible to do something more efficient here,
+      // perhaps using Adr?
+      __ Bind(&l_continuation);
+      __ B(&l_resume);
+
+      __ Bind(&l_suspend);
+      const int generator_object_depth = kPointerSize + handler_size;
+      __ Peek(x0, generator_object_depth);
+      __ Push(x0);                                       // g
+      ASSERT((l_continuation.pos() > 0) && Smi::IsValid(l_continuation.pos()));
+      __ Mov(x1, Operand(Smi::FromInt(l_continuation.pos())));
+      __ Str(x1, FieldMemOperand(x0, JSGeneratorObject::kContinuationOffset));
+      __ Str(cp, FieldMemOperand(x0, JSGeneratorObject::kContextOffset));
+      __ Mov(x1, cp);
+      __ RecordWriteField(x0, JSGeneratorObject::kContextOffset, x1, x2,
+                          kLRHasBeenSaved, kDontSaveFPRegs);
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-      __ Ldr(context_register(),
-             MemOperand(fp, StandardFrameConstants::kContextOffset));
-      __ JumpIfNotRoot(x0, Heap::kTheHoleValueRootIndex, &l_resume);
+      __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
       __ Pop(x0);                                        // result
       EmitReturnSequence();
       __ Bind(&l_resume);                                // received in x0
@@ -4695,8 +4726,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // TODO(jbramley): Write a variant of PushMultipleTimes which takes a register
   // instead of a constant count, and use it to replace this loop.
-  // TODO(jbramley): ARM doesn't seem to untag its smis here, so it pushes twice
-  // as many holes as it needs to.
   Label push_argument_holes, push_frame;
   __ Bind(&push_argument_holes);
   __ Subs(w10, w10, 1);

@@ -914,3 +914,54 @@ TEST(NativeMethodMonomorphicIC) {
 
   cpu_profiler->DeleteAllCpuProfiles();
 }
+
+
+static const char* bound_function_test_source = "function foo(iterations) {\n"
+"  var r = 0;\n"
+"  for (var i = 0; i < iterations; i++) { r += i; }\n"
+"  return r;\n"
+"}\n"
+"function start(duration) {\n"
+"  var callback = foo.bind(this);\n"
+"  var start = Date.now();\n"
+"  while (Date.now() - start < duration) {\n"
+"    callback(10 * 1000);\n"
+"  }\n"
+"}";
+
+
+TEST(BoundFunctionCall) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Script::Compile(v8::String::New(bound_function_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t duration_ms = 100;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  ScopedVector<v8::Handle<v8::String> > names(3);
+  names[0] = v8::String::New(ProfileGenerator::kGarbageCollectorEntryName);
+  names[1] = v8::String::New(ProfileGenerator::kProgramEntryName);
+  names[2] = v8::String::New("start");
+  // Don't allow |foo| node to be at the top level.
+  CheckChildrenNames(root, names);
+
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  GetChild(startNode, "foo");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}

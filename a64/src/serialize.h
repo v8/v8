@@ -613,7 +613,7 @@ class PartialSerializer : public Serializer {
     // unique ID, and deserializing several partial snapshots containing script
     // would cause dupes.
     ASSERT(!o->IsScript());
-    return o->IsString() || o->IsSharedFunctionInfo() ||
+    return o->IsName() || o->IsSharedFunctionInfo() ||
            o->IsHeapNumber() || o->IsCode() ||
            o->IsScopeInfo() ||
            o->map() == HEAP->fixed_cow_array_map();

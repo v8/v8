@@ -66,6 +66,7 @@ class HBasicBlock: public ZoneObject {
   HInstruction* first() const { return first_; }
   HInstruction* last() const { return last_; }
   void set_last(HInstruction* instr) { last_ = instr; }
+  HInstruction* GetLastInstruction();
   HControlInstruction* end() const { return end_; }
   HLoopInformation* loop_information() const { return loop_information_; }
   const ZoneList<HBasicBlock*>* predecessors() const { return &predecessors_; }
@@ -283,7 +284,6 @@ class HGraph: public ZoneObject {
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
   void ComputeSafeUint32Operations();
-  void GlobalValueNumbering();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void Canonicalize();
@@ -426,6 +426,9 @@ class HGraph: public ZoneObject {
  private:
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          int32_t integer_value);
+
+  template<class Phase>
+  void Run() { Phase phase(this); phase.Run(); }
 
   void MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist);
   void MarkLiveInstructions();
@@ -1011,7 +1014,7 @@ class HGraphBuilder {
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
   HBasicBlock* CreateLoopHeaderBlock();
 
-  HValue* BuildCheckNonSmi(HValue* object);
+  HValue* BuildCheckHeapObject(HValue* object);
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
@@ -1623,8 +1626,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   // Visit a list of expressions from left to right, each in a value context.
   void VisitExpressions(ZoneList<Expression*>* exprs);
 
-  void AddPhi(HPhi* phi);
-
   void PushAndAdd(HInstruction* instr);
 
   // Remove the arguments from the bailout environment and emit instructions
@@ -1669,7 +1670,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
   bool TryInlineGetter(Handle<JSFunction> getter, Property* prop);
   bool TryInlineSetter(Handle<JSFunction> setter,
-                       Assignment* assignment,
+                       BailoutId id,
+                       BailoutId assignment_id,
                        HValue* implicit_return_value);
   bool TryInlineApply(Handle<JSFunction> function,
                       Call* expr,
@@ -1702,12 +1704,15 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                                 HValue* object,
                                                 SmallMapList* types,
                                                 Handle<String> name);
-  void HandlePolymorphicStoreNamedField(Assignment* expr,
+  void HandlePolymorphicStoreNamedField(BailoutId id,
+                                        int position,
+                                        BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
                                         SmallMapList* types,
                                         Handle<String> name);
-  bool TryStorePolymorphicAsMonomorphic(Assignment* expr,
+  bool TryStorePolymorphicAsMonomorphic(int position,
+                                        BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
                                         SmallMapList* types,
@@ -1783,6 +1788,14 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void AddCheckMapsWithTransitions(HValue* object,
                                    Handle<Map> map);
 
+  void BuildStoreNamed(Expression* expression,
+                       BailoutId id,
+                       int position,
+                       BailoutId assignment_id,
+                       Property* prop,
+                       HValue* object,
+                       HValue* value);
+
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
                                      HValue* value,
@@ -1817,13 +1830,16 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
                          Handle<JSObject> object,
-                         HInstruction* result,
+                         HInstruction* target,
                          int* offset,
+                         HInstruction* data_target,
+                         int* data_offset,
                          AllocationSiteMode mode);
 
   MUST_USE_RESULT HValue* BuildEmitObjectHeader(
       Handle<JSObject> boilerplat_object,
       HInstruction* target,
+      HInstruction* data_target,
       int object_offset,
       int elements_offset,
       int elements_size);
@@ -1832,14 +1848,18 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                    Handle<JSObject> original_boilerplate_object,
                                    HValue* object_properties,
                                    HInstruction* target,
-                                   int* offset);
+                                   int* offset,
+                                   HInstruction* data_target,
+                                   int* data_offset);
 
   void BuildEmitElements(Handle<FixedArrayBase> elements,
                          Handle<FixedArrayBase> original_elements,
                          ElementsKind kind,
                          HValue* object_elements,
                          HInstruction* target,
-                         int* offset);
+                         int* offset,
+                         HInstruction* data_target,
+                         int* data_offset);
 
   void BuildEmitFixedDoubleArray(Handle<FixedArrayBase> elements,
                                  ElementsKind kind,
@@ -1850,7 +1870,9 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                            ElementsKind kind,
                            HValue* object_elements,
                            HInstruction* target,
-                           int* offset);
+                           int* offset,
+                           HInstruction* data_target,
+                           int* data_offset);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
@@ -1910,6 +1932,10 @@ class HStatistics: public Malloced {
   void Print();
   void SaveTiming(const char* name, int64_t ticks, unsigned size);
 
+  void IncrementFullCodeGen(int64_t full_code_gen) {
+    full_code_gen_ += full_code_gen;
+  }
+
   void IncrementSubtotals(int64_t create_graph,
                           int64_t optimize_graph,
                           int64_t generate_code) {
@@ -1931,32 +1957,20 @@ class HStatistics: public Malloced {
 };
 
 
-class HPhase BASE_EMBEDDED {
+class HPhase : public CompilationPhase {
  public:
-  static const char* const kFullCodeGen;
-
-  HPhase(const char* name, Isolate* isolate, Zone* zone);
-  HPhase(const char* name, HGraph* graph);
-  HPhase(const char* name, LChunk* chunk);
-  HPhase(const char* name, LAllocator* allocator);
+  HPhase(const char* name, HGraph* graph)
+      : CompilationPhase(name, graph->info()),
+        graph_(graph) { }
   ~HPhase();
 
- private:
-  void Init(Isolate* isolate,
-            const char* name,
-            Zone* zone,
-            HGraph* graph,
-            LChunk* chunk,
-            LAllocator* allocator);
+ protected:
+  HGraph* graph() const { return graph_; }
 
-  Isolate* isolate_;
-  const char* name_;
-  Zone* zone_;
+ private:
   HGraph* graph_;
-  LChunk* chunk_;
-  LAllocator* allocator_;
-  int64_t start_ticks_;
-  unsigned start_allocation_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(HPhase);
 };
 
 
