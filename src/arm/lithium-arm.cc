@@ -1250,7 +1250,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-    if (instr->HasPowerOf2Divisor()) {
+    if (instr->RightIsPowerOf2()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
       LOperand* value = UseRegisterAtStart(instr->left());
       LDivI* div = new(zone()) LDivI(value, UseConstant(instr->right()), NULL);
@@ -1296,43 +1296,25 @@ bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
 }
 
 
-HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
-  if (CpuFeatures::IsSupported(SUDIV)) {
-    // A value with an integer representation does not need to be transformed.
-    if (divisor->representation().IsInteger32()) {
-      return divisor;
-    // A change from an integer32 can be replaced by the integer32 value.
-    } else if (divisor->IsChange() &&
-               HChange::cast(divisor)->from().IsInteger32()) {
-      return HChange::cast(divisor)->value();
-    }
-  }
-
-  if (divisor->IsConstant() && HConstant::cast(divisor)->HasInteger32Value()) {
-    HConstant* constant_val = HConstant::cast(divisor);
-    int32_t int32_val = constant_val->Integer32Value();
-    if (LChunkBuilder::HasMagicNumberForDivisor(int32_val) ||
-        CpuFeatures::IsSupported(SUDIV)) {
-      return constant_val->CopyToRepresentation(Representation::Integer32(),
-                                                divisor->block()->zone());
-    }
-  }
-
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+  // LMathFloorOfDiv  can only handle  a subset  of divisors, so fall
+  // back to a flooring division in all other cases.
   HValue* right = instr->right();
+  if (!right->IsInteger32Constant() ||
+      (!CpuFeatures::IsSupported(SUDIV) &&
+       !HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value()))) {
+    LOperand* dividend = UseRegister(instr->left());
+    LOperand* divisor = UseRegister(right);
+    LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
+    LDivI* div = new(zone()) LDivI(dividend, divisor, temp);
+    return AssignEnvironment(DefineAsRegister(div));
+  }
+
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = CpuFeatures::IsSupported(SUDIV)
       ? UseRegister(right)
       : UseOrConstant(right);
   LOperand* remainder = TempRegister();
-  ASSERT(CpuFeatures::IsSupported(SUDIV) ||
-         (right->IsConstant() &&
-          HConstant::cast(right)->HasInteger32Value() &&
-          HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value())));
   return AssignEnvironment(DefineAsRegister(
           new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
 }
@@ -1344,7 +1326,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-    if (instr->HasPowerOf2Divisor()) {
+    if (instr->RightIsPowerOf2()) {
       ASSERT(!right->CanBeZero());
       LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
                                      UseConstant(right));

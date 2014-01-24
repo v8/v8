@@ -1372,7 +1372,7 @@ void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
   HValue* left = hmod->left();
   HValue* right = hmod->right();
-  if (hmod->HasPowerOf2Divisor()) {
+  if (hmod->RightIsPowerOf2()) {
     // TODO(svenpanne) We should really do the strength reduction on the
     // Hydrogen level.
     Register left_reg = ToRegister(instr->left());
@@ -1454,7 +1454,7 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  if (!instr->is_flooring() && instr->hydrogen()->HasPowerOf2Divisor()) {
+  if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
     Register dividend = ToRegister(instr->left());
     int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
     int32_t test_value = 0;

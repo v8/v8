@@ -46,6 +46,7 @@ namespace internal {
 
 // Forward declarations.
 class HBasicBlock;
+class HDiv;
 class HEnvironment;
 class HInferRepresentationPhase;
 class HInstruction;
@@ -1207,8 +1208,20 @@ class HInstruction : public HValue {
 
   bool IsLinked() const { return block() != NULL; }
   void Unlink();
+
   void InsertBefore(HInstruction* next);
+
+  template<class T> T* Prepend(T* instr) {
+    instr->InsertBefore(this);
+    return instr;
+  }
+
   void InsertAfter(HInstruction* previous);
+
+  template<class T> T* Append(T* instr) {
+    instr->InsertAfter(this);
+    return instr;
+  }
 
   // The position is a write-once variable.
   virtual int position() const V8_OVERRIDE {
@@ -2706,6 +2719,9 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
+  HValue* SimplifiedDividendForMathFloorOfDiv(HDiv* hdiv);
+  HValue* SimplifiedDivisorForMathFloorOfDiv(HDiv* hdiv);
+
   BuiltinFunctionId op_;
 };
 
@@ -3476,10 +3492,8 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
                                          int32_t value,
                                          Representation representation,
                                          HInstruction* instruction) {
-    HConstant* new_constant =
-        HConstant::New(zone, context, value, representation);
-    new_constant->InsertAfter(instruction);
-    return new_constant;
+    return instruction->Append(HConstant::New(
+        zone, context, value, representation));
   }
 
   static HConstant* CreateAndInsertBefore(Zone* zone,
@@ -3487,21 +3501,17 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
                                           int32_t value,
                                           Representation representation,
                                           HInstruction* instruction) {
-    HConstant* new_constant =
-        HConstant::New(zone, context, value, representation);
-    new_constant->InsertBefore(instruction);
-    return new_constant;
+    return instruction->Prepend(HConstant::New(
+        zone, context, value, representation));
   }
 
   static HConstant* CreateAndInsertBefore(Zone* zone,
                                           Unique<Object> unique,
                                           bool is_not_in_new_space,
                                           HInstruction* instruction) {
-    HConstant* new_constant = new(zone) HConstant(unique,
-        Representation::Tagged(), HType::Tagged(), false, is_not_in_new_space,
-        false, false);
-    new_constant->InsertBefore(instruction);
-    return new_constant;
+    return instruction->Prepend(new(zone) HConstant(
+        unique, Representation::Tagged(), HType::Tagged(), false,
+        is_not_in_new_space, false, false));
   }
 
   Handle<Object> handle(Isolate* isolate) {
@@ -4188,7 +4198,14 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
     }
   }
 
+  bool RightIsPowerOf2() {
+    if (!right()->IsInteger32Constant()) return false;
+    int32_t value = right()->GetInteger32Constant();
+    return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
+
  private:
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
@@ -4887,16 +4904,6 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* left,
                            HValue* right);
 
-  bool HasPowerOf2Divisor() {
-    if (right()->IsConstant() &&
-        HConstant::cast(right())->HasInteger32Value()) {
-      int32_t value = HConstant::cast(right())->Integer32Value();
-      return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
-    }
-
-    return false;
-  }
-
   virtual HValue* EnsureAndPropagateNotMinusZero(
       BitVector* visited) V8_OVERRIDE;
 
@@ -4932,15 +4939,6 @@ class HDiv V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right);
-
-  bool HasPowerOf2Divisor() {
-    if (right()->IsInteger32Constant()) {
-      int32_t value = right()->GetInteger32Constant();
-      return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
-    }
-
-    return false;
-  }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(
       BitVector* visited) V8_OVERRIDE;

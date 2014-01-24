@@ -1295,20 +1295,6 @@ bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
 }
 
 
-HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
-  // Only optimize when we have magic numbers for the divisor.
-  // The standard integer division routine is usually slower than transitionning
-  // to FPU.
-  if (divisor->IsConstant() &&
-      HConstant::cast(divisor)->HasInteger32Value()) {
-    HConstant* constant_val = HConstant::cast(divisor);
-    return constant_val->CopyToRepresentation(Representation::Integer32(),
-                                                divisor->block()->zone());
-  }
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
     HValue* right = instr->right();
     LOperand* dividend = UseRegister(instr->left());
@@ -1325,7 +1311,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-    if (instr->HasPowerOf2Divisor()) {
+    if (instr->RightIsPowerOf2()) {
       ASSERT(!right->CanBeZero());
       LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
                                      UseConstant(right));

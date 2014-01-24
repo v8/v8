@@ -1408,81 +1408,51 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
-static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
-  // A value with an integer representation does not need to be transformed.
-  if (dividend->representation().IsInteger32()) {
-    return dividend;
-  }
-  // A change from an integer32 can be replaced by the integer32 value.
-  if (dividend->IsChange() &&
-      HChange::cast(dividend)->from().IsInteger32()) {
-    return HChange::cast(dividend)->value();
-  }
-  return NULL;
-}
-
-
 HValue* HUnaryMathOperation::Canonicalize() {
   if (op() == kMathRound || op() == kMathFloor) {
     HValue* val = value();
     if (val->IsChange()) val = HChange::cast(val)->value();
-
-    // If the input is smi or integer32 then we replace the instruction with its
-    // input.
     if (val->representation().IsSmiOrInteger32()) {
-      if (!val->representation().Equals(representation())) {
-        HChange* result = new(block()->zone()) HChange(
-            val, representation(), false, false);
-        result->InsertBefore(this);
-        return result;
-      }
-      return val;
+      if (val->representation().Equals(representation())) return val;
+      return Prepend(new(block()->zone()) HChange(
+          val, representation(), false, false));
     }
   }
+  if (op() == kMathFloor && value()->IsDiv() && value()->UseCount() == 1) {
+    HDiv* hdiv = HDiv::cast(value());
 
-  if (op() == kMathFloor) {
-    HValue* val = value();
-    if (val->IsDiv() && (val->UseCount() == 1)) {
-      HDiv* hdiv = HDiv::cast(val);
-      HValue* left = hdiv->left();
-      HValue* right = hdiv->right();
-      // Try to simplify left and right values of the division.
-      HValue* new_left = SimplifiedDividendForMathFloorOfDiv(left);
-      if (new_left == NULL &&
-          hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
-        new_left = new(block()->zone()) HChange(
-            left, Representation::Integer32(), false, false);
-        HChange::cast(new_left)->InsertBefore(this);
-      }
-      HValue* new_right =
-          LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
-      if (new_right == NULL &&
-#if V8_TARGET_ARCH_ARM
-          CpuFeatures::IsSupported(SUDIV) &&
-#endif
-          hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
-        new_right = new(block()->zone()) HChange(
-            right, Representation::Integer32(), false, false);
-        HChange::cast(new_right)->InsertBefore(this);
-      }
-
-      // Return if left or right are not optimizable.
-      if ((new_left == NULL) || (new_right == NULL)) return this;
-
-      // Insert the new values in the graph.
-      if (new_left->IsInstruction() &&
-          !HInstruction::cast(new_left)->IsLinked()) {
-        HInstruction::cast(new_left)->InsertBefore(this);
-      }
-      if (new_right->IsInstruction() &&
-          !HInstruction::cast(new_right)->IsLinked()) {
-        HInstruction::cast(new_right)->InsertBefore(this);
-      }
-      HMathFloorOfDiv* instr =
-          HMathFloorOfDiv::New(block()->zone(), context(), new_left, new_right);
-      instr->InsertBefore(this);
-      return instr;
+    HValue* left = hdiv->left();
+    if (left->representation().IsInteger32()) {
+      // A value with an integer representation does not need to be transformed.
+    } else if (left->IsChange() && HChange::cast(left)->from().IsInteger32()) {
+      // A change from an integer32 can be replaced by the integer32 value.
+      left = HChange::cast(left)->value();
+    } else if (hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
+      left = Prepend(new(block()->zone()) HChange(
+          left, Representation::Integer32(), false, false));
+    } else {
+      return this;
     }
+
+    HValue* right = hdiv->right();
+    if (right->IsInteger32Constant()) {
+      right = Prepend(HConstant::cast(right)->CopyToRepresentation(
+          Representation::Integer32(), right->block()->zone()));
+    } else if (right->representation().IsInteger32()) {
+      // A value with an integer representation does not need to be transformed.
+    } else if (right->IsChange() &&
+               HChange::cast(right)->from().IsInteger32()) {
+      // A change from an integer32 can be replaced by the integer32 value.
+      right = HChange::cast(right)->value();
+    } else if (hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
+      right = Prepend(new(block()->zone()) HChange(
+          right, Representation::Integer32(), false, false));
+    } else {
+      return this;
+    }
+
+    return Prepend(HMathFloorOfDiv::New(
+        block()->zone(), context(), left, right));
   }
   return this;
 }
@@ -3226,10 +3196,8 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
             key_load->elements_kind());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
-        HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
-            object(), index);
-        load->InsertBefore(this);
-        return load;
+        return Prepend(new(block()->zone()) HLoadFieldByIndex(
+            object(), index));
       }
     }
   }

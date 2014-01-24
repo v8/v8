@@ -1115,7 +1115,7 @@ void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
   HValue* left = hmod->left();
   HValue* right = hmod->right();
-  if (hmod->HasPowerOf2Divisor()) {
+  if (hmod->RightIsPowerOf2()) {
     // TODO(svenpanne) We should really do the strength reduction on the
     // Hydrogen level.
     Register left_reg = ToRegister(instr->left());
@@ -1345,7 +1345,7 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+  if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
     const Register dividend = ToRegister(instr->left());
     const Register result = ToRegister(instr->result());
     int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
@@ -1402,15 +1402,15 @@ void LCodeGen::DoDivI(LDivI* instr) {
   const Register result = ToRegister(instr->result());
 
   // Check for x / 0.
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
     __ cmp(right, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label positive;
-    if (!instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    if (!instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
       // Do the test only if it hadn't be done above.
       __ cmp(right, Operand::Zero());
     }
@@ -1421,9 +1421,10 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow) &&
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow) &&
       (!CpuFeatures::IsSupported(SUDIV) ||
-       !instr->hydrogen()->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
+       !instr->hydrogen_value()->CheckFlag(
+           HValue::kAllUsesTruncatingToInt32))) {
     // We don't need to check for overflow when truncating with sdiv
     // support because, on ARM, sdiv kMinInt, -1 -> kMinInt.
     __ cmp(left, Operand(kMinInt));
@@ -1435,7 +1436,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     CpuFeatureScope scope(masm(), SUDIV);
     __ sdiv(result, left, right);
 
-    if (!instr->hydrogen()->CheckFlag(
+    if (!instr->hydrogen_value()->CheckFlag(
         HInstruction::kAllUsesTruncatingToInt32)) {
       // Compute remainder and deopt if it's not zero.
       const Register remainder = scratch0();
@@ -1454,7 +1455,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ vcvt_s32_f64(double_scratch0().low(), vleft);
     __ vmov(result, double_scratch0().low());
 
-    if (!instr->hydrogen()->CheckFlag(
+    if (!instr->hydrogen_value()->CheckFlag(
         HInstruction::kAllUsesTruncatingToInt32)) {
       // Deopt if exact conversion to integer was not possible.
       // Use vright as scratch register.

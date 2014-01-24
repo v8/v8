@@ -1066,7 +1066,7 @@ void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
   HValue* left = hmod->left();
   HValue* right = hmod->right();
-  if (hmod->HasPowerOf2Divisor()) {
+  if (hmod->RightIsPowerOf2()) {
     const Register left_reg = ToRegister(instr->left());
     const Register result_reg = ToRegister(instr->result());
 
