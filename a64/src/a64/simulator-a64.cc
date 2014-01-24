@@ -2746,28 +2746,30 @@ void Simulator::Debug() {
 
       // stepi / si ------------------------------------------------------------
       if ((strcmp(cmd, "si") == 0) || (strcmp(cmd, "stepi") == 0)) {
-        int64_t number_of_instructions_to_execute = 1;
-        if (argc >= 2) {
+        // We are about to execute instructions, after which by default we
+        // should increment the pc_. If it was set when reaching this debug
+        // instruction, it has not been cleared because this instruction has not
+        // completed yet. So clear it manually.
+        pc_modified_ = false;
+
+        if (argc == 1) {
+          ExecuteInstruction();
+        } else {
+          int64_t number_of_instructions_to_execute = 1;
           GetValue(arg1, &number_of_instructions_to_execute);
-        }
-        // Prevent from printing the next instruction twice.
-        if (log_parameters_ & LOG_DISASM) {
-          set_log_parameters(log_parameters_ & ~LOG_DISASM);
-          cleared_log_disasm_bit = true;
-        }
-        if (number_of_instructions_to_execute > 1) {
-          // Execute one instruction and restore LOG_DISASM if necessary.
-          ExecuteInstruction();
-          --number_of_instructions_to_execute;
-          if (cleared_log_disasm_bit == true) {
-            set_log_parameters(log_parameters_ | LOG_DISASM);
-            cleared_log_disasm_bit = false;
+
+          set_log_parameters(log_parameters() | LOG_DISASM);
+          while (number_of_instructions_to_execute-- > 0) {
+            ExecuteInstruction();
           }
+          set_log_parameters(log_parameters() & ~LOG_DISASM);
+          PrintF("\n");
         }
-        // Execute the instructions.
-        while (number_of_instructions_to_execute-- > 0) {
-          ExecuteInstruction();
-        }
+
+        // If it was necessary, the pc has already been updated or incremented
+        // when executing the instruction. So we do not want it to be updated
+        // again. It will be cleared when exiting.
+        pc_modified_ = true;
 
       // next / n --------------------------------------------------------------
       } else if ((strcmp(cmd, "next") == 0) || (strcmp(cmd, "n") == 0)) {
@@ -2799,6 +2801,7 @@ void Simulator::Debug() {
         // Disassemble.
         PrintInstructionsAt(reinterpret_cast<Instruction*>(address),
                             n_of_instrs_to_disasm);
+        PrintF("\n");
 
       // print / p -------------------------------------------------------------
       } else if ((strcmp(cmd, "print") == 0) || (strcmp(cmd, "p") == 0)) {
