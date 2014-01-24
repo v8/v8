@@ -125,14 +125,14 @@ class Types {
   }
 
   TypeHandle Fuzz(int depth = 5) {
-    switch (random() % (depth == 0 ? 3 : 20)) {
+    switch (rand() % (depth == 0 ? 3 : 20)) {
       case 0: {  // bitset
         int n = 0
         #define COUNT_BITSET_TYPES(type, value) + 1
         BITSET_TYPE_LIST(COUNT_BITSET_TYPES)
         #undef COUNT_BITSET_TYPES
         ;
-        int i = random() % n;
+        int i = rand() % n;
         #define PICK_BITSET_TYPE(type, value) \
           if (i-- == 0) return Type::type(region_);
         BITSET_TYPE_LIST(PICK_BITSET_TYPE)
@@ -140,13 +140,13 @@ class Types {
         UNREACHABLE();
       }
       case 1:  // class
-        switch (random() % 2) {
+        switch (rand() % 2) {
           case 0: return ObjectClass;
           case 1: return ArrayClass;
         }
         UNREACHABLE();
       case 2:  // constant
-        switch (random() % 6) {
+        switch (rand() % 6) {
           case 0: return SmiConstant;
           case 1: return Signed32Constant;
           case 2: return ObjectConstant1;
@@ -156,7 +156,7 @@ class Types {
         }
         UNREACHABLE();
       default: {  // union
-        int n = random() % 10;
+        int n = rand() % 10;
         TypeHandle type = None;
         for (int i = 0; i < n; ++i) {
           type = Type::Union(type, Fuzz(depth - 1), region_);
