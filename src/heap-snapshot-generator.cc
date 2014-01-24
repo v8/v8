@@ -47,7 +47,8 @@ HeapGraphEdge::HeapGraphEdge(Type type, const char* name, int from, int to)
   ASSERT(type == kContextVariable
       || type == kProperty
       || type == kInternal
-      || type == kShortcut);
+      || type == kShortcut
+      || type == kWeak);
 }
 
 
@@ -56,7 +57,7 @@ HeapGraphEdge::HeapGraphEdge(Type type, int index, int from, int to)
       from_index_(from),
       to_index_(to),
       index_(index) {
-  ASSERT(type == kElement || type == kHidden || type == kWeak);
+  ASSERT(type == kElement || type == kHidden);
 }
 
 
@@ -150,7 +151,7 @@ void HeapEntry::Print(
         break;
       case HeapGraphEdge::kWeak:
         edge_prefix = "w";
-        OS::SNPrintF(index, "%d", edge.index());
+        edge_name = edge.name();
         break;
       default:
         OS::SNPrintF(index, "!!! unknown edge type: %d ", edge.type());
@@ -1114,11 +1115,13 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(js_fun, entry,
                          "context", js_fun->context(),
                          JSFunction::kContextOffset);
-    for (int i = JSFunction::kNonWeakFieldsEndOffset;
-         i < JSFunction::kSize;
-         i += kPointerSize) {
-      SetWeakReference(js_fun, entry, i, *HeapObject::RawField(js_fun, i), i);
-    }
+    SetWeakReference(js_fun, entry,
+                     "next_function_link", js_fun->next_function_link(),
+                     JSFunction::kNextFunctionLinkOffset);
+    STATIC_CHECK(JSFunction::kNextFunctionLinkOffset
+                 == JSFunction::kNonWeakFieldsEndOffset);
+    STATIC_CHECK(JSFunction::kNextFunctionLinkOffset + kPointerSize
+                 == JSFunction::kSize);
   } else if (obj->IsGlobalObject()) {
     GlobalObject* global_obj = GlobalObject::cast(obj);
     SetInternalReference(global_obj, entry,
@@ -1134,13 +1137,14 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     JSArrayBufferView* view = JSArrayBufferView::cast(obj);
     SetInternalReference(view, entry, "buffer", view->buffer(),
                          JSArrayBufferView::kBufferOffset);
-    SetWeakReference(view, entry, 1, view->weak_next(),
+    SetWeakReference(view, entry, "weak_next", view->weak_next(),
                      JSArrayBufferView::kWeakNextOffset);
   } else if (obj->IsJSArrayBuffer()) {
     JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
-    SetWeakReference(buffer, entry, 1, buffer->weak_next(),
+    SetWeakReference(buffer, entry, "weak_next", buffer->weak_next(),
                      JSArrayBuffer::kWeakNextOffset);
-    SetWeakReference(buffer, entry, 2, buffer->weak_first_view(),
+    SetWeakReference(buffer, entry,
+                     "weak_first_view", buffer->weak_first_view(),
                      JSArrayBuffer::kWeakFirstViewOffset);
   }
   TagObject(js_obj->properties(), "(object properties)");
@@ -1192,8 +1196,13 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
   }
 
 #define EXTRACT_CONTEXT_FIELD(index, type, name) \
-  SetInternalReference(context, entry, #name, context->get(Context::index), \
-      FixedArray::OffsetOfElementAt(Context::index));
+  if (Context::index < Context::FIRST_WEAK_SLOT) { \
+    SetInternalReference(context, entry, #name, context->get(Context::index), \
+        FixedArray::OffsetOfElementAt(Context::index)); \
+  } else { \
+    SetWeakReference(context, entry, #name, context->get(Context::index), \
+        FixedArray::OffsetOfElementAt(Context::index)); \
+  }
   EXTRACT_CONTEXT_FIELD(CLOSURE_INDEX, JSFunction, closure);
   EXTRACT_CONTEXT_FIELD(PREVIOUS_INDEX, Context, previous);
   EXTRACT_CONTEXT_FIELD(EXTENSION_INDEX, Object, extension);
@@ -1205,13 +1214,15 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
     TagObject(context->runtime_context(), "(runtime context)");
     TagObject(context->embedder_data(), "(context data)");
     NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
+    EXTRACT_CONTEXT_FIELD(OPTIMIZED_FUNCTIONS_LIST, , optimized_functions_list);
+    EXTRACT_CONTEXT_FIELD(OPTIMIZED_CODE_LIST, , optimized_code_list);
+    EXTRACT_CONTEXT_FIELD(DEOPTIMIZED_CODE_LIST, , deoptimized_code_list);
+    EXTRACT_CONTEXT_FIELD(NEXT_CONTEXT_LINK, , next_context_link);
 #undef EXTRACT_CONTEXT_FIELD
-    for (int i = Context::FIRST_WEAK_SLOT;
-         i < Context::NATIVE_CONTEXT_SLOTS;
-         ++i) {
-      SetWeakReference(context, entry, i, context->get(i),
-          FixedArray::OffsetOfElementAt(i));
-    }
+    STATIC_CHECK(Context::OPTIMIZED_FUNCTIONS_LIST == Context::FIRST_WEAK_SLOT);
+    STATIC_CHECK(Context::NEXT_CONTEXT_LINK + 1
+                 == Context::NATIVE_CONTEXT_SLOTS);
+    STATIC_CHECK(Context::FIRST_WEAK_SLOT + 5 == Context::NATIVE_CONTEXT_SLOTS);
   }
 }
 
@@ -1305,7 +1316,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
                        "optimized_code_map", shared->optimized_code_map(),
                        SharedFunctionInfo::kOptimizedCodeMapOffset);
   SetWeakReference(obj, entry,
-                   1, shared->initial_map(),
+                   "initial_map", shared->initial_map(),
                    SharedFunctionInfo::kInitialMapOffset);
 }
 
@@ -1835,17 +1846,17 @@ void V8HeapExplorer::SetHiddenReference(HeapObject* parent_obj,
 
 void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
                                       int parent_entry,
-                                      int index,
+                                      const char* reference_name,
                                       Object* child_obj,
                                       int field_offset) {
   ASSERT(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == NULL) return;
   if (IsEssentialObject(child_obj)) {
-    filler_->SetIndexedReference(HeapGraphEdge::kWeak,
-                                 parent_entry,
-                                 index,
-                                 child_entry);
+    filler_->SetNamedReference(HeapGraphEdge::kWeak,
+                               parent_entry,
+                               reference_name,
+                               child_entry);
   }
   IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
 }
@@ -1917,10 +1928,17 @@ void V8HeapExplorer::SetGcSubrootReference(
           name,
           child_entry);
     } else {
-      filler_->SetIndexedAutoIndexReference(
-          is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kElement,
-          snapshot_->gc_subroot(tag)->index(),
-          child_entry);
+      if (is_weak) {
+        filler_->SetNamedAutoIndexReference(
+            HeapGraphEdge::kWeak,
+            snapshot_->gc_subroot(tag)->index(),
+            child_entry);
+      } else {
+        filler_->SetIndexedAutoIndexReference(
+            HeapGraphEdge::kElement,
+            snapshot_->gc_subroot(tag)->index(),
+            child_entry);
+      }
     }
 
     // Add a shortcut to JS global object reference at snapshot root.
@@ -2654,7 +2672,6 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
   EmbeddedVector<char, kBufferSize> buffer;
   int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
       || edge->type() == HeapGraphEdge::kHidden
-      || edge->type() == HeapGraphEdge::kWeak
       ? edge->index() : GetStringId(edge->name());
   int buffer_pos = 0;
   if (!first_edge) {

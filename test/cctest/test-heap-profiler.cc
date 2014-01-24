@@ -2337,6 +2337,6 @@ TEST(ArrayBufferAndArrayBufferView) {
       GetProperty(arr1_obj, v8::HeapGraphEdge::kInternal, "buffer");
   CHECK_NE(NULL, arr1_buffer);
   const v8::HeapGraphNode* first_view =
-      GetProperty(arr1_buffer, v8::HeapGraphEdge::kWeak, "2");
+      GetProperty(arr1_buffer, v8::HeapGraphEdge::kWeak, "weak_first_view");
   CHECK_NE(NULL, first_view);
 }
