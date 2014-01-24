@@ -340,6 +340,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 
 #if defined(USE_SIMULATOR)
   helper.FillRegisters(sample);
+  // It possible that the simulator is interrupted while it is updating
+  // the sp register. A64 simulator does this in two steps:
+  // first setting it to zero and then setting it to the new value.
+  // Bailout if sp doesn't contain the new value.
+  if (sample->sp == 0) return;
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
