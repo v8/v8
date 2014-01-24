@@ -2680,6 +2680,19 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 }
 
 
+void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
+  Register input = ToRegister(instr->value());
+  Register result = ToRegister(instr->result());
+
+  __ AssertString(input);
+
+  // Assert that we can use a W register load to get the hash.
+  ASSERT((String::kHashShift + String::kArrayIndexValueBits) < kWRegSize);
+  __ Ldr(result.W(), FieldMemOperand(input, String::kHashFieldOffset));
+  __ IndexFromHash(result, result);
+}
+
+
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register result = ToRegister(instr->result());
   __ Ldr(result, GlobalObjectMemOperand());
@@ -2711,6 +2724,19 @@ void LCodeGen::EmitGoto(int block) {
 
 void LCodeGen::DoGoto(LGoto* instr) {
   EmitGoto(instr->block_id());
+}
+
+
+void LCodeGen::DoHasCachedArrayIndexAndBranch(
+    LHasCachedArrayIndexAndBranch* instr) {
+  Register input = ToRegister(instr->value());
+  Register temp = ToRegister32(instr->temp());
+
+  // Assert that the cache status bits fit in a W register.
+  ASSERT(is_uint32(String::kContainsCachedArrayIndexMask));
+  __ Ldr(temp, FieldMemOperand(input, String::kHashFieldOffset));
+  __ Tst(temp, String::kContainsCachedArrayIndexMask);
+  EmitBranch(instr, eq);
 }
 
 

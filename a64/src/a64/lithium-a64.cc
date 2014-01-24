@@ -131,6 +131,13 @@ void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void LHasCachedArrayIndexAndBranch::PrintDataTo(StringStream* stream) {
+  stream->Add("if has_cached_array_index(");
+  value()->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 bool LGoto::HasInterestingComment(LCodeGen* gen) const {
   return !gen->IsNextEmittedBlock(block_id());
 }
@@ -1457,7 +1464,9 @@ LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
 
 LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
     HGetCachedArrayIndex* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new(zone()) LGetCachedArrayIndex(value));
 }
 
 
@@ -1480,7 +1489,9 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 LInstruction* LChunkBuilder::DoHasCachedArrayIndexAndBranch(
     HHasCachedArrayIndexAndBranch* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  ASSERT(instr->value()->representation().IsTagged());
+  return new(zone()) LHasCachedArrayIndexAndBranch(
+      UseRegisterAtStart(instr->value()), TempRegister());
 }
 
 

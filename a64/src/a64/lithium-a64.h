@@ -103,9 +103,11 @@ class LCodeGen;
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
+  V(GetCachedArrayIndex)                        \
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
   V(Goto)                                       \
+  V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
   V(In)                                         \
   V(InnerAllocatedObject)                       \
@@ -1294,6 +1296,19 @@ class LForInPrepareMap: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LGetCachedArrayIndex(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get-cached-array-index")
+  DECLARE_HYDROGEN_ACCESSOR(GetCachedArrayIndex)
+};
+
+
 class LGlobalObject: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LGlobalObject(LOperand* context) {
@@ -1315,6 +1330,24 @@ class LGlobalReceiver: public LTemplateInstruction<1, 1, 0> {
   LOperand* global_object() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global-receiver")
+};
+
+
+class LHasCachedArrayIndexAndBranch: public LControlInstruction<1, 1> {
+ public:
+  LHasCachedArrayIndexAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndexAndBranch,
+                               "has-cached-array-index-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(HasCachedArrayIndexAndBranch)
+
+  virtual void PrintDataTo(StringStream* stream);
 };
 
 
