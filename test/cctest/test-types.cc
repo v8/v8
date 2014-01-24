@@ -119,6 +119,54 @@ class Types {
     return Type::Intersect(t1, t2, region_);
   }
 
+  template<class Type2, class TypeHandle2>
+  TypeHandle Convert(TypeHandle2 t) {
+    return Type::template Convert<Type2>(t, region_);
+  }
+
+  TypeHandle Fuzz(int depth = 5) {
+    switch (random() % (depth == 0 ? 3 : 20)) {
+      case 0: {  // bitset
+        int n = 0
+        #define COUNT_BITSET_TYPES(type, value) + 1
+        BITSET_TYPE_LIST(COUNT_BITSET_TYPES)
+        #undef COUNT_BITSET_TYPES
+        ;
+        int i = random() % n;
+        #define PICK_BITSET_TYPE(type, value) \
+          if (i-- == 0) return Type::type(region_);
+        BITSET_TYPE_LIST(PICK_BITSET_TYPE)
+        #undef PICK_BITSET_TYPE
+        UNREACHABLE();
+      }
+      case 1:  // class
+        switch (random() % 2) {
+          case 0: return ObjectClass;
+          case 1: return ArrayClass;
+        }
+        UNREACHABLE();
+      case 2:  // constant
+        switch (random() % 6) {
+          case 0: return SmiConstant;
+          case 1: return Signed32Constant;
+          case 2: return ObjectConstant1;
+          case 3: return ObjectConstant2;
+          case 4: return ArrayConstant1;
+          case 5: return ArrayConstant2;
+        }
+        UNREACHABLE();
+      default: {  // union
+        int n = random() % 10;
+        TypeHandle type = None;
+        for (int i = 0; i < n; ++i) {
+          type = Type::Union(type, Fuzz(depth - 1), region_);
+        }
+        return type;
+      }
+    }
+    UNREACHABLE();
+  }
+
  private:
   Region* region_;
 };
@@ -756,6 +804,16 @@ struct Tests : Rep {
             T.Union(T.ObjectConstant1, T.ArrayConstant2)),
         T.ArrayConstant1);
   }
+
+  template<class Type2, class TypeHandle2, class Region2, class Rep2>
+  void Convert() {
+    Types<Type2, TypeHandle2, Region2> T2(
+        Rep2::ToRegion(&zone, isolate), isolate);
+    for (int i = 0; i < 100; ++i) {
+      TypeHandle type = T.Fuzz();
+      CheckEqual(type, T.Convert<Type2>(T2.Convert<Type>(type)));
+    }
+  }
 };
 
 typedef Tests<Type, Type*, Zone, ZoneRep> ZoneTests;
@@ -808,4 +866,11 @@ TEST(Intersect) {
   CcTest::InitializeVM();
   ZoneTests().Intersect();
   HeapTests().Intersect();
+}
+
+
+TEST(Convert) {
+  CcTest::InitializeVM();
+  ZoneTests().Convert<HeapType, Handle<HeapType>, Isolate, HeapRep>();
+  HeapTests().Convert<Type, Type*, Zone, ZoneRep>();
 }
