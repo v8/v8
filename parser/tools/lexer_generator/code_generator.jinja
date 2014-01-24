@@ -262,6 +262,7 @@
 
   {%- if 'eos' in state['unique_transitions'] %}
     if (primary_char == 0 && cursor_ >= buffer_end_) { // eos handler
+      FORWARD();
       {{ jump(state['unique_transitions']['eos']) }}
     }
   {%- endif -%}
