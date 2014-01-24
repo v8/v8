@@ -1269,21 +1269,22 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   VisitForAccumulatorValue(stmt->assign_iterator());
 
   // As with for-in, skip the loop if the iterator is null or undefined.
-  __ CompareRoot(x0, Heap::kUndefinedValueRootIndex);
-  __ B(eq, loop_statement.break_label());
-  __ CompareRoot(x0, Heap::kNullValueRootIndex);
-  __ B(eq, loop_statement.break_label());
+  Register iterator = x0;
+  __ JumpIfRoot(iterator, Heap::kUndefinedValueRootIndex,
+                loop_statement.break_label());
+  __ JumpIfRoot(iterator, Heap::kNullValueRootIndex,
+                loop_statement.break_label());
 
   // Convert the iterator to a JS object.
   Label convert, done_convert;
-  __ JumpIfSmi(x0, &convert);
-  __ CompareObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE);
+  __ JumpIfSmi(iterator, &convert);
+  __ CompareObjectType(iterator, x1, x1, FIRST_SPEC_OBJECT_TYPE);
   __ B(ge, &done_convert);
   __ Bind(&convert);
-  __ Push(x0);
+  __ Push(iterator);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
   __ Bind(&done_convert);
-  __ Push(x0);
+  __ Push(iterator);
 
   // Loop entry.
   __ Bind(loop_statement.continue_label());
