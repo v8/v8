@@ -49,7 +49,7 @@
 
 using namespace v8::internal;
 
-byte* ReadFile(const char* name, byte** end, int repeat,
+byte* ReadFile(const char* name, const byte** end, int repeat,
                bool convert_to_utf16) {
   FILE* file = fopen(name, "rb");
   if (file == NULL) return NULL;
@@ -109,15 +109,14 @@ struct HarmonySettings {
 
 class BaselineScanner {
  public:
-  BaselineScanner(const char* fname,
+  BaselineScanner(const byte* source,
+                  const byte* source_end,
                   Isolate* isolate,
                   Encoding encoding,
                   ElapsedTimer* timer,
                   int repeat,
                   HarmonySettings harmony_settings)
-      : stream_(NULL) {
-    byte* end = 0;
-    source_ = ReadFile(fname, &end, repeat, false);
+      : source_(source), stream_(NULL) {
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
     scanner_->SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
@@ -126,20 +125,20 @@ class BaselineScanner {
     switch (encoding) {
       case UTF8:
       case UTF8TO16:
-        stream_ = new Utf8ToUtf16CharacterStream(source_, end - source_);
+        stream_ = new Utf8ToUtf16CharacterStream(source_, source_end - source_);
         break;
       case UTF16: {
         Handle<String> result = isolate->factory()->NewStringFromTwoByte(
             Vector<const uint16_t>(
                 reinterpret_cast<const uint16_t*>(source_),
-                (end - source_) / 2));
+                (source_end - source_) / 2));
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;
       }
       case LATIN1: {
         Handle<String> result = isolate->factory()->NewStringFromOneByte(
-            Vector<const uint8_t>(source_, end - source_));
+            Vector<const uint8_t>(source_, source_end - source_));
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;
@@ -153,7 +152,6 @@ class BaselineScanner {
     delete scanner_;
     delete stream_;
     delete unicode_cache_;
-    delete[] source_;
   }
 
   Scanner* scanner_;
@@ -237,7 +235,8 @@ TokenWithLocation GetTokenWithLocation(Scanner *scanner, Token::Value token) {
 }
 
 
-TimeDelta RunBaselineScanner(const char* fname,
+TimeDelta RunBaselineScanner(const byte* source,
+                             const byte* source_end,
                              Isolate* isolate,
                              Encoding encoding,
                              bool dump_tokens,
@@ -245,8 +244,13 @@ TimeDelta RunBaselineScanner(const char* fname,
                              int repeat,
                              HarmonySettings harmony_settings) {
   ElapsedTimer timer;
-  BaselineScanner scanner(
-      fname, isolate, encoding, &timer, repeat, harmony_settings);
+  BaselineScanner scanner(source,
+                          source_end,
+                          isolate,
+                          encoding,
+                          &timer,
+                          repeat,
+                          harmony_settings);
   Token::Value token;
   do {
     token = scanner.scanner_->Next();
@@ -318,57 +322,73 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
     bool check_tokens,
     bool break_after_illegal,
     int repeat,
-    HarmonySettings harmony_settings) {
+    HarmonySettings harmony_settings,
+    int truncate_by,
+    bool* can_truncate) {
   if (print_tokens) {
-    printf("Processing file %s\n", fname);
+    printf("Processing file %s, truncating by %d bytes\n", fname, truncate_by);
   }
   HandleScope handle_scope(isolate);
   std::vector<TokenWithLocation> baseline_tokens, experimental_tokens;
   TimeDelta baseline_time, experimental_time;
   if (run_baseline) {
-    baseline_time = RunBaselineScanner(
-        fname, isolate, encoding, print_tokens || check_tokens,
-        &baseline_tokens, repeat, harmony_settings);
+    const byte* buffer_end = 0;
+    const byte* buffer = ReadFile(fname, &buffer_end, repeat, false);
+    if (truncate_by > buffer_end - buffer) {
+      *can_truncate = false;
+    } else {
+      buffer_end -= truncate_by;
+      baseline_time = RunBaselineScanner(
+          buffer, buffer_end, isolate, encoding, print_tokens || check_tokens,
+          &baseline_tokens, repeat, harmony_settings);
+    }
+    delete[] buffer;
   }
   if (run_experimental) {
     Handle<String> source;
-    byte* buffer_end = 0;
+    const byte* buffer_end = 0;
     const byte* buffer = ReadFile(fname, &buffer_end, repeat,
                                   encoding == UTF8TO16);
-    switch (encoding) {
-      case UTF8:
-      case LATIN1:
-        source = isolate->factory()->NewStringFromAscii(
-            Vector<const char>(reinterpret_cast<const char*>(buffer),
-                               buffer_end - buffer));
-        experimental_time = RunExperimentalScanner<uint8_t>(
-            source, isolate, encoding, print_tokens || check_tokens,
-            &experimental_tokens, repeat, harmony_settings);
-        break;
-      case UTF16:
-      case UTF8TO16: {
-        const uc16* buffer_16 = reinterpret_cast<const uc16*>(buffer);
-        const uc16* buffer_end_16 = reinterpret_cast<const uc16*>(buffer_end);
-        source = isolate->factory()->NewStringFromTwoByte(
-            Vector<const uc16>(buffer_16, buffer_end_16 - buffer_16));
-        // If the string was just an expaneded one byte string, V8 detects it
-        // and doesn't store it as two byte.
-        if (!source->IsTwoByteRepresentation()) {
+    if (truncate_by > buffer_end - buffer) {
+      *can_truncate = false;
+    } else {
+      buffer_end -= truncate_by;
+      switch (encoding) {
+        case UTF8:
+        case LATIN1:
+          source = isolate->factory()->NewStringFromAscii(
+              Vector<const char>(reinterpret_cast<const char*>(buffer),
+                                 buffer_end - buffer));
           experimental_time = RunExperimentalScanner<uint8_t>(
               source, isolate, encoding, print_tokens || check_tokens,
               &experimental_tokens, repeat, harmony_settings);
-        } else {
-          experimental_time = RunExperimentalScanner<uint16_t>(
-              source, isolate, encoding, print_tokens || check_tokens,
-              &experimental_tokens, repeat, harmony_settings);
+          break;
+        case UTF16:
+        case UTF8TO16: {
+          const uc16* buffer_16 = reinterpret_cast<const uc16*>(buffer);
+          const uc16* buffer_end_16 = reinterpret_cast<const uc16*>(buffer_end);
+          source = isolate->factory()->NewStringFromTwoByte(
+              Vector<const uc16>(buffer_16, buffer_end_16 - buffer_16));
+          // If the string was just an expaneded one byte string, V8 detects it
+          // and doesn't store it as two byte.
+          if (!source->IsTwoByteRepresentation()) {
+            experimental_time = RunExperimentalScanner<uint8_t>(
+                source, isolate, encoding, print_tokens || check_tokens,
+                &experimental_tokens, repeat, harmony_settings);
+          } else {
+            experimental_time = RunExperimentalScanner<uint16_t>(
+                source, isolate, encoding, print_tokens || check_tokens,
+                &experimental_tokens, repeat, harmony_settings);
+          }
+          break;
         }
-        break;
+        default:
+          printf("Encoding not supported by the experimental scanner\n");
+          exit(1);
+          break;
       }
-      default:
-        printf("Encoding not supported by the experimental scanner\n");
-        exit(1);
-        break;
     }
+    delete[] buffer;
   }
   if (print_tokens && !run_experimental) {
     PrintTokens("Baseline", baseline_tokens);
@@ -419,6 +439,7 @@ int main(int argc, char* argv[]) {
   bool run_experimental = true;
   bool check_tokens = true;
   bool break_after_illegal = false;
+  bool eos_test = false;
   std::vector<std::string> fnames;
   std::string benchmark;
   int repeat = 1;
@@ -451,10 +472,13 @@ int main(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
       std::string repeat_str = std::string(argv[i]).substr(9);
       repeat = atoi(repeat_str.c_str());
+    } else if (strcmp(argv[i], "--eos-test") == 0) {
+      eos_test = true;
     } else if (i > 0 && argv[i][0] != '-') {
       fnames.push_back(std::string(argv[i]));
     }
   }
+  check_tokens = check_tokens && run_baseline && run_experimental;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   {
     v8::HandleScope handle_scope(isolate);
@@ -467,19 +491,23 @@ int main(int argc, char* argv[]) {
       double baseline_total = 0, experimental_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
         std::pair<TimeDelta, TimeDelta> times;
-        check_tokens = check_tokens && run_baseline && run_experimental;
-        times = ProcessFile(fnames[i].c_str(),
-                            encoding,
-                            internal_isolate,
-                            run_baseline,
-                            run_experimental,
-                            print_tokens,
-                            check_tokens,
-                            break_after_illegal,
-                            repeat,
-                            harmony_settings);
-        baseline_total += times.first.InMillisecondsF();
-        experimental_total += times.second.InMillisecondsF();
+        bool can_truncate = eos_test;
+        for (int truncate_by = 0; can_truncate; ++truncate_by) {
+          times = ProcessFile(fnames[i].c_str(),
+                              encoding,
+                              internal_isolate,
+                              run_baseline,
+                              run_experimental,
+                              print_tokens,
+                              check_tokens,
+                              break_after_illegal,
+                              repeat,
+                              harmony_settings,
+                              truncate_by,
+                              &can_truncate);
+          baseline_total += times.first.InMillisecondsF();
+          experimental_total += times.second.InMillisecondsF();
+        }
       }
       if (run_baseline) {
         printf("Baseline%s(RunTime): %.f ms\n", benchmark.c_str(),
