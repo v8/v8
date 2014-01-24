@@ -75,6 +75,7 @@ class CodeGenerator:
     transitions = []
     (class_keys, distinct_keys, ranges) = (0, 0, 0)
     zero_transition = None
+    total_transitions = 0
     for key, transition_id in old_transitions:
       keys = []
       for (t, r) in key.range_iter(encoding):
@@ -84,7 +85,7 @@ class CodeGenerator:
         elif t == 'PRIMARY_RANGE':
           distinct_keys += r[1] - r[0] + 1
           ranges += 1
-          # split 0 out of range, don't bother updating stats
+          # split 0 out of range
           assert r[0] >= 0
           if r[0] == 0:
             assert zero_transition == None
@@ -97,6 +98,8 @@ class CodeGenerator:
           assert r == 'no_match' or r == 'eos'
           assert r not in unique_transitions
           unique_transitions[r] = transition_id
+          if r != 'no_match':
+            total_transitions += 1
         else:
           raise Exception()
       if keys:
@@ -104,12 +107,14 @@ class CodeGenerator:
     # delay zero transition until last
     if zero_transition != None:
       transitions.append(([('PRIMARY_RANGE', (0, 0))], transition_id))
+      ranges += 1
+    total_transitions += len(transitions)
     return {
       'node_number' : None,
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
       # flags for code generator
-      'can_elide_read' : len(transitions) == 0,
+      'can_elide_read' : total_transitions == 0,
       'is_eos_handler' : False,
       'inline' : False,
       'must_not_inline' : False,
@@ -121,7 +126,8 @@ class CodeGenerator:
       # state actions
       'entry_action' : entry_action,
       'match_action' : match_action,
-      # statistics for states
+      # statistics for state
+      'total_transitions' : total_transitions,
       'class_keys' : class_keys,
       'distinct_keys' : distinct_keys,
       'ranges' : ranges,
@@ -141,14 +147,14 @@ class CodeGenerator:
     if state['must_not_inline']:
       inline = False
     # inline terminal states
-    elif not state['transitions']:
+    elif not state['total_transitions']:
       inline = True
     # inline next to terminal states with 1 or 2 transitions
     elif state['distinct_keys'] < 3 and state['class_keys'] == 0:
       inline = True
       # ensure state terminates in 1 step
       for key, state_id in state['transitions']:
-        if self.__dfa_states[state_id]['transitions']:
+        if self.__dfa_states[state_id]['total_transitions']:
           inline = False
           break
     state['inline'] = inline
@@ -262,8 +268,7 @@ class CodeGenerator:
       state['must_not_inline'] = True
       assert state['match_action']
       assert not state['entry_action']
-      assert not state['transitions']
-      assert not state['unique_transitions']
+      assert not state['total_transitions']
 
   def __build_dfa_states(self):
     dfa_states = []
@@ -323,8 +328,8 @@ class CodeGenerator:
     state = deepcopy(self.__dfa_states[target_id])
     state['node_number'] = len(self.__dfa_states)
     self.__dfa_states.append(state)
-    # mark inline as none, to be correctly handled below
-    state['inline'] = None
+    # mark as just generated, so it will correctly rewritten
+    state['just_generated_inline_state'] = True
     # clear entry points
     state['entry_points'] = {k : False for k in CodeGenerator.__jump_labels}
     return state['node_number']
@@ -340,13 +345,14 @@ class CodeGenerator:
     total_nodes_created = 0
     for state_id in range(start_id, end_offset):
       state = self.__dfa_states[state_id]
-      # this will be ignored during code generation,
-      # and it's needed as a template, so don't rewrite
-      if state['inline'] == True:
-        continue
-      # these is a new inline state, now mark as inline and rewrite
-      if state['inline'] == None:
-        state['inline'] = True
+      if state['inline']:
+        if not 'just_generated_inline_state' in state:
+          # this will be ignored during code generation,
+          # and it's needed as a template, so don't rewrite
+          continue
+        # these is a new inline state, rewrite
+        del state['just_generated_inline_state']
+      assert not 'just_generated_inline_state' in state
       inline_mapping = inline_mapping_in.copy()
       def generate_jump((key, target_id)):
         jump_type = 'state_entry'
@@ -362,8 +368,9 @@ class CodeGenerator:
       for name in transition_names:
         state[name] = map(generate_jump, state[name])
       if 'eos' in state['unique_transitions']:
-        # eos state is not inlined
         eos_state_id = state['unique_transitions']['eos']
+        # eos state is not inlined, don't need to look in map
+        assert not self.__dfa_states[eos_state_id]['inline']
         jump = self.__register_jump(eos_state_id, 'state_entry')
         state['unique_transitions']['eos'] = jump
       # now rewrite all nodes created
