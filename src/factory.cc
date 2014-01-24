@@ -1486,32 +1486,12 @@ static JSFunction* GetTypedArrayFun(ExternalArrayType type,
                                     Isolate* isolate) {
   Context* native_context = isolate->context()->native_context();
   switch (type) {
-    case kExternalUnsignedByteArray:
-      return native_context->uint8_array_fun();
+#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size)                        \
+    case kExternal##Type##Array:                                              \
+      return native_context->type##_array_fun();
 
-    case kExternalByteArray:
-      return native_context->int8_array_fun();
-
-    case kExternalUnsignedShortArray:
-      return native_context->uint16_array_fun();
-
-    case kExternalShortArray:
-      return native_context->int16_array_fun();
-
-    case kExternalUnsignedIntArray:
-      return native_context->uint32_array_fun();
-
-    case kExternalIntArray:
-      return native_context->int32_array_fun();
-
-    case kExternalFloatArray:
-      return native_context->float_array_fun();
-
-    case kExternalDoubleArray:
-      return native_context->double_array_fun();
-
-    case kExternalPixelArray:
-      return native_context->uint8c_array_fun();
+    TYPED_ARRAYS(TYPED_ARRAY_FUN)
+#undef TYPED_ARRAY_FUN
 
     default:
       UNREACHABLE();

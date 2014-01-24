@@ -2318,7 +2318,7 @@ HInstruction* HGraphBuilder::AddElementAccess(
     LoadKeyedHoleMode load_mode) {
   if (is_store) {
     ASSERT(val != NULL);
-    if (elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
+    if (elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
         elements_kind == UINT8_CLAMPED_ELEMENTS) {
       val = Add<HClampToUint8>(val);
     }
@@ -2333,7 +2333,7 @@ HInstruction* HGraphBuilder::AddElementAccess(
   HLoadKeyed* load = Add<HLoadKeyed>(
       elements, checked_key, dependency, elements_kind, load_mode);
   if (FLAG_opt_safe_uint32_operations &&
-      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS ||
+      (elements_kind == EXTERNAL_UINT32_ELEMENTS ||
        elements_kind == UINT32_ELEMENTS)) {
     graph()->RecordUint32Instruction(load);
   }
@@ -8392,7 +8392,7 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
     BuildArrayBufferViewInitialization<JSTypedArray>(
         obj, buffer, byte_offset, byte_length);
 
-    ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
+    ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
     size_t element_size = 1;  // Bogus initialization.
     Runtime::ArrayIdToTypeAndSize(array_id, &array_type, &element_size);
 

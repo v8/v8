@@ -2105,7 +2105,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
   bool can_deoptimize = instr->RequiresHoleCheck() ||
-      elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS ||
+      elements_kind == EXTERNAL_UINT32_ELEMENTS ||
       elements_kind == UINT32_ELEMENTS;
   return can_deoptimize ? AssignEnvironment(result) : result;
 }

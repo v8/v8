@@ -602,9 +602,6 @@ bool Object::IsFiller() {
 }
 
 
-TYPE_CHECKER(ExternalPixelArray, EXTERNAL_PIXEL_ARRAY_TYPE)
-
-
 bool Object::IsExternalArray() {
   if (!Object::IsHeapObject())
     return false;
@@ -615,14 +612,12 @@ bool Object::IsExternalArray() {
 }
 
 
-TYPE_CHECKER(ExternalByteArray, EXTERNAL_BYTE_ARRAY_TYPE)
-TYPE_CHECKER(ExternalUnsignedByteArray, EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)
-TYPE_CHECKER(ExternalShortArray, EXTERNAL_SHORT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalUnsignedShortArray, EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalIntArray, EXTERNAL_INT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalUnsignedIntArray, EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalFloatArray, EXTERNAL_FLOAT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalDoubleArray, EXTERNAL_DOUBLE_ARRAY_TYPE)
+#define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size)               \
+  TYPE_CHECKER(External##Type##Array, EXTERNAL_##TYPE##_ARRAY_TYPE)           \
+  TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
+
+TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
+#undef TYPED_ARRAY_TYPE_CHECKER
 
 
 bool Object::IsFixedTypedArrayBase() {
@@ -633,17 +628,6 @@ bool Object::IsFixedTypedArrayBase() {
   return (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
           instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE);
 }
-
-
-TYPE_CHECKER(FixedUint8Array, FIXED_UINT8_ARRAY_TYPE)
-TYPE_CHECKER(FixedInt8Array, FIXED_INT8_ARRAY_TYPE)
-TYPE_CHECKER(FixedUint16Array, FIXED_UINT16_ARRAY_TYPE)
-TYPE_CHECKER(FixedInt16Array, FIXED_INT16_ARRAY_TYPE)
-TYPE_CHECKER(FixedUint32Array, FIXED_UINT32_ARRAY_TYPE)
-TYPE_CHECKER(FixedInt32Array, FIXED_INT32_ARRAY_TYPE)
-TYPE_CHECKER(FixedFloat32Array, FIXED_FLOAT32_ARRAY_TYPE)
-TYPE_CHECKER(FixedFloat64Array, FIXED_FLOAT64_ARRAY_TYPE)
-TYPE_CHECKER(FixedUint8ClampedArray, FIXED_UINT8_CLAMPED_ARRAY_TYPE)
 
 
 bool MaybeObject::IsFailure() {
@@ -2850,15 +2834,15 @@ CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(FreeSpace)
 CAST_ACCESSOR(ExternalArray)
-CAST_ACCESSOR(ExternalByteArray)
-CAST_ACCESSOR(ExternalUnsignedByteArray)
-CAST_ACCESSOR(ExternalShortArray)
-CAST_ACCESSOR(ExternalUnsignedShortArray)
-CAST_ACCESSOR(ExternalIntArray)
-CAST_ACCESSOR(ExternalUnsignedIntArray)
-CAST_ACCESSOR(ExternalFloatArray)
-CAST_ACCESSOR(ExternalDoubleArray)
-CAST_ACCESSOR(ExternalPixelArray)
+CAST_ACCESSOR(ExternalInt8Array)
+CAST_ACCESSOR(ExternalUint8Array)
+CAST_ACCESSOR(ExternalInt16Array)
+CAST_ACCESSOR(ExternalUint16Array)
+CAST_ACCESSOR(ExternalInt32Array)
+CAST_ACCESSOR(ExternalUint32Array)
+CAST_ACCESSOR(ExternalFloat32Array)
+CAST_ACCESSOR(ExternalFloat64Array)
+CAST_ACCESSOR(ExternalUint8ClampedArray)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(AccessorInfo)
 
@@ -3457,26 +3441,26 @@ Address ByteArray::GetDataStartAddress() {
 }
 
 
-uint8_t* ExternalPixelArray::external_pixel_pointer() {
+uint8_t* ExternalUint8ClampedArray::external_uint8_clamped_pointer() {
   return reinterpret_cast<uint8_t*>(external_pointer());
 }
 
 
-uint8_t ExternalPixelArray::get_scalar(int index) {
+uint8_t ExternalUint8ClampedArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
-  uint8_t* ptr = external_pixel_pointer();
+  uint8_t* ptr = external_uint8_clamped_pointer();
   return ptr[index];
 }
 
 
-MaybeObject* ExternalPixelArray::get(int index) {
+MaybeObject* ExternalUint8ClampedArray::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
-void ExternalPixelArray::set(int index, uint8_t value) {
+void ExternalUint8ClampedArray::set(int index, uint8_t value) {
   ASSERT((index >= 0) && (index < this->length()));
-  uint8_t* ptr = external_pixel_pointer();
+  uint8_t* ptr = external_uint8_clamped_pointer();
   ptr[index] = value;
 }
 
@@ -3493,152 +3477,152 @@ void ExternalArray::set_external_pointer(void* value, WriteBarrierMode mode) {
 }
 
 
-int8_t ExternalByteArray::get_scalar(int index) {
+int8_t ExternalInt8Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   int8_t* ptr = static_cast<int8_t*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalByteArray::get(int index) {
+MaybeObject* ExternalInt8Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
-void ExternalByteArray::set(int index, int8_t value) {
+void ExternalInt8Array::set(int index, int8_t value) {
   ASSERT((index >= 0) && (index < this->length()));
   int8_t* ptr = static_cast<int8_t*>(external_pointer());
   ptr[index] = value;
 }
 
 
-uint8_t ExternalUnsignedByteArray::get_scalar(int index) {
+uint8_t ExternalUint8Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   uint8_t* ptr = static_cast<uint8_t*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalUnsignedByteArray::get(int index) {
+MaybeObject* ExternalUint8Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
-void ExternalUnsignedByteArray::set(int index, uint8_t value) {
+void ExternalUint8Array::set(int index, uint8_t value) {
   ASSERT((index >= 0) && (index < this->length()));
   uint8_t* ptr = static_cast<uint8_t*>(external_pointer());
   ptr[index] = value;
 }
 
 
-int16_t ExternalShortArray::get_scalar(int index) {
+int16_t ExternalInt16Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   int16_t* ptr = static_cast<int16_t*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalShortArray::get(int index) {
+MaybeObject* ExternalInt16Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
-void ExternalShortArray::set(int index, int16_t value) {
+void ExternalInt16Array::set(int index, int16_t value) {
   ASSERT((index >= 0) && (index < this->length()));
   int16_t* ptr = static_cast<int16_t*>(external_pointer());
   ptr[index] = value;
 }
 
 
-uint16_t ExternalUnsignedShortArray::get_scalar(int index) {
+uint16_t ExternalUint16Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   uint16_t* ptr = static_cast<uint16_t*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalUnsignedShortArray::get(int index) {
+MaybeObject* ExternalUint16Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
-void ExternalUnsignedShortArray::set(int index, uint16_t value) {
+void ExternalUint16Array::set(int index, uint16_t value) {
   ASSERT((index >= 0) && (index < this->length()));
   uint16_t* ptr = static_cast<uint16_t*>(external_pointer());
   ptr[index] = value;
 }
 
 
-int32_t ExternalIntArray::get_scalar(int index) {
+int32_t ExternalInt32Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   int32_t* ptr = static_cast<int32_t*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalIntArray::get(int index) {
+MaybeObject* ExternalInt32Array::get(int index) {
     return GetHeap()->NumberFromInt32(get_scalar(index));
 }
 
 
-void ExternalIntArray::set(int index, int32_t value) {
+void ExternalInt32Array::set(int index, int32_t value) {
   ASSERT((index >= 0) && (index < this->length()));
   int32_t* ptr = static_cast<int32_t*>(external_pointer());
   ptr[index] = value;
 }
 
 
-uint32_t ExternalUnsignedIntArray::get_scalar(int index) {
+uint32_t ExternalUint32Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   uint32_t* ptr = static_cast<uint32_t*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalUnsignedIntArray::get(int index) {
+MaybeObject* ExternalUint32Array::get(int index) {
     return GetHeap()->NumberFromUint32(get_scalar(index));
 }
 
 
-void ExternalUnsignedIntArray::set(int index, uint32_t value) {
+void ExternalUint32Array::set(int index, uint32_t value) {
   ASSERT((index >= 0) && (index < this->length()));
   uint32_t* ptr = static_cast<uint32_t*>(external_pointer());
   ptr[index] = value;
 }
 
 
-float ExternalFloatArray::get_scalar(int index) {
+float ExternalFloat32Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   float* ptr = static_cast<float*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalFloatArray::get(int index) {
+MaybeObject* ExternalFloat32Array::get(int index) {
     return GetHeap()->NumberFromDouble(get_scalar(index));
 }
 
 
-void ExternalFloatArray::set(int index, float value) {
+void ExternalFloat32Array::set(int index, float value) {
   ASSERT((index >= 0) && (index < this->length()));
   float* ptr = static_cast<float*>(external_pointer());
   ptr[index] = value;
 }
 
 
-double ExternalDoubleArray::get_scalar(int index) {
+double ExternalFloat64Array::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   double* ptr = static_cast<double*>(external_pointer());
   return ptr[index];
 }
 
 
-MaybeObject* ExternalDoubleArray::get(int index) {
+MaybeObject* ExternalFloat64Array::get(int index) {
     return GetHeap()->NumberFromDouble(get_scalar(index));
 }
 
 
-void ExternalDoubleArray::set(int index, double value) {
+void ExternalFloat64Array::set(int index, double value) {
   ASSERT((index >= 0) && (index < this->length()));
   double* ptr = static_cast<double*>(external_pointer());
   ptr[index] = value;
@@ -5990,29 +5974,18 @@ bool JSObject::HasExternalArrayElements() {
 }
 
 
-#define EXTERNAL_ELEMENTS_CHECK(name, type)          \
-bool JSObject::HasExternal##name##Elements() {       \
-  HeapObject* array = elements();                    \
-  ASSERT(array != NULL);                             \
-  if (!array->IsHeapObject())                        \
-    return false;                                    \
-  return array->map()->instance_type() == type;      \
+#define EXTERNAL_ELEMENTS_CHECK(Type, type, TYPE, ctype, size)          \
+bool JSObject::HasExternal##Type##Elements() {                          \
+  HeapObject* array = elements();                                       \
+  ASSERT(array != NULL);                                                \
+  if (!array->IsHeapObject())                                           \
+    return false;                                                       \
+  return array->map()->instance_type() == EXTERNAL_##TYPE##_ARRAY_TYPE; \
 }
 
+TYPED_ARRAYS(EXTERNAL_ELEMENTS_CHECK)
 
-EXTERNAL_ELEMENTS_CHECK(Byte, EXTERNAL_BYTE_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(UnsignedByte, EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(Short, EXTERNAL_SHORT_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(UnsignedShort,
-                        EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(Int, EXTERNAL_INT_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(UnsignedInt,
-                        EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(Float,
-                        EXTERNAL_FLOAT_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(Double,
-                        EXTERNAL_DOUBLE_ARRAY_TYPE)
-EXTERNAL_ELEMENTS_CHECK(Pixel, EXTERNAL_PIXEL_ARRAY_TYPE)
+#undef EXTERNAL_ELEMENTS_CHECK
 
 
 bool JSObject::HasFixedTypedArrayElements() {

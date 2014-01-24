@@ -574,7 +574,7 @@ class HValue : public ZoneObject {
     kIsDead,
     // Instructions that are allowed to produce full range unsigned integer
     // values are marked with kUint32 flag. If arithmetic shift or a load from
-    // EXTERNAL_UNSIGNED_INT_ELEMENTS array is not marked with this flag
+    // EXTERNAL_UINT32_ELEMENTS array is not marked with this flag
     // it will deoptimize if result does not fit into signed integer range.
     // HGraph::ComputeSafeUint32Operations is responsible for setting this
     // flag.
@@ -6426,8 +6426,8 @@ class HLoadKeyed V8_FINAL
         SetGVNFlag(kDependsOnDoubleArrayElements);
       }
     } else {
-      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-          elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
+          elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
           elements_kind == FLOAT32_ELEMENTS ||
           elements_kind == FLOAT64_ELEMENTS) {
         set_representation(Representation::Double());
@@ -6848,8 +6848,8 @@ class HStoreKeyed V8_FINAL
     }
 
     // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
-    if ((elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
-        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) ||
+    if ((elements_kind >= EXTERNAL_INT8_ELEMENTS &&
+        elements_kind <= EXTERNAL_UINT32_ELEMENTS) ||
         (elements_kind >= UINT8_ELEMENTS &&
         elements_kind <= INT32_ELEMENTS)) {
       SetFlag(kTruncatingToInt32);

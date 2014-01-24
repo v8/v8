@@ -96,14 +96,14 @@
 //           - TransitionArray
 //         - FixedDoubleArray
 //         - ExternalArray
-//           - ExternalPixelArray
-//           - ExternalByteArray
-//           - ExternalUnsignedByteArray
-//           - ExternalShortArray
-//           - ExternalUnsignedShortArray
-//           - ExternalIntArray
-//           - ExternalUnsignedIntArray
-//           - ExternalFloatArray
+//           - ExternalUint8ClampedArray
+//           - ExternalInt8Array
+//           - ExternalUint8Array
+//           - ExternalInt16Array
+//           - ExternalUint16Array
+//           - ExternalInt32Array
+//           - ExternalUint32Array
+//           - ExternalFloat32Array
 //       - Name
 //         - String
 //           - SeqString
@@ -377,15 +377,15 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   /* Note: the order of these external array */                                \
   /* types is relied upon in */                                                \
   /* Object::IsExternalArray(). */                                             \
-  V(EXTERNAL_BYTE_ARRAY_TYPE)                                                  \
-  V(EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)                                         \
-  V(EXTERNAL_SHORT_ARRAY_TYPE)                                                 \
-  V(EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)                                        \
-  V(EXTERNAL_INT_ARRAY_TYPE)                                                   \
-  V(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)                                          \
-  V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
-  V(EXTERNAL_DOUBLE_ARRAY_TYPE)                                                \
-  V(EXTERNAL_PIXEL_ARRAY_TYPE)                                                 \
+  V(EXTERNAL_INT8_ARRAY_TYPE)                                                  \
+  V(EXTERNAL_UINT8_ARRAY_TYPE)                                                 \
+  V(EXTERNAL_INT16_ARRAY_TYPE)                                                 \
+  V(EXTERNAL_UINT16_ARRAY_TYPE)                                                \
+  V(EXTERNAL_INT32_ARRAY_TYPE)                                                 \
+  V(EXTERNAL_UINT32_ARRAY_TYPE)                                                \
+  V(EXTERNAL_FLOAT32_ARRAY_TYPE)                                               \
+  V(EXTERNAL_FLOAT64_ARRAY_TYPE)                                               \
+  V(EXTERNAL_UINT8_CLAMPED_ARRAY_TYPE)                                         \
                                                                                \
   V(FIXED_INT8_ARRAY_TYPE)                                                     \
   V(FIXED_UINT8_ARRAY_TYPE)                                                    \
@@ -722,15 +722,16 @@ enum InstanceType {
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
   FREE_SPACE_TYPE,
-  EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
-  EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
-  EXTERNAL_SHORT_ARRAY_TYPE,
-  EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE,
-  EXTERNAL_INT_ARRAY_TYPE,
-  EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
-  EXTERNAL_FLOAT_ARRAY_TYPE,
-  EXTERNAL_DOUBLE_ARRAY_TYPE,
-  EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
+
+  EXTERNAL_INT8_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
+  EXTERNAL_UINT8_ARRAY_TYPE,
+  EXTERNAL_INT16_ARRAY_TYPE,
+  EXTERNAL_UINT16_ARRAY_TYPE,
+  EXTERNAL_INT32_ARRAY_TYPE,
+  EXTERNAL_UINT32_ARRAY_TYPE,
+  EXTERNAL_FLOAT32_ARRAY_TYPE,
+  EXTERNAL_FLOAT64_ARRAY_TYPE,
+  EXTERNAL_UINT8_CLAMPED_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
 
   FIXED_INT8_ARRAY_TYPE,  // FIRST_FIXED_TYPED_ARRAY_TYPE
   FIXED_UINT8_ARRAY_TYPE,
@@ -817,8 +818,8 @@ enum InstanceType {
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
   // Boundaries for testing for an external array.
-  FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
-  LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
+  FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_INT8_ARRAY_TYPE,
+  LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_UINT8_CLAMPED_ARRAY_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
@@ -1005,15 +1006,15 @@ class MaybeObject BASE_EMBEDDED {
   V(Symbol)                                    \
                                                \
   V(ExternalArray)                             \
-  V(ExternalByteArray)                         \
-  V(ExternalUnsignedByteArray)                 \
-  V(ExternalShortArray)                        \
-  V(ExternalUnsignedShortArray)                \
-  V(ExternalIntArray)                          \
-  V(ExternalUnsignedIntArray)                  \
-  V(ExternalFloatArray)                        \
-  V(ExternalDoubleArray)                       \
-  V(ExternalPixelArray)                        \
+  V(ExternalInt8Array)                         \
+  V(ExternalUint8Array)                        \
+  V(ExternalInt16Array)                        \
+  V(ExternalUint16Array)                       \
+  V(ExternalInt32Array)                        \
+  V(ExternalUint32Array)                       \
+  V(ExternalFloat32Array)                      \
+  V(ExternalFloat64Array)                      \
+  V(ExternalUint8ClampedArray)                 \
   V(FixedTypedArrayBase)                       \
   V(FixedUint8Array)                           \
   V(FixedInt8Array)                            \
@@ -2143,16 +2144,16 @@ class JSObject: public JSReceiver {
   inline bool HasNonStrictArgumentsElements();
   inline bool HasDictionaryElements();
 
-  inline bool HasExternalPixelElements();
+  inline bool HasExternalUint8ClampedElements();
   inline bool HasExternalArrayElements();
-  inline bool HasExternalByteElements();
-  inline bool HasExternalUnsignedByteElements();
-  inline bool HasExternalShortElements();
-  inline bool HasExternalUnsignedShortElements();
-  inline bool HasExternalIntElements();
-  inline bool HasExternalUnsignedIntElements();
-  inline bool HasExternalFloatElements();
-  inline bool HasExternalDoubleElements();
+  inline bool HasExternalInt8Elements();
+  inline bool HasExternalUint8Elements();
+  inline bool HasExternalInt16Elements();
+  inline bool HasExternalUint16Elements();
+  inline bool HasExternalInt32Elements();
+  inline bool HasExternalUint32Elements();
+  inline bool HasExternalFloat32Elements();
+  inline bool HasExternalFloat64Elements();
 
   inline bool HasFixedTypedArrayElements();
 
@@ -4568,6 +4569,20 @@ class FreeSpace: public HeapObject {
 };
 
 
+// V has parameters (Type, type, TYPE, C type, element_size)
+#define TYPED_ARRAYS(V) \
+  V(Uint8, uint8, UINT8, uint8_t, 1)                                           \
+  V(Int8, int8, INT8, int8_t, 1)                                               \
+  V(Uint16, uint16, UINT16, uint16_t, 2)                                       \
+  V(Int16, int16, INT16, int16_t, 2)                                           \
+  V(Uint32, uint32, UINT32, uint32_t, 4)                                       \
+  V(Int32, int32, INT32, int32_t, 4)                                           \
+  V(Float32, float32, FLOAT32, float, 4)                                       \
+  V(Float64, float64, FLOAT64, double, 8)                                      \
+  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1)
+
+
+
 // An ExternalArray represents a fixed-size array of primitive values
 // which live outside the JavaScript heap. Its subclasses are used to
 // implement the CanvasArray types being defined in the WebGL
@@ -4604,7 +4619,7 @@ class ExternalArray: public FixedArrayBase {
 };
 
 
-// A ExternalPixelArray represents a fixed-size byte array with special
+// A ExternalUint8ClampedArray represents a fixed-size byte array with special
 // semantics used for implementing the CanvasPixelArray object. Please see the
 // specification at:
 
@@ -4612,9 +4627,9 @@ class ExternalArray: public FixedArrayBase {
 //                      multipage/the-canvas-element.html#canvaspixelarray
 // In particular, write access clamps the value written to 0 or 255 if the
 // value written is outside this range.
-class ExternalPixelArray: public ExternalArray {
+class ExternalUint8ClampedArray: public ExternalArray {
  public:
-  inline uint8_t* external_pixel_pointer();
+  inline uint8_t* external_uint8_clamped_pointer();
 
   // Setter and getter.
   inline uint8_t get_scalar(int index);
@@ -4625,26 +4640,30 @@ class ExternalPixelArray: public ExternalArray {
   // undefined and clamps the converted value between 0 and 255.
   Object* SetValue(uint32_t index, Object* value);
 
+  static Handle<Object> SetValue(Handle<ExternalUint8ClampedArray> array,
+                                 uint32_t index,
+                                 Handle<Object> value);
+
   // Casting.
-  static inline ExternalPixelArray* cast(Object* obj);
+  static inline ExternalUint8ClampedArray* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalPixelArray)
-  DECLARE_VERIFIER(ExternalPixelArray)
+  DECLARE_PRINTER(ExternalUint8ClampedArray)
+  DECLARE_VERIFIER(ExternalUint8ClampedArray)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalPixelArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint8ClampedArray);
 };
 
 
-class ExternalByteArray: public ExternalArray {
+class ExternalInt8Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int8_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int8_t value);
 
-  static Handle<Object> SetValue(Handle<ExternalByteArray> array,
+  static Handle<Object> SetValue(Handle<ExternalInt8Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4653,25 +4672,25 @@ class ExternalByteArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalByteArray* cast(Object* obj);
+  static inline ExternalInt8Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalByteArray)
-  DECLARE_VERIFIER(ExternalByteArray)
+  DECLARE_PRINTER(ExternalInt8Array)
+  DECLARE_VERIFIER(ExternalInt8Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalByteArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalInt8Array);
 };
 
 
-class ExternalUnsignedByteArray: public ExternalArray {
+class ExternalUint8Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint8_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint8_t value);
 
-  static Handle<Object> SetValue(Handle<ExternalUnsignedByteArray> array,
+  static Handle<Object> SetValue(Handle<ExternalUint8Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4680,25 +4699,25 @@ class ExternalUnsignedByteArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalUnsignedByteArray* cast(Object* obj);
+  static inline ExternalUint8Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalUnsignedByteArray)
-  DECLARE_VERIFIER(ExternalUnsignedByteArray)
+  DECLARE_PRINTER(ExternalUint8Array)
+  DECLARE_VERIFIER(ExternalUint8Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedByteArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint8Array);
 };
 
 
-class ExternalShortArray: public ExternalArray {
+class ExternalInt16Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int16_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int16_t value);
 
-  static Handle<Object> SetValue(Handle<ExternalShortArray> array,
+  static Handle<Object> SetValue(Handle<ExternalInt16Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4707,25 +4726,25 @@ class ExternalShortArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalShortArray* cast(Object* obj);
+  static inline ExternalInt16Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalShortArray)
-  DECLARE_VERIFIER(ExternalShortArray)
+  DECLARE_PRINTER(ExternalInt16Array)
+  DECLARE_VERIFIER(ExternalInt16Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalShortArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalInt16Array);
 };
 
 
-class ExternalUnsignedShortArray: public ExternalArray {
+class ExternalUint16Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint16_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint16_t value);
 
-  static Handle<Object> SetValue(Handle<ExternalUnsignedShortArray> array,
+  static Handle<Object> SetValue(Handle<ExternalUint16Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4734,25 +4753,25 @@ class ExternalUnsignedShortArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalUnsignedShortArray* cast(Object* obj);
+  static inline ExternalUint16Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalUnsignedShortArray)
-  DECLARE_VERIFIER(ExternalUnsignedShortArray)
+  DECLARE_PRINTER(ExternalUint16Array)
+  DECLARE_VERIFIER(ExternalUint16Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedShortArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint16Array);
 };
 
 
-class ExternalIntArray: public ExternalArray {
+class ExternalInt32Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int32_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int32_t value);
 
-  static Handle<Object> SetValue(Handle<ExternalIntArray> array,
+  static Handle<Object> SetValue(Handle<ExternalInt32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4761,25 +4780,25 @@ class ExternalIntArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalIntArray* cast(Object* obj);
+  static inline ExternalInt32Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalIntArray)
-  DECLARE_VERIFIER(ExternalIntArray)
+  DECLARE_PRINTER(ExternalInt32Array)
+  DECLARE_VERIFIER(ExternalInt32Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalIntArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalInt32Array);
 };
 
 
-class ExternalUnsignedIntArray: public ExternalArray {
+class ExternalUint32Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint32_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint32_t value);
 
-  static Handle<Object> SetValue(Handle<ExternalUnsignedIntArray> array,
+  static Handle<Object> SetValue(Handle<ExternalUint32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4788,25 +4807,25 @@ class ExternalUnsignedIntArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalUnsignedIntArray* cast(Object* obj);
+  static inline ExternalUint32Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalUnsignedIntArray)
-  DECLARE_VERIFIER(ExternalUnsignedIntArray)
+  DECLARE_PRINTER(ExternalUint32Array)
+  DECLARE_VERIFIER(ExternalUint32Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedIntArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint32Array);
 };
 
 
-class ExternalFloatArray: public ExternalArray {
+class ExternalFloat32Array: public ExternalArray {
  public:
   // Setter and getter.
   inline float get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, float value);
 
-  static Handle<Object> SetValue(Handle<ExternalFloatArray> array,
+  static Handle<Object> SetValue(Handle<ExternalFloat32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4815,25 +4834,25 @@ class ExternalFloatArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalFloatArray* cast(Object* obj);
+  static inline ExternalFloat32Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalFloatArray)
-  DECLARE_VERIFIER(ExternalFloatArray)
+  DECLARE_PRINTER(ExternalFloat32Array)
+  DECLARE_VERIFIER(ExternalFloat32Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloatArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloat32Array);
 };
 
 
-class ExternalDoubleArray: public ExternalArray {
+class ExternalFloat64Array: public ExternalArray {
  public:
   // Setter and getter.
   inline double get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, double value);
 
-  static Handle<Object> SetValue(Handle<ExternalDoubleArray> array,
+  static Handle<Object> SetValue(Handle<ExternalFloat64Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
 
@@ -4842,14 +4861,14 @@ class ExternalDoubleArray: public ExternalArray {
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
-  static inline ExternalDoubleArray* cast(Object* obj);
+  static inline ExternalFloat64Array* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ExternalDoubleArray)
-  DECLARE_VERIFIER(ExternalDoubleArray)
+  DECLARE_PRINTER(ExternalFloat64Array)
+  DECLARE_VERIFIER(ExternalFloat64Array)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalDoubleArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloat64Array);
 };
 
 
@@ -4899,7 +4918,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
 };
 
-#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType)               \
+#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType, size)         \
   class Type##ArrayTraits {                                                   \
     public:                                                                   \
       typedef elementType ElementType;                                        \
@@ -4911,15 +4930,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
                                                                               \
   typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
 
-FIXED_TYPED_ARRAY_TRAITS(Uint8, uint8, UINT8, uint8_t)
-FIXED_TYPED_ARRAY_TRAITS(Int8, int8, INT8, int8_t)
-FIXED_TYPED_ARRAY_TRAITS(Uint16, uint16, UINT16, uint16_t)
-FIXED_TYPED_ARRAY_TRAITS(Int16, int16, INT16, int16_t)
-FIXED_TYPED_ARRAY_TRAITS(Uint32, uint32, UINT32, uint32_t)
-FIXED_TYPED_ARRAY_TRAITS(Int32, int32, INT32, int32_t)
-FIXED_TYPED_ARRAY_TRAITS(Float32, float32, FLOAT32, float)
-FIXED_TYPED_ARRAY_TRAITS(Float64, float64, FLOAT64, double)
-FIXED_TYPED_ARRAY_TRAITS(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t)
+TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)
 
 #undef FIXED_TYPED_ARRAY_TRAITS
 

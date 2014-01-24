@@ -2909,14 +2909,14 @@ Range* HLoadNamedField::InferRange(Zone* zone) {
 
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
-    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_INT8_ELEMENTS:
       return new(zone) Range(kMinInt8, kMaxInt8);
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_UINT8_ELEMENTS:
+    case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
       return new(zone) Range(kMinUInt8, kMaxUInt8);
-    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_INT16_ELEMENTS:
       return new(zone) Range(kMinInt16, kMaxInt16);
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_UINT16_ELEMENTS:
       return new(zone) Range(kMinUInt16, kMaxUInt16);
     default:
       return HValue::InferRange(zone);

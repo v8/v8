@@ -2371,26 +2371,14 @@ bool Value::IsTypedArray() const {
 }
 
 
-#define TYPED_ARRAY_LIST(F)                     \
-  F(Uint8Array, kExternalUnsignedByteArray)     \
-  F(Int8Array, kExternalByteArray)              \
-  F(Uint16Array, kExternalUnsignedShortArray)   \
-  F(Int16Array, kExternalShortArray)            \
-  F(Uint32Array, kExternalUnsignedIntArray)     \
-  F(Int32Array, kExternalIntArray)              \
-  F(Float32Array, kExternalFloatArray)          \
-  F(Float64Array, kExternalDoubleArray)         \
-  F(Uint8ClampedArray, kExternalPixelArray)
-
-
-#define VALUE_IS_TYPED_ARRAY(TypedArray, type_const)            \
-  bool Value::Is##TypedArray() const {                          \
-    i::Handle<i::Object> obj = Utils::OpenHandle(this);         \
-    if (!obj->IsJSTypedArray()) return false;                   \
-    return i::JSTypedArray::cast(*obj)->type() == type_const;   \
+#define VALUE_IS_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)            \
+  bool Value::Is##Type##Array() const {                                    \
+    i::Handle<i::Object> obj = Utils::OpenHandle(this);                    \
+    return obj->IsJSTypedArray() &&                                        \
+           i::JSTypedArray::cast(*obj)->type() == kExternal##Type##Array;  \
   }
 
-TYPED_ARRAY_LIST(VALUE_IS_TYPED_ARRAY)
+TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
 
 #undef VALUE_IS_TYPED_ARRAY
 
@@ -2722,17 +2710,18 @@ void v8::TypedArray::CheckCast(Value* that) {
 }
 
 
-#define CHECK_TYPED_ARRAY_CAST(ApiClass, typeConst)                     \
-  void v8::ApiClass::CheckCast(Value* that) {                           \
-    i::Handle<i::Object> obj = Utils::OpenHandle(that);                 \
-    Utils::ApiCheck(obj->IsJSTypedArray() &&                            \
-                    i::JSTypedArray::cast(*obj)->type() == typeConst,   \
-                    "v8::" #ApiClass "::Cast()",                        \
-                    "Could not convert to " #ApiClass);                 \
+#define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype, size)             \
+  void v8::Type##Array::CheckCast(Value* that) {                              \
+    i::Handle<i::Object> obj = Utils::OpenHandle(that);                       \
+    Utils::ApiCheck(obj->IsJSTypedArray() &&                                  \
+                    i::JSTypedArray::cast(*obj)->type() ==                    \
+                        kExternal##Type##Array,                               \
+                    "v8::" #Type "Array::Cast()",                             \
+                    "Could not convert to " #Type "Array");                   \
   }
 
 
-TYPED_ARRAY_LIST(CHECK_TYPED_ARRAY_CAST)
+TYPED_ARRAYS(CHECK_TYPED_ARRAY_CAST)
 
 #undef CHECK_TYPED_ARRAY_CAST
 
@@ -3665,33 +3654,12 @@ namespace {
 static i::ElementsKind GetElementsKindFromExternalArrayType(
     ExternalArrayType array_type) {
   switch (array_type) {
-    case kExternalByteArray:
-      return i::EXTERNAL_BYTE_ELEMENTS;
-      break;
-    case kExternalUnsignedByteArray:
-      return i::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
-      break;
-    case kExternalShortArray:
-      return i::EXTERNAL_SHORT_ELEMENTS;
-      break;
-    case kExternalUnsignedShortArray:
-      return i::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
-      break;
-    case kExternalIntArray:
-      return i::EXTERNAL_INT_ELEMENTS;
-      break;
-    case kExternalUnsignedIntArray:
-      return i::EXTERNAL_UNSIGNED_INT_ELEMENTS;
-      break;
-    case kExternalFloatArray:
-      return i::EXTERNAL_FLOAT_ELEMENTS;
-      break;
-    case kExternalDoubleArray:
-      return i::EXTERNAL_DOUBLE_ELEMENTS;
-      break;
-    case kExternalPixelArray:
-      return i::EXTERNAL_PIXEL_ELEMENTS;
-      break;
+#define ARRAY_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype, size)            \
+    case kExternal##Type##Array:                                              \
+      return i::EXTERNAL_##TYPE##_ELEMENTS;
+
+    TYPED_ARRAYS(ARRAY_TYPE_TO_ELEMENTS_KIND)
+#undef ARRAY_TYPE_TO_ELEMENTS_KIND
   }
   UNREACHABLE();
   return i::DICTIONARY_ELEMENTS;
@@ -3724,7 +3692,7 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   if (!Utils::ApiCheck(length >= 0 &&
-                       length <= i::ExternalPixelArray::kMaxLength,
+                       length <= i::ExternalUint8ClampedArray::kMaxLength,
                        "v8::Object::SetIndexedPropertiesToPixelData()",
                        "length exceeds max acceptable value")) {
     return;
@@ -3735,7 +3703,7 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
                        "JSArray is not supported")) {
     return;
   }
-  PrepareExternalArrayElements(self, data, kExternalPixelArray, length);
+  PrepareExternalArrayElements(self, data, kExternalUint8ClampedArray, length);
 }
 
 
@@ -3743,7 +3711,7 @@ bool v8::Object::HasIndexedPropertiesInPixelData() {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   ON_BAILOUT(self->GetIsolate(), "v8::HasIndexedPropertiesInPixelData()",
              return false);
-  return self->HasExternalPixelElements();
+  return self->HasExternalUint8ClampedElements();
 }
 
 
@@ -3751,9 +3719,9 @@ uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   ON_BAILOUT(self->GetIsolate(), "v8::GetIndexedPropertiesPixelData()",
              return NULL);
-  if (self->HasExternalPixelElements()) {
-    return i::ExternalPixelArray::cast(self->elements())->
-        external_pixel_pointer();
+  if (self->HasExternalUint8ClampedElements()) {
+    return i::ExternalUint8ClampedArray::cast(self->elements())->
+        external_uint8_clamped_pointer();
   } else {
     return NULL;
   }
@@ -3764,8 +3732,8 @@ int v8::Object::GetIndexedPropertiesPixelDataLength() {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   ON_BAILOUT(self->GetIsolate(), "v8::GetIndexedPropertiesPixelDataLength()",
              return -1);
-  if (self->HasExternalPixelElements()) {
-    return i::ExternalPixelArray::cast(self->elements())->length();
+  if (self->HasExternalUint8ClampedElements()) {
+    return i::ExternalUint8ClampedArray::cast(self->elements())->length();
   } else {
     return -1;
   }
@@ -3823,24 +3791,11 @@ ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
              "v8::GetIndexedPropertiesExternalArrayDataType()",
              return static_cast<ExternalArrayType>(-1));
   switch (self->elements()->map()->instance_type()) {
-    case i::EXTERNAL_BYTE_ARRAY_TYPE:
-      return kExternalByteArray;
-    case i::EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      return kExternalUnsignedByteArray;
-    case i::EXTERNAL_SHORT_ARRAY_TYPE:
-      return kExternalShortArray;
-    case i::EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      return kExternalUnsignedShortArray;
-    case i::EXTERNAL_INT_ARRAY_TYPE:
-      return kExternalIntArray;
-    case i::EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      return kExternalUnsignedIntArray;
-    case i::EXTERNAL_FLOAT_ARRAY_TYPE:
-      return kExternalFloatArray;
-    case i::EXTERNAL_DOUBLE_ARRAY_TYPE:
-      return kExternalDoubleArray;
-    case i::EXTERNAL_PIXEL_ARRAY_TYPE:
-      return kExternalPixelArray;
+#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype, size)            \
+    case i::EXTERNAL_##TYPE##_ARRAY_TYPE:                                     \
+      return kExternal##Type##Array;
+    TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
+#undef INSTANCE_TYPE_TO_ARRAY_TYPE
     default:
       return static_cast<ExternalArrayType>(-1);
   }
@@ -6018,41 +5973,24 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 }
 
 
-#define TYPED_ARRAY_NEW(TypedArray, element_type, array_type, elements_kind) \
-  Local<TypedArray> TypedArray::New(Handle<ArrayBuffer> array_buffer,        \
+#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                       \
+  Local<Type##Array> Type##Array::New(Handle<ArrayBuffer> array_buffer,      \
                                     size_t byte_offset, size_t length) {     \
     i::Isolate* isolate = i::Isolate::Current();                             \
     EnsureInitializedForIsolate(isolate,                                     \
-        "v8::" #TypedArray "::New(Handle<ArrayBuffer>, size_t, size_t)");    \
+        "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)");     \
     LOG_API(isolate,                                                         \
-        "v8::" #TypedArray "::New(Handle<ArrayBuffer>, size_t, size_t)");    \
+        "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)");     \
     ENTER_V8(isolate);                                                       \
     i::Handle<i::JSTypedArray> obj =                                         \
-        NewTypedArray<element_type, array_type, elements_kind>(              \
+        NewTypedArray<ctype, v8::kExternal##Type##Array,                     \
+                      i::EXTERNAL_##TYPE##_ELEMENTS>(                        \
             isolate, array_buffer, byte_offset, length);                     \
-    return Utils::ToLocal##TypedArray(obj);                                  \
+    return Utils::ToLocal##Type##Array(obj);                                 \
   }
 
 
-TYPED_ARRAY_NEW(Uint8Array, uint8_t, kExternalUnsignedByteArray,
-                i::EXTERNAL_UNSIGNED_BYTE_ELEMENTS)
-TYPED_ARRAY_NEW(Uint8ClampedArray, uint8_t, kExternalPixelArray,
-                i::EXTERNAL_PIXEL_ELEMENTS)
-TYPED_ARRAY_NEW(Int8Array, int8_t, kExternalByteArray,
-                i::EXTERNAL_BYTE_ELEMENTS)
-TYPED_ARRAY_NEW(Uint16Array, uint16_t, kExternalUnsignedShortArray,
-                i::EXTERNAL_UNSIGNED_SHORT_ELEMENTS)
-TYPED_ARRAY_NEW(Int16Array, int16_t, kExternalShortArray,
-                i::EXTERNAL_SHORT_ELEMENTS)
-TYPED_ARRAY_NEW(Uint32Array, uint32_t, kExternalUnsignedIntArray,
-                i::EXTERNAL_UNSIGNED_INT_ELEMENTS)
-TYPED_ARRAY_NEW(Int32Array, int32_t, kExternalIntArray,
-                i::EXTERNAL_INT_ELEMENTS)
-TYPED_ARRAY_NEW(Float32Array, float, kExternalFloatArray,
-                i::EXTERNAL_FLOAT_ELEMENTS)
-TYPED_ARRAY_NEW(Float64Array, double, kExternalDoubleArray,
-                i::EXTERNAL_DOUBLE_ELEMENTS)
-
+TYPED_ARRAYS(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
 
 Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,

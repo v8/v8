@@ -15705,10 +15705,10 @@ THREADED_TEST(PixelArray) {
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::ExternalPixelArray> pixels =
-      i::Handle<i::ExternalPixelArray>::cast(
+  i::Handle<i::ExternalUint8ClampedArray> pixels =
+      i::Handle<i::ExternalUint8ClampedArray>::cast(
           factory->NewExternalArray(kElementCount,
-                                    v8::kExternalPixelArray,
+                                    v8::kExternalUint8ClampedArray,
                                     pixel_data));
   // Force GC to trigger verification.
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -16119,10 +16119,10 @@ THREADED_TEST(PixelArrayWithInterceptor) {
   v8::HandleScope scope(isolate);
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::ExternalPixelArray> pixels =
-      i::Handle<i::ExternalPixelArray>::cast(
+  i::Handle<i::ExternalUint8ClampedArray> pixels =
+      i::Handle<i::ExternalUint8ClampedArray>::cast(
           factory->NewExternalArray(kElementCount,
-                                    v8::kExternalPixelArray,
+                                    v8::kExternalUint8ClampedArray,
                                     pixel_data));
   for (int i = 0; i < kElementCount; i++) {
     pixels->set(i, i % 256);
@@ -16150,21 +16150,21 @@ THREADED_TEST(PixelArrayWithInterceptor) {
 
 static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
   switch (array_type) {
-    case v8::kExternalByteArray:
-    case v8::kExternalUnsignedByteArray:
-    case v8::kExternalPixelArray:
+    case v8::kExternalInt8Array:
+    case v8::kExternalUint8Array:
+    case v8::kExternalUint8ClampedArray:
       return 1;
       break;
-    case v8::kExternalShortArray:
-    case v8::kExternalUnsignedShortArray:
+    case v8::kExternalInt16Array:
+    case v8::kExternalUint16Array:
       return 2;
       break;
-    case v8::kExternalIntArray:
-    case v8::kExternalUnsignedIntArray:
-    case v8::kExternalFloatArray:
+    case v8::kExternalInt32Array:
+    case v8::kExternalUint32Array:
+    case v8::kExternalFloat32Array:
       return 4;
       break;
-    case v8::kExternalDoubleArray:
+    case v8::kExternalFloat64Array:
       return 8;
       break;
     default:
@@ -16326,8 +16326,8 @@ static void ObjectWithExternalArrayTestHelper(
                       "}"
                       "ext_array[7];");
   CHECK_EQ(0, result->Int32Value());
-  if (array_type == v8::kExternalDoubleArray ||
-      array_type == v8::kExternalFloatArray) {
+  if (array_type == v8::kExternalFloat64Array ||
+      array_type == v8::kExternalFloat32Array) {
     CHECK_EQ(static_cast<int>(i::OS::nan_value()),
              static_cast<int>(
                  jsobj->GetElement(isolate, 7)->ToObjectChecked()->Number()));
@@ -16344,8 +16344,8 @@ static void ObjectWithExternalArrayTestHelper(
            static_cast<int>(
                jsobj->GetElement(isolate, 6)->ToObjectChecked()->Number()));
 
-  if (array_type != v8::kExternalFloatArray &&
-      array_type != v8::kExternalDoubleArray) {
+  if (array_type != v8::kExternalFloat32Array &&
+      array_type != v8::kExternalFloat64Array) {
     // Though the specification doesn't state it, be explicit about
     // converting NaNs and +/-Infinity to zero.
     result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -16366,7 +16366,7 @@ static void ObjectWithExternalArrayTestHelper(
                         "}"
                         "ext_array[5];");
     int expected_value =
-        (array_type == v8::kExternalPixelArray) ? 255 : 0;
+        (array_type == v8::kExternalUint8ClampedArray) ? 255 : 0;
     CHECK_EQ(expected_value, result->Int32Value());
     CheckElementValue(isolate, expected_value, jsobj, 5);
 
@@ -16391,10 +16391,10 @@ static void ObjectWithExternalArrayTestHelper(
         "var source_data = [0.6, 10.6];"
         "var expected_results = [1, 11];";
     bool is_unsigned =
-        (array_type == v8::kExternalUnsignedByteArray ||
-         array_type == v8::kExternalUnsignedShortArray ||
-         array_type == v8::kExternalUnsignedIntArray);
-    bool is_pixel_data = array_type == v8::kExternalPixelArray;
+        (array_type == v8::kExternalUint8Array ||
+         array_type == v8::kExternalUint16Array ||
+         array_type == v8::kExternalUint32Array);
+    bool is_pixel_data = array_type == v8::kExternalUint8ClampedArray;
 
     i::OS::SNPrintF(test_buf,
                     "%s"
@@ -16524,7 +16524,7 @@ static void FixedTypedArrayTestHelper(
 
 THREADED_TEST(FixedUint8Array) {
   FixedTypedArrayTestHelper<i::FixedUint8Array, i::UINT8_ELEMENTS, uint8_t>(
-    v8::kExternalUnsignedByteArray,
+    v8::kExternalUint8Array,
     0x0, 0xFF);
 }
 
@@ -16532,56 +16532,56 @@ THREADED_TEST(FixedUint8Array) {
 THREADED_TEST(FixedUint8ClampedArray) {
   FixedTypedArrayTestHelper<i::FixedUint8ClampedArray,
                             i::UINT8_CLAMPED_ELEMENTS, uint8_t>(
-    v8::kExternalPixelArray,
+    v8::kExternalUint8ClampedArray,
     0x0, 0xFF);
 }
 
 
 THREADED_TEST(FixedInt8Array) {
   FixedTypedArrayTestHelper<i::FixedInt8Array, i::INT8_ELEMENTS, int8_t>(
-    v8::kExternalByteArray,
+    v8::kExternalInt8Array,
     -0x80, 0x7F);
 }
 
 
 THREADED_TEST(FixedUint16Array) {
   FixedTypedArrayTestHelper<i::FixedUint16Array, i::UINT16_ELEMENTS, uint16_t>(
-    v8::kExternalUnsignedShortArray,
+    v8::kExternalUint16Array,
     0x0, 0xFFFF);
 }
 
 
 THREADED_TEST(FixedInt16Array) {
   FixedTypedArrayTestHelper<i::FixedInt16Array, i::INT16_ELEMENTS, int16_t>(
-    v8::kExternalShortArray,
+    v8::kExternalInt16Array,
     -0x8000, 0x7FFF);
 }
 
 
 THREADED_TEST(FixedUint32Array) {
   FixedTypedArrayTestHelper<i::FixedUint32Array, i::UINT32_ELEMENTS, uint32_t>(
-    v8::kExternalUnsignedIntArray,
+    v8::kExternalUint32Array,
     0x0, UINT_MAX);
 }
 
 
 THREADED_TEST(FixedInt32Array) {
   FixedTypedArrayTestHelper<i::FixedInt32Array, i::INT32_ELEMENTS, int32_t>(
-    v8::kExternalIntArray,
+    v8::kExternalInt32Array,
     INT_MIN, INT_MAX);
 }
 
 
 THREADED_TEST(FixedFloat32Array) {
   FixedTypedArrayTestHelper<i::FixedFloat32Array, i::FLOAT32_ELEMENTS, float>(
-    v8::kExternalFloatArray,
+    v8::kExternalFloat32Array,
     -500, 500);
 }
 
 
 THREADED_TEST(FixedFloat64Array) {
   FixedTypedArrayTestHelper<i::FixedFloat64Array, i::FLOAT64_ELEMENTS, float>(
-    v8::kExternalDoubleArray,
+    v8::kExternalFloat64Array,
     -500, 500);
 }
 
@@ -16803,86 +16803,86 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
 }
 
 
-THREADED_TEST(ExternalByteArray) {
-  ExternalArrayTestHelper<i::ExternalByteArray, int8_t>(
-      v8::kExternalByteArray,
+THREADED_TEST(ExternalInt8Array) {
+  ExternalArrayTestHelper<i::ExternalInt8Array, int8_t>(
+      v8::kExternalInt8Array,
       -128,
       127);
 }
 
 
-THREADED_TEST(ExternalUnsignedByteArray) {
-  ExternalArrayTestHelper<i::ExternalUnsignedByteArray, uint8_t>(
-      v8::kExternalUnsignedByteArray,
+THREADED_TEST(ExternalUint8Array) {
+  ExternalArrayTestHelper<i::ExternalUint8Array, uint8_t>(
+      v8::kExternalUint8Array,
       0,
       255);
 }
 
 
-THREADED_TEST(ExternalPixelArray) {
-  ExternalArrayTestHelper<i::ExternalPixelArray, uint8_t>(
-      v8::kExternalPixelArray,
+THREADED_TEST(ExternalUint8ClampedArray) {
+  ExternalArrayTestHelper<i::ExternalUint8ClampedArray, uint8_t>(
+      v8::kExternalUint8ClampedArray,
       0,
       255);
 }
 
 
-THREADED_TEST(ExternalShortArray) {
-  ExternalArrayTestHelper<i::ExternalShortArray, int16_t>(
-      v8::kExternalShortArray,
+THREADED_TEST(ExternalInt16Array) {
+  ExternalArrayTestHelper<i::ExternalInt16Array, int16_t>(
+      v8::kExternalInt16Array,
       -32768,
       32767);
 }
 
 
-THREADED_TEST(ExternalUnsignedShortArray) {
-  ExternalArrayTestHelper<i::ExternalUnsignedShortArray, uint16_t>(
-      v8::kExternalUnsignedShortArray,
+THREADED_TEST(ExternalUint16Array) {
+  ExternalArrayTestHelper<i::ExternalUint16Array, uint16_t>(
+      v8::kExternalUint16Array,
       0,
       65535);
 }
 
 
-THREADED_TEST(ExternalIntArray) {
-  ExternalArrayTestHelper<i::ExternalIntArray, int32_t>(
-      v8::kExternalIntArray,
+THREADED_TEST(ExternalInt32Array) {
+  ExternalArrayTestHelper<i::ExternalInt32Array, int32_t>(
+      v8::kExternalInt32Array,
       INT_MIN,   // -2147483648
       INT_MAX);  //  2147483647
 }
 
 
-THREADED_TEST(ExternalUnsignedIntArray) {
-  ExternalArrayTestHelper<i::ExternalUnsignedIntArray, uint32_t>(
-      v8::kExternalUnsignedIntArray,
+THREADED_TEST(ExternalUint32Array) {
+  ExternalArrayTestHelper<i::ExternalUint32Array, uint32_t>(
+      v8::kExternalUint32Array,
       0,
       UINT_MAX);  // 4294967295
 }
 
 
-THREADED_TEST(ExternalFloatArray) {
-  ExternalArrayTestHelper<i::ExternalFloatArray, float>(
-      v8::kExternalFloatArray,
+THREADED_TEST(ExternalFloat32Array) {
+  ExternalArrayTestHelper<i::ExternalFloat32Array, float>(
+      v8::kExternalFloat32Array,
       -500,
       500);
 }
 
 
-THREADED_TEST(ExternalDoubleArray) {
-  ExternalArrayTestHelper<i::ExternalDoubleArray, double>(
-      v8::kExternalDoubleArray,
+THREADED_TEST(ExternalFloat64Array) {
+  ExternalArrayTestHelper<i::ExternalFloat64Array, double>(
+      v8::kExternalFloat64Array,
       -500,
       500);
 }
 
 
 THREADED_TEST(ExternalArrays) {
-  TestExternalByteArray();
-  TestExternalUnsignedByteArray();
-  TestExternalShortArray();
-  TestExternalUnsignedShortArray();
-  TestExternalIntArray();
-  TestExternalUnsignedIntArray();
-  TestExternalFloatArray();
+  TestExternalInt8Array();
+  TestExternalUint8Array();
+  TestExternalInt16Array();
+  TestExternalUint16Array();
+  TestExternalInt32Array();
+  TestExternalUint32Array();
+  TestExternalFloat32Array();
 }
 
 
@@ -16905,15 +16905,15 @@ void ExternalArrayInfoTestHelper(v8::ExternalArrayType array_type) {
 
 
 THREADED_TEST(ExternalArrayInfo) {
-  ExternalArrayInfoTestHelper(v8::kExternalByteArray);
-  ExternalArrayInfoTestHelper(v8::kExternalUnsignedByteArray);
-  ExternalArrayInfoTestHelper(v8::kExternalShortArray);
-  ExternalArrayInfoTestHelper(v8::kExternalUnsignedShortArray);
-  ExternalArrayInfoTestHelper(v8::kExternalIntArray);
-  ExternalArrayInfoTestHelper(v8::kExternalUnsignedIntArray);
-  ExternalArrayInfoTestHelper(v8::kExternalFloatArray);
-  ExternalArrayInfoTestHelper(v8::kExternalDoubleArray);
-  ExternalArrayInfoTestHelper(v8::kExternalPixelArray);
+  ExternalArrayInfoTestHelper(v8::kExternalInt8Array);
+  ExternalArrayInfoTestHelper(v8::kExternalUint8Array);
+  ExternalArrayInfoTestHelper(v8::kExternalInt16Array);
+  ExternalArrayInfoTestHelper(v8::kExternalUint16Array);
+  ExternalArrayInfoTestHelper(v8::kExternalInt32Array);
+  ExternalArrayInfoTestHelper(v8::kExternalUint32Array);
+  ExternalArrayInfoTestHelper(v8::kExternalFloat32Array);
+  ExternalArrayInfoTestHelper(v8::kExternalFloat64Array);
+  ExternalArrayInfoTestHelper(v8::kExternalUint8ClampedArray);
 }
 
 
@@ -16934,24 +16934,24 @@ TEST(ExternalArrayLimits) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  ExtArrayLimitsHelper(isolate, v8::kExternalByteArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalByteArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUnsignedByteArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUnsignedByteArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalShortArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalShortArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUnsignedShortArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUnsignedShortArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalIntArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalIntArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUnsignedIntArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUnsignedIntArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalFloatArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalFloatArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalDoubleArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalDoubleArray, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalPixelArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalPixelArray, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalInt8Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalInt8Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint8Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint8Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalInt16Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalInt16Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint16Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint16Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalInt32Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalInt32Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint32Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint32Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalFloat32Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalFloat32Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalFloat64Array, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalFloat64Array, 0xffffffff);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint8ClampedArray, 0x40000000);
+  ExtArrayLimitsHelper(isolate, v8::kExternalUint8ClampedArray, 0xffffffff);
 }
 
 
@@ -16990,58 +16990,59 @@ void TypedArrayTestHelper(v8::ExternalArrayType array_type,
 
 
 THREADED_TEST(Uint8Array) {
-  TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::ExternalUnsignedByteArray>(
-      v8::kExternalUnsignedByteArray, 0, 0xFF);
+  TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::ExternalUint8Array>(
+      v8::kExternalUint8Array, 0, 0xFF);
 }
 
 
 THREADED_TEST(Int8Array) {
-  TypedArrayTestHelper<int8_t, v8::Int8Array, i::ExternalByteArray>(
-      v8::kExternalByteArray, -0x80, 0x7F);
+  TypedArrayTestHelper<int8_t, v8::Int8Array, i::ExternalInt8Array>(
+      v8::kExternalInt8Array, -0x80, 0x7F);
 }
 
 
 THREADED_TEST(Uint16Array) {
   TypedArrayTestHelper<uint16_t,
                        v8::Uint16Array,
-                       i::ExternalUnsignedShortArray>(
-      v8::kExternalUnsignedShortArray, 0, 0xFFFF);
+                       i::ExternalUint16Array>(
+      v8::kExternalUint16Array, 0, 0xFFFF);
 }
 
 
 THREADED_TEST(Int16Array) {
-  TypedArrayTestHelper<int16_t, v8::Int16Array, i::ExternalShortArray>(
-      v8::kExternalShortArray, -0x8000, 0x7FFF);
+  TypedArrayTestHelper<int16_t, v8::Int16Array, i::ExternalInt16Array>(
+      v8::kExternalInt16Array, -0x8000, 0x7FFF);
 }
 
 
 THREADED_TEST(Uint32Array) {
-  TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::ExternalUnsignedIntArray>(
-      v8::kExternalUnsignedIntArray, 0, UINT_MAX);
+  TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::ExternalUint32Array>(
+      v8::kExternalUint32Array, 0, UINT_MAX);
 }
 
 
 THREADED_TEST(Int32Array) {
-  TypedArrayTestHelper<int32_t, v8::Int32Array, i::ExternalIntArray>(
-      v8::kExternalIntArray, INT_MIN, INT_MAX);
+  TypedArrayTestHelper<int32_t, v8::Int32Array, i::ExternalInt32Array>(
+      v8::kExternalInt32Array, INT_MIN, INT_MAX);
 }
 
 
 THREADED_TEST(Float32Array) {
-  TypedArrayTestHelper<float, v8::Float32Array, i::ExternalFloatArray>(
-      v8::kExternalFloatArray, -500, 500);
+  TypedArrayTestHelper<float, v8::Float32Array, i::ExternalFloat32Array>(
+      v8::kExternalFloat32Array, -500, 500);
 }
 
 
 THREADED_TEST(Float64Array) {
-  TypedArrayTestHelper<double, v8::Float64Array, i::ExternalDoubleArray>(
-      v8::kExternalDoubleArray, -500, 500);
+  TypedArrayTestHelper<double, v8::Float64Array, i::ExternalFloat64Array>(
+      v8::kExternalFloat64Array, -500, 500);
 }
 
 
 THREADED_TEST(Uint8ClampedArray) {
-  TypedArrayTestHelper<uint8_t, v8::Uint8ClampedArray, i::ExternalPixelArray>(
-      v8::kExternalPixelArray, 0, 0xFF);
+  TypedArrayTestHelper<uint8_t,
+                       v8::Uint8ClampedArray, i::ExternalUint8ClampedArray>(
+      v8::kExternalUint8ClampedArray, 0, 0xFF);
 }
 
 

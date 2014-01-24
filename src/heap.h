@@ -133,29 +133,29 @@ namespace internal {
   V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
-  V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
-  V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
-  V(Map, external_short_array_map, ExternalShortArrayMap)                      \
-  V(Map, external_unsigned_short_array_map, ExternalUnsignedShortArrayMap)     \
-  V(Map, external_int_array_map, ExternalIntArrayMap)                          \
-  V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
-  V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
-  V(Map, external_double_array_map, ExternalDoubleArrayMap)                    \
-  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
-  V(ExternalArray, empty_external_byte_array,                                  \
-      EmptyExternalByteArray)                                                  \
-  V(ExternalArray, empty_external_unsigned_byte_array,                         \
-      EmptyExternalUnsignedByteArray)                                          \
-  V(ExternalArray, empty_external_short_array, EmptyExternalShortArray)        \
-  V(ExternalArray, empty_external_unsigned_short_array,                        \
-      EmptyExternalUnsignedShortArray)                                         \
-  V(ExternalArray, empty_external_int_array, EmptyExternalIntArray)            \
-  V(ExternalArray, empty_external_unsigned_int_array,                          \
-      EmptyExternalUnsignedIntArray)                                           \
-  V(ExternalArray, empty_external_float_array, EmptyExternalFloatArray)        \
-  V(ExternalArray, empty_external_double_array, EmptyExternalDoubleArray)      \
-  V(ExternalArray, empty_external_pixel_array,                                 \
-      EmptyExternalPixelArray)                                                 \
+  V(Map, external_int8_array_map, ExternalInt8ArrayMap)                        \
+  V(Map, external_uint8_array_map, ExternalUint8ArrayMap)                      \
+  V(Map, external_int16_array_map, ExternalInt16ArrayMap)                      \
+  V(Map, external_uint16_array_map, ExternalUint16ArrayMap)                    \
+  V(Map, external_int32_array_map, ExternalInt32ArrayMap)                      \
+  V(Map, external_uint32_array_map, ExternalUint32ArrayMap)                    \
+  V(Map, external_float32_array_map, ExternalFloat32ArrayMap)                  \
+  V(Map, external_float64_array_map, ExternalFloat64ArrayMap)                  \
+  V(Map, external_uint8_clamped_array_map, ExternalUint8ClampedArrayMap)       \
+  V(ExternalArray, empty_external_int8_array,                                  \
+      EmptyExternalInt8Array)                                                  \
+  V(ExternalArray, empty_external_uint8_array,                                 \
+      EmptyExternalUint8Array)                                                 \
+  V(ExternalArray, empty_external_int16_array, EmptyExternalInt16Array)        \
+  V(ExternalArray, empty_external_uint16_array,                                \
+      EmptyExternalUint16Array)                                                \
+  V(ExternalArray, empty_external_int32_array, EmptyExternalInt32Array)        \
+  V(ExternalArray, empty_external_uint32_array,                                \
+      EmptyExternalUint32Array)                                                \
+  V(ExternalArray, empty_external_float32_array, EmptyExternalFloat32Array)    \
+  V(ExternalArray, empty_external_float64_array, EmptyExternalFloat64Array)    \
+  V(ExternalArray, empty_external_uint8_clamped_array,                         \
+      EmptyExternalUint8ClampedArray)                                          \
   V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
   V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \
   V(Map, fixed_uint16_array_map, FixedUint16ArrayMap)                          \
