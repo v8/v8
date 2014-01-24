@@ -1493,6 +1493,12 @@ class MacroAssembler : public Assembler {
                                         Register scratch1,
                                         Register scratch2);
 
+  // The stack pointer has to switch between csp and jssp when setting up and
+  // destroying the exit frame. Hence preserving/restoring the registers is
+  // slightly more complicated than simple push/pop operations.
+  void ExitFramePreserveFPRegs();
+  void ExitFrameRestoreFPRegs();
+
   // Enter exit frame. Exit frames are used when calling C code from generated
   // (JavaScript) code.
   //
@@ -1510,7 +1516,7 @@ class MacroAssembler : public Assembler {
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[-8]: SPOffset (new csp)
   //         fp[-16]: CodeObject()
-  //         csp[...]: Saved doubles, if saved_doubles is true.
+  //         fp[-16 - fp-size]: Saved doubles, if saved_doubles is true.
   //         csp[8]: Memory reserved for the caller if extra_space != 0.
   //                 Alignment padding, if necessary.
   //  csp -> csp[0]: Space reserved for the return address.

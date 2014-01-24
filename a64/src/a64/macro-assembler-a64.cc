@@ -1275,9 +1275,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   Mov(x0, function->nargs);
   Mov(x1, Operand(ExternalReference(function, isolate())));
 
-  // TODO(all): Here we should ask CEntryStub to save floating point registers
-  // but this is not supported at the moment.
-  CEntryStub stub(1);
+  CEntryStub stub(1, kSaveFPRegs);
   CallStub(&stub);
 }
 
@@ -2629,6 +2627,27 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
+void MacroAssembler::ExitFramePreserveFPRegs() {
+  PushCPURegList(kCallerSavedFP);
+}
+
+
+void MacroAssembler::ExitFrameRestoreFPRegs() {
+  // Read the registers from the stack without popping them. The stack pointer
+  // will be reset as part of the unwinding process.
+  CPURegList saved_fp_regs = kCallerSavedFP;
+  ASSERT(saved_fp_regs.Count() % 2 == 0);
+
+  int offset = ExitFrameConstants::kLastExitFrameField;
+  while (!saved_fp_regs.IsEmpty()) {
+    const CPURegister& dst0 = saved_fp_regs.PopHighestIndex();
+    const CPURegister& dst1 = saved_fp_regs.PopHighestIndex();
+    offset -= 2 * kDRegSizeInBytes;
+    Ldp(dst1, dst0, MemOperand(fp, offset));
+  }
+}
+
+
 // TODO(jbramley): Check that we're handling FP correctly [GOOGJSE-33].
 void MacroAssembler::EnterExitFrame(bool save_doubles,
                                     const Register& scratch,
@@ -2659,9 +2678,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
                                          isolate())));
   Str(cp, MemOperand(scratch));
 
+  STATIC_ASSERT((-2 * kPointerSize) ==
+                ExitFrameConstants::kLastExitFrameField);
   if (save_doubles) {
-    // TODO(jbramley): Implement kSaveFPRegs. It is only used by Lithium.
-    TODO_UNIMPLEMENTED("EnterExitFrame: save_doubles");
+    ExitFramePreserveFPRegs();
   }
 
   // Reserve space for the return address and for user requested memory.
@@ -2672,11 +2692,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[-8]: Space reserved for SPOffset.
   //         fp[-16]: CodeObject()
-  //         jssp[8 + extra_space * 8]: Saved doubles (if save_doubles is true).
+  //         jssp[-16 - fp_size]: Saved doubles (if save_doubles is true).
   //         jssp[8]: Extra space reserved for caller (if extra_space != 0).
   // jssp -> jssp[0]: Space reserved for the return address.
-  STATIC_ASSERT((-3 * kPointerSize) ==
-                ExitFrameConstants::kCallerSavedRegsOffset);
 
   // Align and synchronize the system stack pointer with jssp.
   AlignAndSetCSPForFrame();
@@ -2706,8 +2724,7 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   ASSERT(csp.Is(StackPointer()));
 
   if (restore_doubles) {
-    // TODO(jbramley): Implement kSaveFPRegs. It is only used by Lithium.
-    TODO_UNIMPLEMENTED("LeaveExitFrame: restore_doubles");
+    ExitFrameRestoreFPRegs();
   }
 
   // Restore the context pointer from the top frame.
