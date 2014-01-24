@@ -1,3 +1,8 @@
+2014-01-24: Version 3.24.23
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-23: Version 3.24.22
 
         Fix compilation on x64 architectures (issue 3110).
