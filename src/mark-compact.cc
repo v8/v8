@@ -2792,7 +2792,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
     heap_profiler->ObjectMoveEvent(src, dst, size);
   }
   ASSERT(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));
-  ASSERT(dest != LO_SPACE && size <= Page::kMaxNonCodeHeapObjectSize);
+  ASSERT(dest != LO_SPACE && size <= Page::kMaxRegularHeapObjectSize);
   if (dest == OLD_POINTER_SPACE) {
     Address src_slot = src;
     Address dst_slot = dst;
@@ -2966,7 +2966,7 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
 bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
                                             int object_size) {
   // TODO(hpayer): Replace that check with an assert.
-  CHECK(object_size <= Page::kMaxNonCodeHeapObjectSize);
+  CHECK(object_size <= Page::kMaxRegularHeapObjectSize);
 
   OldSpace* target_space = heap()->TargetSpace(object);
 

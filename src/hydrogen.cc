@@ -2369,10 +2369,9 @@ HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* old_capacity) {
 
 
 void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
-  Heap* heap = isolate()->heap();
   int element_size = IsFastDoubleElementsKind(kind) ? kDoubleSize
                                                     : kPointerSize;
-  int max_size = heap->MaxRegularSpaceAllocationSize() / element_size;
+  int max_size = Page::kMaxRegularHeapObjectSize / element_size;
   max_size -= JSArray::kSize / element_size;
   HConstant* max_size_constant = Add<HConstant>(max_size);
   Add<HBoundsCheck>(length, max_size_constant);
@@ -7658,6 +7657,41 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           reduced_length);
       ast_context()->ReturnValue(result);
       Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      return true;
+    }
+    case kArrayPush: {
+      if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+        return false;
+      }
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(elements_kind)) return false;
+      AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+
+      HValue* op_vals[] = {
+        context(),
+        // Receiver.
+        environment()->ExpressionStackAt(expr->arguments()->length())
+      };
+
+      const int argc = expr->arguments()->length();
+      // Includes receiver.
+      PushArgumentsFromEnvironment(argc + 1);
+
+      CallInterfaceDescriptor* descriptor =
+          isolate()->call_descriptor(Isolate::CallHandler);
+
+      ArrayPushStub stub(receiver_map->elements_kind(), argc);
+      Handle<Code> code = stub.GetCode(isolate());
+      HConstant* code_value = Add<HConstant>(code);
+
+      ASSERT((sizeof(op_vals) / kPointerSize) ==
+             descriptor->environment_length());
+
+      HInstruction* call = New<HCallWithDescriptor>(
+          code_value, argc + 1, descriptor,
+          Vector<HValue*>(op_vals, descriptor->environment_length()));
+      ast_context()->ReturnInstruction(call, expr->id());
       return true;
     }
     default:

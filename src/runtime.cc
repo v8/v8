@@ -8744,12 +8744,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAllocationTimeout) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 2 || args.length() == 3);
 #ifdef DEBUG
   CONVERT_SMI_ARG_CHECKED(interval, 0);
   CONVERT_SMI_ARG_CHECKED(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
   FLAG_gc_interval = interval;
+  if (args.length() == 3) {
+    // Enable/disable inline allocation if requested.
+    CONVERT_BOOLEAN_ARG_CHECKED(inline_allocation, 2);
+    if (inline_allocation) {
+      isolate->heap()->EnableInlineAllocation();
+    } else {
+      isolate->heap()->DisableInlineAllocation();
+    }
+  }
 #endif
   return isolate->heap()->undefined_value();
 }
@@ -9757,7 +9766,7 @@ static MaybeObject* Allocate(Isolate* isolate,
   Heap* heap = isolate->heap();
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
   RUNTIME_ASSERT(size > 0);
-  RUNTIME_ASSERT(size <= heap->MaxRegularSpaceAllocationSize());
+  RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
   HeapObject* allocation;
   { MaybeObject* maybe_allocation = heap->AllocateRaw(size, space, space);
     if (!maybe_allocation->To(&allocation)) return maybe_allocation;
