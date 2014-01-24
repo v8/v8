@@ -1601,6 +1601,79 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 }
 
 
+Handle<Code> CallStubCompiler::CompileArrayPopCall(
+    Handle<Object> object,
+    Handle<JSObject> holder,
+    Handle<Cell> cell,
+    Handle<JSFunction> function,
+    Handle<String> name,
+    Code::StubType type) {
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
+    return Handle<Code>::null();
+  }
+
+  Label miss, return_undefined, call_builtin;
+  Register receiver = r0;
+  Register scratch = r1;
+  Register elements = r3;
+
+  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
+
+  // Get the elements array of the object.
+  __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
+
+  // Check that the elements are in fast mode and writable.
+  __ CheckMap(elements,
+              scratch,
+              Heap::kFixedArrayMapRootIndex,
+              &call_builtin,
+              DONT_DO_SMI_CHECK);
+
+  // Get the array's length into r4 and calculate new length.
+  __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ sub(r4, r4, Operand(Smi::FromInt(1)), SetCC);
+  __ b(lt, &return_undefined);
+
+  // Get the last element.
+  __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
+  // We can't address the last element in one operation. Compute the more
+  // expensive shift first, and use an offset later on.
+  __ add(elements, elements, Operand::PointerOffsetFromSmiKey(r4));
+  __ ldr(scratch, FieldMemOperand(elements, FixedArray::kHeaderSize));
+  __ cmp(scratch, r6);
+  __ b(eq, &call_builtin);
+
+  // Set the array's length.
+  __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+  // Fill with the hole.
+  __ str(r6, FieldMemOperand(elements, FixedArray::kHeaderSize));
+  const int argc = arguments().immediate();
+  __ Drop(argc + 1);
+  __ mov(r0, scratch);
+  __ Ret();
+
+  __ bind(&return_undefined);
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ Drop(argc + 1);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ TailCallExternalReference(
+      ExternalReference(Builtins::c_ArrayPop, isolate()), argc + 1, 1);
+
+  HandlerFrontendFooter(&miss);
+
+  // Return the generated code.
+  return GetCode(type, name);
+}
+
+
 Handle<Code> CallStubCompiler::CompileFastApiCall(
     const CallOptimization& optimization,
     Handle<Object> object,

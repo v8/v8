@@ -251,7 +251,8 @@ assertOptimized(shift_call);
 Object.seal(obj);
 assertThrows(function() { push_call(obj); }, TypeError);
 assertThrows(function() { shift_call(obj); }, TypeError);
-assertUnoptimized(push_call);
+assertOptimized(push_call);
+// shift() doesn't have a custom call generator, so deopt will occur.
 assertUnoptimized(shift_call);
 assertDoesNotThrow(function() { push_call(objControl); });
 assertDoesNotThrow(function() { shift_call(objControl); });
