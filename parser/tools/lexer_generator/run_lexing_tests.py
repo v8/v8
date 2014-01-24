@@ -46,7 +46,7 @@ if __name__ == '__main__':
   file_file = sys.argv[2]
   process_count = int(sys.argv[3])
   with open(file_file, 'r') as f:
-    test_files = f.read().split('\n')
+    test_files = [filename for filename in f.read().split('\n') if filename]
 
   with open('/dev/null', 'w') as dev_null:
     processes = []
