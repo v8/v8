@@ -186,9 +186,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   // On windows put the arguments on the stack (PrepareCallCFunction
   // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
-  __ movp(Operand(rsp, 4 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kRegisterSize), arg5);
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate()));
-  __ movp(Operand(rsp, 5 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 5 * kRegisterSize), arg5);
 #else
   __ movp(r8, arg5);
   __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));
