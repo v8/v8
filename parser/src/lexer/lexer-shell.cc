@@ -492,7 +492,8 @@ int main(int argc, char* argv[]) {
       for (size_t i = 0; i < fnames.size(); i++) {
         std::pair<TimeDelta, TimeDelta> times;
         bool can_truncate = eos_test;
-        for (int truncate_by = 0; can_truncate; ++truncate_by) {
+        int truncate_by = 0;
+        do {
           times = ProcessFile(fnames[i].c_str(),
                               encoding,
                               internal_isolate,
@@ -507,7 +508,8 @@ int main(int argc, char* argv[]) {
                               &can_truncate);
           baseline_total += times.first.InMillisecondsF();
           experimental_total += times.second.InMillisecondsF();
-        }
+          ++truncate_by;
+        } while (can_truncate);
       }
       if (run_baseline) {
         printf("Baseline%s(RunTime): %.f ms\n", benchmark.c_str(),
