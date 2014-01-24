@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,27 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// See: http://code.google.com/p/v8/issues/detail?id=490
+// Flags: --allow-natives-syntax
 
-var kXXX = 11
-// Build a string longer than 2^11. See StringBuilderConcatHelper and
-// Runtime_StringBuilderConcat in runtime.cc and
-// ReplaceResultBuilder.prototype.addSpecialSlice in string.js.
-var a = '';
-while (a.length < (2 << 11)) { a+= 'x'; }
-
-// Test specific for bug introduced in r3153.
-a.replace(/^(.*)/, '$1$1$1');
-
-// More generalized test.
-for (var i = 0; i < 10; i++) {
-  var  b = '';
-  for (var j = 0; j < 10; j++) {
-    b += '$1';
-
-    // TODO(machenbach): Do we need all these replacements? Wouldn't corner
-    // cases like smallest and biggest suffice?
-    a.replace(/^(.*)/, b);
+// Try to get a GC because of a heap number allocation while we
+// have live values (o) in a register.
+function f(o) {
+  var x = 1.5;
+  var y = 2.5;
+  for (var i = 1; i < 3; i += 1) {
+    %SetAllocationTimeout(1, 0, false);
+    o.val = x + y + i;
+    %SetAllocationTimeout(-1, -1, true);
   }
-  a += a;
+  return o;
 }
+
+var o = { val: 0 };
+f(o);
