@@ -427,21 +427,6 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
     descriptor->param_representations_ = representations;
     descriptor->platform_specific_descriptor_ = &noInlineDescriptor;
   }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::CallHandler);
-    static Register registers[] = { cp,  // context
-                                    r0,  // receiver
-    };
-    static Representation representations[] = {
-        Representation::Tagged(),  // context
-        Representation::Tagged(),  // receiver
-    };
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
-    descriptor->platform_specific_descriptor_ = &default_descriptor;
-  }
 }
 
 
