@@ -71,7 +71,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     // LLazyBailout instructions with nops if necessary.
     CodePatcher patcher(call_address, Assembler::kCallSequenceLength);
     patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
-                         RelocInfo::NONE64);
+                         Assembler::RelocInfoNone());
     ASSERT(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     ASSERT(call_address + patch_size() <= code->instruction_end());
