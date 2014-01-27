@@ -1923,6 +1923,12 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
 }
 
 
+void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
+  // Record the address of the first unknown OSR value as the place to enter.
+  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
+}
+
+
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   Register object = ToRegister(instr->value());
   Register map_reg = ToRegister(instr->temp());
@@ -4416,7 +4422,19 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
 
 void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
-  ASM_UNIMPLEMENTED_BREAK("DoOsrEntry");
+  // This is a pseudo-instruction that ensures that the environment here is
+  // properly registered for deoptimization and records the assembler's PC
+  // offset.
+  LEnvironment* environment = instr->environment();
+
+  // If the environment were already registered, we would have no way of
+  // backpatching it with the spill slot operands.
+  ASSERT(!environment->HasBeenRegistered());
+  RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
+
+  // Normally we record the first unknown OSR value as the entrypoint to the OSR
+  // code, but if there were none, record the entrypoint here.
+  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
 }
 
 

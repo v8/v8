@@ -1389,8 +1389,9 @@ class Assembler : public AssemblerBase {
   // states of the generated code.
   enum NopMarkerTypes {
     DEBUG_BREAK_NOP,
+    INTERRUPT_CODE_NOP,
     FIRST_NOP_MARKER = DEBUG_BREAK_NOP,
-    LAST_NOP_MARKER = DEBUG_BREAK_NOP
+    LAST_NOP_MARKER = INTERRUPT_CODE_NOP
   };
 
   inline void nop(NopMarkerTypes n) {

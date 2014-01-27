@@ -194,6 +194,7 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
+  V(UnknownOSRValue)                            \
   V(ValueOf)                                    \
   V(CheckMapValue)                              \
   V(LoadFieldByIndex)                           \
@@ -320,6 +321,13 @@ class LTemplateInstruction: public LInstruction {
   EmbeddedContainer<LOperand*, R> results_;
   EmbeddedContainer<LOperand*, I> inputs_;
   EmbeddedContainer<LOperand*, T> temps_;
+};
+
+
+class LUnknownOSRValue: public LTemplateInstruction<1, 0, 0> {
+ public:
+  virtual bool HasInterestingComment(LCodeGen* gen) const { return false; }
+  DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue, "unknown-osr-value")
 };
 
 

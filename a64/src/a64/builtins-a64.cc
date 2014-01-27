@@ -919,12 +919,50 @@ void Builtins::Generate_NotifySoftDeoptimized(MacroAssembler* masm) {
 
 
 void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  ASM_UNIMPLEMENTED_BREAK("Implement Generate_NotifyOSR");
+  // For now, we are relying on the fact that Runtime::NotifyOSR
+  // doesn't do any garbage collection which allows us to save/restore
+  // the registers without worrying about which of them contain
+  // pointers. This seems a bit fragile.
+  //
+  // TODO(jochen): Is it correct (and appropriate) to use safepoint
+  // registers here? According to the comment above, we should only need to
+  // preserve the registers with parameters.
+  __ PushXRegList(kSafepointSavedRegisters);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kNotifyOSR, 0);
+  }
+  __ PopXRegList(kSafepointSavedRegisters);
+  __ Ret();
 }
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  ASM_UNIMPLEMENTED_BREAK("Implement Generate_OnStackReplacement");
+  // Lookup the function in the JavaScript frame and push it as an
+  // argument to the on-stack replacement function.
+  __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(x0);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+  }
+
+  // If the result was -1 it means that we couldn't optimize the
+  // function. Just return and continue in the unoptimized version.
+  Label skip;
+  __ Cmp(x0, Operand(Smi::FromInt(-1)));
+  __ B(ne, &skip);
+  __ Ret();
+
+  __ Bind(&skip);
+  // Untag the AST id and push it on the stack.
+  __ SmiUntag(x0);
+  __ Push(x0);
+
+  // Generate the code for doing the frame-to-frame translation using
+  // the deoptimizer infrastructure.
+  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
+  generator.Generate();
 }
 
 

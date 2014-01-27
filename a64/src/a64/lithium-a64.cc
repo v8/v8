@@ -1891,7 +1891,10 @@ LInstruction* LChunkBuilder::DoNumericConstraint(HNumericConstraint* instr) {
 
 
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  ASSERT(argument_count_ == 0);
+  allocator_->MarkAsOsrEntry();
+  current_block_->last_environment()->set_ast_id(instr->ast_id());
+  return AssignEnvironment(new(zone()) LOsrEntry);
 }
 
 
@@ -2465,7 +2468,12 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  int spill_index = chunk_->GetNextSpillIndex();
+  if (spill_index > LUnallocated::kMaxFixedSlotIndex) {
+    Abort("Too many spill slots needed for OSR");
+    spill_index = 0;
+  }
+  return DefineAsSpilled(new(zone()) LUnknownOSRValue, spill_index);
 }
 
 

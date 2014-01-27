@@ -366,17 +366,19 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   InterruptStub stub;
   __ CallStub(&stub);
 
-  // TODO(all): Implement OSR/Crankshaft code.
+  // Record a mapping of this PC offset to the OSR id.  This is used to find
+  // the AST id from the unoptimized code in order to use it as a key into
+  // the deoptimization input data found in the optimized code.
+  RecordBackEdge(stmt->OsrEntryId());
 
   EmitProfilingCounterReset();
 
   __ Bind(&ok);
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-
-  // TODO(all): Implement OSR/Crankshaft code.
-  ASM_UNIMPLEMENTED(
-      "FullCodeGenerator::EmitBackEdgeBookkeeping "
-      "Implement OSR/Crankshaft code.");
+  // Record a mapping of the OSR id to this PC.  This is used if the OSR
+  // entry becomes the target of a bailout.  We don't expect it to be, but
+  // we want it to work if it is.
+  PrepareForBailoutForId(stmt->OsrEntryId(), NO_REGISTERS);
 }
 
 
