@@ -3802,7 +3802,7 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
     // The V flag will be set iff left == kMinInt.
     __ Cmp(left, 1);
-    __ Ccmp(right, -1, ZFlag, vs);
+    __ Ccmp(right, -1, NoFlag, vs);
     DeoptimizeIf(eq, instr->environment());
   }
 
