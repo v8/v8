@@ -1808,6 +1808,10 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
   ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugMessageOffset);
   EmitStringData(message);
   hlt(kImmExceptionIsUnreachable);
+#else
+  if (params & BREAK) {
+    hlt(kImmExceptionIsDebug);
+  }
 #endif
 }
 
