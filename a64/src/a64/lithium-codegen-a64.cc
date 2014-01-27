@@ -1323,8 +1323,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ Push(size);
   }
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInOldPointerSpace, 1, instr);
     ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
     CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr);
   } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
