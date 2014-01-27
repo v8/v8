@@ -440,6 +440,9 @@ class Simulator : public DecoderVisitor {
 
   inline int64_t sp() { return xreg(31, Reg31IsStackPointer); }
   inline int64_t jssp() { return xreg(kJSSPCode, Reg31IsStackPointer); }
+  inline int64_t fp() {
+      return xreg(kFramePointerRegCode, Reg31IsStackPointer);
+  }
   inline Instruction* lr() { return reg<Instruction*>(kLinkRegCode); }
 
   // Return 'size' bits of the value of a floating-point register, as the

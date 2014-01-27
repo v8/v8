@@ -256,9 +256,16 @@ class SampleHelper {
     sample->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::r11));
 #elif V8_TARGET_ARCH_A64
+    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
+      // It possible that the simulator is interrupted while it is updating
+      // the sp or fp register. A64 simulator does this in two steps:
+      // first setting it to zero and then setting it to the new value.
+      // Bailout if sp/fp doesn't contain the new value.
+      return;
+    }
     sample->pc = reinterpret_cast<Address>(simulator_->pc());
     sample->sp = reinterpret_cast<Address>(simulator_->sp());
-    sample->fp = reinterpret_cast<Address>(simulator_->lr());
+    sample->fp = reinterpret_cast<Address>(simulator_->fp());
 #elif V8_TARGET_ARCH_MIPS
     sample->pc = reinterpret_cast<Address>(simulator_->get_pc());
     sample->sp = reinterpret_cast<Address>(simulator_->get_register(
@@ -341,10 +348,10 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #if defined(USE_SIMULATOR)
   helper.FillRegisters(sample);
   // It possible that the simulator is interrupted while it is updating
-  // the sp register. A64 simulator does this in two steps:
+  // the sp or fp register. A64 simulator does this in two steps:
   // first setting it to zero and then setting it to the new value.
-  // Bailout if sp doesn't contain the new value.
-  if (sample->sp == 0) return;
+  // Bailout if sp/fp doesn't contain the new value.
+  if (sample->sp == 0 || sample->fp == 0) return;
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
