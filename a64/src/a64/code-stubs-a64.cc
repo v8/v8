@@ -2909,12 +2909,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ASSERT(jssp.Is(__ StackPointer()));
   Register code_entry = x0;
 
-  // TODO(all): We shouldn't emit debug instructions unconditionally since they
-  // will not work outside the simulator. We need to rethink how these commands
-  // interact with --trace-sim. For now, though, this turns on instruction
-  // tracing _if_ --trace-sim is specified.
-  __ Debug("TRACE ENTRY", 0, TRACE_ENABLE | LOG_ALL);
-
   // Enable instruction instrumentation. This only works on the simulator, and
   // will have no effect on the model or real hardware.
   __ EnableInstrumentation();

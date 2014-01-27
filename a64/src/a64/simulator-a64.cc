@@ -372,6 +372,11 @@ Simulator::Simulator(Decoder* decoder, Isolate* isolate, FILE* stream)
   stream_ = stream;
   print_disasm_ = new PrintDisassembler(stream_);
 
+  if (FLAG_trace_sim) {
+    decoder_->InsertVisitorBefore(print_disasm_, this);
+    log_parameters_ = LOG_ALL;
+  }
+
   // The debugger needs to disassemble code without the simulator executing an
   // instruction, so we create a dedicated decoder.
   disassembler_decoder_ = new Decoder();
@@ -3075,13 +3080,10 @@ void Simulator::VisitException(Instruction* instr) {
         // Other options.
         switch (parameters & kDebuggerTracingDirectivesMask) {
           case TRACE_ENABLE:
-            // Only enable tracing if the trace_sim flag is set.
-            if (FLAG_trace_sim) {
-              set_log_parameters(log_parameters() | parameters);
-              if (parameters & LOG_SYS_REGS) { PrintSystemRegisters(); }
-              if (parameters & LOG_REGS) { PrintRegisters(); }
-              if (parameters & LOG_FP_REGS) { PrintFPRegisters(); }
-            }
+            set_log_parameters(log_parameters() | parameters);
+            if (parameters & LOG_SYS_REGS) { PrintSystemRegisters(); }
+            if (parameters & LOG_REGS) { PrintRegisters(); }
+            if (parameters & LOG_FP_REGS) { PrintFPRegisters(); }
             break;
           case TRACE_DISABLE:
             set_log_parameters(log_parameters() & ~parameters);
