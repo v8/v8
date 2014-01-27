@@ -162,6 +162,7 @@ class LCodeGen;
   V(Parameter)                                  \
   V(Power)                                      \
   V(PushArgument)                               \
+  V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
   V(SeqStringSetChar)                           \
@@ -2080,6 +2081,19 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument, "push-argument")
+};
+
+
+class LRandom: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LRandom(LOperand* global_object) {
+    inputs_[0] = global_object;
+  }
+
+  LOperand* global_object() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Random, "random")
+  DECLARE_HYDROGEN_ACCESSOR(Random)
 };
 
 

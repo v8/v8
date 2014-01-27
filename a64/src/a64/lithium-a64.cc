@@ -1293,6 +1293,15 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(HCompareIDAndBranch* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
+  ASSERT(instr->representation().IsDouble());
+  ASSERT(instr->global_object()->representation().IsTagged());
+  LOperand* global_object = UseFixed(instr->global_object(), x0);
+  LRandom* result = new(zone()) LRandom(global_object);
+  return MarkAsCall(DefineFixedDouble(result, d7), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
@@ -1929,11 +1938,6 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
   ++argument_count_;
   LOperand* argument = UseRegister(instr->argument());
   return new(zone()) LPushArgument(argument);
-}
-
-
-LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
 }
 
 

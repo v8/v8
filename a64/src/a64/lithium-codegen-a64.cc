@@ -3669,6 +3669,76 @@ void LCodeGen::DoMathCos(LMathCos* instr) {
 }
 
 
+void LCodeGen::DoRandom(LRandom* instr) {
+  class DeferredDoRandom: public LDeferredCode {
+   public:
+    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredRandom(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+
+   private:
+    LRandom* instr_;
+  };
+
+  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
+
+  // Having marked this instruction as a call we can use any registers.
+  ASSERT(instr->IsMarkedAsCall());
+  ASSERT(ToDoubleRegister(instr->result()).is(d7));
+  ASSERT(ToRegister(instr->global_object()).is(x0));
+
+  static const int kSeedSize = sizeof(uint32_t);
+  STATIC_ASSERT(kPointerSize == 2 * kSeedSize);
+
+  Register global_object = x0;
+  __ Ldr(global_object,
+         FieldMemOperand(global_object, GlobalObject::kNativeContextOffset));
+  static const int kRandomSeedOffset =
+      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
+  __ Ldr(x1, FieldMemOperand(global_object, kRandomSeedOffset));
+  // x1: FixedArray of the native context's random seeds
+
+  // Load state[0].
+  __ Ldr(w2, FieldMemOperand(x1, ByteArray::kHeaderSize));
+  // If state[0] == 0, call runtime to initialize seeds.
+  __ Cbz(w2, deferred->entry());
+  // Load state[1].
+  __ Ldr(w3, FieldMemOperand(x1, ByteArray::kHeaderSize + kSeedSize));
+
+  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
+  __ And(w4, w2, 0xFFFF);
+  __ Mov(w5, 18273);
+  __ Mul(w5, w5, w4);
+  __ Add(w2, w5, Operand(w2, LSR, 16));
+  // Save state[0].
+  __ Str(w2, FieldMemOperand(x1, ByteArray::kHeaderSize));
+
+  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
+  __ And(w4, w3, 0xFFFF);
+  __ Mov(w5, 36969);
+  __ Mul(w5, w5, w4);
+  __ Add(w3, w5, Operand(w3, LSR, 16));
+  // Save state[1].
+  __ Str(w3, FieldMemOperand(x1, ByteArray::kHeaderSize + kSeedSize));
+
+  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
+  __ And(w3, w3, 0x3FFFF);
+  __ Add(w0, w3, Operand(w2, LSL, 14));
+
+  __ Bind(deferred->exit());
+  // Interpret the 32 random bits as a 0.32 fixed point number, and convert to
+  // a double in the range 0.0 <= number < 1.0.
+  __ Ucvtf(d7, w0, 32);
+}
+
+
+void LCodeGen::DoDeferredRandom(LRandom* instr) {
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  // Return value is in x0.
+}
+
+
 void LCodeGen::DoMathExp(LMathExp* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
