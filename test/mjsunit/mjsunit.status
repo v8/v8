@@ -36,7 +36,7 @@
   'debug-step-4-in-frame': [PASS, FAIL, SLOW],
 
   # TODO(mvstanton): Investigate.
-  'regress/regress-320948.js': [PASS, FAIL, FLAKY],
+  'regress/regress-320948.js': [SKIP],
 
   ##############################################################################
   # Fails.
