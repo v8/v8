@@ -6944,11 +6944,11 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
     case i::HeapGraphEdge::kShortcut:
-    case i::HeapGraphEdge::kWeak:
       return ToApiHandle<String>(
           isolate->factory()->InternalizeUtf8String(edge->name()));
     case i::HeapGraphEdge::kElement:
     case i::HeapGraphEdge::kHidden:
+    case i::HeapGraphEdge::kWeak:
       return ToApiHandle<Number>(
           isolate->factory()->NewNumberFromInt(edge->index()));
     default: UNREACHABLE();
