@@ -1252,7 +1252,12 @@ void LoadStubCompiler::GenerateLoadCallback(
 
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
 
-  Register api_function_address = rdx;
+  Register api_function_address = r8;
+  // It's okay if api_function_address == getter_arg
+  // but not accessor_info_arg or name_arg
+  ASSERT(!api_function_address.is(accessor_info_arg) &&
+         !api_function_address.is(name_arg));
+
   __ Move(api_function_address, getter_address, RelocInfo::EXTERNAL_REFERENCE);
 
   // The name handler is counted as an argument.

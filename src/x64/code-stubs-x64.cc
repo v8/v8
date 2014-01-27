@@ -5312,7 +5312,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register callback_arg = rsi;
 #endif
 
-  // It's okay if callback_arg == api_function_address
+  // It's okay if api_function_address == callback_arg
   // but not arguments_arg
   ASSERT(!api_function_address.is(arguments_arg));
 

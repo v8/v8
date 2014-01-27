@@ -697,7 +697,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate());
 
-  ASSERT(rdx.is(function_address));
+  ASSERT(rdx.is(function_address) || r8.is(function_address));
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
