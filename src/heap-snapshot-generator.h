@@ -57,14 +57,15 @@ class HeapGraphEdge BASE_EMBEDDED {
 
   Type type() const { return static_cast<Type>(type_); }
   int index() const {
-    ASSERT(type_ == kElement || type_ == kHidden || type_ == kWeak);
+    ASSERT(type_ == kElement || type_ == kHidden);
     return index_;
   }
   const char* name() const {
     ASSERT(type_ == kContextVariable
         || type_ == kProperty
         || type_ == kInternal
-        || type_ == kShortcut);
+        || type_ == kShortcut
+        || type_ == kWeak);
     return name_;
   }
   INLINE(HeapEntry* from() const);
@@ -448,7 +449,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                           Object* child);
   void SetWeakReference(HeapObject* parent_obj,
                         int parent,
-                        int index,
+                        const char* reference_name,
                         Object* child_obj,
                         int field_offset);
   void SetPropertyReference(HeapObject* parent_obj,
