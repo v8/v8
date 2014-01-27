@@ -815,7 +815,7 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Clobbers ebx, edi and
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 Address thunk_address,
                                 Operand thunk_last_arg,
                                 int stack_space,

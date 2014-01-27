@@ -671,7 +671,7 @@ void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    Address function_address,
+    Register function_address,
     Address thunk_address,
     Register thunk_last_arg,
     int stack_space,
@@ -697,6 +697,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate());
 
+  ASSERT(rdx.is(function_address));
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
@@ -726,14 +727,13 @@ void MacroAssembler::CallApiFunctionAndReturn(
   j(zero, &profiler_disabled);
 
   // Third parameter is the address of the actual getter function.
-  Move(thunk_last_arg, function_address, RelocInfo::EXTERNAL_REFERENCE);
+  Move(thunk_last_arg, function_address);
   Move(rax, thunk_address, RelocInfo::EXTERNAL_REFERENCE);
   jmp(&end_profiler_check);
 
   bind(&profiler_disabled);
   // Call the api function!
-  Move(rax, reinterpret_cast<Address>(function_address),
-       RelocInfo::EXTERNAL_REFERENCE);
+  Move(rax, function_address);
 
   bind(&end_profiler_check);
 

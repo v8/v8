@@ -5382,6 +5382,122 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax                 : callee
+  //  -- ebx                 : call_data
+  //  -- ecx                 : holder
+  //  -- edx                 : api_function_address
+  //  -- esi                 : context
+  //  --
+  //  -- esp[0]              : return address
+  //  -- esp[4]              : last argument
+  //  -- ...
+  //  -- esp[argc * 4]       : first argument
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  Register callee = eax;
+  Register call_data = ebx;
+  Register holder = ecx;
+  Register api_function_address = edx;
+  Register return_address = edi;
+  Register context = esi;
+
+  int argc = ArgumentBits::decode(bit_field_);
+  bool restore_context = RestoreContextBits::decode(bit_field_);
+  bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
+
+  typedef FunctionCallbackArguments FCA;
+
+  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
+  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kDataIndex == 4);
+  STATIC_ASSERT(FCA::kReturnValueOffset == 3);
+  STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(FCA::kIsolateIndex == 1);
+  STATIC_ASSERT(FCA::kHolderIndex == 0);
+  STATIC_ASSERT(FCA::kArgsLength == 7);
+
+  Isolate* isolate = masm->isolate();
+
+  __ pop(return_address);
+
+  // context save
+  __ push(context);
+  // load context from callee
+  __ mov(context, FieldOperand(callee, JSFunction::kContextOffset));
+
+  // callee
+  __ push(callee);
+
+  // call data
+  __ push(call_data);
+
+  Register scratch = call_data;
+  if (!call_data_undefined) {
+    // return value
+    __ push(Immediate(isolate->factory()->undefined_value()));
+    // return value default
+    __ push(Immediate(isolate->factory()->undefined_value()));
+  } else {
+    // return value
+    __ push(scratch);
+    // return value default
+    __ push(scratch);
+  }
+  // isolate
+  __ push(Immediate(reinterpret_cast<int>(isolate)));
+  // holder
+  __ push(holder);
+
+  __ mov(scratch, esp);
+
+  // return address
+  __ push(return_address);
+
+  // API function gets reference to the v8::Arguments. If CPU profiler
+  // is enabled wrapper function will be called and we need to pass
+  // address of the callback as additional parameter, always allocate
+  // space for it.
+  const int kApiArgc = 1 + 1;
+
+  // Allocate the v8::Arguments structure in the arguments' space since
+  // it's not controlled by GC.
+  const int kApiStackSpace = 4;
+
+  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace);
+
+  // FunctionCallbackInfo::implicit_args_.
+  __ mov(ApiParameterOperand(2), scratch);
+  __ add(scratch, Immediate((argc + FCA::kArgsLength - 1) * kPointerSize));
+  // FunctionCallbackInfo::values_.
+  __ mov(ApiParameterOperand(3), scratch);
+  // FunctionCallbackInfo::length_.
+  __ Set(ApiParameterOperand(4), Immediate(argc));
+  // FunctionCallbackInfo::is_construct_call_.
+  __ Set(ApiParameterOperand(5), Immediate(0));
+
+  // v8::InvocationCallback's argument.
+  __ lea(scratch, ApiParameterOperand(2));
+  __ mov(ApiParameterOperand(0), scratch);
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+
+  Operand context_restore_operand(ebp,
+                                  (2 + FCA::kContextSaveIndex) * kPointerSize);
+  Operand return_value_operand(ebp,
+                               (2 + FCA::kReturnValueOffset) * kPointerSize);
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_address,
+                              ApiParameterOperand(1),
+                              argc + FCA::kArgsLength + 1,
+                              return_value_operand,
+                              restore_context ?
+                                  &context_restore_operand : NULL);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

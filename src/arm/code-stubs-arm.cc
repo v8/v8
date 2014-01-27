@@ -5515,6 +5515,120 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0                  : callee
+  //  -- r4                  : call_data
+  //  -- r2                  : holder
+  //  -- r3                  : api_function_address
+  //  -- r1                  : thunk_arg
+  //  -- cp                  : context
+  //  --
+  //  -- esp[0]              : last argument
+  //  -- ...
+  //  -- esp[(argc - 1)* 4]  : first argument
+  //  -- esp[argc * 4]       : receiver
+  // -----------------------------------
+
+  Register callee = r0;
+  Register call_data = r4;
+  Register holder = r2;
+  Register api_function_address = r3;
+  Register thunk_arg = r1;
+  Register context = cp;
+
+  int argc = ArgumentBits::decode(bit_field_);
+  bool restore_context = RestoreContextBits::decode(bit_field_);
+  bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
+
+  typedef FunctionCallbackArguments FCA;
+
+  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
+  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kDataIndex == 4);
+  STATIC_ASSERT(FCA::kReturnValueOffset == 3);
+  STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(FCA::kIsolateIndex == 1);
+  STATIC_ASSERT(FCA::kHolderIndex == 0);
+  STATIC_ASSERT(FCA::kArgsLength == 7);
+
+  Isolate* isolate = masm->isolate();
+
+  // context save
+  __ push(context);
+  // load context from callee
+  __ ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+
+  // callee
+  __ push(callee);
+
+  // call data
+  __ push(call_data);
+
+  Register scratch = call_data;
+  if (!call_data_undefined) {
+    __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  }
+  // return value
+  __ push(scratch);
+  // return value default
+  __ push(scratch);
+  // isolate
+  __ mov(scratch,
+         Operand(ExternalReference::isolate_address(isolate)));
+  __ push(scratch);
+  // holder
+  __ push(holder);
+
+  // Prepare arguments.
+  __ mov(scratch, sp);
+
+  // Allocate the v8::Arguments structure in the arguments' space since
+  // it's not controlled by GC.
+  const int kApiStackSpace = 4;
+
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(false, kApiStackSpace);
+
+  ASSERT(!thunk_arg.is(r0) && !api_function_address.is(r0) && !scratch.is(r0));
+  // r0 = FunctionCallbackInfo&
+  // Arguments is after the return address.
+  __ add(r0, sp, Operand(1 * kPointerSize));
+  // FunctionCallbackInfo::implicit_args_
+  __ str(scratch, MemOperand(r0, 0 * kPointerSize));
+  // FunctionCallbackInfo::values_
+  __ add(ip, scratch, Operand((FCA::kArgsLength - 1 + argc) * kPointerSize));
+  __ str(ip, MemOperand(r0, 1 * kPointerSize));
+  // FunctionCallbackInfo::length_ = argc
+  __ mov(ip, Operand(argc));
+  __ str(ip, MemOperand(r0, 2 * kPointerSize));
+  // FunctionCallbackInfo::is_construct_call = 0
+  __ mov(ip, Operand::Zero());
+  __ str(ip, MemOperand(r0, 3 * kPointerSize));
+
+  const int kStackUnwindSpace = argc + FCA::kArgsLength + 1;
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
+      masm->isolate());
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+  MemOperand context_restore_operand(
+      fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
+  MemOperand return_value_operand(fp,
+                                  (2 + FCA::kReturnValueOffset) * kPointerSize);
+
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_ref,
+                              thunk_arg,
+                              kStackUnwindSpace,
+                              return_value_operand,
+                              restore_context ?
+                                  &context_restore_operand : NULL);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

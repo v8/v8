@@ -388,18 +388,53 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-// Number of pointers to be reserved on stack for fast API call.
-static const int kFastApiCallArguments = FunctionCallbackArguments::kArgsLength;
-
-
 static void GenerateFastApiCallBody(MacroAssembler* masm,
                                     const CallOptimization& optimization,
                                     int argc,
-                                    Register holder,
-                                    Register scratch1,
-                                    Register scratch2,
-                                    Register scratch3,
-                                    bool restore_context);
+                                    Register holder_in,
+                                    bool restore_context) {
+  ASSERT(optimization.is_simple_api_call());
+
+  // Abi for CallApiFunctionStub.
+  Register callee = rax;
+  Register call_data = rbx;
+  Register holder = rcx;
+  Register api_function_address = rdx;
+
+  // Put holder in place.
+  __ Move(holder, holder_in);
+
+  Register scratch = rdi;
+
+  Isolate* isolate = masm->isolate();
+  Handle<JSFunction> function = optimization.constant_function();
+  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
+  Handle<Object> call_data_obj(api_call_info->data(), isolate);
+
+  // Put callee in place.
+  __ Move(callee, function);
+
+  bool call_data_undefined = false;
+  // Put call_data in place.
+  if (isolate->heap()->InNewSpace(*call_data_obj)) {
+    __ Move(scratch, api_call_info);
+    __ movp(call_data, FieldOperand(scratch, CallHandlerInfo::kDataOffset));
+  } else if (call_data_obj->IsUndefined()) {
+    call_data_undefined = true;
+    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
+  } else {
+    __ Move(call_data, call_data_obj);
+  }
+
+  // Put api_function_address in place.
+  Address function_address = v8::ToCData<Address>(api_call_info->callback());
+  __ Move(
+      api_function_address, function_address, RelocInfo::EXTERNAL_REFERENCE);
+
+  // Jump to stub.
+  CallApiFunctionStub stub(restore_context, call_data_undefined, argc);
+  __ TailCallStub(&stub);
+}
 
 
 // Generates call to API function.
@@ -439,23 +474,15 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                           optimization,
                           argc,
                           holder_reg,
-                          rbx,
-                          rcx,
-                          rdx,
                           false);
 }
 
 
 // Generate call to api function.
-// This function uses push() to generate smaller, faster code than
-// the version above. It is an optimization that should will be removed
-// when api call ICs are generated in hydrogen.
 static void GenerateFastApiCall(MacroAssembler* masm,
                                 const CallOptimization& optimization,
                                 Register receiver,
                                 Register scratch1,
-                                Register scratch2,
-                                Register scratch3,
                                 int argc,
                                 Register* values) {
   __ PopReturnAddressTo(scratch1);
@@ -466,8 +493,6 @@ static void GenerateFastApiCall(MacroAssembler* masm,
     Register arg = values[argc-1-i];
     ASSERT(!receiver.is(arg));
     ASSERT(!scratch1.is(arg));
-    ASSERT(!scratch2.is(arg));
-    ASSERT(!scratch3.is(arg));
     __ push(arg);
   }
   __ PushReturnAddressFrom(scratch1);
@@ -476,130 +501,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                           optimization,
                           argc,
                           receiver,
-                          scratch1,
-                          scratch2,
-                          scratch3,
                           true);
-}
-
-
-static void GenerateFastApiCallBody(MacroAssembler* masm,
-                                    const CallOptimization& optimization,
-                                    int argc,
-                                    Register holder,
-                                    Register scratch1,
-                                    Register scratch2,
-                                    Register scratch3,
-                                    bool restore_context) {
-  // ----------- S t a t e -------------
-  //  -- rsp[0]              : return address
-  //  -- rsp[8]              : last argument
-  //  -- ...
-  //  -- rsp[argc * 8]       : first argument
-  //  -- rsp[(argc + 1) * 8] : receiver
-  // -----------------------------------
-  ASSERT(optimization.is_simple_api_call());
-
-  typedef FunctionCallbackArguments FCA;
-
-  STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kIsolateIndex == 1);
-  STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
-  STATIC_ASSERT(FCA::kReturnValueOffset == 3);
-  STATIC_ASSERT(FCA::kDataIndex == 4);
-  STATIC_ASSERT(FCA::kCalleeIndex == 5);
-  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
-  STATIC_ASSERT(FCA::kArgsLength == 7);
-
-  __ PopReturnAddressTo(scratch1);
-
-  ASSERT(!holder.is(rsi));
-  // context save
-  __ push(rsi);
-
-  // Get the function and setup the context.
-  Handle<JSFunction> function = optimization.constant_function();
-  __ Move(scratch2, function);
-  __ push(scratch2);
-  __ movp(rsi, FieldOperand(scratch2, JSFunction::kContextOffset));
-
-  Isolate* isolate = masm->isolate();
-  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data(api_call_info->data(), isolate);
-  // Push data from ExecutableAccessorInfo.
-  bool call_data_undefined = false;
-  if (isolate->heap()->InNewSpace(*call_data)) {
-    __ Move(scratch2, api_call_info);
-    __ movp(scratch3, FieldOperand(scratch2, CallHandlerInfo::kDataOffset));
-  } else if (call_data->IsUndefined()) {
-    call_data_undefined = true;
-    __ LoadRoot(scratch3, Heap::kUndefinedValueRootIndex);
-  } else {
-    __ Move(scratch3, call_data);
-  }
-  // call data
-  __ push(scratch3);
-  if (!call_data_undefined) {
-    __ LoadRoot(scratch3, Heap::kUndefinedValueRootIndex);
-  }
-  // return value
-  __ push(scratch3);
-  // return value default
-  __ push(scratch3);
-  // isolate
-  __ Move(scratch3,
-          ExternalReference::isolate_address(masm->isolate()));
-  __ push(scratch3);
-  // holder
-  __ push(holder);
-
-  ASSERT(!scratch1.is(rax));
-  __ movp(rax, rsp);
-  // Push return address back on stack.
-  __ PushReturnAddressFrom(scratch1);
-
-  // Function address is a foreign pointer outside V8's heap.
-  Address function_address = v8::ToCData<Address>(api_call_info->callback());
-
-  // Allocate the v8::Arguments structure in the arguments' space since
-  // it's not controlled by GC.
-  const int kApiStackSpace = 4;
-
-  __ PrepareCallApiFunction(kApiStackSpace);
-
-  __ movp(StackSpaceOperand(0), rax);  // FunctionCallbackInfo::implicit_args_.
-  __ addq(rax, Immediate((argc + kFastApiCallArguments - 1) * kPointerSize));
-  __ movp(StackSpaceOperand(1), rax);  // FunctionCallbackInfo::values_.
-  __ Set(StackSpaceOperand(2), argc);  // FunctionCallbackInfo::length_.
-  // FunctionCallbackInfo::is_construct_call_.
-  __ Set(StackSpaceOperand(3), 0);
-
-#if defined(__MINGW64__) || defined(_WIN64)
-  Register arguments_arg = rcx;
-  Register callback_arg = rdx;
-#else
-  Register arguments_arg = rdi;
-  Register callback_arg = rsi;
-#endif
-
-  // v8::InvocationCallback's argument.
-  __ lea(arguments_arg, StackSpaceOperand(0));
-
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
-
-  StackArgumentsAccessor args_from_rbp(rbp, kFastApiCallArguments,
-                                       ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  Operand context_restore_operand = args_from_rbp.GetArgumentOperand(
-      kFastApiCallArguments - 1 - FCA::kContextSaveIndex);
-  Operand return_value_operand = args_from_rbp.GetArgumentOperand(
-      kFastApiCallArguments - 1 - FCA::kReturnValueOffset);
-  __ CallApiFunctionAndReturn(
-      function_address,
-      thunk_address,
-      callback_arg,
-      argc + kFastApiCallArguments + 1,
-      return_value_operand,
-      restore_context ? &context_restore_operand : NULL);
 }
 
 
@@ -1279,7 +1181,7 @@ void LoadStubCompiler::GenerateLoadCallback(
     const CallOptimization& call_optimization) {
   GenerateFastApiCall(
       masm(), call_optimization, receiver(),
-      scratch1(), scratch2(), name(), 0, NULL);
+      scratch1(), 0, NULL);
 }
 
 
@@ -1350,12 +1252,15 @@ void LoadStubCompiler::GenerateLoadCallback(
 
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
 
+  Register api_function_address = rdx;
+  __ Move(api_function_address, getter_address, RelocInfo::EXTERNAL_REFERENCE);
+
   // The name handler is counted as an argument.
   StackArgumentsAccessor args(rbp, PropertyCallbackArguments::kArgsLength);
   Operand return_value_operand = args.GetArgumentOperand(
       PropertyCallbackArguments::kArgsLength - 1 -
       PropertyCallbackArguments::kReturnValueOffset);
-  __ CallApiFunctionAndReturn(getter_address,
+  __ CallApiFunctionAndReturn(api_function_address,
                               thunk_address,
                               getter_arg,
                               kStackSpace,
@@ -1792,8 +1697,8 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
   Register values[] = { value() };
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(), scratch1(),
-      scratch2(), this->name(), 1, values);
+      masm(), call_optimization, receiver(),
+      scratch1(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

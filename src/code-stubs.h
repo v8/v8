@@ -96,6 +96,7 @@ namespace internal {
   V(InternalArrayConstructor)            \
   V(ProfileEntryHook)                    \
   V(StoreGlobal)                         \
+  V(CallApiFunction)                     \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
   V(KeyedLoadField)                      \
@@ -1032,6 +1033,32 @@ class StoreGlobalStub : public HandlerStub {
   int bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
+};
+
+
+class CallApiFunctionStub : public PlatformCodeStub {
+ public:
+  CallApiFunctionStub(bool restore_context,
+                      bool call_data_undefined,
+                      int argc) {
+    bit_field_ =
+        RestoreContextBits::encode(restore_context) |
+        CallDataUndefinedBits::encode(call_data_undefined) |
+        ArgumentBits::encode(argc);
+  }
+
+ private:
+  virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
+  virtual Major MajorKey() V8_OVERRIDE { return CallApiFunction; }
+  virtual int MinorKey() V8_OVERRIDE { return bit_field_; }
+
+  class RestoreContextBits: public BitField<bool, 0, 1> {};
+  class CallDataUndefinedBits: public BitField<bool, 1, 1> {};
+  class ArgumentBits: public BitField<int, 2, Code::kArgumentsBits> {};
+
+  int bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(CallApiFunctionStub);
 };
 
 
