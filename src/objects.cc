@@ -1641,46 +1641,19 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case FREE_SPACE_TYPE:
       accumulator->Add("<FreeSpace[%u]>", FreeSpace::cast(this)->Size());
       break;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      accumulator->Add("<ExternalPixelArray[%u]>",
-                       ExternalPixelArray::cast(this)->length());
+#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype, size)                 \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                         \
+      accumulator->Add("<External" #Type "Array[%u]>",                         \
+                       External##Type##Array::cast(this)->length());           \
+      break;                                                                   \
+    case FIXED_##TYPE##_ARRAY_TYPE:                                            \
+      accumulator->Add("<Fixed" #Type "Array[%u]>",                            \
+                       Fixed##Type##Array::cast(this)->length());              \
       break;
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      accumulator->Add("<ExternalByteArray[%u]>",
-                       ExternalByteArray::cast(this)->length());
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      accumulator->Add("<ExternalUnsignedByteArray[%u]>",
-                       ExternalUnsignedByteArray::cast(this)->length());
-      break;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      accumulator->Add("<ExternalShortArray[%u]>",
-                       ExternalShortArray::cast(this)->length());
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      accumulator->Add("<ExternalUnsignedShortArray[%u]>",
-                       ExternalUnsignedShortArray::cast(this)->length());
-      break;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      accumulator->Add("<ExternalIntArray[%u]>",
-                       ExternalIntArray::cast(this)->length());
-      break;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      accumulator->Add("<ExternalUnsignedIntArray[%u]>",
-                       ExternalUnsignedIntArray::cast(this)->length());
-      break;
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      accumulator->Add("<ExternalFloatArray[%u]>",
-                       ExternalFloatArray::cast(this)->length());
-      break;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      accumulator->Add("<ExternalDoubleArray[%u]>",
-                       ExternalDoubleArray::cast(this)->length());
-      break;
-    case FIXED_UINT8_ARRAY_TYPE:
-      accumulator->Add("<FixedUint8Array[%u]>",
-                       FixedUint8Array::cast(this)->length());
-      break;
+
+    TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)
+#undef TYPED_ARRAY_SHORT_PRINT
+
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
       SmartArrayPointer<char> debug_name =
@@ -1857,29 +1830,21 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case SYMBOL_TYPE:
       Symbol::BodyDescriptor::IterateBody(this, v);
       break;
+
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-    case EXTERNAL_INT_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-    case FIXED_INT8_ARRAY_TYPE:
-    case FIXED_UINT8_ARRAY_TYPE:
-    case FIXED_INT16_ARRAY_TYPE:
-    case FIXED_UINT16_ARRAY_TYPE:
-    case FIXED_INT32_ARRAY_TYPE:
-    case FIXED_UINT32_ARRAY_TYPE:
-    case FIXED_FLOAT32_ARRAY_TYPE:
-    case FIXED_FLOAT64_ARRAY_TYPE:
-    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
       break;
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                         \
+    case FIXED_##TYPE##_ARRAY_TYPE:                                            \
+      break;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
       break;
@@ -5382,28 +5347,18 @@ bool JSObject::ReferencesObject(Object* obj) {
   // Check if the object is among the indexed properties.
   ElementsKind kind = GetElementsKind();
   switch (kind) {
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
+    // Raw pixels and external arrays do not reference other
+    // objects.
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                           \
+    case TYPE##_ELEMENTS:                                                      \
+      break;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
-      // Raw pixels and external arrays do not reference other
-      // objects.
       break;
     case FAST_SMI_ELEMENTS:
     case FAST_HOLEY_SMI_ELEMENTS:
@@ -5883,26 +5838,17 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNIMPLEMENTED();
         break;
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
+
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+      case EXTERNAL_##TYPE##_ELEMENTS:                                         \
+      case TYPE##_ELEMENTS:                                                    \
+
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
-      case UINT8_ELEMENTS:
-      case INT8_ELEMENTS:
-      case UINT16_ELEMENTS:
-      case INT16_ELEMENTS:
-      case UINT32_ELEMENTS:
-      case INT32_ELEMENTS:
-      case FLOAT32_ELEMENTS:
-      case FLOAT64_ELEMENTS:
-      case UINT8_CLAMPED_ELEMENTS:
         // No contained objects, nothing to do.
         break;
     }
@@ -6131,26 +6077,16 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
     case FAST_HOLEY_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
       break;
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                           \
+    case TYPE##_ELEMENTS:                                                      \
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
       // Ignore getters and setters on pixel and external array elements.
       return;
+
     case DICTIONARY_ELEMENTS:
       if (UpdateGetterSetterInDictionary(object->element_dictionary(),
                                          index,
@@ -6598,27 +6534,17 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
         break;
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
-      case UINT8_ELEMENTS:
-      case INT8_ELEMENTS:
-      case UINT16_ELEMENTS:
-      case INT16_ELEMENTS:
-      case UINT32_ELEMENTS:
-      case INT32_ELEMENTS:
-      case FLOAT32_ELEMENTS:
-      case FLOAT64_ELEMENTS:
-      case UINT8_CLAMPED_ELEMENTS:
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+      case EXTERNAL_##TYPE##_ELEMENTS:                                         \
+      case TYPE##_ELEMENTS:                                                    \
+
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
         // Ignore getters and setters on pixel and external array
         // elements.
         return factory->undefined_value();
+
       case DICTIONARY_ELEMENTS:
         break;
       case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -12720,95 +12646,23 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
     case FAST_HOLEY_DOUBLE_ELEMENTS:
       return SetFastDoubleElement(object, index, value, strict_mode,
                                   check_prototype);
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* pixels = ExternalPixelArray::cast(object->elements());
-      return handle(pixels->SetValue(index, *value), isolate);
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case EXTERNAL_##TYPE##_ELEMENTS: {                                        \
+      Handle<External##Type##Array> array(                                    \
+          External##Type##Array::cast(object->elements()));                   \
+      return External##Type##Array::SetValue(array, index, value);            \
+    }                                                                         \
+    case TYPE##_ELEMENTS: {                                                   \
+      Handle<Fixed##Type##Array> array(                                       \
+          Fixed##Type##Array::cast(object->elements()));                      \
+      return Fixed##Type##Array::SetValue(array, index, value);               \
     }
-    case EXTERNAL_BYTE_ELEMENTS: {
-      Handle<ExternalByteArray> array(
-          ExternalByteArray::cast(object->elements()));
-      return ExternalByteArray::SetValue(array, index, value);
-    }
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-      Handle<ExternalUnsignedByteArray> array(
-          ExternalUnsignedByteArray::cast(object->elements()));
-      return ExternalUnsignedByteArray::SetValue(array, index, value);
-    }
-    case EXTERNAL_SHORT_ELEMENTS: {
-      Handle<ExternalShortArray> array(ExternalShortArray::cast(
-          object->elements()));
-      return ExternalShortArray::SetValue(array, index, value);
-    }
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-      Handle<ExternalUnsignedShortArray> array(
-          ExternalUnsignedShortArray::cast(object->elements()));
-      return ExternalUnsignedShortArray::SetValue(array, index, value);
-    }
-    case EXTERNAL_INT_ELEMENTS: {
-      Handle<ExternalIntArray> array(
-          ExternalIntArray::cast(object->elements()));
-      return ExternalIntArray::SetValue(array, index, value);
-    }
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-      Handle<ExternalUnsignedIntArray> array(
-          ExternalUnsignedIntArray::cast(object->elements()));
-      return ExternalUnsignedIntArray::SetValue(array, index, value);
-    }
-    case EXTERNAL_FLOAT_ELEMENTS: {
-      Handle<ExternalFloatArray> array(
-          ExternalFloatArray::cast(object->elements()));
-      return ExternalFloatArray::SetValue(array, index, value);
-    }
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      Handle<ExternalDoubleArray> array(
-          ExternalDoubleArray::cast(object->elements()));
-      return ExternalDoubleArray::SetValue(array, index, value);
-    }
-    case UINT8_ELEMENTS: {
-      Handle<FixedUint8Array> array(
-          FixedUint8Array::cast(object->elements()));
-      return FixedUint8Array::SetValue(array, index, value);
-    }
-    case UINT8_CLAMPED_ELEMENTS: {
-      Handle<FixedUint8ClampedArray> array(
-          FixedUint8ClampedArray::cast(object->elements()));
-      return FixedUint8ClampedArray::SetValue(array, index, value);
-    }
-    case INT8_ELEMENTS: {
-      Handle<FixedInt8Array> array(
-          FixedInt8Array::cast(object->elements()));
-      return FixedInt8Array::SetValue(array, index, value);
-    }
-    case UINT16_ELEMENTS: {
-      Handle<FixedUint16Array> array(
-          FixedUint16Array::cast(object->elements()));
-      return FixedUint16Array::SetValue(array, index, value);
-    }
-    case INT16_ELEMENTS: {
-      Handle<FixedInt16Array> array(
-          FixedInt16Array::cast(object->elements()));
-      return FixedInt16Array::SetValue(array, index, value);
-    }
-    case UINT32_ELEMENTS: {
-      Handle<FixedUint32Array> array(
-          FixedUint32Array::cast(object->elements()));
-      return FixedUint32Array::SetValue(array, index, value);
-    }
-    case INT32_ELEMENTS: {
-      Handle<FixedInt32Array> array(
-          FixedInt32Array::cast(object->elements()));
-      return FixedInt32Array::SetValue(array, index, value);
-    }
-    case FLOAT32_ELEMENTS: {
-      Handle<FixedFloat32Array> array(
-          FixedFloat32Array::cast(object->elements()));
-      return FixedFloat32Array::SetValue(array, index, value);
-    }
-    case FLOAT64_ELEMENTS: {
-      Handle<FixedFloat64Array> array(
-          FixedFloat64Array::cast(object->elements()));
-      return FixedFloat64Array::SetValue(array, index, value);
-    }
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+
+#undef TYPED_ARRAY_CASE
+
     case DICTIONARY_ELEMENTS:
       return SetDictionaryElement(object, index, value, attributes, strict_mode,
                                   check_prototype,
@@ -13211,24 +13065,14 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       }
       break;
     }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS: {
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                      \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                         \
+    case TYPE##_ELEMENTS:                                                    \
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    {
       // External arrays are considered 100% used.
       FixedArrayBase* external_array = FixedArrayBase::cast(elements());
       *capacity = external_array->length();
@@ -13724,34 +13568,14 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      int length = ExternalPixelArray::cast(elements())->length();
-      while (counter < length) {
-        if (storage != NULL) {
-          storage->set(counter, Smi::FromInt(counter));
-        }
-        counter++;
-      }
-      ASSERT(!storage || storage->length() >= counter);
-      break;
-    }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS: {
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                      \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                         \
+    case TYPE##_ELEMENTS:                                                    \
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    {
       int length = FixedArrayBase::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
@@ -13762,6 +13586,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
+
     case DICTIONARY_ELEMENTS: {
       if (storage != NULL) {
         element_dictionary()->CopyKeysTo(storage,
@@ -14665,24 +14490,13 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
 
 ExternalArrayType JSTypedArray::type() {
   switch (elements()->map()->instance_type()) {
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      return kExternalByteArray;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      return kExternalUnsignedByteArray;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      return kExternalShortArray;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      return kExternalUnsignedShortArray;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      return kExternalIntArray;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      return kExternalUnsignedIntArray;
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      return kExternalFloatArray;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      return kExternalDoubleArray;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      return kExternalPixelArray;
+#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype, size)            \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                        \
+      return kExternal##Type##Array;
+
+    TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
+#undef INSTANCE_TYPE_TO_ARRAY_TYPE
+
     default:
       return static_cast<ExternalArrayType>(-1);
   }
@@ -14691,24 +14505,13 @@ ExternalArrayType JSTypedArray::type() {
 
 size_t JSTypedArray::element_size() {
   switch (elements()->map()->instance_type()) {
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      return 1;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      return 1;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      return 2;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      return 2;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      return 4;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      return 4;
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      return 4;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      return 8;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      return 1;
+#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype, size)          \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                        \
+      return size;
+
+    TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENT_SIZE)
+#undef INSTANCE_TYPE_TO_ELEMENT_SIZE
+
     default:
       UNREACHABLE();
       return 0;
@@ -14716,7 +14519,7 @@ size_t JSTypedArray::element_size() {
 }
 
 
-Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
+Object* ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
   if (index < static_cast<uint32_t>(length())) {
     if (value->IsSmi()) {
@@ -14751,6 +14554,14 @@ Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
 }
 
 
+Handle<Object> ExternalUint8ClampedArray::SetValue(
+    Handle<ExternalUint8ClampedArray> array,
+    uint32_t index,
+    Handle<Object> value) {
+  return Handle<Object>(array->SetValue(index, *value), array->GetIsolate());
+}
+
+
 template<typename ExternalArrayClass, typename ValueType>
 static MaybeObject* ExternalArrayIntSetter(Heap* heap,
                                            ExternalArrayClass* receiver,
@@ -14775,7 +14586,7 @@ static MaybeObject* ExternalArrayIntSetter(Heap* heap,
 }
 
 
-Handle<Object> ExternalByteArray::SetValue(Handle<ExternalByteArray> array,
+Handle<Object> ExternalInt8Array::SetValue(Handle<ExternalInt8Array> array,
                                            uint32_t index,
                                            Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
@@ -14784,14 +14595,14 @@ Handle<Object> ExternalByteArray::SetValue(Handle<ExternalByteArray> array,
 }
 
 
-MaybeObject* ExternalByteArray::SetValue(uint32_t index, Object* value) {
-  return ExternalArrayIntSetter<ExternalByteArray, int8_t>
+MaybeObject* ExternalInt8Array::SetValue(uint32_t index, Object* value) {
+  return ExternalArrayIntSetter<ExternalInt8Array, int8_t>
       (GetHeap(), this, index, value);
 }
 
 
-Handle<Object> ExternalUnsignedByteArray::SetValue(
-    Handle<ExternalUnsignedByteArray> array,
+Handle<Object> ExternalUint8Array::SetValue(
+    Handle<ExternalUint8Array> array,
     uint32_t index,
     Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
@@ -14800,15 +14611,15 @@ Handle<Object> ExternalUnsignedByteArray::SetValue(
 }
 
 
-MaybeObject* ExternalUnsignedByteArray::SetValue(uint32_t index,
+MaybeObject* ExternalUint8Array::SetValue(uint32_t index,
                                                  Object* value) {
-  return ExternalArrayIntSetter<ExternalUnsignedByteArray, uint8_t>
+  return ExternalArrayIntSetter<ExternalUint8Array, uint8_t>
       (GetHeap(), this, index, value);
 }
 
 
-Handle<Object> ExternalShortArray::SetValue(
-    Handle<ExternalShortArray> array,
+Handle<Object> ExternalInt16Array::SetValue(
+    Handle<ExternalInt16Array> array,
     uint32_t index,
     Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
@@ -14817,15 +14628,15 @@ Handle<Object> ExternalShortArray::SetValue(
 }
 
 
-MaybeObject* ExternalShortArray::SetValue(uint32_t index,
+MaybeObject* ExternalInt16Array::SetValue(uint32_t index,
                                           Object* value) {
-  return ExternalArrayIntSetter<ExternalShortArray, int16_t>
+  return ExternalArrayIntSetter<ExternalInt16Array, int16_t>
       (GetHeap(), this, index, value);
 }
 
 
-Handle<Object> ExternalUnsignedShortArray::SetValue(
-    Handle<ExternalUnsignedShortArray> array,
+Handle<Object> ExternalUint16Array::SetValue(
+    Handle<ExternalUint16Array> array,
     uint32_t index,
     Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
@@ -14834,14 +14645,14 @@ Handle<Object> ExternalUnsignedShortArray::SetValue(
 }
 
 
-MaybeObject* ExternalUnsignedShortArray::SetValue(uint32_t index,
+MaybeObject* ExternalUint16Array::SetValue(uint32_t index,
                                                   Object* value) {
-  return ExternalArrayIntSetter<ExternalUnsignedShortArray, uint16_t>
+  return ExternalArrayIntSetter<ExternalUint16Array, uint16_t>
       (GetHeap(), this, index, value);
 }
 
 
-Handle<Object> ExternalIntArray::SetValue(Handle<ExternalIntArray> array,
+Handle<Object> ExternalInt32Array::SetValue(Handle<ExternalInt32Array> array,
                                           uint32_t index,
                                           Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
@@ -14850,14 +14661,14 @@ Handle<Object> ExternalIntArray::SetValue(Handle<ExternalIntArray> array,
 }
 
 
-MaybeObject* ExternalIntArray::SetValue(uint32_t index, Object* value) {
-  return ExternalArrayIntSetter<ExternalIntArray, int32_t>
+MaybeObject* ExternalInt32Array::SetValue(uint32_t index, Object* value) {
+  return ExternalArrayIntSetter<ExternalInt32Array, int32_t>
       (GetHeap(), this, index, value);
 }
 
 
-Handle<Object> ExternalUnsignedIntArray::SetValue(
-    Handle<ExternalUnsignedIntArray> array,
+Handle<Object> ExternalUint32Array::SetValue(
+    Handle<ExternalUint32Array> array,
     uint32_t index,
     Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
@@ -14866,7 +14677,7 @@ Handle<Object> ExternalUnsignedIntArray::SetValue(
 }
 
 
-MaybeObject* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
+MaybeObject* ExternalUint32Array::SetValue(uint32_t index, Object* value) {
   uint32_t cast_value = 0;
   Heap* heap = GetHeap();
   if (index < static_cast<uint32_t>(length())) {
@@ -14887,16 +14698,17 @@ MaybeObject* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
 }
 
 
-Handle<Object> ExternalFloatArray::SetValue(Handle<ExternalFloatArray> array,
-                                            uint32_t index,
-                                            Handle<Object> value) {
+Handle<Object> ExternalFloat32Array::SetValue(
+    Handle<ExternalFloat32Array> array,
+    uint32_t index,
+    Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
                      array->SetValue(index, *value),
                      Object);
 }
 
 
-MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
+MaybeObject* ExternalFloat32Array::SetValue(uint32_t index, Object* value) {
   float cast_value = static_cast<float>(OS::nan_value());
   Heap* heap = GetHeap();
   if (index < static_cast<uint32_t>(length())) {
@@ -14917,16 +14729,17 @@ MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
 }
 
 
-Handle<Object> ExternalDoubleArray::SetValue(Handle<ExternalDoubleArray> array,
-                                            uint32_t index,
-                                            Handle<Object> value) {
+Handle<Object> ExternalFloat64Array::SetValue(
+    Handle<ExternalFloat64Array> array,
+    uint32_t index,
+    Handle<Object> value) {
   CALL_HEAP_FUNCTION(array->GetIsolate(),
                      array->SetValue(index, *value),
                      Object);
 }
 
 
-MaybeObject* ExternalDoubleArray::SetValue(uint32_t index, Object* value) {
+MaybeObject* ExternalFloat64Array::SetValue(uint32_t index, Object* value) {
   double double_value = OS::nan_value();
   Heap* heap = GetHeap();
   if (index < static_cast<uint32_t>(length())) {

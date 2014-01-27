@@ -2618,8 +2618,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
 
-  static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
-
   LInstruction* DoMathFloor(HUnaryMathOperation* instr);
   LInstruction* DoMathRound(HUnaryMathOperation* instr);
   LInstruction* DoMathAbs(HUnaryMathOperation* instr);

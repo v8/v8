@@ -104,6 +104,13 @@
   # Tests verifying CHECK and ASSERT.
   'verify-check-false': [FAIL, NO_VARIANTS],
   'verify-assert-false': [NO_VARIANTS, ['mode == release', PASS], ['mode == debug', FAIL]],
+
+  ##############################################################################
+  # Tests with different versions for release and debug.
+  'compiler/alloc-number': [PASS, ['mode == debug', SKIP]],
+  'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
+  'regress/regress-634': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -142,30 +149,12 @@
   'string-indexof-2': [PASS, TIMEOUT],
   'mirror-object': [PASS, TIMEOUT],
 
-  # BUG(3251035): Timeouts in long looping crankshaft optimization
-  # tests. Skipping because having them timeout takes too long on the
-  # buildbot.
+  # Long running tests. Skipping because having them timeout takes too long on
+  # the buildbot.
   'compiler/alloc-number': [SKIP],
-  'compiler/array-length': [SKIP],
-  'compiler/assignment-deopt': [SKIP],
-  'compiler/deopt-args': [SKIP],
-  'compiler/inline-compare': [SKIP],
-  'compiler/inline-global-access': [SKIP],
-  'compiler/optimized-function-calls': [SKIP],
-  'compiler/pic': [SKIP],
-  'compiler/property-calls': [SKIP],
-  'compiler/recursive-deopt': [SKIP],
-  'compiler/regress-4': [SKIP],
-  'compiler/regress-funcaller': [SKIP],
-  'compiler/regress-rep-change': [SKIP],
-  'compiler/regress-arguments': [SKIP],
-  'compiler/regress-funarguments': [SKIP],
-  'compiler/regress-3249650': [SKIP],
-  'compiler/simple-deopt': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-634': [SKIP],
   'regress/regress-create-exception': [SKIP],
-  'regress/regress-3218915': [SKIP],
   'regress/regress-3247124': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
@@ -211,30 +200,12 @@
   'mirror-object': [PASS, TIMEOUT],
   'string-indexof-2': [PASS, TIMEOUT],
 
-  # BUG(3251035): Timeouts in long looping crankshaft optimization
-  # tests. Skipping because having them timeout takes too long on the
-  # buildbot.
+  # Long running tests. Skipping because having them timeout takes too long on
+  # the buildbot.
   'compiler/alloc-number': [SKIP],
-  'compiler/array-length': [SKIP],
-  'compiler/assignment-deopt': [SKIP],
-  'compiler/deopt-args': [SKIP],
-  'compiler/inline-compare': [SKIP],
-  'compiler/inline-global-access': [SKIP],
-  'compiler/optimized-function-calls': [SKIP],
-  'compiler/pic': [SKIP],
-  'compiler/property-calls': [SKIP],
-  'compiler/recursive-deopt': [SKIP],
-  'compiler/regress-4': [SKIP],
-  'compiler/regress-funcaller': [SKIP],
-  'compiler/regress-rep-change': [SKIP],
-  'compiler/regress-arguments': [SKIP],
-  'compiler/regress-funarguments': [SKIP],
-  'compiler/regress-3249650': [SKIP],
-  'compiler/simple-deopt': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-634': [SKIP],
   'regress/regress-create-exception': [SKIP],
-  'regress/regress-3218915': [SKIP],
   'regress/regress-3247124': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,

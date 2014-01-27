@@ -1124,31 +1124,5 @@
         }],
       ],
     },
-    {
-      'target_name': 'v8_shell',
-      'type': 'executable',
-      'dependencies': [
-        'v8'
-      ],
-      'sources': [
-        '../../samples/shell.cc',
-      ],
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }],
-        ['OS=="win"', {
-          # This could be gotten by not setting chromium_code, if that's OK.
-          'defines': ['_CRT_SECURE_NO_WARNINGS'],
-        }],
-        ['v8_compress_startup_data=="bz2"', {
-          'libraries': [
-            '-lbz2',
-          ]
-        }],
-      ],
-    },
   ],
 }

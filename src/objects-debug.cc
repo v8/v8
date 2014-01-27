@@ -104,61 +104,18 @@ void HeapObject::HeapObjectVerify() {
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      ExternalPixelArray::cast(this)->ExternalPixelArrayVerify();
+
+#define VERIFY_TYPED_ARRAY(Type, type, TYPE, ctype, size)                      \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                         \
+      External##Type##Array::cast(this)->External##Type##ArrayVerify();        \
+      break;                                                                   \
+    case FIXED_##TYPE##_ARRAY_TYPE:                                            \
+      Fixed##Type##Array::cast(this)->FixedTypedArrayVerify();                 \
       break;
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      ExternalByteArray::cast(this)->ExternalByteArrayVerify();
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      ExternalUnsignedByteArray::cast(this)->ExternalUnsignedByteArrayVerify();
-      break;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      ExternalShortArray::cast(this)->ExternalShortArrayVerify();
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      ExternalUnsignedShortArray::cast(this)->
-          ExternalUnsignedShortArrayVerify();
-      break;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      ExternalIntArray::cast(this)->ExternalIntArrayVerify();
-      break;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      ExternalUnsignedIntArray::cast(this)->ExternalUnsignedIntArrayVerify();
-      break;
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      ExternalFloatArray::cast(this)->ExternalFloatArrayVerify();
-      break;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      ExternalDoubleArray::cast(this)->ExternalDoubleArrayVerify();
-      break;
-    case FIXED_UINT8_ARRAY_TYPE:
-      FixedUint8Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_INT8_ARRAY_TYPE:
-      FixedInt8Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_UINT16_ARRAY_TYPE:
-      FixedUint16Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_INT16_ARRAY_TYPE:
-      FixedInt16Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_UINT32_ARRAY_TYPE:
-      FixedUint32Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_INT32_ARRAY_TYPE:
-      FixedInt32Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_FLOAT32_ARRAY_TYPE:
-      FixedFloat32Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_FLOAT64_ARRAY_TYPE:
-      FixedFloat64Array::cast(this)->FixedTypedArrayVerify();
-      break;
-    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
-      FixedUint8ClampedArray::cast(this)->FixedTypedArrayVerify();
-      break;
+
+    TYPED_ARRAYS(VERIFY_TYPED_ARRAY)
+#undef VERIFY_TYPED_ARRAY
+
     case CODE_TYPE:
       Code::cast(this)->CodeVerify();
       break;
@@ -289,49 +246,13 @@ void FreeSpace::FreeSpaceVerify() {
 }
 
 
-void ExternalPixelArray::ExternalPixelArrayVerify() {
-  CHECK(IsExternalPixelArray());
-}
+#define EXTERNAL_ARRAY_VERIFY(Type, type, TYPE, ctype, size)                  \
+  void External##Type##Array::External##Type##ArrayVerify() {                 \
+    CHECK(IsExternal##Type##Array());                                         \
+  }
 
-
-void ExternalByteArray::ExternalByteArrayVerify() {
-  CHECK(IsExternalByteArray());
-}
-
-
-void ExternalUnsignedByteArray::ExternalUnsignedByteArrayVerify() {
-  CHECK(IsExternalUnsignedByteArray());
-}
-
-
-void ExternalShortArray::ExternalShortArrayVerify() {
-  CHECK(IsExternalShortArray());
-}
-
-
-void ExternalUnsignedShortArray::ExternalUnsignedShortArrayVerify() {
-  CHECK(IsExternalUnsignedShortArray());
-}
-
-
-void ExternalIntArray::ExternalIntArrayVerify() {
-  CHECK(IsExternalIntArray());
-}
-
-
-void ExternalUnsignedIntArray::ExternalUnsignedIntArrayVerify() {
-  CHECK(IsExternalUnsignedIntArray());
-}
-
-
-void ExternalFloatArray::ExternalFloatArrayVerify() {
-  CHECK(IsExternalFloatArray());
-}
-
-
-void ExternalDoubleArray::ExternalDoubleArrayVerify() {
-  CHECK(IsExternalDoubleArray());
-}
+TYPED_ARRAYS(EXTERNAL_ARRAY_VERIFY)
+#undef EXTERNAL_ARRAY_VERIFY
 
 
 template <class Traits>
@@ -1114,25 +1035,14 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       info->number_of_fast_unused_elements_ += holes;
       break;
     }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS: {
-      info->number_of_objects_with_fast_elements_++;
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                          \
+    case TYPE##_ELEMENTS:
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    { info->number_of_objects_with_fast_elements_++;
       FixedArrayBase* e = FixedArrayBase::cast(elements());
       info->number_of_fast_used_elements_ += e->length();
       break;

@@ -1115,7 +1115,7 @@ void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
   HValue* left = hmod->left();
   HValue* right = hmod->right();
-  if (hmod->HasPowerOf2Divisor()) {
+  if (hmod->RightIsPowerOf2()) {
     // TODO(svenpanne) We should really do the strength reduction on the
     // Hydrogen level.
     Register left_reg = ToRegister(instr->left());
@@ -1345,7 +1345,7 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+  if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
     const Register dividend = ToRegister(instr->left());
     const Register result = ToRegister(instr->result());
     int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
@@ -1402,15 +1402,15 @@ void LCodeGen::DoDivI(LDivI* instr) {
   const Register result = ToRegister(instr->result());
 
   // Check for x / 0.
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
     __ cmp(right, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label positive;
-    if (!instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    if (!instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
       // Do the test only if it hadn't be done above.
       __ cmp(right, Operand::Zero());
     }
@@ -1421,9 +1421,10 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow) &&
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow) &&
       (!CpuFeatures::IsSupported(SUDIV) ||
-       !instr->hydrogen()->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
+       !instr->hydrogen_value()->CheckFlag(
+           HValue::kAllUsesTruncatingToInt32))) {
     // We don't need to check for overflow when truncating with sdiv
     // support because, on ARM, sdiv kMinInt, -1 -> kMinInt.
     __ cmp(left, Operand(kMinInt));
@@ -1435,7 +1436,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     CpuFeatureScope scope(masm(), SUDIV);
     __ sdiv(result, left, right);
 
-    if (!instr->hydrogen()->CheckFlag(
+    if (!instr->hydrogen_value()->CheckFlag(
         HInstruction::kAllUsesTruncatingToInt32)) {
       // Compute remainder and deopt if it's not zero.
       const Register remainder = scratch0();
@@ -1454,7 +1455,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ vcvt_s32_f64(double_scratch0().low(), vleft);
     __ vmov(result, double_scratch0().low());
 
-    if (!instr->hydrogen()->CheckFlag(
+    if (!instr->hydrogen_value()->CheckFlag(
         HInstruction::kAllUsesTruncatingToInt32)) {
       // Deopt if exact conversion to integer was not possible.
       // Use vright as scratch register.
@@ -3213,9 +3214,9 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       : 0;
 
 
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+  if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
       elements_kind == FLOAT32_ELEMENTS ||
-      elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
       elements_kind == FLOAT64_ELEMENTS) {
     int base_offset =
       (instr->additional_index() << element_size_shift) + additional_offset;
@@ -3224,7 +3225,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         ? Operand(constant_key << element_size_shift)
         : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
-    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+    if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
         elements_kind == FLOAT32_ELEMENTS) {
       __ vldr(double_scratch0().low(), scratch0(), base_offset);
       __ vcvt_f64_f32(result, double_scratch0().low());
@@ -3238,29 +3239,29 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         element_size_shift, shift_size,
         instr->additional_index(), additional_offset);
     switch (elements_kind) {
-      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_INT8_ELEMENTS:
       case INT8_ELEMENTS:
         __ ldrsb(result, mem_operand);
         break;
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
+      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
         __ ldrb(result, mem_operand);
         break;
-      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
         __ ldrsh(result, mem_operand);
         break;
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ ldrh(result, mem_operand);
         break;
-      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
         __ ldr(result, mem_operand);
         break;
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_UINT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ ldr(result, mem_operand);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
@@ -3270,8 +3271,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
+      case EXTERNAL_FLOAT32_ELEMENTS:
+      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
@@ -4275,9 +4276,9 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
       : 0;
 
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+  if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
       elements_kind == FLOAT32_ELEMENTS ||
-      elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
       elements_kind == FLOAT64_ELEMENTS) {
     int base_offset =
       (instr->additional_index() << element_size_shift) + additional_offset;
@@ -4293,7 +4294,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     } else {
       __ add(address, external_pointer, Operand(key, LSL, shift_size));
     }
-    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+    if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
         elements_kind == FLOAT32_ELEMENTS) {
       __ vcvt_f32_f64(double_scratch0().low(), value);
       __ vstr(double_scratch0().low(), address, base_offset);
@@ -4307,30 +4308,30 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
         element_size_shift, shift_size,
         instr->additional_index(), additional_offset);
     switch (elements_kind) {
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
+      case EXTERNAL_INT8_ELEMENTS:
+      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
       case INT8_ELEMENTS:
         __ strb(value, mem_operand);
         break;
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT16_ELEMENTS:
+      case EXTERNAL_UINT16_ELEMENTS:
       case INT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ strh(value, mem_operand);
         break;
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_INT32_ELEMENTS:
+      case EXTERNAL_UINT32_ELEMENTS:
       case INT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ str(value, mem_operand);
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
+      case EXTERNAL_FLOAT32_ELEMENTS:
+      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_SMI_ELEMENTS:

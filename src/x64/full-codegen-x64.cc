@@ -3364,7 +3364,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
     __ movp(arg_reg_1, object);
-    __ Move(arg_reg_2, index, RelocInfo::NONE64);
+    __ Move(arg_reg_2, index, Assembler::RelocInfoNone());
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ jmp(&done);

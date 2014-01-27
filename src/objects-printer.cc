@@ -107,52 +107,22 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpacePrint(out);
       break;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      ExternalPixelArray::cast(this)->ExternalPixelArrayPrint(out);
+
+#define PRINT_EXTERNAL_ARRAY(Type, type, TYPE, ctype, size)                    \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                         \
+      External##Type##Array::cast(this)->External##Type##ArrayPrint(out);      \
       break;
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      ExternalByteArray::cast(this)->ExternalByteArrayPrint(out);
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      ExternalUnsignedByteArray::cast(this)
-          ->ExternalUnsignedByteArrayPrint(out);
-      break;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      ExternalShortArray::cast(this)->ExternalShortArrayPrint(out);
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      ExternalUnsignedShortArray::cast(this)
-          ->ExternalUnsignedShortArrayPrint(out);
-      break;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      ExternalIntArray::cast(this)->ExternalIntArrayPrint(out);
-      break;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      ExternalUnsignedIntArray::cast(this)->ExternalUnsignedIntArrayPrint(out);
-      break;
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      ExternalFloatArray::cast(this)->ExternalFloatArrayPrint(out);
-      break;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      ExternalDoubleArray::cast(this)->ExternalDoubleArrayPrint(out);
-      break;
-#define PRINT_FIXED_TYPED_ARRAY(Type)                                          \
+
+     TYPED_ARRAYS(PRINT_EXTERNAL_ARRAY)
+#undef PRINT_EXTERNAL_ARRAY
+
+#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size)                 \
     case Fixed##Type##Array::kInstanceType:                                    \
       Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(out);               \
       break;
 
-    PRINT_FIXED_TYPED_ARRAY(Uint8)
-    PRINT_FIXED_TYPED_ARRAY(Int8)
-    PRINT_FIXED_TYPED_ARRAY(Uint16)
-    PRINT_FIXED_TYPED_ARRAY(Int16)
-    PRINT_FIXED_TYPED_ARRAY(Uint32)
-    PRINT_FIXED_TYPED_ARRAY(Int32)
-    PRINT_FIXED_TYPED_ARRAY(Float32)
-    PRINT_FIXED_TYPED_ARRAY(Float64)
-    PRINT_FIXED_TYPED_ARRAY(Uint8Clamped)
-
-#undef PPINT_FIXED_TYPED_ARRAY
-
+    TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
+#undef PRINT_FIXED_TYPED_ARRAY
 
     case FILLER_TYPE:
       PrintF(out, "filler");
@@ -259,49 +229,15 @@ void FreeSpace::FreeSpacePrint(FILE* out) {
 }
 
 
-void ExternalPixelArray::ExternalPixelArrayPrint(FILE* out) {
-  PrintF(out, "external pixel array");
-}
+#define EXTERNAL_ARRAY_PRINTER(Type, type, TYPE, ctype, size)                 \
+  void External##Type##Array::External##Type##ArrayPrint(FILE* out) {         \
+    PrintF(out, "external " #type " array");                                  \
+  }
 
+TYPED_ARRAYS(EXTERNAL_ARRAY_PRINTER)
 
-void ExternalByteArray::ExternalByteArrayPrint(FILE* out) {
-  PrintF(out, "external byte array");
-}
+#undef EXTERNAL_ARRAY_PRINTER
 
-
-void ExternalUnsignedByteArray::ExternalUnsignedByteArrayPrint(FILE* out) {
-  PrintF(out, "external unsigned byte array");
-}
-
-
-void ExternalShortArray::ExternalShortArrayPrint(FILE* out) {
-  PrintF(out, "external short array");
-}
-
-
-void ExternalUnsignedShortArray::ExternalUnsignedShortArrayPrint(FILE* out) {
-  PrintF(out, "external unsigned short array");
-}
-
-
-void ExternalIntArray::ExternalIntArrayPrint(FILE* out) {
-  PrintF(out, "external int array");
-}
-
-
-void ExternalUnsignedIntArray::ExternalUnsignedIntArrayPrint(FILE* out) {
-  PrintF(out, "external unsigned int array");
-}
-
-
-void ExternalFloatArray::ExternalFloatArrayPrint(FILE* out) {
-  PrintF(out, "external float array");
-}
-
-
-void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
-  PrintF(out, "external double array");
-}
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayPrint(FILE* out) {
@@ -412,18 +348,18 @@ void JSObject::PrintElements(FILE* out) {
       break;                                                                \
     }
 
-    PRINT_ELEMENTS(EXTERNAL_PIXEL_ELEMENTS, ExternalPixelArray)
-    PRINT_ELEMENTS(EXTERNAL_BYTE_ELEMENTS, ExternalByteArray)
-    PRINT_ELEMENTS(EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
-        ExternalUnsignedByteArray)
-    PRINT_ELEMENTS(EXTERNAL_SHORT_ELEMENTS, ExternalShortArray)
-    PRINT_ELEMENTS(EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
-        ExternalUnsignedShortArray)
-    PRINT_ELEMENTS(EXTERNAL_INT_ELEMENTS, ExternalIntArray)
-    PRINT_ELEMENTS(EXTERNAL_UNSIGNED_INT_ELEMENTS,
-        ExternalUnsignedIntArray)
-    PRINT_DOUBLE_ELEMENTS(EXTERNAL_FLOAT_ELEMENTS, ExternalFloatArray)
-    PRINT_DOUBLE_ELEMENTS(EXTERNAL_DOUBLE_ELEMENTS, ExternalDoubleArray)
+    PRINT_ELEMENTS(EXTERNAL_UINT8_CLAMPED_ELEMENTS, ExternalUint8ClampedArray)
+    PRINT_ELEMENTS(EXTERNAL_INT8_ELEMENTS, ExternalInt8Array)
+    PRINT_ELEMENTS(EXTERNAL_UINT8_ELEMENTS,
+        ExternalUint8Array)
+    PRINT_ELEMENTS(EXTERNAL_INT16_ELEMENTS, ExternalInt16Array)
+    PRINT_ELEMENTS(EXTERNAL_UINT16_ELEMENTS,
+        ExternalUint16Array)
+    PRINT_ELEMENTS(EXTERNAL_INT32_ELEMENTS, ExternalInt32Array)
+    PRINT_ELEMENTS(EXTERNAL_UINT32_ELEMENTS,
+        ExternalUint32Array)
+    PRINT_DOUBLE_ELEMENTS(EXTERNAL_FLOAT32_ELEMENTS, ExternalFloat32Array)
+    PRINT_DOUBLE_ELEMENTS(EXTERNAL_FLOAT64_ELEMENTS, ExternalFloat64Array)
 
 
     PRINT_ELEMENTS(UINT8_ELEMENTS, FixedUint8Array)

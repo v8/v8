@@ -1605,9 +1605,9 @@ inline static bool ExternalArrayOpRequiresTemp(
   // an index cannot fold the scale operation into a load and need an extra
   // temp register to do the work.
   return key_representation.IsSmi() &&
-      (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
-       elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
-       elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
+      (elements_kind == EXTERNAL_INT8_ELEMENTS ||
+       elements_kind == EXTERNAL_UINT8_ELEMENTS ||
+       elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
        elements_kind == UINT8_ELEMENTS ||
        elements_kind == INT8_ELEMENTS ||
        elements_kind == UINT8_CLAMPED_ELEMENTS);
@@ -2702,8 +2702,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
-
-  static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
 
   LInstruction* DoMathFloor(HUnaryMathOperation* instr);
   LInstruction* DoMathRound(HUnaryMathOperation* instr);

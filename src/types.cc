@@ -540,6 +540,30 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
 }
 
 
+template<class Config>
+template<class OtherType>
+typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
+    typename OtherType::TypeHandle type, Region* region) {
+  if (type->IsBitset()) {
+    return Config::from_bitset(type->AsBitset(), region);
+  } else if (type->IsClass()) {
+    return Config::from_class(type->AsClass(), region);
+  } else if (type->IsConstant()) {
+    return Config::from_constant(type->AsConstant(), region);
+  } else {
+    ASSERT(type->IsUnion());
+    typename OtherType::UnionedHandle unioned = type->AsUnion();
+    int length = OtherType::UnionLength(unioned);
+    UnionedHandle new_unioned = Config::union_create(length, region);
+    for (int i = 0; i < length; ++i) {
+      Config::union_set(new_unioned, i,
+          Convert<OtherType>(OtherType::UnionGet(unioned, i), region));
+    }
+    return Config::from_union(new_unioned);
+  }
+}
+
+
 // TODO(rossberg): this does not belong here.
 Representation Representation::FromType(Type* type) {
   if (type->Is(Type::None())) return Representation::None();
@@ -619,6 +643,13 @@ template class TypeImpl<ZoneTypeConfig>::Iterator<i::Object>;
 template class TypeImpl<HeapTypeConfig>;
 template class TypeImpl<HeapTypeConfig>::Iterator<i::Map>;
 template class TypeImpl<HeapTypeConfig>::Iterator<i::Object>;
+
+template TypeImpl<ZoneTypeConfig>::TypeHandle
+  TypeImpl<ZoneTypeConfig>::Convert<HeapType>(
+    TypeImpl<HeapTypeConfig>::TypeHandle, TypeImpl<ZoneTypeConfig>::Region*);
+template TypeImpl<HeapTypeConfig>::TypeHandle
+  TypeImpl<HeapTypeConfig>::Convert<Type>(
+    TypeImpl<ZoneTypeConfig>::TypeHandle, TypeImpl<HeapTypeConfig>::Region*);
 
 
 } }  // namespace v8::internal

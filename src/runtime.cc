@@ -870,42 +870,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
 void Runtime::ArrayIdToTypeAndSize(
     int arrayId, ExternalArrayType* array_type, size_t* element_size) {
   switch (arrayId) {
-    case ARRAY_ID_UINT8:
-      *array_type = kExternalUnsignedByteArray;
-      *element_size = 1;
+#define ARRAY_ID_CASE(Type, type, TYPE, ctype, size)                           \
+    case ARRAY_ID_##TYPE:                                                      \
+      *array_type = kExternal##Type##Array;                                    \
+      *element_size = size;                                                    \
       break;
-    case ARRAY_ID_INT8:
-      *array_type = kExternalByteArray;
-      *element_size = 1;
-      break;
-    case ARRAY_ID_UINT16:
-      *array_type = kExternalUnsignedShortArray;
-      *element_size = 2;
-      break;
-    case ARRAY_ID_INT16:
-      *array_type = kExternalShortArray;
-      *element_size = 2;
-      break;
-    case ARRAY_ID_UINT32:
-      *array_type = kExternalUnsignedIntArray;
-      *element_size = 4;
-      break;
-    case ARRAY_ID_INT32:
-      *array_type = kExternalIntArray;
-      *element_size = 4;
-      break;
-    case ARRAY_ID_FLOAT32:
-      *array_type = kExternalFloatArray;
-      *element_size = 4;
-      break;
-    case ARRAY_ID_FLOAT64:
-      *array_type = kExternalDoubleArray;
-      *element_size = 8;
-      break;
-    case ARRAY_ID_UINT8C:
-      *array_type = kExternalPixelArray;
-      *element_size = 1;
-      break;
+
+    TYPED_ARRAYS(ARRAY_ID_CASE)
+#undef ARRAY_ID_CASE
+
     default:
       UNREACHABLE();
   }
@@ -927,7 +900,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
 
-  ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
+  ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
   Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
@@ -979,7 +952,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
 
-  ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
+  ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
   Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
@@ -10003,24 +9976,12 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       break;
     }
     case NON_STRICT_ARGUMENTS_ELEMENTS:
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                      \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                         \
+    case TYPE##_ELEMENTS:                                                    \
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
       // External arrays are always dense.
       return length;
   }
@@ -10128,51 +10089,16 @@ static void CollectElementIndices(Handle<JSObject> object,
     default: {
       int dense_elements_length;
       switch (kind) {
-        case EXTERNAL_PIXEL_ELEMENTS: {
-          dense_elements_length =
-              ExternalPixelArray::cast(object->elements())->length();
-          break;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+        case EXTERNAL_##TYPE##_ELEMENTS: {                                     \
+          dense_elements_length =                                              \
+              External##Type##Array::cast(object->elements())->length();       \
+          break;                                                               \
         }
-        case EXTERNAL_BYTE_ELEMENTS: {
-          dense_elements_length =
-              ExternalByteArray::cast(object->elements())->length();
-          break;
-        }
-        case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-          dense_elements_length =
-              ExternalUnsignedByteArray::cast(object->elements())->length();
-          break;
-        }
-        case EXTERNAL_SHORT_ELEMENTS: {
-          dense_elements_length =
-              ExternalShortArray::cast(object->elements())->length();
-          break;
-        }
-        case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-          dense_elements_length =
-              ExternalUnsignedShortArray::cast(object->elements())->length();
-          break;
-        }
-        case EXTERNAL_INT_ELEMENTS: {
-          dense_elements_length =
-              ExternalIntArray::cast(object->elements())->length();
-          break;
-        }
-        case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-          dense_elements_length =
-              ExternalUnsignedIntArray::cast(object->elements())->length();
-          break;
-        }
-        case EXTERNAL_FLOAT_ELEMENTS: {
-          dense_elements_length =
-              ExternalFloatArray::cast(object->elements())->length();
-          break;
-        }
-        case EXTERNAL_DOUBLE_ELEMENTS: {
-          dense_elements_length =
-              ExternalDoubleArray::cast(object->elements())->length();
-          break;
-        }
+
+        TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
         default:
           UNREACHABLE();
           dense_elements_length = 0;
@@ -10289,8 +10215,8 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      Handle<ExternalPixelArray> pixels(ExternalPixelArray::cast(
+    case EXTERNAL_UINT8_CLAMPED_ELEMENTS: {
+      Handle<ExternalUint8ClampedArray> pixels(ExternalUint8ClampedArray::cast(
           receiver->elements()));
       for (uint32_t j = 0; j < length; j++) {
         Handle<Smi> e(Smi::FromInt(pixels->get_scalar(j)), isolate);
@@ -10298,43 +10224,43 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
-    case EXTERNAL_BYTE_ELEMENTS: {
-      IterateExternalArrayElements<ExternalByteArray, int8_t>(
+    case EXTERNAL_INT8_ELEMENTS: {
+      IterateExternalArrayElements<ExternalInt8Array, int8_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-      IterateExternalArrayElements<ExternalUnsignedByteArray, uint8_t>(
+    case EXTERNAL_UINT8_ELEMENTS: {
+      IterateExternalArrayElements<ExternalUint8Array, uint8_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case EXTERNAL_SHORT_ELEMENTS: {
-      IterateExternalArrayElements<ExternalShortArray, int16_t>(
+    case EXTERNAL_INT16_ELEMENTS: {
+      IterateExternalArrayElements<ExternalInt16Array, int16_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-      IterateExternalArrayElements<ExternalUnsignedShortArray, uint16_t>(
+    case EXTERNAL_UINT16_ELEMENTS: {
+      IterateExternalArrayElements<ExternalUint16Array, uint16_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case EXTERNAL_INT_ELEMENTS: {
-      IterateExternalArrayElements<ExternalIntArray, int32_t>(
+    case EXTERNAL_INT32_ELEMENTS: {
+      IterateExternalArrayElements<ExternalInt32Array, int32_t>(
           isolate, receiver, true, false, visitor);
       break;
     }
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-      IterateExternalArrayElements<ExternalUnsignedIntArray, uint32_t>(
+    case EXTERNAL_UINT32_ELEMENTS: {
+      IterateExternalArrayElements<ExternalUint32Array, uint32_t>(
           isolate, receiver, true, false, visitor);
       break;
     }
-    case EXTERNAL_FLOAT_ELEMENTS: {
-      IterateExternalArrayElements<ExternalFloatArray, float>(
+    case EXTERNAL_FLOAT32_ELEMENTS: {
+      IterateExternalArrayElements<ExternalFloat32Array, float>(
           isolate, receiver, false, false, visitor);
       break;
     }
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      IterateExternalArrayElements<ExternalDoubleArray, double>(
+    case EXTERNAL_FLOAT64_ELEMENTS: {
+      IterateExternalArrayElements<ExternalFloat64Array, double>(
           isolate, receiver, false, false, visitor);
       break;
     }
@@ -14552,20 +14478,22 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastDoubleElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastHoleyElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(NonStrictArgumentsElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalPixelElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalArrayElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalByteElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedByteElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalShortElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedShortElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalIntElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedIntElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalFloatElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalDoubleElements)
 // Properties test sitting with elements tests - not fooling anyone.
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
+
+
+#define TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype, size)     \
+  RUNTIME_FUNCTION(MaybeObject*, Runtime_HasExternal##Type##Elements) {        \
+    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                     \
+    return isolate->heap()->ToBoolean(obj->HasExternal##Type##Elements());     \
+  }
+
+TYPED_ARRAYS(TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
+
+#undef TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {

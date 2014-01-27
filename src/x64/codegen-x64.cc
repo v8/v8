@@ -131,10 +131,10 @@ ModuloFunction CreateModuloFunction() {
 
   // Compute x mod y.
   // Load y and x (use argument backing store as temporary storage).
-  __ movsd(Operand(rsp, kPointerSize * 2), xmm1);
-  __ movsd(Operand(rsp, kPointerSize), xmm0);
-  __ fld_d(Operand(rsp, kPointerSize * 2));
-  __ fld_d(Operand(rsp, kPointerSize));
+  __ movsd(Operand(rsp, kRegisterSize * 2), xmm1);
+  __ movsd(Operand(rsp, kRegisterSize), xmm0);
+  __ fld_d(Operand(rsp, kRegisterSize * 2));
+  __ fld_d(Operand(rsp, kRegisterSize));
 
   // Clear exception flags before operation.
   {
@@ -170,14 +170,14 @@ ModuloFunction CreateModuloFunction() {
   __ fstp(0);  // Drop result in st(0).
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
   __ movq(rcx, kNaNValue);
-  __ movp(Operand(rsp, kPointerSize), rcx);
-  __ movsd(xmm0, Operand(rsp, kPointerSize));
+  __ movq(Operand(rsp, kRegisterSize), rcx);
+  __ movsd(xmm0, Operand(rsp, kRegisterSize));
   __ jmp(&return_result);
 
   // If result is valid, return that.
   __ bind(&valid_result);
-  __ fstp_d(Operand(rsp, kPointerSize));
-  __ movsd(xmm0, Operand(rsp, kPointerSize));
+  __ fstp_d(Operand(rsp, kRegisterSize));
+  __ movsd(xmm0, Operand(rsp, kRegisterSize));
 
   // Clean up FPU stack and exceptions and return xmm0
   __ bind(&return_result);

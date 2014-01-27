@@ -461,16 +461,16 @@ namespace internal {
   F(HasFastHoleyElements, 1, 1) \
   F(HasDictionaryElements, 1, 1) \
   F(HasNonStrictArgumentsElements, 1, 1) \
-  F(HasExternalPixelElements, 1, 1) \
+  F(HasExternalUint8ClampedElements, 1, 1) \
   F(HasExternalArrayElements, 1, 1) \
-  F(HasExternalByteElements, 1, 1) \
-  F(HasExternalUnsignedByteElements, 1, 1) \
-  F(HasExternalShortElements, 1, 1) \
-  F(HasExternalUnsignedShortElements, 1, 1) \
-  F(HasExternalIntElements, 1, 1) \
-  F(HasExternalUnsignedIntElements, 1, 1) \
-  F(HasExternalFloatElements, 1, 1) \
-  F(HasExternalDoubleElements, 1, 1) \
+  F(HasExternalInt8Elements, 1, 1) \
+  F(HasExternalUint8Elements, 1, 1) \
+  F(HasExternalInt16Elements, 1, 1) \
+  F(HasExternalUint16Elements, 1, 1) \
+  F(HasExternalInt32Elements, 1, 1) \
+  F(HasExternalUint32Elements, 1, 1) \
+  F(HasExternalFloat32Elements, 1, 1) \
+  F(HasExternalFloat64Elements, 1, 1) \
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
   F(HaveSameMap, 2, 1) \
@@ -839,7 +839,7 @@ class Runtime : public AllStatic {
     ARRAY_ID_INT32 = 6,
     ARRAY_ID_FLOAT32 = 7,
     ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8C = 9
+    ARRAY_ID_UINT8_CLAMPED = 9
   };
 
   static void ArrayIdToTypeAndSize(int array_id,

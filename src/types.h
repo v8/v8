@@ -243,6 +243,10 @@ class TypeImpl : public Config::Base {
     return t;
   }
 
+  template<class OtherTypeImpl>
+  static TypeHandle Convert(
+      typename OtherTypeImpl::TypeHandle type, Region* region);
+
 #ifdef OBJECT_PRINT
   void TypePrint();
   void TypePrint(FILE* out);
@@ -250,6 +254,7 @@ class TypeImpl : public Config::Base {
 
  private:
   template<class> friend class Iterator;
+  template<class> friend class TypeImpl;
 
   // A union is a fixed array containing types. Invariants:
   // - its length is at least 2
@@ -271,6 +276,13 @@ class TypeImpl : public Config::Base {
   bool IsUnion() { return Config::is_union(this); }
   int AsBitset() { return Config::as_bitset(this); }
   UnionedHandle AsUnion() { return Config::as_union(this); }
+
+  static int UnionLength(UnionedHandle unioned) {
+    return Config::union_length(unioned);
+  }
+  static TypeHandle UnionGet(UnionedHandle unioned, int i) {
+    return Config::union_get(unioned, i);
+  }
 
   bool SlowIs(TypeImpl* that);
 

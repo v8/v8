@@ -590,6 +590,15 @@ class Assembler : public AssemblerBase {
     set_target_address_at(instruction_payload, target);
   }
 
+  static inline RelocInfo::Mode RelocInfoNone() {
+    if (kPointerSize == kInt64Size) {
+      return RelocInfo::NONE64;
+    } else {
+      ASSERT(kPointerSize == kInt32Size);
+      return RelocInfo::NONE32;
+    }
+  }
+
   inline Handle<Object> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
   // Number of bytes taken up by the branch target in the code.

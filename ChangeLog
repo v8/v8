@@ -1,3 +1,15 @@
+2014-01-27: Version 3.24.24
+
+        MIPS: Reduce the stack requirements of GetNoCodeAgeSequence (issue
+        3111).
+
+        Delete v8_shell target now that chrome uses d8 (Chromium issue 331585).
+
+        ARM: Reduce the stack requirements of GetNoCodeAgeSequence (issue 3111).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-24: Version 3.24.23
 
         Performance and stability improvements on all platforms.
