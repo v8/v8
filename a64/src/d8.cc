@@ -1087,6 +1087,7 @@ static void ReadBufferWeakCallback(v8::Isolate* isolate,
   array_buffer->Dispose();
 }
 
+
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
   String::Utf8Value filename(args[0]);

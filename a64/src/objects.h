@@ -32,6 +32,7 @@
 #include "assert-scope.h"
 #include "builtins.h"
 #include "elements-kind.h"
+#include "flags.h"
 #include "list.h"
 #include "property-details.h"
 #include "smart-pointers.h"
@@ -388,6 +389,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SIGNATURE_INFO_TYPE)                                                       \
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(ALLOCATION_SITE_INFO_TYPE)                                                 \
+  V(ALLOCATION_SITE_TYPE)                                                      \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
   V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
@@ -551,6 +553,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
+  V(ALLOCATION_SITE, AllocationSite, allocation_site)                          \
   V(ALLOCATION_SITE_INFO, AllocationSiteInfo, allocation_site_info)            \
   V(CODE_CACHE, CodeCache, code_cache)                                         \
   V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
@@ -710,6 +713,7 @@ enum InstanceType {
   OBJECT_TEMPLATE_INFO_TYPE,
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
+  ALLOCATION_SITE_TYPE,
   ALLOCATION_SITE_INFO_TYPE,
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
@@ -1705,10 +1709,6 @@ class JSReceiver: public HeapObject {
   // Return the constructor function (may be Heap::null_value()).
   inline Object* GetConstructor();
 
-  // Set the object's prototype (only JSReceiver and null are allowed).
-  MUST_USE_RESULT MaybeObject* SetPrototype(Object* value,
-                                            bool skip_hidden_prototypes);
-
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet and OMIT_CREATION was used.
   inline MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
@@ -1891,9 +1891,16 @@ class JSObject: public JSReceiver {
   // Handles the special representation of JS global objects.
   Object* GetNormalizedProperty(LookupResult* result);
 
+  // Sets the property value in a normalized object given (key, value).
+  // Handles the special representation of JS global objects.
+  static Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                              LookupResult* result,
+                                              Handle<Object> value);
+
   // Sets the property value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
-  Object* SetNormalizedProperty(LookupResult* result, Object* value);
+  MUST_USE_RESULT MaybeObject* SetNormalizedProperty(LookupResult* result,
+                                                     Object* value);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
@@ -1910,6 +1917,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(Name* name,
                                                         DeleteMode mode);
 
+  static void OptimizeAsPrototype(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* OptimizeAsPrototype();
 
   // Retrieve interceptors.
@@ -1937,19 +1945,7 @@ class JSObject: public JSReceiver {
                              Handle<Object> getter,
                              Handle<Object> setter,
                              PropertyAttributes attributes);
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* DefineAccessor(Name* name,
-                                              Object* getter,
-                                              Object* setter,
-                                              PropertyAttributes attributes);
-  // Try to define a single accessor paying attention to map transitions.
-  // Returns a JavaScript null if this was not possible and we have to use the
-  // slow case. Note that we can fail due to allocations, too.
-  MUST_USE_RESULT MaybeObject* DefineFastAccessor(
-      Name* name,
-      AccessorComponent component,
-      Object* accessor,
-      PropertyAttributes attributes);
+
   Object* LookupAccessor(Name* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
@@ -2219,8 +2215,7 @@ class JSObject: public JSReceiver {
                                                ElementsKind to_kind);
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
-  MUST_USE_RESULT MaybeObject* UpdateAllocationSiteInfo(
-      ElementsKind to_kind);
+  MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
   // Replaces an existing transition with a transition to a map with a FIELD.
   MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
@@ -2312,6 +2307,11 @@ class JSObject: public JSReceiver {
                                        Object* value,
                                        WriteBarrierMode mode
                                        = UPDATE_WRITE_BARRIER);
+
+  // Set the object's prototype (only JSReceiver and null are allowed values).
+  static Handle<Object> SetPrototype(Handle<JSObject> object,
+                                     Handle<Object> value,
+                                     bool skip_hidden_prototypes = false);
 
   // Initializes the body after properties slot, properties slot is
   // initialized by set_properties.  Fill the pre-allocated fields with
@@ -2515,18 +2515,26 @@ class JSObject: public JSReceiver {
       Name* name,
       Object* structure,
       PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* DefineElementAccessor(
-      uint32_t index,
-      Object* getter,
-      Object* setter,
-      PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* CreateAccessorPairFor(Name* name);
-  MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
-      Name* name,
-      Object* getter,
-      Object* setter,
-      PropertyAttributes attributes);
+  static void DefineElementAccessor(Handle<JSObject> object,
+                                    uint32_t index,
+                                    Handle<Object> getter,
+                                    Handle<Object> setter,
+                                    PropertyAttributes attributes);
+  static Handle<AccessorPair> CreateAccessorPairFor(Handle<JSObject> object,
+                                                    Handle<Name> name);
+  static void DefinePropertyAccessor(Handle<JSObject> object,
+                                     Handle<Name> name,
+                                     Handle<Object> getter,
+                                     Handle<Object> setter,
+                                     PropertyAttributes attributes);
 
+  // Try to define a single accessor paying attention to map transitions.
+  // Returns false if this was not possible and we have to use the slow case.
+  static bool DefineFastAccessor(Handle<JSObject> object,
+                                 Handle<Name> name,
+                                 AccessorComponent component,
+                                 Handle<Object> accessor,
+                                 PropertyAttributes attributes);
 
   enum InitializeHiddenProperties {
     CREATE_NEW_IF_ABSENT,
@@ -4570,7 +4578,8 @@ class Code: public HeapObject {
     // TODO(danno): This is a bit of a hack right now since there are still
     // clients of this API that pass "extra" values in for argc. These clients
     // should be retrofitted to used ExtendedExtraICState.
-    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC;
+    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC ||
+           kind == UNARY_OP_IC;
   }
 
   inline StubType type();  // Only valid for monomorphic IC stubs.
@@ -4843,6 +4852,7 @@ class Code: public HeapObject {
   int GetAge();
 
   void PrintDeoptLocation(int bailout_id);
+  bool CanDeoptAt(Address pc);
 
 #ifdef VERIFY_HEAP
   void VerifyEmbeddedMapsDependency();
@@ -5484,6 +5494,7 @@ class Map: public HeapObject {
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
+  static Handle<Map> Copy(Handle<Map> map);
   MUST_USE_RESULT MaybeObject* Copy();
 
   // Returns the next free property index (only valid for FAST MODE).
@@ -5610,11 +5621,11 @@ class Map: public HeapObject {
   // transitions are in the form of a map where the keys are prototype objects
   // and the values are the maps the are transitioned to.
   static const int kMaxCachedPrototypeTransitions = 256;
-
-  Map* GetPrototypeTransition(Object* prototype);
-
-  MUST_USE_RESULT MaybeObject* PutPrototypeTransition(Object* prototype,
-                                                      Map* map);
+  static Handle<Map> GetPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype);
+  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype,
+                                            Handle<Map> target_map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
@@ -6820,12 +6831,8 @@ class GlobalObject: public JSObject {
   }
 
   // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(
-      Handle<GlobalObject> global,
-      Handle<Name> name);
-  // TODO(kmillikin): This function can be eliminated once the stub cache is
-  // fully handlified (and the static helper can be written directly).
-  MUST_USE_RESULT MaybeObject* EnsurePropertyCell(Name* name);
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
+                                                 Handle<Name> name);
 
   // Casting.
   static inline GlobalObject* cast(Object* obj);
@@ -7458,26 +7465,68 @@ enum AllocationSiteMode {
 };
 
 
-class AllocationSiteInfo: public Struct {
+class AllocationSite: public Struct {
  public:
+  static const int kPayloadOffset = HeapObject::kHeaderSize;
+  static const int kSize = kPayloadOffset + kPointerSize;
+  static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
+
+  // TODO(mvstanton): rename payload to transition_info.
   DECL_ACCESSORS(payload, Object)
 
-  static inline AllocationSiteInfo* cast(Object* obj);
+  void Initialize() {
+    SetElementsKindPayload(GetInitialFastElementsKind());
+  }
+
+  ElementsKind GetElementsKindPayload() {
+    ASSERT(!IsLiteralSite());
+    return static_cast<ElementsKind>(Smi::cast(payload())->value());
+  }
+
+  void SetElementsKindPayload(ElementsKind kind) {
+    set_payload(Smi::FromInt(static_cast<int>(kind)));
+  }
+
+  bool IsLiteralSite() {
+    // If the payload is a smi, then it represents an ElementsKind
+    // for a constructed array. Otherwise, it must be a boilerplate
+    // for an array literal
+    return payload()->IsJSArray();
+  }
+
+  DECLARE_PRINTER(AllocationSite)
+  DECLARE_VERIFIER(AllocationSite)
+
+  static inline AllocationSite* cast(Object* obj);
+  static inline AllocationSiteMode GetMode(
+      ElementsKind boilerplate_elements_kind);
+  static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
+};
+
+
+class AllocationSiteInfo: public Struct {
+ public:
+  static const int kAllocationSiteOffset = HeapObject::kHeaderSize;
+  static const int kSize = kAllocationSiteOffset + kPointerSize;
+
+  DECL_ACCESSORS(allocation_site, Object)
+
+  bool IsValid() { return allocation_site()->IsAllocationSite(); }
+  AllocationSite* GetAllocationSite() {
+    ASSERT(IsValid());
+    return AllocationSite::cast(allocation_site());
+  }
 
   DECLARE_PRINTER(AllocationSiteInfo)
   DECLARE_VERIFIER(AllocationSiteInfo)
 
   // Returns NULL if no AllocationSiteInfo is available for object.
   static AllocationSiteInfo* FindForJSObject(JSObject* object);
-  static inline AllocationSiteMode GetMode(
-      ElementsKind boilerplate_elements_kind);
-  static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+  static inline AllocationSiteInfo* cast(Object* obj);
 
-  static const int kPayloadOffset = HeapObject::kHeaderSize;
-  static const int kSize = kPayloadOffset + kPointerSize;
-  static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
-
-  bool GetElementsKindPayload(ElementsKind* kind);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSiteInfo);
 };
@@ -8587,6 +8636,14 @@ class PropertyCell: public Cell {
   // property.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
+  // Sets the value of the cell and updates the type field to be the union
+  // of the cell's current type and the value's type. If the change causes
+  // a change of the type of the cell's contents, code dependent on the cell
+  // will be deoptimized.
+  MUST_USE_RESULT MaybeObject* SetValueInferType(
+      Object* value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Casting.
   static inline PropertyCell* cast(Object* obj);
 
@@ -8613,6 +8670,9 @@ class PropertyCell: public Cell {
   void AddDependentCompilationInfo(CompilationInfo* info);
 
   void AddDependentCode(Handle<Code> code);
+
+  static Type* UpdateType(Handle<PropertyCell> cell,
+                          Handle<Object> value);
 
  private:
   DECL_ACCESSORS(type_raw, Object)
@@ -8922,6 +8982,9 @@ class JSTypedArray: public JSArrayBufferView {
   static const int kLengthOffset = kViewSize + kPointerSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
@@ -8940,6 +9003,9 @@ class JSDataView: public JSArrayBufferView {
   DECLARE_VERIFIER(JSDataView)
 
   static const int kSize = kViewSize;
+
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);
@@ -9257,7 +9323,7 @@ class AccessorPair: public Struct {
 
   static inline AccessorPair* cast(Object* obj);
 
-  MUST_USE_RESULT MaybeObject* Copy();
+  static Handle<AccessorPair> Copy(Handle<AccessorPair> pair);
 
   Object* get(AccessorComponent component) {
     return component == ACCESSOR_GETTER ? getter() : setter();

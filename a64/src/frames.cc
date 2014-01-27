@@ -43,19 +43,8 @@ namespace v8 {
 namespace internal {
 
 
-static ReturnAddressLocationResolver return_address_location_resolver = NULL;
-
-
-// Resolves pc_address through the resolution address function if one is set.
-static inline Address* ResolveReturnAddressLocation(Address* pc_address) {
-  if (return_address_location_resolver == NULL) {
-    return pc_address;
-  } else {
-    return reinterpret_cast<Address*>(
-        return_address_location_resolver(
-            reinterpret_cast<uintptr_t>(pc_address)));
-  }
-}
+ReturnAddressLocationResolver
+    StackFrame::return_address_location_resolver_ = NULL;
 
 
 // Iterator that supports traversing the stack handlers of a
@@ -213,6 +202,7 @@ void StackTraceFrameIterator::Advance() {
   }
 }
 
+
 bool StackTraceFrameIterator::IsValidFrame() {
     if (!frame()->function()->IsJSFunction()) return false;
     Object* script = JSFunction::cast(frame()->function())->shared()->script();
@@ -227,21 +217,40 @@ bool StackTraceFrameIterator::IsValidFrame() {
 
 SafeStackFrameIterator::SafeStackFrameIterator(
     Isolate* isolate,
-    Address fp, Address sp, Address low_bound, Address high_bound) :
-    StackFrameIteratorBase(isolate, false),
-    low_bound_(low_bound), high_bound_(high_bound) {
+    Address fp, Address sp, Address js_entry_sp)
+    : StackFrameIteratorBase(isolate, false),
+      low_bound_(sp),
+      high_bound_(js_entry_sp),
+      top_frame_type_(StackFrame::NONE) {
   StackFrame::State state;
   StackFrame::Type type;
   ThreadLocalTop* top = isolate->thread_local_top();
   if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
+    top_frame_type_ = type;
   } else if (IsValidStackAddress(fp)) {
     ASSERT(fp != NULL);
     state.fp = fp;
     state.sp = sp;
-    state.pc_address = ResolveReturnAddressLocation(
+    state.pc_address = StackFrame::ResolveReturnAddressLocation(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
-    type = StackFrame::ComputeType(this, &state);
+    // StackFrame::ComputeType will read both kContextOffset and kMarkerOffset,
+    // we check only that kMarkerOffset is within the stack bounds and do
+    // compile time check that kContextOffset slot is pushed on the stack before
+    // kMarkerOffset.
+    STATIC_ASSERT(StandardFrameConstants::kMarkerOffset <
+                  StandardFrameConstants::kContextOffset);
+    Address frame_marker = fp + StandardFrameConstants::kMarkerOffset;
+    if (IsValidStackAddress(frame_marker)) {
+      type = StackFrame::ComputeType(this, &state);
+      top_frame_type_ = type;
+    } else {
+      // Mark the frame as JAVA_SCRIPT if we cannot determine its type.
+      // The frame anyways will be skipped.
+      type = StackFrame::JAVA_SCRIPT;
+      // Top frame is incomplete so we cannot reliably determine its type.
+      top_frame_type_ = StackFrame::NONE;
+    }
   } else {
     return;
   }
@@ -389,8 +398,8 @@ void StackFrame::IteratePc(ObjectVisitor* v,
 
 void StackFrame::SetReturnAddressLocationResolver(
     ReturnAddressLocationResolver resolver) {
-  ASSERT(return_address_location_resolver == NULL);
-  return_address_location_resolver = resolver;
+  ASSERT(return_address_location_resolver_ == NULL);
+  return_address_location_resolver_ = resolver;
 }
 
 
@@ -434,7 +443,7 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
 
 
 Address StackFrame::UnpaddedFP() const {
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
   if (!is_optimized()) return fp();
   int32_t alignment_state = Memory::int32_at(
     fp() + JavaScriptFrameConstants::kDynamicAlignmentStateOffset);
@@ -1560,6 +1569,7 @@ void SetUpJSCallerSavedCodeData() {
   ASSERT(i == kNumJSCallerSaved);
 }
 
+
 int JSCallerSavedCode(int n) {
   ASSERT(0 <= n && n < kNumJSCallerSaved);
   return caller_saved_code_data.reg_code[n];
@@ -1591,6 +1601,7 @@ static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
 #undef FRAME_TYPE_CASE
   return NULL;
 }
+
 
 Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
   ZoneList<StackFrame*> list(10, zone);

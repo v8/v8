@@ -56,7 +56,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_ARM)
+#if V8_TARGET_ARCH_ARM
 
 #include "constants-arm.h"
 #include "disasm.h"
@@ -187,10 +187,12 @@ void Decoder::PrintRegister(int reg) {
   Print(converter_.NameOfCPURegister(reg));
 }
 
+
 // Print the VFP S register name according to the active name converter.
 void Decoder::PrintSRegister(int reg) {
   Print(VFPRegisters::Name(reg, false));
 }
+
 
 // Print the VFP D register name according to the active name converter.
 void Decoder::PrintDRegister(int reg) {

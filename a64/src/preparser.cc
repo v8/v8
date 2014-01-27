@@ -1685,6 +1685,7 @@ PreParser::Identifier PreParser::ParseIdentifierNameOrGetOrSet(bool* is_get,
   return result;
 }
 
+
 bool PreParser::peek_any_identifier() {
   i::Token::Value next = peek();
   return next == i::Token::IDENTIFIER ||
@@ -1697,6 +1698,7 @@ bool PreParser::peek_any_identifier() {
 int DuplicateFinder::AddAsciiSymbol(i::Vector<const char> key, int value) {
   return AddSymbol(i::Vector<const byte>::cast(key), true, value);
 }
+
 
 int DuplicateFinder::AddUtf16Symbol(i::Vector<const uint16_t> key, int value) {
   return AddSymbol(i::Vector<const byte>::cast(key), false, value);

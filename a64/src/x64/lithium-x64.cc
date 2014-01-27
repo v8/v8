@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
 
 #include "lithium-allocator-inl.h"
 #include "x64/lithium-x64.h"
@@ -185,7 +185,7 @@ void LBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
+void LCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
   left()->PrintTo(stream);
   stream->Add(" %s ", Token::String(op()));
@@ -329,8 +329,7 @@ void LCallNewArray::PrintDataTo(StringStream* stream) {
   constructor()->PrintTo(stream);
   stream->Add(" #%d / ", arity());
   ASSERT(hydrogen()->property_cell()->value()->IsSmi());
-  ElementsKind kind = static_cast<ElementsKind>(
-      Smi::cast(hydrogen()->property_cell()->value())->value());
+  ElementsKind kind = hydrogen()->elements_kind();
   stream->Add(" (%s) ", ElementsKindToString(kind));
 }
 
@@ -1169,6 +1168,7 @@ LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
   return AssignEnvironment(DefineAsRegister(result));
 }
 
+
 LInstruction* LChunkBuilder::DoMathAbs(HUnaryMathOperation* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
   LMathAbs* result = new(zone()) LMathAbs(input);
@@ -1599,8 +1599,8 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareIDAndBranch(
-    HCompareIDAndBranch* instr) {
+LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
+    HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().IsSmiOrInteger32());
@@ -1608,7 +1608,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
         instr->right()->representation()));
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
-    return new(zone()) LCmpIDAndBranch(left, right);
+    return new(zone()) LCompareNumericAndBranch(left, right);
   } else {
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
@@ -1622,7 +1622,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
       left = UseRegisterAtStart(instr->left());
       right = UseRegisterAtStart(instr->right());
     }
-    return new(zone()) LCmpIDAndBranch(left, right);
+    return new(zone()) LCompareNumericAndBranch(left, right);
   }
 }
 
@@ -1716,13 +1716,6 @@ LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
   return new(zone()) LClassOfTestAndBranch(value,
                                            TempRegister(),
                                            TempRegister());
-}
-
-
-LInstruction* LChunkBuilder::DoFixedArrayBaseLength(
-    HFixedArrayBaseLength* instr) {
-  LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LFixedArrayBaseLength(array));
 }
 
 
@@ -1916,6 +1909,18 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckNonSmi(value));
+}
+
+
+LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new(zone()) LCheckSmi(value));
+}
+
+
+LInstruction* LChunkBuilder::DoIsNumberAndBranch(HIsNumberAndBranch* instr) {
+  return new(zone()) LIsNumberAndBranch(
+      UseRegisterOrConstantAtStart(instr->value()));
 }
 
 

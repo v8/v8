@@ -29,10 +29,11 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_ARM)
+#if V8_TARGET_ARCH_ARM
 
 #include "bootstrapper.h"
 #include "codegen.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "runtime.h"
 
@@ -985,19 +986,19 @@ void MacroAssembler::InitializeNewString(Register string,
 
 
 int MacroAssembler::ActivationFrameAlignment() {
-#if defined(V8_HOST_ARCH_ARM)
+#if V8_HOST_ARCH_ARM
   // Running on the real platform. Use the alignment as mandated by the local
   // environment.
   // Note: This will break if we ever start generating snapshots on one ARM
   // platform for another ARM platform with a different alignment.
   return OS::ActivationFrameAlignment();
-#else  // defined(V8_HOST_ARCH_ARM)
+#else  // V8_HOST_ARCH_ARM
   // If we are using the simulator then we should always align to the expected
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
   return FLAG_sim_stack_alignment;
-#endif  // defined(V8_HOST_ARCH_ARM)
+#endif  // V8_HOST_ARCH_ARM
 }
 
 
@@ -1031,6 +1032,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
     add(sp, sp, Operand(argument_count, LSL, kPointerSizeLog2));
   }
 }
+
 
 void MacroAssembler::GetCFunctionDoubleResult(const DwVfpRegister dst) {
   if (use_eabi_hardfloat()) {
@@ -3403,7 +3405,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
-#if defined(V8_HOST_ARCH_ARM)
+#if V8_HOST_ARCH_ARM
   if (emit_debug_code()) {
     int frame_alignment = OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;

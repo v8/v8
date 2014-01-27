@@ -189,15 +189,11 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 24;
-  static const int kExpectedHeapSnapshotsCollectionSize = 100;
-  static const int kExpectedHeapSnapshotSize = 132;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 32;
-  static const int kExpectedHeapSnapshotsCollectionSize = 152;
-  static const int kExpectedHeapSnapshotSize = 160;
 };
 
 }  // namespace
@@ -238,7 +234,7 @@ void HeapSnapshot::RememberLastJSObjectId() {
 HeapEntry* HeapSnapshot::AddRootEntry() {
   ASSERT(root_index_ == HeapEntry::kNoEntry);
   ASSERT(entries_.is_empty());  // Root entry must be the first one.
-  HeapEntry* entry = AddEntry(HeapEntry::kObject,
+  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "",
                               HeapObjectsMap::kInternalRootObjectId,
                               0);
@@ -250,7 +246,7 @@ HeapEntry* HeapSnapshot::AddRootEntry() {
 
 HeapEntry* HeapSnapshot::AddGcRootsEntry() {
   ASSERT(gc_roots_index_ == HeapEntry::kNoEntry);
-  HeapEntry* entry = AddEntry(HeapEntry::kObject,
+  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "(GC roots)",
                               HeapObjectsMap::kGcRootsObjectId,
                               0);
@@ -263,7 +259,7 @@ HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag) {
   ASSERT(gc_subroot_indexes_[tag] == HeapEntry::kNoEntry);
   ASSERT(0 <= tag && tag < VisitorSynchronization::kNumberOfSyncTags);
   HeapEntry* entry = AddEntry(
-      HeapEntry::kObject,
+      HeapEntry::kSynthetic,
       VisitorSynchronization::kTagNames[tag],
       HeapObjectsMap::GetNthGcSubrootId(tag),
       0);
@@ -353,8 +349,6 @@ static size_t GetMemoryUsedByList(const List<T, P>& list) {
 
 
 size_t HeapSnapshot::RawSnapshotSize() const {
-  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::kExpectedHeapSnapshotSize ==
-      sizeof(HeapSnapshot));  // NOLINT
   return
       sizeof(*this) +
       GetMemoryUsedByList(entries_) +
@@ -464,6 +458,7 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
 void HeapObjectsMap::StopHeapObjectsTracking() {
   time_intervals_.Clear();
 }
+
 
 void HeapObjectsMap::UpdateHeapObjectsMap() {
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
@@ -578,8 +573,6 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
-      snapshots_uids_(HeapSnapshotsMatch),
-      token_enumerator_(new TokenEnumerator()),
       ids_(heap) {
 }
 
@@ -590,7 +583,6 @@ static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
 
 
 HeapSnapshotsCollection::~HeapSnapshotsCollection() {
-  delete token_enumerator_;
   snapshots_.Iterate(DeleteHeapSnapshot);
 }
 
@@ -607,29 +599,12 @@ void HeapSnapshotsCollection::SnapshotGenerationFinished(
   ids_.SnapshotGenerationFinished();
   if (snapshot != NULL) {
     snapshots_.Add(snapshot);
-    HashMap::Entry* entry =
-        snapshots_uids_.Lookup(reinterpret_cast<void*>(snapshot->uid()),
-                               static_cast<uint32_t>(snapshot->uid()),
-                               true);
-    ASSERT(entry->value == NULL);
-    entry->value = snapshot;
   }
-}
-
-
-HeapSnapshot* HeapSnapshotsCollection::GetSnapshot(unsigned uid) {
-  HashMap::Entry* entry = snapshots_uids_.Lookup(reinterpret_cast<void*>(uid),
-                                                 static_cast<uint32_t>(uid),
-                                                 false);
-  return entry != NULL ? reinterpret_cast<HeapSnapshot*>(entry->value) : NULL;
 }
 
 
 void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
   snapshots_.RemoveElement(snapshot);
-  unsigned uid = snapshot->uid();
-  snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
-                         static_cast<uint32_t>(uid));
 }
 
 
@@ -656,13 +631,9 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
 
 
 size_t HeapSnapshotsCollection::GetUsedMemorySize() const {
-  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::
-      kExpectedHeapSnapshotsCollectionSize ==
-      sizeof(HeapSnapshotsCollection));  // NOLINT
   size_t size = sizeof(*this);
   size += names_.GetUsedMemorySize();
   size += ids_.GetUsedMemorySize();
-  size += sizeof(HashMap::Entry) * snapshots_uids_.capacity();
   size += GetMemoryUsedByList(snapshots_);
   for (int i = 0; i < snapshots_.length(); ++i) {
     size += snapshots_[i]->RawSnapshotSize();
@@ -961,7 +932,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
   bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
-    ExtractJSGlobalProxyReferences(JSGlobalProxy::cast(obj));
+    ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSObject()) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
@@ -996,19 +967,11 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 }
 
 
-void V8HeapExplorer::ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy) {
-  // We need to reference JS global objects from snapshot's root.
-  // We use JSGlobalProxy because this is what embedder (e.g. browser)
-  // uses for the global object.
-  Object* object = proxy->map()->prototype();
-  bool is_debug_object = false;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  is_debug_object = object->IsGlobalObject() &&
-      Isolate::Current()->debug()->IsDebugGlobal(GlobalObject::cast(object));
-#endif
-  if (!is_debug_object) {
-    SetUserGlobalReference(object);
-  }
+void V8HeapExplorer::ExtractJSGlobalProxyReferences(
+    int entry, JSGlobalProxy* proxy) {
+  SetInternalReference(proxy, entry,
+                       "native_context", proxy->native_context(),
+                       JSGlobalProxy::kNativeContextOffset);
 }
 
 
@@ -1778,6 +1741,22 @@ void V8HeapExplorer::SetGcSubrootReference(
           snapshot_->gc_subroot(tag)->index(),
           child_entry);
     }
+
+    // Add a shortcut to JS global object reference at snapshot root.
+    if (child_obj->IsNativeContext()) {
+      Context* context = Context::cast(child_obj);
+      GlobalObject* global = context->global_object();
+      if (global->IsJSGlobalObject()) {
+        bool is_debug_object = false;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+        is_debug_object = heap_->isolate()->debug()->IsDebugGlobal(global);
+#endif
+        if (!is_debug_object && !user_roots_.Contains(global)) {
+          user_roots_.Insert(global);
+          SetUserGlobalReference(global);
+        }
+      }
+    }
   }
 }
 
@@ -1982,6 +1961,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   isolate->global_handles()->IterateAllRootsWithClassIds(&extractor);
   embedder_queried_ = true;
 }
+
 
 void NativeObjectsExplorer::FillImplicitReferences() {
   Isolate* isolate = Isolate::Current();
@@ -2607,6 +2587,7 @@ static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
   w->AddCharacter(hex_chars[u & 0xf]);
 }
+
 
 void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
   writer_->AddCharacter('\n');

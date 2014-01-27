@@ -39,7 +39,9 @@ namespace internal {
 
 void OptimizingCompilerThread::Run() {
 #ifdef DEBUG
-  thread_id_ = ThreadId::Current().ToInteger();
+  { ScopedLock lock(thread_id_mutex_);
+    thread_id_ = ThreadId::Current().ToInteger();
+  }
 #endif
   Isolate::SetIsolateThreadLocals(isolate_, NULL);
   DisallowHeapAllocation no_allocation;
@@ -113,8 +115,11 @@ void OptimizingCompilerThread::Stop() {
     InstallOptimizedFunctions();
   } else {
     OptimizingCompiler* optimizing_compiler;
+    // The optimizing compiler is allocated in the CompilationInfo's zone.
     while (input_queue_.Dequeue(&optimizing_compiler)) {
-      // The optimizing compiler is allocated in the CompilationInfo's zone.
+      delete optimizing_compiler->info();
+    }
+    while (output_queue_.Dequeue(&optimizing_compiler)) {
       delete optimizing_compiler->info();
     }
   }
@@ -125,6 +130,8 @@ void OptimizingCompilerThread::Stop() {
     double percentage = (compile_time * 100) / total_time;
     PrintF("  ** Compiler thread did %.2f%% useful work\n", percentage);
   }
+
+  Join();
 }
 
 
@@ -156,6 +163,7 @@ void OptimizingCompilerThread::QueueForOptimization(
 #ifdef DEBUG
 bool OptimizingCompilerThread::IsOptimizerThread() {
   if (!FLAG_parallel_recompilation) return false;
+  ScopedLock lock(thread_id_mutex_);
   return ThreadId::Current().ToInteger() == thread_id_;
 }
 #endif

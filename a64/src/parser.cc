@@ -371,6 +371,7 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
   return result;
 }
 
+
 Scanner::Location ScriptDataImpl::MessageLocation() {
   int beg_pos = Read(PreparseDataConstants::kMessageStartPos);
   int end_pos = Read(PreparseDataConstants::kMessageEndPos);
@@ -3769,6 +3770,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   return isolate()->factory()->uninitialized_value();
 }
 
+
 // Validation per 11.1.5 Object Initialiser
 class ObjectLiteralPropertyChecker {
  public:
@@ -4962,6 +4964,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
   return factory()->NewThrow(call_constructor, scanner().location().beg_pos);
 }
 
+
 // ----------------------------------------------------------------------------
 // Regular expressions
 
@@ -5031,6 +5034,7 @@ void RegExpParser::Advance(int dist) {
 bool RegExpParser::simple() {
   return simple_;
 }
+
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   failed_ = true;

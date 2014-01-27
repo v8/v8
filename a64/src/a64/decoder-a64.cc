@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "globals.h"
 #include "utils.h"
@@ -114,6 +114,7 @@ void Decoder::Decode(Instruction *instr) {
     }
   }
 }
+
 
 void Decoder::AppendVisitor(DecoderVisitor* new_visitor) {
   visitors_.remove(new_visitor);

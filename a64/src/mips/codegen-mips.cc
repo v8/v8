@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 #include "codegen.h"
 #include "macro-assembler.h"
@@ -120,6 +120,7 @@ UnaryMathFunction CreateSqrtFunction() {
   return &sqrt;
 }
 
+
 // -------------------------------------------------------------------------
 // Platform-specific RuntimeCallHelper functions.
 
@@ -135,6 +136,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   ASSERT(masm->has_frame());
   masm->set_has_frame(false);
 }
+
 
 // -------------------------------------------------------------------------
 // Code generators

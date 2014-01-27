@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "codegen.h"
 #include "debug.h"
@@ -676,6 +676,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   Register receiver = x2;
   Register argc = x3;
   Register argv = x4;
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the internal frame.
   __ Mov(cp, 0);

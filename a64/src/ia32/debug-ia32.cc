@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 
 #include "codegen.h"
 #include "debug.h"
@@ -90,6 +90,7 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
 }
+
 
 // All debug break stubs support padding for LiveEdit.
 const bool Debug::FramePaddingLayout::kIsSupported = true;

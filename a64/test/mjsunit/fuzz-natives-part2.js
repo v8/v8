@@ -153,6 +153,7 @@ var knownProblems = {
   "ParallelRecompile": true,
   "InstallRecompiledCode": true,
   "NotifyDeoptimized": true,
+  "NotifyStubFailure": true,
   "NotifyOSR": true,
   "CreateObjectLiteralBoilerplate": true,
   "CloneLiteralBoilerplate": true,
@@ -215,7 +216,9 @@ var knownProblems = {
 
 var currentlyUncallable = {
   // We need to find a way to test this without breaking the system.
-  "SystemBreak": true
+  "SystemBreak": true,
+  // Inserts an int3/stop instruction when run with --always-opt.
+  "_DebugBreakInOptimizedCode": true
 };
 
 function testNatives() {

@@ -27,10 +27,11 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "bootstrapper.h"
 #include "codegen.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "runtime.h"
 
@@ -1531,19 +1532,19 @@ void MacroAssembler::InitializeNewString(Register string,
 
 
 int MacroAssembler::ActivationFrameAlignment() {
-#if defined(V8_HOST_ARCH_A64)
+#if V8_HOST_ARCH_A64
   // Running on the real platform. Use the alignment as mandated by the local
   // environment.
   // Note: This will break if we ever start generating snapshots on one ARM
   // platform for another ARM platform with a different alignment.
   return OS::ActivationFrameAlignment();
-#else  // defined(V8_HOST_ARCH_ARM)
+#else  // V8_HOST_ARCH_A64
   // If we are using the simulator then we should always align to the expected
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
   return FLAG_sim_stack_alignment;
-#endif  // defined(V8_HOST_ARCH_A64)
+#endif  // V8_HOST_ARCH_A64
 }
 
 

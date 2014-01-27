@@ -32,11 +32,12 @@
 #include "v8.h"
 
 #include "api.h"
-#include "codegen.h"
-#include "log.h"
-#include "isolate.h"
 #include "cctest.h"
+#include "codegen.h"
 #include "disassembler.h"
+#include "isolate.h"
+#include "log.h"
+#include "sampler.h"
 #include "vm-state-inl.h"
 
 using v8::Function;
@@ -51,6 +52,7 @@ using v8::internal::Address;
 using v8::internal::Handle;
 using v8::internal::Isolate;
 using v8::internal::JSFunction;
+using v8::internal::RegisterState;
 using v8::internal::TickSample;
 
 
@@ -65,11 +67,12 @@ static void InitTraceEnv(TickSample* sample) {
 
 
 static void DoTrace(Address fp) {
-  trace_env.sample->fp = fp;
+  RegisterState regs;
+  regs.fp = fp;
   // sp is only used to define stack high bound
-  trace_env.sample->sp =
+  regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
-  trace_env.sample->Trace(Isolate::Current());
+  trace_env.sample->Init(Isolate::Current(), regs);
 }
 
 
@@ -182,6 +185,7 @@ static bool IsAddressWithinFuncCode(JSFunction* function, Address addr) {
   i::Code* code = function->code();
   return code->contains(addr);
 }
+
 
 static bool IsAddressWithinFuncCode(const char* func_name, Address addr) {
   v8::Local<v8::Value> func = CcTest::env()->Global()->Get(v8_str(func_name));

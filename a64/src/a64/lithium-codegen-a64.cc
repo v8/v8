@@ -402,11 +402,14 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   __ Mov(x2, Operand(instr->hydrogen()->property_cell()));
 
   ElementsKind kind = instr->hydrogen()->elements_kind();
-  bool disable_allocation_sites =
-      (AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
+  AllocationSiteOverrideMode override_mode =
+      (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
+          ? DISABLE_ALLOCATION_SITES
+          : DONT_OVERRIDE;
+  ContextCheckMode context_mode = CONTEXT_CHECK_NOT_REQUIRED;
 
   if (instr->arity() == 0) {
-    ArrayNoArgumentConstructorStub stub(kind, disable_allocation_sites);
+    ArrayNoArgumentConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else if (instr->arity() == 1) {
     Label done;
@@ -418,18 +421,18 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       __ Cbz(x10, &packed_case);
 
       ElementsKind holey_kind = GetHoleyElementsKind(kind);
-      ArraySingleArgumentConstructorStub stub(holey_kind,
-                                              disable_allocation_sites);
+      ArraySingleArgumentConstructorStub stub(holey_kind, context_mode,
+                                              override_mode);
       CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
       __ B(&done);
       __ Bind(&packed_case);
     }
 
-    ArraySingleArgumentConstructorStub stub(kind, disable_allocation_sites);
+    ArraySingleArgumentConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
     __ Bind(&done);
   } else {
-    ArrayNArgumentsConstructorStub stub(kind, disable_allocation_sites);
+    ArrayNArgumentsConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   }
 
@@ -1175,6 +1178,7 @@ void LCodeGen::EmitBranchGeneric(InstrType instr,
 
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition condition) {
+  ASSERT((condition != al) && (condition != nv));
   BranchOnCondition branch(this, condition);
   EmitBranchGeneric(instr, branch);
 }
@@ -1185,6 +1189,7 @@ void LCodeGen::EmitCompareAndBranch(InstrType instr,
                                     Condition condition,
                                     const Register& lhs,
                                     const Operand& rhs) {
+  ASSERT((condition != al) && (condition != nv));
   CompareAndBranch branch(this, condition, lhs, rhs);
   EmitBranchGeneric(instr, branch);
 }
@@ -1195,6 +1200,7 @@ void LCodeGen::EmitTestAndBranch(InstrType instr,
                                  Condition condition,
                                  const Register& value,
                                  uint64_t mask) {
+  ASSERT((condition != al) && (condition != nv));
   TestAndBranch branch(this, condition, value, mask);
   EmitBranchGeneric(instr, branch);
 }
@@ -2157,7 +2163,7 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
+void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   Condition cond = TokenToCondition(instr->op(), false);
@@ -2591,13 +2597,6 @@ void LCodeGen::DoElementsKind(LElementsKind* instr) {
 }
 
 
-void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->value());
-  __ Ldr(result, FieldMemOperand(array, FixedArrayBase::kLengthOffset));
-}
-
-
 void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // FunctionLiteral instruction is marked as call, we can trash any register.
   ASSERT(instr->IsMarkedAsCall());
@@ -2990,6 +2989,25 @@ void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
 
   EmitCompareAndBranch(
       instr, eq, temp1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    __ B(instr->TrueLabel(chunk_));
+  } else {
+    ASSERT(r.IsTagged());
+    Register value = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      __ B(instr->TrueLabel(chunk_));
+    }
+    __ JumpIfSmi(value, instr->TrueLabel(chunk_));
+    // TODO(jbramley): Add an EmitBranch helper for this.
+    __ JumpForHeapNumber(value, NoReg,
+                         instr->TrueLabel(chunk_), instr->FalseLabel(chunk_));
+  }
 }
 
 

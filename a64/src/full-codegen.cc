@@ -76,11 +76,14 @@ void BreakableStatementChecker::VisitExportDeclaration(
 void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
+
 void BreakableStatementChecker::VisitModuleVariable(ModuleVariable* module) {
 }
 
+
 void BreakableStatementChecker::VisitModulePath(ModulePath* module) {
 }
+
 
 void BreakableStatementChecker::VisitModuleUrl(ModuleUrl* module) {
 }
@@ -937,6 +940,11 @@ void FullCodeGenerator::EmitGeneratorThrow(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   EmitGeneratorResume(args->at(0), args->at(1), JSGeneratorObject::THROW);
+}
+
+
+void FullCodeGenerator::EmitDebugBreakInOptimizedCode(CallRuntime* expr) {
+  context()->Plug(handle(Smi::FromInt(0), isolate()));
 }
 
 

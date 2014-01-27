@@ -760,6 +760,7 @@ static const char* const weekdays[] = {
   "???", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 };
 
+
 void JSDate::JSDatePrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSDate");
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
@@ -1116,8 +1117,8 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
 }
 
 
-void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "AllocationSiteInfo");
+void AllocationSite::AllocationSitePrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationSite");
   PrintF(out, " - payload: ");
   if (payload()->IsCell()) {
     Cell* cell = Cell::cast(payload());
@@ -1140,6 +1141,17 @@ void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
   PrintF(out, "unknown payload ");
   payload()->ShortPrint(out);
   PrintF(out, "\n");
+}
+
+
+void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationSiteInfo");
+  PrintF(out, " - allocation site: ");
+  if (IsValid()) {
+    GetAllocationSite()->Print();
+  } else {
+    PrintF(out, "<invalid>\n");
+  }
 }
 
 

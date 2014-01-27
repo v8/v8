@@ -29,7 +29,7 @@
 
 #include "double.h"
 #include "factory.h"
-#include "hydrogen.h"
+#include "hydrogen-infer-representation.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
@@ -80,7 +80,7 @@ void HValue::AssumeRepresentation(Representation r) {
 }
 
 
-void HValue::InferRepresentation(HInferRepresentation* h_infer) {
+void HValue::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -126,7 +126,7 @@ Representation HValue::RepresentationFromUses() {
 
 
 void HValue::UpdateRepresentation(Representation new_rep,
-                                  HInferRepresentation* h_infer,
+                                  HInferRepresentationPhase* h_infer,
                                   const char* reason) {
   Representation r = representation();
   if (new_rep.is_more_general_than(r)) {
@@ -141,7 +141,7 @@ void HValue::UpdateRepresentation(Representation new_rep,
 }
 
 
-void HValue::AddDependantsToWorklist(HInferRepresentation* h_infer) {
+void HValue::AddDependantsToWorklist(HInferRepresentationPhase* h_infer) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     h_infer->AddToWorklist(it.value());
   }
@@ -1152,7 +1152,7 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
 }
 
 
-void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
+void HBoundsCheck::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   HValue* actual_index = index()->ActualValue();
   HValue* actual_length = length()->ActualValue();
@@ -1224,6 +1224,13 @@ void HCallGlobal::PrintDataTo(StringStream* stream) {
 void HCallKnownGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", target()->shared()->DebugName());
   stream->Add("#%d", argument_count());
+}
+
+
+void HCallNewArray::PrintDataTo(StringStream* stream) {
+  stream->Add(ElementsKindToString(elements_kind()));
+  stream->Add(" ");
+  HBinaryCall::PrintDataTo(stream);
 }
 
 
@@ -1564,7 +1571,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
       HValue* new_right =
           LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
       if (new_right == NULL &&
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
           CpuFeatures::IsSupported(SUDIV) &&
 #endif
           hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
@@ -1689,6 +1696,14 @@ void HCheckFunction::PrintDataTo(StringStream* stream) {
 }
 
 
+HValue* HCheckFunction::Canonicalize() {
+  return (value()->IsConstant() &&
+          HConstant::cast(value())->UniqueValueIdsMatch(target_unique_id_))
+      ? NULL
+      : this;
+}
+
+
 const char* HCheckInstanceType::GetCheckName() {
   switch (check_) {
     case IS_SPEC_OBJECT: return "object";
@@ -1699,6 +1714,7 @@ const char* HCheckInstanceType::GetCheckName() {
   UNREACHABLE();
   return "";
 }
+
 
 void HCheckInstanceType::PrintDataTo(StringStream* stream) {
   stream->Add("%s ", GetCheckName());
@@ -2173,6 +2189,7 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_double_value_(false),
     is_internalized_string_(false),
     is_not_in_new_space_(true),
+    is_cell_(false),
     boolean_value_(handle->BooleanValue()) {
   if (handle_->IsHeapObject()) {
     Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
@@ -2189,6 +2206,9 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     type_from_value_ = HType::TypeFromValue(handle_);
     is_internalized_string_ = handle_->IsInternalizedString();
   }
+
+  is_cell_ = !handle_.is_null() &&
+      (handle_->IsCell() || handle_->IsPropertyCell());
   Initialize(r);
 }
 
@@ -2199,6 +2219,7 @@ HConstant::HConstant(Handle<Object> handle,
                      HType type,
                      bool is_internalize_string,
                      bool is_not_in_new_space,
+                     bool is_cell,
                      bool boolean_value)
     : handle_(handle),
       unique_id_(unique_id),
@@ -2207,6 +2228,7 @@ HConstant::HConstant(Handle<Object> handle,
       has_double_value_(false),
       is_internalized_string_(is_internalize_string),
       is_not_in_new_space_(is_not_in_new_space),
+      is_cell_(is_cell),
       boolean_value_(boolean_value),
       type_from_value_(type) {
   ASSERT(!handle.is_null());
@@ -2226,6 +2248,7 @@ HConstant::HConstant(int32_t integer_value,
       has_double_value_(true),
       is_internalized_string_(false),
       is_not_in_new_space_(is_not_in_new_space),
+      is_cell_(false),
       boolean_value_(integer_value != 0),
       int32_value_(integer_value),
       double_value_(FastI2D(integer_value)) {
@@ -2244,6 +2267,7 @@ HConstant::HConstant(double double_value,
       has_double_value_(true),
       is_internalized_string_(false),
       is_not_in_new_space_(is_not_in_new_space),
+      is_cell_(false),
       boolean_value_(double_value != 0 && !std::isnan(double_value)),
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
@@ -2266,9 +2290,17 @@ void HConstant::Initialize(Representation r) {
   }
   set_representation(r);
   SetFlag(kUseGVN);
-  if (representation().IsInteger32()) {
-    ClearGVNFlag(kDependsOnOsrEntries);
+}
+
+
+bool HConstant::EmitAtUses() {
+  ASSERT(IsLinked());
+  if (block()->graph()->has_osr()) {
+    return block()->graph()->IsStandardConstant(this);
   }
+  if (IsCell()) return false;
+  if (representation().IsDouble()) return false;
+  return true;
 }
 
 
@@ -2289,6 +2321,7 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
                              type_from_value_,
                              is_internalized_string_,
                              is_not_in_new_space_,
+                             is_cell_,
                              boolean_value_);
 }
 
@@ -2330,7 +2363,7 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 }
 
 
-void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
+void HBinaryOperation::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -2393,7 +2426,7 @@ void HBinaryOperation::AssumeRepresentation(Representation r) {
 }
 
 
-void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
+void HMathMinMax::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -2539,7 +2572,7 @@ void HStringCompareAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::AddInformativeDefinitions() {
+void HCompareNumericAndBranch::AddInformativeDefinitions() {
   NumericRelation r = NumericRelation::FromToken(token());
   if (r.IsNone()) return;
 
@@ -2549,7 +2582,7 @@ void HCompareIDAndBranch::AddInformativeDefinitions() {
 }
 
 
-void HCompareIDAndBranch::PrintDataTo(StringStream* stream) {
+void HCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
   left()->PrintNameTo(stream);
@@ -2572,7 +2605,8 @@ void HGoto::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
+void HCompareNumericAndBranch::InferRepresentation(
+    HInferRepresentationPhase* h_infer) {
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
   Representation observed_left = observed_input_representation(0);
@@ -2593,9 +2627,9 @@ void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
     // and !=) have special handling of undefined, e.g. undefined == undefined
     // is 'true'. Relational comparisons have a different semantic, first
     // calling ToPrimitive() on their arguments.  The standard Crankshaft
-    // tagged-to-double conversion to ensure the HCompareIDAndBranch's inputs
-    // are doubles caused 'undefined' to be converted to NaN. That's compatible
-    // out-of-the box with ordered relational comparisons (<, >, <=,
+    // tagged-to-double conversion to ensure the HCompareNumericAndBranch's
+    // inputs are doubles caused 'undefined' to be converted to NaN. That's
+    // compatible out-of-the box with ordered relational comparisons (<, >, <=,
     // >=). However, for equality comparisons (and for 'in' and 'instanceof'),
     // it is not consistent with the spec. For example, it would cause undefined
     // == undefined (should be true) to be evaluated as NaN == NaN
@@ -3073,6 +3107,11 @@ HType HCheckFunction::CalculateInferredType() {
 
 HType HCheckHeapObject::CalculateInferredType() {
   return HType::NonPrimitive();
+}
+
+
+HType HCheckSmi::CalculateInferredType() {
+  return HType::Smi();
 }
 
 
@@ -3677,7 +3716,7 @@ void HPhi::SimplifyConstantInputs() {
 }
 
 
-void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
+void HPhi::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -3819,6 +3858,13 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
     int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
     return HObjectAccess(kBackingStore, offset, name);
   }
+}
+
+
+HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
+  return HObjectAccess(
+      kInobject, Cell::kValueOffset,
+      Handle<String>(isolate->heap()->cell_value_string()));
 }
 
 

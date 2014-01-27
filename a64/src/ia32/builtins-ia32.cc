@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 
 #include "codegen.h"
 #include "deoptimizer.h"
@@ -447,6 +447,8 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
   // Clear the context before we push it when entering the internal frame.
   __ Set(esi, Immediate(0));
 

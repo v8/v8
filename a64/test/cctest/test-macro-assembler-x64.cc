@@ -801,6 +801,7 @@ static void SmiAddTest(MacroAssembler* masm,
   __ j(not_equal, exit);
 }
 
+
 TEST(SmiAdd) {
   v8::internal::V8::Initialize(NULL);
   // Allocate an executable page of memory.
@@ -1131,7 +1132,7 @@ TEST(SmiMul) {
 void TestSmiDiv(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   bool division_by_zero = (y == 0);
   bool negative_zero = (x == 0 && y < 0);
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64
   bool overflow = (x == Smi::kMinValue && y < 0);  // Safe approx. used.
 #else
   bool overflow = (x == Smi::kMinValue && y == -1);
@@ -1396,6 +1397,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ incq(rax);
   }
 }
+
 
 TEST(SmiIndex) {
   v8::internal::V8::Initialize(NULL);

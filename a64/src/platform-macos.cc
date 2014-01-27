@@ -583,7 +583,7 @@ static void InitializeTlsBaseOffset() {
   if (kernel_version_major < 11) {
     // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
     // same offsets.
-#if defined(V8_HOST_ARCH_IA32)
+#if V8_HOST_ARCH_IA32
     kMacTlsBaseOffset = 0x48;
 #else
     kMacTlsBaseOffset = 0x60;
@@ -595,6 +595,7 @@ static void InitializeTlsBaseOffset() {
 
   Release_Store(&tls_base_offset_initialized, 1);
 }
+
 
 static void CheckFastTls(Thread::LocalStorageKey key) {
   void* expected = reinterpret_cast<void*>(0x1234CAFE);

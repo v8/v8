@@ -45,6 +45,10 @@
 #include "extensions/statistics-extension.h"
 #include "code-stubs.h"
 
+#if defined(V8_I18N_SUPPORT)
+#include "extensions/i18n/i18n-extension.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -102,6 +106,9 @@ void Bootstrapper::InitializeOncePerProcess() {
   GCExtension::Register();
   ExternalizeStringExtension::Register();
   StatisticsExtension::Register();
+#if defined(V8_I18N_SUPPORT)
+  v8_i18n::Extension::Register();
+#endif
 }
 
 
@@ -866,6 +873,11 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     array_function->shared()->set_length(1);
 
     Handle<Map> initial_map(array_function->initial_map());
+
+    // This assert protects an optimization in
+    // HGraphBuilder::JSArrayBuilder::EmitMapCode()
+    ASSERT(initial_map->elements_kind() == GetInitialFastElementsKind());
+
     Handle<DescriptorArray> array_descriptors(
         factory->NewDescriptorArray(0, 1));
     DescriptorArray::WhitenessWitness witness(*array_descriptors);
@@ -1277,7 +1289,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(
       Builtins::kIllegal, false, true);
 
   Handle<Map> initial_map = isolate()->factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize, elementsKind);
+      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields, elementsKind);
   result->set_initial_map(*initial_map);
   initial_map->set_constructor(*result);
   return result;
@@ -1361,7 +1373,7 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> data_view_fun =
         InstallFunction(
             global, "DataView", JS_DATA_VIEW_TYPE,
-            JSDataView::kSize,
+            JSDataView::kSizeWithInternalFields,
             isolate()->initial_object_prototype(),
             Builtins::kIllegal, true, true);
     native_context()->set_data_view_fun(*data_view_fun);
@@ -1573,6 +1585,7 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
 }
+
 
 void Genesis::InstallExperimentalNativeFunctions() {
   if (FLAG_harmony_proxies) {
@@ -2227,9 +2240,11 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
 #endif
 }
 
+
 static uint32_t Hash(RegisteredExtension* extension) {
   return v8::internal::ComputePointerHash(extension);
 }
+
 
 static bool MatchRegisteredExtensions(void* key1, void* key2) {
   return key1 == key2;
@@ -2273,6 +2288,12 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
   if (FLAG_track_gc_object_stats) {
     InstallExtension(isolate, "v8/statistics", &extension_states);
   }
+
+#if defined(V8_I18N_SUPPORT)
+  if (FLAG_enable_i18n) {
+    InstallExtension(isolate, "v8/i18n", &extension_states);
+  }
+#endif
 
   if (extensions == NULL) return true;
   // Install required extensions
@@ -2575,7 +2596,14 @@ Genesis::Genesis(Isolate* isolate,
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;
 
-  native_context_ = Snapshot::NewContextFromSnapshot();
+  // We can only de-serialize a context if the isolate was initialized from
+  // a snapshot. Otherwise we have to build the context from scratch.
+  if (isolate->initialized_from_snapshot()) {
+    native_context_ = Snapshot::NewContextFromSnapshot();
+  } else {
+    native_context_ = Handle<Context>();
+  }
+
   if (!native_context().is_null()) {
     AddToWeakNativeContextList(*native_context());
     isolate->set_context(*native_context());

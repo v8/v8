@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 // Note on Mips implementation:
 //
@@ -4400,10 +4400,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
   // TODO(svenpanne): Allowing format strings in Comment would be nice here...
   Comment cmt(masm_, comment);
-  bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
-  UnaryOverwriteMode overwrite =
-      can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  UnaryOpStub stub(expr->op(), overwrite);
+  UnaryOpStub stub(expr->op());
   // GenericUnaryOpStub expects the argument to be in a0.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());

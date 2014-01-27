@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_ARM)
+#if V8_TARGET_ARCH_ARM
 
 #include "codegen.h"
 #include "macro-assembler.h"
@@ -119,6 +119,7 @@ UnaryMathFunction CreateExpFunction() {
 UnaryMathFunction CreateSqrtFunction() {
   return &sqrt;
 }
+
 
 // -------------------------------------------------------------------------
 // Platform-specific RuntimeCallHelper functions.

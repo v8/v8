@@ -29,7 +29,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 #include "codegen.h"
 #include "debug.h"
@@ -273,7 +273,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ IncrementCounter(counters->string_ctor_conversions(), 1, a3, t0);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(v0);
+    __ push(a0);
     __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
   }
   __ pop(function);
@@ -740,6 +740,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   //  -- a3: argc
   //  -- s0: argv
   // -----------------------------------
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the JS frame.
   __ mov(cp, zero_reg);

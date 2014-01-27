@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "a64/assembler-a64.h"
 #include "code-stubs.h"
@@ -1355,8 +1355,8 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
 
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                          FAST_DOUBLE_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                      FAST_DOUBLE_ELEMENTS);
     ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
     __ Mov(x0, receiver);
     __ Ret();
@@ -1381,8 +1381,8 @@ void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
 
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                          FAST_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
+                                                      FAST_ELEMENTS);
     ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
     __ Mov(x0, receiver);
     __ Ret();
@@ -1518,8 +1518,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          x10,
                                          slow);
   ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                        FAST_DOUBLE_ELEMENTS);
+  AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                    FAST_DOUBLE_ELEMENTS);
   ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, slow);
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ B(&fast_double_without_map_check);
@@ -1532,7 +1532,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          x10,
                                          slow);
   ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
-  mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm, mode,
                                                                    slow);
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -1548,7 +1548,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          x10,
                                          slow);
   ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
-  mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, slow);
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ B(&finish_store);

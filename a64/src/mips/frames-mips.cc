@@ -28,7 +28,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 #include "assembler.h"
 #include "assembler-mips.h"

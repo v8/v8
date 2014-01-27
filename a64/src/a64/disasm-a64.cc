@@ -35,7 +35,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "disasm.h"
 #include "a64/disasm-a64.h"
@@ -1730,6 +1730,7 @@ int Disassembler::SubstituteBarrierField(Instruction* instr,
   AppendToOutput("%s", options[domain][type]);
   return 1;
 }
+
 
 void Disassembler::ResetOutput() {
   buffer_pos_ = 0;

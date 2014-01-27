@@ -48,6 +48,7 @@ TEST(FUZZ_decoder) {
   }
 }
 
+
 TEST(FUZZ_disasm) {
   // Feed noise into the disassembler to check that it doesn't crash.
   // 9 million = ~0.2% of the instruction space.

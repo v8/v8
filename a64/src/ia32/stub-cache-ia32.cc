@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 
 #include "ic-inl.h"
 #include "codegen.h"
@@ -1724,11 +1724,11 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
     GenerateLoadFunctionFromCell(cell, function, &miss);
   }
 
-  Handle<Smi> kind(Smi::FromInt(GetInitialFastElementsKind()), isolate());
-  Handle<Cell> kind_feedback_cell =
-      isolate()->factory()->NewCell(kind);
+  Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
+  site->set_payload(Smi::FromInt(GetInitialFastElementsKind()));
+  Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
   __ mov(eax, Immediate(argc));
-  __ mov(ebx, kind_feedback_cell);
+  __ mov(ebx, site_feedback_cell);
   __ mov(edi, function);
 
   ArrayConstructorStub stub(isolate());

@@ -28,6 +28,8 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_H_
 
+#include "profile-generator-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -301,11 +303,9 @@ class HeapSnapshotsCollection {
   HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
   void SnapshotGenerationFinished(HeapSnapshot* snapshot);
   List<HeapSnapshot*>* snapshots() { return &snapshots_; }
-  HeapSnapshot* GetSnapshot(unsigned uid);
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
   StringsStorage* names() { return &names_; }
-  TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
   SnapshotObjectId FindObjectId(Address object_addr) {
     return ids_.FindEntry(object_addr);
@@ -321,16 +321,9 @@ class HeapSnapshotsCollection {
   size_t GetUsedMemorySize() const;
 
  private:
-  INLINE(static bool HeapSnapshotsMatch(void* key1, void* key2)) {
-    return key1 == key2;
-  }
-
   bool is_tracking_objects_;  // Whether tracking object moves is needed.
   List<HeapSnapshot*> snapshots_;
-  // Mapping from snapshots' uids to HeapSnapshot* pointers.
-  HashMap snapshots_uids_;
   StringsStorage names_;
-  TokenEnumerator* token_enumerator_;
   // Mapping from HeapObject addresses to objects' uids.
   HeapObjectsMap ids_;
 
@@ -454,7 +447,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   const char* GetSystemEntryName(HeapObject* object);
 
   void ExtractReferences(HeapObject* obj);
-  void ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy);
+  void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);
   void ExtractStringReferences(int entry, String* obj);
   void ExtractContextReferences(int entry, Context* context);
@@ -532,6 +525,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   SnapshotFillerInterface* filler_;
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
+  HeapObjectsSet user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   static HeapObject* const kGcRootsObject;

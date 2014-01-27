@@ -214,6 +214,7 @@ DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
+DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
 DEFINE_int(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")
 DEFINE_int(max_inlined_nodes, 196,
@@ -234,6 +235,7 @@ DEFINE_bool(trace_all_uses, false, "trace all use positions")
 DEFINE_bool(trace_range, false, "trace range analysis")
 DEFINE_bool(trace_gvn, false, "trace global value numbering")
 DEFINE_bool(trace_representation, false, "trace representation types")
+DEFINE_bool(trace_escape_analysis, false, "trace hydrogen escape analysis")
 DEFINE_bool(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
 DEFINE_bool(trace_migration, false, "trace object migration")
@@ -359,6 +361,7 @@ DEFINE_bool(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 
 // bootstrapper.cc
+DEFINE_bool(enable_i18n, true, "enable i18n extension")
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_bool(expose_gc, false, "expose gc extension")
@@ -467,7 +470,7 @@ DEFINE_bool(trace_external_memory, false,
             "it is adjusted.")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
-DEFINE_bool(weak_embedded_maps_in_optimized_code, false,
+DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")

@@ -31,40 +31,75 @@ body {
 }
 
 #content {
-	background-color: #fff;
+  background-color: #fff;
   width: 1200px;
   margin-left: auto;
   margin-right: auto;
   padding: 25px;
 }
 
-textarea.log {
-  font-family: monospace;
+textarea {
   width: 1200px;
-  background-color: #ffe;
-  color: #000; 
   resize: none;
+  font-family: monospace;
+  font-size: 12px;
+  color: #000;
+  border: 1px dotted #aaa;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
-button#start {
-  width: 100px;
+textarea.log {
+  background-color: #ffe;
 }
 
-button#reset {
-  width: 100px;
-}
-
-input.range {
-  width: 80px;
-  text-align: right;
-  padding-right: 5px;
+.display {
+  width: 1200px;
+  height: 600px;
+  background-color: #fff;
+  display: block;
+  box-sizing: border-box;
 }
 
 table {
   width: 1200px;
 }
 
+button {
+  width: 100px;
+  height: 20px;
+  border: 1px solid #000;
+  border-color: #aaa;
+  font-family: Verdana;
+  font-size: 12px;
+  background-color: #ddd;
+}
+
+button:hover {
+  background-color: #eee;
+}
+
+#file {
+  width: 200px;
+  height: 20px;
+  border: none;
+  font-family: Verdana;
+  font-size: 12px;
+}
+
+input.range {
+  width: 70px;
+  height: 16px;
+  text-align: right;
+  padding-right: 5px;
+  border: 0px;
+  background-color: #eee;
+  font-family: Verdana;
+  font-size: 12px;
+}
+
 label {
+  height: 20px;
   font-family: Verdana;
   font-size: 12px;
 }
@@ -95,4 +130,9 @@ a {
   font-size: 12px;
   text-decoration: none;
   color: #282;
+}
+
+a.unroll {
+  border-bottom: 1px dotted #000;
+  color: #222;
 }

@@ -32,7 +32,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "a64/cpu-a64.h"
 #include "a64/utils-a64.h"
@@ -59,6 +59,7 @@ void CPU::SetUp() {
 bool CPU::SupportsCrankshaft() {
   return true;
 }
+
 
 void CPU::FlushICache(void* address, size_t length) {
   if (length == 0) {

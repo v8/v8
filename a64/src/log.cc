@@ -31,6 +31,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
 #include "log.h"
@@ -490,6 +491,7 @@ void Logger::IssueAddCodeLinePosInfoEvent(
   code_event_handler_(&event);
 }
 
+
 void* Logger::IssueStartCodePosInfoEvent() {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
@@ -498,6 +500,7 @@ void* Logger::IssueStartCodePosInfoEvent() {
   code_event_handler_(&event);
   return event.user_data;
 }
+
 
 void Logger::IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data) {
   JitCodeEvent event;
@@ -633,6 +636,16 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
              library_path,
              start,
              end);
+  msg.WriteToLogFile();
+}
+
+
+void Logger::CodeDeoptEvent(Code* code) {
+  if (!log_->IsEnabled()) return;
+  ASSERT(FLAG_log_internal_timer_events);
+  LogMessageBuilder msg(this);
+  int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
+  msg.Append("code-deopt,%ld,%d\n", since_epoch, code->CodeSize());
   msg.WriteToLogFile();
 }
 
@@ -816,6 +829,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
 }
+
 
 void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
@@ -1041,7 +1055,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  if (code == Isolate::Current()->builtins()->builtin(
+  if (code == isolate_->builtins()->builtin(
       Builtins::kLazyCompile))
     return;
 
@@ -1195,6 +1209,7 @@ void Logger::CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
   }
 }
 
+
 void Logger::CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder) {
   if (code_event_handler_ != NULL) {
       pos_recorder->AttachJITHandlerData(IssueStartCodePosInfoEvent());
@@ -1207,6 +1222,7 @@ void Logger::CodeEndLinePosInfoRecordEvent(Code* code,
     IssueEndCodePosInfoEvent(code, jit_handler_data);
   }
 }
+
 
 void Logger::SnapshotPositionEvent(Address addr, int pos) {
   if (!log_->IsEnabled()) return;
@@ -1353,8 +1369,6 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   LogMessageBuilder msg(this);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);
-  msg.Append(',');
-  msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
   if (sample->has_external_callback) {
     msg.Append(",1,");
@@ -1645,15 +1659,15 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
   Handle<String> func_name(shared->DebugName());
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
+    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
     if (script->name()->IsString()) {
       Handle<String> script_name(String::cast(script->name()));
-      int line_num = GetScriptLineNumber(script, shared->start_position());
       if (line_num > 0) {
         PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                     *code, *shared, NULL,
-                    *script_name, line_num + 1));
+                    *script_name, line_num));
       } else {
         // Can't distinguish eval and script here, so always use Script.
         PROFILE(isolate_,
@@ -1665,7 +1679,8 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       PROFILE(isolate_,
               CodeCreateEvent(
                   Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-                  *code, *shared, NULL, *func_name));
+                  *code, *shared, NULL,
+                  isolate_->heap()->empty_string(), line_num));
     }
   } else if (shared->IsApiFunction()) {
     // API function.
@@ -1698,7 +1713,7 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (*code_objects[i] == Isolate::Current()->builtins()->builtin(
+    if (*code_objects[i] == isolate_->builtins()->builtin(
         Builtins::kLazyCompile))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
@@ -1778,7 +1793,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
   code_event_handler_ = event_handler;
 
   if (code_event_handler_ != NULL && (options & kJitCodeEventEnumExisting)) {
-    HandleScope scope(Isolate::Current());
+    HandleScope scope(isolate_);
     LogCodeObjects();
     LogCompiledFunctions();
   }

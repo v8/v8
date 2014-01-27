@@ -30,7 +30,7 @@
 #include <cstdarg>
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "disasm.h"
 #include "assembler.h"
@@ -764,6 +764,7 @@ void Simulator::ListBreakpoints() {
            breakpoints_.at(i).enabled ? "enabled" : "disabled");
   }
 }
+
 
 void Simulator::CheckBreakpoints() {
   bool hit_a_breakpoint = false;

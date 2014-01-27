@@ -81,19 +81,137 @@ function assertKind(expected, obj, name_opt) {
 }
 
 if (support_smi_only_arrays) {
-  function bar0(t) {
-    return new t();
-  }
 
-  a = bar0(Array);
-  a[0] = 3.5;
-  b = bar0(Array);
-  assertKind(elements_kind.fast_double, b);
-  %OptimizeFunctionOnNextCall(bar0);
-  b = bar0(Array);
-  assertKind(elements_kind.fast_double, b);
-  assertTrue(2 != %GetOptimizationStatus(bar0));
-  // bar0 should deopt
-  b = bar0(Object);
-  assertTrue(1 != %GetOptimizationStatus(bar0));
+  // Test: If a call site goes megamorphic, it loses the ability to
+  // use allocation site feedback.
+  (function() {
+    function bar(t, len) {
+      return new t(len);
+    }
+
+    a = bar(Array, 10);
+    a[0] = 3.5;
+    b = bar(Array, 1);
+    assertKind(elements_kind.fast_double, b);
+    c = bar(Object, 3);
+    b = bar(Array, 10);
+    assertKind(elements_kind.fast_smi_only, b);
+    b[0] = 3.5;
+    c = bar(Array, 10);
+    assertKind(elements_kind.fast_smi_only, c);
+  })();
+
+
+  // Test: ensure that crankshafted array constructor sites are deopted
+  // if another function is used.
+  (function() {
+    function bar0(t) {
+      return new t();
+    }
+    a = bar0(Array);
+    a[0] = 3.5;
+    b = bar0(Array);
+    assertKind(elements_kind.fast_double, b);
+    %OptimizeFunctionOnNextCall(bar0);
+    b = bar0(Array);
+    assertKind(elements_kind.fast_double, b);
+    assertTrue(2 != %GetOptimizationStatus(bar0));
+    // bar0 should deopt
+    b = bar0(Object);
+    assertTrue(1 != %GetOptimizationStatus(bar0));
+    // When it's re-optimized, we should call through the full stub
+    bar0(Array);
+    %OptimizeFunctionOnNextCall(bar0);
+    b = bar0(Array);
+    // We also lost our ability to record kind feedback, as the site
+    // is megamorphic now.
+    assertKind(elements_kind.fast_smi_only, b);
+    assertTrue(2 != %GetOptimizationStatus(bar0));
+    b[0] = 3.5;
+    c = bar0(Array);
+    assertKind(elements_kind.fast_smi_only, c);
+  })();
+
+
+  // Test: Ensure that bailouts from the stub don't deopt a crankshafted
+  // method with a call to that stub.
+  (function() {
+    function bar(len) {
+      return new Array(len);
+    }
+    a = bar(10);
+    a[0] = "a string";
+    a = bar(10);
+    assertKind(elements_kind.fast, a);
+    %OptimizeFunctionOnNextCall(bar);
+    a = bar(10);
+    assertKind(elements_kind.fast, a);
+    assertTrue(2 != %GetOptimizationStatus(bar));
+    // The stub bails out, but the method call should be fine.
+    a = bar(100000);
+    assertTrue(2 != %GetOptimizationStatus(bar));
+    assertKind(elements_kind.dictionary, a);
+
+    // If the argument isn't a smi, it bails out as well
+    a = bar("oops");
+    assertTrue(2 != %GetOptimizationStatus(bar));
+    assertKind(elements_kind.fast, a);
+
+    function barn(one, two, three) {
+      return new Array(one, two, three);
+    }
+
+    barn(1, 2, 3);
+    barn(1, 2, 3);
+    %OptimizeFunctionOnNextCall(barn);
+    barn(1, 2, 3);
+    assertTrue(2 != %GetOptimizationStatus(barn));
+    a = barn(1, "oops", 3);
+    // The stub should bail out but the method should remain optimized.
+    assertKind(elements_kind.fast, a);
+    assertTrue(2 != %GetOptimizationStatus(barn));
+  })();
+
+
+  // Test: When a method with array constructor is crankshafted, the type
+  // feedback for elements kind is baked in. Verify that transitions don't
+  // change it anymore
+  (function() {
+    function bar() {
+      return new Array();
+    }
+    a = bar();
+    bar();
+    %OptimizeFunctionOnNextCall(bar);
+    b = bar();
+    // This only makes sense to test if we allow crankshafting
+    if (4 != %GetOptimizationStatus(bar)) {
+      assertTrue(2 != %GetOptimizationStatus(bar));
+      %DebugPrint(3);
+      b[0] = 3.5;
+      c = bar();
+      assertKind(elements_kind.fast_smi_only, c);
+      assertTrue(2 != %GetOptimizationStatus(bar));
+    }
+  })();
+
+
+  // Test: create arrays in two contexts, verifying that the correct
+  // map for Array in that context will be used.
+  (function() {
+    function bar() { return new Array(); }
+    bar();
+    bar();
+    %OptimizeFunctionOnNextCall(bar);
+    a = bar();
+    assertTrue(a instanceof Array);
+
+    var contextB = Realm.create();
+    Realm.eval(contextB, "function bar2() { return new Array(); };");
+    Realm.eval(contextB, "bar2(); bar2();");
+    Realm.eval(contextB, "%OptimizeFunctionOnNextCall(bar2);");
+    Realm.eval(contextB, "bar2();");
+    assertFalse(Realm.eval(contextB, "bar2();") instanceof Array);
+    assertTrue(Realm.eval(contextB, "bar2() instanceof Array"));
+  })();
 }

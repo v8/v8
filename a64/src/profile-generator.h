@@ -37,30 +37,6 @@ namespace internal {
 
 struct OffsetRange;
 
-class TokenEnumerator {
- public:
-  TokenEnumerator();
-  ~TokenEnumerator();
-  int GetTokenId(Object* token);
-
-  static const int kNoSecurityToken = -1;
-  static const int kInheritsSecurityToken = -2;
-
- private:
-  static void TokenRemovedCallback(v8::Isolate* isolate,
-                                   v8::Persistent<v8::Value>* handle,
-                                   void* parameter);
-  void TokenRemoved(Object** token_location);
-
-  List<Object**> token_locations_;
-  List<bool> token_removed_;
-
-  friend class TokenEnumeratorTester;
-
-  DISALLOW_COPY_AND_ASSIGN(TokenEnumerator);
-};
-
-
 // Provides a storage of strings allocated in C++ heap, to hold them
 // forever, even if they disappear from JS heap or external storage.
 class StringsStorage {
@@ -97,9 +73,8 @@ class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
   INLINE(CodeEntry(Logger::LogEventsAndTags tag,
-                   const char* name_prefix,
                    const char* name,
-                   int security_token_id = TokenEnumerator::kNoSecurityToken,
+                   const char* name_prefix = CodeEntry::kEmptyNamePrefix,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo));
   ~CodeEntry();
@@ -111,7 +86,8 @@ class CodeEntry {
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
   INLINE(void set_shared_id(int shared_id)) { shared_id_ = shared_id; }
-  INLINE(int security_token_id() const) { return security_token_id_; }
+  INLINE(int script_id() const) { return script_id_; }
+  INLINE(void set_script_id(int script_id)) { script_id_ = script_id; }
 
   INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
 
@@ -119,6 +95,9 @@ class CodeEntry {
   void set_no_frame_ranges(List<OffsetRange>* ranges) {
     no_frame_ranges_ = ranges;
   }
+
+  void SetBuiltinId(Builtins::Name id);
+  Builtins::Name builtin_id() const { return builtin_id_; }
 
   void CopyData(const CodeEntry& source);
   uint32_t GetCallUid() const;
@@ -128,13 +107,14 @@ class CodeEntry {
   static const char* const kEmptyResourceName;
 
  private:
-  Logger::LogEventsAndTags tag_;
+  Logger::LogEventsAndTags tag_ : 8;
+  Builtins::Name builtin_id_ : 8;
   const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
   int shared_id_;
-  int security_token_id_;
+  int script_id_;
   List<OffsetRange>* no_frame_ranges_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
@@ -194,7 +174,6 @@ class ProfileTree {
   ProfileNode* AddPathFromEnd(const Vector<CodeEntry*>& path);
   void AddPathFromStart(const Vector<CodeEntry*>& path);
   void CalculateTotalTicks();
-  void FilteredClone(ProfileTree* src, int security_token_id);
 
   double TicksToMillis(unsigned ticks) const {
     return ticks * ms_to_ticks_scale_;
@@ -231,7 +210,6 @@ class CpuProfile {
   void AddPath(const Vector<CodeEntry*>& path);
   void CalculateTotalTicks();
   void SetActualSamplingRate(double actual_sampling_rate);
-  CpuProfile* FilteredClone(int security_token_id);
 
   INLINE(const char* title() const) { return title_; }
   INLINE(unsigned uid() const) { return uid_; }
@@ -308,28 +286,29 @@ class CpuProfilesCollection {
   ~CpuProfilesCollection();
 
   bool StartProfiling(const char* title, unsigned uid, bool record_samples);
-  CpuProfile* StopProfiling(int security_token_id,
-                            const char* title,
-                            double actual_sampling_rate);
-  List<CpuProfile*>* Profiles(int security_token_id);
+  CpuProfile* StopProfiling(const char* title, double actual_sampling_rate);
+  List<CpuProfile*>* profiles() { return &finished_profiles_; }
   const char* GetName(Name* name) {
     return function_and_resource_names_.GetName(name);
   }
   const char* GetName(int args_count) {
     return function_and_resource_names_.GetName(args_count);
   }
-  CpuProfile* GetProfile(int security_token_id, unsigned uid);
+  const char* GetFunctionName(Name* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
+  const char* GetFunctionName(const char* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
   bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
-  bool HasDetachedProfiles() { return detached_profiles_.length() > 0; }
 
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                          Name* name, String* resource_name, int line_number);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                          const char* name_prefix, Name* name);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, int args_count);
-  CodeEntry* NewCodeEntry(int security_token_id);
+  CodeEntry* NewCodeEntry(
+      Logger::LogEventsAndTags tag,
+      const char* name,
+      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
+      const char* resource_name = CodeEntry::kEmptyResourceName,
+      int line_number = v8::CpuProfileNode::kNoLineNumberInfo);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
@@ -338,27 +317,9 @@ class CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
-  const char* GetFunctionName(Name* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
-  const char* GetFunctionName(const char* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
-  int GetProfileIndex(unsigned uid);
-  List<CpuProfile*>* GetProfilesList(int security_token_id);
-  int TokenToIndex(int security_token_id);
-
-  INLINE(static bool UidsMatch(void* key1, void* key2)) {
-    return key1 == key2;
-  }
-
   StringsStorage function_and_resource_names_;
   List<CodeEntry*> code_entries_;
-  List<List<CpuProfile*>* > profiles_by_token_;
-  // Mapping from profiles' uids to indexes in the second nested list
-  // of profiles_by_token_.
-  HashMap profiles_uids_;
-  List<CpuProfile*> detached_profiles_;
+  List<CpuProfile*> finished_profiles_;
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;
@@ -422,6 +383,9 @@ class ProfileGenerator {
   static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
   static const char* const kGarbageCollectorEntryName;
+  // Used to represent frames for which we have no reliable way to
+  // detect function.
+  static const char* const kUnresolvedFunctionName;
 
  private:
   INLINE(CodeEntry* EntryForVMState(StateTag tag));
@@ -430,6 +394,7 @@ class ProfileGenerator {
   CodeMap code_map_;
   CodeEntry* program_entry_;
   CodeEntry* gc_entry_;
+  CodeEntry* unresolved_entry_;
   SampleRateCalculator sample_rate_calc_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);

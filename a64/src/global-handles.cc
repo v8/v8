@@ -799,6 +799,7 @@ void GlobalHandles::PrintStats() {
   PrintF("  # total      = %d\n", total);
 }
 
+
 void GlobalHandles::Print() {
   PrintF("Global handles:\n");
   for (NodeIterator it(this); !it.done(); it.Advance()) {

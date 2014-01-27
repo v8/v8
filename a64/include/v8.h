@@ -2377,6 +2377,7 @@ class V8EXPORT Function : public Object {
 };
 
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
+// The number of required internal fields can be defined by embedder.
 #define V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT 2
 #endif
 
@@ -2489,6 +2490,12 @@ class V8EXPORT ArrayBuffer : public Object {
 };
 
 
+#ifndef V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT
+// The number of required internal fields can be defined by embedder.
+#define V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT 2
+#endif
+
+
 /**
  * A base class for an instance of one of "views" over ArrayBuffer,
  * including TypedArrays and DataView (ES6 draft 15.13).
@@ -2515,6 +2522,9 @@ class V8EXPORT ArrayBufferView : public Object {
   void* BaseAddress();
 
   V8_INLINE(static ArrayBufferView* Cast(Value* obj));
+
+  static const int kInternalFieldCount =
+      V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT;
 
  private:
   ArrayBufferView();
@@ -3993,8 +4003,9 @@ class V8EXPORT Isolate {
   HeapProfiler* GetHeapProfiler();
 
   /**
-   * Returns CPU profiler for this isolate. Will return NULL until the isolate
-   * is initialized.
+   * Returns CPU profiler for this isolate. Will return NULL unless the isolate
+   * is initialized. It is the embedder's responsibility to stop all CPU
+   * profiling activities if it has started any.
    */
   CpuProfiler* GetCpuProfiler();
 
@@ -4477,18 +4488,25 @@ class V8EXPORT V8 {
       ReturnAddressLocationResolver return_address_resolver);
 
   /**
+   * Deprecated, use the variant with the Isolate parameter below instead.
+   */
+  V8_DEPRECATED(static bool SetFunctionEntryHook(FunctionEntryHook entry_hook));
+
+  /**
    * Allows the host application to provide the address of a function that's
    * invoked on entry to every V8-generated function.
    * Note that \p entry_hook is invoked at the very start of each
    * generated function.
    *
+   * \param isolate the isolate to operate on.
    * \param entry_hook a function that will be invoked on entry to every
    *   V8-generated function.
    * \returns true on success on supported platforms, false on failure.
-   * \note Setting a new entry hook function when one is already active will
-   *   fail.
+   * \note Setting an entry hook can only be done very early in an isolates
+   *   lifetime, and once set, the entry hook cannot be revoked.
    */
-  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
+  static bool SetFunctionEntryHook(Isolate* isolate,
+                                   FunctionEntryHook entry_hook);
 
   /**
    * Allows the host application to provide the address of a function that is
@@ -4816,7 +4834,10 @@ class V8EXPORT TryCatch {
   v8::internal::Isolate* isolate_;
   void* next_;
   void* exception_;
-  void* message_;
+  void* message_obj_;
+  void* message_script_;
+  int message_start_pos_;
+  int message_end_pos_;
   bool is_verbose_ : 1;
   bool can_continue_ : 1;
   bool capture_message_ : 1;
@@ -5382,7 +5403,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
-  static const int kJSObjectType = 0xb0;
+  static const int kJSObjectType = 0xb1;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x88;
@@ -5390,11 +5411,12 @@ class Internals {
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
 
+  static void CheckInitializedImpl(v8::Isolate* isolate);
+  V8_INLINE(static void CheckInitialized(v8::Isolate* isolate)) {
 #ifdef V8_ENABLE_CHECKS
-  static void CheckInitialized(v8::Isolate* isolate);
-#else
-  static void CheckInitialized(v8::Isolate* isolate) { }
+    CheckInitializedImpl(isolate);
 #endif
+  }
 
   V8_INLINE(static bool HasHeapObjectTag(internal::Object* value)) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==

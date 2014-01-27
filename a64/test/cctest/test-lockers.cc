@@ -96,6 +96,7 @@ class KangarooThread : public v8::internal::Thread {
   Persistent<v8::Context> context_;
 };
 
+
 // Migrates an isolate from one thread to another
 TEST(KangarooIsolates) {
   v8::Isolate* isolate = v8::Isolate::New();
@@ -113,6 +114,7 @@ TEST(KangarooIsolates) {
   thread1->Start();
   thread1->Join();
 }
+
 
 static void CalcFibAndCheck() {
   Local<Value> v = CompileRun("function fib(n) {"
@@ -192,6 +194,7 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
   v8::Isolate* isolate_;
 };
 
+
 static void StartJoinAndDeleteThreads(const i::List<JoinableThread*>& threads) {
   for (int i = 0; i < threads.length(); i++) {
     threads[i]->Start();
@@ -207,7 +210,7 @@ static void StartJoinAndDeleteThreads(const i::List<JoinableThread*>& threads) {
 
 // Run many threads all locking on the same isolate
 TEST(IsolateLockingStress) {
-#ifdef V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -242,9 +245,10 @@ class IsolateNonlockingThread : public JoinableThread {
  private:
 };
 
+
 // Run many threads each accessing its own isolate without locking
 TEST(MultithreadedParallelIsolates) {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 10;
 #else
   const int kNThreads = 50;
@@ -280,9 +284,10 @@ class IsolateNestedLockingThread : public JoinableThread {
   v8::Isolate* isolate_;
 };
 
+
 // Run  many threads with nested locks
 TEST(IsolateNestedLocking) {
-#ifdef V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -321,9 +326,10 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
   v8::Isolate* isolate2_;
 };
 
+
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -397,9 +403,10 @@ class LockerUnlockerThread : public JoinableThread {
   v8::Isolate* isolate_;
 };
 
+
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -450,9 +457,10 @@ class LockTwiceAndUnlockThread : public JoinableThread {
   v8::Isolate* isolate_;
 };
 
+
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -517,6 +525,7 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
   v8::Isolate* isolate2_;
 };
 
+
 // Lock two isolates and unlock one of them.
 TEST(LockAndUnlockDifferentIsolates) {
   v8::Isolate* isolate1 = v8::Isolate::New();
@@ -571,9 +580,10 @@ class LockUnlockLockThread : public JoinableThread {
   v8::Persistent<v8::Context> context_;
 };
 
+
 // Locker inside an Unlocker inside a Locker.
 TEST(LockUnlockLockMultithreaded) {
-#ifdef V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -626,9 +636,10 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
   v8::Persistent<v8::Context> context_;
 };
 
+
 // Locker inside an Unlocker inside a Locker for default isolate.
 TEST(LockUnlockLockDefaultIsolateMultithreaded) {
-#ifdef V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -696,10 +707,11 @@ class IsolateGenesisThread : public JoinableThread {
   const char** extension_names_;
 };
 
+
 // Test installing extensions in separate isolates concurrently.
 // http://code.google.com/p/v8/issues/detail?id=1821
 TEST(ExtensionsRegistration) {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 10;
 #else
   const int kNThreads = 40;

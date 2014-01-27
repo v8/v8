@@ -31,7 +31,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 
 #include "disasm.h"
 
@@ -574,6 +574,7 @@ int DisassemblerIA32::F7Instruction(byte* data) {
     return 2;
   }
 }
+
 
 int DisassemblerIA32::D1D3C1Instruction(byte* data) {
   byte op = *data;

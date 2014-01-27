@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 
 #include "ia32/lithium-codegen-ia32.h"
 #include "ic.h"
@@ -1773,14 +1773,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoFixedArrayBaseLength(
-    LFixedArrayBaseLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->value());
-  __ mov(result, FieldOperand(array, FixedArrayBase::kLengthOffset));
-}
-
-
 void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
   Register result = ToRegister(instr->result());
   Register map = ToRegister(instr->value());
@@ -2044,6 +2036,16 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
 }
 
 
+void LCodeGen::DoNegateNoSSE2D(LNegateNoSSE2D* instr) {
+  __ push(Immediate(-1));
+  __ fild_s(Operand(esp, 0));
+  __ add(esp, Immediate(kPointerSize));
+  __ fmulp();
+  CurrentInstructionReturnsX87Result();
+}
+
+
+
 void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
   ASSERT(ToRegister(instr->left()).is(edx));
@@ -2066,12 +2068,12 @@ int LCodeGen::GetNextEmittedBlock() const {
 
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
-  int right_block = instr->FalseDestination(chunk_);
   int left_block = instr->TrueDestination(chunk_);
+  int right_block = instr->FalseDestination(chunk_);
 
   int next_block = GetNextEmittedBlock();
 
-  if (right_block == left_block) {
+  if (right_block == left_block || cc == no_condition) {
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ j(NegateCondition(cc), chunk_->GetAssemblyLabel(right_block));
@@ -2080,6 +2082,25 @@ void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
   } else {
     __ j(cc, chunk_->GetAssemblyLabel(left_block));
     __ jmp(chunk_->GetAssemblyLabel(right_block));
+  }
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    EmitBranch(instr, no_condition);
+  } else {
+    ASSERT(r.IsTagged());
+    Register reg = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      EmitBranch(instr, no_condition);
+    }
+    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
+    __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+           factory()->heap_number_map());
+    EmitBranch(instr, equal);
   }
 }
 
@@ -2264,7 +2285,7 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 }
 
 
-void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
+void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   Condition cc = TokenToCondition(instr->op(), instr->is_double());
@@ -3785,6 +3806,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   }
 }
 
+
 void LCodeGen::DoMathRound(LMathRound* instr) {
   CpuFeatureScope scope(masm(), SSE2);
   Register output_reg = ToRegister(instr->result());
@@ -4175,11 +4197,14 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   __ Set(eax, Immediate(instr->arity()));
   __ mov(ebx, instr->hydrogen()->property_cell());
   ElementsKind kind = instr->hydrogen()->elements_kind();
-  bool disable_allocation_sites =
-      (AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
+  AllocationSiteOverrideMode override_mode =
+      (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
+          ? DISABLE_ALLOCATION_SITES
+          : DONT_OVERRIDE;
+  ContextCheckMode context_mode = CONTEXT_CHECK_NOT_REQUIRED;
 
   if (instr->arity() == 0) {
-    ArrayNoArgumentConstructorStub stub(kind, disable_allocation_sites);
+    ArrayNoArgumentConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else if (instr->arity() == 1) {
     Label done;
@@ -4192,18 +4217,18 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       __ j(zero, &packed_case);
 
       ElementsKind holey_kind = GetHoleyElementsKind(kind);
-      ArraySingleArgumentConstructorStub stub(holey_kind,
-                                              disable_allocation_sites);
+      ArraySingleArgumentConstructorStub stub(holey_kind, context_mode,
+                                              override_mode);
       CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
       __ jmp(&done);
       __ bind(&packed_case);
     }
 
-    ArraySingleArgumentConstructorStub stub(kind, disable_allocation_sites);
+    ArraySingleArgumentConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
     __ bind(&done);
   } else {
-    ArrayNArgumentsConstructorStub stub(kind, disable_allocation_sites);
+    ArrayNArgumentsConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   }
 }

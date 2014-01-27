@@ -434,7 +434,7 @@ class LAllocator BASE_EMBEDDED {
   LPlatformChunk* chunk() const { return chunk_; }
   HGraph* graph() const { return graph_; }
   Isolate* isolate() const { return graph_->isolate(); }
-  Zone* zone() const { return zone_; }
+  Zone* zone() { return &zone_; }
 
   int GetVirtualRegister() {
     if (next_virtual_register_ >= LUnallocated::kMaxVirtualRegisters) {
@@ -570,8 +570,7 @@ class LAllocator BASE_EMBEDDED {
 
   inline void SetLiveRangeAssignedRegister(LiveRange* range,
                                            int reg,
-                                           RegisterKind register_kind,
-                                           Zone* zone);
+                                           RegisterKind register_kind);
 
   // Return parallel move that should be used to connect ranges split at the
   // given position.
@@ -598,7 +597,7 @@ class LAllocator BASE_EMBEDDED {
 
   inline LGap* GapAt(int index);
 
-  Zone* zone_;
+  Zone zone_;
 
   LPlatformChunk* chunk_;
 
@@ -647,13 +646,12 @@ class LAllocator BASE_EMBEDDED {
 
 class LAllocatorPhase : public CompilationPhase {
  public:
-  LAllocatorPhase(const char* name, LAllocator* allocator)
-      : CompilationPhase(name, allocator->graph()->info()),
-        allocator_(allocator) { }
+  LAllocatorPhase(const char* name, LAllocator* allocator);
   ~LAllocatorPhase();
 
  private:
   LAllocator* allocator_;
+  unsigned allocator_zone_start_allocation_size_;
 
   DISALLOW_COPY_AND_ASSIGN(LAllocatorPhase);
 };

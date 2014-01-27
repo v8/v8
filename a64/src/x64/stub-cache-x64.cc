@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
 
 #include "ic-inl.h"
 #include "codegen.h"
@@ -423,10 +423,11 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
 // Undoes the effects of ReserveSpaceForFastApiCall.
 static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]  : return address.
-  //  -- rsp[8]  : last fast api call extra argument.
+  //  -- rsp[0]                             : return address.
+  //  -- rsp[8]                             : last fast api call extra argument.
   //  -- ...
-  //  -- rsp[kFastApiCallArguments * 8] : first fast api call extra argument.
+  //  -- rsp[kFastApiCallArguments * 8]     : first fast api call extra
+  //                                          argument.
   //  -- rsp[kFastApiCallArguments * 8 + 8] : last argument in the internal
   //                                          frame.
   // -----------------------------------
@@ -1640,11 +1641,11 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
     GenerateLoadFunctionFromCell(cell, function, &miss);
   }
 
-  Handle<Smi> kind(Smi::FromInt(GetInitialFastElementsKind()), isolate());
-  Handle<Cell> kind_feedback_cell =
-      isolate()->factory()->NewCell(kind);
+  Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
+  site->set_payload(Smi::FromInt(GetInitialFastElementsKind()));
+  Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
   __ movq(rax, Immediate(argc));
-  __ Move(rbx, kind_feedback_cell);
+  __ Move(rbx, site_feedback_cell);
   __ Move(rdi, function);
 
   ArrayConstructorStub stub(isolate());
@@ -3082,7 +3083,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
-  //  -- rsp[0]  : return address
+  //  -- rsp[0] : return address
   // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
@@ -3090,7 +3091,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
-  //  -- rsp[0]  : return address
+  //  -- rsp[0] : return address
   // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_MissForceGeneric);
 }
@@ -3125,10 +3126,10 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   Label slow, miss_force_generic;
 
@@ -3285,10 +3286,10 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ bind(&slow);
 
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedStoreIC_Slow);
 

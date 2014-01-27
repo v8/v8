@@ -156,6 +156,7 @@ void LGapResolver::Verify() {
   TODO_UNIMPLEMENTED("LGapResolver::Verify");
 }
 
+
 void LGapResolver::BreakCycle(int index) {
   ASSERT(moves_[index].destination()->Equals(moves_[root_index_].source()));
   ASSERT(!in_cycle_);
@@ -233,6 +234,7 @@ void LGapResolver::EmitMove(int index) {
       ASSERT(destination->IsStackSlot());
       __ Str(source_register, cgen_->ToMemOperand(destination));
     }
+
   } else if (source->IsStackSlot()) {
     MemOperand source_operand = cgen_->ToMemOperand(source);
     if (destination->IsRegister()) {
@@ -241,6 +243,7 @@ void LGapResolver::EmitMove(int index) {
       ASSERT(destination->IsStackSlot());
       EmitStackSlotMove(index);
     }
+
   } else if (source->IsConstantOperand()) {
     LConstantOperand* constant_source = LConstantOperand::cast(source);
     if (destination->IsRegister()) {
@@ -252,6 +255,9 @@ void LGapResolver::EmitMove(int index) {
       } else {
         __ LoadObject(dst, cgen_->ToHandle(constant_source));
       }
+    } else if (source->IsDoubleRegister()) {
+      DoubleRegister result = cgen_->ToDoubleRegister(destination);
+      __ Fmov(result, cgen_->ToDouble(constant_source));
     } else {
       ASSERT(destination->IsStackSlot());
       ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
@@ -265,6 +271,7 @@ void LGapResolver::EmitMove(int index) {
       }
       __ Str(kSavedValue, cgen_->ToMemOperand(destination));
     }
+
   } else if (source->IsDoubleRegister()) {
     DoubleRegister src = cgen_->ToDoubleRegister(source);
     if (destination->IsDoubleRegister()) {
@@ -273,6 +280,7 @@ void LGapResolver::EmitMove(int index) {
       ASSERT(destination->IsDoubleStackSlot());
       __ Str(src, cgen_->ToMemOperand(destination));
     }
+
   } else if (source->IsDoubleStackSlot()) {
     MemOperand src = cgen_->ToMemOperand(source);
     if (destination->IsDoubleRegister()) {
@@ -281,6 +289,7 @@ void LGapResolver::EmitMove(int index) {
       // TODO(all): double stack slot to double stack slot move.
       UNIMPLEMENTED();
     }
+
   } else {
     UNREACHABLE();
   }

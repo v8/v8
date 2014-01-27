@@ -80,7 +80,7 @@ class LCodeGen;
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
   V(ClassOfTestAndBranch)                       \
-  V(CmpIDAndBranch)                             \
+  V(CompareNumericAndBranch)                    \
   V(CmpMapAndBranch)                            \
   V(CmpObjectEqAndBranch)                       \
   V(CmpT)                                       \
@@ -99,7 +99,6 @@ class LCodeGen;
   V(Drop)                                       \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
-  V(FixedArrayBaseLength)                       \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -119,6 +118,7 @@ class LCodeGen;
   V(Integer32ToSmi)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
+  V(IsNumberAndBranch)                          \
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
@@ -1108,9 +1108,9 @@ class LCmpT: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LCmpIDAndBranch: public LControlInstruction<2, 0> {
+class LCompareNumericAndBranch: public LControlInstruction<2, 0> {
  public:
-  LCmpIDAndBranch(LOperand* left, LOperand* right) {
+  LCompareNumericAndBranch(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -1118,8 +1118,9 @@ class LCmpIDAndBranch: public LControlInstruction<2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpIDAndBranch, "cmp-id-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareIDAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch,
+                               "compare-numeric-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareNumericAndBranch)
 
   Token::Value op() const { return hydrogen()->token(); }
   bool is_double() const {
@@ -1504,6 +1505,19 @@ class LIsConstructCallAndBranch: public LControlInstruction<0, 2> {
 };
 
 
+class LIsNumberAndBranch: public LControlInstruction<1, 0> {
+ public:
+  explicit LIsNumberAndBranch(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch, "is-number-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(IsNumberAndBranch)
+};
+
+
 class LIsObjectAndBranch: public LControlInstruction<1, 2> {
  public:
   LIsObjectAndBranch(LOperand* value, LOperand* temp1, LOperand* temp2) {
@@ -1613,19 +1627,6 @@ class LLoadNamedFieldPolymorphic: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field-polymorphic")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedFieldPolymorphic)
-};
-
-
-class LFixedArrayBaseLength: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LFixedArrayBaseLength(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(FixedArrayBaseLength, "fixed-array-base-length")
-  DECLARE_HYDROGEN_ACCESSOR(FixedArrayBaseLength)
 };
 
 

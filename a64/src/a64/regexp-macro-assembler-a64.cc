@@ -27,8 +27,9 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
+#include "cpu-profiler.h"
 #include "unicode.h"
 #include "log.h"
 #include "code-stubs.h"
@@ -155,6 +156,7 @@ RegExpMacroAssemblerA64::RegExpMacroAssemblerA64(
   __ Bind(&start_label_);  // And then continue from here.
 }
 
+
 RegExpMacroAssemblerA64::~RegExpMacroAssemblerA64() {
   delete masm_;
   // Unuse labels in case we throw away the assembler without calling GetCode.
@@ -171,12 +173,14 @@ int RegExpMacroAssemblerA64::stack_limit_slack()  {
   return RegExpStack::kStackLimitSlack;
 }
 
+
 void RegExpMacroAssemblerA64::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ Add(current_input_offset(),
            current_input_offset(), by * char_size());
   }
 }
+
 
 void RegExpMacroAssemblerA64::AdvanceRegister(int reg, int by) {
   ASSERT((reg >= 0) && (reg < num_registers_));
@@ -204,12 +208,14 @@ void RegExpMacroAssemblerA64::AdvanceRegister(int reg, int by) {
   }
 }
 
+
 void RegExpMacroAssemblerA64::Backtrack() {
   CheckPreemption();
   Pop(w10);
   __ Add(x10, code_pointer(), Operand(w10, UXTW));
   __ Br(x10);
 }
+
 
 void RegExpMacroAssemblerA64::Bind(Label* label) {
   __ Bind(label);
@@ -1119,6 +1125,7 @@ void RegExpMacroAssemblerA64::PopRegister(int register_index) {
   StoreRegister(register_index, w10);
 }
 
+
 void RegExpMacroAssemblerA64::PushBacktrack(Label* label) {
   if (label->is_bound()) {
     int target = label->pos();
@@ -1290,11 +1297,13 @@ void RegExpMacroAssemblerA64::WriteStackPointerToRegister(int reg) {
   StoreRegister(reg, w10);
 }
 
+
 // Helper function for reading a value out of a stack frame.
 template <typename T>
 static T& frame_entry(Address re_frame, int frame_offset) {
   return *reinterpret_cast<T*>(re_frame + frame_offset);
 }
+
 
 int RegExpMacroAssemblerA64::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
@@ -1396,6 +1405,7 @@ int RegExpMacroAssemblerA64::CheckStackGuardState(Address* return_address,
   return 0;
 }
 
+
 void RegExpMacroAssemblerA64::CheckPosition(int cp_offset,
                                             Label* on_outside_input) {
   CompareAndBranchOrBacktrack(current_input_offset(),
@@ -1404,10 +1414,12 @@ void RegExpMacroAssemblerA64::CheckPosition(int cp_offset,
                               on_outside_input);
 }
 
+
 bool RegExpMacroAssemblerA64::CanReadUnaligned() {
   // TODO(pielan): See whether or not we should disable unaligned accesses.
   return !slow_safe();
 }
+
 
 // Private methods:
 
@@ -1514,6 +1526,7 @@ void RegExpMacroAssemblerA64::CheckPreemption() {
   CallIf(&check_preempt_label_, ls);
 }
 
+
 void RegExpMacroAssemblerA64::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit(isolate());
@@ -1532,6 +1545,7 @@ void RegExpMacroAssemblerA64::Push(Register source) {
                     -static_cast<int>(kWRegSizeInBytes),
                     PreIndex));
 }
+
 
 void RegExpMacroAssemblerA64::Pop(Register target) {
   ASSERT(target.Is32Bits());

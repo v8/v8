@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "stub-cache.h"
 #include "factory.h"
 #include "gdb-jit.h"
@@ -81,6 +82,14 @@ void CodeStub::RecordCodeGeneration(Code* code, Isolate* isolate) {
 
 Code::Kind CodeStub::GetCodeKind() const {
   return Code::STUB;
+}
+
+
+Handle<Code> CodeStub::GetCodeCopyFromTemplate(Isolate* isolate) {
+  Handle<Code> ic = GetCode(isolate);
+  ic = isolate->factory()->CopyCode(ic);
+  RecordCodeGeneration(*ic, isolate);
+  return ic;
 }
 
 
@@ -184,8 +193,79 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 }
 
 
-void CodeStub::PrintName(StringStream* stream) {
+void CodeStub::PrintBaseName(StringStream* stream) {
   stream->Add("%s", MajorName(MajorKey(), false));
+}
+
+
+void CodeStub::PrintName(StringStream* stream) {
+  PrintBaseName(stream);
+  PrintState(stream);
+}
+
+
+Builtins::JavaScript UnaryOpStub::ToJSBuiltin() {
+  switch (operation_) {
+    default:
+      UNREACHABLE();
+    case Token::SUB:
+      return Builtins::UNARY_MINUS;
+    case Token::BIT_NOT:
+      return Builtins::BIT_NOT;
+  }
+}
+
+
+Handle<JSFunction> UnaryOpStub::ToJSFunction(Isolate* isolate) {
+  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
+  Object* builtin = builtins->javascript_builtin(ToJSBuiltin());
+  return Handle<JSFunction>(JSFunction::cast(builtin), isolate);
+}
+
+
+MaybeObject* UnaryOpStub::Result(Handle<Object> object, Isolate* isolate) {
+  Handle<JSFunction> builtin_function = ToJSFunction(isolate);
+  bool caught_exception;
+  Handle<Object> result = Execution::Call(builtin_function, object,
+                                          0, NULL, &caught_exception);
+  if (caught_exception) {
+    return Failure::Exception();
+  }
+  return *result;
+}
+
+
+void UnaryOpStub::UpdateStatus(Handle<Object> object) {
+  State old_state(state_);
+  if (object->IsSmi()) {
+    state_.Add(SMI);
+    if (operation_ == Token::SUB && *object == 0) {
+      // The result (-0) has to be represented as double.
+      state_.Add(HEAP_NUMBER);
+    }
+  } else if (object->IsHeapNumber()) {
+    state_.Add(HEAP_NUMBER);
+  } else {
+    state_.Add(GENERIC);
+  }
+  TraceTransition(old_state, state_);
+}
+
+
+Handle<Type> UnaryOpStub::GetType(Isolate* isolate) {
+  if (state_.Contains(GENERIC)) {
+    return handle(Type::Any(), isolate);
+  }
+  Handle<Type> type = handle(Type::None(), isolate);
+  if (state_.Contains(SMI)) {
+    type = handle(
+        Type::Union(type, handle(Type::Smi(), isolate)), isolate);
+  }
+  if (state_.Contains(HEAP_NUMBER)) {
+    type = handle(
+        Type::Union(type, handle(Type::Double(), isolate)), isolate);
+  }
+  return type;
 }
 
 
@@ -272,6 +352,29 @@ void BinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
 
 
 #undef __
+
+
+void UnaryOpStub::PrintBaseName(StringStream* stream) {
+  CodeStub::PrintBaseName(stream);
+  if (operation_ == Token::SUB) stream->Add("Minus");
+  if (operation_ == Token::BIT_NOT) stream->Add("Not");
+}
+
+
+void UnaryOpStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
+}
+
+
+void UnaryOpStub::State::Print(StringStream* stream) const {
+  stream->Add("(");
+  SimpleListPrinter printer(stream);
+  if (IsEmpty()) printer.Add("None");
+  if (Contains(GENERIC)) printer.Add("Generic");
+  if (Contains(HEAP_NUMBER)) printer.Add("HeapNumber");
+  if (Contains(SMI)) printer.Add("Smi");
+  stream->Add(")");
+}
 
 
 void BinaryOpStub::PrintName(StringStream* stream) {
@@ -430,8 +533,9 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CompareNilICStub::Record(Handle<Object> object) {
+void CompareNilICStub::UpdateStatus(Handle<Object> object) {
   ASSERT(state_ != State::Generic());
+  State old_state(state_);
   if (object->IsNull()) {
     state_.Add(NULL_TYPE);
   } else if (object->IsUndefined()) {
@@ -445,18 +549,22 @@ void CompareNilICStub::Record(Handle<Object> object) {
   } else {
     state_.Add(MONOMORPHIC_MAP);
   }
+  TraceTransition(old_state, state_);
 }
 
 
-void CompareNilICStub::State::TraceTransition(State to) const {
+template<class StateType>
+void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   #ifdef DEBUG
   if (!FLAG_trace_ic) return;
   char buffer[100];
   NoAllocationStringAllocator allocator(buffer,
                                         static_cast<unsigned>(sizeof(buffer)));
   StringStream stream(&allocator);
-  stream.Add("[CompareNilIC : ");
-  Print(&stream);
+  stream.Add("[");
+  PrintBaseName(&stream);
+  stream.Add(": ");
+  from.Print(&stream);
   stream.Add("=>");
   to.Print(&stream);
   stream.Add("]\n");
@@ -465,11 +573,15 @@ void CompareNilICStub::State::TraceTransition(State to) const {
 }
 
 
-void CompareNilICStub::PrintName(StringStream* stream) {
-  stream->Add("CompareNilICStub_");
+void CompareNilICStub::PrintBaseName(StringStream* stream) {
+  CodeStub::PrintBaseName(stream);
+  stream->Add((nil_value_ == kNullValue) ? "(NullValue)":
+                                           "(UndefinedValue)");
+}
+
+
+void CompareNilICStub::PrintState(StringStream* stream) {
   state_.Print(stream);
-  stream->Add((nil_value_ == kNullValue) ? "(NullValue|":
-                                           "(UndefinedValue|");
 }
 
 
@@ -551,6 +663,12 @@ void KeyedLoadDictionaryElementStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
+  CreateAllocationSiteStub stub;
+  stub.GetCode(isolate)->set_is_pregenerated(true);
+}
+
+
 void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
@@ -614,16 +732,15 @@ void CallConstructStub::PrintName(StringStream* stream) {
 }
 
 
-bool ToBooleanStub::Record(Handle<Object> object) {
+bool ToBooleanStub::UpdateStatus(Handle<Object> object) {
   Types old_types(types_);
-  bool to_boolean_value = types_.Record(object);
-  old_types.TraceTransition(types_);
+  bool to_boolean_value = types_.UpdateStatus(object);
+  TraceTransition(old_types, types_);
   return to_boolean_value;
 }
 
 
-void ToBooleanStub::PrintName(StringStream* stream) {
-  stream->Add("ToBooleanStub_");
+void ToBooleanStub::PrintState(StringStream* stream) {
   types_.Print(stream);
 }
 
@@ -644,24 +761,7 @@ void ToBooleanStub::Types::Print(StringStream* stream) const {
 }
 
 
-void ToBooleanStub::Types::TraceTransition(Types to) const {
-  #ifdef DEBUG
-  if (!FLAG_trace_ic) return;
-  char buffer[100];
-  NoAllocationStringAllocator allocator(buffer,
-                                        static_cast<unsigned>(sizeof(buffer)));
-  StringStream stream(&allocator);
-  stream.Add("[ToBooleanIC : ");
-  Print(&stream);
-  stream.Add("=>");
-  to.Print(&stream);
-  stream.Add("]\n");
-  stream.OutputToStdOut();
-  #endif
-}
-
-
-bool ToBooleanStub::Types::Record(Handle<Object> object) {
+bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
   if (object->IsUndefined()) {
     Add(UNDEFINED);
     return false;
@@ -713,7 +813,7 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
   Label fail;
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(from_, to_);
+  AllocationSiteMode mode = AllocationSite::GetMode(from_, to_);
   ASSERT(!IsFastHoleyElementsKind(from_) || IsFastHoleyElementsKind(to_));
   if (!FLAG_trace_elements_transitions) {
     if (IsFastSmiOrObjectElementsKind(to_)) {
@@ -757,24 +857,11 @@ void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-FunctionEntryHook ProfileEntryHookStub::entry_hook_ = NULL;
-
-
 void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
                                                intptr_t stack_pointer) {
-  if (entry_hook_ != NULL)
-    entry_hook_(function, stack_pointer);
-}
-
-
-bool ProfileEntryHookStub::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  // We don't allow setting a new entry hook over one that's
-  // already active, as the hooks won't stack.
-  if (entry_hook != 0 && entry_hook_ != 0)
-    return false;
-
-  entry_hook_ = entry_hook;
-  return true;
+  FunctionEntryHook entry_hook = Isolate::Current()->function_entry_hook();
+  ASSERT(entry_hook != NULL);
+  entry_hook(function, stack_pointer);
 }
 
 

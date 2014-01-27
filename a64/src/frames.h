@@ -35,7 +35,7 @@
 namespace v8 {
 namespace internal {
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 typedef uint64_t RegList;
 #else
 typedef uint32_t RegList;
@@ -301,6 +301,10 @@ class StackFrame BASE_EMBEDDED {
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver);
 
+  // Resolves pc_address through the resolution address function if one is set.
+  static inline Address* ResolveReturnAddressLocation(Address* pc_address);
+
+
   // Printing support.
   enum PrintMode { OVERVIEW, DETAILS };
   virtual void Print(StringStream* accumulator,
@@ -335,6 +339,8 @@ class StackFrame BASE_EMBEDDED {
   const StackFrameIteratorBase* iterator_;
   Isolate* isolate_;
   State state_;
+
+  static ReturnAddressLocationResolver return_address_location_resolver_;
 
   // Fill in the state of the calling frame.
   virtual void ComputeCallerState(State* state) const = 0;
@@ -879,10 +885,12 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
  public:
   SafeStackFrameIterator(Isolate* isolate,
                          Address fp, Address sp,
-                         Address low_bound, Address high_bound);
+                         Address js_entry_sp);
 
   inline JavaScriptFrame* frame() const;
   void Advance();
+
+  StackFrame::Type top_frame_type() const { return top_frame_type_; }
 
  private:
   void AdvanceOneFrame();
@@ -897,6 +905,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
 
   const Address low_bound_;
   const Address high_bound_;
+  StackFrame::Type top_frame_type_;
 };
 
 

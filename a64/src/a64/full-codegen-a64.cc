@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "code-stubs.h"
 #include "codegen.h"
@@ -4103,10 +4103,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
   Comment cmt(masm_, comment);
-  bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
-  UnaryOverwriteMode overwrite =
-      can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  UnaryOpStub stub(expr->op(), overwrite);
+  UnaryOpStub stub(expr->op());
   // UnaryOpStub expects the argument to be in the accumulator register x0.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());

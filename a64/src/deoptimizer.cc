@@ -714,6 +714,10 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Print some helpful diagnostic information.
   int64_t start = OS::Ticks();
+  if (FLAG_log_timer_events &&
+      compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
+    LOG(isolate(), CodeDeoptEvent(compiled_code_));
+  }
   if (trace_) {
     PrintF("[deoptimizing (DEOPT %s): begin 0x%08" V8PRIxPTR " ",
            MessageFor(bailout_type_),

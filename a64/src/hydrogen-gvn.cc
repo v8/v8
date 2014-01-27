@@ -123,6 +123,7 @@ void TraceGVN(const char* msg, ...) {
   va_end(arguments);
 }
 
+
 // Wrap TraceGVN in macros to avoid the expense of evaluating its arguments when
 // --trace-gvn is off.
 #define TRACE_GVN_1(msg, a1)                    \
@@ -339,6 +340,7 @@ HSideEffectMap& HSideEffectMap::operator= (const HSideEffectMap& other) {
   return *this;
 }
 
+
 void HSideEffectMap::Kill(GVNFlagSet flags) {
   for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
     GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
@@ -394,17 +396,16 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
   for (int i = graph()->blocks()->length() - 1; i >= 0; --i) {
     // Compute side effects for the block.
     HBasicBlock* block = graph()->blocks()->at(i);
-    HInstruction* instr = block->first();
     int id = block->block_id();
     GVNFlagSet side_effects;
-    while (instr != NULL) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       side_effects.Add(instr->ChangesFlags());
       if (instr->IsSoftDeoptimize()) {
         block_side_effects_[id].RemoveAll();
         side_effects.RemoveAll();
         break;
       }
-      instr = instr->next();
     }
     block_side_effects_[id].Add(side_effects);
 
@@ -748,6 +749,7 @@ class GvnBasicBlockState: public ZoneObject {
   int dominated_index_;
   int length_;
 };
+
 
 // This is a recursive traversal of the dominator tree but it has been turned
 // into a loop to avoid stack overflows.

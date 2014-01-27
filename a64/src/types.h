@@ -126,6 +126,7 @@ class Type : public Object {
   static Type* Function() { return from_bitset(kFunction); }
   static Type* RegExp() { return from_bitset(kRegExp); }
   static Type* Proxy() { return from_bitset(kProxy); }
+  static Type* Internal() { return from_bitset(kInternal); }
 
   static Type* Class(Handle<Map> map) { return from_handle(map); }
   static Type* Constant(Handle<HeapObject> value) {
@@ -139,7 +140,7 @@ class Type : public Object {
   static Type* Intersect(Handle<Type> type1, Handle<Type> type2);
   static Type* Optional(Handle<Type> type);  // type \/ Undefined
 
-  bool Is(Type* that);
+  bool Is(Type* that) { return (this == that) ? true : IsSlowCase(that); }
   bool Is(Handle<Type> that) { return this->Is(*that); }
   bool Maybe(Type* that);
   bool Maybe(Handle<Type> that) { return this->Maybe(*that); }
@@ -207,6 +208,7 @@ class Type : public Object {
     kRegExp = 1 << 13,
     kOtherObject = 1 << 14,
     kProxy = 1 << 15,
+    kInternal = 1 << 16,
 
     kOddball = kBoolean | kNull | kUndefined,
     kSigned32 = kSmi | kOtherSigned32,
@@ -218,7 +220,7 @@ class Type : public Object {
     kObject = kUndetectable | kArray | kFunction | kRegExp | kOtherObject,
     kReceiver = kObject | kProxy,
     kAllocated = kDouble | kName | kReceiver,
-    kAny = kOddball | kNumber | kAllocated,
+    kAny = kOddball | kNumber | kAllocated | kInternal,
     kDetectable = kAllocated - kUndetectable,
     kNone = 0
   };
@@ -227,6 +229,8 @@ class Type : public Object {
   bool is_class() { return this->IsMap(); }
   bool is_constant() { return this->IsBox(); }
   bool is_union() { return this->IsFixedArray(); }
+
+  bool IsSlowCase(Type* that);
 
   int as_bitset() { return Smi::cast(this)->value(); }
   Handle<Map> as_class() { return Handle<Map>::cast(handle()); }

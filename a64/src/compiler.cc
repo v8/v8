@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "compilation-cache.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
@@ -456,6 +457,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 
   return SetLastStatus(SUCCEEDED);
 }
+
 
 OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   DisallowHeapAllocation no_allocation;
@@ -1067,6 +1069,9 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   } else if (status != OptimizingCompiler::SUCCEEDED) {
     info->set_bailout_reason("failed/bailed out last time");
     status = optimizing_compiler->AbortOptimization();
+  } else if (isolate->DebuggerHasBreakPoints()) {
+    info->set_bailout_reason("debugger is active");
+    status = optimizing_compiler->AbortOptimization();
   } else {
     status = optimizing_compiler->GenerateAndInstallCode();
     ASSERT(status == OptimizingCompiler::SUCCEEDED ||
@@ -1204,9 +1209,9 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
+    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    USE(line_num);
     if (script->name()->IsString()) {
-      int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
-      USE(line_num);
       PROFILE(info->isolate(),
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
@@ -1220,7 +1225,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *code,
                               *shared,
                               info,
-                              shared->DebugName()));
+                              info->isolate()->heap()->empty_string(),
+                              line_num));
     }
   }
 

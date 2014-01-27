@@ -1252,7 +1252,7 @@ class MacroAssembler: public Assembler {
                                 int return_value_offset_from_rbp);
 
   // Before calling a C-function from generated code, align arguments on stack.
-  // After aligning the frame, arguments must be stored in esp[0], esp[4],
+  // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
   // etc., not pushed. The argument count assumes all arguments are word sized.
   // The number of slots reserved for arguments depends on platform. On Windows
   // stack slots are reserved for the arguments passed in registers. On other

@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "apiutils.h"
+#include "objects.h"
 
 namespace v8 {
 namespace internal {
@@ -102,6 +103,13 @@ class Handle {
 template<class T>
 inline Handle<T> handle(T* t, Isolate* isolate) {
   return Handle<T>(t, isolate);
+}
+
+
+// Convenience wrapper.
+template<class T>
+inline Handle<T> handle(T* t) {
+  return Handle<T>(t, t->GetIsolate());
 }
 
 
@@ -243,8 +251,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
                            Handle<Object> key);
-
-Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);

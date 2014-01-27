@@ -755,6 +755,7 @@ void JSFunctionProxy::JSFunctionProxyVerify() {
   VerifyPointer(construct_trap());
 }
 
+
 void JSArrayBuffer::JSArrayBufferVerify() {
   CHECK(IsJSArrayBuffer());
   JSObjectVerify();
@@ -875,6 +876,7 @@ void TemplateInfo::TemplateInfoVerify() {
   VerifyPointer(property_list());
 }
 
+
 void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   CHECK(IsFunctionTemplateInfo());
   TemplateInfoVerify();
@@ -912,10 +914,15 @@ void TypeSwitchInfo::TypeSwitchInfoVerify() {
 }
 
 
+void AllocationSite::AllocationSiteVerify() {
+  CHECK(IsAllocationSite());
+}
+
+
 void AllocationSiteInfo::AllocationSiteInfoVerify() {
   CHECK(IsAllocationSiteInfo());
-  VerifyHeapPointer(payload());
-  CHECK(payload()->IsObject());
+  VerifyHeapPointer(allocation_site());
+  CHECK(!IsValid() || GetAllocationSite()->IsAllocationSite());
 }
 
 
@@ -1069,6 +1076,7 @@ void JSObject::SpillInformation::Clear() {
   number_of_slow_used_elements_ = 0;
   number_of_slow_unused_elements_ = 0;
 }
+
 
 void JSObject::SpillInformation::Print() {
   PrintF("\n  JSObject Spill Statistics (#%d):\n", number_of_objects_);

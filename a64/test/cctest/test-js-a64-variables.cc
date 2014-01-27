@@ -69,6 +69,7 @@ static void ExpectInt32(int32_t expected, Local<Value> result) {
   CHECK_EQ(expected, result->Int32Value());
 }
 
+
 // Global variables.
 TEST(global_variables) {
   v8::HandleScope scope;

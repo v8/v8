@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "ic-inl.h"
 #include "codegen.h"
@@ -1242,6 +1242,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   Code::ExtraICState extra_ic_state_;
 };
 
+
 void StubCompiler::GenerateTailCall(MacroAssembler* masm, Handle<Code> code) {
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
@@ -1798,11 +1799,12 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
     GenerateLoadFunctionFromCell(cell, function, &miss);
   }
 
-  Handle<Smi> kind(Smi::FromInt(GetInitialFastElementsKind()), isolate());
-  Handle<Cell> kind_feedback_cell = isolate()->factory()->NewCell(kind);
+  Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
+  site->set_payload(Smi::FromInt(GetInitialFastElementsKind()));
+  Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
   __ Mov(x0, argc);
   __ Mov(x1, Operand(function));
-  __ Mov(x2, Operand(kind_feedback_cell));
+  __ Mov(x2, Operand(site_feedback_cell));
 
   ArrayConstructorStub stub(isolate());
   __ TailCallStub(&stub);
@@ -3115,6 +3117,7 @@ Register* LoadStubCompiler::registers() {
   static Register registers[] = { x0, x2, x3, x1, x4, x5 };
   return registers;
 }
+
 
 Register* KeyedLoadStubCompiler::registers() {
   // receiver, name/key, scratch1, scratch2, scratch3, scratch4.

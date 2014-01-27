@@ -67,19 +67,23 @@ static void ExpectBoolean(bool expected, Local<Value> result) {
   CHECK_EQ(expected, result->BooleanValue());
 }
 
+
 static void ExpectInt32(int32_t expected, Local<Value> result) {
   CHECK(result->IsInt32());
   CHECK_EQ(expected, result->Int32Value());
 }
+
 
 static void ExpectNumber(double expected, Local<Value> result) {
   CHECK(result->IsNumber());
   CHECK_EQ(expected, result->NumberValue());
 }
 
+
 static void ExpectUndefined(Local<Value> result) {
   CHECK(result->IsUndefined());
 }
+
 
 // Tests are sorted by order of implementation.
 
@@ -171,6 +175,7 @@ static void if_comparison_helper(
   if_comparison_effectcontext_helper(op, "9", "7", expect_when_gt);
 }
 
+
 TEST(if_comparison) {
   v8::HandleScope scope;
   LocalContext env;
@@ -184,6 +189,7 @@ TEST(if_comparison) {
   if_comparison_helper("!=",  1, 0, 1);
   if_comparison_helper("!==", 1, 0, 1);
 }
+
 
 TEST(unary_plus) {
   v8::HandleScope scope;
@@ -206,6 +212,7 @@ TEST(unary_plus) {
   ExpectInt32(4321, result);
 }
 
+
 TEST(unary_minus) {
   v8::HandleScope scope;
   LocalContext env;
@@ -222,6 +229,7 @@ TEST(unary_minus) {
   ExpectNumber(-1234.5, result);
 }
 
+
 TEST(unary_void) {
   v8::HandleScope scope;
   LocalContext env;
@@ -233,6 +241,7 @@ TEST(unary_void) {
   result = CompileRun("var a = 0; void (a = 42);");
   ExpectUndefined(result);
 }
+
 
 TEST(unary_not) {
   v8::HandleScope scope;

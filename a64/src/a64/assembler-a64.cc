@@ -28,7 +28,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_A64
 
 #include "a64/assembler-a64-inl.h"
 
@@ -148,6 +148,7 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
 
   return list;
 }
+
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
@@ -1335,6 +1336,7 @@ void Assembler::mov(const Register& rd, const Register& rm) {
   }
 }
 
+
 void Assembler::mvn(const Register& rd, const Operand& operand) {
   orn(rd, AppropriateZeroRegFor(rd), operand);
 }
@@ -1356,17 +1358,21 @@ void Assembler::hint(SystemHint code) {
   Emit(HINT | ImmHint(code) | Rt(xzr));
 }
 
+
 void Assembler::dmb(BarrierDomain domain, BarrierType type) {
   Emit(DMB | ImmBarrierDomain(domain) | ImmBarrierType(type));
 }
+
 
 void Assembler::dsb(BarrierDomain domain, BarrierType type) {
   Emit(DSB | ImmBarrierDomain(domain) | ImmBarrierType(type));
 }
 
+
 void Assembler::isb() {
   Emit(ISB | ImmBarrierDomain(FullSystem) | ImmBarrierType(BarrierAll));
 }
+
 
 void Assembler::fmov(FPRegister fd, double imm) {
   if (fd.Is64Bits() && IsImmFP64(imm)) {
@@ -2200,6 +2206,7 @@ bool Assembler::IsImmLogical(uint64_t value,
     return false;
   }
 }
+
 
 bool Assembler::IsImmConditionalCompare(int64_t immediate) {
   return is_uint5(immediate);

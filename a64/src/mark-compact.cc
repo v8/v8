@@ -29,6 +29,7 @@
 
 #include "code-stubs.h"
 #include "compilation-cache.h"
+#include "cpu-profiler.h"
 #include "deoptimizer.h"
 #include "execution.h"
 #include "gdb-jit.h"
@@ -2181,6 +2182,24 @@ void MarkCompactCollector::ProcessEphemeralMarking(ObjectVisitor* visitor) {
 }
 
 
+void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
+  for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
+       !it.done(); it.Advance()) {
+    if (it.frame()->type() == StackFrame::JAVA_SCRIPT) {
+      return;
+    }
+    if (it.frame()->type() == StackFrame::OPTIMIZED) {
+      Code* code = it.frame()->LookupCode();
+      if (!code->CanDeoptAt(it.frame()->pc())) {
+        code->CodeIterateBody(visitor);
+      }
+      ProcessMarkingDeque();
+      return;
+    }
+  }
+}
+
+
 void MarkCompactCollector::MarkLiveObjects() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
   // The recursive GC marker detects when it is nearing stack overflow,
@@ -2259,6 +2278,8 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   RootMarkingVisitor root_visitor(heap());
   MarkRoots(&root_visitor);
+
+  ProcessTopOptimizedFrame(&root_visitor);
 
   // The objects reachable from the roots are marked, yet unreachable
   // objects are unmarked.  Mark objects reachable due to host
@@ -3117,6 +3138,11 @@ static void SweepPrecisely(PagedSpace* space,
       Address free_end = object_address + offsets[live_index++] * kPointerSize;
       if (free_end != free_start) {
         space->Free(free_start, static_cast<int>(free_end - free_start));
+#ifdef ENABLE_GDB_JIT_INTERFACE
+        if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
+          GDBJITInterface::RemoveCodeRange(free_start, free_end);
+        }
+#endif
       }
       HeapObject* live_object = HeapObject::FromAddress(free_end);
       ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
@@ -3143,6 +3169,11 @@ static void SweepPrecisely(PagedSpace* space,
   }
   if (free_start != p->area_end()) {
     space->Free(free_start, static_cast<int>(p->area_end() - free_start));
+#ifdef ENABLE_GDB_JIT_INTERFACE
+    if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
+      GDBJITInterface::RemoveCodeRange(free_start, p->area_end());
+    }
+#endif
   }
   p->ResetLiveBytes();
   if (FLAG_print_cumulative_gc_stat) {

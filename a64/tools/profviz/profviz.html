@@ -36,24 +36,29 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
 <body onload="onload()">
   <div id="content">
   
-  <img src="" id="plot" type="image/svg+xml"
+  <img src="" id="plot" type="image/svg+xml" class="display"
       width="1200" height="600" class="float-right"/>
+
+  <textarea id="prof" class="display" disabled=true></textarea>
   <br/>
 
-  <table>
+  <table width="1200">
     <tr>
-      <td width="20%">
-        <button type="button" id="start" onclick="start()">
-          Start plot
+      <td width="330">
+        <button id="start" onclick="start()">
+          Start
         </button>
-        <button type="button" id="reset" onclick="ui.reset(); worker.reset();">
+        <button id="reset" onclick="ui.reset(); worker.reset();">
           Reset
         </button>
+        <button id="toggledisplay" onclick="ui.toggle();">
+          Show profile
+        </button>
       </td>
-      <td width="20%">
+      <td width="220">
         <input type="file" id="file" onchange="ui.reset();"/>
       </td>
-      <td width="30%">
+      <td width="300">
       <label title="You can manually choose the range
 to plot only part of the log file.">
         <span class="tooltip">Range</span>:
@@ -62,7 +67,7 @@ to plot only part of the log file.">
       <label>to</label>
       <input type="text" id="range_end" class="range"/>
       </td>
-      <td width="30%">
+      <td width="350">
         <label title="We model profiling overhead by accounting a constant
 execution delay to each log entry. Adjust to better suit
 your computer's performance.">
@@ -78,7 +83,11 @@ your computer's performance.">
   <textarea class="log" id="log" rows="8" disabled=true></textarea>
 
   <div class="text">
-    <h1>Instructions</h1>
+    <h1>
+      <a href="javascript:ui.info('instructions');" class="unroll">
+        Instructions
+      </a>
+    </h1>
     <div id="instructions">
     <ol>
       <li>
@@ -96,14 +105,27 @@ your computer's performance.">
         on this page. Don't worry, it won't be uploaded anywhere.
       </li>
       <li>
-        Click "Start plot" to starts number crunching. This will take a while.
+        Click "Start" to start number crunching. This will take a while.
       </li>
-    </ol>
+      <li>
+        Click "Show plot/profile" to switch between the statistical profile and
+        the timeline plot.<br/>
+        C++ items are missing in the statistical profile because symbol
+        information is not available.<br>
+        Consider using the
+        <a href="https://code.google.com/p/v8/wiki/V8Profiler">
+          command-line utility
+        </a> instead.
+      </li>
     </div>
   </div>
 
   <div class="text">
-    <h1>Credits</h1>
+    <h1>
+      <a href="javascript:ui.info('credits');" class="unroll">
+        Credits
+      </a>
+    </h1>
     <div id="credits">
     <ul>
       <li>

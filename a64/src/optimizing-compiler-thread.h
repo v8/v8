@@ -31,7 +31,7 @@
 #include "atomicops.h"
 #include "flags.h"
 #include "platform.h"
-#include "unbound-queue.h"
+#include "unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -46,6 +46,7 @@ class OptimizingCompilerThread : public Thread {
       Thread("OptimizingCompilerThread"),
 #ifdef DEBUG
       thread_id_(0),
+      thread_id_mutex_(OS::CreateMutex()),
 #endif
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
@@ -82,13 +83,18 @@ class OptimizingCompilerThread : public Thread {
 #endif
 
   ~OptimizingCompilerThread() {
+    delete install_mutex_;
     delete input_queue_semaphore_;
     delete stop_semaphore_;
+#ifdef DEBUG
+    delete thread_id_mutex_;
+#endif
   }
 
  private:
 #ifdef DEBUG
   int thread_id_;
+  Mutex* thread_id_mutex_;
 #endif
 
   Isolate* isolate_;

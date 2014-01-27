@@ -294,13 +294,6 @@ Handle<Object> GetProperty(Isolate* isolate,
 }
 
 
-Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
-  const bool skip_hidden_prototypes = false;
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->SetPrototype(*value, skip_hidden_prototypes), Object);
-}
-
-
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index) {
   CALL_HEAP_FUNCTION(
@@ -506,6 +499,7 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   return right + script->line_offset()->value();
 }
 
+
 // Convert code position into column number.
 int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
   int line_number = GetScriptLineNumber(script, code_pos);
@@ -519,6 +513,7 @@ int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
       Smi::cast(line_ends_array->get(line_number - 1))->value();
   return code_pos - (prev_line_end_pos + 1);
 }
+
 
 int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
   DisallowHeapAllocation no_allocation;

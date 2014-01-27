@@ -282,6 +282,7 @@ TEST_(add_immediate) {
   CLEANUP();
 }
 
+
 TEST_(sub_immediate) {
   SET_UP();
 
@@ -774,6 +775,7 @@ TEST_(dp_2_source) {
   CLEANUP();
 }
 
+
 TEST_(adr) {
   SET_UP();
 
@@ -788,6 +790,7 @@ TEST_(adr) {
 
   CLEANUP();
 }
+
 
 TEST_(branch) {
   SET_UP();
@@ -824,6 +827,7 @@ TEST_(branch) {
 
   CLEANUP();
 }
+
 
 TEST_(load_store) {
   SET_UP();
@@ -1119,6 +1123,7 @@ TEST_(load_store_unscaled) {
   CLEANUP();
 }
 
+
 TEST_(load_store_pair) {
   SET_UP();
 
@@ -1238,6 +1243,7 @@ TEST_(load_store_pair) {
   CLEANUP();
 }
 
+
 TEST_(load_store_pair_nontemp) {
   SET_UP();
 
@@ -1304,6 +1310,7 @@ TEST_(cond_select) {
   CLEANUP();
 }
 
+
 TEST(cond_select_macro) {
   SET_UP_CLASS(MacroAssembler);
 
@@ -1316,6 +1323,7 @@ TEST(cond_select_macro) {
 
   CLEANUP();
 }
+
 
 TEST_(cond_cmp) {
   SET_UP();
@@ -1334,6 +1342,7 @@ TEST_(cond_cmp) {
   CLEANUP();
 }
 
+
 TEST_(cond_cmp_macro) {
   SET_UP_CLASS(MacroAssembler);
 
@@ -1345,6 +1354,7 @@ TEST_(cond_cmp_macro) {
   CLEANUP();
 }
 
+
 TEST_(fmov_imm) {
   SET_UP();
 
@@ -1355,6 +1365,7 @@ TEST_(fmov_imm) {
 
   CLEANUP();
 }
+
 
 TEST_(fmov_reg) {
   SET_UP();
@@ -1623,6 +1634,7 @@ TEST_(brk) {
 
   CLEANUP();
 }
+
 
 TEST_(add_sub_negative) {
   SET_UP_CLASS(MacroAssembler);

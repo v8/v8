@@ -293,6 +293,8 @@ class Logger {
   // ==== Events logged by --log-timer-events. ====
   enum StartEnd { START, END };
 
+  void CodeDeoptEvent(Code* code);
+
   void TimerEvent(StartEnd se, const char* name);
 
   static void EnterExternal(Isolate* isolate);

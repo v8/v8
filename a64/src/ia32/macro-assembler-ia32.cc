@@ -27,10 +27,11 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
 
 #include "bootstrapper.h"
 #include "codegen.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "runtime.h"
 #include "serialize.h"
@@ -840,6 +841,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
   LeaveExitFrameEpilogue();
 }
+
 
 void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.

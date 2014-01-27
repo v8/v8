@@ -131,6 +131,7 @@ int Type::LubBitset() {
         if (value->IsUndefined()) return kUndefined;
         if (value->IsNull()) return kNull;
         if (value->IsTrue() || value->IsFalse()) return kBoolean;
+        if (value->IsTheHole()) return kAny;
       }
     }
     switch (map->instance_type()) {
@@ -200,6 +201,10 @@ int Type::LubBitset() {
         // We ought to find a cleaner solution for compiling stubs parameterised
         // over type or class variables, esp ones with bounds...
         return kDetectable;
+      case DECLARED_ACCESSOR_INFO_TYPE:
+      case EXECUTABLE_ACCESSOR_INFO_TYPE:
+      case ACCESSOR_PAIR_TYPE:
+        return kInternal;
       default:
         UNREACHABLE();
         return kNone;
@@ -222,7 +227,7 @@ int Type::GlbBitset() {
 
 
 // Check this <= that.
-bool Type::Is(Type* that) {
+bool Type::IsSlowCase(Type* that) {
   // Fast path for bitsets.
   if (that->is_bitset()) {
     return (this->LubBitset() | that->as_bitset()) == that->as_bitset();
@@ -312,6 +317,7 @@ bool Type::InUnion(Handle<Unioned> unioned, int current_size) {
   }
   return false;
 }
+
 
 // Get non-bitsets from this which are not subsumed by union, store at unioned,
 // starting at index. Returns updated index.
@@ -470,5 +476,14 @@ Type* Type::Optional(Handle<Type> type) {
       ? from_bitset(type->as_bitset() | kUndefined)
       : Union(type, Undefined()->handle_via_isolate_of(*type));
 }
+
+
+Representation Representation::FromType(Handle<Type> type) {
+  if (type->Is(Type::None())) return Representation::None();
+  if (type->Is(Type::Signed32())) return Representation::Integer32();
+  if (type->Is(Type::Number())) return Representation::Double();
+  return Representation::Tagged();
+}
+
 
 } }  // namespace v8::internal

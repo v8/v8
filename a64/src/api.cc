@@ -38,6 +38,7 @@
 #include "compiler.h"
 #include "conversions-inl.h"
 #include "counters.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
@@ -297,11 +298,17 @@ static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
   return (obj == 0) ? ReportEmptyHandle(location) : false;
 }
 
+
 // --- S t a t i c s ---
 
 
-static bool InitializeHelper() {
-  if (i::Snapshot::Initialize()) return true;
+static bool InitializeHelper(i::Isolate* isolate) {
+  // If the isolate has a function entry hook, it needs to re-build all its
+  // code stubs with entry hooks embedded, so let's deserialize a snapshot.
+  if (isolate == NULL || isolate->function_entry_hook() == NULL) {
+    if (i::Snapshot::Initialize())
+      return true;
+  }
   return i::V8::Initialize(NULL);
 }
 
@@ -313,8 +320,9 @@ static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
     if (isolate->IsInitialized()) return true;
   }
   ASSERT(isolate == i::Isolate::Current());
-  return ApiCheck(InitializeHelper(), location, "Error initializing V8");
+  return ApiCheck(InitializeHelper(isolate), location, "Error initializing V8");
 }
+
 
 // Some initializing API functions are called early and may be
 // called on a thread different from static initializer thread.
@@ -389,8 +397,12 @@ enum CompressedStartupDataItems {
   kSnapshotContext,
   kLibraries,
   kExperimentalLibraries,
+#if defined(ENABLE_I18N_SUPPORT)
+  kI18NExtension,
+#endif
   kCompressedStartupDataCount
 };
+
 
 int V8::GetCompressedStartupDataCount() {
 #ifdef COMPRESS_STARTUP_DATA_BZ2
@@ -428,6 +440,17 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
       exp_libraries_source.length();
   compressed_data[kExperimentalLibraries].raw_size =
       i::ExperimentalNatives::GetRawScriptsSize();
+
+#if defined(ENABLE_I18N_SUPPORT)
+  i::Vector<const ii:byte> i18n_extension_source =
+      i::I18NNatives::GetScriptsSource();
+  compressed_data[kI18NExtension].data =
+      reinterpret_cast<const char*>(i18n_extension_source.start());
+  compressed_data[kI18NExtension].compressed_size =
+      i18n_extension_source.length();
+  compressed_data[kI18NExtension].raw_size =
+      i::I18NNatives::GetRawScriptsSize();
+#endif
 #endif
 }
 
@@ -457,6 +480,15 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].data,
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
+
+#if defined(ENABLE_I18N_SUPPORT)
+  ASSERT_EQ(i::I18NNatives::GetRawScriptsSize(),
+            decompressed_data[kI18NExtension].raw_size);
+  i::Vector<const char> i18n_extension_source(
+      decompressed_data[kI18NExtension].data,
+      decompressed_data[kI18NExtension].raw_size);
+  i::I18NNatives::SetRawScriptsSource(i18n_extension_source);
+#endif
 #endif
 }
 
@@ -640,6 +672,7 @@ void V8::ClearWeak(i::Object** obj) {
 void V8::DisposeGlobal(i::Object** obj) {
   i::GlobalHandles::Destroy(obj);
 }
+
 
 // --- H a n d l e s ---
 
@@ -2087,13 +2120,12 @@ void Script::SetData(v8::Handle<String> data) {
 v8::TryCatch::TryCatch()
     : isolate_(i::Isolate::Current()),
       next_(isolate_->try_catch_handler_address()),
-      exception_(isolate_->heap()->the_hole_value()),
-      message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
       rethrow_(false),
       has_terminated_(false) {
+  Reset();
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2103,8 +2135,17 @@ v8::TryCatch::~TryCatch() {
   if (rethrow_) {
     v8::HandleScope scope(reinterpret_cast<Isolate*>(isolate_));
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
+    if (HasCaught() && capture_message_) {
+      // If an exception was caught and rethrow_ is indicated, the saved
+      // message, script, and location need to be restored to Isolate TLS
+      // for reuse.  capture_message_ needs to be disabled so that DoThrow()
+      // does not create a new message.
+      isolate_->thread_local_top()->rethrowing_message_ = true;
+      isolate_->RestorePendingMessageFromTryCatch(this);
+    }
     isolate_->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
+    ASSERT(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
     isolate_->UnregisterTryCatchHandler(this);
   }
@@ -2165,8 +2206,9 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
   ASSERT(isolate_ == i::Isolate::Current());
-  if (HasCaught() && message_ != i::Smi::FromInt(0)) {
-    i::Object* message = reinterpret_cast<i::Object*>(message_);
+  i::Object* message = reinterpret_cast<i::Object*>(message_obj_);
+  ASSERT(message->IsJSMessageObject() || message->IsTheHole());
+  if (HasCaught() && !message->IsTheHole()) {
     return v8::Utils::MessageToLocal(i::Handle<i::Object>(message, isolate_));
   } else {
     return v8::Local<v8::Message>();
@@ -2176,8 +2218,12 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 
 void v8::TryCatch::Reset() {
   ASSERT(isolate_ == i::Isolate::Current());
-  exception_ = isolate_->heap()->the_hole_value();
-  message_ = i::Smi::FromInt(0);
+  i::Object* the_hole = isolate_->heap()->the_hole_value();
+  exception_ = the_hole;
+  message_obj_ = the_hole;
+  message_script_ = the_hole;
+  message_start_pos_ = 0;
+  message_end_pos_ = 0;
 }
 
 
@@ -2916,14 +2962,12 @@ Local<Integer> Value::ToInteger() const {
 }
 
 
-#ifdef V8_ENABLE_CHECKS
-void i::Internals::CheckInitialized(v8::Isolate* external_isolate) {
+void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   ApiCheck(isolate != NULL && isolate->IsInitialized() && !i::V8::IsDead(),
            "v8::internal::Internals::CheckInitialized()",
            "Isolate is not initialized or V8 has died");
 }
-#endif
 
 
 void External::CheckCast(v8::Value* that) {
@@ -3479,7 +3523,7 @@ bool v8::Object::SetPrototype(Handle<Value> value) {
   // to propagate outside.
   TryCatch try_catch;
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::SetPrototype(self, value_obj);
+  i::Handle<i::Object> result = i::JSObject::SetPrototype(self, value_obj);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
@@ -4382,6 +4426,7 @@ bool String::IsOneByte() const {
   return str->HasOnlyOneByteChars();
 }
 
+
 // Helpers for ContainsOnlyOneByteHelper
 template<size_t size> struct OneByteMask;
 template<> struct OneByteMask<4> {
@@ -4395,6 +4440,8 @@ static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;
 static inline bool Unaligned(const uint16_t* chars) {
   return reinterpret_cast<const uintptr_t>(chars) & kAlignmentMask;
 }
+
+
 static inline const uint16_t* Align(const uint16_t* chars) {
   return reinterpret_cast<uint16_t*>(
     reinterpret_cast<uintptr_t>(chars) & ~kAlignmentMask);
@@ -5211,7 +5258,7 @@ bool v8::V8::Initialize() {
   if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
-  return InitializeHelper();
+  return InitializeHelper(isolate);
 }
 
 
@@ -5227,7 +5274,30 @@ void v8::V8::SetReturnAddressLocationResolver(
 
 
 bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  return i::ProfileEntryHookStub::SetFunctionEntryHook(entry_hook);
+  return SetFunctionEntryHook(Isolate::GetCurrent(), entry_hook);
+}
+
+
+bool v8::V8::SetFunctionEntryHook(Isolate* ext_isolate,
+                                  FunctionEntryHook entry_hook) {
+  ASSERT(ext_isolate != NULL);
+  ASSERT(entry_hook != NULL);
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(ext_isolate);
+
+  // The entry hook can only be set before the Isolate is initialized, as
+  // otherwise the Isolate's code stubs generated at initialization won't
+  // contain entry hooks.
+  if (isolate->IsInitialized())
+    return false;
+
+  // Setting an entry hook is a one-way operation, once set, it cannot be
+  // changed or unset.
+  if (isolate->function_entry_hook() != NULL)
+    return false;
+
+  isolate->set_function_entry_hook(entry_hook);
+  return true;
 }
 
 
@@ -6218,6 +6288,7 @@ bool v8::ArrayBuffer::IsExternal() const {
   return Utils::OpenHandle(this)->is_external();
 }
 
+
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   ApiCheck(!obj->is_external(),
@@ -6518,6 +6589,7 @@ v8::AssertNoGCScope::AssertNoGCScope(v8::Isolate* isolate) {
   disallow_heap_allocation_ = new i::DisallowHeapAllocation();
 }
 
+
 v8::AssertNoGCScope::~AssertNoGCScope() {
   delete static_cast<i::DisallowHeapAllocation*>(disallow_heap_allocation_);
 }
@@ -6581,6 +6653,7 @@ void V8::SetCounterFunction(CounterLookupCallback callback) {
   isolate->stats_table()->SetCounterFunction(callback);
 }
 
+
 void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
   i::Isolate* isolate = EnterIsolateIfNeeded();
   if (IsDeadCheck(isolate, "v8::V8::SetCreateHistogramFunction()")) return;
@@ -6588,6 +6661,7 @@ void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
   isolate->InitializeLoggingAndCounters();
   isolate->counters()->ResetHistograms();
 }
+
 
 void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
   i::Isolate* isolate = EnterIsolateIfNeeded();
@@ -6936,6 +7010,7 @@ String::Value::~Value() {
   i::DeleteArray(str_);
 }
 
+
 Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "RangeError");
@@ -6951,6 +7026,7 @@ Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
   i::Handle<i::Object> result(error, isolate);
   return Utils::ToLocal(result);
 }
+
 
 Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -6969,6 +7045,7 @@ Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
   return Utils::ToLocal(result);
 }
 
+
 Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "SyntaxError");
@@ -6985,6 +7062,7 @@ Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
   return Utils::ToLocal(result);
 }
 
+
 Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "TypeError");
@@ -7000,6 +7078,7 @@ Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
   i::Handle<i::Object> result(error, isolate);
   return Utils::ToLocal(result);
 }
+
 
 Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -7287,6 +7366,15 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
 }
 
 
+int CpuProfileNode::GetScriptId() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptId");
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  const i::CodeEntry* entry = node->entry();
+  return entry->script_id();
+}
+
+
 Handle<String> CpuProfileNode::GetScriptResourceName() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptResourceName");
@@ -7365,7 +7453,7 @@ void CpuProfile::Delete() {
   i::CpuProfiler* profiler = isolate->cpu_profiler();
   ASSERT(profiler != NULL);
   profiler->DeleteProfile(reinterpret_cast<i::CpuProfile*>(this));
-  if (profiler->GetProfilesCount() == 0 && !profiler->HasDetachedProfiles()) {
+  if (profiler->GetProfilesCount() == 0) {
     // If this was the last profile, clean up all accessory data as well.
     profiler->DeleteAllProfiles();
   }
@@ -7412,27 +7500,9 @@ int CpuProfiler::GetProfileCount() {
 }
 
 
-const CpuProfile* CpuProfiler::GetCpuProfile(int index,
-                                             Handle<Value> security_token) {
-  return reinterpret_cast<const CpuProfile*>(
-      reinterpret_cast<i::CpuProfiler*>(this)->GetProfile(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          index));
-}
-
-
 const CpuProfile* CpuProfiler::GetCpuProfile(int index) {
   return reinterpret_cast<const CpuProfile*>(
-      reinterpret_cast<i::CpuProfiler*>(this)->GetProfile(NULL, index));
-}
-
-
-const CpuProfile* CpuProfiler::FindCpuProfile(unsigned uid,
-                                              Handle<Value> security_token) {
-  return reinterpret_cast<const CpuProfile*>(
-      reinterpret_cast<i::CpuProfiler*>(this)->FindProfile(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          uid));
+      reinterpret_cast<i::CpuProfiler*>(this)->GetProfile(index));
 }
 
 
@@ -7442,19 +7512,9 @@ void CpuProfiler::StartCpuProfiling(Handle<String> title, bool record_samples) {
 }
 
 
-const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title,
-                                                Handle<Value> security_token) {
-  return reinterpret_cast<const CpuProfile*>(
-      reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          *Utils::OpenHandle(*title)));
-}
-
-
 const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
   return reinterpret_cast<const CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
-          NULL,
           *Utils::OpenHandle(*title)));
 }
 
@@ -7673,12 +7733,6 @@ const HeapSnapshot* HeapProfiler::GetHeapSnapshot(int index) {
 }
 
 
-const HeapSnapshot* HeapProfiler::FindHeapSnapshot(unsigned uid) {
-  return reinterpret_cast<const HeapSnapshot*>(
-      reinterpret_cast<i::HeapProfiler*>(this)->FindSnapshot(uid));
-}
-
-
 SnapshotObjectId HeapProfiler::GetObjectId(Handle<Value> value) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(obj);
@@ -7741,6 +7795,7 @@ v8::Testing::StressType internal::Testing::stress_type_ =
 void Testing::SetStressRunType(Testing::StressType type) {
   internal::Testing::set_stress_type(type);
 }
+
 
 int Testing::GetStressRuns() {
   if (internal::FLAG_stress_runs != 0) return internal::FLAG_stress_runs;

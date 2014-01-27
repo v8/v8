@@ -619,6 +619,7 @@ TEST(7) {
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 1.0), kMaxUInt, true);
 }
 
+
 TEST(8) {
   // Test VFP multi load/store with ia_w.
   CcTest::InitializeVM();

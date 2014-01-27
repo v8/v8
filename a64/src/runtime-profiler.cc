@@ -227,6 +227,8 @@ void RuntimeProfiler::AddSample(JSFunction* function, int weight) {
 void RuntimeProfiler::OptimizeNow() {
   HandleScope scope(isolate_);
 
+  if (isolate_->DebuggerHasBreakPoints()) return;
+
   if (FLAG_parallel_recompilation) {
     // Take this as opportunity to process the optimizing compiler thread's
     // output queue so that it does not unnecessarily keep objects alive.

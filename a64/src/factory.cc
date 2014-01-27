@@ -31,6 +31,7 @@
 #include "debug.h"
 #include "execution.h"
 #include "factory.h"
+#include "isolate-inl.h"
 #include "macro-assembler.h"
 #include "objects.h"
 #include "objects-visiting.h"
@@ -177,12 +178,14 @@ Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
                      String);
 }
 
+
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->InternalizeString(*string),
                      String);
 }
+
 
 Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -516,6 +519,14 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Object> value) {
 }
 
 
+Handle<AllocationSite> Factory::NewAllocationSite() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateAllocationSite(),
+      AllocationSite);
+}
+
+
 Handle<Map> Factory::NewMap(InstanceType type,
                             int instance_size,
                             ElementsKind elements_kind) {
@@ -660,7 +671,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       result->is_compiled() &&
       !function_info->is_toplevel() &&
       function_info->allows_lazy_compilation() &&
-      !function_info->optimization_disabled()) {
+      !function_info->optimization_disabled() &&
+      !isolate()->DebuggerHasBreakPoints()) {
     result->MarkForLazyRecompilation();
   }
   return result;
@@ -1232,6 +1244,7 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
                          *stack_frames),
                      JSMessageObject);
 }
+
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),

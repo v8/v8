@@ -136,8 +136,8 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSTypedArray(
       map->GetHeap(),
       HeapObject::RawField(object,
           JSTypedArray::kWeakNextOffset + kPointerSize),
-      HeapObject::RawField(object, JSTypedArray::kSize));
-  return JSTypedArray::kSize;
+      HeapObject::RawField(object, JSTypedArray::kSizeWithInternalFields));
+  return JSTypedArray::kSizeWithInternalFields;
 }
 
 
@@ -152,8 +152,8 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSDataView(
       map->GetHeap(),
       HeapObject::RawField(object,
           JSDataView::kWeakNextOffset + kPointerSize),
-      HeapObject::RawField(object, JSDataView::kSize));
-  return JSDataView::kSize;
+      HeapObject::RawField(object, JSDataView::kSizeWithInternalFields));
+  return JSDataView::kSizeWithInternalFields;
 }
 
 
@@ -522,7 +522,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSTypedArray(
       map->GetHeap(),
       HeapObject::RawField(object,
         JSTypedArray::kWeakNextOffset + kPointerSize),
-      HeapObject::RawField(object, JSTypedArray::kSize));
+      HeapObject::RawField(object, JSTypedArray::kSizeWithInternalFields));
 }
 
 
@@ -537,7 +537,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSDataView(
       map->GetHeap(),
       HeapObject::RawField(object,
         JSDataView::kWeakNextOffset + kPointerSize),
-      HeapObject::RawField(object, JSDataView::kSize));
+      HeapObject::RawField(object, JSDataView::kSizeWithInternalFields));
 }
 
 

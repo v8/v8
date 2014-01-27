@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
@@ -227,7 +227,30 @@ void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
 }
 
 
+void UnaryOpStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(UnaryOpIC_Miss);
+}
+
+
+void StoreGlobalStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a1, a2, a0 };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(StoreIC_MissFromStubFailure);
+}
+
+
 #define __ ACCESS_MASM(masm)
+
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Label* slow,
@@ -1181,12 +1204,17 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
 
     // Now that we have the types we might as well check for
     // internalized-internalized.
-    // Ensure that no non-strings have the internalized bit set.
-    STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsInternalizedMask);
+    Label not_internalized;
     STATIC_ASSERT(kInternalizedTag != 0);
-    __ And(t2, a2, Operand(a3));
-    __ And(t0, t2, Operand(kIsInternalizedMask));
-    __ Branch(&return_not_equal, ne, t0, Operand(zero_reg));
+    __ And(t2, a2, Operand(kIsNotStringMask | kIsInternalizedMask));
+    __ Branch(&not_internalized, ne, t2,
+        Operand(kInternalizedTag | kStringTag));
+
+    __ And(a3, a3, Operand(kIsNotStringMask | kIsInternalizedMask));
+    __ Branch(&return_not_equal, eq, a3,
+        Operand(kInternalizedTag | kStringTag));
+
+    __ bind(&not_internalized);
 }
 
 
@@ -1220,8 +1248,7 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   ASSERT((lhs.is(a0) && rhs.is(a1)) ||
          (lhs.is(a1) && rhs.is(a0)));
 
-  // a2 is object type of lhs.
-  // Ensure that no non-strings have the internalized bit set.
+  // a2 is object type of rhs.
   Label object_test;
   STATIC_ASSERT(kInternalizedTag != 0);
   __ And(at, a2, Operand(kIsNotStringMask));
@@ -1579,294 +1606,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
   __ MultiPop(kJSCallerSaved | ra.bit());
   __ Ret();
-}
-
-
-void UnaryOpStub::PrintName(StringStream* stream) {
-  const char* op_name = Token::Name(op_);
-  const char* overwrite_name = NULL;  // Make g++ happy.
-  switch (mode_) {
-    case UNARY_NO_OVERWRITE: overwrite_name = "Alloc"; break;
-    case UNARY_OVERWRITE: overwrite_name = "Overwrite"; break;
-  }
-  stream->Add("UnaryOpStub_%s_%s_%s",
-              op_name,
-              overwrite_name,
-              UnaryOpIC::GetName(operand_type_));
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::Generate(MacroAssembler* masm) {
-  switch (operand_type_) {
-    case UnaryOpIC::UNINITIALIZED:
-      GenerateTypeTransition(masm);
-      break;
-    case UnaryOpIC::SMI:
-      GenerateSmiStub(masm);
-      break;
-    case UnaryOpIC::NUMBER:
-      GenerateNumberStub(masm);
-      break;
-    case UnaryOpIC::GENERIC:
-      GenerateGenericStub(masm);
-      break;
-  }
-}
-
-
-void UnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
-  // Argument is in a0 and v0 at this point, so we can overwrite a0.
-  __ li(a2, Operand(Smi::FromInt(op_)));
-  __ li(a1, Operand(Smi::FromInt(mode_)));
-  __ li(a0, Operand(Smi::FromInt(operand_type_)));
-  __ Push(v0, a2, a1, a0);
-
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kUnaryOp_Patch), masm->isolate()), 4, 1);
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::SUB:
-      GenerateSmiStubSub(masm);
-      break;
-    case Token::BIT_NOT:
-      GenerateSmiStubBitNot(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void UnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow);
-  __ bind(&non_smi);
-  __ bind(&slow);
-  GenerateTypeTransition(masm);
-}
-
-
-void UnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
-  Label non_smi;
-  GenerateSmiCodeBitNot(masm, &non_smi);
-  __ bind(&non_smi);
-  GenerateTypeTransition(masm);
-}
-
-
-void UnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
-                                     Label* non_smi,
-                                     Label* slow) {
-  __ JumpIfNotSmi(a0, non_smi);
-
-  // The result of negating zero or the smallest negative smi is not a smi.
-  __ And(t0, a0, ~0x80000000);
-  __ Branch(slow, eq, t0, Operand(zero_reg));
-
-  // Return '0 - value'.
-  __ Ret(USE_DELAY_SLOT);
-  __ subu(v0, zero_reg, a0);
-}
-
-
-void UnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
-                                        Label* non_smi) {
-  __ JumpIfNotSmi(a0, non_smi);
-
-  // Flip bits and revert inverted smi-tag.
-  __ Neg(v0, a0);
-  __ And(v0, v0, ~kSmiTagMask);
-  __ Ret();
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::SUB:
-      GenerateNumberStubSub(masm);
-      break;
-    case Token::BIT_NOT:
-      GenerateNumberStubBitNot(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void UnaryOpStub::GenerateNumberStubSub(MacroAssembler* masm) {
-  Label non_smi, slow, call_builtin;
-  GenerateSmiCodeSub(masm, &non_smi, &call_builtin);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeSub(masm, &slow);
-  __ bind(&slow);
-  GenerateTypeTransition(masm);
-  __ bind(&call_builtin);
-  GenerateGenericCodeFallback(masm);
-}
-
-
-void UnaryOpStub::GenerateNumberStubBitNot(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeBitNot(masm, &non_smi);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeBitNot(masm, &slow);
-  __ bind(&slow);
-  GenerateTypeTransition(masm);
-}
-
-
-void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
-                                            Label* slow) {
-  EmitCheckForHeapNumber(masm, a0, a1, t2, slow);
-  // a0 is a heap number.  Get a new heap number in a1.
-  if (mode_ == UNARY_OVERWRITE) {
-    __ lw(a2, FieldMemOperand(a0, HeapNumber::kExponentOffset));
-    __ Xor(a2, a2, Operand(HeapNumber::kSignMask));  // Flip sign.
-    __ Ret(USE_DELAY_SLOT);
-    __ sw(a2, FieldMemOperand(a0, HeapNumber::kExponentOffset));
-  } else {
-    Label slow_allocate_heapnumber, heapnumber_allocated;
-    __ AllocateHeapNumber(a1, a2, a3, t2, &slow_allocate_heapnumber);
-    __ jmp(&heapnumber_allocated);
-
-    __ bind(&slow_allocate_heapnumber);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(a0);
-      __ CallRuntime(Runtime::kNumberAlloc, 0);
-      __ mov(a1, v0);
-      __ pop(a0);
-    }
-
-    __ bind(&heapnumber_allocated);
-    __ lw(a3, FieldMemOperand(a0, HeapNumber::kMantissaOffset));
-    __ lw(a2, FieldMemOperand(a0, HeapNumber::kExponentOffset));
-    __ sw(a3, FieldMemOperand(a1, HeapNumber::kMantissaOffset));
-    __ Xor(a2, a2, Operand(HeapNumber::kSignMask));  // Flip sign.
-    __ sw(a2, FieldMemOperand(a1, HeapNumber::kExponentOffset));
-    __ Ret(USE_DELAY_SLOT);
-    __ mov(v0, a1);
-  }
-}
-
-
-void UnaryOpStub::GenerateHeapNumberCodeBitNot(
-    MacroAssembler* masm,
-    Label* slow) {
-  Label impossible;
-
-  EmitCheckForHeapNumber(masm, a0, a1, t2, slow);
-  // Convert the heap number in a0 to an untagged integer in a1.
-  __ ConvertToInt32(a0, a1, a2, a3, f0, slow);
-
-  // Do the bitwise operation and check if the result fits in a smi.
-  Label try_float;
-  __ Neg(a1, a1);
-  __ Addu(a2, a1, Operand(0x40000000));
-  __ Branch(&try_float, lt, a2, Operand(zero_reg));
-
-  // Tag the result as a smi and we're done.
-  __ Ret(USE_DELAY_SLOT);  // SmiTag emits one instruction in delay slot.
-  __ SmiTag(v0, a1);
-
-  // Try to store the result in a heap number.
-  __ bind(&try_float);
-  if (mode_ == UNARY_NO_OVERWRITE) {
-    Label slow_allocate_heapnumber, heapnumber_allocated;
-    // Allocate a new heap number without zapping v0, which we need if it fails.
-    __ AllocateHeapNumber(a2, a3, t0, t2, &slow_allocate_heapnumber);
-    __ jmp(&heapnumber_allocated);
-
-    __ bind(&slow_allocate_heapnumber);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(v0);  // Push the heap number, not the untagged int32.
-      __ CallRuntime(Runtime::kNumberAlloc, 0);
-      __ mov(a2, v0);  // Move the new heap number into a2.
-      // Get the heap number into v0, now that the new heap number is in a2.
-      __ pop(v0);
-    }
-
-    // Convert the heap number in v0 to an untagged integer in a1.
-    // This can't go slow-case because it's the same number we already
-    // converted once again.
-    __ ConvertToInt32(v0, a1, a3, t0, f0, &impossible);
-    // Negate the result.
-    __ Xor(a1, a1, -1);
-
-    __ bind(&heapnumber_allocated);
-    __ mov(v0, a2);  // Move newly allocated heap number to v0.
-  }
-
-  // Convert the int32 in a1 to the heap number in v0. a2 is corrupted.
-  __ mtc1(a1, f0);
-  __ cvt_d_w(f0, f0);
-  __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
-  __ Ret();
-
-  __ bind(&impossible);
-  if (FLAG_debug_code) {
-    __ stop("Incorrect assumption in bit-not stub");
-  }
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::SUB:
-      GenerateGenericStubSub(masm);
-      break;
-    case Token::BIT_NOT:
-      GenerateGenericStubBitNot(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void UnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeSub(masm, &slow);
-  __ bind(&slow);
-  GenerateGenericCodeFallback(masm);
-}
-
-
-void UnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeBitNot(masm, &non_smi);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeBitNot(masm, &slow);
-  __ bind(&slow);
-  GenerateGenericCodeFallback(masm);
-}
-
-
-void UnaryOpStub::GenerateGenericCodeFallback(
-    MacroAssembler* masm) {
-  // Handle the slow case by jumping to the JavaScript builtin.
-  __ push(a0);
-  switch (op_) {
-    case Token::SUB:
-      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
-      break;
-    case Token::BIT_NOT:
-      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
-      break;
-    default:
-      UNREACHABLE();
-  }
 }
 
 
@@ -3526,6 +3265,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // sp: stack pointer    (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
   // NOTE: Invocations of builtins may return failure objects
   // instead of a proper result. The builtin entry handles
   // this by performing a garbage collection and retrying the
@@ -3618,6 +3359,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Stack:
   // 4 args slots
   // args
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Save callee saved registers on the stack.
   __ MultiPush(kCalleeSaved | ra.bit());
@@ -5041,11 +4784,15 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Special handling of the Array() function, which caches not only the
   // monomorphic Array function but the initial ElementsKind with special
   // sentinels
-  Handle<Object> terminal_kind_sentinel =
-      TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
-                                                  LAST_FAST_ELEMENTS_KIND);
   __ JumpIfNotSmi(a3, &miss);
-  __ Branch(&miss, gt, a3, Operand(terminal_kind_sentinel));
+  if (FLAG_debug_code) {
+    Handle<Object> terminal_kind_sentinel =
+    TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
+                                                LAST_FAST_ELEMENTS_KIND);
+    __ Assert(le, "Array function sentinel is not an ElementsKind",
+              a3, Operand(terminal_kind_sentinel));
+  }
+
   // Make sure the function is the Array() function
   __ LoadArrayFunction(a3);
   __ Branch(&megamorphic, ne, a1, Operand(a3));
@@ -6612,9 +6359,13 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kInternalizedTag != 0);
-  __ And(tmp1, tmp1, Operand(tmp2));
-  __ And(tmp1, tmp1, kIsInternalizedMask);
-  __ Branch(&miss, eq, tmp1, Operand(zero_reg));
+
+  __ And(tmp1, tmp1, Operand(kIsNotStringMask | kIsInternalizedMask));
+  __ Branch(&miss, ne, tmp1, Operand(kInternalizedTag | kStringTag));
+
+  __ And(tmp2, tmp2, Operand(kIsNotStringMask | kIsInternalizedMask));
+  __ Branch(&miss, ne, tmp2, Operand(kInternalizedTag | kStringTag));
+
   // Make sure a0 is non-zero. At this point input operands are
   // guaranteed to be non-zero.
   ASSERT(right.is(a0));
@@ -6654,17 +6405,8 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
   __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
 
-  Label succeed1;
-  __ And(at, tmp1, Operand(kIsInternalizedMask));
-  __ Branch(&succeed1, ne, at, Operand(zero_reg));
-  __ Branch(&miss, ne, tmp1, Operand(SYMBOL_TYPE));
-  __ bind(&succeed1);
-
-  Label succeed2;
-  __ And(at, tmp2, Operand(kIsInternalizedMask));
-  __ Branch(&succeed2, ne, at, Operand(zero_reg));
-  __ Branch(&miss, ne, tmp2, Operand(SYMBOL_TYPE));
-  __ bind(&succeed2);
+  __ JumpIfNotUniqueName(tmp1, &miss);
+  __ JumpIfNotUniqueName(tmp2, &miss);
 
   // Use a0 as result
   __ mov(v0, a0);
@@ -6727,7 +6469,8 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // Handle not identical strings.
 
   // Check that both strings are internalized strings. If they are, we're done
-  // because we already know they are not identical.
+  // because we already know they are not identical. We know they are both
+  // strings.
   if (equality) {
     ASSERT(GetCondition() == eq);
     STATIC_ASSERT(kInternalizedTag != 0);
@@ -6806,6 +6549,7 @@ void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
   __ bind(&miss);
   GenerateMiss(masm);
 }
+
 
 void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   {
@@ -6932,10 +6676,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
     __ lbu(entity_name,
            FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ And(scratch0, entity_name, Operand(kIsInternalizedMask));
-    __ Branch(&good, ne, scratch0, Operand(zero_reg));
-    __ Branch(miss, ne, entity_name, Operand(SYMBOL_TYPE));
-
+    __ JumpIfNotUniqueName(entity_name, miss);
     __ bind(&good);
 
     // Restore the properties.
@@ -7109,14 +6850,10 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
       // Check if the entry name is not a unique name.
-      Label cont;
       __ lw(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ lbu(entry_key,
              FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ And(result, entry_key, Operand(kIsInternalizedMask));
-      __ Branch(&cont, ne, result, Operand(zero_reg));
-      __ Branch(&maybe_in_dictionary, ne, entry_key, Operand(SYMBOL_TYPE));
-      __ bind(&cont);
+      __ JumpIfNotUniqueName(entry_key, &maybe_in_dictionary);
     }
   }
 
@@ -7143,6 +6880,7 @@ struct AheadOfTimeWriteBarrierStubList {
   Register object, value, address;
   RememberedSetAction action;
 };
+
 
 #define REG(Name) { kRegister_ ## Name ## _Code }
 
@@ -7513,7 +7251,8 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (entry_hook_ != NULL) {
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    AllowStubCallsScope allow_stub_calls(masm, true);
     ProfileEntryHookStub stub;
     __ push(ra);
     __ CallStub(&stub);
@@ -7528,9 +7267,16 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   const int32_t kReturnAddressDistanceFromFunctionStart =
       Assembler::kCallTargetAddressOffset + (2 * Assembler::kInstrSize);
 
-  // Save live volatile registers.
-  __ Push(ra, t1, a1);
-  const int32_t kNumSavedRegs = 3;
+  // This should contain all kJSCallerSaved registers.
+  const RegList kSavedRegs =
+     kJSCallerSaved |  // Caller saved registers.
+     s5.bit();         // Saved stack pointer.
+
+  // We also save ra, so the count here is one higher than the mask indicates.
+  const int32_t kNumSavedRegs = kNumJSCallerSaved + 2;
+
+  // Save all caller-save registers as this may be called from anywhere.
+  __ MultiPush(kSavedRegs | ra.bit());
 
   // Compute the function's address for the first argument.
   __ Subu(a0, ra, Operand(kReturnAddressDistanceFromFunctionStart));
@@ -7542,20 +7288,19 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Align the stack if necessary.
   int frame_alignment = masm->ActivationFrameAlignment();
   if (frame_alignment > kPointerSize) {
-    __ mov(t1, sp);
+    __ mov(s5, sp);
     ASSERT(IsPowerOf2(frame_alignment));
     __ And(sp, sp, Operand(-frame_alignment));
   }
 
 #if defined(V8_HOST_ARCH_MIPS)
-  __ li(at, Operand(reinterpret_cast<int32_t>(&entry_hook_)));
-  __ lw(at, MemOperand(at));
+  int32_t entry_hook =
+      reinterpret_cast<int32_t>(masm->isolate()->function_entry_hook());
+  __ li(at, Operand(entry_hook));
 #else
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
-  Address trampoline_address = reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(EntryHookTrampoline));
-  ApiFunction dispatcher(trampoline_address);
+  ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
   __ li(at, Operand(ExternalReference(&dispatcher,
                                       ExternalReference::BUILTIN_CALL,
                                       masm->isolate())));
@@ -7564,10 +7309,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Restore the stack pointer if needed.
   if (frame_alignment > kPointerSize) {
-    __ mov(sp, t1);
+    __ mov(sp, s5);
   }
 
-  __ Pop(ra, t1, a1);
+  // Also pop ra to get Ret(0).
+  __ MultiPop(kSavedRegs | ra.bit());
   __ Ret();
 }
 
@@ -7621,6 +7367,10 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   __ Addu(a3, a3, Operand(1));
   __ Branch(&normal_sequence, eq, a2, Operand(undefined_sentinel));
 
+  // The type cell may have gone megamorphic, don't overwrite if so.
+  __ lw(t1, FieldMemOperand(a2, kPointerSize));
+  __ JumpIfNotSmi(t1, &normal_sequence);
+
   // Save the resulting elements kind in type info
   __ SmiTag(a3);
   __ sw(a3, FieldMemOperand(a2, kPointerSize));
@@ -7652,7 +7402,7 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
     if (AllocationSiteInfo::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
-      T stub1(kind, true);
+      T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate)->set_is_pregenerated(true);
     }
   }

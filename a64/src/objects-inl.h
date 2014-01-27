@@ -1311,7 +1311,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
       return true;
     }
 
-    return AllocationSiteInfo::GetMode(GetElementsKind()) ==
+    return AllocationSite::GetMode(GetElementsKind()) ==
         TRACK_ALLOCATION_SITE;
   }
   return false;
@@ -1320,7 +1320,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
 
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
-AllocationSiteMode AllocationSiteInfo::GetMode(
+AllocationSiteMode AllocationSite::GetMode(
     ElementsKind boilerplate_elements_kind) {
   if (FLAG_track_allocation_sites &&
       IsFastSmiElementsKind(boilerplate_elements_kind)) {
@@ -1331,8 +1331,8 @@ AllocationSiteMode AllocationSiteInfo::GetMode(
 }
 
 
-AllocationSiteMode AllocationSiteInfo::GetMode(ElementsKind from,
-                                               ElementsKind to) {
+AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
+                                           ElementsKind to) {
   if (FLAG_track_allocation_sites &&
       IsFastSmiElementsKind(from) &&
       (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
@@ -3787,6 +3787,7 @@ int Code::major_key() {
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
          kind() == COMPARE_NIL_IC ||
+         kind() == STORE_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == TO_BOOLEAN_IC);
@@ -4285,6 +4286,7 @@ FixedArray* Map::GetPrototypeTransitions() {
 MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
   MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
   if (allow_prototype->IsFailure()) return allow_prototype;
+  int old_number_of_transitions = NumberOfProtoTransitions();
 #ifdef DEBUG
   if (HasPrototypeTransitions()) {
     ASSERT(GetPrototypeTransitions() != proto_transitions);
@@ -4292,6 +4294,7 @@ MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
   }
 #endif
   transitions()->SetPrototypeTransitions(proto_transitions);
+  SetNumberOfProtoTransitions(old_number_of_transitions);
   return this;
 }
 
@@ -4445,7 +4448,8 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
-ACCESSORS(AllocationSiteInfo, payload, Object, kPayloadOffset)
+ACCESSORS(AllocationSite, payload, Object, kPayloadOffset)
+ACCESSORS(AllocationSiteInfo, allocation_site, Object, kAllocationSiteOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)

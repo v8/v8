@@ -44,12 +44,12 @@ class CompilationInfo;
 class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
-class TokenEnumerator;
 
 #define CODE_EVENTS_TYPE_LIST(V)                                   \
   V(CODE_CREATION,    CodeCreateEventRecord)                       \
   V(CODE_MOVE,        CodeMoveEventRecord)                         \
-  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)
+  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)           \
+  V(REPORT_BUILTIN,   ReportBuiltinEventRecord)
 
 
 class CodeEventRecord {
@@ -63,7 +63,7 @@ class CodeEventRecord {
 #undef DECLARE_TYPE
 
   Type type;
-  unsigned order;
+  mutable unsigned order;
 };
 
 
@@ -96,6 +96,15 @@ class SharedFunctionInfoMoveEventRecord : public CodeEventRecord {
 };
 
 
+class ReportBuiltinEventRecord : public CodeEventRecord {
+ public:
+  Address start;
+  Builtins::Name builtin_id;
+
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
+};
+
+
 class TickSampleEventRecord {
  public:
   // The parameterless constructor is used when we dequeue data from
@@ -122,43 +131,36 @@ class TickSampleEventRecord {
 };
 
 
+class CodeEventsContainer {
+ public:
+  explicit CodeEventsContainer(
+      CodeEventRecord::Type type = CodeEventRecord::NONE) {
+    generic.type = type;
+  }
+  union  {
+    CodeEventRecord generic;
+#define DECLARE_CLASS(ignore, type) type type##_;
+    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
+#undef DECLARE_TYPE
+  };
+};
+
+
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  ProfilerEventsProcessor(ProfileGenerator* generator,
-                          CpuProfilesCollection* profiles);
+  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
   virtual void Run();
-  inline void Stop() { running_ = false; }
+  void StopSynchronously();
   INLINE(bool running()) { return running_; }
+  void Enqueue(const CodeEventsContainer& event);
 
-  // Events adding methods. Called by VM threads.
-  void CallbackCreateEvent(Logger::LogEventsAndTags tag,
-                           const char* prefix, Name* name,
-                           Address start);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Name* name,
-                       String* resource_name, int line_number,
-                       Address start, unsigned size,
-                       Address shared,
-                       CompilationInfo* info);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       const char* name,
-                       Address start, unsigned size);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       int args_count,
-                       Address start, unsigned size);
-  void CodeMoveEvent(Address from, Address to);
-  void CodeDeleteEvent(Address from);
-  void SharedFunctionInfoMoveEvent(Address from, Address to);
-  void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
-                             const char* prefix, String* name,
-                             Address start, unsigned size);
   // Puts current stack into tick sample events buffer.
-  void AddCurrentStack();
+  void AddCurrentStack(Isolate* isolate);
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
@@ -167,26 +169,17 @@ class ProfilerEventsProcessor : public Thread {
   INLINE(TickSample* TickSampleEvent());
 
  private:
-  union CodeEventsContainer {
-    CodeEventRecord generic;
-#define DECLARE_CLASS(ignore, type) type type##_;
-    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
-#undef DECLARE_TYPE
-  };
-
   // Called from events processing thread (Run() method.)
-  bool ProcessCodeEvent(unsigned* dequeue_order);
-  bool ProcessTicks(unsigned dequeue_order);
-
-  INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
+  bool ProcessCodeEvent();
+  bool ProcessTicks();
 
   ProfileGenerator* generator_;
-  CpuProfilesCollection* profiles_;
   bool running_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   SamplingCircularQueue ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  unsigned enqueue_order_;
+  unsigned last_code_event_id_;
+  unsigned last_processed_code_event_id_;
 };
 
 
@@ -204,18 +197,22 @@ class ProfilerEventsProcessor : public Thread {
 class CpuProfiler {
  public:
   explicit CpuProfiler(Isolate* isolate);
+
+  CpuProfiler(Isolate* isolate,
+              CpuProfilesCollection* test_collection,
+              ProfileGenerator* test_generator,
+              ProfilerEventsProcessor* test_processor);
+
   ~CpuProfiler();
 
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
-  CpuProfile* StopProfiling(Object* security_token, String* title);
+  CpuProfile* StopProfiling(String* title);
   int GetProfilesCount();
-  CpuProfile* GetProfile(Object* security_token, int index);
-  CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();
   void DeleteProfile(CpuProfile* profile);
-  bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
   TickSample* TickSampleEvent();
@@ -252,16 +249,19 @@ class CpuProfiler {
     return &is_profiling_;
   }
 
+  ProfileGenerator* generator() const { return generator_; }
+  ProfilerEventsProcessor* processor() const { return processor_; }
+
  private:
   void StartProcessorIfNotStarted();
   void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
+  void LogBuiltins();
 
   Isolate* isolate_;
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
-  TokenEnumerator* token_enumerator_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;

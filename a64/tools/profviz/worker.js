@@ -41,8 +41,13 @@ function log(text) {
 }
 
 
-function display(content) {
-  self.postMessage({ "call" : "display", "args" : content});
+function displayplot(content) {
+  self.postMessage({ "call" : "displayplot", "args" : content});
+}
+
+
+function displayprof(content) {
+  self.postMessage({ "call" : "displayprof", "args" : content});
 }
 
 
@@ -84,13 +89,42 @@ function run(args) {
          content_lines = content.split("\n");
        });
 
+  time("Producing statistical profile",
+       function() {
+         var profile = "";
+         print = function(text) { profile += text + "\n"; };
+         // Dummy entries provider, as we cannot call nm.
+         var entriesProvider = new UnixCppEntriesProvider("", "");
+         var targetRootFS = "";
+         var separateIc = false;
+         var callGraphSize = 5;
+         var ignoreUnknown = true;
+         var stateFilter = null;
+         var snapshotLogProcessor = null;
+         var range = range_start_override + "," + range_end_override;
+
+         var tickProcessor = new TickProcessor(entriesProvider,
+                                               separateIc,
+                                               callGraphSize,
+                                               ignoreUnknown,
+                                               stateFilter,
+                                               snapshotLogProcessor,
+                                               distortion,
+                                               range);
+         for (var i = 0; i < content_lines.length; i++) {
+           tickProcessor.processLogLine(content_lines[i]);
+         }
+         tickProcessor.printStatistics();
+         displayprof(profile);
+       });
+
   var input_file_name = "input_temp";
   var output_file_name = "output.svg";
 
   var psc = new PlotScriptComposer(resx, resy);
   var objects = 0;
 
-  time("Analyzing data (" + content_lines.length + " entries)",
+  time("Collecting events (" + content_lines.length + " entries)",
        function() {
          var line_cursor = 0;
          var input = function() { return content_lines[line_cursor++]; };
@@ -103,7 +137,7 @@ function run(args) {
   time("Assembling plot script",
        function() {
          var plot_script = "";
-         var output = function(output) { plot_script += output + "\n"; };
+         var output = function(text) { plot_script += text + "\n"; };
          output("set terminal svg size " + resx + "," + resy +
                 " enhanced font \"Helvetica,10\"");
          output("set output \""+ output_file_name + "\"");
@@ -115,10 +149,10 @@ function run(args) {
          FS.createDataFile("/", input_file_name, arrc);
        });
 
-  time("Running Gnuplot (" + objects + " objects)",
+  time("Running gnuplot (" + objects + " objects)",
        function() { Module.run([input_file_name]); });
 
-  display(FS.findObject(output_file_name));
+  displayplot(FS.findObject(output_file_name));
 }
 
 
@@ -131,4 +165,3 @@ var Module = {
         self.postMessage({"call": "error", "args": text});
     },
 };
-

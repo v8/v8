@@ -235,17 +235,30 @@ void BreakLocationIterator::FindBreakLocationFromAddress(Address pc) {
 
 
 // Find the break point closest to the supplied source position.
-void BreakLocationIterator::FindBreakLocationFromPosition(int position) {
+void BreakLocationIterator::FindBreakLocationFromPosition(int position,
+    BreakPositionAlignment alignment) {
   // Run through all break points to locate the one closest to the source
   // position.
   int closest_break_point = 0;
   int distance = kMaxInt;
+
   while (!Done()) {
+    int next_position;
+    switch (alignment) {
+    case STATEMENT_ALIGNED:
+      next_position = this->statement_position();
+      break;
+    case BREAK_POSITION_ALIGNED:
+      next_position = this->position();
+      break;
+    default:
+      UNREACHABLE();
+      next_position = this->statement_position();
+    }
     // Check if this break point is closer that what was previously found.
-    if (position <= statement_position() &&
-        statement_position() - position < distance) {
+    if (position <= next_position && next_position - position < distance) {
       closest_break_point = break_point();
-      distance = statement_position() - position;
+      distance = next_position - position;
       // Check whether we can't get any closer.
       if (distance == 0) break;
     }
@@ -1190,7 +1203,7 @@ void Debug::SetBreakPoint(Handle<JSFunction> function,
 
   // Find the break point and change it.
   BreakLocationIterator it(debug_info, SOURCE_BREAK_LOCATIONS);
-  it.FindBreakLocationFromPosition(*source_position);
+  it.FindBreakLocationFromPosition(*source_position, STATEMENT_ALIGNED);
   it.SetBreakPoint(break_point_object);
 
   *source_position = it.position();
@@ -1202,7 +1215,8 @@ void Debug::SetBreakPoint(Handle<JSFunction> function,
 
 bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    Handle<Object> break_point_object,
-                                   int* source_position) {
+                                   int* source_position,
+                                   BreakPositionAlignment alignment) {
   HandleScope scope(isolate_);
 
   PrepareForBreakPoints();
@@ -1233,7 +1247,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 
   // Find the break point and change it.
   BreakLocationIterator it(debug_info, SOURCE_BREAK_LOCATIONS);
-  it.FindBreakLocationFromPosition(position);
+  it.FindBreakLocationFromPosition(position, alignment);
   it.SetBreakPoint(break_point_object);
 
   *source_position = it.position() + shared->start_position();
@@ -1687,7 +1701,8 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
 
 // Simple function for returning the source positions for active break points.
 Handle<Object> Debug::GetSourceBreakLocations(
-    Handle<SharedFunctionInfo> shared) {
+    Handle<SharedFunctionInfo> shared,
+    BreakPositionAlignment position_alignment) {
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
   if (!HasDebugInfo(shared)) {
@@ -1705,7 +1720,20 @@ Handle<Object> Debug::GetSourceBreakLocations(
       BreakPointInfo* break_point_info =
           BreakPointInfo::cast(debug_info->break_points()->get(i));
       if (break_point_info->GetBreakPointCount() > 0) {
-        locations->set(count++, break_point_info->statement_position());
+        Smi* position;
+        switch (position_alignment) {
+        case STATEMENT_ALIGNED:
+          position = break_point_info->statement_position();
+          break;
+        case BREAK_POSITION_ALIGNED:
+          position = break_point_info->source_position();
+          break;
+        default:
+          UNREACHABLE();
+          position = break_point_info->statement_position();
+        }
+
+        locations->set(count++, position);
       }
     }
   }
@@ -1782,6 +1810,7 @@ void Debug::ClearStepping() {
   // Clear multiple step counter.
   thread_local_.step_count_ = 0;
 }
+
 
 // Clears all the one-shot break points that are currently set. Normally this
 // function is called each time a break point is hit as one shot break points
@@ -2060,13 +2089,30 @@ void Debug::PrepareForBreakPoints() {
         if (obj->IsJSFunction()) {
           JSFunction* function = JSFunction::cast(obj);
           SharedFunctionInfo* shared = function->shared();
-          if (shared->allows_lazy_compilation() &&
-              shared->script()->IsScript() &&
-              function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots() &&
-              shared->code()->gc_metadata() != active_code_marker) {
+
+          if (!shared->allows_lazy_compilation()) continue;
+          if (!shared->script()->IsScript()) continue;
+          if (shared->code()->gc_metadata() == active_code_marker) continue;
+
+          Code::Kind kind = function->code()->kind();
+          if (kind == Code::FUNCTION &&
+              !function->code()->has_debug_break_slots()) {
             function->set_code(*lazy_compile);
             function->shared()->set_code(*lazy_compile);
+          } else if (kind == Code::BUILTIN &&
+              (function->IsMarkedForInstallingRecompiledCode() ||
+               function->IsInRecompileQueue() ||
+               function->IsMarkedForLazyRecompilation() ||
+               function->IsMarkedForParallelRecompilation())) {
+            // Abort in-flight compilation.
+            Code* shared_code = function->shared()->code();
+            if (shared_code->kind() == Code::FUNCTION &&
+                shared_code->has_debug_break_slots()) {
+              function->set_code(shared_code);
+            } else {
+              function->set_code(*lazy_compile);
+              function->shared()->set_code(*lazy_compile);
+            }
           }
         }
       }

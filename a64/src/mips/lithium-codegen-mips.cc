@@ -1675,13 +1675,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->value());
-  __ lw(result, FieldMemOperand(array, FixedArrayBase::kLengthOffset));
-}
-
-
 void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
   Register result = ToRegister(instr->result());
   Register map = ToRegister(instr->value());
@@ -1978,11 +1971,11 @@ int LCodeGen::GetNextEmittedBlock() const {
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr,
                           Condition cc, Register src1, const Operand& src2) {
-  int right_block = instr->FalseDestination(chunk_);
   int left_block = instr->TrueDestination(chunk_);
+  int right_block = instr->FalseDestination(chunk_);
 
   int next_block = GetNextEmittedBlock();
-  if (right_block == left_block) {
+  if (right_block == left_block || cc == al) {
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ Branch(chunk_->GetAssemblyLabel(right_block),
@@ -2019,6 +2012,25 @@ void LCodeGen::EmitBranchF(InstrType instr,
 
 void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
   __ stop("LDebugBreak");
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    EmitBranch(instr, al, zero_reg, Operand(zero_reg));
+  } else {
+    ASSERT(r.IsTagged());
+    Register reg = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      EmitBranch(instr, al, zero_reg, Operand(zero_reg));
+    }
+    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
+    __ lw(scratch0(), FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
+    EmitBranch(instr, eq, scratch0(), Operand(at));
+  }
 }
 
 
@@ -2190,7 +2202,7 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 }
 
 
-void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
+void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   Condition cond = TokenToCondition(instr->op(), false);
@@ -3367,6 +3379,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ bind(&receiver_ok);
 }
 
+
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
@@ -3893,6 +3906,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   __ sub_d(f0, f12, f14);
 }
 
+
 void LCodeGen::DoDeferredRandom(LRandom* instr) {
   __ PrepareCallCFunction(1, scratch0());
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
@@ -4049,11 +4063,14 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   __ li(a0, Operand(instr->arity()));
   __ li(a2, Operand(instr->hydrogen()->property_cell()));
   ElementsKind kind = instr->hydrogen()->elements_kind();
-  bool disable_allocation_sites =
-      (AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
+  AllocationSiteOverrideMode override_mode =
+      (AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE)
+          ? DISABLE_ALLOCATION_SITES
+          : DONT_OVERRIDE;
+  ContextCheckMode context_mode = CONTEXT_CHECK_NOT_REQUIRED;
 
   if (instr->arity() == 0) {
-    ArrayNoArgumentConstructorStub stub(kind, disable_allocation_sites);
+    ArrayNoArgumentConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else if (instr->arity() == 1) {
     Label done;
@@ -4065,18 +4082,18 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       __ Branch(&packed_case, eq, t1, Operand(zero_reg));
 
       ElementsKind holey_kind = GetHoleyElementsKind(kind);
-      ArraySingleArgumentConstructorStub stub(holey_kind,
-                                              disable_allocation_sites);
+      ArraySingleArgumentConstructorStub stub(holey_kind, context_mode,
+                                              override_mode);
       CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
       __ jmp(&done);
       __ bind(&packed_case);
     }
 
-    ArraySingleArgumentConstructorStub stub(kind, disable_allocation_sites);
+    ArraySingleArgumentConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
     __ bind(&done);
   } else {
-    ArrayNArgumentsConstructorStub stub(kind, disable_allocation_sites);
+    ArrayNArgumentsConstructorStub stub(kind, context_mode, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   }
 }

@@ -66,6 +66,14 @@ class Zone {
   template <typename T>
   inline T* NewArray(int length);
 
+  // Deletes all objects and free all memory allocated in the Zone. Keeps one
+  // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
+  void DeleteAll();
+
+  // Deletes the last small segment kept around by DeleteAll(). You
+  // may no longer allocate in the Zone after a call to this method.
+  void DeleteKeptSegment();
+
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   inline bool excess_allocation();
@@ -90,6 +98,9 @@ class Zone {
   // Never allocate segments larger than this size in bytes.
   static const int kMaximumSegmentSize = 1 * MB;
 
+  // Never keep segments larger than this size in bytes around.
+  static const int kMaximumKeptSegmentSize = 64 * KB;
+
   // Report zone excess when allocation exceeds this limit.
   static const int kExcessLimit = 256 * MB;
 
@@ -109,10 +120,10 @@ class Zone {
 
   // Creates a new segment, sets it size, and pushes it to the front
   // of the segment chain. Returns the new segment.
-  Segment* NewSegment(int size);
+  INLINE(Segment* NewSegment(int size));
 
   // Deletes the given segment. Does not touch the segment chain.
-  void DeleteSegment(Segment* segment, int size);
+  INLINE(void DeleteSegment(Segment* segment, int size));
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
@@ -142,6 +153,20 @@ class ZoneObject {
   // Zone::DeleteAll() to delete all zone objects in one go.
   void operator delete(void*, size_t) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
+};
+
+
+// The ZoneScope is used to automatically call DeleteAll() on a
+// Zone when the ZoneScope is destroyed (i.e. goes out of scope)
+struct ZoneScope {
+ public:
+  explicit ZoneScope(Zone* zone) : zone_(zone) { }
+  ~ZoneScope() { zone_->DeleteAll(); }
+
+  Zone* zone() { return zone_; }
+
+ private:
+  Zone* zone_;
 };
 
 

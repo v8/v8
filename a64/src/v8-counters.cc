@@ -78,6 +78,7 @@ Counters::Counters(Isolate* isolate) {
 #undef SC
 }
 
+
 void Counters::ResetHistograms() {
 #define HT(name, caption) name##_.Reset();
     HISTOGRAM_TIMER_LIST(HT)

@@ -253,7 +253,7 @@ class StackGuard {
   void EnableInterrupts();
   void DisableInterrupts();
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_A64)
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_A64
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
   static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else

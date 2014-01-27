@@ -952,6 +952,7 @@ TEST(eor) {
   TEARDOWN();
 }
 
+
 TEST(eor_extend) {
   SETUP();
 
@@ -3479,6 +3480,7 @@ TEST(adc_sbc_wide_imm) {
 
   TEARDOWN();
 }
+
 
 TEST(flags) {
   SETUP();
@@ -6491,6 +6493,7 @@ TEST(fcvtzs) {
 
   TEARDOWN();
 }
+
 
 TEST(fcvtzu) {
   SETUP();
