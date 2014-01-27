@@ -521,6 +521,7 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   Handle<JSFunction> function = optimization.constant_function();
   __ Move(scratch2, function);
   __ push(scratch2);
+  __ movp(rsi, FieldOperand(scratch2, JSFunction::kContextOffset));
 
   Isolate* isolate = masm->isolate();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
