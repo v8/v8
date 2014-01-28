@@ -39,13 +39,10 @@ class HRangeAnalysisPhase : public HPhase {
   explicit HRangeAnalysisPhase(HGraph* graph)
       : HPhase("H_Range analysis", graph), changed_ranges_(16, zone()) { }
 
-  void Run() {
-    Analyze(graph()->entry_block());
-  }
+  void Run();
 
  private:
   void TraceRange(const char* msg, ...);
-  void Analyze(HBasicBlock* block);
   void InferControlFlowRange(HCompareNumericAndBranch* test,
                              HBasicBlock* dest);
   void UpdateControlFlowRange(Token::Value op, HValue* value, HValue* other);

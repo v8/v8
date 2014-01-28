@@ -105,7 +105,6 @@ void LCallNewArray::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   constructor()->PrintTo(stream);
   stream->Add(" #%d / ", arity());
-  ASSERT(hydrogen()->property_cell()->value()->IsSmi());
   ElementsKind kind = hydrogen()->elements_kind();
   stream->Add(" (%s) ", ElementsKindToString(kind));
 }
@@ -879,14 +878,6 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
   LAllocate* result = new(zone()) LAllocate(size, temp1, temp2);
-  return AssignPointerMap(DefineAsRegister(result));
-}
-
-
-LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
-  info()->MarkAsDeferredCalling();
-  LAllocateObject* result =
-      new(zone()) LAllocateObject(TempRegister(), TempRegister());
   return AssignPointerMap(DefineAsRegister(result));
 }
 

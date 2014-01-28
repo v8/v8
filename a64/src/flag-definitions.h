@@ -195,6 +195,9 @@ DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenuring, true, "allocate objects in old space")
+// TODO(hpayer): We will remove this flag as soon as we have pretenuring
+// support for specific allocation sites.
+DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
@@ -215,6 +218,7 @@ DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
+DEFINE_bool(use_allocation_folding, true, "use allocation folding")
 DEFINE_int(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")
 DEFINE_int(max_inlined_nodes, 196,
@@ -236,6 +240,7 @@ DEFINE_bool(trace_range, false, "trace range analysis")
 DEFINE_bool(trace_gvn, false, "trace global value numbering")
 DEFINE_bool(trace_representation, false, "trace representation types")
 DEFINE_bool(trace_escape_analysis, false, "trace hydrogen escape analysis")
+DEFINE_bool(trace_allocation_folding, false, "trace allocation folding")
 DEFINE_bool(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
 DEFINE_bool(trace_migration, false, "trace object migration")
@@ -348,6 +353,8 @@ DEFINE_bool(enable_vfp3, ENABLE_VFP3_DEFAULT,
             "enable use of VFP3 instructions if available")
 DEFINE_bool(enable_armv7, ENABLE_ARMV7_DEFAULT,
             "enable use of ARMv7 instructions if available (ARM only)")
+DEFINE_bool(enable_neon, true,
+            "enable use of NEON instructions if available (ARM only)")
 DEFINE_bool(enable_sudiv, true,
             "enable use of SDIV and UDIV instructions if available (ARM only)")
 DEFINE_bool(enable_movw_movt, false,

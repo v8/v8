@@ -137,8 +137,6 @@ void DispatchDebugMessages() {
 
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::V8::SetFlagsFromString("--noenable_i18n",
-                             static_cast<int>(strlen("--noenable_i18n")));
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);
 
@@ -326,6 +324,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
 
 
 int main(int argc, char* argv[]) {
+  v8::V8::InitializeICU();
   int result = RunMain(argc, argv);
   v8::V8::Dispose();
   return result;

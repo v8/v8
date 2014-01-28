@@ -66,7 +66,6 @@ class LChunkBuilder;
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(Allocate)                                  \
-  V(AllocateObject)                            \
   V(ApplyArguments)                            \
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
@@ -790,7 +789,7 @@ class HValue: public ZoneObject {
     // occurrences of the instruction are indeed the same.
     kUseGVN,
     // Track instructions that are dominating side effects. If an instruction
-    // sets this flag, it must implement SetSideEffectDominator() and should
+    // sets this flag, it must implement HandleSideEffectDominator() and should
     // indicate which side effects to track by setting GVN flags.
     kTrackSideEffectDominators,
     kCanOverflow,
@@ -1109,7 +1108,8 @@ class HValue: public ZoneObject {
   // This function must be overridden for instructions which have the
   // kTrackSideEffectDominators flag set, to track instructions that are
   // dominating side effects.
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     UNREACHABLE();
   }
 
@@ -2774,7 +2774,8 @@ class HCheckMaps: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator);
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator);
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
@@ -4950,48 +4951,6 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
-class HAllocateObject: public HTemplateInstruction<1> {
- public:
-  HAllocateObject(HValue* context, Handle<JSFunction> constructor)
-      : constructor_(constructor) {
-    SetOperandAt(0, context);
-    set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesNewSpacePromotion);
-    constructor_initial_map_ = constructor->has_initial_map()
-        ? Handle<Map>(constructor->initial_map())
-        : Handle<Map>::null();
-    // If slack tracking finished, the instance size and property counts
-    // remain unchanged so that we can allocate memory for the object.
-    ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
-  }
-
-  // Maximum instance size for which allocations will be inlined.
-  static const int kMaxSize = 64 * kPointerSize;
-
-  HValue* context() { return OperandAt(0); }
-  Handle<JSFunction> constructor() { return constructor_; }
-  Handle<Map> constructor_initial_map() { return constructor_initial_map_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
-    ASSERT(!constructor_initial_map_.is_null());
-    return constructor_initial_map_;
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
-
- private:
-  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  //  virtual bool IsDeletable() const { return true; }
-
-  Handle<JSFunction> constructor_;
-  Handle<Map> constructor_initial_map_;
-};
-
-
 class HAllocate: public HTemplateInstruction<2> {
  public:
   enum Flags {
@@ -5007,8 +4966,13 @@ class HAllocate: public HTemplateInstruction<2> {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
+    SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
+    SetGVNFlag(kDependsOnNewSpacePromotion);
   }
+
+  // Maximum instance size for which allocations will be inlined.
+  static const int kMaxInlineSize = 64 * kPointerSize;
 
   static Flags DefaultFlags() {
     return CAN_ALLOCATE_IN_NEW_SPACE;
@@ -5025,6 +4989,7 @@ class HAllocate: public HTemplateInstruction<2> {
 
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
+  HType type() { return type_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     if (index == 0) {
@@ -5032,6 +4997,14 @@ class HAllocate: public HTemplateInstruction<2> {
     } else {
       return Representation::Integer32();
     }
+  }
+
+  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+    return known_initial_map_;
+  }
+
+  void set_known_initial_map(Handle<Map> known_initial_map) {
+    known_initial_map_ = known_initial_map;
   }
 
   virtual HType CalculateInferredType();
@@ -5061,6 +5034,13 @@ class HAllocate: public HTemplateInstruction<2> {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
   }
 
+  void UpdateSize(HValue* size) {
+    SetOperandAt(1, size);
+  }
+
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator);
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
@@ -5068,13 +5048,15 @@ class HAllocate: public HTemplateInstruction<2> {
  private:
   HType type_;
   Flags flags_;
+  Handle<Map> known_initial_map_;
 };
 
 
 class HInnerAllocatedObject: public HTemplateInstruction<1> {
  public:
-  HInnerAllocatedObject(HValue* value, int offset)
-      : offset_(offset) {
+  HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
+      : offset_(offset),
+        type_(type) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
     set_representation(Representation::Tagged());
@@ -5087,12 +5069,15 @@ class HInnerAllocatedObject: public HTemplateInstruction<1> {
     return Representation::Tagged();
   }
 
+  virtual HType CalculateInferredType() { return type_; }
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
 
  private:
   int offset_;
+  HType type_;
 };
 
 
@@ -5114,7 +5099,6 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
     return false;
   }
   if (object != new_space_dominator) return true;
-  if (object->IsAllocateObject()) return false;
   if (object->IsAllocate()) {
     return !HAllocate::cast(object)->GuaranteedInNewSpace();
   }
@@ -5815,7 +5799,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     }
     return Representation::Tagged();
   }
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
   }
@@ -6017,7 +6002,8 @@ class HStoreKeyed
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
   }
 
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
   }

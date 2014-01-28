@@ -551,7 +551,9 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
   // No accessible property found.
   *attributes = ABSENT;
   Heap* heap = name->GetHeap();
-  heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_GET);
+  Isolate* isolate = heap->isolate();
+  isolate->ReportFailedAccessCheck(this, v8::ACCESS_GET);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return heap->undefined_value();
 }
 
@@ -925,6 +927,7 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
       Isolate* isolate = heap->isolate();
       if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
         isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_GET);
+        RETURN_IF_SCHEDULED_EXCEPTION(isolate);
         return heap->undefined_value();
       }
     }
@@ -3243,7 +3246,6 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return result->NotFound();
     ASSERT(proto->IsJSGlobalObject());
-    // A GlobalProxy's prototype should always be a proper JSObject.
     return JSObject::cast(proto)->LocalLookupRealNamedProperty(name, result);
   }
 
@@ -3365,6 +3367,7 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
   HandleScope scope(isolate);
   Handle<Object> value_handle(value, isolate);
   isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value_handle;
 }
 
@@ -4015,7 +4018,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   Handle<Object> old_value(isolate->heap()->the_hole_value(), isolate);
   PropertyAttributes old_attributes = ABSENT;
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
-  if (is_observed) {
+  if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) old_value = Object::GetProperty(self, name);
     old_attributes = lookup.GetAttributes();
   }
@@ -5060,6 +5063,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   if (IsAccessCheckNeeded() &&
       !isolate->MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
   }
 
@@ -5137,6 +5141,7 @@ MaybeObject* JSObject::DeleteProperty(Name* name, DeleteMode mode) {
   if (IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(this, name, v8::ACCESS_DELETE)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
   }
 
@@ -5367,6 +5372,7 @@ MaybeObject* JSObject::PreventExtensions() {
                                isolate->heap()->undefined_value(),
                                v8::ACCESS_KEYS)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
   }
 
@@ -5445,6 +5451,7 @@ MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
                                heap->undefined_value(),
                                v8::ACCESS_KEYS)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return heap->false_value();
   }
 
@@ -5547,6 +5554,40 @@ MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
   }
 
   return this;
+}
+
+
+MUST_USE_RESULT MaybeObject* JSObject::SetObserved(Isolate* isolate) {
+  if (map()->is_observed())
+    return isolate->heap()->undefined_value();
+
+  Heap* heap = isolate->heap();
+
+  if (!HasExternalArrayElements()) {
+    // Go to dictionary mode, so that we don't skip map checks.
+    MaybeObject* maybe = NormalizeElements();
+    if (maybe->IsFailure()) return maybe;
+    ASSERT(!HasFastElements());
+  }
+
+  LookupResult result(isolate);
+  map()->LookupTransition(this, heap->observed_symbol(), &result);
+
+  Map* new_map;
+  if (result.IsTransition()) {
+    new_map = result.GetTransitionTarget();
+    ASSERT(new_map->is_observed());
+  } else if (map()->CanHaveMoreTransitions()) {
+    MaybeObject* maybe_new_map = map()->CopyForObserved();
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  } else {
+    MaybeObject* maybe_copy = map()->Copy();
+    if (!maybe_copy->To(&new_map)) return maybe_copy;
+    new_map->set_is_observed(true);
+  }
+  set_map(new_map);
+
+  return heap->undefined_value();
 }
 
 
@@ -6258,6 +6299,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
   if (IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(this, name, v8::ACCESS_SET)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->undefined_value();
   }
 
@@ -6333,7 +6375,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 }
 
 
-Object* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
+MaybeObject* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
   Heap* heap = GetHeap();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -6344,6 +6386,7 @@ Object* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
   if (IsAccessCheckNeeded() &&
       !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
     heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+    RETURN_IF_SCHEDULED_EXCEPTION(heap->isolate());
     return heap->undefined_value();
   }
 
@@ -6667,6 +6710,39 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
     new_map->SetBackPointer(this);
   }
 
+  return new_map;
+}
+
+
+MaybeObject* Map::CopyForObserved() {
+  ASSERT(!is_observed());
+
+  // In case the map owned its own descriptors, share the descriptors and
+  // transfer ownership to the new map.
+  Map* new_map;
+  MaybeObject* maybe_new_map;
+  if (owns_descriptors()) {
+    maybe_new_map = CopyDropDescriptors();
+  } else {
+    maybe_new_map = Copy();
+  }
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions = AddTransition(GetHeap()->observed_symbol(),
+                                                 new_map,
+                                                 FULL_TRANSITION);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  set_transitions(transitions);
+
+  new_map->set_is_observed(true);
+
+  if (owns_descriptors()) {
+    new_map->InitializeDescriptors(instance_descriptors());
+    set_owns_descriptors(false);
+  }
+
+  new_map->SetBackPointer(this);
   return new_map;
 }
 
@@ -9976,20 +10052,6 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
 }
 
 
-byte Code::compare_nil_state() {
-  ASSERT(is_compare_nil_ic_stub());
-  return CompareNilICStub::ExtractTypesFromExtraICState(
-      extended_extra_ic_state());
-}
-
-
-byte Code::compare_nil_value() {
-  ASSERT(is_compare_nil_ic_stub());
-  return CompareNilICStub::ExtractNilValueFromExtraICState(
-      extended_extra_ic_state());
-}
-
-
 void Code::InvalidateRelocation() {
   set_relocation_info(GetHeap()->empty_byte_array());
 }
@@ -12080,6 +12142,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   if (IsAccessCheckNeeded()) {
     if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_SET)) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return value_raw;
     }
   }
@@ -12318,6 +12381,10 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   if (site->IsLiteralSite()) {
     JSArray* transition_info = JSArray::cast(site->transition_info());
     ElementsKind kind = transition_info->GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
     if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
@@ -12336,6 +12403,10 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     }
   } else {
     ElementsKind kind = site->GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
     if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
       if (FLAG_trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
@@ -12819,6 +12890,13 @@ bool JSObject::HasRealElementProperty(Isolate* isolate, uint32_t index) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
       return false;
     }
+  }
+
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return false;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->HasRealElementProperty(isolate, index);
   }
 
   return GetElementAttributeWithoutInterceptor(this, index, false) != ABSENT;

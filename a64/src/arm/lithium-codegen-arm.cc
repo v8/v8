@@ -161,9 +161,7 @@ bool LCodeGen::GeneratePrologue() {
       // The following three instructions must remain together and unmodified
       // for code aging to work properly.
       __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-      // Load undefined value here, so the value is ready for the loop
-      // below.
-      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      __ nop(ip.code());
       // Adjust FP to point to saved FP.
       __ add(fp, sp, Operand(2 * kPointerSize));
     }
@@ -343,8 +341,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
   }
   Label table_start;
   __ bind(&table_start);
-  Label needs_frame_not_call;
-  Label needs_frame_is_call;
+  Label needs_frame;
   for (int i = 0; i < deopt_jump_table_.length(); i++) {
     __ bind(&deopt_jump_table_[i].label);
     Address entry = deopt_jump_table_[i].address;
@@ -357,45 +354,24 @@ bool LCodeGen::GenerateDeoptJumpTable() {
     }
     if (deopt_jump_table_[i].needs_frame) {
       __ mov(ip, Operand(ExternalReference::ForDeoptEntry(entry)));
-      if (type == Deoptimizer::LAZY) {
-        if (needs_frame_is_call.is_bound()) {
-          __ b(&needs_frame_is_call);
-        } else {
-          __ bind(&needs_frame_is_call);
-          __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          ASSERT(info()->IsStub());
-          __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
-          __ push(scratch0());
-          __ add(fp, sp, Operand(2 * kPointerSize));
-          __ mov(lr, Operand(pc), LeaveCC, al);
-          __ mov(pc, ip);
-        }
+      if (needs_frame.is_bound()) {
+        __ b(&needs_frame);
       } else {
-        if (needs_frame_not_call.is_bound()) {
-          __ b(&needs_frame_not_call);
-        } else {
-          __ bind(&needs_frame_not_call);
-          __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          ASSERT(info()->IsStub());
-          __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
-          __ push(scratch0());
-          __ add(fp, sp, Operand(2 * kPointerSize));
-          __ mov(pc, ip);
-        }
+        __ bind(&needs_frame);
+        __ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+        // This variant of deopt can only be used with stubs. Since we don't
+        // have a function pointer to install in the stack frame that we're
+        // building, install a special marker there instead.
+        ASSERT(info()->IsStub());
+        __ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
+        __ push(scratch0());
+        __ add(fp, sp, Operand(2 * kPointerSize));
+        __ mov(lr, Operand(pc), LeaveCC, al);
+        __ mov(pc, ip);
       }
     } else {
-      if (type == Deoptimizer::LAZY) {
-        __ mov(lr, Operand(pc), LeaveCC, al);
-        __ mov(pc, Operand(ExternalReference::ForDeoptEntry(entry)));
-      } else {
-        __ mov(pc, Operand(ExternalReference::ForDeoptEntry(entry)));
-      }
+      __ mov(lr, Operand(pc), LeaveCC, al);
+      __ mov(pc, Operand(ExternalReference::ForDeoptEntry(entry)));
     }
     masm()->CheckConstPool(false, false);
   }
@@ -794,7 +770,8 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   if (FLAG_deopt_every_n_times == 1 &&
       !info()->IsStub() &&
       info()->opt_count() == id) {
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    ASSERT(frame_is_built_);
+    __ Call(entry, RelocInfo::RUNTIME_ENTRY);
     return;
   }
 
@@ -803,13 +780,8 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
-  bool needs_lazy_deopt = info()->IsStub();
   if (cc == al && frame_is_built_) {
-    if (needs_lazy_deopt) {
-      __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    } else {
-      __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
-    }
+    __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
@@ -5337,80 +5309,6 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
       DoCheckMapCommon(map_reg, maps->at(i), instr->environment());
     }
   }
-}
-
-
-void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
-  class DeferredAllocateObject: public LDeferredCode {
-   public:
-    DeferredAllocateObject(LCodeGen* codegen, LAllocateObject* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() { codegen()->DoDeferredAllocateObject(instr_); }
-    virtual LInstruction* instr() { return instr_; }
-   private:
-    LAllocateObject* instr_;
-  };
-
-  DeferredAllocateObject* deferred =
-      new(zone()) DeferredAllocateObject(this, instr);
-
-  Register result = ToRegister(instr->result());
-  Register scratch = ToRegister(instr->temp());
-  Register scratch2 = ToRegister(instr->temp2());
-  Handle<JSFunction> constructor = instr->hydrogen()->constructor();
-  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
-  int instance_size = initial_map->instance_size();
-  ASSERT(initial_map->pre_allocated_property_fields() +
-         initial_map->unused_property_fields() -
-         initial_map->inobject_properties() == 0);
-
-  __ Allocate(instance_size, result, scratch, scratch2, deferred->entry(),
-              TAG_OBJECT);
-
-  __ bind(deferred->exit());
-  if (FLAG_debug_code) {
-    Label is_in_new_space;
-    __ JumpIfInNewSpace(result, scratch, &is_in_new_space);
-    __ Abort("Allocated object is not in new-space");
-    __ bind(&is_in_new_space);
-  }
-
-  // Load the initial map.
-  Register map = scratch;
-  __ LoadHeapObject(map, constructor);
-  __ ldr(map, FieldMemOperand(map, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // Initialize map and fields of the newly allocated object.
-  ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
-  __ str(map, FieldMemOperand(result, JSObject::kMapOffset));
-  __ LoadRoot(scratch, Heap::kEmptyFixedArrayRootIndex);
-  __ str(scratch, FieldMemOperand(result, JSObject::kElementsOffset));
-  __ str(scratch, FieldMemOperand(result, JSObject::kPropertiesOffset));
-  if (initial_map->inobject_properties() != 0) {
-    __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-    for (int i = 0; i < initial_map->inobject_properties(); i++) {
-      int property_offset = JSObject::kHeaderSize + i * kPointerSize;
-      __ str(scratch, FieldMemOperand(result, property_offset));
-    }
-  }
-}
-
-
-void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
-  Register result = ToRegister(instr->result());
-  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
-  int instance_size = initial_map->instance_size();
-
-  // TODO(3095996): Get rid of this. For now, we need to make the
-  // result register contain a valid pointer because it is already
-  // contained in the register pointer map.
-  __ mov(result, Operand::Zero());
-
-  PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-  __ mov(r0, Operand(Smi::FromInt(instance_size)));
-  __ push(r0);
-  CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
-  __ StoreToSafepointRegisterSlot(r0, result);
 }
 
 

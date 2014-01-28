@@ -45,6 +45,82 @@
 namespace v8 {
 namespace internal {
 
+
+// Low-level logging support.
+class LowLevelLogger {
+ public:
+  explicit LowLevelLogger(const char* file_name);
+  ~LowLevelLogger();
+
+  void CodeCreateEvent(Code* code, const char* name, int name_size);
+  void CodeMoveEvent(Address from, Address to);
+  void CodeDeleteEvent(Address from);
+  void SnapshotPositionEvent(Address addr, int pos);
+  void CodeMovingGCEvent();
+
+ private:
+  // Low-level profiling event structures.
+
+  struct CodeCreateStruct {
+    static const char kTag = 'C';
+
+    int32_t name_size;
+    Address code_address;
+    int32_t code_size;
+  };
+
+
+  struct CodeMoveStruct {
+    static const char kTag = 'M';
+
+    Address from_address;
+    Address to_address;
+  };
+
+
+  struct CodeDeleteStruct {
+    static const char kTag = 'D';
+
+    Address address;
+  };
+
+
+  struct SnapshotPositionStruct {
+    static const char kTag = 'P';
+
+    Address address;
+    int32_t position;
+  };
+
+
+  static const char kCodeMovingGCTag = 'G';
+
+
+  // Extension added to V8 log file name to get the low-level log name.
+  static const char kLogExt[];
+
+  // File buffer size of the low-level log. We don't use the default to
+  // minimize the associated overhead.
+  static const int kLogBufferSize = 2 * MB;
+
+  void LogCodeInfo();
+  void LogWriteBytes(const char* bytes, int size);
+
+  template <typename T>
+  void LogWriteStruct(const T& s) {
+    char tag = T::kTag;
+    LogWriteBytes(reinterpret_cast<const char*>(&tag), sizeof(tag));
+    LogWriteBytes(reinterpret_cast<const char*>(&s), sizeof(s));
+  }
+
+  FILE* ll_output_handle_;
+};
+
+const char LowLevelLogger::kLogExt[] = ".ll";
+
+#define LL_LOG(Call) if (ll_logger_) ll_logger_->Call;
+
+
 // The Profiler samples pc and sp values for the main thread.
 // Each sample is appended to a circular buffer.
 // An independent thread removes data and writes it to the log.
@@ -210,43 +286,6 @@ void Profiler::Run() {
 }
 
 
-// Low-level profiling event structures.
-
-struct LowLevelCodeCreateStruct {
-  static const char kTag = 'C';
-
-  int32_t name_size;
-  Address code_address;
-  int32_t code_size;
-};
-
-
-struct LowLevelCodeMoveStruct {
-  static const char kTag = 'M';
-
-  Address from_address;
-  Address to_address;
-};
-
-
-struct LowLevelCodeDeleteStruct {
-  static const char kTag = 'D';
-
-  Address address;
-};
-
-
-struct LowLevelSnapshotPositionStruct {
-  static const char kTag = 'P';
-
-  Address address;
-  int32_t position;
-};
-
-
-static const char kCodeMovingGCTag = 'G';
-
-
 //
 // Logger class implementation.
 //
@@ -405,6 +444,7 @@ Logger::Logger(Isolate* isolate)
     logging_nesting_(0),
     cpu_profiler_nesting_(0),
     log_(new Log(this)),
+    ll_logger_(NULL),
     name_buffer_(new NameBuffer),
     address_to_name_map_(NULL),
     is_initialized_(false),
@@ -952,9 +992,7 @@ void Logger::LogRecordedBuffer(Code* code, SharedFunctionInfo* shared) {
                         name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
+  LL_LOG(CodeCreateEvent(code, name_buffer_->get(), name_buffer_->size()));
   if (Serializer::enabled()) {
     RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
   }
@@ -1142,7 +1180,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
 
 void Logger::CodeMovingGCEvent() {
   if (!log_->IsEnabled() || !FLAG_ll_prof) return;
-  LowLevelLogWriteBytes(&kCodeMovingGCTag, sizeof(kCodeMovingGCTag));
+  LL_LOG(CodeMovingGCEvent());
   OS::SignalCodeMovingGC();
 }
 
@@ -1169,7 +1207,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 void Logger::CodeMoveEvent(Address from, Address to) {
   if (code_event_handler_ != NULL) IssueCodeMovedEvent(from, to);
   if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) LowLevelCodeMoveEvent(from, to);
+  LL_LOG(CodeMoveEvent(from, to));
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
     address_to_name_map_->Move(from, to);
   }
@@ -1180,7 +1218,7 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 void Logger::CodeDeleteEvent(Address from) {
   if (code_event_handler_ != NULL) IssueCodeRemovedEvent(from);
   if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) LowLevelCodeDeleteEvent(from);
+  LL_LOG(CodeDeleteEvent(from));
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
     address_to_name_map_->Remove(from);
   }
@@ -1226,7 +1264,7 @@ void Logger::CodeEndLinePosInfoRecordEvent(Code* code,
 
 void Logger::SnapshotPositionEvent(Address addr, int pos) {
   if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) LowLevelSnapshotPositionEvent(addr, pos);
+  LL_LOG(SnapshotPositionEvent(addr, pos));
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
     const char* code_name = address_to_name_map_->Lookup(addr);
     if (code_name == NULL) return;  // Not a code object.
@@ -1564,23 +1602,6 @@ void Logger::LogCodeObject(Object* object) {
 }
 
 
-void Logger::LogCodeInfo() {
-  if (!log_->IsEnabled() || !FLAG_ll_prof) return;
-#if V8_TARGET_ARCH_IA32
-  const char arch[] = "ia32";
-#elif V8_TARGET_ARCH_X64
-  const char arch[] = "x64";
-#elif V8_TARGET_ARCH_ARM
-  const char arch[] = "arm";
-#elif V8_TARGET_ARCH_MIPS
-  const char arch[] = "mips";
-#else
-  const char arch[] = "unknown";
-#endif
-  LowLevelLogWriteBytes(arch, sizeof(arch));
-}
-
-
 void Logger::RegisterSnapshotCodeName(Code* code,
                                       const char* name,
                                       int name_size) {
@@ -1592,53 +1613,91 @@ void Logger::RegisterSnapshotCodeName(Code* code,
 }
 
 
-void Logger::LowLevelCodeCreateEvent(Code* code,
+LowLevelLogger::LowLevelLogger(const char* name)
+    : ll_output_handle_(NULL) {
+  // Open the low-level log file.
+  size_t len = strlen(name);
+  ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
+  OS::MemCopy(ll_name.start(), name, len);
+  OS::MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
+  ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
+  setvbuf(ll_output_handle_, NULL, _IOFBF, kLogBufferSize);
+
+  LogCodeInfo();
+}
+
+
+LowLevelLogger::~LowLevelLogger() {
+  fclose(ll_output_handle_);
+  ll_output_handle_ = NULL;
+}
+
+
+void LowLevelLogger::LogCodeInfo() {
+#if V8_TARGET_ARCH_IA32
+  const char arch[] = "ia32";
+#elif V8_TARGET_ARCH_X64
+  const char arch[] = "x64";
+#elif V8_TARGET_ARCH_ARM
+  const char arch[] = "arm";
+#elif V8_TARGET_ARCH_MIPS
+  const char arch[] = "mips";
+#else
+  const char arch[] = "unknown";
+#endif
+  LogWriteBytes(arch, sizeof(arch));
+}
+
+void LowLevelLogger::CodeCreateEvent(Code* code,
                                      const char* name,
                                      int name_size) {
-  if (log_->ll_output_handle_ == NULL) return;
-  LowLevelCodeCreateStruct event;
+  CodeCreateStruct event;
   event.name_size = name_size;
   event.code_address = code->instruction_start();
   ASSERT(event.code_address == code->address() + Code::kHeaderSize);
   event.code_size = code->instruction_size();
-  LowLevelLogWriteStruct(event);
-  LowLevelLogWriteBytes(name, name_size);
-  LowLevelLogWriteBytes(
+  LogWriteStruct(event);
+  LogWriteBytes(name, name_size);
+  LogWriteBytes(
       reinterpret_cast<const char*>(code->instruction_start()),
       code->instruction_size());
 }
 
 
-void Logger::LowLevelCodeMoveEvent(Address from, Address to) {
-  if (log_->ll_output_handle_ == NULL) return;
-  LowLevelCodeMoveStruct event;
+void LowLevelLogger::CodeMoveEvent(Address from, Address to) {
+  CodeMoveStruct event;
   event.from_address = from + Code::kHeaderSize;
   event.to_address = to + Code::kHeaderSize;
-  LowLevelLogWriteStruct(event);
+  LogWriteStruct(event);
 }
 
 
-void Logger::LowLevelCodeDeleteEvent(Address from) {
-  if (log_->ll_output_handle_ == NULL) return;
-  LowLevelCodeDeleteStruct event;
+void LowLevelLogger::CodeDeleteEvent(Address from) {
+  CodeDeleteStruct event;
   event.address = from + Code::kHeaderSize;
-  LowLevelLogWriteStruct(event);
+  LogWriteStruct(event);
 }
 
 
-void Logger::LowLevelSnapshotPositionEvent(Address addr, int pos) {
-  if (log_->ll_output_handle_ == NULL) return;
-  LowLevelSnapshotPositionStruct event;
+void LowLevelLogger::SnapshotPositionEvent(Address addr, int pos) {
+  SnapshotPositionStruct event;
   event.address = addr + Code::kHeaderSize;
   event.position = pos;
-  LowLevelLogWriteStruct(event);
+  LogWriteStruct(event);
 }
 
 
-void Logger::LowLevelLogWriteBytes(const char* bytes, int size) {
-  size_t rv = fwrite(bytes, 1, size, log_->ll_output_handle_);
+void LowLevelLogger::LogWriteBytes(const char* bytes, int size) {
+  size_t rv = fwrite(bytes, 1, size, ll_output_handle_);
   ASSERT(static_cast<size_t>(size) == rv);
   USE(rv);
+}
+
+
+void LowLevelLogger::CodeMovingGCEvent() {
+  const char tag = kCodeMovingGCTag;
+
+  LogWriteBytes(&tag, sizeof(tag));
 }
 
 
@@ -1744,6 +1803,63 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
+static void AddIsolateIdIfNeeded(StringStream* stream) {
+  Isolate* isolate = Isolate::Current();
+  if (isolate->IsDefaultIsolate()) return;
+  stream->Add("isolate-%p-", isolate);
+}
+
+
+static SmartArrayPointer<const char> PrepareLogFileName(const char* file_name) {
+  if (strchr(file_name, '%') != NULL ||
+      !Isolate::Current()->IsDefaultIsolate()) {
+    // If there's a '%' in the log file name we have to expand
+    // placeholders.
+    HeapStringAllocator allocator;
+    StringStream stream(&allocator);
+    AddIsolateIdIfNeeded(&stream);
+    for (const char* p = file_name; *p; p++) {
+      if (*p == '%') {
+        p++;
+        switch (*p) {
+          case '\0':
+            // If there's a % at the end of the string we back up
+            // one character so we can escape the loop properly.
+            p--;
+            break;
+          case 'p':
+            stream.Add("%d", OS::GetCurrentProcessId());
+            break;
+          case 't': {
+            // %t expands to the current time in milliseconds.
+            double time = OS::TimeCurrentMillis();
+            stream.Add("%.0f", FmtElm(time));
+            break;
+          }
+          case '%':
+            // %% expands (contracts really) to %.
+            stream.Put('%');
+            break;
+          default:
+            // All other %'s expand to themselves.
+            stream.Put('%');
+            stream.Put(*p);
+            break;
+        }
+      } else {
+        stream.Put(*p);
+      }
+    }
+    return SmartArrayPointer<const char>(stream.ToCString());
+  }
+  int length = StrLength(file_name);
+  char* str = NewArray<char>(length + 1);
+  OS::MemCopy(str, file_name, length);
+  str[length] = '\0';
+  return SmartArrayPointer<const char>(str);
+}
+
+
 bool Logger::SetUp(Isolate* isolate) {
   // Tests and EnsureInitialize() can call this twice in a row. It's harmless.
   if (is_initialized_) return true;
@@ -1760,9 +1876,13 @@ bool Logger::SetUp(Isolate* isolate) {
     FLAG_prof_auto = false;
   }
 
-  log_->Initialize();
+  SmartArrayPointer<const char> log_file_name =
+      PrepareLogFileName(FLAG_logfile);
+  log_->Initialize(*log_file_name);
 
-  if (FLAG_ll_prof) LogCodeInfo();
+  if (FLAG_ll_prof) {
+    ll_logger_ = new LowLevelLogger(*log_file_name);
+  }
 
   ticker_ = new Ticker(isolate, kSamplingIntervalMs);
 
@@ -1818,6 +1938,11 @@ FILE* Logger::TearDown() {
 
   delete ticker_;
   ticker_ = NULL;
+
+  if (ll_logger_) {
+    delete ll_logger_;
+    ll_logger_ = NULL;
+  }
 
   return log_->Close();
 }

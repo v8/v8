@@ -1621,8 +1621,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
                             LiveEdit::FunctionPatchabilityStatus status) {
   if (!frame->is_java_script()) return false;
 
-  Handle<JSFunction> function(
-      JSFunction::cast(JavaScriptFrame::cast(frame)->function()));
+  Handle<JSFunction> function(JavaScriptFrame::cast(frame)->function());
 
   Isolate* isolate = shared_info_array->GetIsolate();
   int len = GetArrayLength(shared_info_array);

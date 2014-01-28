@@ -50,7 +50,6 @@ class LCodeGen;
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
   V(Allocate)                                   \
-  V(AllocateObject)                             \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
   V(ArgumentsLength)                            \
@@ -601,24 +600,6 @@ class LAllocate: public LTemplateInstruction<1, 1, 2> {
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
-};
-
-
-class LAllocateObject: public LTemplateInstruction<1, 0, 2> {
- public:
-  // TODO(jbramley): On ia32, this takes a context, and it is used by the
-  // deferred code. On ARM, an LOperand is allocated for another input, but it
-  // is never used, and the deferred code doesn't need the context. Why?
-  LAllocateObject(LOperand* temp1, LOperand* temp2) {
-    temps_[0] = temp1;
-    temps_[1] = temp2;
-  }
-
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
-  DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
 };
 
 

@@ -113,14 +113,14 @@ for (var i = 0; i < 1000000; i++) { }
 
 if (support_smi_only_arrays) {
   function construct_smis() {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
+    %NeverOptimize();
     var a = [0, 0, 0];
     a[0] = 0;  // Send the COW array map to the steak house.
     assertKind(elements_kind.fast_smi_only, a);
     return a;
   }
   function construct_doubles() {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
+    %NeverOptimize();
     var a = construct_smis();
     a[0] = 1.5;
     assertKind(elements_kind.fast_double, a);
@@ -130,7 +130,7 @@ if (support_smi_only_arrays) {
   // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
   // transition to FAST directly).
   function convert_mixed(array, value, kind) {
-    try {} catch (e) {} // TODO(titzer): DisableOptimization
+    %NeverOptimize();
     array[1] = value;
     assertKind(kind, array);
     assertEquals(value, array[1]);

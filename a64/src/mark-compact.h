@@ -919,6 +919,9 @@ class MarkCompactCollector {
   // regions to each space's free list.
   void SweepSpaces();
 
+  int DiscoverAndPromoteBlackObjectsOnPage(NewSpace* new_space,
+                                           NewSpacePage* p);
+
   void EvacuateNewSpace();
 
   void EvacuateLiveObjectsFromPage(Page* p);
@@ -946,6 +949,50 @@ class MarkCompactCollector {
   List<Code*> invalidated_code_;
 
   friend class Heap;
+};
+
+
+class MarkBitCellIterator BASE_EMBEDDED {
+ public:
+  explicit MarkBitCellIterator(MemoryChunk* chunk)
+      : chunk_(chunk) {
+    last_cell_index_ = Bitmap::IndexToCell(
+        Bitmap::CellAlignIndex(
+            chunk->AddressToMarkbitIndex(chunk->area_end())));
+    cell_base_ = chunk->area_start();
+    cell_index_ = Bitmap::IndexToCell(
+        Bitmap::CellAlignIndex(
+            chunk->AddressToMarkbitIndex(cell_base_)));
+    cells_ = chunk->markbits()->cells();
+  }
+
+  inline bool Done() { return cell_index_ == last_cell_index_; }
+
+  inline bool HasNext() { return cell_index_ < last_cell_index_ - 1; }
+
+  inline MarkBit::CellType* CurrentCell() {
+    ASSERT(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
+        chunk_->AddressToMarkbitIndex(cell_base_))));
+    return &cells_[cell_index_];
+  }
+
+  inline Address CurrentCellBase() {
+    ASSERT(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
+        chunk_->AddressToMarkbitIndex(cell_base_))));
+    return cell_base_;
+  }
+
+  inline void Advance() {
+    cell_index_++;
+    cell_base_ += 32 * kPointerSize;
+  }
+
+ private:
+  MemoryChunk* chunk_;
+  MarkBit::CellType* cells_;
+  unsigned int last_cell_index_;
+  unsigned int cell_index_;
+  Address cell_base_;
 };
 
 

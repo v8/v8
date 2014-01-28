@@ -541,20 +541,22 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
     Add<HTrapAllocationMemento>(js_array);
   }
 
-  HInstruction* array_length =
-      AddLoad(js_array, HObjectAccess::ForArrayLength());
-  array_length->set_type(HType::Smi());
+  HInstruction* elements = AddLoadElements(js_array);
+
+  HInstruction* empty_fixed_array = Add<HConstant>(
+      isolate()->factory()->empty_fixed_array(), Representation::Tagged());
 
   IfBuilder if_builder(this);
 
-  if_builder.IfNot<HCompareNumericAndBranch>(array_length,
-                                             graph()->GetConstant0(),
-                                             Token::EQ);
+  if_builder.IfNot<HCompareObjectEqAndBranch>(elements, empty_fixed_array);
+
   if_builder.Then();
 
-  HInstruction* elements = AddLoadElements(js_array);
-
   HInstruction* elements_length = AddLoadFixedArrayLength(elements);
+
+  HInstruction* array_length = AddLoad(
+      js_array, HObjectAccess::ForArrayLength(), NULL, Representation::Smi());
+  array_length->set_type(HType::Smi());
 
   BuildGrowElementsCapacity(js_array, elements, from_kind, to_kind,
                             array_length, elements_length);
@@ -784,8 +786,7 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   CompareNilICStub* stub = casted_stub();
   HIfContinuation continuation;
   Handle<Map> sentinel_map(isolate->heap()->meta_map());
-  Handle<Type> type =
-      CompareNilICStub::StateToType(isolate, stub->GetState(), sentinel_map);
+  Handle<Type> type = stub->GetType(isolate, sentinel_map);
   BuildCompareNil(GetParameter(0), type, RelocInfo::kNoPosition, &continuation);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();

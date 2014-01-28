@@ -1216,6 +1216,59 @@ DATA_VIEW_GETTER(Float64, double, NumberFromDouble)
 
 #undef DATA_VIEW_GETTER
 
+
+template <typename T>
+static T DataViewConvertValue(double value);
+
+
+template <>
+int8_t DataViewConvertValue<int8_t>(double value) {
+  return static_cast<int8_t>(DoubleToInt32(value));
+}
+
+
+template <>
+int16_t DataViewConvertValue<int16_t>(double value) {
+  return static_cast<int16_t>(DoubleToInt32(value));
+}
+
+
+template <>
+int32_t DataViewConvertValue<int32_t>(double value) {
+  return DoubleToInt32(value);
+}
+
+
+template <>
+uint8_t DataViewConvertValue<uint8_t>(double value) {
+  return static_cast<uint8_t>(DoubleToUint32(value));
+}
+
+
+template <>
+uint16_t DataViewConvertValue<uint16_t>(double value) {
+  return static_cast<uint16_t>(DoubleToUint32(value));
+}
+
+
+template <>
+uint32_t DataViewConvertValue<uint32_t>(double value) {
+  return DoubleToUint32(value);
+}
+
+
+template <>
+float DataViewConvertValue<float>(double value) {
+  return static_cast<float>(value);
+}
+
+
+template <>
+double DataViewConvertValue<double>(double value) {
+  return value;
+}
+
+
 #define DATA_VIEW_SETTER(TypeName, Type)                                      \
   RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewSet##TypeName) {             \
     HandleScope scope(isolate);                                               \
@@ -1224,7 +1277,7 @@ DATA_VIEW_GETTER(Float64, double, NumberFromDouble)
     CONVERT_ARG_HANDLE_CHECKED(Object, offset, 1);                            \
     CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);                             \
     CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 3);                         \
-    Type v = static_cast<Type>(value->Number());                              \
+    Type v = DataViewConvertValue<Type>(value->Number());                     \
     if (DataViewSetValue(                                                     \
           isolate, holder, offset, is_little_endian, v)) {                    \
       return isolate->heap()->undefined_value();                              \
@@ -1456,6 +1509,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
                                  isolate->heap()->proto_string(),
                                  v8::ACCESS_GET)) {
       isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
     obj = obj->GetPrototype(isolate);
@@ -1560,28 +1614,20 @@ enum AccessCheckResult {
 };
 
 
-static AccessCheckResult CheckElementAccess(
-    JSObject* obj,
-    uint32_t index,
-    v8::AccessType access_type) {
-  // TODO(1095): we should traverse hidden prototype hierachy as well.
-  if (CheckGenericAccess(
-          obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
-    return ACCESS_ALLOWED;
-  }
-
-  obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
-  return ACCESS_FORBIDDEN;
-}
-
-
 static AccessCheckResult CheckPropertyAccess(
     JSObject* obj,
     Name* name,
     v8::AccessType access_type) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    return CheckElementAccess(obj, index, access_type);
+    // TODO(1095): we should traverse hidden prototype hierachy as well.
+    if (CheckGenericAccess(
+            obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
+      return ACCESS_ALLOWED;
+    }
+
+    obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
+    return ACCESS_FORBIDDEN;
   }
 
   LookupResult lookup(obj->GetIsolate());
@@ -1641,14 +1687,21 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
   Heap* heap = isolate->heap();
   // Due to some WebKit tests, we want to make sure that we do not log
   // more than one access failure here.
-  switch (CheckPropertyAccess(*obj, *name, v8::ACCESS_HAS)) {
+  AccessCheckResult access_check_result =
+      CheckPropertyAccess(*obj, *name, v8::ACCESS_HAS);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  switch (access_check_result) {
     case ACCESS_FORBIDDEN: return heap->false_value();
     case ACCESS_ALLOWED: break;
     case ACCESS_ABSENT: return heap->undefined_value();
   }
 
   PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
-  if (attrs == ABSENT) return heap->undefined_value();
+  if (attrs == ABSENT) {
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    return heap->undefined_value();
+  }
+  ASSERT(!isolate->has_scheduled_exception());
   AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
   Handle<AccessorPair> accessors(raw_accessors, isolate);
 
@@ -1669,10 +1722,16 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
     Object* getter = accessors->GetComponent(ACCESSOR_GETTER);
     Object* setter = accessors->GetComponent(ACCESSOR_SETTER);
     if (!getter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_GET)) {
+      ASSERT(!isolate->has_scheduled_exception());
       elms->set(GETTER_INDEX, getter);
+    } else {
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     }
     if (!setter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_SET)) {
+      ASSERT(!isolate->has_scheduled_exception());
       elms->set(SETTER_INDEX, setter);
+    } else {
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     }
   }
 
@@ -2797,7 +2856,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
 
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  JSFunction* function = JSFunction::cast(frame->function());
+  JSFunction* function = frame->function();
   RUNTIME_ASSERT(function->shared()->is_generator());
 
   JSGeneratorObject* generator;
@@ -2826,8 +2885,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
 
   JavaScriptFrameIterator stack_iterator(isolate);
   JavaScriptFrame* frame = stack_iterator.frame();
-  RUNTIME_ASSERT(JSFunction::cast(frame->function())->shared()->is_generator());
-  ASSERT_EQ(JSFunction::cast(frame->function()), generator_object->function());
+  RUNTIME_ASSERT(frame->function()->shared()->is_generator());
+  ASSERT_EQ(frame->function(), generator_object->function());
 
   // The caller should have saved the context and continuation already.
   ASSERT_EQ(generator_object->context(), Context::cast(frame->context()));
@@ -4813,6 +4872,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
 
   bool fast = obj->HasFastProperties();
   JSObject::DefineAccessor(obj, name, getter, setter, attr);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (fast) JSObject::TransformToFastProperties(obj, 0);
   return isolate->heap()->undefined_value();
 }
@@ -5339,9 +5399,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
 }
 
 
-static Object* HasLocalPropertyImplementation(Isolate* isolate,
-                                              Handle<JSObject> object,
-                                              Handle<Name> key) {
+static MaybeObject* HasLocalPropertyImplementation(Isolate* isolate,
+                                                   Handle<JSObject> object,
+                                                   Handle<Name> key) {
   if (object->HasLocalProperty(*key)) return isolate->heap()->true_value();
   // Handle hidden prototypes.  If there's a hidden prototype above this thing
   // then we have to check it for properties, because they are supposed to
@@ -5353,6 +5413,7 @@ static Object* HasLocalPropertyImplementation(Isolate* isolate,
                                           Handle<JSObject>::cast(proto),
                                           key);
   }
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return isolate->heap()->false_value();
 }
 
@@ -5372,8 +5433,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
     // Fast case: either the key is a real named property or it is not
     // an array index and there are no interceptors or hidden
     // prototypes.
-    if (object->HasRealNamedProperty(isolate, key))
+    if (object->HasRealNamedProperty(isolate, key)) {
+      ASSERT(!isolate->has_scheduled_exception());
       return isolate->heap()->true_value();
+    } else {
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    }
     Map* map = object->map();
     if (!key_is_array_index &&
         !map->has_named_interceptor() &&
@@ -5403,6 +5468,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   CONVERT_ARG_CHECKED(Name, key, 1);
 
   bool result = receiver->HasProperty(key);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (isolate->has_pending_exception()) return Failure::Exception();
   return isolate->heap()->ToBoolean(result);
 }
@@ -5415,6 +5481,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasElement) {
   CONVERT_SMI_ARG_CHECKED(index, 1);
 
   bool result = receiver->HasElement(index);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (isolate->has_pending_exception()) return Failure::Exception();
   return isolate->heap()->ToBoolean(result);
 }
@@ -5428,7 +5495,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
   CONVERT_ARG_CHECKED(Name, key, 1);
 
   PropertyAttributes att = object->GetLocalPropertyAttribute(key);
-  return isolate->heap()->ToBoolean(att != ABSENT && (att & DONT_ENUM) == 0);
+  if (att == ABSENT || (att & DONT_ENUM) != 0) {
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    return isolate->heap()->false_value();
+  }
+  ASSERT(!isolate->has_scheduled_exception());
+  return isolate->heap()->true_value();
 }
 
 
@@ -5506,6 +5578,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
                                  isolate->heap()->undefined_value(),
                                  v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*obj, v8::ACCESS_KEYS);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
     obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
@@ -5525,6 +5598,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
                                  isolate->heap()->undefined_value(),
                                  v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*jsproto, v8::ACCESS_KEYS);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
     int n;
@@ -5651,6 +5725,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
         !isolate->MayNamedAccess(*object, isolate->heap()->undefined_value(),
                              v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
 
@@ -5732,9 +5807,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   // Handle special arguments properties.
   if (key->Equals(isolate->heap()->length_string())) return Smi::FromInt(n);
   if (key->Equals(isolate->heap()->callee_string())) {
-    Object* function = frame->function();
-    if (function->IsJSFunction() &&
-        !JSFunction::cast(function)->shared()->is_classic_mode()) {
+    JSFunction* function = frame->function();
+    if (!function->shared()->is_classic_mode()) {
       return isolate->Throw(*isolate->factory()->NewTypeError(
           "strict_arguments_callee", HandleVector<Object>(NULL, 0)));
     }
@@ -8221,7 +8295,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
 
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
+  Handle<JSFunction> function(frame->function(), isolate);
   Handle<Code> optimized_code(function->code());
   RUNTIME_ASSERT((type != Deoptimizer::EAGER &&
                   type != Deoptimizer::SOFT) || function->IsOptimized());
@@ -8237,7 +8311,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   bool has_other_activations = false;
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
-    JSFunction* other_function = JSFunction::cast(frame->function());
+    JSFunction* other_function = frame->function();
     if (frame->is_optimized() && other_function->code() == function->code()) {
       has_other_activations = true;
       break;
@@ -8346,6 +8420,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimize) {
+  HandleScope scope(isolate);
+
+  if (args.length() == 0) {
+    // Disable optimization for the calling function.
+    JavaScriptFrameIterator it(isolate);
+    if (!it.done()) {
+      it.frame()->function()->shared()->set_optimization_disabled(true);
+    }
+    return isolate->heap()->undefined_value();
+  }
+
+  // Disable optimization for the functions passed.
+  for (int i = 0; i < args.length(); i++) {
+    CONVERT_ARG_CHECKED(JSFunction, function, i);
+    function->shared()->set_optimization_disabled(true);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -8369,15 +8464,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  // The least significant bit (after untagging) indicates whether the
-  // function is currently optimized, regardless of reason.
   if (!V8::UseCrankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation) {
     if (function->IsMarkedForLazyRecompilation()) {
-      return Smi::FromInt(5);
+      return Smi::FromInt(5);  // 5 == "parallel recompilation".
     }
   }
   if (FLAG_always_opt) {
@@ -8385,6 +8478,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
     // promise, so we still say "no" if it is not optimized.
     return function->IsOptimized() ? Smi::FromInt(3)   // 3 == "always".
                                    : Smi::FromInt(2);  // 2 == "no".
+  }
+  if (FLAG_deopt_every_n_times) {
+    return Smi::FromInt(6);  // 6 == "maybe deopted".
   }
   return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
                                  : Smi::FromInt(2);  // 2 == "no".
@@ -11213,7 +11309,7 @@ static bool SetLocalVariableValue(Isolate* isolate,
     return false;
   }
 
-  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  Handle<JSFunction> function(frame->function());
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
 
@@ -11460,7 +11556,7 @@ class ScopeIterator {
     : isolate_(isolate),
       frame_(frame),
       inlined_jsframe_index_(inlined_jsframe_index),
-      function_(JSFunction::cast(frame->function())),
+      function_(frame->function()),
       context_(Context::cast(frame->context())),
       nested_scope_chain_(4),
       failed_(false) {
@@ -11841,7 +11937,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   JavaScriptFrame* frame = frame_it.frame();
 
   Handle<SharedFunctionInfo> shared =
-      Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
+      Handle<SharedFunctionInfo>(frame->function()->shared());
   Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared);
 
   int len = 0;
@@ -13744,9 +13840,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_observed, 1);
   if (obj->IsJSGlobalProxy()) {
     Object* proto = obj->GetPrototype();
     if (proto->IsNull()) return isolate->heap()->undefined_value();
@@ -13755,21 +13850,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   }
   ASSERT(!(obj->map()->is_observed() && obj->IsJSObject() &&
            JSObject::cast(obj)->HasFastElements()));
-  if (obj->map()->is_observed() != is_observed) {
-    if (is_observed && obj->IsJSObject() &&
-        !JSObject::cast(obj)->HasExternalArrayElements()) {
-      // Go to dictionary mode, so that we don't skip map checks.
-      MaybeObject* maybe = JSObject::cast(obj)->NormalizeElements();
-      if (maybe->IsFailure()) return maybe;
-      ASSERT(!JSObject::cast(obj)->HasFastElements());
-    }
-    MaybeObject* maybe = obj->map()->Copy();
-    Map* map;
-    if (!maybe->To(&map)) return maybe;
-    map->set_is_observed(is_observed);
-    obj->set_map(map);
-  }
-  return isolate->heap()->undefined_value();
+  ASSERT(obj->IsJSObject());
+  return JSObject::cast(obj)->SetObserved(isolate);
 }
 
 

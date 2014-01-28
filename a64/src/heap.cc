@@ -3177,6 +3177,11 @@ bool Heap::CreateInitialObjects() {
   SeededNumberDictionary::cast(obj)->set_requires_slow_elements();
   set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_observed_symbol(Symbol::cast(obj));
+
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 
@@ -4449,10 +4454,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size =
-      map->pre_allocated_property_fields() +
-      map->unused_property_fields() -
-      map->inobject_properties();
+  int prop_size = map->InitialPropertiesLength();
   ASSERT(prop_size >= 0);
   Object* properties;
   { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, pretenure);
@@ -4489,10 +4491,7 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size =
-      map->pre_allocated_property_fields() +
-      map->unused_property_fields() -
-      map->inobject_properties();
+  int prop_size = map->InitialPropertiesLength();
   ASSERT(prop_size >= 0);
   Object* properties;
   { MaybeObject* maybe_properties = AllocateFixedArray(prop_size);

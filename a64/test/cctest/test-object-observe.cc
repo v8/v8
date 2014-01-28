@@ -429,20 +429,20 @@ TEST(ObservationWeakMap) {
       "obj = null;");
   i::Handle<i::JSObject> observation_state =
       i::Isolate::Current()->factory()->observation_state();
-  i::Handle<i::JSWeakMap> observerInfoMap =
+  i::Handle<i::JSWeakMap> callbackInfoMap =
       i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "observerInfoMap"));
+          i::GetProperty(observation_state, "callbackInfoMap"));
   i::Handle<i::JSWeakMap> objectInfoMap =
       i::Handle<i::JSWeakMap>::cast(
           i::GetProperty(observation_state, "objectInfoMap"));
   i::Handle<i::JSWeakMap> notifierTargetMap =
       i::Handle<i::JSWeakMap>::cast(
           i::GetProperty(observation_state, "notifierTargetMap"));
-  CHECK_EQ(1, NumberOfElements(observerInfoMap));
+  CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
   CHECK_EQ(1, NumberOfElements(notifierTargetMap));
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
-  CHECK_EQ(0, NumberOfElements(observerInfoMap));
+  CHECK_EQ(0, NumberOfElements(callbackInfoMap));
   CHECK_EQ(0, NumberOfElements(objectInfoMap));
   CHECK_EQ(0, NumberOfElements(notifierTargetMap));
 }

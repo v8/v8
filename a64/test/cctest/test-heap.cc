@@ -2352,6 +2352,31 @@ TEST(OptimizedAllocationArrayLiterals) {
 }
 
 
+TEST(OptimizedPretenuringCallNew) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_pretenuring_call_new = true;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
+
+  AlwaysAllocateScope always_allocate;
+  v8::Local<v8::Value> res = CompileRun(
+      "function g() { this.a = 0; }"
+      "function f() {"
+      "  return new g();"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  CHECK(HEAP->InOldPointerSpace(*o));
+}
+
+
 static int CountMapTransitions(Map* map) {
   return map->transitions()->number_of_transitions();
 }

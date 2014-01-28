@@ -187,7 +187,8 @@ namespace internal {
   V(Map, external_map, ExternalMap)                                            \
   V(Symbol, frozen_symbol, FrozenSymbol)                                       \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
-      EmptySlowElementDictionary)
+      EmptySlowElementDictionary)                                              \
+  V(Symbol, observed_symbol, ObservedSymbol)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \

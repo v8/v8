@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax --compiled_transitions
 
-try {} catch (e) {}
+%NeverOptimize();
 
 var iteration_count = 1;
 

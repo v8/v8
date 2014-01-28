@@ -291,6 +291,40 @@ class Type : public Object {
   }
 };
 
+
+// A simple struct to represent a pair of lower/upper type bounds.
+struct Bounds {
+  Handle<Type> lower;
+  Handle<Type> upper;
+
+  Bounds() {}
+  Bounds(Handle<Type> l, Handle<Type> u) : lower(l), upper(u) {}
+  Bounds(Type* l, Type* u, Isolate* isl) : lower(l, isl), upper(u, isl) {}
+  explicit Bounds(Handle<Type> t) : lower(t), upper(t) {}
+  Bounds(Type* t, Isolate* isl) : lower(t, isl), upper(t, isl) {}
+
+  // Meet: both b1 and b2 are known to hold.
+  static Bounds Both(Bounds b1, Bounds b2, Isolate* isl) {
+    return Bounds(
+        handle(Type::Union(b1.lower, b2.lower), isl),
+        handle(Type::Intersect(b1.upper, b2.upper), isl));
+  }
+
+  // Join: either b1 or b2 is known to hold.
+  static Bounds Either(Bounds b1, Bounds b2, Isolate* isl) {
+    return Bounds(
+        handle(Type::Intersect(b1.lower, b2.lower), isl),
+        handle(Type::Union(b1.upper, b2.upper), isl));
+  }
+
+  static Bounds NarrowLower(Bounds b, Handle<Type> t, Isolate* isl) {
+    return Bounds(handle(Type::Union(b.lower, t), isl), b.upper);
+  }
+  static Bounds NarrowUpper(Bounds b, Handle<Type> t, Isolate* isl) {
+    return Bounds(b.lower, handle(Type::Intersect(b.upper, t), isl));
+  }
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_TYPES_H_

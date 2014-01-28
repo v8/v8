@@ -330,7 +330,6 @@ void LCallNewArray::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   constructor()->PrintTo(stream);
   stream->Add(" #%d / ", arity());
-  ASSERT(hydrogen()->property_cell()->value()->IsSmi());
   ElementsKind kind = hydrogen()->elements_kind();
   stream->Add(" (%s) ", ElementsKindToString(kind));
 }
@@ -2324,14 +2323,6 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
-  info()->MarkAsDeferredCalling();
-  LAllocateObject* result =
-      new(zone()) LAllocateObject(TempRegister(), TempRegister());
-  return AssignPointerMap(DefineAsRegister(result));
-}
-
-
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   info()->MarkAsDeferredCalling();
   LOperand* size = instr->size()->IsConstant()
@@ -2351,14 +2342,6 @@ LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
 
 LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
   return MarkAsCall(DefineFixed(new(zone()) LFunctionLiteral, v0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
-  LOperand* object = UseFixed(instr->object(), a0);
-  LOperand* key = UseFixed(instr->key(), a1);
-  LDeleteProperty* result = new(zone()) LDeleteProperty(object, key);
-  return MarkAsCall(DefineFixed(result, v0), instr);
 }
 
 
@@ -2531,14 +2514,6 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
   current_block_->UpdateEnvironment(outer);
 
   return pop;
-}
-
-
-LInstruction* LChunkBuilder::DoIn(HIn* instr) {
-  LOperand* key = UseRegisterAtStart(instr->key());
-  LOperand* object = UseRegisterAtStart(instr->object());
-  LIn* result = new(zone()) LIn(key, object);
-  return MarkAsCall(DefineFixed(result, v0), instr);
 }
 
 

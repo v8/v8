@@ -97,6 +97,7 @@ namespace internal {
   F(RunningInSimulator, 0, 1) \
   F(IsParallelRecompilationSupported, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1) \
+  F(NeverOptimize, -1, 1) \
   F(CompleteOptimization, 1, 1) \
   F(GetOptimizationStatus, 1, 1) \
   F(GetOptimizationCount, 1, 1) \
@@ -351,7 +352,7 @@ namespace internal {
   \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
-  F(SetIsObserved, 2, 1) \
+  F(SetIsObserved, 1, 1) \
   F(SetObserverDeliveryPending, 0, 1) \
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \

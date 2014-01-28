@@ -66,9 +66,8 @@ static bool run_shell;
 
 
 int main(int argc, char* argv[]) {
+  v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::V8::SetFlagsFromString("--noenable_i18n",
-                             static_cast<int>(strlen("--noenable_i18n")));
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   run_shell = (argc == 1);
   int result;

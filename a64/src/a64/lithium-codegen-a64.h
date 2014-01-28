@@ -175,7 +175,6 @@ class LCodeGen BASE_EMBEDDED {
                            LOperand* temp1,
                            LOperand* temp2);
   void DoDeferredAllocate(LAllocate* instr);
-  void DoDeferredAllocateObject(LAllocateObject* instr);
 
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);

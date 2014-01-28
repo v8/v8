@@ -67,7 +67,6 @@ class HBasicBlock: public ZoneObject {
   HInstruction* first() const { return first_; }
   HInstruction* last() const { return last_; }
   void set_last(HInstruction* instr) { last_ = instr; }
-  HInstruction* GetLastInstruction();
   HControlInstruction* end() const { return end_; }
   HLoopInformation* loop_information() const { return loop_information_; }
   const ZoneList<HBasicBlock*>* predecessors() const { return &predecessors_; }
@@ -233,14 +232,21 @@ class HPredecessorIterator BASE_EMBEDDED {
 
 class HInstructionIterator BASE_EMBEDDED {
  public:
-  explicit HInstructionIterator(HBasicBlock* block) : instr_(block->first()) { }
+  explicit HInstructionIterator(HBasicBlock* block)
+      : instr_(block->first()) {
+    next_ = Done() ? NULL : instr_->next();
+  }
 
-  bool Done() { return instr_ == NULL; }
-  HInstruction* Current() { return instr_; }
-  void Advance() { instr_ = instr_->next(); }
+  inline bool Done() const { return instr_ == NULL; }
+  inline HInstruction* Current() { return instr_; }
+  inline void Advance() {
+    instr_ = next_;
+    next_ = Done() ? NULL : instr_->next();
+  }
 
  private:
   HInstruction* instr_;
+  HInstruction* next_;
 };
 
 
@@ -291,19 +297,12 @@ class HGraph: public ZoneObject {
   HEnvironment* start_environment() const { return start_environment_; }
 
   void FinalizeUniqueValueIds();
-  void InsertTypeConversions();
-  void MergeRemovableSimulates();
   void MarkDeoptimizeOnUndefined();
-  void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
-  void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
   void SetupInformativeDefinitions();
-  void DehoistSimpleArrayIndexComputations();
   void RestoreActualValues();
-  void PropagateDeoptimizingMark();
-  void AnalyzeAndPruneEnvironmentLiveness();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -446,10 +445,6 @@ class HGraph: public ZoneObject {
     phase.Run();
   }
 
-  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
-  void NullifyUnreachableInstructions();
-  void InsertTypeConversions(HInstruction* instr);
-  void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
@@ -1847,11 +1842,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HInstruction* BuildStoreNamedGeneric(HValue* object,
                                        Handle<String> name,
                                        HValue* value);
-  HInstruction* BuildCallSetter(HValue* object,
-                                HValue* value,
-                                Handle<Map> map,
-                                Handle<JSFunction> setter,
-                                Handle<JSObject> holder);
   HInstruction* BuildStoreNamedMonomorphic(HValue* object,
                                            Handle<String> name,
                                            HValue* value,

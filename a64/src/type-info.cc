@@ -141,7 +141,7 @@ bool TypeFeedbackOracle::LoadIsPolymorphic(Property* expr) {
 bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsMap()) return false;
-  if (!map_or_code->IsCode()) return true;
+  if (!map_or_code->IsCode()) return false;
   Handle<Code> code = Handle<Code>::cast(map_or_code);
   return code->ic_state() == UNINITIALIZED;
 }
@@ -377,12 +377,9 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
     CompareIC::StubInfoToType(
         stub_minor_key, left_type, right_type, combined_type, map, isolate());
   } else if (code->is_compare_nil_ic_stub()) {
-    CompareNilICStub::State state(code->compare_nil_state());
-    *combined_type = CompareNilICStub::StateToType(isolate_, state, map);
-    Handle<Type> nil_type = handle(code->compare_nil_value() == kNullValue
-        ? Type::Null() : Type::Undefined(), isolate_);
-    *left_type = *right_type =
-        handle(Type::Union(*combined_type, nil_type), isolate_);
+    CompareNilICStub stub(code->extended_extra_ic_state());
+    *combined_type = stub.GetType(isolate_, map);
+    *left_type = *right_type = stub.GetInputType(isolate_, map);
   }
 }
 
@@ -394,7 +391,7 @@ Handle<Type> TypeFeedbackOracle::UnaryType(TypeFeedbackId id) {
   }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT(code->is_unary_op_stub());
-  return UnaryOpStub(code->extra_ic_state()).GetType(isolate());
+  return UnaryOpStub(code->extended_extra_ic_state()).GetType(isolate());
 }
 
 

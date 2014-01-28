@@ -574,57 +574,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 }
 
 
-void Thread::YieldCPU() {
-  sched_yield();
-}
-
-
-class CygwinMutex : public Mutex {
- public:
-  CygwinMutex() {
-    pthread_mutexattr_t attrs;
-    memset(&attrs, 0, sizeof(attrs));
-
-    int result = pthread_mutexattr_init(&attrs);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE);
-    ASSERT(result == 0);
-    result = pthread_mutex_init(&mutex_, &attrs);
-    ASSERT(result == 0);
-  }
-
-  virtual ~CygwinMutex() { pthread_mutex_destroy(&mutex_); }
-
-  virtual int Lock() {
-    int result = pthread_mutex_lock(&mutex_);
-    return result;
-  }
-
-  virtual int Unlock() {
-    int result = pthread_mutex_unlock(&mutex_);
-    return result;
-  }
-
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
- private:
-  pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new CygwinMutex();
-}
-
-
 class CygwinSemaphore : public Semaphore {
  public:
   explicit CygwinSemaphore(int count) {  sem_init(&sem_, 0, count); }

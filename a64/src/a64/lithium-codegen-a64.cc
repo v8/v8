@@ -888,7 +888,8 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
   if (FLAG_deopt_every_n_times == 1 &&
       !info()->IsStub() &&
       info()->opt_count() == id) {
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    ASSERT(frame_is_built_);
+    __ Call(entry, RelocInfo::RUNTIME_ENTRY);
     return;
   }
 
@@ -901,13 +902,8 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
   // table entry. This code need to be updated if we decide to use the
   // 2 levels of table.
   ASSERT(info()->IsStub() || frame_is_built_);
-  bool needs_lazy_deopt = info()->IsStub();
   if (frame_is_built_) {
-    if (needs_lazy_deopt) {
-      __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    } else {
-      __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
-    }
+    __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We need to build a frame to deoptimize a stub. Because stubs don't have a
     // function pointer to put in the frame, put a special marker there instead.
@@ -1346,86 +1342,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   } else {
     CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
   }
-  __ StoreToSafepointRegisterSlot(x0, result);
-}
-
-
-void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
-  class DeferredAllocateObject: public LDeferredCode {
-   public:
-    DeferredAllocateObject(LCodeGen* codegen, LAllocateObject* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() { codegen()->DoDeferredAllocateObject(instr_); }
-    virtual LInstruction* instr() { return instr_; }
-   private:
-    LAllocateObject* instr_;
-  };
-
-  DeferredAllocateObject* deferred =
-      new(zone()) DeferredAllocateObject(this, instr);
-
-  Register result = ToRegister(instr->result());
-  Register scratch1 = ToRegister(instr->temp1());
-  Register scratch2 = ToRegister(instr->temp2());
-  Handle<JSFunction> constructor = instr->hydrogen()->constructor();
-  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
-  int instance_size = initial_map->instance_size();
-
-  ASSERT(initial_map->pre_allocated_property_fields() +
-         initial_map->unused_property_fields() -
-         initial_map->inobject_properties() == 0);
-
-  __ Allocate(instance_size, result, scratch1, scratch2, deferred->entry(),
-              TAG_OBJECT);
-
-  __ Bind(deferred->exit());
-  if (FLAG_debug_code) {
-    Label is_in_new_space;
-    __ JumpIfInNewSpace(result, &is_in_new_space);
-    __ Abort("Allocated object is not in new-space");
-    __ Bind(&is_in_new_space);
-  }
-
-  // Load the initial map.
-  Register map = scratch1;
-  __ LoadHeapObject(map, constructor);
-  __ Ldr(map, FieldMemOperand(map, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // Initialize map and field of the newly allocated object.
-  ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
-  __ Str(map, FieldMemOperand(result, JSObject::kMapOffset));
-
-  Register empty_array = scratch1;
-  __ LoadRoot(empty_array, Heap::kEmptyFixedArrayRootIndex);
-  __ Str(empty_array, FieldMemOperand(result, JSObject::kElementsOffset));
-  __ Str(empty_array, FieldMemOperand(result, JSObject::kPropertiesOffset));
-
-  if (initial_map->inobject_properties() != 0) {
-    Register undef = scratch1;
-    __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
-    for (int i = 0; i < initial_map->inobject_properties(); i++) {
-      int property_offset = JSObject::kHeaderSize + i * kPointerSize;
-      __ Str(undef, FieldMemOperand(result, property_offset));
-    }
-  }
-}
-
-
-void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
-  Register result = ToRegister(instr->result());
-  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
-  int instance_size = initial_map->instance_size();
-
-
-  // TODO(3095996): Get rid of this. For now, we need to make the
-  // result register contain a valid pointer because it is already
-  // contained in the register pointer map.
-  __ Mov(result, 0);
-
-  PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-  __ Mov(x0, Operand(Smi::FromInt(instance_size)));
-  __ Push(x0);
-  CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
   __ StoreToSafepointRegisterSlot(x0, result);
 }
 

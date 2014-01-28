@@ -72,6 +72,7 @@ namespace internal {
   V(ArgumentsAccess)                     \
   V(RegExpConstructResult)               \
   V(NumberToString)                      \
+  V(DoubleToI)                           \
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
@@ -1268,50 +1269,17 @@ class ICCompareStub: public PlatformCodeStub {
 
 class CompareNilICStub : public HydrogenCodeStub  {
  public:
-  enum CompareNilType {
-    UNDEFINED,
-    NULL_TYPE,
-    MONOMORPHIC_MAP,
-    UNDETECTABLE,
-    GENERIC,
-    NUMBER_OF_TYPES
-  };
+  Handle<Type> GetType(Isolate* isolate, Handle<Map> map = Handle<Map>());
+  Handle<Type> GetInputType(Isolate* isolate, Handle<Map> map);
 
-  class State : public EnumSet<CompareNilType, byte> {
-   public:
-    State() : EnumSet<CompareNilType, byte>(0) { }
-    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
-
-    static State Generic() {
-      State set;
-      set.Add(UNDEFINED);
-      set.Add(NULL_TYPE);
-      set.Add(UNDETECTABLE);
-      set.Add(GENERIC);
-      return set;
-    }
-
-    void Print(StringStream* stream) const;
-  };
-
-  static Handle<Type> StateToType(
-      Isolate* isolate, State state, Handle<Map> map = Handle<Map>());
-
-  // At most 6 different types can be distinguished, because the Code object
-  // only has room for a single byte to hold a set and there are two more
-  // boolean flags we need to store. :-P
-  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
-
-  CompareNilICStub(NilValue nil, State state = State())
-      : nil_value_(nil), state_(state) {
-  }
+  explicit CompareNilICStub(NilValue nil) : nil_value_(nil) { }
 
   CompareNilICStub(Code::ExtraICState ic_state,
                    InitializationState init_state = INITIALIZED)
-      : HydrogenCodeStub(init_state) {
-    nil_value_ = NilValueField::decode(ic_state);
-    state_ = State(ExtractTypesFromExtraICState(ic_state));
-  }
+      : HydrogenCodeStub(init_state),
+        nil_value_(NilValueField::decode(ic_state)),
+        state_(State(TypesField::decode(ic_state))) {
+      }
 
   static Handle<Code> GetUninitialized(Isolate* isolate,
                                        NilValue nil) {
@@ -1330,7 +1298,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
   }
 
   virtual InlineCacheState GetICState() {
-    if (state_ == State::Generic()) {
+    if (state_.Contains(GENERIC)) {
       return MEGAMORPHIC;
     } else if (state_.Contains(MONOMORPHIC_MAP)) {
       return MONOMORPHIC;
@@ -1343,22 +1311,15 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   Handle<Code> GenerateCode();
 
-  // extra ic state = nil_value | type_n-1 | ... | type_0
   virtual Code::ExtraICState GetExtraICState() {
-    return NilValueField::encode(nil_value_) | state_.ToIntegral();
-  }
-  static byte ExtractTypesFromExtraICState(Code::ExtraICState state) {
-    return state & ((1 << NUMBER_OF_TYPES) - 1);
-  }
-  static NilValue ExtractNilValueFromExtraICState(Code::ExtraICState state) {
-    return NilValueField::decode(state);
+    return NilValueField::encode(nil_value_) |
+           TypesField::encode(state_.ToIntegral());
   }
 
   void UpdateStatus(Handle<Object> object);
 
   bool IsMonomorphic() const { return state_.Contains(MONOMORPHIC_MAP); }
   NilValue GetNilValue() const { return nil_value_; }
-  State GetState() const { return state_; }
   void ClearState() { state_.RemoveAll(); }
 
   virtual void PrintState(StringStream* stream);
@@ -1367,12 +1328,32 @@ class CompareNilICStub : public HydrogenCodeStub  {
  private:
   friend class CompareNilIC;
 
-  CompareNilICStub(NilValue nil, InitializationState init_state)
-      : HydrogenCodeStub(init_state) {
-    nil_value_ = nil;
-  }
+  enum CompareNilType {
+    UNDEFINED,
+    NULL_TYPE,
+    MONOMORPHIC_MAP,
+    GENERIC,
+    NUMBER_OF_TYPES
+  };
 
-  class NilValueField : public BitField<NilValue, NUMBER_OF_TYPES, 1> {};
+  // At most 6 different types can be distinguished, because the Code object
+  // only has room for a single byte to hold a set and there are two more
+  // boolean flags we need to store. :-P
+  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
+
+  class State : public EnumSet<CompareNilType, byte> {
+   public:
+    State() : EnumSet<CompareNilType, byte>(0) { }
+    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
+
+    void Print(StringStream* stream) const;
+  };
+
+  CompareNilICStub(NilValue nil, InitializationState init_state)
+      : HydrogenCodeStub(init_state), nil_value_(nil) { }
+
+  class NilValueField : public BitField<NilValue, 0, 1> {};
+  class TypesField    : public BitField<byte,     1, NUMBER_OF_TYPES> {};
 
   virtual CodeStub::Major MajorKey() { return CompareNilIC; }
   virtual int NotMissMinorKey() { return GetExtraICState(); }
@@ -1771,6 +1752,81 @@ class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
   int MinorKey() { return DICTIONARY_ELEMENTS; }
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+};
+
+
+class DoubleToIStub : public PlatformCodeStub {
+ public:
+  DoubleToIStub(Register source,
+                Register destination,
+                int offset,
+                bool is_truncating) : bit_field_(0) {
+#if V8_TARGET_ARCH_A64
+    // TODO(jbramley): Make A64's Register type compatible with the normal code,
+    // so we don't need this special case.
+    bit_field_ = SourceRegisterBits::encode(source.code()) |
+      DestinationRegisterBits::encode(destination.code()) |
+      OffsetBits::encode(offset) |
+      IsTruncatingBits::encode(is_truncating);
+#else
+    bit_field_ = SourceRegisterBits::encode(source.code_) |
+      DestinationRegisterBits::encode(destination.code_) |
+      OffsetBits::encode(offset) |
+      IsTruncatingBits::encode(is_truncating);
+#endif
+  }
+
+  Register source() {
+#if V8_TARGET_ARCH_A64
+    // TODO(jbramley): Make A64's Register type compatible with the normal code,
+    // so we don't need this special case.
+    return Register::XRegFromCode(SourceRegisterBits::decode(bit_field_));
+#else
+    Register result = { SourceRegisterBits::decode(bit_field_) };
+    return result;
+#endif
+  }
+
+  Register destination() {
+#if V8_TARGET_ARCH_A64
+    // TODO(jbramley): Make A64's Register type compatible with the normal code,
+    // so we don't need this special case.
+    return Register::XRegFromCode(DestinationRegisterBits::decode(bit_field_));
+#else
+    Register result = { DestinationRegisterBits::decode(bit_field_) };
+    return result;
+#endif
+  }
+
+  bool is_truncating() {
+    return IsTruncatingBits::decode(bit_field_);
+  }
+
+  int offset() {
+    return OffsetBits::decode(bit_field_);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  static const int kBitsPerRegisterNumber = 6;
+  STATIC_ASSERT((1L << kBitsPerRegisterNumber) >= Register::kNumRegisters);
+  class SourceRegisterBits:
+      public BitField<int, 0, kBitsPerRegisterNumber> {};  // NOLINT
+  class DestinationRegisterBits:
+      public BitField<int, kBitsPerRegisterNumber,
+        kBitsPerRegisterNumber> {};  // NOLINT
+  class IsTruncatingBits:
+      public BitField<bool, 2 * kBitsPerRegisterNumber, 1> {};  // NOLINT
+  class OffsetBits:
+      public BitField<int, 2 * kBitsPerRegisterNumber + 1, 3> {};  // NOLINT
+
+  Major MajorKey() { return DoubleToI; }
+  int MinorKey() { return bit_field_; }
+
+  int bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(DoubleToIStub);
 };
 
 

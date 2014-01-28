@@ -159,7 +159,7 @@ Address IC::OriginalCodeAddress() const {
   JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
   // Find the function on the stack and both the active code for the
   // function and the original code.
-  JSFunction* function = JSFunction::cast(frame->function());
+  JSFunction* function = frame->function();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate());
   Code* code = shared->code();
   ASSERT(Debug::HasDebugInfo(shared));
@@ -231,18 +231,32 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     return true;
   }
 
+  // The stub is not in the cache. We've ruled out all other kinds of failure
+  // except for proptotype chain changes, a deprecated map, a map that's
+  // different from the one that the stub expects, or a constant global property
+  // that will become mutable. Threat all those situations as prototype failures
+  // (stay monomorphic if possible).
+
   // If the IC is shared between multiple receivers (slow dictionary mode), then
   // the map cannot be deprecated and the stub invalidated.
-  if (cache_holder != OWN_MAP) return false;
+  if (cache_holder == OWN_MAP) {
+    Map* old_map = target->FindFirstMap();
+    if (old_map == map) return true;
+    if (old_map != NULL && old_map->is_deprecated()) return true;
+  }
 
-  // The stub is not in the cache. We've ruled out all other kinds of failure
-  // except for proptotype chain changes, a deprecated map, or a map that's
-  // different from the one that the stub expects. If the map hasn't changed,
-  // assume it's a prototype failure. Treat deprecated maps in the same way as
-  // prototype failures (stay monomorphic if possible).
-  Map* old_map = target->FindFirstMap();
-  if (old_map == NULL) return false;
-  return old_map == map || old_map->is_deprecated();
+  if (receiver->IsGlobalObject()) {
+    if (!name->IsName()) return false;
+    Isolate* isolate = target->GetIsolate();
+    LookupResult lookup(isolate);
+    GlobalObject* global = GlobalObject::cast(receiver);
+    global->LocalLookupRealNamedProperty(Name::cast(name), &lookup);
+    if (!lookup.IsFound()) return false;
+    PropertyCell* cell = global->GetPropertyCell(&lookup);
+    return cell->type()->IsConstant();
+  }
+
+  return false;
 }
 
 
@@ -1651,12 +1665,14 @@ MaybeObject* StoreIC::Store(State state,
 
   // Use specialized code for setting the length of arrays with fast
   // properties. Slow properties might indicate redefinition of the length
-  // property.
+  // property. Note that when redefined using Object.freeze, it's possible
+  // to have fast properties but a read-only length.
   if (FLAG_use_ic &&
       receiver->IsJSArray() &&
       name->Equals(isolate()->heap()->length_string()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
-      receiver->HasFastProperties()) {
+      receiver->HasFastProperties() &&
+      !receiver->map()->is_frozen()) {
     Handle<Code> stub =
         StoreArrayLengthStub(kind(), strict_mode).GetCode(isolate());
     set_target(*stub);
@@ -1860,7 +1876,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   KeyedAccessStoreMode old_store_mode =
       Code::GetKeyedAccessStoreMode(target()->extra_ic_state());
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
-  if (ic_state == MONOMORPHIC && old_store_mode == STANDARD_STORE) {
+  if (ic_state == MONOMORPHIC) {
       // If the "old" and "new" maps are in the same elements map family, stay
       // MONOMORPHIC and use the map for the most generic ElementsKind.
     Handle<Map> transitioned_receiver_map = receiver_map;
@@ -1873,16 +1889,16 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
           transitioned_receiver_map, strict_mode, store_mode);
-    } else if (*previous_receiver_map == receiver->map()) {
-      if (IsGrowStoreMode(store_mode) ||
-          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
-          store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
-        // A "normal" IC that handles stores can switch to a version that can
-        // grow at the end of the array, handle OOB accesses or copy COW arrays
-        // and still stay MONOMORPHIC.
-        return isolate()->stub_cache()->ComputeKeyedStoreElement(
-            receiver_map, strict_mode, store_mode);
-      }
+    } else if (*previous_receiver_map == receiver->map() &&
+               old_store_mode == STANDARD_STORE &&
+               (IsGrowStoreMode(store_mode) ||
+                store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+                store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
+      // A "normal" IC that handles stores can switch to a version that can
+      // grow at the end of the array, handle OOB accesses or copy COW arrays
+      // and still stay MONOMORPHIC.
+      return isolate()->stub_cache()->ComputeKeyedStoreElement(
+          receiver_map, strict_mode, store_mode);
     }
   }
 

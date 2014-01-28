@@ -248,12 +248,9 @@ void AstTyper::VisitConditional(Conditional* expr) {
 
   expr->condition()->RecordToBooleanTypeFeedback(oracle());
 
-  MergeLowerType(expr, Type::Intersect(
-      expr->then_expression()->lower_type(),
-      expr->else_expression()->lower_type()));
-  MergeUpperType(expr, Type::Union(
-      expr->then_expression()->upper_type(),
-      expr->else_expression()->upper_type()));
+  NarrowType(expr, Bounds::Either(
+      expr->then_expression()->bounds(),
+      expr->else_expression()->bounds(), isolate_));
 }
 
 
@@ -264,14 +261,12 @@ void AstTyper::VisitVariableProxy(VariableProxy* expr) {
 
 void AstTyper::VisitLiteral(Literal* expr) {
   Type* type = Type::Constant(expr->value(), isolate_);
-  MergeLowerType(expr, type);
-  MergeUpperType(expr, type);
+  NarrowType(expr, Bounds(type, isolate_));
 }
 
 
 void AstTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
-  MergeLowerType(expr, Type::RegExp());
-  MergeUpperType(expr, Type::RegExp());
+  NarrowType(expr, Bounds(Type::RegExp(), isolate_));
 }
 
 
@@ -290,8 +285,7 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  MergeLowerType(expr, Type::Object());
-  MergeUpperType(expr, Type::Object());
+  NarrowType(expr, Bounds(Type::Object(), isolate_));
 }
 
 
@@ -302,8 +296,7 @@ void AstTyper::VisitArrayLiteral(ArrayLiteral* expr) {
     RECURSE(Visit(value));
   }
 
-  MergeLowerType(expr, Type::Array());
-  MergeUpperType(expr, Type::Array());
+  NarrowType(expr, Bounds(Type::Array(), isolate_));
 }
 
 
@@ -320,6 +313,8 @@ void AstTyper::VisitAssignment(Assignment* expr) {
         expr->RecordTypeFeedback(oracle(), zone());
       }
     }
+
+    NarrowType(expr, expr->binary_operation()->bounds());
   } else {
     RECURSE(Visit(expr->target()));
     RECURSE(Visit(expr->value()));
@@ -328,8 +323,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
       expr->RecordTypeFeedback(oracle(), zone());
     }
 
-    MergeLowerType(expr, expr->value()->lower_type());
-    MergeUpperType(expr, expr->value()->upper_type());
+    NarrowType(expr, expr->value()->bounds());
   }
   // TODO(rossberg): handle target variables
 }
@@ -346,8 +340,7 @@ void AstTyper::VisitYield(Yield* expr) {
 void AstTyper::VisitThrow(Throw* expr) {
   RECURSE(Visit(expr->exception()));
 
-  // Lower type is None already.
-  MergeUpperType(expr, Type::None());
+  NarrowType(expr, Bounds(Type::None(), isolate_));
 }
 
 
@@ -412,7 +405,7 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 
   // Collect type feedback.
   Handle<Type> op_type = oracle()->UnaryType(expr->UnaryOperationFeedbackId());
-  MergeLowerType(expr->expression(), op_type);
+  NarrowLowerType(expr->expression(), op_type);
   if (expr->op() == Token::NOT) {
     // TODO(rossberg): only do in test or value context.
     expr->expression()->RecordToBooleanTypeFeedback(oracle());
@@ -421,27 +414,23 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::NOT:
     case Token::DELETE:
-      MergeLowerType(expr, Type::Boolean());
-      MergeUpperType(expr, Type::Boolean());
+      NarrowType(expr, Bounds(Type::Boolean(), isolate_));
       break;
     case Token::VOID:
-      MergeLowerType(expr, Type::Undefined());
-      MergeUpperType(expr, Type::Undefined());
+      NarrowType(expr, Bounds(Type::Undefined(), isolate_));
       break;
     case Token::ADD:
     case Token::SUB: {
-      MergeLowerType(expr, Type::Smi());
-      Type* upper = *expr->expression()->upper_type();
-      MergeUpperType(expr, upper->Is(Type::Number()) ? upper : Type::Number());
+      Type* upper = *expr->expression()->bounds().upper;
+      if (!upper->Is(Type::Number())) upper = Type::Number();
+      NarrowType(expr, Bounds(Type::Smi(), upper, isolate_));
       break;
     }
     case Token::BIT_NOT:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Signed32());
+      NarrowType(expr, Bounds(Type::Smi(), Type::Signed32(), isolate_));
       break;
     case Token::TYPEOF:
-      MergeLowerType(expr, Type::InternalizedString());
-      MergeUpperType(expr, Type::InternalizedString());
+      NarrowType(expr, Bounds(Type::InternalizedString(), isolate_));
       break;
     default:
       UNREACHABLE();
@@ -458,8 +447,7 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
     prop->RecordTypeFeedback(oracle(), zone());
   }
 
-  MergeLowerType(expr, Type::Smi());
-  MergeUpperType(expr, Type::Number());
+  NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
 }
 
 
@@ -472,9 +460,9 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   Maybe<int> fixed_right_arg;
   oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
       &left_type, &right_type, &type, &fixed_right_arg);
-  MergeLowerType(expr, type);
-  MergeLowerType(expr->left(), left_type);
-  MergeLowerType(expr->right(), right_type);
+  NarrowLowerType(expr, type);
+  NarrowLowerType(expr->left(), left_type);
+  NarrowLowerType(expr->right(), right_type);
   expr->set_fixed_right_arg(fixed_right_arg);
   if (expr->op() == Token::OR || expr->op() == Token::AND) {
     expr->left()->RecordToBooleanTypeFeedback(oracle());
@@ -482,56 +470,50 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
 
   switch (expr->op()) {
     case Token::COMMA:
-      MergeLowerType(expr, expr->right()->lower_type());
-      MergeUpperType(expr, expr->right()->upper_type());
+      NarrowType(expr, expr->right()->bounds());
       break;
     case Token::OR:
     case Token::AND:
-      MergeLowerType(expr, Type::Intersect(
-          expr->left()->lower_type(), expr->right()->lower_type()));
-      MergeUpperType(expr, Type::Union(
-          expr->left()->upper_type(), expr->right()->upper_type()));
+      NarrowType(expr, Bounds::Either(
+          expr->left()->bounds(), expr->right()->bounds(), isolate_));
       break;
     case Token::BIT_OR:
     case Token::BIT_AND: {
-      MergeLowerType(expr, Type::Smi());
-      Type* upper =
-          Type::Union(expr->left()->upper_type(), expr->right()->upper_type());
-      MergeUpperType(expr,
-          upper->Is(Type::Signed32()) ? upper : Type::Signed32());
+      Type* upper = Type::Union(
+          expr->left()->bounds().upper, expr->right()->bounds().upper);
+      if (!upper->Is(Type::Signed32())) upper = Type::Signed32();
+      NarrowType(expr, Bounds(Type::Smi(), upper, isolate_));
       break;
     }
     case Token::BIT_XOR:
     case Token::SHL:
     case Token::SAR:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Signed32());
+      NarrowType(expr, Bounds(Type::Smi(), Type::Signed32(), isolate_));
       break;
     case Token::SHR:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Unsigned32());
+      NarrowType(expr, Bounds(Type::Smi(), Type::Unsigned32(), isolate_));
       break;
     case Token::ADD: {
-      Handle<Type> l = expr->left()->lower_type();
-      Handle<Type> r = expr->right()->lower_type();
-      MergeLowerType(expr,
-          l->Is(Type::Number()) && r->Is(Type::Number()) ? Type::Smi() :
-          l->Is(Type::String()) || r->Is(Type::String()) ? Type::String() :
-              Type::None());
-      l = expr->left()->upper_type();
-      r = expr->right()->upper_type();
-      MergeUpperType(expr,
-          l->Is(Type::Number()) && r->Is(Type::Number()) ? Type::Number() :
-          l->Is(Type::String()) || r->Is(Type::String()) ? Type::String() :
-              Type::NumberOrString());
+      Bounds l = expr->left()->bounds();
+      Bounds r = expr->right()->bounds();
+      Type* lower =
+          l.lower->Is(Type::Number()) && r.lower->Is(Type::Number()) ?
+              Type::Smi() :
+          l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
+              Type::String() : Type::None();
+      Type* upper =
+          l.upper->Is(Type::Number()) && r.upper->Is(Type::Number()) ?
+              Type::Number() :
+          l.upper->Is(Type::String()) || r.upper->Is(Type::String()) ?
+              Type::String() : Type::NumberOrString();
+      NarrowType(expr, Bounds(lower, upper, isolate_));
       break;
     }
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Number());
+      NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
       break;
     default:
       UNREACHABLE();
@@ -547,12 +529,11 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
   Handle<Type> left_type, right_type, combined_type;
   oracle()->CompareType(expr->CompareOperationFeedbackId(),
       &left_type, &right_type, &combined_type);
-  MergeLowerType(expr->left(), left_type);
-  MergeLowerType(expr->right(), right_type);
+  NarrowLowerType(expr->left(), left_type);
+  NarrowLowerType(expr->right(), right_type);
   expr->set_combined_type(combined_type);
 
-  MergeLowerType(expr, Type::Boolean());
-  MergeUpperType(expr, Type::Boolean());
+  NarrowType(expr, Bounds(Type::Boolean(), isolate_));
 }
 
 

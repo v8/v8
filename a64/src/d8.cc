@@ -68,10 +68,6 @@
 #include "v8.h"
 #endif  // V8_SHARED
 
-#if defined(V8_I18N_SUPPORT)
-#include "icu_util.h"
-#endif
-
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #endif
@@ -1586,9 +1582,7 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
-#if defined(V8_I18N_SUPPORT)
-  InitializeICU();
-#endif
+  v8::V8::InitializeICU();
 #ifndef V8_SHARED
   i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;

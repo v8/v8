@@ -276,6 +276,25 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
 }
 
 
+#if 0
+// TODO(jbramley): This was added in r15635, then reverted in r15674, but it
+// will come back again in r15713.
+void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x0: value
+  // x3: target map
+  // x1: key
+  // x2: receiver
+  static Register registers[] = { x0, x3, x1, x2 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
+}
+#endif
+
+
 #define __ ACCESS_MASM(masm)
 
 
