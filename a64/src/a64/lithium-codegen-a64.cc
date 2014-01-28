@@ -885,7 +885,10 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
   }
 
   TODO_UNIMPLEMENTED("Add support for deopt_every_n_times flag.");
-  TODO_UNIMPLEMENTED("Add support for trap_on_deopt flag.");
+  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
+    __ Debug("trap_on_deopt", __LINE__, BREAK);
+  }
+
 
   // TODO(all): Currently this code directly jump to the second level deopt
   // table entry. This code need to be updated if we decide to use the
