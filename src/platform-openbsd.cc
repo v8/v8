@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for OpenBSD and NetBSD goes here. For the POSIX
-// comaptible parts the implementation is in platform-posix.cc.
+// Platform-specific code for OpenBSD and NetBSD goes here. For the
+// POSIX-compatible parts, the implementation is in platform-posix.cc.
 
 #include <pthread.h>
 #include <semaphore.h>

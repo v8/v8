@@ -777,127 +777,56 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static const int kFastApiCallArguments = FunctionCallbackArguments::kArgsLength;
-
-
 static void GenerateFastApiCallBody(MacroAssembler* masm,
                                     const CallOptimization& optimization,
                                     int argc,
-                                    Register holder,
-                                    Register scratch1,
-                                    Register scratch2,
-                                    Register scratch3,
+                                    Register holder_in,
                                     bool restore_context) {
-  // ----------- S t a t e -------------
-  //  -- sp[0]              : last JS argument
-  //  -- ...
-  //  -- sp[(argc - 1) * 4] : first JS argument
-  //  -- sp[argc * 4]       : receiver
-  // -----------------------------------
   ASSERT(optimization.is_simple_api_call());
 
-  typedef FunctionCallbackArguments FCA;
+  // Abi for CallApiFunctionStub.
+  Register callee = r0;
+  Register call_data = r4;
+  Register holder = r2;
+  Register api_function_address = r3;
+  Register thunk_arg = r1;
 
-  STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kIsolateIndex == 1);
-  STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
-  STATIC_ASSERT(FCA::kReturnValueOffset == 3);
-  STATIC_ASSERT(FCA::kDataIndex == 4);
-  STATIC_ASSERT(FCA::kCalleeIndex == 5);
-  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
-  STATIC_ASSERT(FCA::kArgsLength == 7);
+  // Put holder in place.
+  __ Move(holder, holder_in);
 
-  ASSERT(!holder.is(cp));
-
-  // Save calling context.
-  __ push(cp);
-  // Get the function and setup the context.
+  Isolate* isolate = masm->isolate();
   Handle<JSFunction> function = optimization.constant_function();
-  __ Move(scratch1, function);
-  __ ldr(cp, FieldMemOperand(scratch1, JSFunction::kContextOffset));
-  __ push(scratch1);
-
-  // Construct the FunctionCallbackInfo.
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data(api_call_info->data(), masm->isolate());
+  Handle<Object> call_data_obj(api_call_info->data(), isolate);
+
+  // Put callee in place.
+  __ Move(callee, function);
+
   bool call_data_undefined = false;
-  if (masm->isolate()->heap()->InNewSpace(*call_data)) {
-    __ Move(scratch1, api_call_info);
-    __ ldr(scratch1, FieldMemOperand(scratch1, CallHandlerInfo::kDataOffset));
-  }  else if (call_data->IsUndefined()) {
+  // Put call_data in place.
+  if (isolate->heap()->InNewSpace(*call_data_obj)) {
+    __ Move(call_data, api_call_info);
+    __ ldr(call_data, FieldMemOperand(call_data, CallHandlerInfo::kDataOffset));
+  } else if (call_data_obj->IsUndefined()) {
     call_data_undefined = true;
-    __ LoadRoot(scratch3, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
   } else {
-    __ Move(scratch1, call_data);
+    __ Move(call_data, call_data_obj);
   }
-  // Store call data.
-  __ push(scratch1);
-  if (!call_data_undefined) {
-    __ LoadRoot(scratch1, Heap::kUndefinedValueRootIndex);
-  }
-  // Store ReturnValue default and ReturnValue.
-  __ LoadRoot(scratch1, Heap::kUndefinedValueRootIndex);
-  __ push(scratch1);
-  __ push(scratch1);
-  // Store isolate.
-  __ mov(scratch1,
-         Operand(ExternalReference::isolate_address(masm->isolate())));
-  __ push(scratch1);
-  // holder
-  __ push(holder);
 
-  // Prepare arguments.
-  __ mov(r2, sp);
-
-  // Allocate the v8::Arguments structure in the arguments' space since
-  // it's not controlled by GC.
-  const int kApiStackSpace = 4;
-
-  FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(false, kApiStackSpace);
-
-  // r0 = FunctionCallbackInfo&
-  // Arguments is after the return address.
-  __ add(r0, sp, Operand(1 * kPointerSize));
-  // FunctionCallbackInfo::implicit_args_
-  __ str(r2, MemOperand(r0, 0 * kPointerSize));
-  // FunctionCallbackInfo::values_
-  __ add(ip, r2, Operand((kFastApiCallArguments - 1 + argc) * kPointerSize));
-  __ str(ip, MemOperand(r0, 1 * kPointerSize));
-  // FunctionCallbackInfo::length_ = argc
-  __ mov(ip, Operand(argc));
-  __ str(ip, MemOperand(r0, 2 * kPointerSize));
-  // FunctionCallbackInfo::is_construct_call = 0
-  __ mov(ip, Operand::Zero());
-  __ str(ip, MemOperand(r0, 3 * kPointerSize));
-
-  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
+  // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   ApiFunction fun(function_address);
   ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
   ExternalReference ref = ExternalReference(&fun,
                                             type,
                                             masm->isolate());
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
-  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
-  ApiFunction thunk_fun(thunk_address);
-  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
-      masm->isolate());
+  __ mov(api_function_address, Operand(ref));
+  __ mov(thunk_arg, Operand(reinterpret_cast<int32_t>(function_address)));
 
-  AllowExternalCallThatCantCauseGC scope(masm);
-  MemOperand context_restore_operand(
-      fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
-  MemOperand return_value_operand(fp,
-                                  (2 + FCA::kReturnValueOffset) * kPointerSize);
-
-  __ CallApiFunctionAndReturn(ref,
-                              function_address,
-                              thunk_ref,
-                              r1,
-                              kStackUnwindSpace,
-                              return_value_operand,
-                              restore_context ?
-                                  &context_restore_operand : NULL);
+  // Jump to stub.
+  CallApiFunctionStub stub(restore_context, call_data_undefined, argc);
+  __ TailCallStub(&stub);
 }
 
 
@@ -911,7 +840,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ IncrementCounter(counters->call_const_fast_api(), 1, r0, r1);
 
   // Move holder to a register
-  Register holder_reg = r0;
+  Register holder_reg = r2;
   switch (holder_lookup) {
     case CallOptimization::kHolderIsReceiver:
       {
@@ -938,9 +867,6 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                           optimization,
                           argc,
                           holder_reg,
-                          r1,
-                          r2,
-                          r3,
                           false);
 }
 
@@ -961,21 +887,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
     ASSERT(!scratch.is(arg));
     __ push(arg);
   }
-  Register scratch1 = r0;
-  Register scratch2 = r1;
-  Register scratch3 = r2;
-  if (!r3.is(receiver)) {
-    __ mov(r3, receiver);
-    receiver = r3;
-  }
   // Stack now matches JSFunction abi.
   GenerateFastApiCallBody(masm,
                           optimization,
                           argc,
                           receiver,
-                          scratch1,
-                          scratch2,
-                          scratch3,
                           true);
 }
 
@@ -1423,6 +1339,10 @@ void LoadStubCompiler::GenerateLoadCallback(
   ApiFunction fun(getter_address);
   ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
+  Register getter_address_reg = r3;
+  Register thunk_last_arg = r2;
+  __ mov(getter_address_reg, Operand(ref));
+  __ mov(thunk_last_arg, Operand(reinterpret_cast<int32_t>(getter_address)));
 
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
   ExternalReference::Type thunk_type =
@@ -1430,10 +1350,9 @@ void LoadStubCompiler::GenerateLoadCallback(
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
       isolate());
-  __ CallApiFunctionAndReturn(ref,
-                              getter_address,
+  __ CallApiFunctionAndReturn(getter_address_reg,
                               thunk_ref,
-                              r2,
+                              thunk_last_arg,
                               kStackUnwindSpace,
                               MemOperand(fp, 6 * kPointerSize),
                               NULL);

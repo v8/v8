@@ -1214,10 +1214,11 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
     TagObject(context->runtime_context(), "(runtime context)");
     TagObject(context->embedder_data(), "(context data)");
     NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
-    EXTRACT_CONTEXT_FIELD(OPTIMIZED_FUNCTIONS_LIST, , optimized_functions_list);
-    EXTRACT_CONTEXT_FIELD(OPTIMIZED_CODE_LIST, , optimized_code_list);
-    EXTRACT_CONTEXT_FIELD(DEOPTIMIZED_CODE_LIST, , deoptimized_code_list);
-    EXTRACT_CONTEXT_FIELD(NEXT_CONTEXT_LINK, , next_context_link);
+    EXTRACT_CONTEXT_FIELD(OPTIMIZED_FUNCTIONS_LIST, unused,
+                          optimized_functions_list);
+    EXTRACT_CONTEXT_FIELD(OPTIMIZED_CODE_LIST, unused, optimized_code_list);
+    EXTRACT_CONTEXT_FIELD(DEOPTIMIZED_CODE_LIST, unused, deoptimized_code_list);
+    EXTRACT_CONTEXT_FIELD(NEXT_CONTEXT_LINK, unused, next_context_link);
 #undef EXTRACT_CONTEXT_FIELD
     STATIC_CHECK(Context::OPTIMIZED_FUNCTIONS_LIST == Context::FIRST_WEAK_SLOT);
     STATIC_CHECK(Context::NEXT_CONTEXT_LINK + 1

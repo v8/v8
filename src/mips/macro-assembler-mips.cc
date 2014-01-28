@@ -3872,8 +3872,7 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    ExternalReference function,
-    Address function_address,
+    Register function_address,
     ExternalReference thunk_ref,
     Register thunk_last_arg,
     int stack_space,
@@ -3888,6 +3887,26 @@ void MacroAssembler::CallApiFunctionAndReturn(
   const int kLevelOffset = AddressOffset(
       ExternalReference::handle_scope_level_address(isolate()),
       next_address);
+
+  ASSERT(function_address.is(a3));
+  ASSERT(thunk_last_arg.is(a1) || thunk_last_arg.is(a2));
+
+  Label profiler_disabled;
+  Label end_profiler_check;
+  bool* is_profiling_flag =
+      isolate()->cpu_profiler()->is_profiling_address();
+  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
+  li(t9, reinterpret_cast<int32_t>(is_profiling_flag));
+  lb(t9, MemOperand(t9, 0));
+  Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
+
+  // Additional parameter is the address of the actual callback.
+  li(t9, Operand(thunk_ref));
+  jmp(&end_profiler_check);
+
+  bind(&profiler_disabled);
+  mov(t9, function_address);
+  bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.
   li(s3, Operand(next_address));
@@ -3905,25 +3924,6 @@ void MacroAssembler::CallApiFunctionAndReturn(
     CallCFunction(ExternalReference::log_enter_external_function(isolate()), 1);
     PopSafepointRegisters();
   }
-
-  Label profiler_disabled;
-  Label end_profiler_check;
-  bool* is_profiling_flag =
-      isolate()->cpu_profiler()->is_profiling_address();
-  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
-  li(t9, reinterpret_cast<int32_t>(is_profiling_flag));
-  lb(t9, MemOperand(t9, 0));
-  beq(t9, zero_reg, &profiler_disabled);
-
-  // Third parameter is the address of the actual getter function.
-  li(thunk_last_arg, reinterpret_cast<int32_t>(function_address));
-  li(t9, Operand(thunk_ref));
-  jmp(&end_profiler_check);
-
-  bind(&profiler_disabled);
-  li(t9, Operand(function));
-
-  bind(&end_profiler_check);
 
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).

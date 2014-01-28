@@ -5692,6 +5692,109 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0                  : callee
+  //  -- t0                  : call_data
+  //  -- a2                  : holder
+  //  -- a3                  : api_function_address
+  //  -- a1                  : thunk_arg
+  //  -- cp                  : context
+  //  --
+  //  -- sp[0]               : last argument
+  //  -- ...
+  //  -- sp[(argc - 1)* 4]   : first argument
+  //  -- sp[argc * 4]        : receiver
+  // -----------------------------------
+
+  Register callee = a0;
+  Register call_data = t0;
+  Register holder = a2;
+  Register api_function_address = a3;
+  Register thunk_arg = a1;
+  Register context = cp;
+
+  int argc = ArgumentBits::decode(bit_field_);
+  bool restore_context = RestoreContextBits::decode(bit_field_);
+  bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
+
+  typedef FunctionCallbackArguments FCA;
+
+  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
+  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kDataIndex == 4);
+  STATIC_ASSERT(FCA::kReturnValueOffset == 3);
+  STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(FCA::kIsolateIndex == 1);
+  STATIC_ASSERT(FCA::kHolderIndex == 0);
+  STATIC_ASSERT(FCA::kArgsLength == 7);
+
+  Isolate* isolate = masm->isolate();
+
+  // Save context, callee and call data.
+  __ Push(context, callee, call_data);
+  // Load context from callee.
+  __ lw(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+
+  Register scratch = call_data;
+  if (!call_data_undefined) {
+    __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  }
+  // Push return value and default return value.
+  __ Push(scratch, scratch);
+  __ li(scratch,
+        Operand(ExternalReference::isolate_address(isolate)));
+  // Push isolate and holder.
+  __ Push(scratch, holder);
+
+  // Prepare arguments.
+  __ mov(scratch, sp);
+
+  // Allocate the v8::Arguments structure in the arguments' space since
+  // it's not controlled by GC.
+  const int kApiStackSpace = 4;
+
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(false, kApiStackSpace);
+
+  ASSERT(!thunk_arg.is(a0) && !api_function_address.is(a0) && !scratch.is(a0));
+  // a0 = FunctionCallbackInfo&
+  // Arguments is after the return address.
+  __ Addu(a0, sp, Operand(1 * kPointerSize));
+  // FunctionCallbackInfo::implicit_args_
+  __ sw(scratch, MemOperand(a0, 0 * kPointerSize));
+  // FunctionCallbackInfo::values_
+  __ Addu(at, scratch, Operand((FCA::kArgsLength - 1 + argc) * kPointerSize));
+  __ sw(at, MemOperand(a0, 1 * kPointerSize));
+  // FunctionCallbackInfo::length_ = argc
+  __ li(at, Operand(argc));
+  __ sw(at, MemOperand(a0, 2 * kPointerSize));
+  // FunctionCallbackInfo::is_construct_call = 0
+  __ sw(zero_reg, MemOperand(a0, 3 * kPointerSize));
+
+  const int kStackUnwindSpace = argc + FCA::kArgsLength + 1;
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
+      masm->isolate());
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+  MemOperand context_restore_operand(
+      fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
+  MemOperand return_value_operand(fp,
+                                  (2 + FCA::kReturnValueOffset) * kPointerSize);
+
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_ref,
+                              thunk_arg,
+                              kStackUnwindSpace,
+                              return_value_operand,
+                              restore_context ?
+                                  &context_restore_operand : NULL);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal
