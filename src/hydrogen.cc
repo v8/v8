@@ -2243,8 +2243,11 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   HValue* total_size = AddUncasted<HAdd>(mul, header_size);
   total_size->ClearFlag(HValue::kCanOverflow);
 
-  return Add<HAllocate>(total_size, HType::JSArray(),
-      isolate()->heap()->GetPretenureMode(), instance_type);
+  PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
+      isolate()->heap()->GetPretenureMode() : NOT_TENURED;
+
+  return Add<HAllocate>(total_size, HType::JSArray(), pretenure_flag,
+      instance_type);
 }
 
 
@@ -5259,8 +5262,13 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       // The store requires a mutable HeapNumber to be allocated.
       NoObservableSideEffectsScope no_side_effects(this);
       HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
+
+      PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
+          isolate()->heap()->GetPretenureMode() : NOT_TENURED;
+
       HInstruction* heap_number = Add<HAllocate>(heap_number_size,
-          HType::HeapNumber(), isolate()->heap()->GetPretenureMode(),
+          HType::HeapNumber(),
+          pretenure_flag,
           HEAP_NUMBER_TYPE);
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
@@ -8174,9 +8182,8 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     // Allocate an instance of the implicit receiver object.
     HValue* size_in_bytes = Add<HConstant>(instance_size);
     PretenureFlag pretenure_flag =
-        (FLAG_pretenuring_call_new &&
-            isolate()->heap()->GetPretenureMode() == TENURED)
-                ? TENURED : NOT_TENURED;
+        (FLAG_pretenuring_call_new && !FLAG_allocation_site_pretenuring) ?
+            isolate()->heap()->GetPretenureMode() : NOT_TENURED;
     HAllocate* receiver =
         Add<HAllocate>(size_in_bytes, HType::JSObject(), pretenure_flag,
         JS_OBJECT_TYPE);
@@ -8939,12 +8946,15 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Handle<AllocationSite> allocation_site = expr->allocation_site();
 
+  PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
+      isolate()->heap()->GetPretenureMode() : NOT_TENURED;
+
   HAllocationMode allocation_mode =
       FLAG_allocation_site_pretenuring
       ? (allocation_site.is_null()
          ? HAllocationMode(NOT_TENURED)
          : HAllocationMode(allocation_site))
-      : HAllocationMode(isolate()->heap()->GetPretenureMode());
+      : HAllocationMode(pretenure_flag);
 
   HValue* result = HGraphBuilder::BuildBinaryOperation(
       expr->op(), left, right, left_type, right_type, result_type,
