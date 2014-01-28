@@ -884,7 +884,14 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
     return;
   }
 
-  TODO_UNIMPLEMENTED("Add support for deopt_every_n_times flag.");
+  ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on A64.
+  if (FLAG_deopt_every_n_times == 1 &&
+      !info()->IsStub() &&
+      info()->opt_count() == id) {
+    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    return;
+  }
+
   if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
     __ Debug("trap_on_deopt", __LINE__, BREAK);
   }
