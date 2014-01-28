@@ -64,7 +64,6 @@ namespace internal {
   V(Interrupt)                           \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
-  V(FastNewBlockContext)                 \
   V(FastCloneShallowArray)               \
   V(FastCloneShallowObject)              \
   V(CreateAllocationSite)                \
@@ -585,23 +584,6 @@ class FastNewContextStub V8_FINAL : public HydrogenCodeStub {
   int slots_;
 };
 
-
-class FastNewBlockContextStub : public PlatformCodeStub {
- public:
-  static const int kMaximumSlots = 64;
-
-  explicit FastNewBlockContextStub(int slots) : slots_(slots) {
-    ASSERT(slots_ > 0 && slots_ <= kMaximumSlots);
-  }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int slots_;
-
-  Major MajorKey() { return FastNewBlockContext; }
-  int MinorKey() { return slots_; }
-};
 
 class FastCloneShallowArrayStub : public HydrogenCodeStub {
  public:
