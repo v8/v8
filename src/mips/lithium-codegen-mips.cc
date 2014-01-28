@@ -4440,7 +4440,7 @@ void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->left()).is(a1));
   ASSERT(ToRegister(instr->right()).is(a0));
   StringAddStub stub(instr->hydrogen()->flags(),
-                     isolate()->heap()->GetPretenureMode());
+                     instr->hydrogen()->pretenure_flag());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
