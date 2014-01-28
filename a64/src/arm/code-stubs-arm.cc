@@ -3403,7 +3403,8 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, r3, r4, &miss);
   __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(
+      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -3434,7 +3435,8 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
                                          support_wrapper_);
 
   __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(
+      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -3504,7 +3506,8 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 
   __ bind(&miss);
 
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(
+      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -6973,7 +6976,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   // Save the resulting elements kind in type info
   __ SmiTag(r3);
   __ ldr(r5, FieldMemOperand(r2, Cell::kValueOffset));
-  __ str(r3, FieldMemOperand(r5, AllocationSite::kPayloadOffset));
+  __ str(r3, FieldMemOperand(r5, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(r3);
 
   __ bind(&normal_sequence);
@@ -7076,15 +7079,12 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
   __ b(eq, &no_info);
 
-  // We should have an allocation site object
-  if (FLAG_debug_code) {
-    __ push(r3);
-    __ ldr(r3, FieldMemOperand(r3, 0));
-    __ CompareRoot(r3, Heap::kAllocationSiteMapRootIndex);
-    __ Assert(eq, "Expected AllocationSite object in register edx");
-  }
+  // The type cell has either an AllocationSite or a JSFunction
+  __ ldr(r4, FieldMemOperand(r3, 0));
+  __ CompareRoot(r4, Heap::kAllocationSiteMapRootIndex);
+  __ b(ne, &no_info);
 
-  __ ldr(r3, FieldMemOperand(r3, AllocationSite::kPayloadOffset));
+  __ ldr(r3, FieldMemOperand(r3, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(r3);
   __ jmp(&switch_ready);
   __ bind(&no_info);

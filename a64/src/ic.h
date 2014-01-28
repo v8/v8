@@ -169,14 +169,25 @@ class IC {
 
   virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
-                                   Handle<String> name) {
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode) {
     set_target(*handler);
   }
   bool UpdatePolymorphicIC(State state,
-                           StrictModeFlag strict_mode,
                            Handle<JSObject> receiver,
                            Handle<String> name,
-                           Handle<Code> code);
+                           Handle<Code> code,
+                           StrictModeFlag strict_mode);
+
+  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                            CodeHandleList* handlers,
+                                            int number_of_valid_maps,
+                                            Handle<Name> name,
+                                            StrictModeFlag strict_mode) {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  };
+
   void CopyICToMegamorphicCache(Handle<String> name);
   bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
   void PatchCache(State state,
@@ -391,9 +402,18 @@ class LoadIC: public IC {
                     State state,
                     Handle<Object> object,
                     Handle<String> name);
+
   virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
-                                   Handle<String> name);
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
+
+  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                            CodeHandleList* handlers,
+                                            int number_of_valid_maps,
+                                            Handle<Name> name,
+                                            StrictModeFlag strict_mode);
+
   virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
@@ -467,7 +487,8 @@ class KeyedLoadIC: public LoadIC {
   // Update the inline cache.
   virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
                                    Handle<Code> handler,
-                                   Handle<String> name);
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
   virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
@@ -544,6 +565,16 @@ class StoreIC: public IC {
     return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
   }
 
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                   Handle<Code> handler,
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
+
+  virtual Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                            CodeHandleList* handlers,
+                                            int number_of_valid_maps,
+                                            Handle<Name> name,
+                                            StrictModeFlag strict_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -641,6 +672,11 @@ class KeyedStoreIC: public StoreIC {
   Handle<Code> StoreElementStub(Handle<JSObject> receiver,
                                 KeyedAccessStoreMode store_mode,
                                 StrictModeFlag strict_mode);
+
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                   Handle<Code> handler,
+                                   Handle<String> name,
+                                   StrictModeFlag strict_mode);
 
  private:
   void set_target(Code* code) {

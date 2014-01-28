@@ -2897,7 +2897,8 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, x10, x11, &miss);
 
   __ Bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(masm,
+                                BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -2929,7 +2930,8 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
                                          support_wrapper_);
 
   __ Bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(masm,
+                                BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -2999,7 +3001,8 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   __ TailCallExternalReference(ref, 2, 1);
 
   __ Bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(masm,
+                                BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -6816,7 +6819,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   // TODO(jbramley): Tag and store at the same time.
   __ SmiTag(x10, kind);
   __ Ldr(x11, FieldMemOperand(type_info_cell, Cell::kValueOffset));
-  __ Str(x10, FieldMemOperand(x11, AllocationSite::kPayloadOffset));
+  __ Str(x10, FieldMemOperand(x11, AllocationSite::kTransitionInfoOffset));
 
   __ Bind(&normal_sequence);
   int last_index = GetSequenceIndexFromFastElementsKind(
@@ -6924,14 +6927,13 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // The type cell may have undefined in its value.
   __ JumpIfRoot(kind, Heap::kUndefinedValueRootIndex, &no_info);
 
-  // We should have an allocation site object
-  if (FLAG_debug_code) {
-    __ Ldr(x10, FieldMemOperand(kind, AllocationSite::kMapOffset));
-    __ CompareRoot(x10, Heap::kAllocationSiteMapRootIndex);
-    __ Assert(eq, "Expected AllocationSite object.");
-  }
+  // The type cell has either an AllocationSite or a JSFunction.
+  __ Ldr(x10, FieldMemOperand(kind, AllocationSite::kMapOffset));
+  __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex, &no_info);
 
-  __ Ldrsw(kind, UntagSmiFieldMemOperand(kind, AllocationSite::kPayloadOffset));
+  __ Ldrsw(kind,
+           UntagSmiFieldMemOperand(kind,
+                                   AllocationSite::kTransitionInfoOffset));
   __ B(&switch_ready);
 
   __ Bind(&no_info);

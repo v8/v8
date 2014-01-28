@@ -89,12 +89,11 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
     if (%_IsConstructCall()) {
       if (IS_ARRAYBUFFER(arg1)) {
         ConstructByArrayBuffer(this, arg1, arg2, arg3);
-      } else if (IS_NUMBER(arg1) || IS_STRING(arg1) || IS_BOOLEAN(arg1)) {
+      } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
+                 IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
         ConstructByLength(this, arg1);
-      } else if (!IS_UNDEFINED(arg1)){
-        ConstructByArrayLike(this, arg1);
       } else {
-        throw MakeTypeError("parameterless_typed_array_constr", [name]);
+        ConstructByArrayLike(this, arg1);
       }
     } else {
       throw MakeTypeError("constructor_not_function", [name])

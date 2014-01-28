@@ -74,7 +74,7 @@ Heap::Heap()
 #define LUMP_OF_MEMORY MB
       code_range_size_(0),
 #endif
-#if defined(ANDROID)
+#if defined(ANDROID) || V8_TARGET_ARCH_MIPS
       reserved_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       max_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       initial_semispace_size_(Page::kPageSize),
@@ -613,8 +613,10 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
                                      kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
+  const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR, gc_reason, NULL)) {
+    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR, gc_reason, NULL) &&
+        attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
   }
@@ -4552,7 +4554,7 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   // advice
   Map* initial_map = constructor->initial_map();
 
-  Smi* smi = Smi::cast(allocation_site->payload());
+  Smi* smi = Smi::cast(allocation_site->transition_info());
   ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
   AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
   if (to_kind != initial_map->elements_kind()) {

@@ -12316,13 +12316,13 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   // Walk through to the Allocation Site
   AllocationSite* site = info->GetAllocationSite();
   if (site->IsLiteralSite()) {
-    JSArray* payload = JSArray::cast(site->payload());
-    ElementsKind kind = payload->GetElementsKind();
+    JSArray* transition_info = JSArray::cast(site->transition_info());
+    ElementsKind kind = transition_info->GetElementsKind();
     if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
       uint32_t length = 0;
-      CHECK(payload->length()->ToArrayIndex(&length));
+      CHECK(transition_info->length()->ToArrayIndex(&length));
       if (length <= AllocationSite::kMaximumArrayBytesToPretransition) {
         if (FLAG_trace_track_allocation_sites) {
           PrintF(
@@ -12331,11 +12331,11 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
               ElementsKindToString(kind),
               ElementsKindToString(to_kind));
         }
-        return payload->TransitionElementsKind(to_kind);
+        return transition_info->TransitionElementsKind(to_kind);
       }
     }
   } else {
-    ElementsKind kind = site->GetElementsKindPayload();
+    ElementsKind kind = site->GetElementsKind();
     if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
       if (FLAG_trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
@@ -12343,7 +12343,7 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
                ElementsKindToString(kind),
                ElementsKindToString(to_kind));
       }
-      site->set_payload(Smi::FromInt(to_kind));
+      site->set_transition_info(Smi::FromInt(to_kind));
     }
   }
   return this;
@@ -15821,8 +15821,7 @@ Type* PropertyCell::UpdateType(Handle<PropertyCell> cell,
                                Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<Type> old_type(cell->type(), isolate);
-  Handle<Type> new_type((value->IsSmi() || value->IsJSFunction() ||
-                         value->IsUndefined())
+  Handle<Type> new_type((value->IsSmi() || value->IsUndefined())
                         ? Type::Constant(value, isolate)
                         : Type::Any(), isolate);
 
@@ -15850,8 +15849,8 @@ MaybeObject* PropertyCell::SetValueInferType(Object* value,
         &PropertyCell::UpdateType,
         Handle<PropertyCell>(this),
         Handle<Object>(value, GetIsolate()));
-    if (maybe_type->IsFailure()) return maybe_type;
-    Type* new_type = static_cast<Type*>(maybe_type);
+    Type* new_type = NULL;
+    if (!maybe_type->To(&new_type)) return maybe_type;
     set_type(new_type);
   }
   return value;

@@ -170,14 +170,14 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
 }
 
 
-bool TypeFeedbackOracle::StoreIsPolymorphic(TypeFeedbackId ast_id) {
+bool TypeFeedbackOracle::StoreIsKeyedPolymorphic(TypeFeedbackId ast_id) {
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     bool standard_store = FLAG_compiled_keyed_stores ||
         (Code::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
          STANDARD_STORE);
-    return code->is_keyed_store_stub() && standard_store  &&
+    return code->is_keyed_store_stub() && standard_store &&
         code->ic_state() == POLYMORPHIC;
   }
   return false;
@@ -267,7 +267,9 @@ void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
 void TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
                                             Handle<String> name,
                                             SmallMapList* types) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::STUB, MONOMORPHIC, Code::kNoExtraICState,
+      Code::NORMAL, Code::STORE_IC);
   CollectReceiverTypes(expr->AssignmentFeedbackId(), name, flags, types);
 }
 
@@ -546,6 +548,18 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
   Handle<Code> code = Handle<Code>::cast(object);
   if (code->kind() == Code::KEYED_LOAD_IC ||
       code->kind() == Code::KEYED_STORE_IC) {
+    CollectPolymorphicMaps(code, types);
+  }
+}
+
+
+void TypeFeedbackOracle::CollectPolymorphicStoreReceiverTypes(
+    TypeFeedbackId ast_id,
+    SmallMapList* types) {
+  Handle<Object> object = GetInfo(ast_id);
+  if (!object->IsCode()) return;
+  Handle<Code> code = Handle<Code>::cast(object);
+  if (code->kind() == Code::STORE_IC && code->ic_state() == POLYMORPHIC) {
     CollectPolymorphicMaps(code, types);
   }
 }

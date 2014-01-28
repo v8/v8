@@ -27,6 +27,7 @@
 
 #include <v8.h>
 
+#include <cstring>
 #include <string>
 #include <map>
 
@@ -634,6 +635,8 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
+  V8::SetFlagsFromString("--noenable_i18n",
+                         static_cast<int>(strlen("--noenable_i18n")));
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   Handle<String> source = ReadFile(file);

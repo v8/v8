@@ -1115,7 +1115,7 @@ class HGraphBuilder {
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
-  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HContext* context);
+  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HValue* context);
 
   enum SoftDeoptimizeMode {
     MUST_EMIT_SOFT_DEOPT,
@@ -1378,6 +1378,7 @@ class HGraphBuilder {
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,
+                                    ElementsKind new_kind,
                                     HValue* length,
                                     HValue* new_capacity);
 
@@ -1744,18 +1745,24 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
+                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   bool TryStorePolymorphicAsMonomorphic(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
+                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
+  bool TryCallPolymorphicAsMonomorphic(Call* expr,
+                                       HValue* receiver,
+                                       SmallMapList* types,
+                                       Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
                                   HTypeof* typeof_expr,
                                   Handle<String> check);
@@ -1829,7 +1836,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                        BailoutId assignment_id,
                        Property* prop,
                        HValue* object,
-                       HValue* value);
+                       HValue* store_value,
+                       HValue* result_value = NULL);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,

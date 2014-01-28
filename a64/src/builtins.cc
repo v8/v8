@@ -214,7 +214,7 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
     if (info != NULL && info->IsValid()) {
       AllocationSite* site = info->GetAllocationSite();
-      ElementsKind to_kind = site->GetElementsKindPayload();
+      ElementsKind to_kind = site->GetElementsKind();
       if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
                                               to_kind)) {
         // We have advice that we should change the elements kind

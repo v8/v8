@@ -2045,7 +2045,8 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8, r9, &miss);
   __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(
+      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -2074,7 +2075,8 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
   StubCompiler::GenerateLoadStringLength(masm, receiver, r8, r9, &miss,
                                          support_wrapper_);
   __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(
+      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -2137,7 +2139,8 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 
   __ bind(&miss);
 
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
+  StubCompiler::TailCallBuiltin(
+      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -6566,7 +6569,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
 
   // Save the resulting elements kind in type info
   __ Integer32ToSmi(rdx, rdx);
-  __ movq(FieldOperand(rcx, AllocationSite::kPayloadOffset), rdx);
+  __ movq(FieldOperand(rcx, AllocationSite::kTransitionInfoOffset), rdx);
   __ SmiToInteger32(rdx, rdx);
 
   __ bind(&normal_sequence);
@@ -6673,14 +6676,12 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ Cmp(rdx, undefined_sentinel);
   __ j(equal, &no_info);
 
-  // We should have an allocation site object
-  if (FLAG_debug_code) {
-    __ Cmp(FieldOperand(rdx, 0),
-           Handle<Map>(masm->isolate()->heap()->allocation_site_map()));
-    __ Assert(equal, "Expected AllocationSite object in register rdx");
-  }
+  // The type cell has either an AllocationSite or a JSFunction
+  __ Cmp(FieldOperand(rdx, 0),
+         Handle<Map>(masm->isolate()->heap()->allocation_site_map()));
+  __ j(not_equal, &no_info);
 
-  __ movq(rdx, FieldOperand(rdx, AllocationSite::kPayloadOffset));
+  __ movq(rdx, FieldOperand(rdx, AllocationSite::kTransitionInfoOffset));
   __ SmiToInteger32(rdx, rdx);
   __ jmp(&switch_ready);
   __ bind(&no_info);

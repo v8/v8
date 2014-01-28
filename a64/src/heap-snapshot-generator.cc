@@ -955,9 +955,10 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractCellReferences(entry, Cell::cast(obj));
     extract_indexed_refs = false;
   } else if (obj->IsPropertyCell()) {
-    ExtractPropertyCellReferences(
-        entry, PropertyCell::cast(obj));
+    ExtractPropertyCellReferences(entry, PropertyCell::cast(obj));
     extract_indexed_refs = false;
+  } else if (obj->IsAllocationSite()) {
+    ExtractAllocationSiteReferences(entry, AllocationSite::cast(obj));
   }
   if (extract_indexed_refs) {
     SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
@@ -1261,6 +1262,13 @@ void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
                                                    PropertyCell* cell) {
   SetInternalReference(cell, entry, "value", cell->value());
   SetInternalReference(cell, entry, "type", cell->type());
+}
+
+
+void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
+                                                     AllocationSite* site) {
+  SetInternalReference(site, entry, "transition_info", site->transition_info(),
+                       AllocationSite::kTransitionInfoOffset);
 }
 
 

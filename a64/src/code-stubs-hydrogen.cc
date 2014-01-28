@@ -446,7 +446,7 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   HValue* initial_elements_kind = AddInstruction(new(zone) HConstant(
       GetInitialFastElementsKind()));
   AddInstruction(new(zone) HStoreNamedField(object,
-      HObjectAccess::ForAllocationSitePayload(), initial_elements_kind));
+      HObjectAccess::ForAllocationSiteTransitionInfo(), initial_elements_kind));
 
   // We use a hammer (SkipWriteBarrier()) to indicate that we know the input
   // cell is really a Cell, and so no write barrier is needed.
@@ -528,45 +528,36 @@ Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
-  Zone* zone = this->zone();
+  TransitionElementsKindStub* stub = casted_stub();
+  ElementsKind from_kind = stub->from_kind();
+  ElementsKind to_kind = stub->to_kind();
 
   HValue* js_array = GetParameter(0);
   HValue* map = GetParameter(1);
 
   info()->MarkAsSavesCallerDoubles();
 
-  AddInstruction(new(zone) HTrapAllocationMemento(js_array));
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    Add<HTrapAllocationMemento>(js_array);
+  }
 
   HInstruction* array_length =
       AddLoad(js_array, HObjectAccess::ForArrayLength());
   array_length->set_type(HType::Smi());
 
-  ElementsKind to_kind = casted_stub()->to_kind();
-  BuildNewSpaceArrayCheck(array_length, to_kind);
-
   IfBuilder if_builder(this);
 
-  if_builder.If<HCompareNumericAndBranch>(array_length,
-                                          graph()->GetConstant0(),
-                                          Token::EQ);
+  if_builder.IfNot<HCompareNumericAndBranch>(array_length,
+                                             graph()->GetConstant0(),
+                                             Token::EQ);
   if_builder.Then();
-
-  // Nothing to do, just change the map.
-
-  if_builder.Else();
 
   HInstruction* elements = AddLoadElements(js_array);
 
   HInstruction* elements_length = AddLoadFixedArrayLength(elements);
 
-  HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
-      context(), to_kind, elements_length);
-
-  BuildCopyElements(context(), elements,
-                    casted_stub()->from_kind(), new_elements,
-                    to_kind, array_length, elements_length);
-
-  AddStore(js_array, HObjectAccess::ForElementsPointer(), new_elements);
+  BuildGrowElementsCapacity(js_array, elements, from_kind, to_kind,
+                            array_length, elements_length);
 
   if_builder.End();
 
