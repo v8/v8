@@ -5050,14 +5050,14 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
                                                uint32_t encoding_mask) {
   Label is_object;
   SmiTst(string, at);
-  ThrowIf(eq, kNonObject, at, Operand(zero_reg));
+  Check(ne, kNonObject, at, Operand(zero_reg));
 
   lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
   lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
 
   andi(at, at, kStringRepresentationMask | kStringEncodingMask);
   li(scratch, Operand(encoding_mask));
-  ThrowIf(ne, kUnexpectedStringType, at, Operand(scratch));
+  Check(eq, kUnexpectedStringType, at, Operand(scratch));
 
   // The index is assumed to be untagged coming in, tag it to compare with the
   // string length without using a temp register, it is restored at the end of
@@ -5066,14 +5066,14 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   TrySmiTag(index, scratch, &index_tag_bad);
   Branch(&index_tag_ok);
   bind(&index_tag_bad);
-  Throw(kIndexIsTooLarge);
+  Abort(kIndexIsTooLarge);
   bind(&index_tag_ok);
 
   lw(at, FieldMemOperand(string, String::kLengthOffset));
-  ThrowIf(ge, kIndexIsTooLarge, index, Operand(at));
+  Check(lt, kIndexIsTooLarge, index, Operand(at));
 
   ASSERT(Smi::FromInt(0) == 0);
-  ThrowIf(lt, kIndexIsNegative, index, Operand(zero_reg));
+  Check(ge, kIndexIsNegative, index, Operand(zero_reg));
 
   SmiUntag(index, index);
 }

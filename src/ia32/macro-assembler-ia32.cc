@@ -3223,7 +3223,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
                                                uint32_t encoding_mask) {
   Label is_object;
   JumpIfNotSmi(string, &is_object, Label::kNear);
-  Throw(kNonObject);
+  Abort(kNonObject);
   bind(&is_object);
 
   push(value);
@@ -3233,20 +3233,19 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   and_(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
   cmp(value, Immediate(encoding_mask));
   pop(value);
-  ThrowIf(not_equal, kUnexpectedStringType);
+  Check(equal, kUnexpectedStringType);
 
   // The index is assumed to be untagged coming in, tag it to compare with the
   // string length without using a temp register, it is restored at the end of
   // this function.
   SmiTag(index);
-  // Can't use overflow here directly, compiler can't seem to disambiguate.
-  ThrowIf(NegateCondition(no_overflow), kIndexIsTooLarge);
+  Check(no_overflow, kIndexIsTooLarge);
 
   cmp(index, FieldOperand(string, String::kLengthOffset));
-  ThrowIf(greater_equal, kIndexIsTooLarge);
+  Check(less, kIndexIsTooLarge);
 
   cmp(index, Immediate(Smi::FromInt(0)));
-  ThrowIf(less, kIndexIsNegative);
+  Check(greater_equal, kIndexIsNegative);
 
   // Restore the index
   SmiUntag(index);
