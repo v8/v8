@@ -132,6 +132,7 @@ class HCheckTable : public ZoneObject {
 
     // Branch-sensitive analysis for certain comparisons may add more facts
     // to the state for the successor on the true branch.
+    bool learned = false;
     HControlInstruction* end = succ->predecessors()->at(0)->end();
     if (succ->predecessors()->length() == 1 && end->SuccessorAt(0) == succ) {
       if (end->IsCompareMap()) {
@@ -146,6 +147,7 @@ class HCheckTable : public ZoneObject {
           list->Add(cmp->map(), phase_->zone());
           entry->maps_ = list;
         }
+        learned = true;
       } else if (end->IsCompareObjectEqAndBranch()) {
         // Learn on the true branch of if(CmpObjectEq(x, y)).
         HCompareObjectEqAndBranch* cmp =
@@ -165,8 +167,17 @@ class HCheckTable : public ZoneObject {
           le->maps_ = intersect;
           re->maps_ = intersect->Copy(zone);
         }
+        learned = true;
       }
       // Learning on false branches requires storing negative facts.
+    }
+
+    if (FLAG_trace_check_elimination) {
+      PrintF("B%d checkmaps-table %s from B%d:\n",
+             succ->block_id(),
+             learned ? "learned" : "copied",
+             from_block->block_id());
+      copy->Print();
     }
 
     return copy;
@@ -175,27 +186,36 @@ class HCheckTable : public ZoneObject {
   // Global analysis: Merge this state with the other incoming state.
   HCheckTable* Merge(HBasicBlock* succ, HCheckTable* that,
                      HBasicBlock* that_block, Zone* zone) {
-    if (that->size_ == 0) {
-      // If the other state is empty, simply reset.
-      size_ = 0;
-      cursor_ = 0;
-      return this;
-    }
-    bool compact = false;
-    for (int i = 0; i < size_; i++) {
-      HCheckTableEntry* this_entry = &entries_[i];
-      HCheckTableEntry* that_entry = that->Find(this_entry->object_);
-      if (that_entry == NULL) {
-        this_entry->object_ = NULL;
-        compact = true;
+    if (that_block->IsReachable()) {
+      if (that->size_ == 0) {
+        // If the other state is empty, simply reset.
+        size_ = 0;
+        cursor_ = 0;
       } else {
-        this_entry->maps_ = this_entry->maps_->Union(
-            that_entry->maps_, phase_->zone());
-        if (this_entry->check_ != that_entry->check_) this_entry->check_ = NULL;
-        ASSERT(this_entry->maps_->size() > 0);
+        bool compact = false;
+        for (int i = 0; i < size_; i++) {
+          HCheckTableEntry* this_entry = &entries_[i];
+          HCheckTableEntry* that_entry = that->Find(this_entry->object_);
+          if (that_entry == NULL) {
+            this_entry->object_ = NULL;
+            compact = true;
+          } else {
+            this_entry->maps_ =
+                this_entry->maps_->Union(that_entry->maps_, phase_->zone());
+            if (this_entry->check_ != that_entry->check_) {
+              this_entry->check_ = NULL;
+            }
+            ASSERT(this_entry->maps_->size() > 0);
+          }
+        }
+        if (compact) Compact();
       }
     }
-    if (compact) Compact();
+    if (FLAG_trace_check_elimination) {
+      PrintF("B%d checkmaps-table merged with B%d table:\n",
+             succ->block_id(), that_block->block_id());
+      Print();
+    }
     return this;
   }
 
@@ -209,10 +229,17 @@ class HCheckTable : public ZoneObject {
       if (a->IsSubset(i)) {
         // The first check is more strict; the second is redundant.
         if (entry->check_ != NULL) {
+          TRACE(("Replacing redundant CheckMaps #%d at B%d with #%d\n",
+              instr->id(), instr->block()->block_id(), entry->check_->id()));
           instr->DeleteAndReplaceWith(entry->check_);
           INC_STAT(redundant_);
         } else {
-          instr->DeleteAndReplaceWith(instr->value());
+          TRACE(("Marking redundant CheckMaps #%d at B%d as dead\n",
+              instr->id(), instr->block()->block_id()));
+          // Mark check as dead but leave it in the graph as a checkpoint for
+          // subsequent checks.
+          instr->SetFlag(HValue::kIsDead);
+          entry->check_ = instr;
           INC_STAT(removed_);
         }
         return;

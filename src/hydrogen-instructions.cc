@@ -689,6 +689,9 @@ void HInstruction::PrintTo(StringStream* stream) {
   if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
     stream->Add(" [noOSE]");
   }
+  if (CheckFlag(HValue::kIsDead)) {
+    stream->Add(" [dead]");
+  }
 }
 
 

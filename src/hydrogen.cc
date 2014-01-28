@@ -3933,7 +3933,13 @@ void HGraph::RestoreActualValues() {
 
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instruction = it.Current();
-      if (instruction->ActualValue() != instruction) {
+      if (instruction->ActualValue() == instruction) continue;
+      if (instruction->CheckFlag(HValue::kIsDead)) {
+        // The instruction was marked as deleted but left in the graph
+        // as a control flow dependency point for subsequent
+        // instructions.
+        instruction->DeleteAndReplaceWith(instruction->ActualValue());
+      } else {
         ASSERT(instruction->IsInformativeDefinition());
         if (instruction->IsPurelyInformativeDefinition()) {
           instruction->DeleteAndReplaceWith(instruction->RedefinedOperand());
