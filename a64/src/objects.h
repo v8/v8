@@ -7736,7 +7736,7 @@ class Name: public HeapObject {
   // kMaxCachedArrayIndexLength.
   STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
-  static const int kContainsCachedArrayIndexMask =
+  static const unsigned int kContainsCachedArrayIndexMask =
       (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
       kIsNotArrayIndexMask;
 
