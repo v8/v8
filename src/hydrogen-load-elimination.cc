@@ -176,6 +176,10 @@ class HLoadEliminationTable : public ZoneObject {
         approx = approx->next_;
       }
     }
+    if (FLAG_trace_load_elimination) {
+      TRACE((" merge-to B%d\n", succ->block_id()));
+      Print();
+    }
     return this;
   }
 
@@ -208,6 +212,11 @@ class HLoadEliminationTable : public ZoneObject {
   // the stored values are the same), return NULL indicating that this store
   // instruction is redundant. Otherwise, return {instr}.
   HValue* store(HStoreNamedField* instr) {
+    if (instr->store_mode() == PREINITIALIZING_STORE) {
+      TRACE(("  skipping preinitializing store\n"));
+      return instr;
+    }
+
     int field = FieldOf(instr->access());
     if (field < 0) return KillIfMisaligned(instr);
 

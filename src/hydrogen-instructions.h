@@ -6494,15 +6494,19 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
 // Indicates whether the store is a store to an entry that was previously
 // initialized or not.
 enum StoreFieldOrKeyedMode {
+  // This is a store of either an undefined value to a field or a hole/NaN to
+  // an entry of a newly allocated object.
+  PREINITIALIZING_STORE,
+  // The entry could be either previously initialized or not.
   INITIALIZING_STORE,
+  // At the time of this store it is guaranteed that the entry is already
+  // initialized.
   STORE_TO_INITIALIZED_ENTRY
 };
 
 
 class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
-                                 HObjectAccess, HValue*);
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*, StoreFieldOrKeyedMode);
 
@@ -6609,12 +6613,17 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,
                    HValue* val,
-                   StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
+                   StoreFieldOrKeyedMode store_mode)
       : access_(access),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
+    // PREINITIALIZING_STORE is only used to mark stores that initialize a
+    // memory region resulting from HAllocate (possibly through an
+    // HInnerAllocatedObject).
+    ASSERT(store_mode != PREINITIALIZING_STORE ||
+           obj->IsAllocate() || obj->IsInnerAllocatedObject());
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
@@ -6625,7 +6634,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
-  StoreFieldOrKeyedMode store_mode_ : 1;
+  StoreFieldOrKeyedMode store_mode_ : 2;
 };
 
 
@@ -6670,8 +6679,6 @@ class HStoreNamedGeneric V8_FINAL : public HTemplateInstruction<3> {
 class HStoreKeyed V8_FINAL
     : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
-                                 ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, StoreFieldOrKeyedMode);
 
@@ -6791,7 +6798,7 @@ class HStoreKeyed V8_FINAL
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
               ElementsKind elements_kind,
-              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
+              StoreFieldOrKeyedMode store_mode)
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
@@ -6801,6 +6808,12 @@ class HStoreKeyed V8_FINAL
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
+
+    // PREINITIALIZING_STORE is only used to mark stores that initialize a
+    // memory region resulting from HAllocate (possibly through an
+    // HInnerAllocatedObject).
+    ASSERT(store_mode != PREINITIALIZING_STORE ||
+           obj->IsAllocate() || obj->IsInnerAllocatedObject());
 
     ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
            elements_kind == FAST_SMI_ELEMENTS);
@@ -6836,7 +6849,7 @@ class HStoreKeyed V8_FINAL
   uint32_t index_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
-  StoreFieldOrKeyedMode store_mode_: 1;
+  StoreFieldOrKeyedMode store_mode_: 2;
   HValue* new_space_dominator_;
 };
 

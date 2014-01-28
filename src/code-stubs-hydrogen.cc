@@ -446,7 +446,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   for (int i = 0; i < object_size; i += kPointerSize) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
     Add<HStoreNamedField>(object, access,
-                          Add<HLoadNamedField>(boilerplate, access));
+                          Add<HLoadNamedField>(boilerplate, access),
+                          INITIALIZING_STORE);
   }
 
   ASSERT(FLAG_allocation_site_pretenuring || (size == object_size));
@@ -483,25 +484,29 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteOffset(
                             AllocationSite::kTransitionInfoOffset),
-                        initial_elements_kind);
+                        initial_elements_kind,
+                        INITIALIZING_STORE);
 
   // Unlike literals, constructed arrays don't have nested sites
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteOffset(
                             AllocationSite::kNestedSiteOffset),
-                        graph()->GetConstant0());
+                        graph()->GetConstant0(),
+                        INITIALIZING_STORE);
 
   // Pretenuring calculation field.
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteOffset(
                             AllocationSite::kPretenureDataOffset),
-                        graph()->GetConstant0());
+                        graph()->GetConstant0(),
+                        INITIALIZING_STORE);
 
   // Pretenuring memento creation count field.
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteOffset(
                             AllocationSite::kPretenureCreateCountOffset),
-                        graph()->GetConstant0());
+                        graph()->GetConstant0(),
+                        INITIALIZING_STORE);
 
   // Store an empty fixed array for the code dependency.
   HConstant* empty_fixed_array =
@@ -510,7 +515,8 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
       object,
       HObjectAccess::ForAllocationSiteOffset(
           AllocationSite::kDependentCodeOffset),
-      empty_fixed_array);
+      empty_fixed_array,
+      INITIALIZING_STORE);
 
   // Link the object to the allocation site list
   HValue* site_list = Add<HConstant>(
@@ -519,10 +525,10 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
                                       HObjectAccess::ForAllocationSiteList());
   store = Add<HStoreNamedField>(object,
       HObjectAccess::ForAllocationSiteOffset(AllocationSite::kWeakNextOffset),
-      site);
+      site, INITIALIZING_STORE);
   store->SkipWriteBarrier();
   Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
-                        object);
+                        object, INITIALIZING_STORE);
 
   // We use a hammer (SkipWriteBarrier()) to indicate that we know the input
   // cell is really a Cell, and so no write barrier is needed.
@@ -530,7 +536,7 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   // a cell. (perhaps with a new instruction, HAssert).
   HInstruction* cell = GetParameter(0);
   HObjectAccess access = HObjectAccess::ForCellValue();
-  store = Add<HStoreNamedField>(cell, access, object);
+  store = Add<HStoreNamedField>(cell, access, object, INITIALIZING_STORE);
   store->SkipWriteBarrier();
   return cell;
 }
@@ -746,7 +752,7 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
   HInstruction* argument = Add<HAccessArgumentsAt>(
       argument_elements, checked_length, key);
 
-  Add<HStoreKeyed>(elements, key, argument, kind);
+  Add<HStoreKeyed>(elements, key, argument, kind, INITIALIZING_STORE);
   builder.EndBody();
   return new_object;
 }
@@ -957,7 +963,8 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
     IfBuilder if_heap_number(this);
     if_heap_number.IfNot<HIsSmiAndBranch>(operand);
     if_heap_number.Then();
-    Add<HStoreNamedField>(operand, HObjectAccess::ForHeapNumberValue(), result);
+    Add<HStoreNamedField>(operand, HObjectAccess::ForHeapNumberValue(), result,
+                          INITIALIZING_STORE);
     Push(operand);
     if_heap_number.Else();
     Push(result);
@@ -1080,7 +1087,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     builder.Then();
     builder.Deopt("Unexpected cell contents in global store");
     builder.Else();
-    Add<HStoreNamedField>(cell, access, value);
+    Add<HStoreNamedField>(cell, access, value, INITIALIZING_STORE);
     builder.End();
   }
 
@@ -1144,12 +1151,12 @@ void CodeStubGraphBuilderBase::BuildInstallOptimizedCode(
       HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST));
   Add<HStoreNamedField>(js_function,
                         HObjectAccess::ForNextFunctionLinkPointer(),
-                        optimized_functions_list);
+                        optimized_functions_list, INITIALIZING_STORE);
 
   // This store is the only one that should have a write barrier.
   Add<HStoreNamedField>(native_context,
            HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST),
-           js_function);
+           js_function, INITIALIZING_STORE);
 }
 
 
@@ -1157,7 +1164,8 @@ void CodeStubGraphBuilderBase::BuildInstallCode(HValue* js_function,
                                                 HValue* shared_info) {
   Add<HStoreNamedField>(js_function,
                         HObjectAccess::ForNextFunctionLinkPointer(),
-                        graph()->GetConstantUndefined());
+                        graph()->GetConstantUndefined(),
+                        INITIALIZING_STORE);
   HValue* code_object = Add<HLoadNamedField>(shared_info,
                                              HObjectAccess::ForCodeOffset());
   Add<HStoreCodeEntry>(js_function, code_object);
@@ -1294,22 +1302,23 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   HInstruction* native_context = BuildGetNativeContext();
   HInstruction* map_slot_value = Add<HLoadNamedField>(native_context,
       HObjectAccess::ForContextSlot(map_index));
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value);
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value,
+                        INITIALIZING_STORE);
 
   // Initialize the rest of the function.
   Add<HStoreNamedField>(js_function, HObjectAccess::ForPropertiesPointer(),
-                        empty_fixed_array);
+                        empty_fixed_array, INITIALIZING_STORE);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
-                        empty_fixed_array);
+                        empty_fixed_array, INITIALIZING_STORE);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                        empty_fixed_array);
+                        empty_fixed_array, INITIALIZING_STORE);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForPrototypeOrInitialMap(),
-                        graph()->GetConstantHole());
+                        graph()->GetConstantHole(), INITIALIZING_STORE);
   Add<HStoreNamedField>(js_function,
                         HObjectAccess::ForSharedFunctionInfoPointer(),
-                        shared_info);
+                        shared_info, INITIALIZING_STORE);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
-                        context());
+                        context(), INITIALIZING_STORE);
 
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
@@ -1346,18 +1355,18 @@ HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
                       isolate()->factory()->function_context_map());
   Add<HStoreNamedField>(function_context,
                         HObjectAccess::ForFixedArrayLength(),
-                        Add<HConstant>(length));
+                        Add<HConstant>(length), INITIALIZING_STORE);
 
   // Set up the fixed slots.
   Add<HStoreNamedField>(function_context,
                         HObjectAccess::ForContextSlot(Context::CLOSURE_INDEX),
-                        function);
+                        function, INITIALIZING_STORE);
   Add<HStoreNamedField>(function_context,
                         HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX),
-                        context());
+                        context(), INITIALIZING_STORE);
   Add<HStoreNamedField>(function_context,
                         HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX),
-                        graph()->GetConstant0());
+                        graph()->GetConstant0(), INITIALIZING_STORE);
 
   // Copy the global object from the previous context.
   HValue* global_object = Add<HLoadNamedField>(
@@ -1365,13 +1374,15 @@ HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
   Add<HStoreNamedField>(function_context,
                         HObjectAccess::ForContextSlot(
                             Context::GLOBAL_OBJECT_INDEX),
-                        global_object);
+                        global_object,
+                        INITIALIZING_STORE);
 
   // Initialize the rest of the slots to undefined.
   for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {
     Add<HStoreNamedField>(function_context,
                           HObjectAccess::ForContextSlot(i),
-                          graph()->GetConstantUndefined());
+                          graph()->GetConstantUndefined(),
+                          INITIALIZING_STORE);
   }
 
   return function_context;

@@ -1365,7 +1365,7 @@ class HGraphBuilder {
   HInstruction* AddLoadStringLength(HValue* string);
   HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
     HStoreNamedField* store_map = Add<HStoreNamedField>(
-        object, HObjectAccess::ForMap(), map);
+        object, HObjectAccess::ForMap(), map, INITIALIZING_STORE);
     store_map->SkipWriteBarrier();
     return store_map;
   }
