@@ -114,6 +114,7 @@ var kMessages = {
   promise_cyclic:                ["Chaining cycle detected for promise ", "%0"],
   array_functions_on_frozen:     ["Cannot modify frozen array elements"],
   array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
+  first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
