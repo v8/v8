@@ -117,7 +117,7 @@ class HCheckTable : public ZoneObject {
   }
 
   // Global analysis: Copy state to successor block.
-  HCheckTable* Copy(HBasicBlock* succ, Zone* zone) {
+  HCheckTable* Copy(HBasicBlock* succ, HBasicBlock* from_block, Zone* zone) {
     HCheckTable* copy = new(phase_->zone()) HCheckTable(phase_);
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* old_entry = &entries_[i];
@@ -173,7 +173,8 @@ class HCheckTable : public ZoneObject {
   }
 
   // Global analysis: Merge this state with the other incoming state.
-  HCheckTable* Merge(HBasicBlock* succ, HCheckTable* that, Zone* zone) {
+  HCheckTable* Merge(HBasicBlock* succ, HCheckTable* that,
+                     HBasicBlock* that_block, Zone* zone) {
     if (that->size_ == 0) {
       // If the other state is empty, simply reset.
       size_ = 0;
