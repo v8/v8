@@ -304,7 +304,7 @@ class RecordWriteStub: public PlatformCodeStub {
           saved_regs_(kCallerSaved)  {
       ASSERT(!AreAliased(scratch, object, address));
 
-      // We would like to requiere more scratch registers for this stub,
+      // We would like to require more scratch registers for this stub,
       // but the number of registers comes down to the ones used in
       // FullCodeGen::SetVar(), which is architecture independent.
       // We allocate 2 extra scratch registers that we'll save on the stack.
@@ -315,12 +315,10 @@ class RecordWriteStub: public PlatformCodeStub {
       scratch2_ = Register(pool_available.PopLowestIndex());
 
       // SaveCallerRegisters method needs to save caller saved register, however
-      // we dont bother saving x8, x9, ip0 and ip1 because they are used as
-      // scratch registers by the MacroAssembler.
+      // we don't bother saving ip0 and ip1 because they are used as scratch
+      // registers by the MacroAssembler.
       saved_regs_.Remove(ip0);
       saved_regs_.Remove(ip1);
-      saved_regs_.Remove(x8);
-      saved_regs_.Remove(x9);
 
       // The scratch registers will be restored by other means so we don't need
       // to save them with the other caller saved registers.
