@@ -4693,7 +4693,8 @@ HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
   HValue* context = environment()->context();
   int length = current_info()->scope()->ContextChainLength(var->scope());
   while (length-- > 0) {
-    context = Add<HOuterContext>(context);
+    context = AddLoadNamedField(
+        context, HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
   }
   return context;
 }

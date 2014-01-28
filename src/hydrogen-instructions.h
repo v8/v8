@@ -149,7 +149,6 @@ class LChunkBuilder;
   V(Mod)                                       \
   V(Mul)                                       \
   V(OsrEntry)                                  \
-  V(OuterContext)                              \
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
@@ -2118,29 +2117,6 @@ class HThisFunction V8_FINAL : public HTemplateInstruction<0> {
 
  private:
   HThisFunction() {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HOuterContext V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HOuterContext, HValue*);
-
-  DECLARE_CONCRETE_INSTRUCTION(OuterContext);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HOuterContext(HValue* inner) : HUnaryOperation(inner) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }

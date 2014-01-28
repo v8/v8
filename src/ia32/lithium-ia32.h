@@ -145,7 +145,6 @@ class LCodeGen;
   V(NumberTagU)                                 \
   V(NumberUntagD)                               \
   V(OsrEntry)                                   \
-  V(OuterContext)                               \
   V(Parameter)                                  \
   V(Power)                                      \
   V(PushArgument)                               \
@@ -1775,18 +1774,6 @@ class LContext V8_FINAL : public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Context, "context")
   DECLARE_HYDROGEN_ACCESSOR(Context)
-};
-
-
-class LOuterContext V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LOuterContext(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(OuterContext, "outer-context")
 };
 
 
