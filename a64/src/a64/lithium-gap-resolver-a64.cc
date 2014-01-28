@@ -153,7 +153,15 @@ void LGapResolver::PerformMove(int index) {
 
 
 void LGapResolver::Verify() {
-  TODO_UNIMPLEMENTED("LGapResolver::Verify");
+#ifdef ENABLE_SLOW_ASSERTS
+  // No operand should be the destination for more than one move.
+  for (int i = 0; i < moves_.length(); ++i) {
+    LOperand* destination = moves_[i].destination();
+    for (int j = i + 1; j < moves_.length(); ++j) {
+      SLOW_ASSERT(!destination->Equals(moves_[j].destination()));
+    }
+  }
+#endif
 }
 
 
