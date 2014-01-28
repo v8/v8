@@ -1,3 +1,8 @@
+2014-01-28: Version 3.24.25
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-27: Version 3.24.24
 
         MIPS: Reduce the stack requirements of GetNoCodeAgeSequence (issue
