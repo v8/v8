@@ -2437,61 +2437,23 @@ void LCodeGen::DoDivI(LDivI* instr) {
 }
 
 
-void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
+void LCodeGen::DoDoubleToIntOrSmi(LDoubleToIntOrSmi* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
+  Register result = ToRegister32(instr->result());
+  Label done, deopt;
 
-  if (instr->truncating()) {
-    Register result = ToRegister(instr->result());
-    Register scratch1 = ToRegister(instr->temp1());
-    Register scratch2 = ToRegister(instr->temp2());
-    __ ECMA262ToInt32(result, input, scratch1, scratch2);
-  } else {
-    Register result = ToRegister32(instr->result());
-    ASSERT((instr->temp1() == NULL) && (instr->temp2() == NULL));
-    Label done, deopt;
-
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      // Check for an input of -0.0, using the result register as a scratch.
-      __ Fmov(result, input);
-      __ Cmp(result, 1);
-      __ B(&deopt, vs);
-    }
-
-    __ TryConvertDoubleToInt32(result, input, double_scratch(), &done);
-    __ Bind(&deopt);
-    Deoptimize(instr->environment());
-    __ Bind(&done);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ JumpIfMinusZero(input, &deopt);
   }
-}
 
+  __ TryConvertDoubleToInt32(result, input, double_scratch(), &done);
+  __ Bind(&deopt);
+  Deoptimize(instr->environment());
+  __ Bind(&done);
 
-// TODO(jbramley): This is almost the same as DoDoubleToI. Can we merge them?
-void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
-  DoubleRegister input = ToDoubleRegister(instr->value());
-
-  if (instr->truncating()) {
-    Register result = ToRegister(instr->result());
-    Register scratch1 = ToRegister(instr->temp1());
-    Register scratch2 = ToRegister(instr->temp2());
-    __ ECMA262ToInt32(result, input, scratch1, scratch2);
-  } else {
-    Register result = ToRegister32(instr->result());
-    ASSERT((instr->temp1() == NULL) && (instr->temp2() == NULL));
-    Label done, deopt;
-
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      // Check for an input of -0.0, using the result register as a scratch.
-      __ Fmov(result, input);
-      __ Cmp(result, 1);
-      __ B(&deopt, vs);
-    }
-
-    __ TryConvertDoubleToInt32(result, input, double_scratch(), &done);
-    __ Bind(&deopt);
-    Deoptimize(instr->environment());
-    __ Bind(&done);
+  if (instr->tag_result()) {
+    __ SmiTag(result.X());
   }
-  __ SmiTag(ToRegister(instr->result()));
 }
 
 
@@ -3699,10 +3661,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   Label done;
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    // Check for an input of -0.0, using the result register as a scratch.
-    __ Fmov(result, input);
-    __ Cmp(result, 1);
-    __ B(&deopt, vs);
+    __ JumpIfMinusZero(input, &deopt);
   }
 
   __ Fcvtms(result, input);
@@ -4313,7 +4272,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
     // Load heap number.
     __ Ldr(result, FieldMemOperand(input, HeapNumber::kValueOffset));
     if (instr->hydrogen()->deoptimize_on_minus_zero()) {
-      ASM_UNIMPLEMENTED_BREAK("NumberUntagD - deopt on minus zero");
+      __ JumpIfMinusZero(result, &deopt);
     }
     __ B(&done);
 
@@ -5282,6 +5241,18 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register temp2 = ToRegister(instr->temp2());
   __ TestJSArrayForAllocationSiteInfo(object, temp1, temp2);
   DeoptimizeIf(eq, instr->environment());
+}
+
+
+void LCodeGen::DoTruncateDoubleToIntOrSmi(LTruncateDoubleToIntOrSmi* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  Register result = ToRegister(instr->result());
+  __ ECMA262ToInt32(result, input,
+                    ToRegister(instr->temp1()),
+                    ToRegister(instr->temp2()),
+                    instr->tag_result()
+                        ? MacroAssembler::SMI
+                        : MacroAssembler::INT32_IN_W);
 }
 
 

@@ -93,8 +93,7 @@ class LCodeGen;
   V(DeclareGlobals)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
-  V(DoubleToI)                                  \
-  V(DoubleToSmi)                                \
+  V(DoubleToIntOrSmi)                           \
   V(Drop)                                       \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
@@ -189,6 +188,7 @@ class LCodeGen;
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
   V(TrapAllocationMemento)                      \
+  V(TruncateDoubleToIntOrSmi)                   \
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
@@ -1207,41 +1207,18 @@ class LDivI: public LTemplateInstruction<1, 2, 1> {
 };
 
 
-class LDoubleToI: public LTemplateInstruction<1, 1, 2> {
+class LDoubleToIntOrSmi: public LTemplateInstruction<1, 1, 0> {
  public:
-  LDoubleToI(LOperand* value, LOperand* temp1, LOperand* temp2) {
+  explicit LDoubleToIntOrSmi(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
+  DECLARE_CONCRETE_INSTRUCTION(DoubleToIntOrSmi, "double-to-int-or-smi")
   DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 
-  bool truncating() { return hydrogen()->CanTruncateToInt32(); }
-};
-
-
-class LDoubleToSmi: public LTemplateInstruction<1, 1, 2> {
- public:
-  LDoubleToSmi(LOperand* value, LOperand* temp1, LOperand* temp2) {
-    inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-smi")
-  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
-
-  bool truncating() { return hydrogen()->CanTruncateToInt32(); }
+  bool tag_result() { return hydrogen()->representation().IsSmi(); }
 };
 
 
@@ -2586,6 +2563,26 @@ class LTrapAllocationMemento : public LTemplateInstruction<0, 1, 2> {
   LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento, "trap-allocation-memento")
+};
+
+
+class LTruncateDoubleToIntOrSmi: public LTemplateInstruction<1, 1, 2> {
+ public:
+  LTruncateDoubleToIntOrSmi(LOperand* value, LOperand* temp1, LOperand* temp2) {
+    inputs_[0] = value;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(TruncateDoubleToIntOrSmi,
+                               "truncate-double-to-int-or-smi")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
+
+  bool tag_result() { return hydrogen()->representation().IsSmi(); }
 };
 
 

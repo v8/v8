@@ -789,6 +789,9 @@ class MacroAssembler : public Assembler {
                            Label* on_not_heap_number,
                            Register heap_number_map = NoReg);
 
+  // Jump to label if the input double register contains -0.0.
+  void JumpIfMinusZero(DoubleRegister input, Label* on_negative_zero);
+
   // Saturate a signed 32-bit integer in input to an unsigned 8-bit integer in
   // output.
   void ClampInt32ToUint8(Register in_out);

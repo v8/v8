@@ -1847,6 +1847,16 @@ void MacroAssembler::TryConvertDoubleToInt(Register as_int,
 }
 
 
+void MacroAssembler::JumpIfMinusZero(DoubleRegister input,
+                                     Label* on_negative_zero) {
+  // Floating point -0.0 is kMinInt as an integer, so subtracting 1 (cmp) will
+  // cause overflow.
+  Fmov(Tmp0(), input);
+  Cmp(Tmp0(), 1);
+  B(vs, on_negative_zero);
+}
+
+
 void MacroAssembler::ClampInt32ToUint8(Register output, Register input) {
   // Clamp the value to [0..255].
   Cmp(input.W(), Operand(input.W(), UXTB));

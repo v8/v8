@@ -1132,21 +1132,20 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
       LNumberTagD* result = new(zone()) LNumberTagD(value, temp1, temp2);
       return AssignPointerMap(DefineAsRegister(result));
-    } else if (to.IsSmi()) {
-      // TODO(all): Split LDoubleToSmi into two instructions.
-      LOperand* value = UseRegister(instr->value());
-      LOperand* temp1 = instr->CanTruncateToInt32() ? TempRegister() : NULL;
-      LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister() : NULL;
-      LDoubleToSmi* result = new(zone()) LDoubleToSmi(value, temp1, temp2);
-      return AssignEnvironment(DefineAsRegister(result));
     } else {
-      // TODO(all): Split LDoubleToI into two instructions, truncating and not.
-      ASSERT(to.IsInteger32());
+      ASSERT(to.IsSmi() || to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      LOperand* temp1 = instr->CanTruncateToInt32() ? TempRegister() : NULL;
-      LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister() : NULL;
-      LDoubleToI* result = new(zone()) LDoubleToI(value, temp1, temp2);
-      return AssignEnvironment(DefineAsRegister(result));
+
+      if (instr->CanTruncateToInt32()) {
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = TempRegister();
+        LTruncateDoubleToIntOrSmi* result =
+            new(zone()) LTruncateDoubleToIntOrSmi(value, temp1, temp2);
+        return DefineAsRegister(result);
+      } else {
+        LDoubleToIntOrSmi* result = new(zone()) LDoubleToIntOrSmi(value);
+        return AssignEnvironment(DefineAsRegister(result));
+      }
     }
   } else if (from.IsInteger32()) {
     info()->MarkAsDeferredCalling();
