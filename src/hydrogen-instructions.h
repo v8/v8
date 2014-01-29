@@ -181,7 +181,6 @@ class LChunkBuilder;
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
   V(UseConst)                                  \
-  V(ValueOf)                                   \
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
@@ -7199,25 +7198,6 @@ class HToFastProperties V8_FINAL : public HUnaryOperation {
     const Runtime::Function* function = HCallRuntime::cast(value)->function();
     ASSERT(function->function_id == Runtime::kCreateObjectLiteral);
 #endif
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HValueOf V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HValueOf, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ValueOf)
-
- private:
-  explicit HValueOf(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }

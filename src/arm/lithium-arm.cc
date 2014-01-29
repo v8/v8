@@ -1711,13 +1711,6 @@ LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
-  LOperand* object = UseRegister(instr->value());
-  LValueOf* result = new(zone()) LValueOf(object, TempRegister());
-  return DefineAsRegister(result);
-}
-
-
 LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
   LOperand* object = UseFixed(instr->value(), r0);
   LDateField* result =
