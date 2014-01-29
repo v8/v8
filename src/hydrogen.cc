@@ -7684,23 +7684,31 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 
       Drop(expr->arguments()->length());
       HValue* result;
-      HValue* checked_object;
       HValue* reduced_length;
       HValue* receiver = Pop();
+
+      HValue* checked_object = AddCheckMap(receiver, receiver_map);
+      HValue* length = Add<HLoadNamedField>(
+          checked_object, static_cast<HValue*>(NULL),
+          HObjectAccess::ForArrayLength(elements_kind));
+
       { NoObservableSideEffectsScope scope(this);
-        checked_object = AddCheckMap(receiver, receiver_map);
+        IfBuilder length_checker(this);
+
+        HValue* bounds_check = length_checker.If<HCompareNumericAndBranch>(
+            length, graph()->GetConstant0(), Token::EQ);
+        length_checker.Then();
+
+        if (!ast_context()->IsEffect()) Push(graph()->GetConstantUndefined());
+
+        length_checker.Else();
         HValue* elements = AddLoadElements(checked_object);
         // Ensure that we aren't popping from a copy-on-write array.
         if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-          Add<HCheckMaps>(
-              elements, isolate()->factory()->fixed_array_map(), top_info());
+          elements = BuildCopyElementsOnWrite(checked_object, elements,
+                                              elements_kind, length);
         }
-        HValue* length = Add<HLoadNamedField>(
-            checked_object, static_cast<HValue*>(NULL),
-            HObjectAccess::ForArrayLength(elements_kind));
         reduced_length = AddUncasted<HSub>(length, graph()->GetConstant1());
-        HValue* bounds_check = Add<HBoundsCheck>(
-            graph()->GetConstant0(), length);
         result = AddElementAccess(elements, reduced_length, NULL,
                                   bounds_check, elements_kind, false);
         Factory* factory = isolate()->factory();
@@ -7713,13 +7721,18 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         }
         AddElementAccess(
             elements, reduced_length, hole, bounds_check, elements_kind, true);
+        Add<HStoreNamedField>(
+            checked_object, HObjectAccess::ForArrayLength(elements_kind),
+            reduced_length, STORE_TO_INITIALIZED_ENTRY);
+
+        if (!ast_context()->IsEffect()) Push(result);
+
+        length_checker.End();
       }
-      Add<HStoreNamedField>(
-          checked_object, HObjectAccess::ForArrayLength(elements_kind),
-          reduced_length, STORE_TO_INITIALIZED_ENTRY);
-      if (!ast_context()->IsEffect()) Push(result);
+      result = ast_context()->IsEffect() ? graph()->GetConstant0() : Top();
       Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
       if (!ast_context()->IsEffect()) Drop(1);
+
       ast_context()->ReturnValue(result);
       return true;
     }
