@@ -117,8 +117,6 @@ class LChunkBuilder;
   V(ForInPrepareMap)                           \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
-  V(GlobalObject)                              \
-  V(GlobalReceiver)                            \
   V(Goto)                                      \
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
@@ -2154,53 +2152,6 @@ class HDeclareGlobals V8_FINAL : public HUnaryOperation {
 
   Handle<FixedArray> pairs_;
   int flags_;
-};
-
-
-class HGlobalObject V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P0(HGlobalObject);
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalObject)
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HGlobalObject(HValue* context) : HUnaryOperation(context) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HGlobalReceiver V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HGlobalReceiver, HValue*);
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver)
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HGlobalReceiver(HValue* global_object)
-      : HUnaryOperation(global_object) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
 

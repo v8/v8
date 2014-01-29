@@ -96,8 +96,6 @@ class LCodeGen;
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
   V(GetCachedArrayIndex)                        \
-  V(GlobalObject)                               \
-  V(GlobalReceiver)                             \
   V(Goto)                                       \
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
@@ -1784,30 +1782,6 @@ class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals, "declare-globals")
   DECLARE_HYDROGEN_ACCESSOR(DeclareGlobals)
-};
-
-
-class LGlobalObject V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LGlobalObject(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalObject, "global-object")
-
-  LOperand* context() { return inputs_[0]; }
-};
-
-
-class LGlobalReceiver V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LGlobalReceiver(LOperand* global_object) {
-    inputs_[0] = global_object;
-  }
-
-  LOperand* global_object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global-receiver")
 };
 
 
