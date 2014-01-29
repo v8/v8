@@ -99,9 +99,9 @@ class Factory {
   }
   Handle<String> InternalizeString(Handle<String> str);
   Handle<String> InternalizeOneByteString(Vector<const uint8_t> str);
-  Handle<String> InternalizeOneByteString(Handle<SeqOneByteString>,
-                                   int from,
-                                   int length);
+  Handle<String> InternalizeOneByteString(
+      Handle<SeqOneByteString>, int from, int length);
+
   Handle<String> InternalizeTwoByteString(Vector<const uc16> str);
 
   template<class StringTableKey>
