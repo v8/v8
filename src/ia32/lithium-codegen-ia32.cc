@@ -3213,8 +3213,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register object = ToRegister(instr->object());
-  if (FLAG_track_double_fields &&
-      instr->hydrogen()->representation().IsDouble()) {
+  if (instr->hydrogen()->representation().IsDouble()) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister result = ToDoubleRegister(instr->result());
@@ -4314,7 +4313,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         DeoptimizeIf(zero, instr->environment());
       }
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());

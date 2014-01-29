@@ -4061,7 +4061,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ SmiTst(value);
       DeoptimizeIf(eq, instr->environment());
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
