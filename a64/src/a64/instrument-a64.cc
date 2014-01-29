@@ -118,15 +118,15 @@ static const CounterDescriptor kCounterList[] = {
 
 
 Instrument::Instrument(const char* datafile, uint64_t sample_period)
-    : output_stream_(stdout), sample_period_(sample_period) {
+    : output_stream_(stderr), sample_period_(sample_period) {
 
   // Set up the output stream. If datafile is non-NULL, use that file. If it
-  // can't be opened, or datafile is NULL, use stdout.
+  // can't be opened, or datafile is NULL, use stderr.
   if (datafile != NULL) {
     output_stream_ = fopen(datafile, "w");
     if (output_stream_ == NULL) {
-      printf("Can't open output file %s. Using stdout.\n", datafile);
-      output_stream_ = stdout;
+      fprintf(stderr, "Can't open output file %s. Using stderr.\n", datafile);
+      output_stream_ = stderr;
     }
   }
 
@@ -157,7 +157,7 @@ Instrument::~Instrument() {
     delete *it;
   }
 
-  if (output_stream_ != stdout) {
+  if (output_stream_ != stderr) {
     fclose(output_stream_);
   }
 }

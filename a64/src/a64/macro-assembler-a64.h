@@ -1727,7 +1727,7 @@ class MacroAssembler : public Assembler {
   void Check(Condition cond, const char* msg);
   void CheckRegisterIsClear(Register reg, const char* msg);
 
-  // Print a message to stdout and abort execution.
+  // Print a message to stderr and abort execution.
   void Abort(const char* msg);
 
   // Conditionally load the cached Array transitioned map of type

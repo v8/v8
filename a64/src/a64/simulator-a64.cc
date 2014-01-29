@@ -945,15 +945,15 @@ void Simulator::PrintWrite(uint8_t* address,
 // Visitors---------------------------------------------------------------------
 
 void Simulator::VisitUnimplemented(Instruction* instr) {
-  printf("Unimplemented instruction at %p: 0x%08" PRIx32 "\n",
-         reinterpret_cast<void*>(instr), instr->InstructionBits());
+  fprintf(stream_, "Unimplemented instruction at %p: 0x%08" PRIx32 "\n",
+          reinterpret_cast<void*>(instr), instr->InstructionBits());
   UNIMPLEMENTED();
 }
 
 
 void Simulator::VisitUnallocated(Instruction* instr) {
-  printf("Unallocated instruction at %p: 0x%08" PRIx32 "\n",
-         reinterpret_cast<void*>(instr), instr->InstructionBits());
+  fprintf(stream_, "Unallocated instruction at %p: 0x%08" PRIx32 "\n",
+          reinterpret_cast<void*>(instr), instr->InstructionBits());
   UNIMPLEMENTED();
 }
 
@@ -1238,11 +1238,13 @@ void Simulator::LoadStoreHelper(Instruction* instr,
   uint64_t stack_limit = reinterpret_cast<uint64_t>(stack_limit_);
   uint64_t stack_address = sp();
   if ((access_address >= stack_limit) && (access_address < stack_address)) {
-    printf("ACCESS BELOW STACK POINTER:\n");
-    printf("  sp is here:          0x%016" PRIx64 "\n", stack_address);
-    printf("  access was here:     0x%016" PRIx64 "\n", access_address);
-    printf("  stack limit is here: 0x%016" PRIx64 "\n", stack_limit);
-    printf("\n");
+    fprintf(stream_, "ACCESS BELOW STACK POINTER:\n");
+    fprintf(stream_, "  sp is here:          0x%016" PRIx64 "\n",
+            stack_address);
+    fprintf(stream_, "  access was here:     0x%016" PRIx64 "\n",
+            access_address);
+    fprintf(stream_, "  stack limit is here: 0x%016" PRIx64 "\n", stack_limit);
+    fprintf(stream_, "\n");
     ABORT();
   }
 
@@ -3378,20 +3380,20 @@ void Simulator::VisitException(Instruction* instr) {
         // Pass all of the relevant PCS registers onto printf. It doesn't
         // matter if we pass too many as the extra ones won't be read.
         int result;
-        fputs(clr_printf, stdout);
+        fputs(clr_printf, stream_);
         if (type == CPURegister::kRegister) {
-          result = printf(format,
-                          xreg(1), xreg(2), xreg(3), xreg(4),
-                          xreg(5), xreg(6), xreg(7));
+          result = fprintf(stream_, format,
+                           xreg(1), xreg(2), xreg(3), xreg(4),
+                           xreg(5), xreg(6), xreg(7));
         } else if (type == CPURegister::kFPRegister) {
-          result = printf(format,
-                          dreg(0), dreg(1), dreg(2), dreg(3),
-                          dreg(4), dreg(5), dreg(6), dreg(7));
+          result = fprintf(stream_, format,
+                           dreg(0), dreg(1), dreg(2), dreg(3),
+                           dreg(4), dreg(5), dreg(6), dreg(7));
         } else {
           ASSERT(type == CPURegister::kNoRegister);
-          result = printf("%s", format);
+          result = fprintf(stream_, "%s", format);
         }
-        fputs(clr_normal, stdout);
+        fputs(clr_normal, stream_);
         set_xreg(0, result);
 
         // TODO(jbramley): Consider clobbering all caller-saved registers here.

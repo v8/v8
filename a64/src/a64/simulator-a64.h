@@ -194,7 +194,7 @@ class Simulator : public DecoderVisitor {
  public:
   explicit Simulator(Decoder* decoder,
                      Isolate* isolate = NULL,
-                     FILE* stream = stdout);
+                     FILE* stream = stderr);
   ~Simulator();
 
   // System functions.
