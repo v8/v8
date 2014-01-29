@@ -109,7 +109,6 @@ class LChunkBuilder;
   V(Deoptimize)                                \
   V(Div)                                       \
   V(DummyUse)                                  \
-  V(ElementsKind)                              \
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
   V(ForceRepresentation)                       \
@@ -2534,28 +2533,6 @@ class HMapEnumLength V8_FINAL : public HUnaryOperation {
     SetGVNFlag(kDependsOnMaps);
   }
 
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HElementsKind V8_FINAL : public HUnaryOperation {
- public:
-  explicit HElementsKind(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnElementsKind);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ElementsKind)
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
