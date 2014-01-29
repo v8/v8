@@ -1651,27 +1651,6 @@ void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
 }
 
 
-void LCodeGen::DoValueOf(LValueOf* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  Register map = ToRegister(instr->temp());
-  Label done;
-
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
-    // If the object is a smi return the object.
-    __ Move(result, input);
-    __ JumpIfSmi(input, &done);
-  }
-
-  // If the object is not a value type, return the object.
-  __ GetObjectType(input, map, map);
-  __ Branch(&done, ne, map, Operand(JS_VALUE_TYPE));
-  __ lw(result, FieldMemOperand(input, JSValue::kValueOffset));
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoDateField(LDateField* instr) {
   Register object = ToRegister(instr->date());
   Register result = ToRegister(instr->result());
