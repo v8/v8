@@ -51,12 +51,13 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
+struct CallInterfaceDescriptor;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
-struct CallInterfaceDescriptor;
 class CodeTracer;
 class CompilationCache;
+class ConsStringIteratorOp;
 class ContextSlotCache;
 class Counters;
 class CpuFeatures;
@@ -73,19 +74,19 @@ class HeapProfiler;
 class HStatistics;
 class HTracer;
 class InlineRuntimeFunctionsTable;
-class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
+class MaterializedObjectStore;
+class NoAllocationStringAllocator;
 class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
-class UnicodeCache;
-class ConsStringIteratorOp;
 class StringTracker;
 class StubCache;
 class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
+class UnicodeCache;
 template <StateTag Tag> class VMState;
 
 // 'void function pointer', used to roundtrip the
@@ -869,6 +870,9 @@ class Isolate {
   StubCache* stub_cache() { return stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
+  MaterializedObjectStore* materialized_object_store() {
+    return materialized_object_store_;
+  }
 
   MemoryAllocator* memory_allocator() {
     return memory_allocator_;
@@ -1275,6 +1279,7 @@ class Isolate {
   StatsTable* stats_table_;
   StubCache* stub_cache_;
   DeoptimizerData* deoptimizer_data_;
+  MaterializedObjectStore* materialized_object_store_;
   ThreadLocalTop thread_local_top_;
   bool capture_stack_trace_for_uncaught_exceptions_;
   int stack_trace_for_uncaught_exceptions_frame_limit_;
