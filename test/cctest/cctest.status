@@ -87,7 +87,7 @@
 ['system == macos', {
 
   # BUG(3125).
-  'test-debug/*': [PASS, ['mode == debug', FLAKY]],
+  'test-debug/*': [PASS, FLAKY],
 }],  # 'system == macos'
 
 ##############################################################################
