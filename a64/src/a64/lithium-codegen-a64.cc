@@ -3525,7 +3525,8 @@ void LCodeGen::DoMathAbsTagged(LMathAbsTagged* instr) {
   DeferredMathAbsTagged* deferred =
       new(zone()) DeferredMathAbsTagged(this, instr);
 
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged() ||
+         instr->hydrogen()->value()->representation().IsSmi());
   Register input = ToRegister(instr->value());
   Register result_bits = ToRegister(instr->temp3());
   Register result = ToRegister(instr->result());

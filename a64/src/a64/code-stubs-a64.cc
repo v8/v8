@@ -2216,14 +2216,15 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ Mov(lr, saved_lr);
       __ B(&done);
     }
+
+    // Handle SMI exponents.
+    __ Bind(&exponent_is_smi);
+    //  x10   base_tagged       The tagged base (input).
+    //  x11   exponent_tagged   The tagged exponent (input).
+    //  d1    base_double       The base as a double.
+    __ SmiUntag(exponent_integer, exponent_tagged);
   }
 
-  // Handle integer (and SMI) exponents.
-  __ Bind(&exponent_is_smi);
-  //  x10   base_tagged       The tagged base (input).
-  //  x11   exponent_tagged   The tagged exponent (input).
-  //  d1    base_double       The base as a double.
-  __ SmiUntag(exponent_integer, exponent_tagged);
   __ Bind(&exponent_is_integer);
   //  x10   base_tagged       The tagged base (input).
   //  x11   exponent_tagged   The tagged exponent (input).

@@ -2345,7 +2345,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   switch (instr->op()) {
     case kMathAbs: {
       Representation r = instr->representation();
-      if (r.IsTagged()) {
+      if (r.IsTagged() || r.IsSmi()) {
         // The tagged case might need to allocate a HeapNumber for the result,
         // so it is handled by a separate LInstruction.
         LOperand* input = UseRegister(instr->value());
