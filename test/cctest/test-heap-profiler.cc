@@ -2122,13 +2122,23 @@ TEST(CheckCodeNames) {
       stub_path, ARRAY_SIZE(stub_path));
   CHECK_NE(NULL, node);
 
-  const char* builtin_path[] = {
+  const char* builtin_path1[] = {
     "::(GC roots)",
     "::(Builtins)",
-    "::(KeyedLoadIC_Generic code)"
+    "::(KeyedLoadIC_Generic builtin)"
   };
-  node = GetNodeByPath(snapshot, builtin_path, ARRAY_SIZE(builtin_path));
+  node = GetNodeByPath(snapshot, builtin_path1, ARRAY_SIZE(builtin_path1));
   CHECK_NE(NULL, node);
+
+  const char* builtin_path2[] = {
+    "::(GC roots)",
+    "::(Builtins)",
+    "::(CompileUnoptimized builtin)"
+  };
+  node = GetNodeByPath(snapshot, builtin_path2, ARRAY_SIZE(builtin_path2));
+  CHECK_NE(NULL, node);
+  v8::String::Utf8Value node_name(node->GetName());
+  CHECK_EQ("(CompileUnoptimized builtin)", *node_name);
 }
 
 

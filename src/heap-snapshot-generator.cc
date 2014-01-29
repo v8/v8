@@ -1366,8 +1366,8 @@ void V8HeapExplorer::ExtractCodeCacheReferences(
 }
 
 
-void V8HeapExplorer::TagCodeObject(Code* code, const char* external_name) {
-  TagObject(code, names_->GetFormatted("(%s code)", external_name));
+void V8HeapExplorer::TagBuiltinCodeObject(Code* code, const char* name) {
+  TagObject(code, names_->GetFormatted("(%s builtin)", name));
 }
 
 
@@ -1663,24 +1663,20 @@ class RootsReferencesExtractor : public ObjectVisitor {
     }
     int strong_index = 0, all_index = 0, tags_index = 0, builtin_index = 0;
     while (all_index < all_references_.length()) {
-      if (strong_index < strong_references_.length() &&
-          strong_references_[strong_index] == all_references_[all_index]) {
-        explorer->SetGcSubrootReference(reference_tags_[tags_index].tag,
-                                        false,
-                                        all_references_[all_index]);
-        ++strong_index;
-      } else {
-        explorer->SetGcSubrootReference(reference_tags_[tags_index].tag,
-                                        true,
-                                        all_references_[all_index]);
-      }
+      bool is_strong = strong_index < strong_references_.length()
+          && strong_references_[strong_index] == all_references_[all_index];
+      explorer->SetGcSubrootReference(reference_tags_[tags_index].tag,
+                                      !is_strong,
+                                      all_references_[all_index]);
       if (reference_tags_[tags_index].tag ==
           VisitorSynchronization::kBuiltins) {
         ASSERT(all_references_[all_index]->IsCode());
-        explorer->TagCodeObject(Code::cast(all_references_[all_index]),
+        explorer->TagBuiltinCodeObject(
+            Code::cast(all_references_[all_index]),
             builtins->name(builtin_index++));
       }
       ++all_index;
+      if (is_strong) ++strong_index;
       if (reference_tags_[tags_index].index == all_index) ++tags_index;
     }
   }
@@ -1705,11 +1701,21 @@ class RootsReferencesExtractor : public ObjectVisitor {
 
 bool V8HeapExplorer::IterateAndExtractReferences(
     SnapshotFillerInterface* filler) {
-  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
-
   filler_ = filler;
-  bool interrupted = false;
 
+  // Make sure builtin code objects get their builtin tags
+  // first. Otherwise a particular JSFunction object could set
+  // its custom name to a generic builtin.
+  SetRootGcRootsReference();
+  RootsReferencesExtractor extractor(heap_);
+  heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG);
+  extractor.SetCollectingAllReferences();
+  heap_->IterateRoots(&extractor, VISIT_ALL);
+  extractor.FillReferences(this);
+
+  // Now iterate the whole heap.
+  bool interrupted = false;
+  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -1724,12 +1730,6 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     return false;
   }
 
-  SetRootGcRootsReference();
-  RootsReferencesExtractor extractor(heap_);
-  heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG);
-  extractor.SetCollectingAllReferences();
-  heap_->IterateRoots(&extractor, VISIT_ALL);
-  extractor.FillReferences(this);
   filler_ = NULL;
   return progress_->ProgressReport(true);
 }
