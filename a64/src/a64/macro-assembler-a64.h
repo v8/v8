@@ -1121,11 +1121,24 @@ class MacroAssembler : public Assembler {
   }
   bool allow_macro_instructions() const { return allow_macro_instructions_; }
 #endif
-  void set_use_real_aborts(bool value) { use_real_aborts_ = value; }
   bool use_real_aborts() const { return use_real_aborts_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() const { return has_frame_; }
   bool AllowThisStubCall(CodeStub* stub);
+
+  class NoUseRealAbortsScope {
+   public:
+    explicit NoUseRealAbortsScope(MacroAssembler* masm) :
+        saved_(masm->use_real_aborts_), masm_(masm) {
+      masm_->use_real_aborts_ = false;
+    }
+    ~NoUseRealAbortsScope() {
+      masm_->use_real_aborts_ = saved_;
+    }
+   private:
+    bool saved_;
+    MacroAssembler* masm_;
+  };
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------

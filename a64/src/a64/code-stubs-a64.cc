@@ -2566,7 +2566,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // fall-back Abort mechanism.
   //
   // Note that this stub must be generated before any use of Abort.
-  masm->set_use_real_aborts(false);
+  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
 
   ASM_LOCATION("CEntryStub::Generate entry");
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
@@ -2709,8 +2709,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Mov(argc, 0);
   __ Mov(target, 0);
   __ Throw(x0, x10, x11, x12, x13);
-
-  masm->set_use_real_aborts(true);
 }
 
 
@@ -2743,6 +2741,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PushCalleeSavedRegisters();
   __ Mov(jssp, csp);
   __ SetStackPointer(jssp);
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Build an entry frame (see layout below).
   Isolate* isolate = masm->isolate();
@@ -6456,6 +6456,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
+  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
   // The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
   // a "Push lr" instruction, followed by a call.
   // TODO(jbramley): Verify that this call is always made with relocation.
@@ -6930,7 +6931,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
     // In type_info_cell, we expect either undefined or a valid Cell.
     Label okay_here;
-    Handle<Map> cell_map(masm->isolate()->heap()->global_property_cell_map());
+    Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
     __ JumpIfRoot(type_info_cell, Heap::kUndefinedValueRootIndex, &okay_here);
     __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kMapOffset));
     __ Cmp(x10, Operand(cell_map));
