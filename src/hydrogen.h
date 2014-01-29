@@ -1311,6 +1311,10 @@ class HGraphBuilder {
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
                                               HValue* key);
 
+  HValue* BuildRegExpConstructResult(HValue* length,
+                                     HValue* index,
+                                     HValue* input);
+
   // Allocates a new object according with the given allocation properties.
   HAllocate* BuildAllocate(HValue* object_size,
                            HType type,

@@ -3693,7 +3693,9 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
   ASSERT(args->length() == 3);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  VisitForStackValue(args->at(2));
+  VisitForAccumulatorValue(args->at(2));
+  __ pop(rbx);
+  __ pop(rcx);
   __ CallStub(&stub);
   context()->Plug(rax);
 }

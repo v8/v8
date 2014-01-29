@@ -1425,4 +1425,20 @@ Handle<Code> KeyedLoadDictionaryElementStub::GenerateCode(Isolate* isolate) {
 }
 
 
+template<>
+HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
+  // Determine the parameters.
+  HValue* length = GetParameter(RegExpConstructResultStub::kLength);
+  HValue* index = GetParameter(RegExpConstructResultStub::kIndex);
+  HValue* input = GetParameter(RegExpConstructResultStub::kInput);
+
+  return BuildRegExpConstructResult(length, index, input);
+}
+
+
+Handle<Code> RegExpConstructResultStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
 } }  // namespace v8::internal

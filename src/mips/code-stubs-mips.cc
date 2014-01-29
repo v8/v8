@@ -135,6 +135,17 @@ void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void RegExpConstructResultStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a2, a1, a0 };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry;
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -3127,93 +3138,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lw(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
   __ jmp(&check_underlying);  // Go to (4).
 #endif  // V8_INTERPRETED_REGEXP
-}
-
-
-void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
-  const int kMaxInlineLength = 100;
-  Label slowcase;
-  Label done;
-  __ lw(a1, MemOperand(sp, kPointerSize * 2));
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  __ JumpIfNotSmi(a1, &slowcase);
-  __ Branch(&slowcase, hi, a1, Operand(Smi::FromInt(kMaxInlineLength)));
-  // Smi-tagging is equivalent to multiplying by 2.
-  // Allocate RegExpResult followed by FixedArray with size in ebx.
-  // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
-  // Elements:  [Map][Length][..elements..]
-  // Size of JSArray with two in-object properties and the header of a
-  // FixedArray.
-  int objects_size =
-      (JSRegExpResult::kSize + FixedArray::kHeaderSize) / kPointerSize;
-  __ srl(t1, a1, kSmiTagSize + kSmiShiftSize);
-  __ Addu(a2, t1, Operand(objects_size));
-  __ Allocate(
-      a2,  // In: Size, in words.
-      v0,  // Out: Start of allocation (tagged).
-      a3,  // Scratch register.
-      t0,  // Scratch register.
-      &slowcase,
-      static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
-  // v0: Start of allocated area, object-tagged.
-  // a1: Number of elements in array, as smi.
-  // t1: Number of elements, untagged.
-
-  // Set JSArray map to global.regexp_result_map().
-  // Set empty properties FixedArray.
-  // Set elements to point to FixedArray allocated right after the JSArray.
-  // Interleave operations for better latency.
-  __ lw(a2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ Addu(a3, v0, Operand(JSRegExpResult::kSize));
-  __ li(t0, Operand(masm->isolate()->factory()->empty_fixed_array()));
-  __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
-  __ sw(a3, FieldMemOperand(v0, JSObject::kElementsOffset));
-  __ lw(a2, ContextOperand(a2, Context::REGEXP_RESULT_MAP_INDEX));
-  __ sw(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
-  __ sw(a2, FieldMemOperand(v0, HeapObject::kMapOffset));
-
-  // Set input, index and length fields from arguments.
-  __ lw(a1, MemOperand(sp, kPointerSize * 0));
-  __ lw(a2, MemOperand(sp, kPointerSize * 1));
-  __ lw(t2, MemOperand(sp, kPointerSize * 2));
-  __ sw(a1, FieldMemOperand(v0, JSRegExpResult::kInputOffset));
-  __ sw(a2, FieldMemOperand(v0, JSRegExpResult::kIndexOffset));
-  __ sw(t2, FieldMemOperand(v0, JSArray::kLengthOffset));
-
-  // Fill out the elements FixedArray.
-  // v0: JSArray, tagged.
-  // a3: FixedArray, tagged.
-  // t1: Number of elements in array, untagged.
-
-  // Set map.
-  __ li(a2, Operand(masm->isolate()->factory()->fixed_array_map()));
-  __ sw(a2, FieldMemOperand(a3, HeapObject::kMapOffset));
-  // Set FixedArray length.
-  __ sll(t2, t1, kSmiTagSize);
-  __ sw(t2, FieldMemOperand(a3, FixedArray::kLengthOffset));
-  // Fill contents of fixed-array with undefined.
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-  __ Addu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // Fill fixed array elements with undefined.
-  // v0: JSArray, tagged.
-  // a2: undefined.
-  // a3: Start of elements in FixedArray.
-  // t1: Number of elements to fill.
-  Label loop;
-  __ sll(t1, t1, kPointerSizeLog2);  // Convert num elements to num bytes.
-  __ addu(t1, t1, a3);  // Point past last element to store.
-  __ bind(&loop);
-  __ Branch(&done, ge, a3, Operand(t1));  // Break when a3 past end of elem.
-  __ sw(a2, MemOperand(a3));
-  __ Branch(&loop, USE_DELAY_SLOT);
-  __ addiu(a3, a3, kPointerSize);  // In branch delay slot.
-
-  __ bind(&done);
-  __ DropAndRet(3);
-
-  __ bind(&slowcase);
-  __ TailCallRuntime(Runtime::kRegExpConstructResult, 3, 1);
 }
 
 

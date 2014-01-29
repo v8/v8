@@ -952,11 +952,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
   ASSERT(ToRegister(instr->result()).is(rax));
   switch (instr->hydrogen()->major_key()) {
-    case CodeStub::RegExpConstructResult: {
-      RegExpConstructResultStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::RegExpExec: {
       RegExpExecStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);

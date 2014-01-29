@@ -1560,6 +1560,76 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
 }
 
 
+HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
+                                                  HValue* index,
+                                                  HValue* input) {
+  NoObservableSideEffectsScope scope(this);
+
+  // Compute the size of the RegExpResult followed by FixedArray with length.
+  HValue* size = length;
+  size = AddUncasted<HShl>(size, Add<HConstant>(kPointerSizeLog2));
+  size = AddUncasted<HAdd>(size, Add<HConstant>(static_cast<int32_t>(
+              JSRegExpResult::kSize + FixedArray::kHeaderSize)));
+
+  // Make sure size does not exceeds max regular heap object size.
+  Add<HBoundsCheck>(size, Add<HConstant>(Page::kMaxRegularHeapObjectSize));
+
+  // Allocate the JSRegExpResult and the FixedArray in one step.
+  HValue* result = Add<HAllocate>(
+      size, HType::JSArray(), NOT_TENURED, JS_ARRAY_TYPE);
+
+  // Determine the elements FixedArray.
+  HValue* elements = Add<HInnerAllocatedObject>(
+      result, Add<HConstant>(JSRegExpResult::kSize));
+
+  // Initialize the JSRegExpResult header.
+  HValue* global_object = Add<HLoadNamedField>(
+      context(), static_cast<HValue*>(NULL),
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HValue* native_context = Add<HLoadNamedField>(
+      global_object, static_cast<HValue*>(NULL),
+      HObjectAccess::ForGlobalObjectNativeContext());
+  AddStoreMapNoWriteBarrier(result, Add<HLoadNamedField>(
+          native_context, static_cast<HValue*>(NULL),
+          HObjectAccess::ForContextSlot(Context::REGEXP_RESULT_MAP_INDEX)));
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForJSArrayOffset(JSArray::kPropertiesOffset),
+      Add<HConstant>(isolate()->factory()->empty_fixed_array()),
+      INITIALIZING_STORE);
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForJSArrayOffset(JSArray::kElementsOffset),
+      elements, INITIALIZING_STORE);
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForJSArrayOffset(JSArray::kLengthOffset),
+      length, INITIALIZING_STORE);
+
+  // Initialize the additional fields.
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForJSArrayOffset(JSRegExpResult::kIndexOffset),
+      index, INITIALIZING_STORE);
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForJSArrayOffset(JSRegExpResult::kInputOffset),
+      input, INITIALIZING_STORE);
+
+  // Initialize the elements header.
+  AddStoreMapConstantNoWriteBarrier(elements,
+                                    isolate()->factory()->fixed_array_map());
+  Add<HStoreNamedField>(elements, HObjectAccess::ForFixedArrayLength(),
+                        length, INITIALIZING_STORE);
+
+  // Initialize the elements contents with undefined.
+  LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
+  index = loop.BeginBody(graph()->GetConstant0(), length, Token::LT);
+  {
+    Add<HStoreKeyed>(elements, index, graph()->GetConstantUndefined(),
+                     FAST_ELEMENTS, INITIALIZING_STORE);
+  }
+  loop.EndBody();
+
+  return result;
+}
+
+
 HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
   NoObservableSideEffectsScope scope(this);
 
@@ -10420,10 +10490,14 @@ void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
 // Construct a RegExp exec result with two in-object properties.
 void HOptimizedGraphBuilder::GenerateRegExpConstructResult(CallRuntime* call) {
   ASSERT_EQ(3, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HCallStub* result = New<HCallStub>(CodeStub::RegExpConstructResult, 3);
-  Drop(3);
-  return ast_context()->ReturnInstruction(result, call->id());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(2)));
+  HValue* input = Pop();
+  HValue* index = Pop();
+  HValue* length = Pop();
+  HValue* result = BuildRegExpConstructResult(length, index, input);
+  return ast_context()->ReturnValue(result);
 }
 
 

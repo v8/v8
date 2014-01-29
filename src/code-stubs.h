@@ -1593,15 +1593,28 @@ class RegExpExecStub: public PlatformCodeStub {
 };
 
 
-class RegExpConstructResultStub: public PlatformCodeStub {
+class RegExpConstructResultStub V8_FINAL : public HydrogenCodeStub {
  public:
   RegExpConstructResultStub() { }
 
- private:
-  Major MajorKey() { return RegExpConstructResult; }
-  int MinorKey() { return 0; }
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
 
-  void Generate(MacroAssembler* masm);
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  virtual Major MajorKey() V8_OVERRIDE { return RegExpConstructResult; }
+  virtual int NotMissMinorKey() V8_OVERRIDE { return 0; }
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kLength = 0;
+  static const int kIndex = 1;
+  static const int kInput = 2;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(RegExpConstructResultStub);
 };
 
 

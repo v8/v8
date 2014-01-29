@@ -139,6 +139,17 @@ void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void RegExpConstructResultStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { ecx, ebx, eax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry;
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -1967,88 +1978,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(eax, FieldOperand(eax, SlicedString::kParentOffset));
   __ jmp(&check_underlying);  // Go to (5a).
 #endif  // V8_INTERPRETED_REGEXP
-}
-
-
-void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
-  const int kMaxInlineLength = 100;
-  Label slowcase;
-  Label done;
-  __ mov(ebx, Operand(esp, kPointerSize * 3));
-  __ JumpIfNotSmi(ebx, &slowcase);
-  __ cmp(ebx, Immediate(Smi::FromInt(kMaxInlineLength)));
-  __ j(above, &slowcase);
-  // Smi-tagging is equivalent to multiplying by 2.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  // Allocate RegExpResult followed by FixedArray with size in ebx.
-  // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
-  // Elements:  [Map][Length][..elements..]
-  __ Allocate(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-              times_pointer_size,
-              ebx,  // In: Number of elements as a smi
-              REGISTER_VALUE_IS_SMI,
-              eax,  // Out: Start of allocation (tagged).
-              ecx,  // Out: End of allocation.
-              edx,  // Scratch register
-              &slowcase,
-              TAG_OBJECT);
-  // eax: Start of allocated area, object-tagged.
-
-  // Set JSArray map to global.regexp_result_map().
-  // Set empty properties FixedArray.
-  // Set elements to point to FixedArray allocated right after the JSArray.
-  // Interleave operations for better latency.
-  __ mov(edx, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
-  Factory* factory = masm->isolate()->factory();
-  __ mov(ecx, Immediate(factory->empty_fixed_array()));
-  __ lea(ebx, Operand(eax, JSRegExpResult::kSize));
-  __ mov(edx, FieldOperand(edx, GlobalObject::kNativeContextOffset));
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset), ebx);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
-  __ mov(edx, ContextOperand(edx, Context::REGEXP_RESULT_MAP_INDEX));
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset), edx);
-
-  // Set input, index and length fields from arguments.
-  __ mov(ecx, Operand(esp, kPointerSize * 1));
-  __ mov(FieldOperand(eax, JSRegExpResult::kInputOffset), ecx);
-  __ mov(ecx, Operand(esp, kPointerSize * 2));
-  __ mov(FieldOperand(eax, JSRegExpResult::kIndexOffset), ecx);
-  __ mov(ecx, Operand(esp, kPointerSize * 3));
-  __ mov(FieldOperand(eax, JSArray::kLengthOffset), ecx);
-
-  // Fill out the elements FixedArray.
-  // eax: JSArray.
-  // ebx: FixedArray.
-  // ecx: Number of elements in array, as smi.
-
-  // Set map.
-  __ mov(FieldOperand(ebx, HeapObject::kMapOffset),
-         Immediate(factory->fixed_array_map()));
-  // Set length.
-  __ mov(FieldOperand(ebx, FixedArray::kLengthOffset), ecx);
-  // Fill contents of fixed-array with undefined.
-  __ SmiUntag(ecx);
-  __ mov(edx, Immediate(factory->undefined_value()));
-  __ lea(ebx, FieldOperand(ebx, FixedArray::kHeaderSize));
-  // Fill fixed array elements with undefined.
-  // eax: JSArray.
-  // ecx: Number of elements to fill.
-  // ebx: Start of elements in FixedArray.
-  // edx: undefined.
-  Label loop;
-  __ test(ecx, ecx);
-  __ bind(&loop);
-  __ j(less_equal, &done, Label::kNear);  // Jump if ecx is negative or zero.
-  __ sub(ecx, Immediate(1));
-  __ mov(Operand(ebx, ecx, times_pointer_size, 0), edx);
-  __ jmp(&loop);
-
-  __ bind(&done);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&slowcase);
-  __ TailCallRuntime(Runtime::kRegExpConstructResult, 3, 1);
 }
 
 

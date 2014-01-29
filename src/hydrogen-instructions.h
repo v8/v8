@@ -5993,6 +5993,10 @@ class HObjectAccess V8_FINAL {
         JSArrayBufferView::kByteLengthOffset);
   }
 
+  static HObjectAccess ForGlobalObjectNativeContext() {
+    return HObjectAccess(kInobject, GlobalObject::kNativeContextOffset);
+  }
+
   void PrintTo(StringStream* stream);
 
   inline bool Equals(HObjectAccess that) const {
