@@ -351,7 +351,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 
   HObjectAccess access = HObjectAccess::ForAllocationSiteOffset(
       AllocationSite::kTransitionInfoOffset);
-  HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
+  HInstruction* boilerplate = Add<HLoadNamedField>(
+      allocation_site, static_cast<HValue*>(NULL), access);
   HValue* push_value;
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
     HValue* elements = AddLoadElements(boilerplate);
@@ -421,7 +422,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 
   HObjectAccess access = HObjectAccess::ForAllocationSiteOffset(
       AllocationSite::kTransitionInfoOffset);
-  HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
+  HInstruction* boilerplate = Add<HLoadNamedField>(
+      allocation_site, static_cast<HValue*>(NULL), access);
 
   int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
   int object_size = size;
@@ -430,9 +432,11 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   }
 
   HValue* boilerplate_map = Add<HLoadNamedField>(
-      boilerplate, HObjectAccess::ForMap());
+      boilerplate, static_cast<HValue*>(NULL),
+      HObjectAccess::ForMap());
   HValue* boilerplate_size = Add<HLoadNamedField>(
-      boilerplate_map, HObjectAccess::ForMapInstanceSize());
+      boilerplate_map, static_cast<HValue*>(NULL),
+      HObjectAccess::ForMapInstanceSize());
   HValue* size_in_words = Add<HConstant>(object_size >> kPointerSizeLog2);
   checker.If<HCompareNumericAndBranch>(boilerplate_size,
                                        size_in_words, Token::EQ);
@@ -445,9 +449,10 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 
   for (int i = 0; i < object_size; i += kPointerSize) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
-    Add<HStoreNamedField>(object, access,
-                          Add<HLoadNamedField>(boilerplate, access),
-                          INITIALIZING_STORE);
+    Add<HStoreNamedField>(
+        object, access, Add<HLoadNamedField>(
+            boilerplate, static_cast<HValue*>(NULL), access),
+        INITIALIZING_STORE);
   }
 
   ASSERT(FLAG_allocation_site_pretenuring || (size == object_size));
@@ -521,8 +526,9 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   // Link the object to the allocation site list
   HValue* site_list = Add<HConstant>(
       ExternalReference::allocation_sites_list_address(isolate()));
-  HValue* site = Add<HLoadNamedField>(site_list,
-                                      HObjectAccess::ForAllocationSiteList());
+  HValue* site = Add<HLoadNamedField>(
+      site_list, static_cast<HValue*>(NULL),
+      HObjectAccess::ForAllocationSiteList());
   store = Add<HStoreNamedField>(object,
       HObjectAccess::ForAllocationSiteOffset(AllocationSite::kWeakNextOffset),
       site, INITIALIZING_STORE);
@@ -1069,7 +1075,8 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
 
   HValue* cell = Add<HConstant>(placeholder_cell);
   HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
-  HValue* cell_contents = Add<HLoadNamedField>(cell, access);
+  HValue* cell_contents = Add<HLoadNamedField>(
+      cell, static_cast<HValue*>(NULL), access);
 
   if (stub->is_constant()) {
     IfBuilder builder(this);
@@ -1147,7 +1154,8 @@ void CodeStubGraphBuilderBase::BuildInstallOptimizedCode(
   Add<HStoreCodeEntry>(js_function, code_object);
 
   // Now link a function into a list of optimized functions.
-  HValue* optimized_functions_list = Add<HLoadNamedField>(native_context,
+  HValue* optimized_functions_list = Add<HLoadNamedField>(
+      native_context, static_cast<HValue*>(NULL),
       HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST));
   Add<HStoreNamedField>(js_function,
                         HObjectAccess::ForNextFunctionLinkPointer(),
@@ -1166,8 +1174,8 @@ void CodeStubGraphBuilderBase::BuildInstallCode(HValue* js_function,
                         HObjectAccess::ForNextFunctionLinkPointer(),
                         graph()->GetConstantUndefined(),
                         INITIALIZING_STORE);
-  HValue* code_object = Add<HLoadNamedField>(shared_info,
-                                             HObjectAccess::ForCodeOffset());
+  HValue* code_object = Add<HLoadNamedField>(
+      shared_info, static_cast<HValue*>(NULL), HObjectAccess::ForCodeOffset());
   Add<HStoreCodeEntry>(js_function, code_object);
 }
 
@@ -1178,7 +1186,8 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
     HValue* native_context) {
   Counters* counters = isolate()->counters();
   IfBuilder is_optimized(this);
-  HInstruction* optimized_map = Add<HLoadNamedField>(shared_info,
+  HInstruction* optimized_map = Add<HLoadNamedField>(
+      shared_info, static_cast<HValue*>(NULL),
       HObjectAccess::ForOptimizedCodeMap());
   HValue* null_constant = Add<HConstant>(0);
   is_optimized.If<HCompareObjectEqAndBranch>(optimized_map, null_constant);
@@ -1193,9 +1202,11 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
     // (native context, optimized code, literals).
     // Map must never be empty, so check the first elements.
     Label install_optimized;
-    HValue* first_context_slot = Add<HLoadNamedField>(optimized_map,
+    HValue* first_context_slot = Add<HLoadNamedField>(
+        optimized_map, static_cast<HValue*>(NULL),
         HObjectAccess::ForFirstContextSlot());
-    HValue* first_osr_ast_slot = Add<HLoadNamedField>(optimized_map,
+    HValue* first_osr_ast_slot = Add<HLoadNamedField>(
+        optimized_map, static_cast<HValue*>(NULL),
         HObjectAccess::ForFirstOsrAstIdSlot());
     HValue* osr_ast_id_none = Add<HConstant>(BailoutId::None().ToInt());
     IfBuilder already_in(this);
@@ -1205,8 +1216,9 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
                                                 osr_ast_id_none);
     already_in.Then();
     {
-      HValue* code_object = Add<HLoadNamedField>(optimized_map,
-        HObjectAccess::ForFirstCodeSlot());
+      HValue* code_object = Add<HLoadNamedField>(
+          optimized_map, static_cast<HValue*>(NULL),
+          HObjectAccess::ForFirstCodeSlot());
       BuildInstallOptimizedCode(js_function, native_context, code_object);
     }
     already_in.Else();
@@ -1217,7 +1229,8 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
                                context(),
                                LoopBuilder::kPostDecrement,
                                shared_function_entry_length);
-      HValue* array_length = Add<HLoadNamedField>(optimized_map,
+      HValue* array_length = Add<HLoadNamedField>(
+          optimized_map, static_cast<HValue*>(NULL),
           HObjectAccess::ForFixedArrayLength());
       HValue* slot_iterator = loop_builder.BeginBody(array_length,
                                            graph()->GetConstant0(),
@@ -1300,7 +1313,8 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   // Compute the function map in the current native context and set that
   // as the map of the allocated object.
   HInstruction* native_context = BuildGetNativeContext();
-  HInstruction* map_slot_value = Add<HLoadNamedField>(native_context,
+  HInstruction* map_slot_value = Add<HLoadNamedField>(
+      native_context, static_cast<HValue*>(NULL),
       HObjectAccess::ForContextSlot(map_index));
   Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value,
                         INITIALIZING_STORE);
@@ -1370,7 +1384,8 @@ HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
 
   // Copy the global object from the previous context.
   HValue* global_object = Add<HLoadNamedField>(
-      context(), HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+      context(), static_cast<HValue*>(NULL),
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   Add<HStoreNamedField>(function_context,
                         HObjectAccess::ForContextSlot(
                             Context::GLOBAL_OBJECT_INDEX),

@@ -6048,12 +6048,17 @@ class HObjectAccess V8_FINAL {
 };
 
 
-class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
+class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HLoadNamedField, HValue*, HObjectAccess);
+  DECLARE_INSTRUCTION_FACTORY_P3(HLoadNamedField, HValue*, HValue*,
+                                 HObjectAccess);
 
   HValue* object() { return OperandAt(0); }
-  bool HasTypeCheck() { return object()->IsCheckMaps(); }
+  HValue* dependency() {
+    ASSERT(HasDependency());
+    return OperandAt(1);
+  }
+  bool HasDependency() const { return OperandAt(0) != OperandAt(1); }
   HObjectAccess access() const { return access_; }
   Representation field_representation() const {
       return access_.representation();
@@ -6082,9 +6087,12 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
   }
 
  private:
-  HLoadNamedField(HValue* object, HObjectAccess access) : access_(access) {
+  HLoadNamedField(HValue* object,
+                  HValue* dependency,
+                  HObjectAccess access) : access_(access) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
+    SetOperandAt(1, dependency != NULL ? dependency : object);
 
     Representation representation = access.representation();
     if (representation.IsInteger8() ||
