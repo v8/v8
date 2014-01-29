@@ -127,6 +127,15 @@ debug-liveedit-stack-padding: SKIP
 debug-liveedit-restart-frame: SKIP
 debug-liveedit-double-call: SKIP
 
+[ $arch == a64 && $mode == debug && $simulator_run == True ]
+
+# Pass but take too long with the simulator in debug mode.
+array-sort: PASS || TIMEOUT
+packed-elements: SKIP
+regexp-global: SKIP
+compiler/alloc-numbers: SKIP
+harmony/symbols: SKIP
+
 ##############################################################################
 [ $arch == arm || $arch == android_arm ]
 

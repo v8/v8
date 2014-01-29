@@ -138,6 +138,10 @@ def BuildOptions():
   result.add_option("--shell", help="DEPRECATED! use --shell-dir", default="")
   result.add_option("--shell-dir", help="Directory containing executables",
                     default="")
+  result.add_option("--dont-skip-slow-simulator-tests",
+                    help="Don't skip more slow tests when using a simulator.",
+                    default=False, action="store_true",
+                    dest="dont_skip_simulator_slow_tests")
   result.add_option("--stress-only",
                     help="Only run tests with --always-opt --stress-opt",
                     default=False, action="store_true")
@@ -300,12 +304,15 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.command_prefix,
                         options.extra_flags)
 
+  simulator_run = not options.dont_skip_simulator_slow_tests and \
+      arch in ['a64', 'arm', 'mips'] and ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "mode": mode,
     "arch": arch,
     "system": utils.GuessOS(),
-    "isolates": options.isolates
+    "isolates": options.isolates,
+    "simulator_run": simulator_run
   }
   all_tests = []
   num_tests = 0
