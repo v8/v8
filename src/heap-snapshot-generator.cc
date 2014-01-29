@@ -992,8 +992,9 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
   void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
+      ++next_index_;
       if (CheckVisitedAndUnmark(p)) continue;
-      generator_->SetHiddenReference(parent_obj_, parent_, next_index_++, *p);
+      generator_->SetHiddenReference(parent_obj_, parent_, next_index_, *p);
     }
   }
   static void MarkVisitedField(HeapObject* obj, int offset) {
@@ -1403,6 +1404,11 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "constant_pool", code->constant_pool(),
                        Code::kConstantPoolOffset);
+  if (code->kind() == Code::OPTIMIZED_FUNCTION) {
+    SetWeakReference(code, entry,
+                     "next_code_link", code->next_code_link(),
+                     Code::kNextCodeLinkOffset);
+  }
 }
 
 
@@ -1427,14 +1433,12 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                        AllocationSite::kTransitionInfoOffset);
   SetInternalReference(site, entry, "nested_site", site->nested_site(),
                        AllocationSite::kNestedSiteOffset);
-  SetInternalReference(site, entry, "pretenure_data",
-                       site->pretenure_data(),
-                       AllocationSite::kPretenureDataOffset);
-  SetInternalReference(site, entry, "pretenure_create_count",
-                       site->pretenure_create_count(),
-                       AllocationSite::kPretenureCreateCountOffset);
   SetInternalReference(site, entry, "dependent_code", site->dependent_code(),
                        AllocationSite::kDependentCodeOffset);
+  // Do not visit weak_next as it is not visited by the StaticVisitor,
+  // and we're not very interested in weak_next field here.
+  STATIC_CHECK(AllocationSite::kWeakNextOffset >=
+               AllocationSite::BodyDescriptor::kEndOffset);
 }
 
 

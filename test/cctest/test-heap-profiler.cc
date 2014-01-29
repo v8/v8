@@ -344,6 +344,15 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(lazy, v8::HeapGraphEdge::kInternal, "shared");
   CHECK_NE(NULL, lazy_code);
 
+  // Check that there's no strong next_code_link. There might be a weak one
+  // but might be not, so we can't check that fact.
+  const v8::HeapGraphNode* code =
+      GetProperty(compiled_code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK_NE(NULL, code);
+  const v8::HeapGraphNode* next_code_link =
+      GetProperty(code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK_EQ(NULL, next_code_link);
+
   // Verify that non-compiled code doesn't contain references to "x"
   // literal, while compiled code does. The scope info is stored in FixedArray
   // objects attached to the SharedFunctionInfo.
