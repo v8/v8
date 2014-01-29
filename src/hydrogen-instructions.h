@@ -171,7 +171,6 @@ class LChunkBuilder;
   V(StringCompareAndBranch)                    \
   V(Sub)                                       \
   V(ThisFunction)                              \
-  V(Throw)                                     \
   V(ToFastProperties)                          \
   V(TransitionElementsKind)                    \
   V(TrapAllocationMemento)                     \
@@ -1637,28 +1636,6 @@ class HUnaryOperation : public HTemplateInstruction<1> {
 
   HValue* value() const { return OperandAt(0); }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-};
-
-
-class HThrow V8_FINAL : public HTemplateInstruction<2> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HThrow, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* value() { return OperandAt(1); }
-
-  DECLARE_CONCRETE_INSTRUCTION(Throw)
-
- private:
-  HThrow(HValue* context, HValue* value) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, value);
-    SetAllSideEffects();
-  }
 };
 
 

@@ -166,7 +166,6 @@ class LCodeGen;
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
-  V(Throw)                                      \
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
   V(TrapAllocationMemento)                      \
@@ -1320,20 +1319,6 @@ class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 4, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
   DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
-};
-
-
-class LThrow V8_FINAL : public LTemplateInstruction<0, 2, 0> {
- public:
-  LThrow(LOperand* context, LOperand* value) {
-    inputs_[0] = context;
-    inputs_[1] = value;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
 
 

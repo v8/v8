@@ -1659,13 +1659,6 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LOperand* value = UseFixed(instr->value(), rax);
-  return MarkAsCall(new(zone()) LThrow(context, value), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoUseConst(HUseConst* instr) {
   return NULL;
 }

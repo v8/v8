@@ -6254,7 +6254,9 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
 
   HValue* value = environment()->Pop();
   if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
-  Add<HThrow>(value);
+  Add<HPushArgument>(value);
+  Add<HCallRuntime>(isolate()->factory()->empty_string(),
+                    Runtime::FunctionForId(Runtime::kThrow), 1);
   Add<HSimulate>(expr->id());
 
   // If the throw definitely exits the function, we can finish with a dummy

@@ -1694,18 +1694,6 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
 }
 
 
-void LCodeGen::DoThrow(LThrow* instr) {
-  __ push(ToRegister(instr->value()));
-  ASSERT(ToRegister(instr->context()).is(rsi));
-  CallRuntime(Runtime::kThrow, 1, instr);
-
-  if (FLAG_debug_code) {
-    Comment("Unreachable code.");
-    __ int3();
-  }
-}
-
-
 void LCodeGen::DoAddI(LAddI* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
