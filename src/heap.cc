@@ -506,8 +506,7 @@ void Heap::RepairFreeListsAfterBoot() {
 
 
 void Heap::ProcessPretenuringFeedback() {
-  if (FLAG_allocation_site_pretenuring &&
-      new_space_high_promotion_mode_active_) {
+  if (FLAG_allocation_site_pretenuring) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
     int allocation_mementos_found = 0;
@@ -1113,9 +1112,7 @@ bool Heap::PerformGarbageCollection(
     // to deoptimize all optimized code in global pretenuring mode and all
     // code which should be tenured in local pretenuring mode.
     if (FLAG_pretenuring) {
-      if (FLAG_allocation_site_pretenuring) {
-        ResetAllAllocationSitesDependentCode(NOT_TENURED);
-      } else {
+      if (!FLAG_allocation_site_pretenuring) {
         isolate_->stack_guard()->FullDeopt();
       }
     }

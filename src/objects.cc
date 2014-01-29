@@ -12733,8 +12733,7 @@ void AllocationSite::ResetPretenureDecision() {
 PretenureFlag AllocationSite::GetPretenureMode() {
   PretenureDecision mode = pretenure_decision();
   // Zombie objects "decide" to be untenured.
-  return (mode == kTenure && GetHeap()->GetPretenureMode() == TENURED)
-      ? TENURED : NOT_TENURED;
+  return mode == kTenure ? TENURED : NOT_TENURED;
 }
 
 
