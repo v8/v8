@@ -47,9 +47,7 @@
       {%- endif -%}
     {# These classes require long_char and to be outside the primary range #}
     {%- elif r[0] == 'LONG_CHAR_CLASS' and encoding in ['utf16', 'utf8'] -%}
-      {%- if r[1] == 'byte_order_mark' -%}
-        (long_char == 0xfffe || long_char == 0xfeff)
-      {%- elif r[1] == 'call' -%}
+      {%- if r[1] == 'call' -%}
         unicode_cache_->{{r[2]}}(long_char)
       {%- elif r[1] == 'invert' -%}
         !({{do_key(r[2])}})

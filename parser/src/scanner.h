@@ -139,8 +139,10 @@ class UnicodeCache {
   bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
+  bool IsByteOrderMark(unibrow::uchar c) { return c == 0xfffe || c == 0xfeff; }
   bool IsWhiteSpaceNotLineTerminator(unibrow::uchar c) {
-    return !kIsLineTerminator.get(c) && kIsWhiteSpace.get(c);
+    return (kIsWhiteSpace.get(c) && !kIsLineTerminator.get(c)) ||
+        IsByteOrderMark(c);
   }
   bool IsLetter(unibrow::uchar c) { return kIsLetter.get(c); }
   bool IsIdentifierPartNotLetter(unibrow::uchar c) {

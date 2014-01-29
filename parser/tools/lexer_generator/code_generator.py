@@ -205,15 +205,12 @@ class CodeGenerator:
     if not transitions:
       return
     encoding = self.__dfa.encoding()
-    bom = 'byte_order_mark'
     catch_all = 'non_primary_everything_else'
     all_classes = set(encoding.class_name_iter())
-    call_classes = all_classes - set([bom, catch_all])
+    call_classes = all_classes - set([catch_all])
     def remap_transition(class_name):
       if class_name in call_classes:
         return ('LONG_CHAR_CLASS', 'call', self.__call_map[class_name])
-      if class_name == bom:
-        return ('LONG_CHAR_CLASS', class_name)
       raise Exception(class_name)
     long_class_transitions = []
     long_class_map = {}

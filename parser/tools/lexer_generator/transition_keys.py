@@ -493,8 +493,7 @@ class Utf16Encoding(KeyEncoding):
     super(Utf16Encoding, self).__init__(
       'utf16',
       (0, 255),
-      ['byte_order_mark',
-       'non_primary_whitespace',
+      ['non_primary_whitespace',
        'non_primary_letter',
        'non_primary_identifier_part_not_letter',
        'non_primary_line_terminator',
@@ -502,7 +501,6 @@ class Utf16Encoding(KeyEncoding):
     self.add_predefined_range(
       'whitespace',
       [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160),
-       self.class_range('byte_order_mark'),
        self.class_range('non_primary_whitespace')])
     self.add_predefined_range(
       'letter', [
@@ -523,8 +521,7 @@ class Utf8Encoding(KeyEncoding):
     super(Utf8Encoding, self).__init__(
       'utf8',
       (0, 127),
-      ['byte_order_mark',
-       'non_primary_whitespace',
+      ['non_primary_whitespace',
        'non_primary_letter',
        'non_primary_identifier_part_not_letter',
        'non_primary_line_terminator',
@@ -532,7 +529,6 @@ class Utf8Encoding(KeyEncoding):
     self.add_predefined_range(
       'whitespace',
       [(9, 9), (11, 12), (32, 32),
-        self.class_range('byte_order_mark'),
         self.class_range('non_primary_whitespace')])
     self.add_predefined_range(
       'letter', [(65, 90), (97, 122), self.class_range('non_primary_letter')])
