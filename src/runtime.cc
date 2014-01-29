@@ -8049,22 +8049,23 @@ static SmartArrayPointer<Handle<Object> > GetCallerArguments(
   if (functions.length() > 1) {
     int inlined_jsframe_index = functions.length() - 1;
     JSFunction* inlined_function = functions[inlined_jsframe_index];
-    SlotRefValueBuilder slot_refs(
-        frame,
-        inlined_jsframe_index,
-        inlined_function->shared()->formal_parameter_count());
+    Vector<SlotRef> args_slots =
+        SlotRef::ComputeSlotMappingForArguments(
+            frame,
+            inlined_jsframe_index,
+            inlined_function->shared()->formal_parameter_count());
 
-    int args_count = slot_refs.args_length();
+    int args_count = args_slots.length();
 
     *total_argc = prefix_argc + args_count;
     SmartArrayPointer<Handle<Object> > param_data(
         NewArray<Handle<Object> >(*total_argc));
-    slot_refs.Prepare(isolate);
     for (int i = 0; i < args_count; i++) {
-      Handle<Object> val = slot_refs.GetNext(isolate, 0);
+      Handle<Object> val = args_slots[i].GetValue(isolate);
       param_data[prefix_argc + i] = val;
     }
-    slot_refs.Finish(isolate);
+
+    args_slots.Dispose();
 
     return param_data;
   } else {

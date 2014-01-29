@@ -201,8 +201,7 @@ namespace internal {
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
-  V(Symbol, observed_symbol, ObservedSymbol)                                   \
-  V(FixedArray, materialized_objects, MaterializedObjects)
+  V(Symbol, observed_symbol, ObservedSymbol)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -1366,10 +1365,6 @@ class Heap {
 
   void public_set_store_buffer_top(Address* top) {
     roots_[kStoreBufferTopRootIndex] = reinterpret_cast<Smi*>(top);
-  }
-
-  void public_set_materialized_objects(FixedArray* objects) {
-    roots_[kMaterializedObjectsRootIndex] = objects;
   }
 
   // Generated code can embed this address to get access to the roots.

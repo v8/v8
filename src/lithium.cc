@@ -532,16 +532,16 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
 // We are building three lists here:
 //
 // 1. In the result->object_mapping_ list (added to by the
-//    LEnvironment::Add*Object methods), we store the lengths (number
-//    of fields) of the captured objects in depth-first traversal order, or
-//    in case of duplicated objects, we store the index to the duplicate object
-//    (with a tag to differentiate between captured and duplicated objects).
+//   LEnvironment::Add*Object methods), we store the lengths (number
+//   of fields) of the captured objects in depth-first traversal order, or
+//   in case of duplicated objects, we store the index to the duplicate object
+//   (with a tag to differentiate between captured and duplicated objects).
 //
 // 2. The object fields are stored in the result->values_ list
-//    (added to by the LEnvironment.AddValue method) sequentially as lists
-//    of fields with holes for nested objects (the holes will be expanded
-//    later by LCodegen::AddToTranslation according to the
-//    LEnvironment.object_mapping_ list).
+//   (added to by the LEnvironment.AddValue method) sequentially as lists
+//   of fields with holes for nested objects (the holes will be expanded
+//   later by LCodegen::AddToTranslation according to the
+//   LEnvironment.object_mapping_ list).
 //
 // 3. The auxiliary objects_to_materialize array stores the hydrogen values
 //    in the same order as result->object_mapping_ list. This is used

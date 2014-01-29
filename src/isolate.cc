@@ -1529,7 +1529,6 @@ Isolate::Isolate()
       stats_table_(NULL),
       stub_cache_(NULL),
       deoptimizer_data_(NULL),
-      materialized_object_store_(NULL),
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
@@ -1778,9 +1777,6 @@ Isolate::~Isolate() {
   delete stats_table_;
   stats_table_ = NULL;
 
-  delete materialized_object_store_;
-  materialized_object_store_ = NULL;
-
   delete logger_;
   logger_ = NULL;
 
@@ -1951,7 +1947,6 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_ = new Bootstrapper(this);
   handle_scope_implementer_ = new HandleScopeImplementer(this);
   stub_cache_ = new StubCache(this);
-  materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();

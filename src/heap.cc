@@ -3293,11 +3293,6 @@ bool Heap::CreateInitialObjects() {
   Symbol::cast(obj)->set_is_private(true);
   set_observed_symbol(Symbol::cast(obj));
 
-  { MaybeObject* maybe_obj = AllocateFixedArray(0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_materialized_objects(FixedArray::cast(obj));
-
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 

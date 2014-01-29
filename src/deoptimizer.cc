@@ -773,11 +773,6 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
   output_count_ = count;
 
-  Register fp_reg = JavaScriptFrame::fp_register();
-  stack_fp_ = reinterpret_cast<Address>(
-      input_->GetRegister(fp_reg.code()) +
-          has_alignment_padding_ * kPointerSize);
-
   // Translate each output frame.
   for (int i = 0; i < count; ++i) {
     // Read the ast node id, function, and frame height for this output frame.
@@ -1782,24 +1777,14 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
         // Reuse the HeapNumber value directly as it is already properly
         // tagged and skip materializing the HeapNumber explicitly.
         Handle<Object> object = MaterializeNextValue();
-        if (object_index < prev_materialized_count_) {
-          materialized_objects_->Add(Handle<Object>(
-              previously_materialized_objects_->get(object_index), isolate_));
-        } else {
-          materialized_objects_->Add(object);
-        }
+        materialized_objects_->Add(object);
         materialization_value_index_ += kDoubleSize / kPointerSize - 1;
         break;
       }
       case JS_OBJECT_TYPE: {
         Handle<JSObject> object =
             isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED, false);
-        if (object_index < prev_materialized_count_) {
-          materialized_objects_->Add(Handle<Object>(
-              previously_materialized_objects_->get(object_index), isolate_));
-        } else {
-          materialized_objects_->Add(object);
-        }
+        materialized_objects_->Add(object);
         Handle<Object> properties = MaterializeNextValue();
         Handle<Object> elements = MaterializeNextValue();
         object->set_properties(FixedArray::cast(*properties));
@@ -1813,12 +1798,7 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
       case JS_ARRAY_TYPE: {
         Handle<JSArray> object =
             isolate_->factory()->NewJSArray(0, map->elements_kind());
-        if (object_index < prev_materialized_count_) {
-          materialized_objects_->Add(Handle<Object>(
-              previously_materialized_objects_->get(object_index), isolate_));
-        } else {
-          materialized_objects_->Add(object);
-        }
+        materialized_objects_->Add(object);
         Handle<Object> properties = MaterializeNextValue();
         Handle<Object> elements = MaterializeNextValue();
         Handle<Object> length = MaterializeNextValue();
@@ -1850,12 +1830,6 @@ Handle<Object> Deoptimizer::MaterializeNextValue() {
 
 void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   ASSERT_NE(DEBUGGER, bailout_type_);
-
-  MaterializedObjectStore* materialized_store =
-      isolate_->materialized_object_store();
-  previously_materialized_objects_ = materialized_store->Get(stack_fp_);
-  prev_materialized_count_ = previously_materialized_objects_.is_null() ?
-      0 : previously_materialized_objects_->length();
 
   // Walk all JavaScript output frames with the given frame iterator.
   for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
@@ -1945,10 +1919,6 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
 
     ASSERT(materialization_object_index_ == materialized_objects_->length());
     ASSERT(materialization_value_index_ == materialized_values_->length());
-  }
-
-  if (prev_materialized_count_ > 0) {
-    materialized_store->Remove(stack_fp_);
   }
 }
 
@@ -2978,11 +2948,12 @@ const char* Translation::StringFor(Opcode opcode) {
 // We can't intermix stack decoding and allocations because
 // deoptimization infrastracture is not GC safe.
 // Thus we build a temporary structure in malloced space.
-SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
-    Translation::Opcode opcode,
-    TranslationIterator* iterator,
-    DeoptimizationInputData* data,
-    JavaScriptFrame* frame) {
+SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
+                                            DeoptimizationInputData* data,
+                                            JavaScriptFrame* frame) {
+  Translation::Opcode opcode =
+      static_cast<Translation::Opcode>(iterator->Next());
+
   switch (opcode) {
     case Translation::BEGIN:
     case Translation::JS_FRAME:
@@ -2993,17 +2964,11 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
       // Peeled off before getting here.
       break;
 
-    case Translation::DUPLICATED_OBJECT: {
-      return SlotRef::NewDuplicateObject(iterator->Next());
-    }
-
+    case Translation::DUPLICATED_OBJECT:
     case Translation::ARGUMENTS_OBJECT:
+    case Translation::CAPTURED_OBJECT:
       // This can be only emitted for local slots not for argument slots.
       break;
-
-    case Translation::CAPTURED_OBJECT: {
-      return SlotRef::NewDeferredObject(iterator->Next());
-    }
 
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
@@ -3054,12 +3019,28 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
 }
 
 
-SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
-                                         int inlined_jsframe_index,
-                                         int formal_parameter_count)
-    : current_slot_(0), args_length_(-1), first_slot_index_(-1) {
-  DisallowHeapAllocation no_gc;
+void SlotRef::ComputeSlotsForArguments(Vector<SlotRef>* args_slots,
+                                       TranslationIterator* it,
+                                       DeoptimizationInputData* data,
+                                       JavaScriptFrame* frame) {
+  // Process the translation commands for the arguments.
 
+  // Skip the translation command for the receiver.
+  it->Skip(Translation::NumberOfOperandsFor(
+      static_cast<Translation::Opcode>(it->Next())));
+
+  // Compute slots for arguments.
+  for (int i = 0; i < args_slots->length(); ++i) {
+    (*args_slots)[i] = ComputeSlotForNextArgument(it, data, frame);
+  }
+}
+
+
+Vector<SlotRef> SlotRef::ComputeSlotMappingForArguments(
+    JavaScriptFrame* frame,
+    int inlined_jsframe_index,
+    int formal_parameter_count) {
+  DisallowHeapAllocation no_gc;
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
@@ -3068,18 +3049,12 @@ SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
   Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
   ASSERT(opcode == Translation::BEGIN);
   it.Next();  // Drop frame count.
-
-  stack_frame_id_ = frame->fp();
-
   int jsframe_count = it.Next();
   USE(jsframe_count);
   ASSERT(jsframe_count > inlined_jsframe_index);
   int jsframes_to_skip = inlined_jsframe_index;
-  int number_of_slots = -1;  // Number of slots inside our frame (yet unknown)
-  bool should_deopt = false;
-  while (number_of_slots != 0) {
+  while (true) {
     opcode = static_cast<Translation::Opcode>(it.Next());
-    bool processed = false;
     if (opcode == Translation::ARGUMENTS_ADAPTOR_FRAME) {
       if (jsframes_to_skip == 0) {
         ASSERT(Translation::NumberOfOperandsFor(opcode) == 2);
@@ -3087,336 +3062,36 @@ SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
         it.Skip(1);  // literal id
         int height = it.Next();
 
-        // Skip the translation command for the receiver.
-        it.Skip(Translation::NumberOfOperandsFor(
-            static_cast<Translation::Opcode>(it.Next())));
-
         // We reached the arguments adaptor frame corresponding to the
         // inlined function in question.  Number of arguments is height - 1.
-        first_slot_index_ = slot_refs_.length();
-        args_length_ = height - 1;
-        number_of_slots = height - 1;
-        processed = true;
+        Vector<SlotRef> args_slots =
+            Vector<SlotRef>::New(height - 1);  // Minus receiver.
+        ComputeSlotsForArguments(&args_slots, &it, data, frame);
+        return args_slots;
       }
     } else if (opcode == Translation::JS_FRAME) {
       if (jsframes_to_skip == 0) {
         // Skip over operands to advance to the next opcode.
         it.Skip(Translation::NumberOfOperandsFor(opcode));
 
-        // Skip the translation command for the receiver.
-        it.Skip(Translation::NumberOfOperandsFor(
-            static_cast<Translation::Opcode>(it.Next())));
-
         // We reached the frame corresponding to the inlined function
         // in question.  Process the translation commands for the
         // arguments.  Number of arguments is equal to the number of
         // format parameter count.
-        first_slot_index_ = slot_refs_.length();
-        args_length_ = formal_parameter_count;
-        number_of_slots = formal_parameter_count;
-        processed = true;
+        Vector<SlotRef> args_slots =
+            Vector<SlotRef>::New(formal_parameter_count);
+        ComputeSlotsForArguments(&args_slots, &it, data, frame);
+        return args_slots;
       }
       jsframes_to_skip--;
-    } else if (opcode != Translation::BEGIN &&
-               opcode != Translation::CONSTRUCT_STUB_FRAME) {
-      slot_refs_.Add(ComputeSlotForNextArgument(opcode, &it, data, frame));
-
-      if (first_slot_index_ >= 0) {
-        // We have found the beginning of our frame -> make sure we count
-        // the nested slots of captured objects
-        number_of_slots--;
-        SlotRef& slot = slot_refs_.last();
-        if (slot.Representation() == SlotRef::DEFERRED_OBJECT) {
-          number_of_slots += slot.DeferredObjectLength();
-        }
-        if (slot.Representation() == SlotRef::DEFERRED_OBJECT ||
-            slot.Representation() == SlotRef::DUPLICATE_OBJECT) {
-          should_deopt = true;
-        }
-      }
-
-      processed = true;
-    }
-    if (!processed) {
-      // Skip over operands to advance to the next opcode.
-      it.Skip(Translation::NumberOfOperandsFor(opcode));
-    }
-  }
-  if (should_deopt) {
-    List<JSFunction*> functions(2);
-    frame->GetFunctions(&functions);
-    Deoptimizer::DeoptimizeFunction(functions[0]);
-  }
-}
-
-
-Handle<Object> SlotRef::GetValue(Isolate* isolate) {
-  switch (representation_) {
-    case TAGGED:
-      return Handle<Object>(Memory::Object_at(addr_), isolate);
-
-    case INT32: {
-      int value = Memory::int32_at(addr_);
-      if (Smi::IsValid(value)) {
-        return Handle<Object>(Smi::FromInt(value), isolate);
-      } else {
-        return isolate->factory()->NewNumberFromInt(value);
-      }
     }
 
-    case UINT32: {
-      uint32_t value = Memory::uint32_at(addr_);
-      if (value <= static_cast<uint32_t>(Smi::kMaxValue)) {
-        return Handle<Object>(Smi::FromInt(static_cast<int>(value)), isolate);
-      } else {
-        return isolate->factory()->NewNumber(static_cast<double>(value));
-      }
-    }
-
-    case DOUBLE: {
-      double value = read_double_value(addr_);
-      return isolate->factory()->NewNumber(value);
-    }
-
-    case LITERAL:
-      return literal_;
-
-    default:
-      UNREACHABLE();
-      return Handle<Object>::null();
-  }
-}
-
-
-void SlotRefValueBuilder::Prepare(Isolate* isolate) {
-  MaterializedObjectStore* materialized_store =
-      isolate->materialized_object_store();
-  previously_materialized_objects_ = materialized_store->Get(stack_frame_id_);
-  prev_materialized_count_ = previously_materialized_objects_.is_null()
-      ? 0 : previously_materialized_objects_->length();
-
-  // Skip any materialized objects of the inlined "parent" frames.
-  // (Note that we still need to materialize them because they might be
-  // referred to as duplicated objects.)
-  while (current_slot_ < first_slot_index_) {
-    GetNext(isolate, 0);
-  }
-  ASSERT(current_slot_ == first_slot_index_);
-}
-
-
-Handle<Object> SlotRefValueBuilder::GetPreviouslyMaterialized(
-    Isolate* isolate, int length) {
-  int object_index = materialized_objects_.length();
-  Handle<Object> return_value = Handle<Object>(
-      previously_materialized_objects_->get(object_index), isolate);
-  materialized_objects_.Add(return_value);
-
-  // Now need to skip all nested objects (and possibly read them from
-  // the materialization store, too)
-  for (int i = 0; i < length; i++) {
-    SlotRef& slot = slot_refs_[current_slot_];
-    current_slot_++;
-
-    // For nested deferred objects, we need to read its properties
-    if (slot.Representation() == SlotRef::DEFERRED_OBJECT) {
-      length += slot.DeferredObjectLength();
-    }
-
-    // For nested deferred and duplicate objects, we need to put them into
-    // our materialization array
-    if (slot.Representation() == SlotRef::DEFERRED_OBJECT ||
-        slot.Representation() == SlotRef::DUPLICATE_OBJECT) {
-      int nested_object_index = materialized_objects_.length();
-      Handle<Object> nested_object = Handle<Object>(
-          previously_materialized_objects_->get(nested_object_index),
-          isolate);
-      materialized_objects_.Add(nested_object);
-    }
-  }
-
-  return return_value;
-}
-
-
-Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
-  SlotRef& slot = slot_refs_[current_slot_];
-  current_slot_++;
-  switch (slot.Representation()) {
-    case SlotRef::TAGGED:
-    case SlotRef::INT32:
-    case SlotRef::UINT32:
-    case SlotRef::DOUBLE:
-    case SlotRef::LITERAL: {
-      return slot.GetValue(isolate);
-    }
-    case SlotRef::DEFERRED_OBJECT: {
-      int length = slot.DeferredObjectLength();
-      ASSERT(slot_refs_[current_slot_].Representation() == SlotRef::LITERAL ||
-             slot_refs_[current_slot_].Representation() == SlotRef::TAGGED);
-
-      int object_index = materialized_objects_.length();
-      if (object_index <  prev_materialized_count_) {
-        return GetPreviouslyMaterialized(isolate, length);
-      }
-
-      Handle<Object> map_object = slot_refs_[current_slot_].GetValue(isolate);
-      Handle<Map> map = Map::GeneralizeAllFieldRepresentations(
-          Handle<Map>::cast(map_object), Representation::Tagged());
-      current_slot_++;
-      // TODO(jarin) this should be unified with the code in
-      // Deoptimizer::MaterializeNextHeapObject()
-      switch (map->instance_type()) {
-        case HEAP_NUMBER_TYPE: {
-          // Reuse the HeapNumber value directly as it is already properly
-          // tagged and skip materializing the HeapNumber explicitly.
-          Handle<Object> object = GetNext(isolate, lvl + 1);
-          materialized_objects_.Add(object);
-          return object;
-        }
-        case JS_OBJECT_TYPE: {
-          Handle<JSObject> object =
-              isolate->factory()->NewJSObjectFromMap(map, NOT_TENURED, false);
-          materialized_objects_.Add(object);
-          Handle<Object> properties = GetNext(isolate, lvl + 1);
-          Handle<Object> elements = GetNext(isolate, lvl + 1);
-          object->set_properties(FixedArray::cast(*properties));
-          object->set_elements(FixedArrayBase::cast(*elements));
-          for (int i = 0; i < length - 3; ++i) {
-            Handle<Object> value = GetNext(isolate, lvl + 1);
-            object->FastPropertyAtPut(i, *value);
-          }
-          return object;
-        }
-        case JS_ARRAY_TYPE: {
-          Handle<JSArray> object =
-              isolate->factory()->NewJSArray(0, map->elements_kind());
-          materialized_objects_.Add(object);
-          Handle<Object> properties = GetNext(isolate, lvl + 1);
-          Handle<Object> elements = GetNext(isolate, lvl + 1);
-          Handle<Object> length = GetNext(isolate, lvl + 1);
-          object->set_properties(FixedArray::cast(*properties));
-          object->set_elements(FixedArrayBase::cast(*elements));
-          object->set_length(*length);
-          return object;
-        }
-        default:
-          PrintF(stderr,
-                 "[couldn't handle instance type %d]\n", map->instance_type());
-          UNREACHABLE();
-          break;
-      }
-      UNREACHABLE();
-    }
-
-    case SlotRef::DUPLICATE_OBJECT: {
-      int object_index = slot.DuplicateObjectId();
-      Handle<Object> object = materialized_objects_[object_index];
-      materialized_objects_.Add(object);
-      return object;
-    }
-    default:
-      UNREACHABLE();
-      break;
+    // Skip over operands to advance to the next opcode.
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
   }
 
   UNREACHABLE();
-  return Handle<Object>::null();
-}
-
-
-void SlotRefValueBuilder::Finish(Isolate* isolate) {
-  // We should have processed all slot
-  ASSERT(slot_refs_.length() == current_slot_);
-
-  if (materialized_objects_.length() > prev_materialized_count_) {
-    // We have materialized some new objects, so we have to store them
-    // to prevent duplicate materialization
-    Handle<FixedArray> array = isolate->factory()->NewFixedArray(
-        materialized_objects_.length());
-    for (int i = 0; i < materialized_objects_.length(); i++) {
-      array->set(i, *(materialized_objects_.at(i)));
-    }
-    isolate->materialized_object_store()->Set(stack_frame_id_, array);
-  }
-}
-
-
-Handle<FixedArray> MaterializedObjectStore::Get(Address fp) {
-  int index = StackIdToIndex(fp);
-  if (index == -1) {
-    return Handle<FixedArray>::null();
-  }
-  Handle<FixedArray> array = GetStackEntries();
-  ASSERT(array->length() > index);
-  return Handle<FixedArray>::cast(Handle<Object>(array->get(index),
-                                                 isolate()));
-}
-
-
-void MaterializedObjectStore::Set(Address fp,
-    Handle<FixedArray> materialized_objects) {
-  int index = StackIdToIndex(fp);
-  if (index == -1) {
-    index = frame_fps_.length();
-    frame_fps_.Add(fp);
-  }
-
-  Handle<FixedArray> array = EnsureStackEntries(index + 1);
-  array->set(index, *materialized_objects);
-}
-
-
-void MaterializedObjectStore::Remove(Address fp) {
-  int index = StackIdToIndex(fp);
-  ASSERT(index >= 0);
-
-  frame_fps_.Remove(index);
-  Handle<FixedArray> array = GetStackEntries();
-  ASSERT(array->length() > index);
-  for (int i = index; i < frame_fps_.length(); i++) {
-    array->set(i, array->get(i + 1));
-  }
-  array->set(frame_fps_.length(), isolate()->heap()->undefined_value());
-}
-
-
-int MaterializedObjectStore::StackIdToIndex(Address fp) {
-  for (int i = 0; i < frame_fps_.length(); i++) {
-    if (frame_fps_[i] == fp) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-
-Handle<FixedArray> MaterializedObjectStore::GetStackEntries() {
-  return Handle<FixedArray>(isolate()->heap()->materialized_objects());
-}
-
-
-Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
-  Handle<FixedArray> array = GetStackEntries();
-  if (array->length() >= length) {
-    return array;
-  }
-
-  int new_length = length > 10 ? length : 10;
-  if (new_length < 2 * array->length()) {
-    new_length = 2 * array->length();
-  }
-
-  Handle<FixedArray> new_array =
-      isolate()->factory()->NewFixedArray(new_length, TENURED);
-  for (int i = 0; i < array->length(); i++) {
-    new_array->set(i, array->get(i));
-  }
-  for (int i = array->length(); i < length; i++) {
-    new_array->set(i, isolate()->heap()->undefined_value());
-  }
-  isolate()->heap()->public_set_materialized_objects(*new_array);
-  return new_array;
+  return Vector<SlotRef>();
 }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

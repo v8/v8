@@ -706,22 +706,21 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     int inlined_frame_index) {
   Isolate* isolate = inlined_function->GetIsolate();
   Factory* factory = isolate->factory();
-  SlotRefValueBuilder slot_refs(
-      frame,
-      inlined_frame_index,
-      inlined_function->shared()->formal_parameter_count());
-
-  int args_count = slot_refs.args_length();
+  Vector<SlotRef> args_slots =
+      SlotRef::ComputeSlotMappingForArguments(
+          frame,
+          inlined_frame_index,
+          inlined_function->shared()->formal_parameter_count());
+  int args_count = args_slots.length();
   Handle<JSObject> arguments =
       factory->NewArgumentsObject(inlined_function, args_count);
   Handle<FixedArray> array = factory->NewFixedArray(args_count);
-  slot_refs.Prepare(isolate);
   for (int i = 0; i < args_count; ++i) {
-    Handle<Object> value = slot_refs.GetNext(isolate, 0);
+    Handle<Object> value = args_slots[i].GetValue(isolate);
     array->set(i, *value);
   }
-  slot_refs.Finish(isolate);
   arguments->set_elements(*array);
+  args_slots.Dispose();
 
   // Return the freshly allocated arguments object.
   return *arguments;
