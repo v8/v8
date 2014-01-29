@@ -3000,15 +3000,6 @@ void LCodeGen::DoLoadRoot(LLoadRoot* instr) {
 }
 
 
-void LCodeGen::DoLoadExternalArrayPointer(
-    LLoadExternalArrayPointer* instr) {
-  Register to_reg = ToRegister(instr->result());
-  Register from_reg  = ToRegister(instr->object());
-  __ lw(to_reg, FieldMemOperand(from_reg,
-                                ExternalArray::kExternalPointerOffset));
-}
-
-
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());

@@ -116,7 +116,6 @@ class LCodeGen;
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
-  V(LoadExternalArrayPointer)                   \
   V(LoadFieldByIndex)                           \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
@@ -1546,20 +1545,6 @@ class LLoadRoot V8_FINAL : public LTemplateInstruction<1, 0, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadRoot)
 
   Heap::RootListIndex index() const { return hydrogen()->index(); }
-};
-
-
-class LLoadExternalArrayPointer V8_FINAL
-    : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadExternalArrayPointer(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
-                               "load-external-array-pointer")
 };
 
 

@@ -2121,8 +2121,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       IsFixedTypedArrayElementsKind(elements_kind)) {
     HValue* backing_store;
     if (IsExternalArrayElementsKind(elements_kind)) {
-      backing_store =
-         Add<HLoadExternalArrayPointer>(elements);
+      backing_store = Add<HLoadNamedField>(
+          elements, HObjectAccess::ForExternalArrayExternalPointer());
     } else {
       backing_store = elements;
     }

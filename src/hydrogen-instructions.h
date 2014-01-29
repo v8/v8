@@ -131,7 +131,6 @@ class LChunkBuilder;
   V(IsUndetectableAndBranch)                   \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
-  V(LoadExternalArrayPointer)                  \
   V(LoadFieldByIndex)                          \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
@@ -2684,38 +2683,6 @@ class HLoadRoot V8_FINAL : public HTemplateInstruction<0> {
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
   const Heap::RootListIndex index_;
-};
-
-
-class HLoadExternalArrayPointer V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HLoadExternalArrayPointer, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType() V8_OVERRIDE {
-    return HType::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer)
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HLoadExternalArrayPointer(HValue* value)
-      : HUnaryOperation(value) {
-    set_representation(Representation::External());
-    // The result of this instruction is idempotent as long as its inputs don't
-    // change.  The external array of a specialized array elements object cannot
-    // change once set, so it's no necessary to introduce any additional
-    // dependencies on top of the inputs.
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
 
