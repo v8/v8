@@ -3767,8 +3767,9 @@ void LCodeGen::DoPower(LPower* instr) {
   // Just make sure that the input/output registers are the expected ones.
   ASSERT(!instr->right()->IsDoubleRegister() ||
          ToDoubleRegister(instr->right()).is(d1));
-  ASSERT(!instr->right()->IsRegister() ||
+  ASSERT(exponent_type.IsInteger32() || !instr->right()->IsRegister() ||
          ToRegister(instr->right()).is(x11));
+  ASSERT(!exponent_type.IsInteger32() || ToRegister(instr->right()).is(x12));
   ASSERT(ToDoubleRegister(instr->left()).is(d0));
   ASSERT(ToDoubleRegister(instr->result()).is(d0));
 
