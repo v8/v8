@@ -1,3 +1,13 @@
+2014-01-29: Version 3.24.26
+
+        ES6: Map and Set needs to normalize minus zero (issue 3069).
+
+        Make `String.prototype.{starts,ends}With` throw when passing a regular
+        expression (issue 3070).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-28: Version 3.24.25
 
         Performance and stability improvements on all platforms.

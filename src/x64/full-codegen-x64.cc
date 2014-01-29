@@ -3392,8 +3392,8 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   __ pop(index);
 
   if (FLAG_debug_code) {
-    __ ThrowIf(NegateCondition(__ CheckSmi(value)), kNonSmiValue);
-    __ ThrowIf(NegateCondition(__ CheckSmi(index)), kNonSmiValue);
+    __ Check(__ CheckSmi(value), kNonSmiValue);
+    __ Check(__ CheckSmi(index), kNonSmiValue);
   }
 
   __ SmiToInteger32(value, value);
@@ -3425,8 +3425,8 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   __ pop(index);
 
   if (FLAG_debug_code) {
-    __ ThrowIf(NegateCondition(__ CheckSmi(value)), kNonSmiValue);
-    __ ThrowIf(NegateCondition(__ CheckSmi(index)), kNonSmiValue);
+    __ Check(__ CheckSmi(value), kNonSmiValue);
+    __ Check(__ CheckSmi(index), kNonSmiValue);
   }
 
   __ SmiToInteger32(value, value);

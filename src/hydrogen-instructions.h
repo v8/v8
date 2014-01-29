@@ -117,8 +117,6 @@ class LChunkBuilder;
   V(ForInPrepareMap)                           \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
-  V(GlobalObject)                              \
-  V(GlobalReceiver)                            \
   V(Goto)                                      \
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
@@ -133,7 +131,6 @@ class LChunkBuilder;
   V(IsUndetectableAndBranch)                   \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
-  V(LoadExternalArrayPointer)                  \
   V(LoadFieldByIndex)                          \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
@@ -149,7 +146,6 @@ class LChunkBuilder;
   V(Mod)                                       \
   V(Mul)                                       \
   V(OsrEntry)                                  \
-  V(OuterContext)                              \
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
@@ -2126,29 +2122,6 @@ class HThisFunction V8_FINAL : public HTemplateInstruction<0> {
 };
 
 
-class HOuterContext V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HOuterContext, HValue*);
-
-  DECLARE_CONCRETE_INSTRUCTION(OuterContext);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HOuterContext(HValue* inner) : HUnaryOperation(inner) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
 class HDeclareGlobals V8_FINAL : public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HDeclareGlobals,
@@ -2178,53 +2151,6 @@ class HDeclareGlobals V8_FINAL : public HUnaryOperation {
 
   Handle<FixedArray> pairs_;
   int flags_;
-};
-
-
-class HGlobalObject V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P0(HGlobalObject);
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalObject)
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HGlobalObject(HValue* context) : HUnaryOperation(context) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HGlobalReceiver V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HGlobalReceiver, HValue*);
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver)
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HGlobalReceiver(HValue* global_object)
-      : HUnaryOperation(global_object) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
 
@@ -2757,38 +2683,6 @@ class HLoadRoot V8_FINAL : public HTemplateInstruction<0> {
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
   const Heap::RootListIndex index_;
-};
-
-
-class HLoadExternalArrayPointer V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HLoadExternalArrayPointer, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType() V8_OVERRIDE {
-    return HType::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer)
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HLoadExternalArrayPointer(HValue* value)
-      : HUnaryOperation(value) {
-    set_representation(Representation::External());
-    // The result of this instruction is idempotent as long as its inputs don't
-    // change.  The external array of a specialized array elements object cannot
-    // change once set, so it's no necessary to introduce any additional
-    // dependencies on top of the inputs.
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
 
@@ -6518,15 +6412,19 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
 // Indicates whether the store is a store to an entry that was previously
 // initialized or not.
 enum StoreFieldOrKeyedMode {
+  // This is a store of either an undefined value to a field or a hole/NaN to
+  // an entry of a newly allocated object.
+  PREINITIALIZING_STORE,
+  // The entry could be either previously initialized or not.
   INITIALIZING_STORE,
+  // At the time of this store it is guaranteed that the entry is already
+  // initialized.
   STORE_TO_INITIALIZED_ENTRY
 };
 
 
 class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
-                                 HObjectAccess, HValue*);
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*, StoreFieldOrKeyedMode);
 
@@ -6633,12 +6531,17 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,
                    HValue* val,
-                   StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
+                   StoreFieldOrKeyedMode store_mode)
       : access_(access),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
+    // PREINITIALIZING_STORE is only used to mark stores that initialize a
+    // memory region resulting from HAllocate (possibly through an
+    // HInnerAllocatedObject).
+    ASSERT(store_mode != PREINITIALIZING_STORE ||
+           obj->IsAllocate() || obj->IsInnerAllocatedObject());
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
@@ -6649,7 +6552,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
-  StoreFieldOrKeyedMode store_mode_ : 1;
+  StoreFieldOrKeyedMode store_mode_ : 2;
 };
 
 
@@ -6694,8 +6597,6 @@ class HStoreNamedGeneric V8_FINAL : public HTemplateInstruction<3> {
 class HStoreKeyed V8_FINAL
     : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
-                                 ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, StoreFieldOrKeyedMode);
 
@@ -6815,7 +6716,7 @@ class HStoreKeyed V8_FINAL
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
               ElementsKind elements_kind,
-              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
+              StoreFieldOrKeyedMode store_mode)
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
@@ -6825,6 +6726,12 @@ class HStoreKeyed V8_FINAL
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
+
+    // PREINITIALIZING_STORE is only used to mark stores that initialize a
+    // memory region resulting from HAllocate (possibly through an
+    // HInnerAllocatedObject).
+    ASSERT(store_mode != PREINITIALIZING_STORE ||
+           obj->IsAllocate() || obj->IsInnerAllocatedObject());
 
     ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
            elements_kind == FAST_SMI_ELEMENTS);
@@ -6860,7 +6767,7 @@ class HStoreKeyed V8_FINAL
   uint32_t index_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
-  StoreFieldOrKeyedMode store_mode_: 1;
+  StoreFieldOrKeyedMode store_mode_: 2;
   HValue* new_space_dominator_;
 };
 

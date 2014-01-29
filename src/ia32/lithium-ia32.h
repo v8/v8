@@ -98,8 +98,6 @@ class LCodeGen;
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
   V(GetCachedArrayIndex)                        \
-  V(GlobalObject)                               \
-  V(GlobalReceiver)                             \
   V(Goto)                                       \
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
@@ -118,7 +116,6 @@ class LCodeGen;
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
-  V(LoadExternalArrayPointer)                   \
   V(LoadFieldByIndex)                           \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
@@ -145,7 +142,6 @@ class LCodeGen;
   V(NumberTagU)                                 \
   V(NumberUntagD)                               \
   V(OsrEntry)                                   \
-  V(OuterContext)                               \
   V(Parameter)                                  \
   V(Power)                                      \
   V(PushArgument)                               \
@@ -1552,20 +1548,6 @@ class LLoadRoot V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LLoadExternalArrayPointer V8_FINAL
-    : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadExternalArrayPointer(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
-                               "load-external-array-pointer")
-};
-
-
 class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
   LLoadKeyed(LOperand* elements, LOperand* key) {
@@ -1778,18 +1760,6 @@ class LContext V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LOuterContext V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LOuterContext(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(OuterContext, "outer-context")
-};
-
-
 class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
   explicit LDeclareGlobals(LOperand* context) {
@@ -1800,30 +1770,6 @@ class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals, "declare-globals")
   DECLARE_HYDROGEN_ACCESSOR(DeclareGlobals)
-};
-
-
-class LGlobalObject V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LGlobalObject(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalObject, "global-object")
-};
-
-
-class LGlobalReceiver V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LGlobalReceiver(LOperand* global_object) {
-    inputs_[0] = global_object;
-  }
-
-  LOperand* global() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global-receiver")
 };
 
 

@@ -35,9 +35,6 @@
   # BUG(v8:2921).
   'debug-step-4-in-frame': [PASS, FAIL, SLOW],
 
-  # TODO(mvstanton): Investigate.
-  'regress/regress-320948': [SKIP],
-
   ##############################################################################
   # Fails.
   'regress/regress-1119': [FAIL],

@@ -132,8 +132,10 @@ class HLoadEliminationTable : public ZoneObject {
     return this;
   }
 
-  // Support for global analysis with HFlowEngine: Copy state to sucessor block.
-  HLoadEliminationTable* Copy(HBasicBlock* succ, Zone* zone) {
+  // Support for global analysis with HFlowEngine: Copy state to successor
+  // block.
+  HLoadEliminationTable* Copy(HBasicBlock* succ, HBasicBlock* from_block,
+                              Zone* zone) {
     HLoadEliminationTable* copy =
         new(zone) HLoadEliminationTable(zone, aliasing_);
     copy->EnsureFields(fields_.length());
@@ -149,8 +151,8 @@ class HLoadEliminationTable : public ZoneObject {
 
   // Support for global analysis with HFlowEngine: Merge this state with
   // the other incoming state.
-  HLoadEliminationTable* Merge(HBasicBlock* succ,
-      HLoadEliminationTable* that, Zone* zone) {
+  HLoadEliminationTable* Merge(HBasicBlock* succ, HLoadEliminationTable* that,
+                               HBasicBlock* that_block, Zone* zone) {
     if (that->fields_.length() < fields_.length()) {
       // Drop fields not in the other table.
       fields_.Rewind(that->fields_.length());
@@ -175,6 +177,10 @@ class HLoadEliminationTable : public ZoneObject {
         prev = approx;
         approx = approx->next_;
       }
+    }
+    if (FLAG_trace_load_elimination) {
+      TRACE((" merge-to B%d\n", succ->block_id()));
+      Print();
     }
     return this;
   }
@@ -208,6 +214,11 @@ class HLoadEliminationTable : public ZoneObject {
   // the stored values are the same), return NULL indicating that this store
   // instruction is redundant. Otherwise, return {instr}.
   HValue* store(HStoreNamedField* instr) {
+    if (instr->store_mode() == PREINITIALIZING_STORE) {
+      TRACE(("  skipping preinitializing store\n"));
+      return instr;
+    }
+
     int field = FieldOf(instr->access());
     if (field < 0) return KillIfMisaligned(instr);
 

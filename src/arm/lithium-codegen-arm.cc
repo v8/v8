@@ -3147,15 +3147,6 @@ void LCodeGen::DoLoadRoot(LLoadRoot* instr) {
 }
 
 
-void LCodeGen::DoLoadExternalArrayPointer(
-    LLoadExternalArrayPointer* instr) {
-  Register to_reg = ToRegister(instr->result());
-  Register from_reg  = ToRegister(instr->object());
-  __ ldr(to_reg, FieldMemOperand(from_reg,
-                                 ExternalArray::kExternalPointerOffset));
-}
-
-
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
@@ -3520,11 +3511,11 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ b(&result_in_receiver);
 
   __ bind(&global_object);
-  __ ldr(receiver, FieldMemOperand(function, JSFunction::kContextOffset));
-  __ ldr(receiver,
-         ContextOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(receiver,
-         FieldMemOperand(receiver, GlobalObject::kGlobalReceiverOffset));
+  __ ldr(result, FieldMemOperand(function, JSFunction::kContextOffset));
+  __ ldr(result,
+         ContextOperand(result, Context::GLOBAL_OBJECT_INDEX));
+  __ ldr(result,
+         FieldMemOperand(result, GlobalObject::kGlobalReceiverOffset));
 
   if (result.is(receiver)) {
     __ bind(&result_in_receiver);
@@ -3619,14 +3610,6 @@ void LCodeGen::DoContext(LContext* instr) {
 }
 
 
-void LCodeGen::DoOuterContext(LOuterContext* instr) {
-  Register context = ToRegister(instr->context());
-  Register result = ToRegister(instr->result());
-  __ ldr(result,
-         MemOperand(context, Context::SlotOffset(Context::PREVIOUS_INDEX)));
-}
-
-
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
   __ push(cp);  // The context is the first argument.
@@ -3635,20 +3618,6 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   __ mov(scratch0(), Operand(Smi::FromInt(instr->hydrogen()->flags())));
   __ push(scratch0());
   CallRuntime(Runtime::kDeclareGlobals, 3, instr);
-}
-
-
-void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
-  Register context = ToRegister(instr->context());
-  Register result = ToRegister(instr->result());
-  __ ldr(result, ContextOperand(context, Context::GLOBAL_OBJECT_INDEX));
-}
-
-
-void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
-  Register global = ToRegister(instr->global_object());
-  Register result = ToRegister(instr->result());
-  __ ldr(result, FieldMemOperand(global, GlobalObject::kGlobalReceiverOffset));
 }
 
 
@@ -4513,7 +4482,7 @@ void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->left()).is(r1));
   ASSERT(ToRegister(instr->right()).is(r0));
   StringAddStub stub(instr->hydrogen()->flags(),
-                     isolate()->heap()->GetPretenureMode());
+                     instr->hydrogen()->pretenure_flag());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 

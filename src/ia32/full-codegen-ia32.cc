@@ -3411,9 +3411,9 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
 
   if (FLAG_debug_code) {
     __ test(value, Immediate(kSmiTagMask));
-    __ ThrowIf(not_zero, kNonSmiValue);
+    __ Check(zero, kNonSmiValue);
     __ test(index, Immediate(kSmiTagMask));
-    __ ThrowIf(not_zero, kNonSmiValue);
+    __ Check(zero, kNonSmiValue);
   }
 
   __ SmiUntag(value);
@@ -3446,9 +3446,9 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
   if (FLAG_debug_code) {
     __ test(value, Immediate(kSmiTagMask));
-    __ ThrowIf(not_zero, kNonSmiValue);
+    __ Check(zero, kNonSmiValue);
     __ test(index, Immediate(kSmiTagMask));
-    __ ThrowIf(not_zero, kNonSmiValue);
+    __ Check(zero, kNonSmiValue);
     __ SmiUntag(index);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);

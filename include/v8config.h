@@ -139,6 +139,7 @@
 // -----------------------------------------------------------------------------
 // C library detection
 //
+//  V8_LIBC_MSVCRT  - MSVC libc
 //  V8_LIBC_BIONIC  - Bionic libc
 //  V8_LIBC_BSD     - BSD libc derivate
 //  V8_LIBC_GLIBC   - GNU C library
@@ -150,7 +151,9 @@
 //   ...
 //  #endif
 
-#if defined(__BIONIC__)
+#if defined (_MSC_VER)
+# define V8_LIBC_MSVCRT 1
+#elif defined(__BIONIC__)
 # define V8_LIBC_BIONIC 1
 # define V8_LIBC_BSD 1
 #elif defined(__UCLIBC__)

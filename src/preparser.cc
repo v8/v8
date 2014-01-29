@@ -42,7 +42,7 @@
 #include "unicode.h"
 #include "utils.h"
 
-#if V8_CC_MSVC && (_MSC_VER < 1800)
+#if V8_LIBC_MSVCRT && (_MSC_VER < 1800)
 namespace std {
 
 // Usually defined in math.h, but not in MSVC until VS2013+.

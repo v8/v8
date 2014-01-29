@@ -27,7 +27,7 @@
 
 #include "cpu.h"
 
-#if V8_CC_MSVC
+#if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
 #if V8_OS_POSIX
@@ -54,8 +54,8 @@ namespace internal {
 
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
-// Define __cpuid() for non-MSVC compilers.
-#if !V8_CC_MSVC
+// Define __cpuid() for non-MSVC libraries.
+#if !V8_LIBC_MSVCRT
 
 static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #if defined(__i386__) && defined(__pic__)
@@ -77,7 +77,7 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #endif  // defined(__i386__) && defined(__pic__)
 }
 
-#endif  // !V8_CC_MSVC
+#endif  // !V8_LIBC_MSVCRT
 
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS
 

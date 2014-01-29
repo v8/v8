@@ -124,17 +124,19 @@ class HFlowEngine {
       if (SkipNonDominatedBlock(root, block)) continue;
       State* state = StateAt(block);
 
-      if (block->IsLoopHeader()) {
-        // Apply loop effects before analyzing loop body.
-        ComputeLoopEffects(block)->Apply(state);
-      } else {
-        // Must have visited all predecessors before this block.
-        CheckPredecessorCount(block);
-      }
+      if (block->IsReachable()) {
+        if (block->IsLoopHeader()) {
+          // Apply loop effects before analyzing loop body.
+          ComputeLoopEffects(block)->Apply(state);
+        } else {
+          // Must have visited all predecessors before this block.
+          CheckPredecessorCount(block);
+        }
 
-      // Go through all instructions of the current block, updating the state.
-      for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-        state = state->Process(it.Current(), zone_);
+        // Go through all instructions of the current block, updating the state.
+        for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+          state = state->Process(it.Current(), zone_);
+        }
       }
 
       // Propagate the block state forward to all successor blocks.
@@ -149,11 +151,11 @@ class HFlowEngine {
             SetStateAt(succ, state);
           } else {
             // Successor needs a copy of the state.
-            SetStateAt(succ, state->Copy(succ, zone_));
+            SetStateAt(succ, state->Copy(succ, block, zone_));
           }
         } else {
           // Merge the current state with the state already at the successor.
-          SetStateAt(succ, state->Merge(succ, StateAt(succ), zone_));
+          SetStateAt(succ, StateAt(succ)->Merge(succ, state, block, zone_));
         }
       }
     }
@@ -185,6 +187,7 @@ class HFlowEngine {
         i = member->loop_information()->GetLastBackEdge()->block_id();
       } else {
         // Process all the effects of the block.
+        if (member->IsUnreachable()) continue;
         ASSERT(member->current_loop() == loop);
         for (HInstructionIterator it(member); !it.Done(); it.Advance()) {
           effects->Process(it.Current(), zone_);

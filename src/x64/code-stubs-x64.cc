@@ -462,69 +462,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
 }
 
 
-void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry:
-  //
-  // [rsp + (1 * kPointerSize)] : function
-  // [rsp + (2 * kPointerSize)] : serialized scope info
-
-  // Try to allocate the context in new space.
-  Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ Allocate(FixedArray::SizeFor(length),
-              rax, rbx, rcx, &gc, TAG_OBJECT);
-
-  // Get the function from the stack.
-  StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rcx, args.GetArgumentOperand(1));
-  // Get the serialized scope info from the stack.
-  __ movp(rbx, args.GetArgumentOperand(0));
-
-  // Set up the object header.
-  __ LoadRoot(kScratchRegister, Heap::kBlockContextMapRootIndex);
-  __ movp(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
-  __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
-
-  // If this block context is nested in the native context we get a smi
-  // sentinel instead of a function. The block context should get the
-  // canonical empty function of the native context as its closure which
-  // we still have to look up.
-  Label after_sentinel;
-  __ JumpIfNotSmi(rcx, &after_sentinel, Label::kNear);
-  if (FLAG_debug_code) {
-    __ cmpq(rcx, Immediate(0));
-    __ Assert(equal, kExpected0AsASmiSentinel);
-  }
-  __ movp(rcx, GlobalObjectOperand());
-  __ movp(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
-  __ movp(rcx, ContextOperand(rcx, Context::CLOSURE_INDEX));
-  __ bind(&after_sentinel);
-
-  // Set up the fixed slots.
-  __ movp(ContextOperand(rax, Context::CLOSURE_INDEX), rcx);
-  __ movp(ContextOperand(rax, Context::PREVIOUS_INDEX), rsi);
-  __ movp(ContextOperand(rax, Context::EXTENSION_INDEX), rbx);
-
-  // Copy the global object from the previous context.
-  __ movp(rbx, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
-  __ movp(ContextOperand(rax, Context::GLOBAL_OBJECT_INDEX), rbx);
-
-  // Initialize the rest of the slots to the hole value.
-  __ LoadRoot(rbx, Heap::kTheHoleValueRootIndex);
-  for (int i = 0; i < slots_; i++) {
-    __ movp(ContextOperand(rax, i + Context::MIN_CONTEXT_SLOTS), rbx);
-  }
-
-  // Return and remove the on-stack parameter.
-  __ movp(rsi, rax);
-  __ ret(2 * kPointerSize);
-
-  // Need to collect. Call into runtime system.
-  __ bind(&gc);
-  __ TailCallRuntime(Runtime::kPushBlockContext, 2, 1);
-}
-
-
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ PushCallerSaved(save_doubles_);
   const int argument_count = 1;
