@@ -2123,7 +2123,7 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
   LOperand* value;
   if (instr->NeedsWriteBarrier()) {
     // TODO(all): Replace these constraints when RecordWriteStub has been
-    // rewritten. See GOOGJSE-586.
+    // rewritten.
     context = UseRegisterAndClobber(instr->context());
     value = UseRegisterAndClobber(instr->value());
   } else {

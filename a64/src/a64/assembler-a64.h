@@ -1970,7 +1970,7 @@ class Assembler : public AssemblerBase {
 #endif
 
  private:
-  // TODO(jbramley): [GOOGJSE-238] W16 uses next_literal_pool_check_ and
+  // TODO(jbramley): VIXL uses next_literal_pool_check_ and
   // literal_pool_monitor_ to determine when to consider emitting a literal
   // pool. V8 doesn't use them, so they should either not be here at all, or
   // should replace or be merged with next_buffer_check_ and

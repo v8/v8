@@ -531,13 +531,13 @@ class MacroAssembler : public Assembler {
   //
   // If the current stack pointer (according to StackPointer()) is csp, then
   // csp must be aligned to 16 bytes.
-  void Poke(const Register& src, const Operand& offset);
+  void Poke(const CPURegister& src, const Operand& offset);
 
   // Peek at a value on the stack, and put it in 'dst'. The offset is in bytes.
   //
   // If the current stack pointer (according to StackPointer()) is csp, then
   // csp must be aligned to 16 bytes.
-  void Peek(const Register& dst, const Operand& offset);
+  void Peek(const CPURegister& dst, const Operand& offset);
 
   // Claim or drop stack space without actually accessing memory.
   //

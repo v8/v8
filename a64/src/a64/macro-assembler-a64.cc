@@ -760,7 +760,7 @@ void MacroAssembler::PrepareForPop(int count, int size) {
 }
 
 
-void MacroAssembler::Poke(const Register& src, const Operand& offset) {
+void MacroAssembler::Poke(const CPURegister& src, const Operand& offset) {
   if (offset.IsImmediate()) {
     ASSERT(offset.immediate() >= 0);
   } else if (emit_debug_code()) {
@@ -772,7 +772,7 @@ void MacroAssembler::Poke(const Register& src, const Operand& offset) {
 }
 
 
-void MacroAssembler::Peek(const Register& dst, const Operand& offset) {
+void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
     ASSERT(offset.immediate() >= 0);
   } else if (emit_debug_code()) {
@@ -2663,7 +2663,7 @@ void MacroAssembler::ExitFrameRestoreFPRegs() {
 }
 
 
-// TODO(jbramley): Check that we're handling FP correctly [GOOGJSE-33].
+// TODO(jbramley): Check that we're handling the frame pointer correctly.
 void MacroAssembler::EnterExitFrame(bool save_doubles,
                                     const Register& scratch,
                                     int extra_space) {

@@ -196,6 +196,25 @@ class BranchIfNonZeroNumber : public BranchGenerator {
 };
 
 
+// Test the input and branch if it is a heap number.
+class BranchIfHeapNumber : public BranchGenerator {
+ public:
+  BranchIfHeapNumber(LCodeGen* codegen, const Register& value)
+      : BranchGenerator(codegen), value_(value) { }
+
+  virtual void Emit(Label* label) const {
+    __ JumpIfHeapNumber(value_, label);
+  }
+
+  virtual void EmitInverted(Label* label) const {
+    __ JumpIfNotHeapNumber(value_, label);
+  }
+
+ private:
+  const Register& value_;
+};
+
+
 void LCodeGen::WriteTranslation(LEnvironment* environment,
                                 Translation* translation) {
   if (environment == NULL) return;
@@ -603,8 +622,7 @@ bool LCodeGen::GeneratePrologue() {
     int count = 0;
     while (!iterator.Done()) {
       FPRegister value = FPRegister::FromAllocationIndex(iterator.Current());
-      // TODO(jbramley): Make Poke support FPRegisters.
-      __ Str(value, MemOperand(__ StackPointer(), count * kDoubleSize));
+      __ Poke(value, count * kDoubleSize);
       iterator.Advance();
       count++;
     }
@@ -1218,6 +1236,14 @@ void LCodeGen::EmitBranchIfNonZeroNumber(InstrType instr,
                                          const FPRegister& value,
                                          const FPRegister& scratch) {
   BranchIfNonZeroNumber branch(this, value, scratch);
+  EmitBranchGeneric(instr, branch);
+}
+
+
+template<class InstrType>
+void LCodeGen::EmitBranchIfHeapNumber(InstrType instr,
+                                      const Register& value) {
+  BranchIfHeapNumber branch(this, value);
   EmitBranchGeneric(instr, branch);
 }
 
@@ -2922,9 +2948,8 @@ void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
       __ B(instr->TrueLabel(chunk_));
     }
     __ JumpIfSmi(value, instr->TrueLabel(chunk_));
-    // TODO(jbramley): Add an EmitBranch helper for this.
-    __ JumpForHeapNumber(value, NoReg,
-                         instr->TrueLabel(chunk_), instr->FalseLabel(chunk_));
+
+    EmitBranchIfHeapNumber(instr, value);
   }
 }
 
@@ -4422,8 +4447,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     int count = 0;
     while (!iterator.Done()) {
       FPRegister value = FPRegister::FromAllocationIndex(iterator.Current());
-      // TODO(jbramley): Make Peek support FPRegisters.
-      __ Ldr(value, MemOperand(__ StackPointer(), count * kDoubleSize));
+      __ Peek(value, count * kDoubleSize);
       iterator.Advance();
       count++;
     }

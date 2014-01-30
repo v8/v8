@@ -211,6 +211,10 @@ class LCodeGen BASE_EMBEDDED {
                                  const FPRegister& value,
                                  const FPRegister& scratch);
 
+  template<class InstrType>
+  void EmitBranchIfHeapNumber(InstrType instr,
+                              const Register& value);
+
   // Emits optimized code to deep-copy the contents of statically known object
   // graphs (e.g. object literal boilerplate). Expects a pointer to the
   // allocated destination object in the result register, and a pointer to the
