@@ -1337,11 +1337,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
   ASSERT(ToRegister(instr->result()).is(eax));
   switch (instr->hydrogen()->major_key()) {
-    case CodeStub::RegExpConstructResult: {
-      RegExpConstructResultStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::RegExpExec: {
       RegExpExecStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
@@ -1973,43 +1968,6 @@ void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
 }
 
 
-void LCodeGen::DoElementsKind(LElementsKind* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->value());
-
-  // Load map into |result|.
-  __ mov(result, FieldOperand(input, HeapObject::kMapOffset));
-  // Load the map's "bit field 2" into |result|. We only need the first byte,
-  // but the following masking takes care of that anyway.
-  __ mov(result, FieldOperand(result, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ and_(result, Map::kElementsKindMask);
-  __ shr(result, Map::kElementsKindShift);
-}
-
-
-void LCodeGen::DoValueOf(LValueOf* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  Register map = ToRegister(instr->temp());
-  ASSERT(input.is(result));
-
-  Label done;
-
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
-    // If the object is a smi return the object.
-    __ JumpIfSmi(input, &done, Label::kNear);
-  }
-
-  // If the object is not a value type, return the object.
-  __ CmpObjectType(input, JS_VALUE_TYPE, map);
-  __ j(not_equal, &done, Label::kNear);
-  __ mov(result, FieldOperand(input, JSValue::kValueOffset));
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoDateField(LDateField* instr) {
   Register object = ToRegister(instr->date());
   Register result = ToRegister(instr->result());
@@ -2127,18 +2085,6 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     } else {
       __ mov_w(operand, value);
     }
-  }
-}
-
-
-void LCodeGen::DoThrow(LThrow* instr) {
-  __ push(ToOperand(instr->value()));
-  ASSERT(ToRegister(instr->context()).is(esi));
-  CallRuntime(Runtime::kThrow, 1, instr);
-
-  if (FLAG_debug_code) {
-    Comment("Unreachable code.");
-    __ int3();
   }
 }
 
@@ -3267,8 +3213,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register object = ToRegister(instr->object());
-  if (FLAG_track_double_fields &&
-      instr->hydrogen()->representation().IsDouble()) {
+  if (instr->hydrogen()->representation().IsDouble()) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister result = ToDoubleRegister(instr->result());
@@ -4368,7 +4313,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         DeoptimizeIf(zero, instr->environment());
       }
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());

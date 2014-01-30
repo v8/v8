@@ -344,6 +344,15 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(lazy, v8::HeapGraphEdge::kInternal, "shared");
   CHECK_NE(NULL, lazy_code);
 
+  // Check that there's no strong next_code_link. There might be a weak one
+  // but might be not, so we can't check that fact.
+  const v8::HeapGraphNode* code =
+      GetProperty(compiled_code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK_NE(NULL, code);
+  const v8::HeapGraphNode* next_code_link =
+      GetProperty(code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK_EQ(NULL, next_code_link);
+
   // Verify that non-compiled code doesn't contain references to "x"
   // literal, while compiled code does. The scope info is stored in FixedArray
   // objects attached to the SharedFunctionInfo.
@@ -2113,13 +2122,23 @@ TEST(CheckCodeNames) {
       stub_path, ARRAY_SIZE(stub_path));
   CHECK_NE(NULL, node);
 
-  const char* builtin_path[] = {
+  const char* builtin_path1[] = {
     "::(GC roots)",
     "::(Builtins)",
-    "::(KeyedLoadIC_Generic code)"
+    "::(KeyedLoadIC_Generic builtin)"
   };
-  node = GetNodeByPath(snapshot, builtin_path, ARRAY_SIZE(builtin_path));
+  node = GetNodeByPath(snapshot, builtin_path1, ARRAY_SIZE(builtin_path1));
   CHECK_NE(NULL, node);
+
+  const char* builtin_path2[] = {
+    "::(GC roots)",
+    "::(Builtins)",
+    "::(CompileUnoptimized builtin)"
+  };
+  node = GetNodeByPath(snapshot, builtin_path2, ARRAY_SIZE(builtin_path2));
+  CHECK_NE(NULL, node);
+  v8::String::Utf8Value node_name(node->GetName());
+  CHECK_EQ("(CompileUnoptimized builtin)", *node_name);
 }
 
 

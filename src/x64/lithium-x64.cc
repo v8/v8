@@ -857,10 +857,12 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (current->OperandCount() == 0) {
       instr = DefineAsRegister(new(zone()) LDummy());
     } else {
+      ASSERT(!current->OperandAt(0)->IsControlInstruction());
       instr = DefineAsRegister(new(zone())
           LDummyUse(UseAny(current->OperandAt(0))));
     }
     for (int i = 1; i < current->OperandCount(); ++i) {
+      if (current->OperandAt(i)->IsControlInstruction()) continue;
       LInstruction* dummy =
           new(zone()) LDummyUse(UseAny(current->OperandAt(i)));
       dummy->set_hydrogen_value(current);
@@ -1604,19 +1606,6 @@ LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
-  LOperand* object = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LElementsKind(object));
-}
-
-
-LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
-  LOperand* object = UseRegister(instr->value());
-  LValueOf* result = new(zone()) LValueOf(object);
-  return DefineSameAsFirst(result);
-}
-
-
 LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
   LOperand* object = UseFixed(instr->value(), rax);
   LDateField* result = new(zone()) LDateField(object, instr->index());
@@ -1667,13 +1656,6 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
   // The control instruction marking the end of a block that completed
   // abruptly (e.g., threw an exception).  There is nothing specific to do.
   return NULL;
-}
-
-
-LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LOperand* value = UseFixed(instr->value(), rax);
-  return MarkAsCall(new(zone()) LThrow(context, value), instr);
 }
 
 

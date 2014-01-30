@@ -491,7 +491,6 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   ASSERT(heap->InNewSpace(object));
 
   if (!FLAG_allocation_site_pretenuring ||
-      !heap->new_space_high_promotion_mode_active_ ||
       !AllocationSite::CanTrack(object->map()->instance_type())) return;
 
   // Either object is the last object in the from space, or there is another

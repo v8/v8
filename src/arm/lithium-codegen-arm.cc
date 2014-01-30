@@ -1080,11 +1080,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->result()).is(r0));
   switch (instr->hydrogen()->major_key()) {
-    case CodeStub::RegExpConstructResult: {
-      RegExpConstructResultStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::RegExpExec: {
       RegExpExecStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
@@ -1869,42 +1864,6 @@ void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
 }
 
 
-void LCodeGen::DoElementsKind(LElementsKind* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->value());
-
-  // Load map into |result|.
-  __ ldr(result, FieldMemOperand(input, HeapObject::kMapOffset));
-  // Load the map's "bit field 2" into |result|. We only need the first byte,
-  // but the following bit field extraction takes care of that anyway.
-  __ ldr(result, FieldMemOperand(result, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ ubfx(result, result, Map::kElementsKindShift, Map::kElementsKindBitCount);
-}
-
-
-void LCodeGen::DoValueOf(LValueOf* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  Register map = ToRegister(instr->temp());
-  Label done;
-
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
-    // If the object is a smi return the object.
-    __ SmiTst(input);
-    __ Move(result, input, eq);
-    __ b(eq, &done);
-  }
-
-  // If the object is not a value type, return the object.
-  __ CompareObjectType(input, map, map, JS_VALUE_TYPE);
-  __ Move(result, input, ne);
-  __ ldr(result, FieldMemOperand(input, JSValue::kValueOffset), eq);
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoDateField(LDateField* instr) {
   Register object = ToRegister(instr->date());
   Register result = ToRegister(instr->result());
@@ -2016,17 +1975,6 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     __ strb(value, operand);
   } else {
     __ strh(value, operand);
-  }
-}
-
-
-void LCodeGen::DoThrow(LThrow* instr) {
-  __ push(ToRegister(instr->value()));
-  ASSERT(ToRegister(instr->context()).is(cp));
-  CallRuntime(Runtime::kThrow, 1, instr);
-
-  if (FLAG_debug_code) {
-    __ stop("Unreachable code.");
   }
 }
 
@@ -4113,7 +4061,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ SmiTst(value);
       DeoptimizeIf(eq, instr->environment());
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());

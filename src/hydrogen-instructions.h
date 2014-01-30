@@ -109,7 +109,6 @@ class LChunkBuilder;
   V(Deoptimize)                                \
   V(Div)                                       \
   V(DummyUse)                                  \
-  V(ElementsKind)                              \
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
   V(ForceRepresentation)                       \
@@ -172,7 +171,6 @@ class LChunkBuilder;
   V(StringCompareAndBranch)                    \
   V(Sub)                                       \
   V(ThisFunction)                              \
-  V(Throw)                                     \
   V(ToFastProperties)                          \
   V(TransitionElementsKind)                    \
   V(TrapAllocationMemento)                     \
@@ -181,7 +179,6 @@ class LChunkBuilder;
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
   V(UseConst)                                  \
-  V(ValueOf)                                   \
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
@@ -1642,28 +1639,6 @@ class HUnaryOperation : public HTemplateInstruction<1> {
 };
 
 
-class HThrow V8_FINAL : public HTemplateInstruction<2> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HThrow, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* value() { return OperandAt(1); }
-
-  DECLARE_CONCRETE_INSTRUCTION(Throw)
-
- private:
-  HThrow(HValue* context, HValue* value) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, value);
-    SetAllSideEffects();
-  }
-};
-
-
 class HUseConst V8_FINAL : public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HUseConst, HValue*);
@@ -2535,28 +2510,6 @@ class HMapEnumLength V8_FINAL : public HUnaryOperation {
     SetGVNFlag(kDependsOnMaps);
   }
 
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HElementsKind V8_FINAL : public HUnaryOperation {
- public:
-  explicit HElementsKind(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnElementsKind);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ElementsKind)
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
@@ -5993,6 +5946,10 @@ class HObjectAccess V8_FINAL {
         JSArrayBufferView::kByteLengthOffset);
   }
 
+  static HObjectAccess ForGlobalObjectNativeContext() {
+    return HObjectAccess(kInobject, GlobalObject::kNativeContextOffset);
+  }
+
   void PrintTo(StringStream* stream);
 
   inline bool Equals(HObjectAccess that) const {
@@ -6048,12 +6005,17 @@ class HObjectAccess V8_FINAL {
 };
 
 
-class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
+class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HLoadNamedField, HValue*, HObjectAccess);
+  DECLARE_INSTRUCTION_FACTORY_P3(HLoadNamedField, HValue*, HValue*,
+                                 HObjectAccess);
 
   HValue* object() { return OperandAt(0); }
-  bool HasTypeCheck() { return object()->IsCheckMaps(); }
+  HValue* dependency() {
+    ASSERT(HasDependency());
+    return OperandAt(1);
+  }
+  bool HasDependency() const { return OperandAt(0) != OperandAt(1); }
   HObjectAccess access() const { return access_; }
   Representation field_representation() const {
       return access_.representation();
@@ -6082,9 +6044,12 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
   }
 
  private:
-  HLoadNamedField(HValue* object, HObjectAccess access) : access_(access) {
+  HLoadNamedField(HValue* object,
+                  HValue* dependency,
+                  HObjectAccess access) : access_(access) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
+    SetOperandAt(1, dependency != NULL ? dependency : object);
 
     Representation representation = access.representation();
     if (representation.IsInteger8() ||
@@ -7187,25 +7152,6 @@ class HToFastProperties V8_FINAL : public HUnaryOperation {
     const Runtime::Function* function = HCallRuntime::cast(value)->function();
     ASSERT(function->function_id == Runtime::kCreateObjectLiteral);
 #endif
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HValueOf V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HValueOf, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ValueOf)
-
- private:
-  explicit HValueOf(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }

@@ -91,7 +91,6 @@ class LCodeGen;
   V(Drop)                                       \
   V(Dummy)                                      \
   V(DummyUse)                                   \
-  V(ElementsKind)                               \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -168,7 +167,6 @@ class LCodeGen;
   V(RSubI)                                      \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
-  V(Throw)                                      \
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
   V(TrapAllocationMemento)                      \
@@ -177,7 +175,6 @@ class LCodeGen;
   V(Uint32ToDouble)                             \
   V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
-  V(ValueOf)                                    \
   V(WrapReceiver)
 
 
@@ -1295,34 +1292,6 @@ class LMapEnumLength V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LElementsKind V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LElementsKind(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ElementsKind, "elements-kind")
-  DECLARE_HYDROGEN_ACCESSOR(ElementsKind)
-};
-
-
-class LValueOf V8_FINAL : public LTemplateInstruction<1, 1, 1> {
- public:
-  LValueOf(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ValueOf, "value-of")
-  DECLARE_HYDROGEN_ACCESSOR(ValueOf)
-};
-
-
 class LDateField V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
   LDateField(LOperand* date, LOperand* temp, Smi* index) : index_(index) {
@@ -1375,20 +1344,6 @@ class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 4, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
   DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
-};
-
-
-class LThrow V8_FINAL : public LTemplateInstruction<0, 2, 0> {
- public:
-  LThrow(LOperand* context, LOperand* value) {
-    inputs_[0] = context;
-    inputs_[1] = value;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
 
 

@@ -6613,7 +6613,7 @@ static const char* kSimpleExtensionSource =
   "}";
 
 
-THREADED_TEST(SimpleExtensions) {
+TEST(SimpleExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("simpletest", kSimpleExtensionSource));
   const char* extension_names[] = { "simpletest" };
@@ -6626,7 +6626,7 @@ THREADED_TEST(SimpleExtensions) {
 }
 
 
-THREADED_TEST(NullExtensions) {
+TEST(NullExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("nulltest", NULL));
   const char* extension_names[] = { "nulltest" };
@@ -6645,7 +6645,7 @@ static const char* kEmbeddedExtensionSource =
 static const int kEmbeddedExtensionSourceValidLen = 34;
 
 
-THREADED_TEST(ExtensionMissingSourceLength) {
+TEST(ExtensionMissingSourceLength) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("srclentest_fail",
                                       kEmbeddedExtensionSource));
@@ -6657,7 +6657,7 @@ THREADED_TEST(ExtensionMissingSourceLength) {
 }
 
 
-THREADED_TEST(ExtensionWithSourceLength) {
+TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
@@ -6699,7 +6699,7 @@ static const char* kEvalExtensionSource2 =
   "})()";
 
 
-THREADED_TEST(UseEvalFromExtension) {
+TEST(UseEvalFromExtension) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("evaltest1", kEvalExtensionSource1));
   v8::RegisterExtension(new Extension("evaltest2", kEvalExtensionSource2));
@@ -6733,7 +6733,7 @@ static const char* kWithExtensionSource2 =
   "})()";
 
 
-THREADED_TEST(UseWithFromExtension) {
+TEST(UseWithFromExtension) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("withtest1", kWithExtensionSource1));
   v8::RegisterExtension(new Extension("withtest2", kWithExtensionSource2));
@@ -6749,7 +6749,7 @@ THREADED_TEST(UseWithFromExtension) {
 }
 
 
-THREADED_TEST(AutoExtensions) {
+TEST(AutoExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   Extension* extension = new Extension("autotest", kSimpleExtensionSource);
   extension->set_auto_enable(true);
@@ -6768,7 +6768,7 @@ static const char* kSyntaxErrorInExtensionSource =
 
 // Test that a syntax error in an extension does not cause a fatal
 // error but results in an empty context.
-THREADED_TEST(SyntaxErrorExtensions) {
+TEST(SyntaxErrorExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("syntaxerror",
                                       kSyntaxErrorInExtensionSource));
@@ -6786,7 +6786,7 @@ static const char* kExceptionInExtensionSource =
 
 // Test that an exception when installing an extension does not cause
 // a fatal error but results in an empty context.
-THREADED_TEST(ExceptionExtensions) {
+TEST(ExceptionExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("exception",
                                       kExceptionInExtensionSource));
@@ -6808,7 +6808,7 @@ static const char* kNativeCallTest =
     "call_runtime_last_index_of('bobbobboellebobboellebobbob');";
 
 // Test that a native runtime calls are supported in extensions.
-THREADED_TEST(NativeCallInExtensions) {
+TEST(NativeCallInExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("nativecall",
                                       kNativeCallInExtensionSource));
@@ -6844,7 +6844,7 @@ class NativeFunctionExtension : public Extension {
 };
 
 
-THREADED_TEST(NativeFunctionDeclaration) {
+TEST(NativeFunctionDeclaration) {
   v8::HandleScope handle_scope(CcTest::isolate());
   const char* name = "nativedecl";
   v8::RegisterExtension(new NativeFunctionExtension(name,
@@ -6859,7 +6859,7 @@ THREADED_TEST(NativeFunctionDeclaration) {
 }
 
 
-THREADED_TEST(NativeFunctionDeclarationError) {
+TEST(NativeFunctionDeclarationError) {
   v8::HandleScope handle_scope(CcTest::isolate());
   const char* name = "nativedeclerr";
   // Syntax error in extension code.
@@ -6873,7 +6873,7 @@ THREADED_TEST(NativeFunctionDeclarationError) {
 }
 
 
-THREADED_TEST(NativeFunctionDeclarationErrorEscape) {
+TEST(NativeFunctionDeclarationErrorEscape) {
   v8::HandleScope handle_scope(CcTest::isolate());
   const char* name = "nativedeclerresc";
   // Syntax error in extension code - escape code in "native" means that
@@ -7135,7 +7135,7 @@ void WhammyPropertyGetter(Local<String> name,
 }
 
 
-THREADED_TEST(WeakReference) {
+TEST(WeakReference) {
   i::FLAG_expose_gc = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);

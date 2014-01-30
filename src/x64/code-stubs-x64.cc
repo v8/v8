@@ -135,6 +135,17 @@ void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void RegExpConstructResultStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rcx, rbx, rax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry;
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -1837,91 +1848,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movp(rdi, FieldOperand(rdi, SlicedString::kParentOffset));
   __ jmp(&check_underlying);
 #endif  // V8_INTERPRETED_REGEXP
-}
-
-
-void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
-  const int kMaxInlineLength = 100;
-  Label slowcase;
-  Label done;
-  StackArgumentsAccessor args(rsp, 3, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(r8, args.GetArgumentOperand(0));
-  __ JumpIfNotSmi(r8, &slowcase);
-  __ SmiToInteger32(rbx, r8);
-  __ cmpl(rbx, Immediate(kMaxInlineLength));
-  __ j(above, &slowcase);
-  // Smi-tagging is equivalent to multiplying by 2.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  // Allocate RegExpResult followed by FixedArray with size in rbx.
-  // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
-  // Elements:  [Map][Length][..elements..]
-  __ Allocate(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-              times_pointer_size,
-              rbx,  // In: Number of elements.
-              rax,  // Out: Start of allocation (tagged).
-              rcx,  // Out: End of allocation.
-              rdx,  // Scratch register
-              &slowcase,
-              TAG_OBJECT);
-  // rax: Start of allocated area, object-tagged.
-  // rbx: Number of array elements as int32.
-  // r8: Number of array elements as smi.
-
-  // Set JSArray map to global.regexp_result_map().
-  __ movp(rdx, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
-  __ movp(rdx, FieldOperand(rdx, GlobalObject::kNativeContextOffset));
-  __ movp(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
-  __ movp(FieldOperand(rax, HeapObject::kMapOffset), rdx);
-
-  // Set empty properties FixedArray.
-  __ LoadRoot(kScratchRegister, Heap::kEmptyFixedArrayRootIndex);
-  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), kScratchRegister);
-
-  // Set elements to point to FixedArray allocated right after the JSArray.
-  __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
-  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rcx);
-
-  // Set input, index and length fields from arguments.
-  __ movp(r8, args.GetArgumentOperand(2));
-  __ movp(FieldOperand(rax, JSRegExpResult::kInputOffset), r8);
-  __ movp(r8, args.GetArgumentOperand(1));
-  __ movp(FieldOperand(rax, JSRegExpResult::kIndexOffset), r8);
-  __ movp(r8, args.GetArgumentOperand(0));
-  __ movp(FieldOperand(rax, JSArray::kLengthOffset), r8);
-
-  // Fill out the elements FixedArray.
-  // rax: JSArray.
-  // rcx: FixedArray.
-  // rbx: Number of elements in array as int32.
-
-  // Set map.
-  __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
-  __ movp(FieldOperand(rcx, HeapObject::kMapOffset), kScratchRegister);
-  // Set length.
-  __ Integer32ToSmi(rdx, rbx);
-  __ movp(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
-  // Fill contents of fixed-array with undefined.
-  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-  __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
-  // Fill fixed array elements with undefined.
-  // rax: JSArray.
-  // rbx: Number of elements in array that remains to be filled, as int32.
-  // rcx: Start of elements in FixedArray.
-  // rdx: undefined.
-  Label loop;
-  __ testl(rbx, rbx);
-  __ bind(&loop);
-  __ j(less_equal, &done);  // Jump if rcx is negative or zero.
-  __ subl(rbx, Immediate(1));
-  __ movp(Operand(rcx, rbx, times_pointer_size, 0), rdx);
-  __ jmp(&loop);
-
-  __ bind(&done);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&slowcase);
-  __ TailCallRuntime(Runtime::kRegExpConstructResult, 3, 1);
 }
 
 
